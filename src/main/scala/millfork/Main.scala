@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 import java.util.Locale
 
 import millfork.assembly.opt.{CmosOptimizations, DangerousOptimizations, SuperOptimizer, UndocumentedOptimizations}
+import millfork.buildinfo.BuildInfo
 import millfork.cli.{CliParser, CliStatus}
 import millfork.env.Environment
 import millfork.error.ErrorReporting
@@ -239,7 +240,7 @@ object Main {
     }).description("Display this message.")
 
     flag("--version").action(c => {
-      println("millfork version ")
+      println("millfork version " + BuildInfo.version)
       assumeStatus(CliStatus.Quit)
       System.exit(0)
       c

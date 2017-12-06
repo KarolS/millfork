@@ -27,9 +27,9 @@ mainClass in Compile := Some("millfork.Main")
 
 assemblyJarName := "millfork.jar"
 
-//lazy val root = (project in file(".")).
-//  enablePlugins(BuildInfoPlugin).
-//  settings(
-//    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-//    buildInfoPackage := "hello"
-//  )
+lazy val root = (project in file(".")).
+  enablePlugins(BuildInfoPlugin).
+  settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "millfork.buildinfo"
+  )
