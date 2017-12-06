@@ -1,0 +1,23 @@
+# various directories
+target/
+.idea/
+project/target
+project/project/target/
+stuff
+
+# hidden files
+*.~
+
+# compiled Scala files
+*.jar
+*.class
+
+# compiled Millfork files
+*.prg
+*.asm
+*.xex
+*.nes
+*.a2
+*.dsk
+
+
