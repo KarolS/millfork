@@ -2,7 +2,7 @@
 
 ## Hello world example
 
-Save the following as `hello_world.ml`:
+Save the following as `hello_world.mfk`:
 
 ```
 import stdio
@@ -18,7 +18,7 @@ void main(){
 Compile is using the following commandline:
 
 ```
-java millfork.jar hello_world.ml -o hello_world -t c64 -I path_to_millfork\include
+java millfork.jar hello_world.mfk -o hello_world -t c64 -I path_to_millfork\include
 ```
 
 Run the output executable (here using the VICE emulator):
