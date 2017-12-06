@@ -5,25 +5,6 @@ import millfork.error.ErrorReporting
 /**
   * @author Karol Stasiak
   */
-//
-//object CompilationOptions {
-//
-//
-//  private var instance = new CompilationOptions(Platform.C64, Map())
-//
-//  // TODO: ugly!
-//  def change(o: CompilationOptions): Unit = {
-//    instance = o
-//  }
-//
-//  def current: CompilationOptions= instance
-//
-//  def platform: Platform = instance.platform
-//
-//  def flag(flag: CompilationFlag.Value):Boolean = instance.flags(flag)
-//
-//  def flags: Map[CompilationFlag.Value, Boolean] = instance.flags
-//}
 class CompilationOptions(val platform: Platform, val commandLineFlags: Map[CompilationFlag.Value, Boolean]) {
 
   import CompilationFlag._

@@ -65,14 +65,6 @@ class SourceLoadingQueue(val initialFilenames: List[String], val includePath: Li
         }
       case f@Failure(a, b, d) =>
         ErrorReporting.error(s"Failed to parse the module `$moduleName` in $filename", Some(parser.indexToPosition(f.index, parser.lastLabel)))
-//        ErrorReporting.error(a.toString)
-//        ErrorReporting.error(b.toString)
-//        ErrorReporting.error(d.toString)
-//        ErrorReporting.error(d.traced.expected)
-//        ErrorReporting.error(d.traced.stack.toString)
-//        ErrorReporting.error(d.traced.traceParsers.toString)
-//        ErrorReporting.error(d.traced.fullStack.toString)
-//        ErrorReporting.error(f.toString)
         if (parser.lastLabel != "") {
           ErrorReporting.error(s"Syntax error: ${parser.lastLabel} expected", Some(parser.lastPosition))
         } else {

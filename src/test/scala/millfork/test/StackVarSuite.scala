@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -54,8 +54,9 @@ class StackVarSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(21))
   }
 
+  // ERROR: (8:9) Right-hand-side expression is too complex
 //  test("Stack byte subtraction") {
-//    SymonUnoptimizedRun("""
+//    EmuUnoptimizedRun("""
 //        | byte output @$c000
 //        | void main () {
 //        |   stack byte a
