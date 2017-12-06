@@ -1,0 +1,23 @@
+// target-independent things
+
+word nmi_routine_addr   @$FFFA
+word reset_routine_addr @$FFFC
+word irq_routine_addr   @$FFFE
+
+inline asm void poke(word const addr, byte const value) {
+    ?LDA #value
+    STA addr
+}
+
+inline asm byte peek(word const addr) {
+    LDA addr
+}
+
+inline asm void disable_irq() {
+    SEI
+}
+
+inline asm void enable_irq() {
+    CLI
+}
+

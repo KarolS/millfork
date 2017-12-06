@@ -1,0 +1,40 @@
+// Hardware addresses for C64
+
+//   CIA1
+byte cia1_pra       @$DC00
+byte cia1_prb       @$DC01
+byte cia1_ddra      @$DC02
+byte cia1_ddrb      @$DC03
+byte cia2_pra       @$DD00
+byte cia2_prb       @$DD01
+byte cia2_ddra      @$DD02
+byte cia2_ddrb      @$DD03
+
+inline asm void cia_disable_irq() {
+    LDA #$7f
+    LDA $dc0d
+    LDA $dd0d
+    LDA $dc0d
+    LDA $dd0d
+}
+
+
+inline void vic_bank_0000() {
+    cia2_ddra = $C0
+    cia2_pra = $C0
+}
+
+inline void vic_bank_4000() {
+    cia2_ddra = $C0
+    cia2_pra = $80
+}
+
+inline void vic_bank_8000() {
+    cia2_ddra = $C0
+    cia2_pra = $40
+}
+
+inline void vic_bank_C000() {
+    cia2_ddra = $C0
+    cia2_pra = $00
+}

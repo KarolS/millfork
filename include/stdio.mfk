@@ -1,0 +1,10 @@
+// target-independent standard I/O routines
+
+void putstr(pointer str, byte len) {
+    byte index
+    index = 0
+    while (index != len) {
+        putchar(str[index])
+        index += 1
+    }
+}

@@ -1,0 +1,6 @@
+// Routines from C64 BASIC ROM
+
+import c64_kernal
+
+// print a 16-bit number on the standard output
+asm void putword(word xa) @$BDCD extern

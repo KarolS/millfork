@@ -1,0 +1,5 @@
+import c64_vic
+import c64_sid
+import c64_cia
+
+array c64_color_ram [1000] @$D800

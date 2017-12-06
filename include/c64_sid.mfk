@@ -1,0 +1,24 @@
+// Hardware addresses for C64
+
+//   SID
+
+word sid_v1_freq  @$D400
+word sid_v1_pulse @$D402
+byte sid_v1_cr    @$D404
+byte sid_v1_ad    @$D405
+byte sid_v1_sr    @$D409
+
+word sid_v2_freq  @$D407
+word sid_v2_pulse @$D409
+byte sid_v2_cr    @$D40B
+byte sid_v2_ad    @$D40C
+byte sid_v2_sr    @$D40D
+
+word sid_v3_freq  @$D40E
+word sid_v3_pulse @$D410
+byte sid_v3_cr    @$D412
+byte sid_v3_ad    @$D413
+byte sid_v3_sr    @$D414
+
+byte sid_paddle_x @$D419
+byte sid_paddle_y @$D41A

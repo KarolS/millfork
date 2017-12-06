@@ -1,6 +1,8 @@
 # Millfork
 
-A middle-level programming language targeting 6502-based microcomputers.
+A middle-level programming language targeting 6502-based microcomputers. 
+
+Distributed under GPLv3 (see [LICENSE](LICENSE))
 
 **UNDER DEVELOPMENT, NOT FOR PRODUCTION USE**
 

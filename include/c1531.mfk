@@ -1,0 +1,60 @@
+// mouse driver for Commodore 1531 mouse on Commodore 64
+
+import mouse
+import c64_hardware
+
+sbyte _c1531_calculate_delta (byte old, byte new) {
+    byte mouse_delta
+	mouse_delta = (new - old)
+	mouse_delta &= $3f
+	if mouse_delta >= $20 {
+		mouse_delta |= $c0
+	}
+	return mouse_delta
+}
+
+byte _c1531_handle_x() {
+    static byte _c1531_old_pot_x
+    sbyte mouse_delta
+    byte new_pot_x
+
+	new_pot_x = sid_paddle_x >> 1
+	mouse_delta = _c1531_calculate_delta(_c1531_old_pot_x, new_pot_x)
+	_c1531_old_pot_x = new_pot_x
+
+    mouse_x += mouse_delta
+	mouse_x.hi &= 1
+
+	if mouse_x > 319 {
+        if mouse_delta > 0 {
+            mouse_x = 319
+        } else {
+            mouse_x = 0
+        }
+	}
+}
+
+byte _c1531_handle_y() {
+    static byte _c1531_old_pot_y
+    byte new_pot_y
+    sbyte mouse_delta
+
+	new_pot_y = sid_paddle_y >> 1
+	mouse_delta = _c1531_calculate_delta(_c1531_old_pot_y, new_pot_y)
+	_c1531_old_pot_y = new_pot_y
+	mouse_y -= mouse_delta
+    if mouse_y > 199 {
+	    if mouse_delta > 0 {
+			mouse_y = 0
+		} else {
+			mouse_y = 199
+		}
+	}
+}
+
+void c1531_mouse () {
+
+	cia1_pra = ($3f & cia1_pra) | $40
+    _c1531_handle_x()
+    _c1531_handle_y()
+}

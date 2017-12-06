@@ -1,0 +1,32 @@
+// Routines from C64 KERNAL ROM
+
+// CHROUT. Write byte to default output. (If not screen, must call OPEN and CHKOUT beforehands.)
+// Input: A = Byte to write.
+asm void putchar(byte a) @$FFD2 extern
+
+// OPEN. Open file. (Must call SETLFS and SETNAM beforehands.)
+asm void open() @$FFC0 extern
+
+// CLOSE. Close file.
+// Input: A = Logical number.
+asm void close(byte a) @$FFC0 extern
+
+// SETLFS. Set file parameters.
+// Input: A = Logical number; X = Device number; Y = Secondary address.
+asm void setlfs(byte a, byte x, byte y) @$FFBA extern
+
+// SETNAM. Set file name parameters.
+// Input: A = File name length; X/Y = Pointer to file name.
+asm void setnam(word yx, byte a) @$FFBA extern
+
+// LOAD. Load or verify file. (Must call SETLFS and SETNAM beforehands.)
+// Input: A: 0 = Load, 1-255 = Verify; X/Y = Load address (if secondary address = 0).
+// Output: Carry: 0 = No errors, 1 = Error; A = KERNAL error code (if Carry = 1); X/Y = Address of last byte loaded/verified (if Carry = 0).
+asm clear_carry load(byte a, word yx) @$FFD5 extern
+
+// SAVE. Save file. (Must call SETLFS and SETNAM beforehands.)
+// Input: A = Address of zero page register holding start address of memory area to save; X/Y = End address of memory area plus 1.
+// Output: Carry: 0 = No errors, 1 = Error; A = KERNAL error code (if Carry = 1).
+asm clear_carry save(byte a, word yx) @$FFD5 extern
+
+word irq_pointer @$314

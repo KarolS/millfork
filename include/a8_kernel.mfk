@@ -1,0 +1,9 @@
+asm void putchar(byte a) {
+    tax
+    lda $347
+    pha
+    lda $346
+    pha
+    txa
+    rts
+}

@@ -1,0 +1,20 @@
+
+const byte black = 0
+const byte white = $71
+const byte red = $22
+const byte cyan = $43
+const byte purple = $24
+const byte green  = $35
+const byte blue = $16
+const byte yellow = $57
+const byte orange = $28
+const byte brown = $19
+const byte light_red = $32
+const byte dark_grey = $21
+const byte dark_gray = $21
+const byte medium_grey = $31
+const byte medium gray = $31
+const byte light_green = $55
+const byte light_blue = $36
+const byte light_grey = $41
+const byte light_gray = $41

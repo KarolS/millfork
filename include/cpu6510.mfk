@@ -1,0 +1,3 @@
+
+byte cpu6510_ddr  @0
+byte cpu6510_port @1

@@ -1,0 +1,154 @@
+// Hardware addresses for C64
+
+//   VIC-II
+byte vic_spr0_x     @$D000
+byte vic_spr0_y     @$D001
+byte vic_spr1_x     @$D002
+byte vic_spr1_y     @$D003
+byte vic_spr2_x     @$D004
+byte vic_spr2_y     @$D005
+byte vic_spr3_x     @$D006
+byte vic_spr3_y     @$D007
+byte vic_spr4_x     @$D008
+byte vic_spr4_y     @$D009
+byte vic_spr5_x     @$D00A
+byte vic_spr5_y     @$D00B
+byte vic_spr6_x     @$D00C
+byte vic_spr6_y     @$D00D
+byte vic_spr7_x     @$D00E
+byte vic_spr7_y     @$D00F
+byte vic_spr_hi_x   @$D010
+byte vic_cr1        @$D011
+byte vic_raster     @$D012
+byte vic_lp_x       @$D013
+byte vic_lp_y       @$D014
+byte vic_spr_ena    @$D015
+byte vic_cr2        @$D016
+byte vic_spr_exp_y  @$D017
+byte vic_mem        @$D018
+byte vic_irq        @$D019
+byte vic_irq_ena    @$D01A
+byte vic_spr_dp     @$D01B
+byte vic_spr_mcolor @$D01C
+byte vic_spr_exp_x  @$D01D
+byte vic_spr_ss_col @$D01E
+byte vic_spr_sd_col @$D01F
+byte vic_border     @$D020
+byte vic_bg_color0  @$D021
+byte vic_bg_color1  @$D022
+byte vic_bg_color2  @$D023
+byte vic_bg_color3  @$D024
+byte vic_spr_color1 @$D025
+byte vic_spr_color2 @$D026
+byte vic_spr0_color @$D027
+byte vic_spr1_color @$D028
+byte vic_spr2_color @$D029
+byte vic_spr3_color @$D02A
+byte vic_spr4_color @$D02B
+byte vic_spr5_color @$D02C
+byte vic_spr6_color @$D02D
+byte vic_spr7_color @$D02E
+
+array vic_spr_coord [16] @$D000
+array vic_spr_color [8] @$D027
+
+inline void vic_enable_multicolor() {
+    vic_cr2 |= 0x10
+}
+
+inline void vic_disable_multicolor() {
+    vic_cr2 &= 0xEF
+}
+
+inline void vic_enable_bitmap() {
+    vic_cr1 |= 0x20
+}
+
+inline void vic_disable_bitmap() {
+    vic_cr1 &= 0xDF
+}
+
+inline void vic_24_rows() {
+    vic_cr1 &= 0xF7
+}
+
+inline void vic_25_rows() {
+    vic_cr1 |= 8
+}
+
+inline void vic_38_columns() {
+    vic_cr2 &= 0xF7
+}
+
+inline void vic_40_columns() {
+    vic_cr2 |= 8
+}
+
+inline void vic_disable_irq() {
+    vic_irq_ena = 0
+    vic_irq += 1
+}
+
+// base: divisible by $400, $0000-$3C00 allowed
+//inline void vic_screen(word const base) {
+//    vic_mem = (vic_mem & $0F) | (base >> 6)
+//}
+
+inline void vic_charset_0000() {
+    vic_mem = (vic_mem & $F1)
+}
+inline void vic_charset_0800() {
+    vic_mem = (vic_mem & $F1) | 2
+}
+inline void vic_charset_1000() {
+    vic_mem = (vic_mem & $F1) | 4
+}
+inline void vic_charset_1800() {
+    vic_mem = (vic_mem & $F1) | 6
+}
+inline void vic_charset_2000() {
+    vic_mem = (vic_mem & $F1) | 8
+}
+inline void vic_charset_2800() {
+    vic_mem = (vic_mem & $F1) | $A
+}
+inline void vic_charset_3000() {
+    vic_mem = (vic_mem & $F1) | $C
+}
+inline void vic_charset_3800() {
+    vic_mem = (vic_mem & $F1) | $E
+}
+
+inline void vic_bitmap_0000() {
+    vic_mem &= $F7
+}
+inline void vic_bitmap_2000() {
+    vic_mem |= 8
+}
+
+// x, y < 8
+// default: x=0, y=3
+void vic_set_scroll(byte x, byte y) {
+    vic_cr1 = (vic_cr1 & $F8) | y
+    vic_cr2 = (vic_cr2 & $F8) | x
+}
+
+const byte black = 0
+const byte white = 1
+const byte red = 2
+const byte cyan = 3
+const byte purple = 4
+const byte green  = 5
+const byte blue = 6
+const byte yellow = 7
+const byte orange = 8
+const byte brown = 9
+const byte light_red = 10
+const byte dark_grey = 11
+const byte dark_gray = 11
+const byte medium_grey = 12
+const byte medium_gray = 12
+const byte light_green = 13
+const byte light_blue = 14
+const byte light_grey = 15
+const byte light_gray = 15

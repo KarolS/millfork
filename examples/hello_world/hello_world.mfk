@@ -1,0 +1,11 @@
+// compile with
+// java -jar millfork.jar -I ${PATH}/include -t ${platform} ${PATH}/examples/hello_world/hello_world.mfk
+
+import stdio
+
+array hello_world = "hello world" petscii
+
+void main(){
+    putstr(hello_world, hello_world.length)
+    while(true){}
+}
