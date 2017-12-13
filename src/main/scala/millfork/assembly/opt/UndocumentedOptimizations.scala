@@ -15,9 +15,7 @@ object UndocumentedOptimizations {
 
   val counter = new AtomicInteger(30000)
 
-  def getNextLabel(prefix: String) = f".${prefix}%s__${counter.getAndIncrement()}%05d"
-
-  // TODO: test these
+  def getNextLabel(prefix: String) = f".$prefix%s__${counter.getAndIncrement()}%05d"
 
   private val LaxAddrModeRestriction = Not(HasAddrModeIn(Set(AbsoluteX, ZeroPageX, IndexedX, Immediate)))
 
@@ -72,23 +70,21 @@ object UndocumentedOptimizations {
   val SaxModes: Set[AddrMode.Value] = Set(ZeroPage, IndexedX, ZeroPageY, Absolute)
 
   val UseSax = new RuleBasedAssemblyOptimization("Using undocumented instruction SAX",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    (HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ConcernsA) & Not(ConcernsX)).?.capture(10) ~
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.X)) ~
+      (Linear & Not(ConcernsA) & Not(ConcernsX) & DoesntChangeMemoryAt(0, 1)).*.capture(10) ~
       (HasOpcode(AND) & Elidable & MatchAddrMode(2) & MatchParameter(3) & Not(ReadsX)) ~
-      (Linear & Not(ConcernsA) & Not(ConcernsX)).?.capture(11) ~
-      (HasOpcode(STA) & Elidable & MatchAddrMode(4) & MatchParameter(5) & HasAddrModeIn(SaxModes) & DontMatchParameter(0)) ~
-      (Linear & Not(ConcernsA) & Not(ConcernsX) & Not(ChangesMemory)).?.capture(12) ~
-      (HasOpcode(LDA) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~
-      (LinearOrLabel & Not(ConcernsX)).*.capture(13) ~ OverwritesX ~~> { (code, ctx) =>
+      (Linear & Not(ConcernsA) & Not(ConcernsX) & DoesntChangeMemoryAt(0, 1)).*.capture(11) ~
+      (HasOpcode(STA) & Elidable & MatchAddrMode(4) & MatchParameter(5) & HasAddrModeIn(SaxModes) & DoesntChangeMemoryAt(0, 1)) ~
+      (Linear & Not(ConcernsA) & Not(ConcernsX) & DoesntChangeMemoryAt(0, 1)).*.capture(12) ~
+      (HasOpcode(LDA) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       val lda = code.head
       val ldx = AssemblyLine(LDX, ctx.get[AddrMode.Value](2), ctx.get[Constant](3))
       val sax = AssemblyLine(SAX, ctx.get[AddrMode.Value](4), ctx.get[Constant](5))
       val fragment0 = lda :: ctx.get[List[AssemblyLine]](10)
       val fragment1 = ldx :: ctx.get[List[AssemblyLine]](11)
       val fragment2 = sax :: ctx.get[List[AssemblyLine]](12)
-      val fragment3 = ctx.get[List[AssemblyLine]](13)
-      List(fragment0, fragment1, fragment2, fragment3).flatten
+      List(fragment0, fragment1, fragment2).flatten
     },
   )
 
@@ -104,10 +100,10 @@ object UndocumentedOptimizations {
     (Elidable & HasOpcode(LDA) & HasImmediate(0) & HasClear(State.C)) ~~> (_ => List(AssemblyLine.immediate(ANC, 0))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0)) ~
       Where(c => andConstant(c.get[Constant](0), 0x80).contains(0)) ~
-      (Elidable & HasOpcode(CLC)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Int](0)))),
+      (Elidable & HasOpcode(CLC)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Constant](0)))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0)) ~
       Where(c => andConstant(c.get[Constant](0), 0x80).contains(0x80)) ~
-      (Elidable & HasOpcode(SEC)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Int](0)))),
+      (Elidable & HasOpcode(SEC)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Constant](0)))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0)) ~
       (Elidable & HasOpcode(CMP) & HasImmediate(0x80) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Int](0)))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0)) ~
@@ -122,29 +118,29 @@ object UndocumentedOptimizations {
 
   val UseSbx = new RuleBasedAssemblyOptimization("Using undocumented instruction SBX",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
-    (Elidable & HasOpcode(DEX) & DoesntMatterWhatItDoesWith(State.A, State.C)).+.captureLength(0) ~
+    (Elidable & HasOpcode(DEX) & DoesntMatterWhatItDoesWith(State.A)).+.captureLength(0) ~
       Where(_.get[Int](0) > 2) ~~> ((_, ctx) => List(
       AssemblyLine.implied(TXA),
-      AssemblyLine.immediate(SBX, ctx.get[Int](0)),
+      AssemblyLine.immediate(SBX, ctx.get[Constant](0)),
     )),
-    (Elidable & HasOpcode(INX) & DoesntMatterWhatItDoesWith(State.A, State.C)).+.captureLength(0) ~
+    (Elidable & HasOpcode(INX) & DoesntMatterWhatItDoesWith(State.A)).+.captureLength(0) ~
       Where(_.get[Int](0) > 2) ~~> ((_, ctx) => List(
       AssemblyLine.implied(TXA),
-      AssemblyLine.immediate(SBX, 256 - ctx.get[Int](0)),
+      AssemblyLine.immediate(SBX, Constant.Zero - ctx.get[Constant](0)),
     )),
     HasOpcode(TXA) ~
       (Elidable & HasOpcode(CLC)).? ~
       (Elidable & HasClear(State.C) & HasClear(State.D) & HasOpcode(ADC) & MatchImmediate(0)) ~
       (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.C, State.A)) ~~> ((code, ctx) => List(
       code.head,
-      AssemblyLine.immediate(SBX, 256 - ctx.get[Int](0)),
+      AssemblyLine.immediate(SBX, Constant.Zero - ctx.get[Constant](0)),
     )),
     HasOpcode(TXA) ~
       (Elidable & HasOpcode(SEC)).? ~
       (Elidable & HasSet(State.C) &  HasClear(State.D) & HasOpcode(SBC) & MatchImmediate(0)) ~
       (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.C, State.A)) ~~> ((code, ctx) => List(
       code.head,
-      AssemblyLine.immediate(SBX, ctx.get[Int](0)),
+      AssemblyLine.immediate(SBX, ctx.get[Constant](0)),
     )),
   )
 
@@ -152,11 +148,11 @@ object UndocumentedOptimizations {
   val UseAlr = new RuleBasedAssemblyOptimization("Using undocumented instruction ALR",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (Elidable & HasOpcode(AND) & HasAddrMode(Immediate)) ~
-      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~~> { code =>
       List(AssemblyLine.immediate(ALR, code.head.parameter))
     },
     (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
-      (Elidable & HasOpcode(CLC)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcode(CLC)) ~~> { _ =>
       List(AssemblyLine.immediate(ALR, 0xFE))
     },
   )
@@ -164,7 +160,7 @@ object UndocumentedOptimizations {
   val UseArr = new RuleBasedAssemblyOptimization("Using undocumented instruction ARR",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (HasClear(State.D) & Elidable & HasOpcode(AND) & HasAddrMode(Immediate)) ~
-      (Elidable & HasOpcode(ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcode(ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
       List(AssemblyLine.immediate(ARR, code.head.parameter))
     },
   )
@@ -193,7 +189,7 @@ object UndocumentedOptimizations {
   }
 
   val UseSlo = new RuleBasedAssemblyOptimization("Using undocumented instruction SLO",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
     trivialSequence1(ASL, ORA, Not(ConcernsC), SLO),
     trivialSequence2(ASL, ORA, Not(ConcernsC), SLO),
     trivialCommutativeSequence(ASL, ORA, SLO),
@@ -206,10 +202,15 @@ object UndocumentedOptimizations {
       (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(2) ~
       (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
       (Linear & Not(ConcernsMemory) & Not(ChangesA) & Not(ReadsC) & Not(ReadsNOrZ)).*.capture(3) ~
-      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (_, ctx) =>
       List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SRE, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
         ctx.get[List[AssemblyLine]](2) ++
         ctx.get[List[AssemblyLine]](3)
+    },
+    (Elidable & HasA(0) & HasOpcode(ASL) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & DoesntChangeMemoryAt(0, 1) & Not(ChangesA)).* ~
+      (Elidable & HasA(0) & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.N, State.C)) ~~> { code =>
+      code.head.copy(opcode = SLO) :: code.tail.init
     },
   )
 
@@ -227,7 +228,7 @@ object UndocumentedOptimizations {
       (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(2) ~
       (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
       (Linear & Not(ConcernsMemory) & Not(ChangesA) & Not(ReadsC) & Not(ReadsNOrZ)).*.capture(3) ~
-      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (_, ctx) =>
       List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SRE, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
         ctx.get[List[AssemblyLine]](2) ++
         ctx.get[List[AssemblyLine]](3)
@@ -262,7 +263,11 @@ object UndocumentedOptimizations {
       (Elidable & HasOpcode(LDA) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(CMP) & MatchAddrMode(2) & MatchParameter(3) & DoesntMatterWhatItDoesWith(State.V, State.C, State.N, State.A)) ~~> { code =>
       List(code(2).copy(opcode = LDA), code(1).copy(opcode = DCP))
-    }
+    },
+    (Elidable & HasOpcode(DEC) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.V, State.C, State.N, State.A)) ~~> { code =>
+      List(AssemblyLine.immediate(LDA, 0), code(1).copy(opcode = DCP))
+    },
   )
 
   val UseIsc = new RuleBasedAssemblyOptimization("Using undocumented instruction ISC",
