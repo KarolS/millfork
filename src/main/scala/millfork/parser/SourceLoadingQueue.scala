@@ -16,7 +16,7 @@ class SourceLoadingQueue(val initialFilenames: List[String], val includePath: Li
 
   private val parsedModules = mutable.Map[String, Program]()
   private val moduleQueue = mutable.Queue[() => Unit]()
-  val extension: String = ".ml"
+  val extension: String = ".mfk"
 
 
   def run(): Program = {
