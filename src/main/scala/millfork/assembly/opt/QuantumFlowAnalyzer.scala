@@ -308,6 +308,10 @@ object QuantumFlowAnalyzer {
             currentStatus = currentStatus.mapRegisters(r => r.changeY(_ - 1)).changeNZFromY
           case AssemblyLine(DEY, Implied, _, _) =>
             currentStatus = currentStatus.mapRegisters(r => r.changeY(_ - 1)).changeNZFromY
+          case AssemblyLine(INC, Implied, _, _) =>
+            currentStatus = currentStatus.mapRegisters(r => r.changeA(_ - 1)).changeNZFromA
+          case AssemblyLine(DEC, Implied, _, _) =>
+            currentStatus = currentStatus.mapRegisters(r => r.changeA(_ - 1)).changeNZFromA
           case AssemblyLine(TAX, _, _, _) =>
             currentStatus = currentStatus.mapRegisters(r => r.copy(x = r.a).afterTransfer(RegEquality.AX)).changeNZFromX
           case AssemblyLine(TXA, _, _, _) =>

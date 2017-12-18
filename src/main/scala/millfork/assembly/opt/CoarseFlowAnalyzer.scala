@@ -223,6 +223,10 @@ object CoarseFlowAnalyzer {
             currentStatus = currentStatus.copy(n = currentStatus.y.n(_ + 1), z = currentStatus.y.z(_ + 1), y = currentStatus.y.map(_ + 1))
           case AssemblyLine(DEY, Implied, _, _) =>
             currentStatus = currentStatus.copy(n = currentStatus.y.n(_ - 1), z = currentStatus.y.z(_ - 1), y = currentStatus.y.map(_ - 1))
+          case AssemblyLine(INC, Implied, _, _) =>
+            currentStatus = currentStatus.copy(n = currentStatus.a.n(_ + 1), z = currentStatus.a.z(_ + 1), a = currentStatus.a.map(_ + 1))
+          case AssemblyLine(DEC, Implied, _, _) =>
+            currentStatus = currentStatus.copy(n = currentStatus.a.n(_ - 1), z = currentStatus.a.z(_ - 1), a = currentStatus.a.map(_ - 1))
           case AssemblyLine(TAX, _, _, _) =>
             currentStatus = currentStatus.copy(x = currentStatus.a, n = currentStatus.a.n(), z = currentStatus.a.z())
           case AssemblyLine(TXA, _, _, _) =>
