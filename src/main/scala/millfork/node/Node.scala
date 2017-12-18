@@ -163,7 +163,7 @@ object ForDirection extends Enumeration {
 }
 
 case class ForStatement(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: List[ExecutableStatement]) extends ExecutableStatement {
-  override def getAllExpressions: List[Expression] = start :: end :: body.flatMap(_.getAllExpressions)
+  override def getAllExpressions: List[Expression] = VariableExpression(variable) :: start :: end :: body.flatMap(_.getAllExpressions)
 }
 
 case class DoWhileStatement(body: List[ExecutableStatement], condition: Expression) extends ExecutableStatement {
