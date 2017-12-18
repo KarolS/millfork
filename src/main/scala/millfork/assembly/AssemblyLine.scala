@@ -12,13 +12,13 @@ object OpcodeClasses {
 
   val ReadsAAlways = Set(
     ADC, AND, BIT, CMP, EOR, ORA, PHA, SBC, STA, TAX, TAY,
-    SAX, SBX, ANC, DCP
+    SAX, SBX, ANC, DCP, ISC, RRA, RLA, SRE, SLO, LXA, XAA, AHX, TAS
   )
   val ReadsAIfImplied = Set(ASL, LSR, ROL, ROR, INC, DEC)
   val ReadsXAlways = Set(
     CPX, DEX, INX, STX, TXA, TXS, SBX,
     PLX,
-    XAA, SAX, AHX, SHX
+    XAA, SAX, AHX, SHX, TAS
   )
   val ReadsYAlways = Set(CPY, DEY, INY, STY, TYA, PLY, SHY)
   val ReadsZ = Set(BNE, BEQ, PHP)
