@@ -618,7 +618,41 @@ object BuiltIns {
 
     def isRhsStack(xs: List[AssemblyLine]): Boolean = xs.exists(_.opcode == TSX)
 
+    val canUseIncDec = !decimal && targetBytes.forall(_.forall(l => l.opcode != STA || (l.addrMode match {
+      case AddrMode.Absolute => true
+      case AddrMode.AbsoluteX => true
+      case AddrMode.ZeroPage => true
+      case AddrMode.ZeroPageX => true
+      case _ => false
+    })))
+
+    def doDec(lines: List[List[AssemblyLine]]):List[AssemblyLine] = lines match {
+      case Nil => Nil
+      case x :: Nil => staTo(DEC, x)
+      case x :: xs =>
+        val label = MlCompiler.nextLabel("de")
+        staTo(LDA, x) ++
+          List(AssemblyLine.relative(BNE, label)) ++
+          doDec(xs) ++
+          List(AssemblyLine.label(label)) ++
+          staTo(DEC, x)
+    }
+
     val (calculateRhs, addendByteRead0): (List[AssemblyLine], List[List[AssemblyLine]]) = env.eval(addend) match {
+      case Some(NumericConstant(0, _)) =>
+        return Nil
+      case Some(NumericConstant(1, _)) if canUseIncDec && !subtract =>
+        val label = MlCompiler.nextLabel("in")
+        return staTo(INC, targetBytes.head) ++ targetBytes.tail.flatMap(l => AssemblyLine.relative(BNE, label)::staTo(INC, l)) :+ AssemblyLine.label(label)
+      case Some(NumericConstant(-1, _)) if canUseIncDec && subtract =>
+        val label = MlCompiler.nextLabel("in")
+        return staTo(INC, targetBytes.head) ++ targetBytes.tail.flatMap(l => AssemblyLine.relative(BNE, label)::staTo(INC, l)) :+ AssemblyLine.label(label)
+      case Some(NumericConstant(1, _)) if canUseIncDec && subtract =>
+        val label = MlCompiler.nextLabel("de")
+        return doDec(targetBytes)
+      case Some(NumericConstant(-1, _)) if canUseIncDec && !subtract =>
+        val label = MlCompiler.nextLabel("de")
+        return doDec(targetBytes)
       case Some(constant) =>
         addendSize = targetSize
         Nil -> List.tabulate(targetSize)(i => List(AssemblyLine.immediate(LDA, constant.subbyte(i))))

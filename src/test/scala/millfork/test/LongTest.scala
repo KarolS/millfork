@@ -157,4 +157,44 @@ class LongTest extends FunSuite with Matchers {
       m.readLong(0xc000) should equal(0x44)
     }
   }
+
+  test("Long INC/DEC") {
+    EmuBenchmarkRun(
+      """
+        | long output0 @$c000
+        | long output1 @$c004
+        | long output2 @$c008
+        | long output3 @$c00c
+        | long output4 @$c010
+        | long output5 @$c014
+        | long output6 @$c018
+        | void main () {
+        |   output0 = 0
+        |   output1 = $FF
+        |   output2 = $FFFF
+        |   output3 = $FF00
+        |   output4 = $FF00
+        |   output5 = $10000
+        |   output6 = 0
+        |   barrier()
+        |   output0 += 1
+        |   output1 += 1
+        |   output2 += 1
+        |   output3 += 1
+        |   output4 -= 1
+        |   output5 -= 1
+        |   output6 -= 1
+        | }
+        | void barrier() {
+        | }
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(1)
+      m.readLong(0xc004) should equal(0x100)
+      m.readLong(0xc008) should equal(0x10000)
+      m.readLong(0xc00c) should equal(0xff01)
+      m.readLong(0xc010) should equal(0xfeff)
+      m.readLong(0xc014) should equal(0xffff)
+      m.readLong(0xc018) should equal(0xffffffff)
+    }
+  }
 }
