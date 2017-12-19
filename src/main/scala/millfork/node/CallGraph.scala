@@ -1,5 +1,6 @@
 package millfork.node
 
+import millfork.Tarjan
 import millfork.error.ErrorReporting
 
 import scala.collection.mutable
@@ -20,25 +21,18 @@ case object GlobalVertex extends VariableVertex {
   override def function = ""
 }
 
-trait CallGraph {
+abstract class CallGraph(program: Program) {
+
   def canOverlap(a: VariableVertex, b: VariableVertex): Boolean
-}
 
-object RestrictiveCallGraph extends CallGraph {
-
-  def canOverlap(a: VariableVertex, b: VariableVertex): Boolean = false
-}
-
-class StandardCallGraph(program: Program) extends CallGraph {
-
-  private val entryPoints = mutable.Set[String]()
+  protected val entryPoints = mutable.Set[String]()
   // (F,G) means function F calls function G
-  private val callEdges = mutable.Set[(String, String)]()
+  protected val callEdges = mutable.Set[(String, String)]()
   // (F,G) means function G is called when building parameters for function F
-  private val paramEdges = mutable.Set[(String, String)]()
-  private val multiaccessibleFunctions = mutable.Set[String]()
-  private val everCalledFunctions = mutable.Set[String]()
-  private val allFunctions = mutable.Set[String]()
+  protected val paramEdges = mutable.Set[(String, String)]()
+  protected val multiaccessibleFunctions = mutable.Set[String]()
+  protected val everCalledFunctions = mutable.Set[String]()
+  protected val allFunctions = mutable.Set[String]()
 
   entryPoints += "main"
   program.declarations.foreach(s => add(None, Nil, s))
@@ -119,6 +113,16 @@ class StandardCallGraph(program: Program) extends CallGraph {
   def isEverCalled(function: String): Boolean = {
     everCalledFunctions(function)
   }
+
+  def recommendedCompilationOrder: List[String] = Tarjan.sort(allFunctions, callEdges)
+}
+
+class RestrictiveCallGraph(program: Program) extends CallGraph(program) {
+
+  def canOverlap(a: VariableVertex, b: VariableVertex): Boolean = false
+}
+
+class StandardCallGraph(program: Program) extends CallGraph(program) {
 
   def canOverlap(a: VariableVertex, b: VariableVertex): Boolean = {
     if (a.function == b.function) {

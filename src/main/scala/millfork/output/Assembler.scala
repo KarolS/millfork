@@ -6,7 +6,7 @@ import millfork.compiler.{CompilationContext, MlCompiler}
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node.CallGraph
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.{CompilationFlag, CompilationOptions, Tarjan}
 
 import scala.collection.mutable
 
@@ -159,21 +159,28 @@ class Assembler(private val rootEnv: Environment) {
       case f: NormalFunction if f.address.isDefined =>
         var index = f.address.get.asInstanceOf[NumericConstant].value.toInt
         labelMap(f.name) = index
-        compileFunction(f, index, optimizations, assembly, options)
+        val code = compileFunction(f, optimizations, options)
+        index = outputFunction(code, index, assembly, options)
       case _ =>
     }
 
+    val compiledFunctions = mutable.Map[String, List[AssemblyLine]]()
+    callGraph.recommendedCompilationOrder.foreach{ f =>
+      env.maybeGet[NormalFunction](f).foreach( function =>
+        compiledFunctions(f) = compileFunction(function, optimizations, options)
+      )
+    }
     var index = platform.org
     env.allPreallocatables.foreach {
       case f: NormalFunction if f.address.isEmpty && f.name == "main" =>
         labelMap(f.name) = index
-        index = compileFunction(f, index, optimizations, assembly, options)
+        index = outputFunction(compiledFunctions(f.name), index, assembly, options)
       case _ =>
     }
     env.allPreallocatables.foreach {
       case f: NormalFunction if f.address.isEmpty && f.name != "main" =>
         labelMap(f.name) = index
-        index = compileFunction(f, index, optimizations, assembly, options)
+        index = outputFunction(compiledFunctions(f.name), index, assembly, options)
       case _ =>
     }
     env.allPreallocatables.foreach {
@@ -242,16 +249,20 @@ class Assembler(private val rootEnv: Environment) {
     AssemblerOutput(platform.outputPackager.packageOutput(mem, 0), assembly.toArray, labelMap.toList)
   }
 
-  private def compileFunction(f: NormalFunction, startFrom: Int, optimizations: Seq[AssemblyOptimization], assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
+  private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization], options: CompilationOptions) :List[AssemblyLine] = {
     ErrorReporting.debug("Compiling: " + f.name, f.position)
-    var index = startFrom
-    assOut.append("* = $" + startFrom.toHexString)
     val unoptimized = MlCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).linearize
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
       opt.optimize(f, c, options)
     }
     optimizedCodeSize += code.map(_.sizeInBytes).sum
+    code
+  }
+
+  private def outputFunction(code:List[AssemblyLine], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
+    var index = startFrom
+    assOut.append("* = $" + startFrom.toHexString)
     import millfork.assembly.AddrMode._
     import millfork.assembly.Opcode._
     for (instr <- code) {
