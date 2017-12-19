@@ -265,6 +265,8 @@ object AlwaysGoodOptimizations {
     (OverwritesV & Elidable) ~ (LinearOrLabel & Not(ReadsV) & Not(DiscardsV)).* ~ DiscardsV ~~> (_.tail)
   )
 
+  // Optimizing Bxx to JMP is generally bad, but it may allow for better optimizations later
+  // It's okay to undo it at a later stage, but it's not done yet
   val FlagFlowAnalysis = new RuleBasedAssemblyOptimization("Flag flow analysis",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
     (HasSet(State.C) & HasOpcode(SEC) & Elidable) ~~> (_ => Nil),
@@ -279,7 +281,7 @@ object AlwaysGoodOptimizations {
     (HasClear(State.V) & HasOpcode(BVC) & Elidable) ~~> (c => c.map(_.copy(opcode = JMP, addrMode = Absolute))),
     (HasSet(State.V) & HasOpcode(BVS) & Elidable) ~~> (c => c.map(_.copy(opcode = JMP, addrMode = Absolute))),
     (HasSet(State.Z) & HasOpcode(BEQ) & Elidable) ~~> (c => c.map(_.copy(opcode = JMP, addrMode = Absolute))),
-    (HasClear(State.Z) & HasOpcode(BNE) & Elidable) ~~> (_ => Nil),
+    (HasClear(State.Z) & HasOpcode(BNE) & Elidable) ~~> (c => c.map(_.copy(opcode = JMP, addrMode = Absolute))),
   )
 
   val ReverseFlowAnalysis = new RuleBasedAssemblyOptimization("Reverse flow analysis",
