@@ -102,7 +102,7 @@ object Main {
     ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
     ErrorReporting.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
     ErrorReporting.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
-    ErrorReporting.debug(f"Initialized arrays:    ${assembler.initializedArraysSize}%5d B")
+    ErrorReporting.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
 
     if (c.outputAssembly) {
       val path = Paths.get(assOutput)

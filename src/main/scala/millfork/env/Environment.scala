@@ -54,9 +54,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     case _ => None
   }.toList
 
-  def allPreallocatables: List[PrellocableThing] = things.values.flatMap {
+  def allPreallocatables: List[PreallocableThing] = things.values.flatMap {
     case m: NormalFunction => Some(m)
     case m: InitializedArray => Some(m)
+    case m: InitializedMemoryVariable => Some(m)
     case _ => None
   }.toList
 
@@ -413,7 +414,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
         val zp = typ.name == "pointer" // TODO
-      val v = MemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto)
+      val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto)
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position)
         if (typ.size == 2) {
@@ -452,7 +453,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
                   case Some(aa) => RelativeArray(stmt.name + ".array", aa, length.toInt)
                 }
                 addThing(array, stmt.position)
-                registerAddressConstant(MemoryVariable(stmt.name, p, VariableAllocationMethod.None), stmt.position)
+                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None), stmt.position)
                 val a = address match {
                   case None => array.toAddress
                   case Some(aa) => aa
@@ -486,7 +487,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         val data = contents.map(x => eval(x).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant contents", stmt.position)))
         val array = InitializedArray(stmt.name + ".array", address, data)
         addThing(array, stmt.position)
-        registerAddressConstant(MemoryVariable(stmt.name, p, VariableAllocationMethod.None), stmt.position)
+        registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None), stmt.position)
         val a = address match {
           case None => array.toAddress
           case Some(aa) => aa
@@ -538,7 +539,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       }
     } else {
       if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
-      if (stmt.initialValue.isDefined) ErrorReporting.error(s"`$name` is not a constant and cannot have a value", position)
+      if (stmt.initialValue.isDefined && parent.isDefined) ErrorReporting.error(s"`$name` is local and not a constant and therefore cannot have a value", position)
       if (stmt.stack) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
         baseStackOffset += typ.size
@@ -550,7 +551,16 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
           val alloc = if (typ.name == "pointer") VariableAllocationMethod.Zeropage else if (stmt.global) VariableAllocationMethod.Static else VariableAllocationMethod.Auto
-          val v = MemoryVariable(prefix + name, typ, alloc)
+          if (alloc != VariableAllocationMethod.Static && stmt.initialValue.isDefined) {
+            ErrorReporting.error(s"`$name` cannot be preinitialized`", position)
+          }
+          val v = stmt.initialValue.fold[MemoryVariable](UninitializedMemoryVariable(prefix + name, typ, alloc)){ive =>
+            if (options.flags(CompilationFlag.ReadOnlyArrays)) {
+              ErrorReporting.warn("Initialized variable in read-only segment", options, position)
+            }
+            val ivc = eval(ive).getOrElse(Constant.error(s"Initial value of `$name` is not a constant", position))
+            InitializedMemoryVariable(name, None, typ, ivc)
+          }
           registerAddressConstant(v, stmt.position)
           (v, v.toAddress)
         })(a => {

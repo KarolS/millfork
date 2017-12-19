@@ -21,7 +21,7 @@ class Assembler(private val rootEnv: Environment) {
   var env = rootEnv.allThings
   var unoptimizedCodeSize = 0
   var optimizedCodeSize = 0
-  var initializedArraysSize = 0
+  var initializedVariablesSize = 0
 
   val mem = new CompiledMemory
   val labelMap = mutable.Map[String, Int]()
@@ -154,7 +154,7 @@ class Assembler(private val rootEnv: Environment) {
           mem.banks(0).writeable(index) = true
           index += 1
         }
-        initializedArraysSize += items.length
+        initializedVariablesSize += items.length
       case InitializedArray(name, Some(_), items) => ???
       case f: NormalFunction if f.address.isDefined =>
         var index = f.address.get.asInstanceOf[NumericConstant].value.toInt
@@ -187,7 +187,23 @@ class Assembler(private val rootEnv: Environment) {
           mem.banks(0).writeable(index) = true
           index += 1
         }
-        initializedArraysSize += items.length
+        initializedVariablesSize += items.length
+      case m@InitializedMemoryVariable(name, None, typ, value) =>
+        if (options.flags(CompilationFlag.PreventJmpIndirectBug) && (index & 0xff) + typ.size > 0x100) {
+          index = (index & 0xffff00) + 0x100
+        }
+        labelMap(name) = index
+        val altName = m.name.stripPrefix(env.prefix) + "`"
+        env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
+        assembly.append("* = $" + index.toHexString)
+        assembly.append(name)
+        for(i <- 0 until typ.size) {
+          writeByte(0, index, value.subbyte(i))
+          assembly.append("    !byte " + value.subbyte(i).quickSimplify)
+          mem.banks(0).writeable(index) = true
+          index += 1
+        }
+        initializedVariablesSize += typ.size
       case _ =>
     }
     val allocator = platform.allocator

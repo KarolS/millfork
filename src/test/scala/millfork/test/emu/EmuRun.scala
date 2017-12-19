@@ -6,7 +6,7 @@ import com.loomcom.symon.{Bus, Cpu, CpuState}
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.opt.AssemblyOptimization
 import millfork.compiler.{CompilationContext, MlCompiler}
-import millfork.env.{Environment, InitializedArray, NormalFunction}
+import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
@@ -134,6 +134,11 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
             d.contents.foreach(c => println("    !byte " + c))
             unoptimizedSize += d.contents.length
             optimizedSize += d.contents.length
+          case d: InitializedMemoryVariable =>
+            println(d.name)
+            0.until(d.typ.size).foreach(c => println("    !byte " + d.initialValue.subbyte(c)))
+            unoptimizedSize += d.typ.size
+            optimizedSize += d.typ.size
         }
 
         ErrorReporting.assertNoErrors("Compile failed")

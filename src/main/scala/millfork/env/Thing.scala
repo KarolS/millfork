@@ -75,7 +75,7 @@ sealed trait ThingInMemory extends Thing {
   def toAddress: Constant
 }
 
-sealed trait PrellocableThing extends ThingInMemory {
+sealed trait PreallocableThing extends ThingInMemory {
   def shouldGenerate: Boolean
 
   def address: Option[Constant]
@@ -118,12 +118,30 @@ case class StackVariable(name: String, typ: Type, baseOffset: Int) extends Varia
   def sizeInBytes: Int = typ.size
 }
 
-case class MemoryVariable(name: String, typ: Type, alloc: VariableAllocationMethod.Value) extends VariableInMemory with UninitializedMemory {
+object MemoryVariable {
+  def unapply(v: MemoryVariable) = Some((v.name, v.typ, v.alloc))
+}
+
+abstract class MemoryVariable extends VariableInMemory {
+  def alloc: VariableAllocationMethod.Value
+}
+
+case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableAllocationMethod.Value) extends MemoryVariable with UninitializedMemory {
   override def sizeInBytes: Int = typ.size
 
   override def zeropage: Boolean = alloc == VariableAllocationMethod.Zeropage
 
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
+}
+
+case class InitializedMemoryVariable(name: String, address: Option[Constant], typ: Type, initialValue: Constant) extends MemoryVariable with PreallocableThing {
+  override def zeropage: Boolean = false
+
+  override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
+
+  override def shouldGenerate: Boolean = true
+
+  override def alloc: VariableAllocationMethod.Value = VariableAllocationMethod.Static
 }
 
 trait MlArray extends ThingInMemory
@@ -138,7 +156,7 @@ case class RelativeArray(name: String, address: Constant, sizeInBytes: Int) exte
   override def toAddress: Constant = address
 }
 
-case class InitializedArray(name: String, address: Option[Constant], contents: List[Constant]) extends MlArray with PrellocableThing {
+case class InitializedArray(name: String, address: Option[Constant], contents: List[Constant]) extends MlArray with PreallocableThing {
   override def shouldGenerate = true
 }
 
@@ -196,7 +214,7 @@ case class NormalFunction(name: String,
                           code: List[ExecutableStatement],
                           interrupt: Boolean,
                           reentrant: Boolean,
-                          position: Option[Position]) extends FunctionInMemory with PrellocableThing {
+                          position: Option[Position]) extends FunctionInMemory with PreallocableThing {
   override def shouldGenerate = true
 }
 
