@@ -150,8 +150,8 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
 
     var inlinedFunctions = Map[String, List[AssemblyLine]]()
     val compiledFunctions = mutable.Map[String, List[AssemblyLine]]()
-    callGraph.recommendedCompilationOrder.foreach{ f =>
-      env.maybeGet[NormalFunction](f).foreach{ function =>
+    callGraph.recommendedCompilationOrder.foreach { f =>
+      env.maybeGet[NormalFunction](f).foreach { function =>
         val code = compileFunction(function, optimizations, options, inlinedFunctions)
         val strippedCodeForInlining = for {
           limit <- potentiallyInlineable.get(f)
@@ -185,22 +185,31 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
       case InitializedArray(name, Some(_), items) => ???
       case f: NormalFunction if f.address.isDefined =>
         var index = f.address.get.asInstanceOf[NumericConstant].value.toInt
-        labelMap(f.name) = index
-        index = outputFunction(compiledFunctions(f.name), index, assembly, options)
+        val code = compiledFunctions(f.name)
+        if (code.nonEmpty) {
+          labelMap(f.name) = index
+          index = outputFunction(code, index, assembly, options)
+        }
       case _ =>
     }
 
     var index = platform.org
     env.allPreallocatables.foreach {
       case f: NormalFunction if f.address.isEmpty && f.name == "main" =>
-        labelMap(f.name) = index
-        index = outputFunction(compiledFunctions(f.name), index, assembly, options)
+        val code = compiledFunctions(f.name)
+        if (code.nonEmpty) {
+          labelMap(f.name) = index
+          index = outputFunction(code, index, assembly, options)
+        }
       case _ =>
     }
     env.allPreallocatables.foreach {
       case f: NormalFunction if f.address.isEmpty && f.name != "main" =>
-        labelMap(f.name) = index
-        index = outputFunction(compiledFunctions(f.name), index, assembly, options)
+        val code = compiledFunctions(f.name)
+        if (code.nonEmpty) {
+          labelMap(f.name) = index
+          index = outputFunction(code, index, assembly, options)
+        }
       case _ =>
     }
     env.allPreallocatables.foreach {
@@ -224,7 +233,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
-        for(i <- 0 until typ.size) {
+        for (i <- 0 until typ.size) {
           writeByte(0, index, value.subbyte(i))
           assembly.append("    !byte " + value.subbyte(i).quickSimplify)
           mem.banks(0).writeable(index) = true
@@ -259,26 +268,26 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     mem.banks(0).start = start
     mem.banks(0).end = end
 
-    labelMap.toList.sorted.foreach {case (l, v) =>
-        assembly += f"$l%-30s = $$$v%04X"
+    labelMap.toList.sorted.foreach { case (l, v) =>
+      assembly += f"$l%-30s = $$$v%04X"
     }
-    labelMap.toList.sortBy{case (a,b) => b->a}.foreach {case (l, v) =>
-        assembly += f"    ; $$$v%04X = $l%s"
+    labelMap.toList.sortBy { case (a, b) => b -> a }.foreach { case (l, v) =>
+      assembly += f"    ; $$$v%04X = $l%s"
     }
 
     AssemblerOutput(platform.outputPackager.packageOutput(mem, 0), assembly.toArray, labelMap.toList)
   }
 
-  private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization], options: CompilationOptions, inlinedFunctions: Map[String, List[AssemblyLine]]) :List[AssemblyLine] = {
+  private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization], options: CompilationOptions, inlinedFunctions: Map[String, List[AssemblyLine]]): List[AssemblyLine] = {
     ErrorReporting.debug("Compiling: " + f.name, f.position)
     val unoptimized =
-      MlCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).linearize.flatMap{
-      case AssemblyLine(Opcode.JSR, _, p, true) if inlinedFunctions.contains(p.toString) =>
-        inlinedFunctions(p.toString)
-      case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, true) if inlinedFunctions.contains(p.toString) =>
-        inlinedFunctions(p.toString) :+ AssemblyLine.implied(Opcode.RTS)
-      case x => List(x)
-    }
+      MlCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).linearize.flatMap {
+        case AssemblyLine(Opcode.JSR, _, p, true) if inlinedFunctions.contains(p.toString) =>
+          inlinedFunctions(p.toString)
+        case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, true) if inlinedFunctions.contains(p.toString) =>
+          inlinedFunctions(p.toString) :+ AssemblyLine.implied(Opcode.RTS)
+        case x => List(x)
+      }
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
       opt.optimize(f, c, options)
@@ -286,7 +295,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     code
   }
 
-  private def outputFunction(code:List[AssemblyLine], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
+  private def outputFunction(code: List[AssemblyLine], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
     var index = startFrom
     assOut.append("* = $" + startFrom.toHexString)
     import millfork.assembly.AddrMode._
