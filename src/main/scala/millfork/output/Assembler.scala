@@ -5,7 +5,7 @@ import millfork.assembly.{AddrMode, AssemblyLine, Opcode}
 import millfork.compiler.{CompilationContext, MlCompiler}
 import millfork.env._
 import millfork.error.ErrorReporting
-import millfork.node.CallGraph
+import millfork.node.{CallGraph, Program}
 import millfork.{CompilationFlag, CompilationOptions, Tarjan}
 
 import scala.collection.mutable
@@ -16,7 +16,7 @@ import scala.collection.mutable
 
 case class AssemblerOutput(code: Array[Byte], asm: Array[String], labels: List[(String, Int)])
 
-class Assembler(private val rootEnv: Environment) {
+class Assembler(private val program: Program, private val rootEnv: Environment) {
 
   var env = rootEnv.allThings
   var unoptimizedCodeSize = 0
@@ -143,11 +143,31 @@ class Assembler(private val rootEnv: Environment) {
 
     val assembly = mutable.ArrayBuffer[String]()
 
+    val potentiallyInlineable: Map[String, Int] =
+      if (options.flags(CompilationFlag.InlineFunctions))
+        InliningCalculator.getPotentiallyInlineableFunctions(program)
+      else Map()
+
+    var inlinedFunctions = Map[String, List[AssemblyLine]]()
     val compiledFunctions = mutable.Map[String, List[AssemblyLine]]()
     callGraph.recommendedCompilationOrder.foreach{ f =>
-      env.maybeGet[NormalFunction](f).foreach( function =>
-        compiledFunctions(f) = compileFunction(function, optimizations, options)
-      )
+      env.maybeGet[NormalFunction](f).foreach{ function =>
+        val code = compileFunction(function, optimizations, options, inlinedFunctions)
+        val strippedCodeForInlining = for {
+          limit <- potentiallyInlineable.get(f)
+          if code.map(_.sizeInBytes).sum <= limit
+          s <- InliningCalculator.codeForInlining(f, code)
+        } yield s
+        strippedCodeForInlining match {
+          case Some(c) =>
+            ErrorReporting.debug("Inlining " + f, function.position)
+            inlinedFunctions += f -> c
+            compiledFunctions(f) = Nil
+          case None =>
+            compiledFunctions(f) = code
+            optimizedCodeSize += code.map(_.sizeInBytes).sum
+        }
+      }
     }
 
     env.allPreallocatables.foreach {
@@ -249,14 +269,20 @@ class Assembler(private val rootEnv: Environment) {
     AssemblerOutput(platform.outputPackager.packageOutput(mem, 0), assembly.toArray, labelMap.toList)
   }
 
-  private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization], options: CompilationOptions) :List[AssemblyLine] = {
+  private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization], options: CompilationOptions, inlinedFunctions: Map[String, List[AssemblyLine]]) :List[AssemblyLine] = {
     ErrorReporting.debug("Compiling: " + f.name, f.position)
-    val unoptimized = MlCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).linearize
+    val unoptimized =
+      MlCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).linearize.flatMap{
+      case AssemblyLine(Opcode.JSR, _, p, true) if inlinedFunctions.contains(p.toString) =>
+        inlinedFunctions(p.toString)
+      case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, true) if inlinedFunctions.contains(p.toString) =>
+        inlinedFunctions(p.toString) :+ AssemblyLine.implied(Opcode.RTS)
+      case x => List(x)
+    }
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
       opt.optimize(f, c, options)
     }
-    optimizedCodeSize += code.map(_.sizeInBytes).sum
     code
   }
 

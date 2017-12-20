@@ -96,7 +96,7 @@ object Main {
     }
 
     // compile
-    val assembler = new Assembler(env)
+    val assembler = new Assembler(program, env)
     val result = assembler.assemble(callGraph, assemblyOptimizations, options)
     ErrorReporting.assertNoErrors("Codegen failed")
     ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
@@ -214,6 +214,9 @@ object Main {
       }.description("Optimize code even more.")
       if (i > 3) f.hidden()
     }
+    flag("--inline").action { c =>
+      c.changeFlag(CompilationFlag.InlineFunctions, true)
+    }.description("Inline functions automatically (experimental).")
     flag("--detailed-flow").action { c =>
       c.changeFlag(CompilationFlag.DetailedFlowAnalysis, true)
     }.description("Use detailed flow analysis (experimental).")

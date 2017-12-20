@@ -28,6 +28,8 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
   def emitIllegals = false
 
+  def inline = false
+
   private val timingNmos = Array[Int](
     7, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
     2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
@@ -91,6 +93,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     val options = new CompilationOptions(platform, Map(
       CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.DetailedFlowAnalysis -> quantum,
+      CompilationFlag.InlineFunctions -> this.inline,
     ))
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
@@ -107,42 +110,31 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
-        var optimizedSize = 0L
         var unoptimizedSize = 0L
         // print asm
         env.allPreallocatables.foreach {
           case f: NormalFunction =>
             val result = MlCompiler.compile(CompilationContext(f.environment, f, 0, options))
             val unoptimized = result.linearize
-            if (hasOptimizations) {
-              val optimized = assemblyOptimizations.foldLeft(unoptimized) { (c, opt) =>
-                opt.optimize(f, c, options)
-              }
-              println("Unoptimized:")
-              unoptimized.filter(_.isPrintable).foreach(println(_))
-              println("Optimized:")
-              optimized.filter(_.isPrintable).foreach(println(_))
-              unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
-              optimizedSize += optimized.map(_.sizeInBytes).sum
-            } else {
-              unoptimized.filter(_.isPrintable).foreach(println(_))
-              unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
-              optimizedSize += unoptimized.map(_.sizeInBytes).sum
-            }
+            unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
           case d: InitializedArray =>
-            println(d.name)
-            d.contents.foreach(c => println("    !byte " + c))
             unoptimizedSize += d.contents.length
-            optimizedSize += d.contents.length
           case d: InitializedMemoryVariable =>
-            println(d.name)
-            0.until(d.typ.size).foreach(c => println("    !byte " + d.initialValue.subbyte(c)))
             unoptimizedSize += d.typ.size
-            optimizedSize += d.typ.size
         }
 
         ErrorReporting.assertNoErrors("Compile failed")
 
+
+        // compile
+        val assembler = new Assembler(program, env)
+        val output = assembler.assemble(callGraph, assemblyOptimizations, options)
+        println(";;; compiled: -----------------")
+        output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).foreach(println)
+        println(";;; ---------------------------")
+        assembler.labelMap.foreach { case (l, addr) => println(f"$l%-15s $$$addr%04x") }
+
+        val optimizedSize = assembler.mem.banks(0).occupied.count(identity).toLong
         if (unoptimizedSize == optimizedSize) {
           println(f"Size:             $unoptimizedSize%5d B")
         } else {
@@ -150,11 +142,6 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
           println(f"Optimized size:   $optimizedSize%5d B")
           println(f"Gain:              ${(100L * (unoptimizedSize - optimizedSize) / unoptimizedSize.toDouble).round}%5d%%")
         }
-
-        // compile
-        val assembler = new Assembler(env)
-        assembler.assemble(callGraph, assemblyOptimizations, options)
-        assembler.labelMap.foreach { case (l, addr) => println(f"$l%-15s $$$addr%04x") }
 
         ErrorReporting.assertNoErrors("Code generation failed")
 

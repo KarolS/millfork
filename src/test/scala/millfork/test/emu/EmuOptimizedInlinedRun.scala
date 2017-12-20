@@ -1,15 +1,14 @@
 package millfork.test.emu
 
-import millfork.assembly.opt.SuperOptimizer
 import millfork.{Cpu, OptimizationPresets}
 
 /**
   * @author Karol Stasiak
   */
-object EmuSuperOptimizedRun extends EmuRun(
+object EmuOptimizedInlinedRun extends EmuRun(
   Cpu.StrictMos,
   OptimizationPresets.NodeOpt,
-  List(SuperOptimizer),
+  OptimizationPresets.AssOpt ++ OptimizationPresets.Good ++ OptimizationPresets.Good ++ OptimizationPresets.Good,
   false)
 
 

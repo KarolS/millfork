@@ -6,11 +6,13 @@ import millfork.{Cpu, OptimizationPresets}
 /**
   * @author Karol Stasiak
   */
-object EmuSuperOptimizedRun extends EmuRun(
+object EmuSuperQuantumOptimizedInliningRun extends EmuRun(
   Cpu.StrictMos,
   OptimizationPresets.NodeOpt,
   List(SuperOptimizer),
-  false)
+  true) {
+  override def inline = true
+}
 
 
 

@@ -87,13 +87,15 @@ object OpcodeClasses {
   val ConcernsXAlways = ReadsXAlways | ChangesX
   val ConcernsYAlways = ReadsYAlways | ChangesY
 
-  val ConcernsStack = Set(
+  val ChangesStack = Set(
     PHA, PLA, PHP, PLP,
     PHX, PLX, PHY, PLY,
-    TXS, TSX,
+    TXS,
     JSR, RTS, RTI,
     TAS, LAS,
   )
+
+  val ConcernsStack = ChangesStack + TSX
 
   val ChangesNAndZ = Set(
     ADC, AND, ASL, BIT, CMP, CPX, CPY, DEC, DEX, DEY, EOR, INC, INX, INY, LDA,
