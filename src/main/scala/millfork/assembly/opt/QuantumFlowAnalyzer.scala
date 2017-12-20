@@ -338,8 +338,8 @@ object QuantumFlowAnalyzer {
             )).changeNZFromA
           case AssemblyLine(LSR, Implied, _, _) =>
             currentStatus = currentStatus.flatMap((f, r) => List(
-              f.copy(c = true) -> r.whereA(a => (a & 1) != 0).changeA(a => (a >>> 2) & 0x7f),
-              f.copy(c = false) -> r.whereA(a => (a & 1) == 0).changeA(a => (a >>> 2) & 0x7f),
+              f.copy(c = true) -> r.whereA(a => (a & 1) != 0).changeA(a => (a >>> 1) & 0x7f),
+              f.copy(c = false) -> r.whereA(a => (a & 1) == 0).changeA(a => (a >>> 1) & 0x7f),
             )).changeNZFromA
           case AssemblyLine(ALR, Immediate, NumericConstant(n, _), _) =>
             currentStatus = currentStatus.flatMap((f, r) => List(
