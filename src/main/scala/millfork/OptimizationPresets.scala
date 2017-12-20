@@ -107,6 +107,7 @@ object OptimizationPresets {
     LaterOptimizations.UseXInsteadOfStack,
     LaterOptimizations.UseYInsteadOfStack,
     LaterOptimizations.IndexSwitchingOptimization,
+    LaterOptimizations.LoadingBranchesOptimization,
   )
 
   val Good: List[AssemblyOptimization] = List[AssemblyOptimization](
@@ -114,6 +115,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.CarryFlagConversion,
     DangerousOptimizations.ConstantIndexOffsetPropagation,
     AlwaysGoodOptimizations.BranchInPlaceRemoval,
+    AlwaysGoodOptimizations.CommonBranchBodyOptimization,
     AlwaysGoodOptimizations.ConstantFlowAnalysis,
     AlwaysGoodOptimizations.ConstantIndexPropagation,
     AlwaysGoodOptimizations.FlagFlowAnalysis,
@@ -146,5 +148,6 @@ object OptimizationPresets {
     UnusedLabelRemoval,
     AlwaysGoodOptimizations.TailCallOptimization,
     AlwaysGoodOptimizations.UnusedCodeRemoval,
+    AlwaysGoodOptimizations.UnusedLabelRemoval,
   )
 }

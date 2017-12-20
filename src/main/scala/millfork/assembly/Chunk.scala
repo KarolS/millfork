@@ -14,7 +14,7 @@ case object EmptyChunk extends Chunk {
 }
 
 case class LabelledChunk(label: String, chunk: Chunk) extends Chunk {
-  override def linearize: List[AssemblyLine] = AssemblyLine.label(Label(label)) :: chunk.linearize
+  override def linearize: List[AssemblyLine] = AssemblyLine.label(Label(label)).copy(elidable=false) :: chunk.linearize
 
   override def sizeInBytes: Int = chunk.sizeInBytes
 }

@@ -137,7 +137,8 @@ object OpcodeClasses {
 
   val SupportsZeroPageIndirect = Set(ORA, AND, EOR, ADC, STA, LDA, CMP, SBC)
 
-  val ShortBranching = Set(BEQ, BNE, BMI, BPL, BVC, BVS, BCC, BCS, BRA)
+  val ShortConditionalBranching = Set(BEQ, BNE, BMI, BPL, BVC, BVS, BCC, BCS)
+  val ShortBranching = ShortConditionalBranching + BRA
   val AllDirectJumps = ShortBranching + JMP
   val AllLinear = Set(
     ORA, AND, EOR,

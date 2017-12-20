@@ -846,5 +846,22 @@ object AlwaysGoodOptimizations {
       Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0)-1)) ~~> (_ => List(AssemblyLine.implied(DEX))),
   )
 
+  val CommonBranchBodyOptimization = new RuleBasedAssemblyOptimization("Common branch body optimization",
+    needsFlowInfo = FlowInfoRequirement.JustLabels,
+    (Elidable & Linear & MatchOpcode(3) & MatchAddrMode(4) & MatchParameter(5)).capture(1) ~
+      (
+        (HasOpcode(JMP) & MatchParameter(2)) ~ Not(MatchOpcode(3)).*
+        ).capture(11) ~
+      (Elidable & Linear & MatchOpcode(3) & MatchAddrMode(4) & MatchParameter(5)) ~
+      (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)).capture(12) ~~> { (code, ctx) =>
+      ctx.get[List[AssemblyLine]](11) ++ ctx.get[List[AssemblyLine]](12) :+ code.head
+    }
+  )
+
+
+  val UnusedLabelRemoval = new RuleBasedAssemblyOptimization("Unused label removal",
+    needsFlowInfo = FlowInfoRequirement.JustLabels,
+    (Elidable & HasOpcode(LABEL) & HasCallerCount(0)) ~~> (_ => Nil)
+  )
 
 }

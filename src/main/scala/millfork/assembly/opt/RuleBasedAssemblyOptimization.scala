@@ -13,16 +13,16 @@ import scala.collection.mutable
 
 object FlowInfoRequirement extends Enumeration {
 
-  val NoRequirement, BothFlows, ForwardFlow, BackwardFlow = Value
+  val NoRequirement, JustLabels, BothFlows, ForwardFlow, BackwardFlow = Value
 
   def assertForward(x: FlowInfoRequirement.Value): Unit = x match {
     case BothFlows | ForwardFlow => ()
-    case NoRequirement | BackwardFlow => ErrorReporting.fatal("Forward flow info required")
+    case NoRequirement | JustLabels | BackwardFlow => ErrorReporting.fatal("Forward flow info required")
   }
 
   def assertBackward(x: FlowInfoRequirement.Value): Unit = x match {
     case BothFlows | BackwardFlow => ()
-    case NoRequirement | ForwardFlow => ErrorReporting.fatal("Backward flow info required")
+    case NoRequirement | JustLabels | ForwardFlow => ErrorReporting.fatal("Backward flow info required")
   }
 }
 
@@ -32,18 +32,7 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
     val effectiveCode = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
-    val taggedCode = needsFlowInfo match {
-      case FlowInfoRequirement.NoRequirement => effectiveCode.map(FlowInfo.Default -> _)
-      case FlowInfoRequirement.BothFlows => FlowAnalyzer.analyze(f, effectiveCode, options)
-      case FlowInfoRequirement.ForwardFlow =>
-        if (options.flag(CompilationFlag.DetailedFlowAnalysis)) {
-          QuantumFlowAnalyzer.analyze(f, code).map(s => FlowInfo(s.collapse, CpuImportance())).zip(code)
-        } else {
-          CoarseFlowAnalyzer.analyze(f, code).map(s => FlowInfo(s, CpuImportance())).zip(code)
-        }
-      case FlowInfoRequirement.BackwardFlow =>
-        ReverseFlowAnalyzer.analyze(f, code).map(i => FlowInfo(CpuStatus(), i)).zip(code)
-    }
+    val taggedCode = FlowAnalyzer.analyze(f, effectiveCode, options, needsFlowInfo)
     optimizeImpl(f, taggedCode, options)
   }
 
@@ -754,4 +743,12 @@ case class Before(pattern: AssemblyPattern) extends AssemblyLinePattern {
   }
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = ???
+}
+
+case class HasCallerCount(count: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    line match {
+      case AssemblyLine(Opcode.LABEL, _, MemoryAddressConstant(Label(l)), _) => flowInfo.labelUseCount(l) == count
+      case _ => false
+    }
 }

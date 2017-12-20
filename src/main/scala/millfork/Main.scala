@@ -4,7 +4,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util.Locale
 
-import millfork.assembly.opt.{CmosOptimizations, DangerousOptimizations, SuperOptimizer, UndocumentedOptimizations}
+import millfork.assembly.opt._
 import millfork.buildinfo.BuildInfo
 import millfork.cli.{CliParser, CliStatus}
 import millfork.env.Environment
@@ -87,7 +87,7 @@ object Main {
     env.collectDeclarations(program, options)
     val extras = List(
       if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
-      if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else Nil,
+      if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
       if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
     ).flatten
     val goodCycle = List.fill(optLevel - 1)(OptimizationPresets.Good ++ extras).flatten

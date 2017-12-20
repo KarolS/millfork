@@ -21,6 +21,8 @@ object SuperOptimizer extends AssemblyOptimization {
     }
     if (options.flag(CompilationFlag.EmitCmosOpcodes)) {
       allOptimizers ++= CmosOptimizations.All
+    } else {
+      allOptimizers ++= LaterOptimizations.Nmos
     }
     allOptimizers ++= List(
       VariableToRegisterOptimization,

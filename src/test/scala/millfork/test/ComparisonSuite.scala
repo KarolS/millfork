@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.test.emu.{EmuBenchmarkRun, EmuSuperOptimizedRun, EmuUltraBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -55,7 +55,7 @@ class ComparisonSuite extends FunSuite with Matchers {
   }
 
   test("Carry flag optimization test") {
-    EmuBenchmarkRun(
+    EmuUltraBenchmarkRun(
       """
         | byte output @$c000
         | void main () {

@@ -1,6 +1,6 @@
 package millfork.assembly.opt
 
-import millfork.assembly.{AddrMode, AssemblyLine, Opcode, State}
+import millfork.assembly._
 import millfork.assembly.Opcode._
 import millfork.assembly.AddrMode._
 import millfork.assembly.OpcodeClasses._
@@ -228,15 +228,140 @@ object LaterOptimizations {
 
   )
 
+  private val LdxAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageY, AbsoluteY)
+  private val LdyAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageX, AbsoluteX)
+  private val StxAddrModes = Set(Absolute, ZeroPage, ZeroPageY)
+  private val StyAddrModes = Set(Absolute, ZeroPage, ZeroPageX)
+  private val CpxyAddrModes = Set(Immediate, Absolute, ZeroPage)
+
+  private def incDecThroughIndexRegister(amount: Int, dec: Boolean, carrySet: Boolean, useX: Boolean) = {
+    val ldAddrModes = if (useX) LdxAddrModes else LdyAddrModes
+    val stAddrModes = if (useX) StxAddrModes else StyAddrModes
+    val ldOp = if (useX) LDX else LDY
+    val stOp = if (useX) STX else STY
+    val changeOp = if (dec) if (useX) DEX else DEY else if (useX) INX else INY
+    val addOp = if (dec) SBC else ADC
+    val addParam = if (dec ^ carrySet) amount + 1 else amount
+    val indexState = if (useX) State.X else State.Y
+    val cState = if (carrySet) HasSet(State.C) else HasClear(State.C)
+    val carryOp = if (carrySet) SEC else CLC
+
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(ldAddrModes)).capture(11) ~
+      (Elidable & HasOpcode(carryOp)).? ~
+      (Elidable & HasOpcode(addOp) & HasImmediate(addParam) & cState & HasClear(State.D)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(stAddrModes) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V, indexState)).capture(12) ~~> { (_, ctx) =>
+      ctx.get[List[AssemblyLine]](11).head.copy(opcode = ldOp) ::
+        (List.fill(amount)(AssemblyLine.implied(changeOp)) :+
+          ctx.get[List[AssemblyLine]](12).head.copy(opcode = stOp))
+    }
+  }
+
+  val IncrementThroughIndexRegisters = new RuleBasedAssemblyOptimization("Increment through index registers",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    incDecThroughIndexRegister(1, dec = false, carrySet = false, useX = true),
+    incDecThroughIndexRegister(1, dec = false, carrySet = false, useX = false),
+    incDecThroughIndexRegister(1, dec = false, carrySet = true, useX = true),
+    incDecThroughIndexRegister(1, dec = false, carrySet = true, useX = false),
+    incDecThroughIndexRegister(1, dec = true, carrySet = true, useX = true),
+    incDecThroughIndexRegister(1, dec = true, carrySet = true, useX = false),
+    incDecThroughIndexRegister(2, dec = false, carrySet = false, useX = true),
+    incDecThroughIndexRegister(2, dec = false, carrySet = false, useX = false),
+    incDecThroughIndexRegister(2, dec = false, carrySet = true, useX = true),
+    incDecThroughIndexRegister(2, dec = false, carrySet = true, useX = false),
+    incDecThroughIndexRegister(2, dec = true, carrySet = true, useX = true),
+    incDecThroughIndexRegister(2, dec = true, carrySet = true, useX = false),
+  )
+
+  val LoadingBranchesOptimization = new RuleBasedAssemblyOptimization("Loading branches optimization",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdxAddrModes) & DoesntMatterWhatItDoesWith(State.X)) ~
+      (Linear & Not(ConcernsX) & Not(ChangesA) & Not(HasOpcode(CMP)) & (Not(ReadsA) | Elidable & HasOpcode(STA) & HasAddrModeIn(StxAddrModes)) ).*.capture(39) ~
+      (Elidable & HasOpcode(CMP) & HasAddrModeIn(CpxyAddrModes)).?.capture(40) ~
+      (Elidable & HasOpcodeIn(OpcodeClasses.ShortConditionalBranching) & MatchParameter(22)).capture(41) ~
+      (Elidable & HasOpcode(LDA)).capture(31) ~
+      (Elidable & HasOpcodeIn(Set(JMP, BRA)) & MatchParameter(21)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(22)).capture(42) ~
+      (Elidable & HasOpcode(LDA)).capture(32) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(21) & HasCallerCount(1) & DoesntMatterWhatItDoesWith(State.A, State.X, State.N, State.Z)) ~~> { (code, ctx) =>
+      val ldx = List(code.head.copy(opcode = LDX))
+      val stx = ctx.get[List[AssemblyLine]](39).map(l => if (l.opcode == STA) l.copy(opcode = STX) else l )
+      val cpx = ctx.get[List[AssemblyLine]](40).map(_.copy(opcode = CPX))
+      val branch = ctx.get[List[AssemblyLine]](41)
+      val label = ctx.get[List[AssemblyLine]](42)
+      val loadIfJumped = ctx.get[List[AssemblyLine]](32)
+      val loadIfNotJumped = ctx.get[List[AssemblyLine]](31)
+      List(loadIfJumped, ldx, stx, cpx, branch, loadIfNotJumped, label).flatten
+    },
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdyAddrModes) & DoesntMatterWhatItDoesWith(State.Y)) ~
+      (Linear & Not(ConcernsY) & Not(ChangesA) & Not(HasOpcode(CMP)) & (Not(ReadsA) | Elidable & HasOpcode(STA) & HasAddrModeIn(StyAddrModes)) ).*.capture(39) ~
+      (Elidable & HasOpcode(CMP) & HasAddrModeIn(CpxyAddrModes)).?.capture(40) ~
+      (Elidable & HasOpcodeIn(OpcodeClasses.ShortConditionalBranching) & MatchParameter(22)).capture(41) ~
+      (Elidable & HasOpcode(LDA)).capture(31) ~
+      (Elidable & HasOpcodeIn(Set(JMP, BRA)) & MatchParameter(21)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(22)).capture(42) ~
+      (Elidable & HasOpcode(LDA)).capture(32) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(21) & HasCallerCount(1) & DoesntMatterWhatItDoesWith(State.A, State.Y, State.N, State.Z)) ~~> { (code, ctx) =>
+      val ldy = List(code.head.copy(opcode = LDY))
+      val sty = ctx.get[List[AssemblyLine]](39).map(l => if (l.opcode == STA) l.copy(opcode = STY) else l )
+      val cpy = ctx.get[List[AssemblyLine]](40).map(_.copy(opcode = CPY))
+      val branch = ctx.get[List[AssemblyLine]](41)
+      val label = ctx.get[List[AssemblyLine]](42)
+      val loadIfJumped = ctx.get[List[AssemblyLine]](32)
+      val loadIfNotJumped = ctx.get[List[AssemblyLine]](31)
+      List(loadIfJumped, ldy, sty, cpy, branch, loadIfNotJumped, label).flatten
+    },
+    (HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.X)) ~
+      (Linear & Not(ConcernsX)).*.capture(39) ~
+      (Elidable & HasOpcodeIn(OpcodeClasses.ShortConditionalBranching) & MatchParameter(22)).capture(41) ~
+      (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdxAddrModes)).capture(31) ~
+      (Elidable & HasOpcodeIn(Set(JMP, BRA)) & MatchParameter(21)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(22)).capture(42) ~
+      (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdxAddrModes)).capture(32) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(21) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(StxAddrModes) & DoesntMatterWhatItDoesWith(State.A, State.X, State.N, State.Z)).capture(33) ~~> { (code, ctx) =>
+      val lda = List(code.head)
+      val cmp = ctx.get[List[AssemblyLine]](39)
+      val branch = ctx.get[List[AssemblyLine]](41)
+      val label = ctx.get[List[AssemblyLine]](42)
+      val loadIfJumped = ctx.get[List[AssemblyLine]](32).map(_.copy(opcode = LDX))
+      val loadIfNotJumped = ctx.get[List[AssemblyLine]](31).map(_.copy(opcode = LDX))
+      val stx = ctx.get[List[AssemblyLine]](33).map(_.copy(opcode = STX))
+      List(loadIfJumped, lda, cmp, branch, loadIfNotJumped, label, stx).flatten
+    },
+    (HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.Y)) ~
+      (Linear & Not(ConcernsY)).*.capture(39) ~
+      (Elidable & HasOpcodeIn(OpcodeClasses.ShortConditionalBranching) & MatchParameter(22)).capture(41) ~
+      (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdyAddrModes)).capture(31) ~
+      (Elidable & HasOpcodeIn(Set(JMP, BRA)) & MatchParameter(21)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(22)).capture(42) ~
+      (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdyAddrModes)).capture(32) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(21) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(StyAddrModes) & DoesntMatterWhatItDoesWith(State.A, State.Y, State.N, State.Z)).capture(33) ~~> { (code, ctx) =>
+      val lda = List(code.head)
+      val cmp = ctx.get[List[AssemblyLine]](39)
+      val branch = ctx.get[List[AssemblyLine]](41)
+      val label = ctx.get[List[AssemblyLine]](42)
+      val loadIfJumped = ctx.get[List[AssemblyLine]](32).map(_.copy(opcode = LDY))
+      val loadIfNotJumped = ctx.get[List[AssemblyLine]](31).map(_.copy(opcode = LDY))
+      val sty = ctx.get[List[AssemblyLine]](33).map(_.copy(opcode = STY))
+      List(loadIfJumped, lda, cmp, branch, loadIfNotJumped, label, sty).flatten
+    },
+  )
+
   val All = List(
     DoubleLoadToDifferentRegisters,
     DoubleLoadToTheSameRegister,
     IndexSwitchingOptimization,
+    LoadingBranchesOptimization,
     PointlessLoadAfterStore,
     PointessLoadingForShifting,
     LoadingAfterShifting,
     UseXInsteadOfStack,
     UseYInsteadOfStack,
     UseZeropageAddressingMode)
+
+  val Nmos = List(
+    IncrementThroughIndexRegisters
+  )
 }
 
