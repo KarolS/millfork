@@ -143,6 +143,13 @@ class Assembler(private val rootEnv: Environment) {
 
     val assembly = mutable.ArrayBuffer[String]()
 
+    val compiledFunctions = mutable.Map[String, List[AssemblyLine]]()
+    callGraph.recommendedCompilationOrder.foreach{ f =>
+      env.maybeGet[NormalFunction](f).foreach( function =>
+        compiledFunctions(f) = compileFunction(function, optimizations, options)
+      )
+    }
+
     env.allPreallocatables.foreach {
       case InitializedArray(name, Some(NumericConstant(address, _)), items) =>
         var index = address.toInt
@@ -159,17 +166,10 @@ class Assembler(private val rootEnv: Environment) {
       case f: NormalFunction if f.address.isDefined =>
         var index = f.address.get.asInstanceOf[NumericConstant].value.toInt
         labelMap(f.name) = index
-        val code = compileFunction(f, optimizations, options)
-        index = outputFunction(code, index, assembly, options)
+        index = outputFunction(compiledFunctions(f.name), index, assembly, options)
       case _ =>
     }
 
-    val compiledFunctions = mutable.Map[String, List[AssemblyLine]]()
-    callGraph.recommendedCompilationOrder.foreach{ f =>
-      env.maybeGet[NormalFunction](f).foreach( function =>
-        compiledFunctions(f) = compileFunction(function, optimizations, options)
-      )
-    }
     var index = platform.org
     env.allPreallocatables.foreach {
       case f: NormalFunction if f.address.isEmpty && f.name == "main" =>
