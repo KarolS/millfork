@@ -1,6 +1,6 @@
 package millfork.assembly.opt
 
-import millfork.CompilationOptions
+import millfork.{CompilationOptions, NonOverlappingIntervals}
 import millfork.assembly.{AddrMode, AssemblyLine}
 import millfork.assembly.Opcode._
 import millfork.assembly.AddrMode._
@@ -8,6 +8,7 @@ import millfork.env._
 import millfork.error.ErrorReporting
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 
 /**
   * @author Karol Stasiak
@@ -47,47 +48,86 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case _ => false
     }
 
-    val candidates = None :: localVariables.map(v => Option(v.name))
+    val variablesWithLifetimes = localVariables.map(v =>
+      v.name -> VariableLifetime.apply(v.name, code)
+    )
+
+    val importances = ReverseFlowAnalyzer.analyze(f, code)
+
+    val xCandidates = variablesWithLifetimes.filter {
+      case (vName, range) =>
+        importances(range.start).x != Important
+    }.flatMap {
+      case (vName, range) =>
+        canBeInlined(Some(vName), None, code.slice(range.start, range.end)).map(score => (vName, range, score))
+    }
+
+    val yCandidates = variablesWithLifetimes.filter {
+      case (vName, range) =>
+        importances(range.start).y != Important
+    }.flatMap {
+      case (vName, range) =>
+        canBeInlined(None, Some(vName), code.slice(range.start, range.end)).map(score => (vName, range, score))
+    }
+
+    val xCandidateSets = NonOverlappingIntervals.apply[(String, Range, Int)](xCandidates, _._2.start, _._2.end)
+    val yCandidateSets = NonOverlappingIntervals.apply[(String, Range, Int)](yCandidates, _._2.start, _._2.end)
 
     val variants = for {
-      vx <- candidates.par
-      vy <- candidates
-      if vx != vy
-      (score, prologueLength) <- canBeInlined(vx, vy, code.tail, Some(1))
-      if prologueLength >= 1
-    } yield (score, prologueLength, vx, vy)
+      vx <- xCandidateSets.par
+      vy <- yCandidateSets
+      if (vx & vy).isEmpty
+      score = vx.toSeq.map(_._3).sum + vy.toSeq.map(_._3).sum
+    } yield (score, vx, vy)
 
     if (variants.isEmpty) {
       return code
     }
 
-    val (_, bestPrologueLength, bestX, bestY) = variants.max
+    val (_, bestXs, bestYs) = variants.maxBy(_._1)
 
-    if ((bestX.isDefined || bestY.isDefined) && bestPrologueLength != 0xffff) {
-      (bestX, bestY) match {
-        case (Some(x), Some(y)) => ErrorReporting.debug(s"Inlining $x to X and $y to Y")
-        case (Some(x), None) => ErrorReporting.debug(s"Inlining $x to X")
-        case (None, Some(y)) => ErrorReporting.debug(s"Inlining $y to Y")
-        case _ =>
+    if (bestXs.nonEmpty || bestYs.nonEmpty) {
+      (bestXs.size, bestYs.size) match {
+        case (0, 0) =>
+        case (_, 0) => ErrorReporting.debug(s"Inlining ${bestXs.map(_._1).mkString(", ")} to register X")
+        case (0, _) => ErrorReporting.debug(s"Inlining ${bestYs.map(_._1).mkString(", ")} to register Y")
+        case (_, _) => ErrorReporting.debug(s"Inlining ${bestXs.map(_._1).mkString(", ")} to register X and ${bestYs.map(_._1).mkString(", ")} to register Y")
       }
-      bestX.foreach(f.environment.removeVariable)
-      bestY.foreach(f.environment.removeVariable)
-      code.take(bestPrologueLength) ++ inlineVars(bestX, bestY, code.drop(bestPrologueLength))
+      bestXs.foreach(v => f.environment.removeVariable(v._1))
+      bestYs.foreach(v => f.environment.removeVariable(v._1))
+      val output = ListBuffer[AssemblyLine]()
+      var i = 0
+      while (i < code.length) {
+        var done = false
+        bestXs.find(_._2.start == i).foreach {
+          case (v, range, _) =>
+            output ++= inlineVars(Some(v), None, code.slice(range.start, range.end))
+            i = range.end
+            done = true
+        }
+        if (!done) {
+          bestYs.find(_._2.start == i).foreach {
+            case (v, range, _) =>
+              output ++= inlineVars(None, Some(v), code.slice(range.start, range.end))
+              i = range.end
+              done = true
+          }
+        }
+        if (!done) {
+          output += code(i)
+          i += 1
+        }
+      }
+      output.toList
     } else {
       code
     }
   }
 
 
-  private def add(i: Int) = (p: (Int, Int)) => (p._1 + i) -> p._2
-
-  private def mark(i: Option[Int]) = (p: (Int, Int)) => p._1 -> i.getOrElse(p._2)
-
-  def canBeInlined(xCandidate: Option[String], yCandidate: Option[String], lines: List[AssemblyLine], instrCounter: Option[Int]): Option[(Int, Int)] = {
+  def canBeInlined(xCandidate: Option[String], yCandidate: Option[String], lines: List[AssemblyLine]): Option[Int] = {
     val vx = xCandidate.getOrElse("-")
     val vy = yCandidate.getOrElse("-")
-    val next = instrCounter.map(_ + 1)
-    val next2 = instrCounter.map(_ + 2)
     lines match {
       case AssemblyLine(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx || th.name == vy =>
@@ -103,7 +143,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         if (th.name == vx || th.name == vy) {
           None
         } else {
-          canBeInlined(xCandidate, yCandidate, xs, next)
+          canBeInlined(xCandidate, yCandidate, xs)
         }
 
       case AssemblyLine(opcode, Absolute, MemoryAddressConstant(th), _) :: xs
@@ -121,7 +161,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // if a register is populated with a different variable, then this variable cannot be assigned to that register
         // removing LDX saves 3 cycles
         if (elidable && th.name == vx) {
-          canBeInlined(xCandidate, yCandidate, xs, None).map(add(3)).map(mark(instrCounter))
+          canBeInlined(xCandidate, yCandidate, xs).map(_ + 3)
         } else {
           None
         }
@@ -131,7 +171,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // LAX = LDX-LDA, and since LDX simplifies to nothing and LDA simplifies to TXA,
         // LAX simplifies to TXA, saving two bytes
         if (elidable && th.name == vx) {
-          canBeInlined(xCandidate, yCandidate, xs, None).map(add(2)).map(mark(instrCounter))
+          canBeInlined(xCandidate, yCandidate, xs).map(_ + 2)
         } else {
           None
         }
@@ -140,7 +180,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // if a register is populated with a different variable, then this variable cannot be assigned to that register
         // removing LDX saves 3 cycles
         if (elidable && th.name == vy) {
-          canBeInlined(xCandidate, yCandidate, xs, None).map(add(3)).map(mark(instrCounter))
+          canBeInlined(xCandidate, yCandidate, xs).map(_ + 3)
         } else {
           None
         }
@@ -158,7 +198,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // a variable cannot be inlined if there is TAX not after LDA of that variable
         // but LDA-TAX can be simplified to TXA
         if (elidable && elidable2 && th.name == vx) {
-          canBeInlined(xCandidate, yCandidate, xs, None).map(add(3)).map(mark(instrCounter))
+          canBeInlined(xCandidate, yCandidate, xs).map(_ + 3)
         } else {
           None
         }
@@ -168,7 +208,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // a variable cannot be inlined if there is TAY not after LDA of that variable
         // but LDA-TAY can be simplified to TYA
         if (elidable && elidable2 && th.name == vy) {
-          canBeInlined(xCandidate, yCandidate, xs, None).map(add(3)).map(mark(instrCounter))
+          canBeInlined(xCandidate, yCandidate, xs).map(_ + 3)
         } else {
           None
         }
@@ -176,42 +216,37 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case AssemblyLine(LDA | STA | INC | DEC, Absolute, MemoryAddressConstant(th), elidable) :: xs =>
         // changing LDA->TXA, STA->TAX, INC->INX, DEC->DEX saves 2 cycles
         if (th.name == vy || th.name == vx) {
-          if (elidable) canBeInlined(xCandidate, yCandidate, xs, None).map(add(2)).map(mark(instrCounter))
-          else None
+          if (elidable) {
+            canBeInlined(xCandidate, yCandidate, xs).map(_ + 2)
+          } else {
+            None
+          }
         } else {
-          canBeInlined(xCandidate, yCandidate, xs, next)
+          canBeInlined(xCandidate, yCandidate, xs)
         }
 
       case AssemblyLine(TAX, _, _, _) :: xs if xCandidate.isDefined =>
         // a variable cannot be inlined if there is TAX not after LDA of that variable
-        if (instrCounter.isDefined) {
-          canBeInlined(xCandidate, yCandidate, xs, next)
-        } else None
+        None
 
       case AssemblyLine(TAY, _, _, _) :: xs if yCandidate.isDefined =>
         // a variable cannot be inlined if there is TAY not after LDA of that variable
-        if (instrCounter.isDefined) {
-          canBeInlined(xCandidate, yCandidate, xs, next)
-        } else None
+        None
 
       case AssemblyLine(LABEL, _, _, _) :: xs =>
         // labels always end the initial section
-        canBeInlined(xCandidate, yCandidate, xs, None).map(mark(instrCounter))
+        canBeInlined(xCandidate, yCandidate, xs)
 
       case x :: xs =>
-        if (instrCounter.isDefined) {
-          canBeInlined(xCandidate, yCandidate, xs, next)
+        if (xCandidate.isDefined && opcodesThatAlwaysPrecludeXAllocation(x.opcode)) {
+          None
+        } else if (yCandidate.isDefined && opcodesThatAlwaysPrecludeYAllocation(x.opcode)) {
+          None
         } else {
-          if (xCandidate.isDefined && opcodesThatAlwaysPrecludeXAllocation(x.opcode)) {
-            None
-          } else if (yCandidate.isDefined && opcodesThatAlwaysPrecludeYAllocation(x.opcode)) {
-            None
-          } else {
-            canBeInlined(xCandidate, yCandidate, xs, next)
-          }
+          canBeInlined(xCandidate, yCandidate, xs)
         }
 
-      case Nil => Some(0 -> -1)
+      case Nil => Some(0)
     }
   }
 
