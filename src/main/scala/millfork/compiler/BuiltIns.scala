@@ -10,7 +10,6 @@ import millfork.error.ErrorReporting
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.reflect.macros.blackbox
 
 
 object ComparisonType extends Enumeration {
@@ -381,7 +380,7 @@ object BuiltIns {
 
   def compileWordComparison(ctx: CompilationContext, compType: ComparisonType.Value, lhs: Expression, rhs: Expression, branches: BranchSpec): List[AssemblyLine] = {
     val env = ctx.env
-    // TODO: comparing stack variables
+    // TODO: comparing longer variables
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")
 
@@ -390,7 +389,7 @@ object BuiltIns {
       case BranchIfTrue(label) => compType -> label
       case BranchIfFalse(label) => ComparisonType.negate(compType) -> label
     }
-    val (lh, ll, rh, rl, ram) = (lhs, env.eval(lhs), rhs, env.eval(rhs)) match {
+    val (lh, ll, rh, rl) = (lhs, env.eval(lhs), rhs, env.eval(rhs)) match {
       case (_, Some(NumericConstant(lc, _)), _, Some(NumericConstant(rc, _))) =>
         return if (effectiveComparisonType match {
           // TODO: those masks are probably wrong
@@ -423,81 +422,84 @@ object BuiltIns {
       case (_, Some(lc), rv: VariableInMemory, None) =>
         return compileWordComparison(ctx, ComparisonType.flip(compType), rhs, lhs, branches)
       case (v: VariableExpression, None, _, Some(rc)) =>
-        // TODO: stack variables
-        (env.get[VariableInMemory](v.name + ".hi").toAddress,
-          env.get[VariableInMemory](v.name + ".lo").toAddress,
-          rc.hiByte,
-          rc.loByte,
-          Immediate)
+        val lva = env.get[VariableInMemory](v.name)
+        (AssemblyLine.variable(ctx, STA, lva, 1),
+          AssemblyLine.variable(ctx, STA, lva, 0),
+          List(AssemblyLine.immediate(STA, rc.hiByte)),
+          List(AssemblyLine.immediate(STA, rc.loByte)))
       case (lv: VariableExpression, None, rv: VariableExpression, None) =>
-        // TODO: stack variables
-        (env.get[VariableInMemory](lv.name + ".hi").toAddress,
-          env.get[VariableInMemory](lv.name + ".lo").toAddress,
-          env.get[VariableInMemory](rv.name + ".hi").toAddress,
-          env.get[VariableInMemory](rv.name + ".lo").toAddress, Absolute)
+        val lva = env.get[VariableInMemory](lv.name)
+        val rva = env.get[VariableInMemory](rv.name)
+        (AssemblyLine.variable(ctx, STA, lva, 1),
+          AssemblyLine.variable(ctx, STA, lva, 0),
+          AssemblyLine.variable(ctx, STA, rva, 1),
+          AssemblyLine.variable(ctx, STA, rva, 0))
     }
     effectiveComparisonType match {
       case ComparisonType.Equal =>
         val innerLabel = MlCompiler.nextLabel("cp")
-        List(AssemblyLine.absolute(LDA, ll),
-          AssemblyLine(CMP, ram, rl),
-          AssemblyLine.relative(BNE, innerLabel),
-          AssemblyLine.absolute(LDA, lh),
-          AssemblyLine(CMP, ram, rh),
-          AssemblyLine.relative(BEQ, Label(x)),
-          AssemblyLine.label(innerLabel))
+        staTo(LDA, ll) ++
+          staTo(CMP, rl) ++
+          List(AssemblyLine.relative(BNE, innerLabel)) ++
+          staTo(LDA, lh) ++
+          staTo(CMP, rh) ++
+          List(
+            AssemblyLine.relative(BEQ, Label(x)),
+            AssemblyLine.label(innerLabel))
 
       case ComparisonType.NotEqual =>
-        List(AssemblyLine.absolute(LDA, ll),
-          AssemblyLine(CMP, ram, rl),
-          AssemblyLine.relative(BNE, Label(x)),
-          AssemblyLine.absolute(LDA, lh),
-          AssemblyLine(CMP, ram, rh),
-          AssemblyLine.relative(BNE, Label(x)))
+        staTo(LDA, ll) ++
+          staTo(CMP, rl) ++
+          List(AssemblyLine.relative(BNE, Label(x))) ++
+          staTo(LDA, lh) ++
+          staTo(CMP, rh) ++
+          List(AssemblyLine.relative(BNE, Label(x)))
 
       case ComparisonType.LessUnsigned =>
         val innerLabel = MlCompiler.nextLabel("cp")
-        List(AssemblyLine.absolute(LDA, lh),
-          AssemblyLine(CMP, ram, rh),
-          AssemblyLine.relative(BCC, Label(x)),
-          AssemblyLine.relative(BNE, innerLabel),
-          AssemblyLine.absolute(LDA, ll),
-          AssemblyLine(CMP, ram, rl),
-          AssemblyLine.relative(BCC, Label(x)),
-          AssemblyLine.label(innerLabel))
+        staTo(LDA, lh) ++
+          staTo(CMP, rh) ++
+          List(
+            AssemblyLine.relative(BCC, Label(x)),
+            AssemblyLine.relative(BNE, innerLabel)) ++
+          staTo(LDA, ll) ++
+          staTo(CMP, rl) ++
+          List(
+            AssemblyLine.relative(BCC, Label(x)),
+            AssemblyLine.label(innerLabel))
 
       case ComparisonType.LessOrEqualUnsigned =>
         val innerLabel = MlCompiler.nextLabel("cp")
-        List(AssemblyLine(LDA, ram, rh),
-          AssemblyLine.absolute(CMP, lh),
-          AssemblyLine.relative(BCC, innerLabel),
-          AssemblyLine.relative(BNE, x),
-          AssemblyLine(LDA, ram, rl),
-          AssemblyLine.absolute(CMP, ll),
-          AssemblyLine.relative(BCS, x),
-          AssemblyLine.label(innerLabel))
+        staTo(LDA, rh) ++
+          staTo(CMP, lh) ++
+          List(AssemblyLine.relative(BCC, innerLabel),
+            AssemblyLine.relative(BNE, x)) ++
+          staTo(LDA, rl) ++
+          staTo(CMP, ll) ++
+          List(AssemblyLine.relative(BCS, x),
+            AssemblyLine.label(innerLabel))
 
       case ComparisonType.GreaterUnsigned =>
         val innerLabel = MlCompiler.nextLabel("cp")
-        List(AssemblyLine(LDA, ram, rh),
-          AssemblyLine.absolute(CMP, lh),
-          AssemblyLine.relative(BCC, Label(x)),
-          AssemblyLine.relative(BNE, innerLabel),
-          AssemblyLine(LDA, ram, rl),
-          AssemblyLine.absolute(CMP, ll),
-          AssemblyLine.relative(BCC, Label(x)),
-          AssemblyLine.label(innerLabel))
+        staTo(LDA, rh) ++
+          staTo(CMP, lh) ++
+          List(AssemblyLine.relative(BCC, Label(x)),
+            AssemblyLine.relative(BNE, innerLabel)) ++
+          staTo(LDA, rl) ++
+          staTo(CMP, ll) ++
+          List(AssemblyLine.relative(BCC, Label(x)),
+            AssemblyLine.label(innerLabel))
 
       case ComparisonType.GreaterOrEqualUnsigned =>
         val innerLabel = MlCompiler.nextLabel("cp")
-        List(AssemblyLine.absolute(LDA, lh),
-          AssemblyLine(CMP, ram, rh),
-          AssemblyLine.relative(BCC, innerLabel),
-          AssemblyLine.relative(BNE, x),
-          AssemblyLine.absolute(LDA, ll),
-          AssemblyLine(CMP, ram, rl),
-          AssemblyLine.relative(BCS, x),
-          AssemblyLine.label(innerLabel))
+        staTo(LDA, lh) ++
+          staTo(CMP, rh) ++
+          List(AssemblyLine.relative(BCC, innerLabel),
+            AssemblyLine.relative(BNE, x)) ++
+          staTo(LDA, ll) ++
+          staTo(CMP, rl) ++
+          List(AssemblyLine.relative(BCS, x),
+            AssemblyLine.label(innerLabel))
 
       case _ => ???
       // TODO: signed word comparisons

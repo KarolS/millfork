@@ -21,26 +21,26 @@ sealed trait BranchSpec {
 }
 
 case object NoBranching extends BranchSpec {
-  override def flip = this
+  override def flip: BranchSpec = this
 }
 
 case class BranchIfTrue(label: String) extends BranchSpec {
-  override def flip = BranchIfFalse(label)
+  override def flip: BranchSpec = BranchIfFalse(label)
 }
 
 case class BranchIfFalse(label: String) extends BranchSpec {
-  override def flip = BranchIfTrue(label)
+  override def flip: BranchSpec = BranchIfTrue(label)
 }
 
 object BranchSpec {
-  val None = NoBranching
+  val None: BranchSpec = NoBranching
 }
 
 //noinspection NotImplementedCode,ScalaUnusedSymbol
 object MlCompiler {
 
 
-  private var labelCounter = new AtomicLong
+  private val labelCounter = new AtomicLong
 
   def nextLabel(prefix: String): String = "." + prefix + "__" + labelCounter.incrementAndGet().formatted("%05d")
 
@@ -158,20 +158,21 @@ object MlCompiler {
         AssemblyLine(LDA, Immediate, expr.hiByte),
         AssemblyLine(LDY, Immediate, expr.loByte))
       case m: VariableInMemory =>
+        val addrMode = if(m.zeropage) ZeroPage else Absolute
         val addr = m.toAddress
         m.typ.size match {
           case 0 => Nil
           case 1 => List(
             AssemblyLine(LDA, Immediate, expr.loByte),
-            AssemblyLine(STA, Absolute, addr))
+            AssemblyLine(STA, addrMode, addr))
           case 2 => List(
             AssemblyLine(LDA, Immediate, expr.loByte),
-            AssemblyLine(STA, Absolute, addr),
+            AssemblyLine(STA, addrMode, addr),
             AssemblyLine(LDA, Immediate, expr.hiByte),
-            AssemblyLine(STA, Absolute, addr + 1))
+            AssemblyLine(STA, addrMode, addr + 1))
           case s => List.tabulate(s)(i => List(
             AssemblyLine(LDA, Immediate, expr.subbyte(i)),
-            AssemblyLine(STA, Absolute, addr + i))).flatten
+            AssemblyLine(STA, addrMode, addr + i))).flatten
         }
       case StackVariable(_, t, offset) =>
         t.size match {
@@ -281,9 +282,15 @@ object MlCompiler {
           case s if s > 1 =>
             v match {
               case mv: VariableInMemory =>
-                AssemblyLine.absolute(store, mv) ::
-                  AssemblyLine.immediate(LDA, 0) ::
-                  List.tabulate(s - 1)(i => AssemblyLine.absolute(STA, mv.toAddress + (i + 1)))
+                if (mv.zeropage) {
+                  AssemblyLine.zeropage(store, mv) ::
+                    AssemblyLine.immediate(LDA, 0) ::
+                    List.tabulate(s - 1)(i => AssemblyLine.zeropage(STA, mv.toAddress + (i + 1)))
+                } else {
+                  AssemblyLine.absolute(store, mv) ::
+                    AssemblyLine.immediate(LDA, 0) ::
+                    List.tabulate(s - 1)(i => AssemblyLine.absolute(STA, mv.toAddress + (i + 1)))
+                }
               case sv@StackVariable(_, _, offset) =>
                 AssemblyLine.implied(transferToA) ::
                   AssemblyLine.implied(TSX) ::
@@ -1131,12 +1138,11 @@ object MlCompiler {
             AssemblyLine.implied(TAX),
             AssemblyLine.implied(PLA)) // fuck this shit
         }
-      case (_, RegisterVariable(Register.YA, _)) => {
+      case (_, RegisterVariable(Register.YA, _)) =>
         // TODO: sign extension
         List(
           AssemblyLine.implied(TAY),
           AssemblyLine.implied(TXA))
-      }
       case (_, RegisterVariable(Register.AY, _)) =>
         // TODO: sign extension
         List(

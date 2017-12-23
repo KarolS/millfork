@@ -184,14 +184,40 @@ object AssemblyLine {
 
   def implied(opcode: Opcode.Value) = AssemblyLine(opcode, AddrMode.Implied, Constant.Zero)
 
+  private val opcodesForNopVariableOperation = Set(STA, SAX, STX, STY, STZ)
+  private val opcodesForZeroedVariableOperation = Set(ADC, EOR, ORA, AND, SBC, CMP, CPX, CPY)
+  private val opcodesForZeroedOrSignExtendedVariableOperation = Set(LDA, LDX, LDY)
+
   def variable(ctx: CompilationContext, opcode: Opcode.Value, variable: Variable, offset: Int = 0): List[AssemblyLine] =
-    variable match {
-      case v@MemoryVariable(_, _, VariableAllocationMethod.Zeropage) =>
-        List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
-      case v@RelativeVariable(_, _, _, true) =>
-        List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
-      case v:VariableInMemory => List(AssemblyLine.absolute(opcode, v.toAddress + offset))
-      case v:StackVariable=> List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(opcode, v.baseOffset + offset + ctx.extraStackOffset))
+    if (offset > variable.typ.size) {
+      if (opcodesForNopVariableOperation(opcode)) {
+        Nil
+      } else if (opcodesForZeroedVariableOperation(opcode)) {
+        if (variable.typ.isSigned) ???
+        List(AssemblyLine.immediate(opcode, 0))
+      } else if (opcodesForZeroedOrSignExtendedVariableOperation(opcode)) {
+        if (variable.typ.isSigned) {
+          val label = MlCompiler.nextLabel("sx")
+          AssemblyLine.variable(ctx, opcode, variable, variable.typ.size - 1) ++ List(
+            AssemblyLine.immediate(ORA, 0x7f),
+            AssemblyLine.relative(BMI, label),
+            AssemblyLine.immediate(LDA, 0),
+            AssemblyLine.label(label))
+        } else {
+          List(AssemblyLine.immediate(opcode, 0))
+        }
+      } else {
+        ???
+      }
+    } else {
+      variable match {
+        case v@MemoryVariable(_, _, VariableAllocationMethod.Zeropage) =>
+          List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
+        case v@RelativeVariable(_, _, _, true) =>
+          List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
+        case v: VariableInMemory => List(AssemblyLine.absolute(opcode, v.toAddress + offset))
+        case v: StackVariable => List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(opcode, v.baseOffset + offset + ctx.extraStackOffset))
+      }
     }
 
   def zeropage(opcode: Opcode.Value, addr: Constant) =
