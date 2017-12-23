@@ -18,7 +18,7 @@ object AlwaysGoodOptimizations {
 
   val counter = new AtomicInteger(30000)
 
-  def getNextLabel(prefix: String) = f".${prefix}%s__${counter.getAndIncrement()}%05d"
+  def getNextLabel(prefix: String) = f".$prefix%s__${counter.getAndIncrement()}%05d"
 
   val PointlessMath = new RuleBasedAssemblyOptimization("Pointless math",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
@@ -136,19 +136,6 @@ object AlwaysGoodOptimizations {
     (HasOpcodeIn(Set(STA, LDA, LAX)) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchAddrMode(9) & MatchParameter(0)) ~
       (Linear & DoesntChangeMemoryAt(9, 0) & Not(ChangesA)).* ~
       (HasOpcode(EOR) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.immediate(LDA, 0)),
-  )
-
-  val PointlessStoreAfterLoad = new RuleBasedAssemblyOptimization("Pointless store after load",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    (HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (LinearOrLabel & DoesntChangeMemoryAt(0,1) & Not(ChangesA) & DoesntChangeIndexingInAddrMode(0)).* ~
-      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
-    (HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (LinearOrLabel & DoesntChangeMemoryAt(0,1) & Not(ChangesA) & DoesntChangeIndexingInAddrMode(0)).* ~
-      (Elidable & HasOpcode(STX) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
-    (HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (LinearOrLabel & DoesntChangeMemoryAt(0,1) & Not(ChangesA) & DoesntChangeIndexingInAddrMode(0)).* ~
-      (Elidable & HasOpcode(STY) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
   )
 
   val PoinlessStoreBeforeStore = new RuleBasedAssemblyOptimization("Pointless store before store",
@@ -588,17 +575,17 @@ object AlwaysGoodOptimizations {
   val PointlessLoadAfterLoadOrStore = new RuleBasedAssemblyOptimization("Pointless load after load or store",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
 
-    (HasOpcodeIn(Set(LDA, STA)) & HasAddrMode(Implied) & MatchParameter(1)) ~
+    (HasOpcodeIn(Set(LDA, STA)) & HasAddrMode(Immediate) & MatchParameter(1)) ~
       (Linear & Not(ChangesA)).* ~
-      (Elidable & HasOpcode(LDA) & HasAddrMode(Implied) & MatchParameter(1)) ~~> (_.init),
+      (Elidable & HasOpcode(LDA) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
-    (HasOpcodeIn(Set(LDX, STX)) & HasAddrMode(Implied) & MatchParameter(1)) ~
+    (HasOpcodeIn(Set(LDX, STX)) & HasAddrMode(Immediate) & MatchParameter(1)) ~
       (Linear & Not(ChangesX)).* ~
-      (Elidable & HasOpcode(LDX) & HasAddrMode(Implied) & MatchParameter(1)) ~~> (_.init),
+      (Elidable & HasOpcode(LDX) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
-    (HasOpcodeIn(Set(LDY, STY)) & HasAddrMode(Implied) & MatchParameter(1)) ~
+    (HasOpcodeIn(Set(LDY, STY)) & HasAddrMode(Immediate) & MatchParameter(1)) ~
       (Linear & Not(ChangesY)).* ~
-      (Elidable & HasOpcode(LDY) & HasAddrMode(Implied) & MatchParameter(1)) ~~> (_.init),
+      (Elidable & HasOpcode(LDY) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcodeIn(Set(LDA, STA)) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & Not(ChangesA) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~

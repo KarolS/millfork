@@ -60,9 +60,13 @@ sealed trait Constant {
   def isLowestByteAlwaysEqual(i: Int) : Boolean = false
 
   def quickSimplify: Constant = this
+
+  def isRelatedTo(v: Variable): Boolean
 }
 
-case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant
+case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant {
+  override def isRelatedTo(v: Variable): Boolean = false
+}
 
 case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   if (requiredSize == 1) {
@@ -80,12 +84,16 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   override def +(that: Long) = NumericConstant(value + that, minimumSize(value + that))
 
   override def toString: String = if (value > 9) value.formatted("$%X") else value.toString
+
+  override def isRelatedTo(v: Variable): Boolean = false
 }
 
 case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
   override def requiredSize = 2
 
   override def toString: String = thing.name
+
+  override def isRelatedTo(v: Variable): Boolean = thing.name == v.name
 }
 
 case class HalfWordConstant(base: Constant, hi: Boolean) extends Constant {
@@ -104,6 +112,8 @@ case class HalfWordConstant(base: Constant, hi: Boolean) extends Constant {
   override def requiredSize = 1
 
   override def toString: String = base + (if (hi) ".hi" else ".lo")
+
+  override def isRelatedTo(v: Variable): Boolean = base.isRelatedTo(v)
 }
 
 case class SubbyteConstant(base: Constant, index: Int) extends Constant {
@@ -127,6 +137,8 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
     case 2 => ".b2"
     case 3 => ".b3"
   })
+
+  override def isRelatedTo(v: Variable): Boolean = base.isRelatedTo(v)
 }
 
 object MathOperator extends Enumeration {
@@ -221,4 +233,6 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
   }
 
   override def requiredSize: Int = lhs.requiredSize max rhs.requiredSize
+
+  override def isRelatedTo(v: Variable): Boolean = lhs.isRelatedTo(v) || rhs.isRelatedTo(v)
 }

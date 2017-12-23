@@ -73,9 +73,9 @@ object LaterOptimizations {
   //noinspection ZeroIndexToHead
   private def InterleavedImmediateLoads(load: Opcode.Value, store: Opcode.Value) = {
     (Elidable & HasOpcode(load) & MatchImmediate(0)) ~
-      (Elidable & HasOpcode(store) & HasAddrMode(Absolute) & MatchParameter(8)) ~
+      (Elidable & HasOpcode(store) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(8)) ~
       (Elidable & HasOpcode(load) & MatchImmediate(1)) ~
-      (Elidable & HasOpcode(store) & HasAddrMode(Absolute) & MatchParameter(9) & DontMatchParameter(8)) ~
+      (Elidable & HasOpcode(store) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(9) & DontMatchParameter(8)) ~
       (Elidable & HasOpcode(load) & MatchImmediate(0)) ~~> { c =>
       List(c(2), c(3), c(0), c(1))
     }
@@ -83,11 +83,11 @@ object LaterOptimizations {
 
   //noinspection ZeroIndexToHead
   private def InterleavedAbsoluteLoads(load: Opcode.Value, store: Opcode.Value) = {
-    (Elidable & HasOpcode(load) & HasAddrMode(Absolute) & MatchParameter(0)) ~
-      (Elidable & HasOpcode(store) & HasAddrMode(Absolute) & MatchParameter(8) & DontMatchParameter(0)) ~
-      (Elidable & HasOpcode(load) & HasAddrMode(Absolute) & MatchParameter(1) & DontMatchParameter(8) & DontMatchParameter(0)) ~
-      (Elidable & HasOpcode(store) & HasAddrMode(Absolute) & MatchParameter(9) & DontMatchParameter(8) & DontMatchParameter(1) & DontMatchParameter(0)) ~
-      (Elidable & HasOpcode(load) & HasAddrMode(Absolute) & MatchParameter(0)) ~~> { c =>
+    (Elidable & HasOpcode(load) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(store) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(8) & DontMatchParameter(0)) ~
+      (Elidable & HasOpcode(load) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(1) & DontMatchParameter(8) & DontMatchParameter(0)) ~
+      (Elidable & HasOpcode(store) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(9) & DontMatchParameter(8) & DontMatchParameter(1) & DontMatchParameter(0)) ~
+      (Elidable & HasOpcode(load) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(0)) ~~> { c =>
       List(c(2), c(3), c(0), c(1))
     }
   }

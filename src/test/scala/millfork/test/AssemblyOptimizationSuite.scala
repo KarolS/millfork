@@ -172,7 +172,6 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   test("TAX-BCC-RTS-TXA optimization") {
     new EmuRun(Cpu.StrictMos,
       OptimizationPresets.NodeOpt, List(
-        AlwaysGoodOptimizations.PointlessStoreAfterLoad,
         LaterOptimizations.PointlessLoadAfterStore,
         VariableToRegisterOptimization,
         LaterOptimizations.DoubleLoadToDifferentRegisters,
