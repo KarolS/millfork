@@ -71,7 +71,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   def allocateVariables(nf: Option[NormalFunction], callGraph: CallGraph, allocator: VariableAllocator, options: CompilationOptions, onEachVariable: (String, Int) => Unit): Unit = {
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
-    var params = nf.fold(List[String]()) { f =>
+    val params = nf.fold(List[String]()) { f =>
       f.params match {
         case NormalParamSignature(ps) =>
           ps.map(p => p.name)
@@ -378,7 +378,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           )
           addThing(mangled, stmt.position)
         } else {
-          var stackVariablesSize = env.things.values.map {
+          val stackVariablesSize = env.things.values.map {
             case StackVariable(n, t, _) if !n.contains(".") => t.size
             case _ => 0
           }.sum
@@ -569,7 +569,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             case NumericConstant(n, _) => n < 0x100
             case _ => false
           }
-          (RelativeVariable(prefix + name, addr, typ, zeropage = zp), addr)
+          val v = RelativeVariable(prefix + name, addr, typ, zeropage = zp)
+          registerAddressConstant(v, stmt.position)
+          (v, addr)
         })
         addThing(v, stmt.position)
         if (!v.isInstanceOf[MemoryVariable]) {

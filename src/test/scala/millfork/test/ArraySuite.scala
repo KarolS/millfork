@@ -130,4 +130,29 @@ class ArraySuite extends FunSuite with Matchers {
       m.readByte(0xc001) should equal(0)
     }
   }
+
+  test("Pointers") {
+    EmuBenchmarkRun(
+      """
+        | byte output
+        |   pointer a
+        |   pointer b
+        |   pointer c
+        | void main () {
+        |   setup()
+        |   reset()
+        | }
+        | void setup() {
+        |   a = output.addr
+        |   b = output.addr
+        |   c = output.addr
+        | }
+        | void reset() {
+        |   a[0] = 0
+        |   b[0] = 0
+        |   c[0] = 0
+        | }
+      """.stripMargin)(_.readByte(0xc000) should equal(0))
+
+  }
 }
