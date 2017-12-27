@@ -15,6 +15,7 @@ stuff
 # compiled Millfork files
 *.prg
 *.asm
+*.lbl
 *.xex
 *.nes
 *.a2

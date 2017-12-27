@@ -1,7 +1,8 @@
 package millfork.assembly.opt
 
 import millfork.assembly.{AssemblyLine, OpcodeClasses, State}
-import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConstant}
+import millfork.env._
+import millfork.node.Register
 
 import scala.collection.immutable
 
@@ -96,7 +97,30 @@ object ReverseFlowAnalyzer {
           case _ =>
         }
         codeArray(i) match {
-            // TODO: JSR?
+          case AssemblyLine(JSR, _, MemoryAddressConstant(fun:FunctionInMemory), _) =>
+            var result = new CpuImportance().copy(d = Important)
+            fun.params match {
+              case AssemblyParamSignature(params) =>
+                params.foreach(_.variable match {
+                  case RegisterVariable(Register.A, _) =>
+                    result = result.copy(a = Important)
+                  case RegisterVariable(Register.X, _) =>
+                    result = result.copy(x = Important)
+                  case RegisterVariable(Register.Y, _) =>
+                    result = result.copy(y = Important)
+                  case RegisterVariable(Register.AX | Register.XA, _) =>
+                    result = result.copy(a = Important, x = Important)
+                  case RegisterVariable(Register.YA | Register.YA, _) =>
+                    result = result.copy(a = Important, y = Important)
+                  case RegisterVariable(Register.XY | Register.YX, _) =>
+                    result = result.copy(x = Important, y=Important)
+                  case _ =>
+                })
+              case _ =>
+            }
+            currentImportance = result
+          case AssemblyLine(JSR, _, _, _) =>
+            currentImportance = finalImportance
           case AssemblyLine(JMP, Absolute, MemoryAddressConstant(Label(l)), _) =>
             val L = l
             val labelIndex = codeArray.indexWhere {
