@@ -1,11 +1,12 @@
 package millfork.parser
+
 import millfork.error.ErrorReporting
 import millfork.node.Position
 
 /**
   * @author Karol Stasiak
   */
-class TextCodec(val name:String, private val map: String, private val extra: Map[Char,Int]) {
+class TextCodec(val name: String, private val map: String, private val extra: Map[Char, Int]) {
   def decode(position: Option[Position], c: Char): Int = {
     if (extra.contains(c)) extra(c) else {
       val index = map.indexOf(c)
@@ -21,10 +22,19 @@ class TextCodec(val name:String, private val map: String, private val extra: Map
 object TextCodec {
   val NotAChar = '\ufffd'
 
-  val Ascii = new TextCodec("ASCII", 0.until(127).map{i => if (i<32) NotAChar else i.toChar}.mkString, Map.empty)
+  val Ascii = new TextCodec("ASCII", 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty)
+
+  val CbmScreencodes = new TextCodec("CBM-Screen",
+    "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
+      0x20.to(0x3f).map(_.toChar).mkString +
+      "–ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    Map('^' -> 0x3E, 'π' -> 0x5E))
 
   val Petscii = new TextCodec("PETSCII",
-    "\ufffd" * 32 + 0x20.to(0x3f).map(_.toChar).mkString + "@abcdefghijklmnopqrstuvwxyz[£]↑←–ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "\ufffd" * 32 +
+      0x20.to(0x3f).map(_.toChar).mkString +
+      "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
+      "–ABCDEFGHIJKLMNOPQRSTUVWXYZ",
     Map('^' -> 0x5E, 'π' -> 0x7E)
   )
 

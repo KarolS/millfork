@@ -155,4 +155,16 @@ class ArraySuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc000) should equal(0))
 
   }
+
+  test("Syntax") {
+    EmuUnoptimizedRun(
+      """
+        | array a = [1, 2, 3]
+        | array b = "text" ascii
+        | array c = ["text" ascii, 5]
+        | void main () {
+        | }
+      """.stripMargin)
+
+  }
 }

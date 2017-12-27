@@ -1,0 +1,23 @@
+import stdio
+
+array p = [
+    "this is an example" petscii, 13,
+    "of multiline petscii text" petscii
+]
+
+array s = [
+    "and this is an example                  " scr,
+    "of text done in screencodes" scr
+]
+
+array screen [1000] @$400
+
+void main(){
+    byte i
+    putstr(p, p.length)
+    for i,0,paralleluntil,s.length {
+        screen[20 * 40 + i] = s[i]
+        c64_color_ram[20 * 40 + i] = light_blue
+    }
+    while(true){}
+}

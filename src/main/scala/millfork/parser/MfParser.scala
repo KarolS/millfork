@@ -167,8 +167,9 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     appc <- appcSimple | appcComplex
   } yield ParameterDeclaration(typ, appc).pos(p)
 
+  def arrayListElement: P[List[Expression]] = arrayStringContents | mlExpression(nonStatementLevel).map(List(_))
 
-  val arrayListContents: P[List[Expression]] = ("[" ~/ AWS ~/ mlExpression(nonStatementLevel).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ "]" ~/ Pass).map(_.toList)
+  def arrayListContents: P[List[Expression]] = ("[" ~/ AWS ~/ arrayListElement.rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ "]" ~/ Pass).map(_.flatten.toList)
 
   val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').! ~ "\"").map(_.toList)
 
@@ -176,6 +177,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     case (_, "ascii") => TextCodec.Ascii
     case (_, "petscii") => TextCodec.Petscii
     case (_, "pet") => TextCodec.Petscii
+    case (_, "scr") => TextCodec.CbmScreencodes
     case (p, x) =>
       ErrorReporting.error(s"Unknown string encoding: `$x`", Some(p))
       TextCodec.Ascii
