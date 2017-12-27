@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -97,5 +97,85 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         | }
         | byte addDecimalTwice(byte a, byte b) { return (a + b) +' (a + b) }
       """.stripMargin)(_.readByte(0xc000) should equal(0x36))
+  }
+
+  test("Decimal left shift test") {
+    val m = EmuUnoptimizedRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |   byte n
+        |   n = nine()
+        |   output = n <<' 2
+        | }
+        | byte nine() { return 9 }
+      """.stripMargin)
+    m.readByte(0xc000) should equal(0x36)
+  }
+
+  test("Decimal left shift test 2") {
+    val m = EmuUnoptimizedRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |   output = nine()
+        |   output <<'= 2
+        | }
+        | byte nine() { return 9 }
+      """.stripMargin)
+    m.readByte(0xc000) should equal(0x36)
+  }
+
+  test("Decimal left shift test 3") {
+    val m = EmuUnoptimizedRun(
+      """
+        | word output @$c000
+        | void main () {
+        |   output = nine()
+        |   output <<'= 2
+        | }
+        | byte nine() { return $91 }
+      """.stripMargin)
+    m.readWord(0xc000) should equal(0x364)
+  }
+
+  test("Decimal right shift test") {
+    val m = EmuUnoptimizedRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |   byte n
+        |   n = thirty_six()
+        |   output = n >>' 2
+        | }
+        | byte thirty_six() { return $36 }
+      """.stripMargin)
+    m.readByte(0xc000) should equal(9)
+  }
+
+  test("Decimal right shift test 2") {
+    val m = EmuUnoptimizedRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |   output = thirty_six()
+        |   output >>'= 2
+        | }
+        | byte thirty_six() { return $36 }
+      """.stripMargin)
+    m.readByte(0xc000) should equal(9)
+  }
+
+  test("Decimal right shift test 3") {
+    val m = EmuUnoptimizedRun(
+      """
+        | word output @$c000
+        | void main () {
+        |   output = thirty_six()
+        |   output >>'= 2
+        | }
+        | word thirty_six() { return $364 }
+      """.stripMargin)
+    m.readWord(0xc000) should equal(0x91)
   }
 }

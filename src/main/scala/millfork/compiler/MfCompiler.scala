@@ -892,6 +892,14 @@ object MlCompiler {
             assertAllBytes("Long shift ops not supported", ctx, params)
             val (l, r, 1) = assertBinary(ctx, params)
             BuiltIns.compileShiftOps(LSR, ctx, l, r)
+          case "<<'" =>
+            assertAllBytes("Long shift ops not supported", ctx, params)
+            val (l, r, 1) = assertBinary(ctx, params)
+            DecimalBuiltIns.compileByteShiftLeft(ctx, l, r, rotate = false)
+          case ">>'" =>
+            assertAllBytes("Long shift ops not supported", ctx, params)
+            val (l, r, 1) = assertBinary(ctx, params)
+            DecimalBuiltIns.compileByteShiftRight(ctx, l, r, rotate = false)
           case "<" =>
             // TODO: signed
             val (l, r, size, signed) = assertComparison(ctx, params)
@@ -1016,6 +1024,28 @@ object MlCompiler {
                 l match {
                   case v: LhsExpression =>
                     BuiltIns.compileInPlaceWordOrLongShiftOps(ctx, v, r, aslRatherThanLsr = false)
+                }
+            }
+          case "<<'=" =>
+            val (l, r, size) = assertAssignmentLike(ctx, params)
+            size match {
+              case 1 =>
+                DecimalBuiltIns.compileByteShiftLeft(ctx, l, r, rotate = false) ++ compileByteStorage(ctx, Register.A, l)
+              case i if i >= 2 =>
+                l match {
+                  case v: LhsExpression =>
+                    DecimalBuiltIns.compileInPlaceLongShiftLeft(ctx, v, r)
+                }
+            }
+          case ">>'=" =>
+            val (l, r, size) = assertAssignmentLike(ctx, params)
+            size match {
+              case 1 =>
+                DecimalBuiltIns.compileByteShiftRight(ctx, l, r, rotate = false) ++ compileByteStorage(ctx, Register.A, l)
+              case i if i >= 2 =>
+                l match {
+                  case v: LhsExpression =>
+                    DecimalBuiltIns.compileInPlaceLongShiftRight(ctx, v, r)
                 }
             }
           case "*=" =>
