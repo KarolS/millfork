@@ -1090,13 +1090,9 @@ object MlCompiler {
               case function: InlinedFunction =>
                 inlineFunction(function, params, Some(ctx)).map {
                   case AssemblyStatement(opcode, addrMode, expression, elidable) =>
-                    val param = env.eval(expression).getOrElse {
-                      expression match {
-                        case VariableExpression(name) => env.get[ThingInMemory](name).toAddress
-                        case _ =>
-                          ErrorReporting.error("Inlining failed due to non-constant things", expression.position)
-                          Constant.Zero
-                      }
+                    val param = env.evalForAsm(expression).getOrElse {
+                      ErrorReporting.error("Inlining failed due to non-constant things", expression.position)
+                      Constant.Zero
                     }
                     AssemblyLine(opcode, addrMode, param, elidable)
 
@@ -1427,12 +1423,17 @@ object MlCompiler {
             if (OpcodeClasses.ShortBranching(o) || o == JMP || o == LABEL) {
               MemoryAddressConstant(Label(name))
             } else{
-              env.eval(x).getOrElse(env.get[ThingInMemory](name, x.position).toAddress)
+              env.evalForAsm(x).getOrElse(env.get[ThingInMemory](name, x.position).toAddress)
             }
           case _ =>
-            env.eval(x).getOrElse(Constant.error(s"`$x` is not a constant", x.position))
+            env.evalForAsm(x).getOrElse(Constant.error(s"`$x` is not a constant", x.position))
         }
-        val actualAddrMode = if (OpcodeClasses.ShortBranching(o) && a == Absolute) Relative else a
+        val actualAddrMode = a match {
+          case Absolute if OpcodeClasses.ShortBranching(o) => Relative
+          case IndexedX if o == JMP => AbsoluteIndexedX
+          case Indirect if o != JMP => ZeroPageIndirect
+          case _ => a
+        }
         LinearChunk(List(AssemblyLine(o, actualAddrMode, c, e)))
       case Assignment(dest, source) =>
         LinearChunk(compileAssignment(ctx, source, dest))

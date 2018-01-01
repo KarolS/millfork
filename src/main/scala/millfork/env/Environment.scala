@@ -285,7 +285,62 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   }
 
   private def constantOperation(op: MathOperator.Value, params: List[Expression]) = {
-    params.map(eval(_)).reduceLeft[Option[Constant]] { (oc, om) =>
+    params.map(eval).reduceLeft[Option[Constant]] { (oc, om) =>
+      for {
+        c <- oc
+        m <- om
+      } yield CompoundConstant(op, c, m)
+    }
+  }
+
+  def evalForAsm(e: Expression): Option[Constant] = {
+    e match {
+      case LiteralExpression(value, size) => Some(NumericConstant(value, size))
+      case VariableExpression(name) =>
+        maybeGet[ConstantThing](name).map(_.value).orElse(maybeGet[ThingInMemory](name).map(_.toAddress))
+      case IndexedExpression(name, index) => (evalForAsm(VariableExpression(name)), evalForAsm(index)) match {
+        case (Some(a), Some(b)) => Some(CompoundConstant(MathOperator.Plus, a, b).quickSimplify)
+      }
+      case HalfWordExpression(param, hi) => evalForAsm(e).map(c => if (hi) c.hiByte else c.loByte)
+      case SumExpression(params, decimal) =>
+        params.map {
+          case (minus, param) => (minus, evalForAsm(param))
+        }.foldLeft(Some(Constant.Zero).asInstanceOf[Option[Constant]]) { (oc, pair) =>
+          oc.flatMap { c =>
+            pair match {
+              case (_, None) => None
+              case (minus, Some(addend)) =>
+                val op = if (decimal) {
+                  if (minus) MathOperator.DecimalMinus else MathOperator.DecimalPlus
+                } else {
+                  if (minus) MathOperator.Minus else MathOperator.Plus
+                }
+                Some(CompoundConstant(op, c, addend))
+            }
+          }
+        }
+      case SeparateBytesExpression(h, l) => for {
+        lc <- evalForAsm(l)
+        hc <- evalForAsm(h)
+      } yield hc.asl(8) + lc
+      case FunctionCallExpression(name, params) =>
+        name match {
+          case "*" =>
+            constantOperationForAsm(MathOperator.Times, params)
+          case "&&" | "&" =>
+            constantOperationForAsm(MathOperator.And, params)
+          case "^" =>
+            constantOperationForAsm(MathOperator.Exor, params)
+          case "||" | "|" =>
+            constantOperationForAsm(MathOperator.Or, params)
+          case _ =>
+            None
+        }
+    }
+  }
+
+  private def constantOperationForAsm(op: MathOperator.Value, params: List[Expression]) = {
+    params.map(evalForAsm).reduceLeft[Option[Constant]] { (oc, om) =>
       for {
         c <- oc
         m <- om

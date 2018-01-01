@@ -96,4 +96,18 @@ class AssemblySuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc000) should equal(5))
   }
 
+  test("Adresses in asm") {
+    EmuBenchmarkRun(
+      """
+        | word output @$c000
+        | void main () {
+        |  output = 0
+        |  add256(output)
+        | }
+        | inline asm void add256(word ref v) {
+        |   inc v+1
+        | }
+      """.stripMargin)(_.readWord(0xc000) should equal(0x100))
+  }
+
 }
