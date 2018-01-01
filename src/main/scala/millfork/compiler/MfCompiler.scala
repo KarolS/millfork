@@ -405,15 +405,12 @@ object MlCompiler {
     }
   }
 
-  def assertComparison(ctx: CompilationContext, params: List[Expression]): (Expression, Expression, Int, Boolean) = {
-    if (params.length != 2) {
-      ErrorReporting.fatal("sfgdgfsd", None)
-    }
+  def assertComparison(ctx: CompilationContext, params: List[Expression]): (Int, Boolean) = {
     (params.head, params(1)) match {
       case (l: Expression, r: Expression) =>
         val lt = getExpressionType(ctx, l)
         val rt = getExpressionType(ctx, r)
-        (l, r, lt.size max rt.size, lt.isSigned || rt.isSigned)
+        (lt.size max rt.size, lt.isSigned || rt.isSigned)
     }
   }
 
@@ -902,37 +899,47 @@ object MlCompiler {
             DecimalBuiltIns.compileByteShiftRight(ctx, l, r, rotate = false)
           case "<" =>
             // TODO: signed
-            val (l, r, size, signed) = assertComparison(ctx, params)
-            size match {
-              case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
-              case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
+            val (size, signed) = assertComparison(ctx, params)
+            compileTransitiveRelation(ctx, "<", params, exprTypeAndVariable, branches) { (l, r) =>
+              size match {
+                case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
+                case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
+              }
             }
           case ">=" =>
             // TODO: signed
-            val (l, r, size, signed) = assertComparison(ctx, params)
-            size match {
-              case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
-              case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
+            val (size, signed) = assertComparison(ctx, params)
+            compileTransitiveRelation(ctx, ">=", params, exprTypeAndVariable, branches) { (l, r) =>
+              size match {
+                case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
+                case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
+              }
             }
           case ">" =>
             // TODO: signed
-            val (l, r, size, signed) = assertComparison(ctx, params)
-            size match {
-              case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
-              case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
+            val (size, signed) = assertComparison(ctx, params)
+            compileTransitiveRelation(ctx, ">", params, exprTypeAndVariable, branches) { (l, r) =>
+              size match {
+                case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
+                case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
+              }
             }
           case "<=" =>
             // TODO: signed
-            val (l, r, size, signed) = assertComparison(ctx, params)
-            size match {
-              case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
-              case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
+            val (size, signed) = assertComparison(ctx, params)
+            compileTransitiveRelation(ctx, "<=", params, exprTypeAndVariable, branches) { (l, r) =>
+                size match {
+                  case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
+                  case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
+                }
             }
           case "==" =>
-            val (l, r, size) = assertBinary(ctx, params)
-            size match {
-              case 1 => BuiltIns.compileByteComparison(ctx, ComparisonType.Equal, l, r, branches)
-              case 2 => BuiltIns.compileWordComparison(ctx, ComparisonType.Equal, l, r, branches)
+            val size = params.map(p => getExpressionType(ctx, p).size).max
+            compileTransitiveRelation(ctx, "==", params, exprTypeAndVariable, branches) { (l, r) =>
+                size match {
+                  case 1 => BuiltIns.compileByteComparison(ctx, ComparisonType.Equal, l, r, branches)
+                  case 2 => BuiltIns.compileWordComparison(ctx, ComparisonType.Equal, l, r, branches)
+                }
             }
           case "!=" =>
             val (l, r, size) = assertBinary(ctx, params)
@@ -1135,6 +1142,23 @@ object MlCompiler {
         }
         val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
         calculate ++ store
+    }
+  }
+
+  private def compileTransitiveRelation(ctx: CompilationContext,
+                                        operator: String,
+                                        params: List[Expression],
+                                        exprTypeAndVariable: Option[(Type, Variable)],
+                                        branches: BranchSpec)(binary: (Expression, Expression) => List[AssemblyLine]): List[AssemblyLine] ={
+    params match {
+      case List(l, r) => binary(l, r)
+      case List(_) | Nil =>
+        ErrorReporting.fatal("")
+      case _ =>
+        val conjunction = params.init.zip(params.tail).map {
+          case (l, r) => FunctionCallExpression(operator, List(l, r))
+        }.reduceLeft((a,b) => FunctionCallExpression("&&", List(a, b)))
+        compile(ctx, conjunction, exprTypeAndVariable, branches)
     }
   }
 

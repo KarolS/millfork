@@ -261,4 +261,36 @@ class ComparisonSuite extends FunSuite with Matchers {
       """.stripMargin
     EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
   }
+
+  test("Multiple params for equality") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |  output = 5
+        |  if (output == 5 == 5) {
+        |   output += 1
+        |  }
+        |  if (output == 5 == 6) {
+        |   output += 78
+        |  }
+        | }
+      """.stripMargin)(_.readWord(0xc000) should equal(6))
+  }
+
+  test("Multiple params for inequality") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |  output = 5
+        |  if 2 < 3 < 4 {
+        |   output += 1
+        |  }
+        |  if 2 < 3 < 2 {
+        |   output += 78
+        |  }
+        | }
+      """.stripMargin)(_.readWord(0xc000) should equal(6))
+  }
 }
