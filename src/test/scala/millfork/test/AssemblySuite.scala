@@ -110,4 +110,26 @@ class AssemblySuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(0x100))
   }
 
+  test("Example from docs") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |  output = ten()
+        | }
+        | const byte fiveConstant = 5
+        | byte fiveVariable = 5
+        |
+        | byte ten() {
+        |    byte result
+        |    asm {
+        |        LDA #fiveConstant
+        |        CLC
+        |        ADC fiveVariable
+        |        STA result
+        |    }
+        |    return result
+        | }
+      """.stripMargin)(_.readByte(0xc000) should equal(10))
+  }
 }
