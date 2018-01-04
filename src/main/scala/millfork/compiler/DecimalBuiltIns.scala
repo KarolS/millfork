@@ -52,15 +52,16 @@ object DecimalBuiltIns {
     val constantLabel = MlCompiler.nextLabel("c8")
     val skipHiDigit = MlCompiler.nextLabel("ds")
     val skipLoDigit = MlCompiler.nextLabel("ds")
-    val bit = if (ctx.options.flags(CompilationFlag.EmitCmosOpcodes)) {
+    val cmos = ctx.options.flags(CompilationFlag.EmitCmosOpcodes)
+    val bit = if (cmos) {
       AssemblyLine.immediate(BIT, 8)
     } else {
       AssemblyLine.absolute(BIT, Label(constantLabel))
     }
     List(
       if (rotate) AssemblyLine.implied(ROR) else AssemblyLine.implied(LSR),
-      AssemblyLine.label(constantLabel),
-      AssemblyLine.implied(PHP),
+      AssemblyLine(LABEL, DoesNotExist, Label(constantLabel).toAddress, elidable = cmos),
+      AssemblyLine(PHP, Implied, Constant.Zero, elidable = cmos),
       AssemblyLine.relative(BPL, skipHiDigit),
       AssemblyLine.implied(SEC),
       AssemblyLine.immediate(SBC, 0x30),
