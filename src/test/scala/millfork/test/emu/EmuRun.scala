@@ -134,7 +134,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         println(";;; ---------------------------")
         assembler.labelMap.foreach { case (l, addr) => println(f"$l%-15s $$$addr%04x") }
 
-        val optimizedSize = assembler.mem.banks(0).occupied.count(identity).toLong
+        val optimizedSize = assembler.mem.banks(0).initialized.count(identity).toLong
         if (unoptimizedSize == optimizedSize) {
           println(f"Size:             $unoptimizedSize%5d B")
         } else {

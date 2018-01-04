@@ -16,6 +16,50 @@ class BasicSymonTest extends FunSuite with Matchers {
       """.stripMargin)
   }
 
+  test("Allocation test") {
+    val src =
+      """
+ byte output @$c000
+ void main () {
+   function()
+ }
+ array thing @$20F = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+ void function() {
+   output = 0
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+   output += 1
+ }
+      """
+    EmuUnoptimizedRun(src).readByte(0xc000) should equal(src.count(_ == '+'))
+  }
+
   test("Byte assignment") {
     EmuUnoptimizedRun(
       """

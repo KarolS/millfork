@@ -7,7 +7,7 @@ import millfork.assembly.Opcode
 import millfork.compiler._
 import millfork.error.ErrorReporting
 import millfork.node._
-import millfork.output.VariableAllocator
+import millfork.output.{CompiledMemory, MemoryBank, VariableAllocator}
 
 import scala.collection.mutable
 
@@ -68,7 +68,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     case _ => Nil
   }.toList
 
-  def allocateVariables(nf: Option[NormalFunction], callGraph: CallGraph, allocator: VariableAllocator, options: CompilationOptions, onEachVariable: (String, Int) => Unit): Unit = {
+  def allocateVariables(nf: Option[NormalFunction], mem: MemoryBank, callGraph: CallGraph, allocator: VariableAllocator, options: CompilationOptions, onEachVariable: (String, Int) => Unit): Unit = {
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
     val params = nf.fold(List[String]()) { f =>
@@ -99,7 +99,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             m.sizeInBytes match {
               case 2 =>
                 val addr =
-                  allocator.allocatePointer(callGraph, vertex)
+                  allocator.allocatePointer(mem, callGraph, vertex)
                 onEachVariable(m.name, addr)
                 List(
                   ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
@@ -110,13 +110,13 @@ class Environment(val parent: Option[Environment], val prefix: String) {
               case 0 => Nil
               case 2 =>
                 val addr =
-                  allocator.allocateBytes(callGraph, vertex, options, 2)
+                  allocator.allocateBytes(mem, callGraph, vertex, options, 2, initialized = false, writeable = true)
                 onEachVariable(m.name, addr)
                 List(
                   ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
                 )
               case count =>
-                val addr = allocator.allocateBytes(callGraph, vertex, options, count)
+                val addr = allocator.allocateBytes(mem, callGraph, vertex, options, count, initialized = false, writeable = true)
                 onEachVariable(m.name, addr)
                 List(
                   ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
@@ -124,7 +124,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             }
         }
       case f: NormalFunction =>
-        f.environment.allocateVariables(Some(f), callGraph, allocator, options, onEachVariable)
+        f.environment.allocateVariables(Some(f), mem, callGraph, allocator, options, onEachVariable)
         Nil
       case _ => Nil
     }.toList

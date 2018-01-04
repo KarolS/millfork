@@ -22,6 +22,7 @@ class MemoryBank {
 
   val output = Array.fill[Byte](1 << 16)(0)
   val occupied = Array.fill(1 << 16)(false)
+  val initialized = Array.fill(1 << 16)(false)
   val readable = Array.fill(1 << 16)(false)
   val writeable = Array.fill(1 << 16)(false)
   var start: Int = 0
