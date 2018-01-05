@@ -108,6 +108,7 @@ object OptimizationPresets {
     LaterOptimizations.UseYInsteadOfStack,
     LaterOptimizations.IndexSwitchingOptimization,
     LaterOptimizations.LoadingBranchesOptimization,
+    LaterOptimizations.IncreaseWithLimit,
   )
 
   val Good: List[AssemblyOptimization] = List[AssemblyOptimization](
@@ -125,6 +126,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.IndexSequenceOptimization,
     AlwaysGoodOptimizations.MathOperationOnTwoIdenticalMemoryOperands,
     AlwaysGoodOptimizations.ModificationOfJustWrittenValue,
+    AlwaysGoodOptimizations.OperationsAroundShifting,
     AlwaysGoodOptimizations.PoinlessFlagChange,
     AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,

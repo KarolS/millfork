@@ -14,6 +14,7 @@ import millfork.env._
   *
   * @author Karol Stasiak
   */
+//noinspection ZeroIndexToHead
 object AlwaysGoodOptimizations {
 
   val counter = new AtomicInteger(30000)
@@ -851,4 +852,37 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcode(LABEL) & HasCallerCount(0)) ~~> (_ => Nil)
   )
 
+  val OperationsAroundShifting = new RuleBasedAssemblyOptimization("Operations around shifting",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcode(ADC) & HasClear(State.C) & HasClear(State.D) & MatchImmediate(1)) ~
+      HasOpcode(ASL).+.capture(2) ~
+      (Elidable & HasOpcode(CLC)) ~
+        (Elidable & HasOpcode(ADC) & HasClear(State.D) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> {(code, ctx) =>
+      val shifts = ctx.get[List[AssemblyLine]](2)
+      val const = ctx.get[Constant](1).asl(shifts.length) + ctx.get[Constant](3)
+      shifts ++ List(AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, const))
+    },
+      (Elidable & HasOpcode(AND) & MatchImmediate(1)) ~
+      HasOpcode(ASL).+.capture(2) ~
+        (Elidable & HasOpcode(AND) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> {(code, ctx) =>
+      val shifts = ctx.get[List[AssemblyLine]](2)
+      val const = CompoundConstant(MathOperator.And, ctx.get[Constant](1).asl(shifts.length), ctx.get[Constant](3)).quickSimplify
+      shifts :+ AssemblyLine.immediate(AND, const)
+    },
+      (Elidable & HasOpcode(EOR) & MatchImmediate(1)) ~
+      HasOpcode(ASL).+.capture(2) ~
+        (Elidable & HasOpcode(EOR) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> {(code, ctx) =>
+      val shifts = ctx.get[List[AssemblyLine]](2)
+      val const = CompoundConstant(MathOperator.Exor, ctx.get[Constant](1).asl(shifts.length), ctx.get[Constant](3)).quickSimplify
+      shifts :+ AssemblyLine.immediate(EOR, const)
+    },
+      (Elidable & HasOpcode(ORA) & MatchImmediate(1)) ~
+      HasOpcode(ASL).+.capture(2) ~
+        (Elidable & HasOpcode(ORA) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> {(code, ctx) =>
+      val shifts = ctx.get[List[AssemblyLine]](2)
+      val const = CompoundConstant(MathOperator.Or, ctx.get[Constant](1).asl(shifts.length), ctx.get[Constant](3)).quickSimplify
+      shifts :+ AssemblyLine.immediate(ORA, const)
+    },
+  )
 }

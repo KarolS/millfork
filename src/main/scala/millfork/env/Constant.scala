@@ -77,7 +77,11 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
 
   override def isLowestByteAlwaysEqual(i: Int) : Boolean = (value & 0xff) == (i&0xff)
 
-  override def asl(i: Int) = NumericConstant(value << i, requiredSize + i / 8)
+  override def asl(i: Int): Constant = {
+    val newSize = requiredSize + i / 8
+    val mask = (1 << (8 * newSize)) - 1
+    NumericConstant((value << i) & mask, newSize)
+  }
 
   override def +(that: Constant): Constant = that + value
 
