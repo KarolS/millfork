@@ -258,10 +258,10 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def mlLhsExpressionSimple: P[LhsExpression] = mlIndexedExpression | (position() ~ identifier).map { case (p, n) => VariableExpression(n).pos(p) }
 
-  def mlLhsExpression: P[LhsExpression] = {
-    val separated = position() ~ mlLhsExpressionSimple ~ HWS ~ ":" ~/ HWS ~ mlLhsExpressionSimple
-    separated.map { case (p, h, l) => SeparateBytesExpression(h, l).pos(p) } | mlLhsExpressionSimple
-  }
+  def mlLhsExpression: P[LhsExpression] = for {
+    (p, left) <- position() ~ mlLhsExpressionSimple
+    rightOpt <- (HWS ~ ":" ~/ HWS ~ mlLhsExpressionSimple).?
+  } yield rightOpt.fold(left)(right => SeparateBytesExpression(left, right).pos(p))
 
 
   def mlParenExpr: P[Expression] = P("(" ~/ AWS ~/ mlExpression(nonStatementLevel) ~ AWS ~/ ")")
@@ -357,7 +357,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       ("down" ~/ HWS ~/ "to").!.map(_ => ForDirection.DownTo)
 
   def forStatement: P[ExecutableStatement] = for {
-    identifier <- "for" ~ SWS ~/ identifier ~/ "," ~/ Pass
+    identifier <- "for" ~ SWS ~/ identifier ~/ HWS ~ "," ~/ HWS ~ Pass
     start <- mlExpression(nonStatementLevel) ~ HWS ~ "," ~/ HWS ~/ Pass
     direction <- forDirection ~/ HWS ~/ "," ~/ HWS ~/ Pass
     end <- mlExpression(nonStatementLevel)
