@@ -797,13 +797,14 @@ object MlCompiler {
         } { case (exprType, target) =>
           assertCompatible(exprType, target.typ)
           target match {
+              // TODO: some more complex ones may not work correctly
             case RegisterVariable(Register.A | Register.X | Register.Y, _) => compile(ctx, l, exprTypeAndVariable, branches)
             case RegisterVariable(Register.AX, _) =>
               compile(ctx, l, Some(b -> RegisterVariable(Register.A, b)), branches) ++
-                compile(ctx, h, Some(b -> RegisterVariable(Register.X, b)), branches)
+                preserveRegisterIfNeeded(ctx, Register.A, compile(ctx, h, Some(b -> RegisterVariable(Register.X, b)), branches))
             case RegisterVariable(Register.AY, _) =>
               compile(ctx, l, Some(b -> RegisterVariable(Register.A, b)), branches) ++
-                compile(ctx, h, Some(b -> RegisterVariable(Register.Y, b)), branches)
+                preserveRegisterIfNeeded(ctx, Register.A, compile(ctx, h, Some(b -> RegisterVariable(Register.Y, b)), branches))
             case RegisterVariable(Register.XA, _) =>
               compile(ctx, l, Some(b -> RegisterVariable(Register.X, b)), branches) ++
                 compile(ctx, h, Some(b -> RegisterVariable(Register.A, b)), branches)

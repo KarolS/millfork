@@ -134,4 +134,32 @@ class SeparateBytesSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readWord(0xc000) should equal(0x707))
   }
+
+  ignore("Complex separate addition") {
+    EmuBenchmarkRun("""
+        | array hi [25] @$c000
+        | array lo [25] @$c080
+        | void main () {
+        |  byte i
+        |  hi[0] = 0
+        |  lo[0] = 0
+        |  hi[1] = 0
+        |  lo[1] = 1
+        |  for i,0,until,lo.length-2 {
+        |    barrier()
+        |    hi[addTwo(i)]:lo[i + (one() << 1)] = hi[i + one()]:lo[1+i]
+        |    barrier()
+        |    hi[addTwo(i)]:lo[i + (one() << 1)] += hi[i]:lo[i]
+        |    barrier()
+        |  }
+        | }
+        | byte one() { return 1 }
+        | byte addTwo(byte x) { return x + 2 }
+        | void barrier() {}
+      """.stripMargin){m =>
+      val h = m.readWord(0xc000 + 24)
+      val l = m.readWord(0xc080 + 24)
+      (h * 0x100 + l) should equal(46368)
+    }
+  }
 }
