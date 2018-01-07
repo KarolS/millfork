@@ -1,12 +1,11 @@
 package millfork.assembly.opt
 
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-import millfork.assembly.{opt, _}
-import millfork.assembly.Opcode._
 import millfork.assembly.AddrMode._
+import millfork.assembly.Opcode._
 import millfork.assembly.OpcodeClasses._
+import millfork.assembly._
 import millfork.env._
 
 /**
@@ -823,15 +822,15 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcode(LDY) & MatchImmediate(1) & MatchY(0)) ~
       Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => Nil),
     (Elidable & HasOpcode(LDY) & MatchImmediate(1) & MatchY(0)) ~
-      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0)+1)) ~~> (_ => List(AssemblyLine.implied(INY))),
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0) + 1)) ~~> (_ => List(AssemblyLine.implied(INY))),
     (Elidable & HasOpcode(LDY) & MatchImmediate(1) & MatchY(0)) ~
-      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0)-1)) ~~> (_ => List(AssemblyLine.implied(DEY))),
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0) - 1)) ~~> (_ => List(AssemblyLine.implied(DEY))),
     (Elidable & HasOpcode(LDX) & MatchImmediate(1) & MatchX(0)) ~
       Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => Nil),
     (Elidable & HasOpcode(LDX) & MatchImmediate(1) & MatchX(0)) ~
-      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0)+1)) ~~> (_ => List(AssemblyLine.implied(INX))),
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0) + 1)) ~~> (_ => List(AssemblyLine.implied(INX))),
     (Elidable & HasOpcode(LDX) & MatchImmediate(1) & MatchX(0)) ~
-      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0)-1)) ~~> (_ => List(AssemblyLine.implied(DEX))),
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0) - 1)) ~~> (_ => List(AssemblyLine.implied(DEX))),
   )
 
   val CommonBranchBodyOptimization = new RuleBasedAssemblyOptimization("Common branch body optimization",
@@ -858,31 +857,120 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(ADC) & HasClear(State.C) & HasClear(State.D) & MatchImmediate(1)) ~
       HasOpcode(ASL).+.capture(2) ~
       (Elidable & HasOpcode(CLC)) ~
-        (Elidable & HasOpcode(ADC) & HasClear(State.D) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> {(code, ctx) =>
+      (Elidable & HasOpcode(ADC) & HasClear(State.D) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> { (code, ctx) =>
       val shifts = ctx.get[List[AssemblyLine]](2)
       val const = ctx.get[Constant](1).asl(shifts.length) + ctx.get[Constant](3)
       shifts ++ List(AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, const))
     },
-      (Elidable & HasOpcode(AND) & MatchImmediate(1)) ~
+    (Elidable & HasOpcode(AND) & MatchImmediate(1)) ~
       HasOpcode(ASL).+.capture(2) ~
-        (Elidable & HasOpcode(AND) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> {(code, ctx) =>
+      (Elidable & HasOpcode(AND) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> { (code, ctx) =>
       val shifts = ctx.get[List[AssemblyLine]](2)
       val const = CompoundConstant(MathOperator.And, ctx.get[Constant](1).asl(shifts.length), ctx.get[Constant](3)).quickSimplify
       shifts :+ AssemblyLine.immediate(AND, const)
     },
-      (Elidable & HasOpcode(EOR) & MatchImmediate(1)) ~
+    (Elidable & HasOpcode(EOR) & MatchImmediate(1)) ~
       HasOpcode(ASL).+.capture(2) ~
-        (Elidable & HasOpcode(EOR) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> {(code, ctx) =>
+      (Elidable & HasOpcode(EOR) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> { (code, ctx) =>
       val shifts = ctx.get[List[AssemblyLine]](2)
       val const = CompoundConstant(MathOperator.Exor, ctx.get[Constant](1).asl(shifts.length), ctx.get[Constant](3)).quickSimplify
       shifts :+ AssemblyLine.immediate(EOR, const)
     },
-      (Elidable & HasOpcode(ORA) & MatchImmediate(1)) ~
+    (Elidable & HasOpcode(ORA) & MatchImmediate(1)) ~
       HasOpcode(ASL).+.capture(2) ~
-        (Elidable & HasOpcode(ORA) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> {(code, ctx) =>
+      (Elidable & HasOpcode(ORA) & MatchImmediate(3) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> { (code, ctx) =>
       val shifts = ctx.get[List[AssemblyLine]](2)
       val const = CompoundConstant(MathOperator.Or, ctx.get[Constant](1).asl(shifts.length), ctx.get[Constant](3)).quickSimplify
       shifts :+ AssemblyLine.immediate(ORA, const)
     },
+  )
+
+  val BitPackingUnpacking = new RuleBasedAssemblyOptimization("Bit packing/unpacking",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(AND) & HasImmediate(1)) ~
+      ((Elidable & Linear & Not(ChangesMemory) & DoesNotConcernMemoryAt(0, 1) & Not(ChangesA)).* ~
+        (Elidable & HasOpcode(STA) & DoesNotConcernMemoryAt(0, 1))).capture(3) ~
+      ((Elidable & HasOpcodeIn(Set(LSR, ROR)) & Not(ChangesA) & MatchAddrMode(0) & Not(MatchParameter(1))).* ~
+        (Elidable & HasOpcodeIn(Set(LSR, ROR)) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.C, State.N))).capture(2) ~~> { (code, ctx) =>
+      ctx.get[List[AssemblyLine]](2) ++
+        List(AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL)) ++
+        ctx.get[List[AssemblyLine]](3)
+    },
+    (Elidable & HasOpcode(LDA) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(AND) & MatchAddrMode(0) & MatchParameter(1)) ~
+      ((Elidable & Linear & Not(ChangesMemory) & DoesNotConcernMemoryAt(0, 1) & Not(ChangesA)).* ~
+        (Elidable & HasOpcode(STA) & DoesNotConcernMemoryAt(0, 1))).capture(3) ~
+      ((Elidable & HasOpcodeIn(Set(LSR, ROR)) & Not(ChangesA) & MatchAddrMode(0) & Not(MatchParameter(1))).* ~
+        (Elidable & HasOpcodeIn(Set(LSR, ROR)) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.C, State.N))).capture(2) ~~> { (code, ctx) =>
+      ctx.get[List[AssemblyLine]](2) ++
+        List(AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL)) ++
+        ctx.get[List[AssemblyLine]](3)
+    },
+    (Elidable & (HasOpcode(ASL) | HasOpcode(ROL) & HasClear(State.C)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(ROL) & Not(ChangesA) & MatchAddrMode(0) & Not(MatchParameter(1))).*.capture(2) ~
+      (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcodeIn(Set(LDA, TYA, TXA, PLA))).capture(3) ~
+      (Elidable & HasOpcode(AND) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & (HasOpcode(ORA) | HasOpcode(ADC) & HasClear(State.C) & HasClear(State.D)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z, State.V, State.A)) ~~> { (code, ctx) =>
+      ctx.get[List[AssemblyLine]](3) ++
+        List(AssemblyLine.implied(ROR), code.head.copy(opcode = ROL)) ++
+        ctx.get[List[AssemblyLine]](2)
+    },
+  )
+
+  private def blockIsIdempotentWhenItComesToIndexRegisters(i: Int) = Where(ctx => {
+    val code = ctx.get[List[AssemblyLine]](i)
+    val rx = code.indexWhere(ReadsX)
+    val wx = code.indexWhere(l => ChangesX(l.opcode))
+    val ry = code.indexWhere(ReadsY)
+    val wy = code.indexWhere(l => ChangesY(l.opcode))
+    val xOk = rx < 0 || wx < 0 || rx >= wx
+    val yOk = ry < 0 || wy < 0 || ry >= wy
+    xOk && yOk
+  })
+
+  val CommonExpressionInConditional = new RuleBasedAssemblyOptimization("Common expression in conditional",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (
+      (HasOpcodeIn(Set(LDA, LAX)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      HasOpcodeIn(Set(LDY, LDX, AND, ORA, EOR, ADC, SBC, CLC, SEC, CPY, CPX, CMP)).*
+      ).capture(7) ~
+      blockIsIdempotentWhenItComesToIndexRegisters(7) ~
+      HasOpcodeIn(ShortConditionalBranching) ~
+      MatchElidableCopyOf(7, Anything, DoesntMatterWhatItDoesWith(State.C, State.Z, State.N, State.V)) ~~> { code =>
+      code.take(code.length / 2 + 1)
+    },
+
+    (
+      (
+        (HasOpcodeIn(Set(LDA, LAX)) & MatchAddrMode(0) & MatchParameter(1)) ~
+        HasOpcodeIn(Set(LDY, LDX, AND, ORA, EOR, ADC, SBC, CLC, SEC, CPY, CPX, CMP)).*
+        ).capture(7) ~
+        blockIsIdempotentWhenItComesToIndexRegisters(7) ~
+        (HasOpcodeIn(ShortConditionalBranching) & MatchParameter(2)) ~
+        Not(HasOpcode(LABEL) & MatchParameter(2)).* ~
+        (HasOpcode(LABEL) & MatchParameter(2))
+      ).capture(3) ~
+      MatchElidableCopyOf(7, Anything, DoesntMatterWhatItDoesWith(State.C, State.Z, State.N, State.V)) ~~> { (_, ctx) =>
+      ctx.get[List[AssemblyLine]](3)
+    },
+
+    (Elidable & HasOpcodeIn(Set(LDA, LAX)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(AND) & HasAddrModeIn(Set(Absolute, ZeroPage)) & DoesntMatterWhatItDoesWith(State.C, State.V, State.A)) ~
+      HasOpcodeIn(Set(BEQ, BNE)) ~
+      (HasOpcodeIn(Set(LDA, LAX)) & MatchAddrMode(0) & MatchParameter(1)) ~~> { code =>
+      List(code(0), code(1).copy(opcode = BIT), code(2))
+    },
+
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(Absolute, ZeroPage))) ~
+      (Elidable & HasOpcode(AND) & MatchAddrMode(0) & MatchParameter(1)) ~
+      HasOpcodeIn(Set(BEQ, BNE)) ~
+      (HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { code =>
+      List(code(1).copy(opcode = LDA), code(0).copy(opcode = BIT), code(2))
+    },
+
   )
 }

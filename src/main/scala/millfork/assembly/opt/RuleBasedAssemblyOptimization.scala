@@ -383,21 +383,25 @@ trait AssemblyLinePattern extends AssemblyPattern {
         handleKnownDistance((-distance).toShort)
       case (CompoundConstant(MathOperator.Minus, a, NumericConstant(distance, _)), b) if a.quickSimplify == b.quickSimplify =>
         handleKnownDistance(distance.toShort)
-      case (MemoryAddressConstant(a: ThingInMemory), MemoryAddressConstant(b:ThingInMemory)) =>
+      case (MemoryAddressConstant(a: ThingInMemory), MemoryAddressConstant(b: ThingInMemory)) =>
         a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
       case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)),
-        MemoryAddressConstant(b: ThingInMemory)) =>
+      MemoryAddressConstant(b: ThingInMemory)) =>
         a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
       case (MemoryAddressConstant(a: ThingInMemory),
-        CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
+      CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
         a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
       case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)),
-        CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
+      CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
         a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
       case _ =>
         false
     }
   }
+}
+
+trait TrivialAssemblyLinePattern extends AssemblyLinePattern with (AssemblyLine => Boolean) {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = this (line)
 }
 
 //noinspection LanguageFeature
@@ -488,9 +492,8 @@ case class HasClear(state: State.Value) extends AssemblyLinePattern {
     flowInfo.hasClear(state)
 }
 
-case object Anything extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
-    true
+case object Anything extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = true
 }
 
 case class Not(inner: AssemblyLinePattern) extends AssemblyLinePattern {
@@ -536,23 +539,23 @@ case object Linear extends AssemblyLinePattern {
     OpcodeClasses.AllLinear(line.opcode)
 }
 
-case object LinearOrBranch extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case object LinearOrBranch extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.AllLinear(line.opcode) || OpcodeClasses.ShortBranching(line.opcode)
 }
 
-case object LinearOrLabel extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case object LinearOrLabel extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     line.opcode == Opcode.LABEL || OpcodeClasses.AllLinear(line.opcode)
 }
 
-case object ReadsA extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case object ReadsA extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ReadsAAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ReadsAIfImplied(line.opcode)
 }
 
-case object ReadsMemory extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case object ReadsMemory extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     line.addrMode match {
       case AddrMode.Indirect => true
       case AddrMode.Implied | AddrMode.Immediate => false
@@ -561,51 +564,51 @@ case object ReadsMemory extends AssemblyLinePattern {
     }
 }
 
-case object ReadsX extends AssemblyLinePattern {
+case object ReadsX extends TrivialAssemblyLinePattern {
   val XAddrModes = Set(AddrMode.AbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX, AddrMode.AbsoluteIndexedX)
 
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ReadsXAlways(line.opcode) || XAddrModes(line.addrMode)
 }
 
-case object ReadsY extends AssemblyLinePattern {
+case object ReadsY extends TrivialAssemblyLinePattern {
   val YAddrModes = Set(AddrMode.AbsoluteY, AddrMode.IndexedY, AddrMode.ZeroPageY)
 
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ReadsYAlways(line.opcode) || YAddrModes(line.addrMode)
 }
 
-case object ConcernsC extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case object ConcernsC extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ReadsC(line.opcode) && OpcodeClasses.ChangesC(line.opcode)
 }
 
-case object ConcernsA extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case object ConcernsA extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsAAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ConcernsAIfImplied(line.opcode)
 }
 
-case object ConcernsX extends AssemblyLinePattern {
+case object ConcernsX extends TrivialAssemblyLinePattern {
   val XAddrModes = Set(AddrMode.AbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX)
 
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsXAlways(line.opcode) || XAddrModes(line.addrMode)
 }
 
-case object ConcernsY extends AssemblyLinePattern {
+case object ConcernsY extends TrivialAssemblyLinePattern {
   val YAddrModes = Set(AddrMode.AbsoluteY, AddrMode.IndexedY, AddrMode.ZeroPageY)
 
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsYAlways(line.opcode) || YAddrModes(line.addrMode)
 }
 
-case object ChangesA extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case object ChangesA extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ChangesAAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ChangesAIfImplied(line.opcode)
 }
 
-case object ChangesMemory extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case object ChangesMemory extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ChangesMemoryAlways(line.opcode) || line.addrMode != AddrMode.Implied && OpcodeClasses.ChangesMemoryIfNotImplied(line.opcode)
 }
 
@@ -620,9 +623,9 @@ case class DoesntChangeMemoryAt(addrMode1: Int, param1: Int) extends AssemblyLin
   }
 }
 
-case object ConcernsMemory extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
-    ReadsMemory.matchLineTo(ctx, flowInfo, line) && ChangesMemory.matchLineTo(ctx, flowInfo, line)
+case object ConcernsMemory extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
+    ReadsMemory(line) && ChangesMemory(line)
 }
 
 case class DoesNotConcernMemoryAt(addrMode1: Int, param1: Int) extends AssemblyLinePattern {
@@ -635,36 +638,36 @@ case class DoesNotConcernMemoryAt(addrMode1: Int, param1: Int) extends AssemblyL
   }
 }
 
-case class HasOpcode(op: Opcode.Value) extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case class HasOpcode(op: Opcode.Value) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     line.opcode == op
 
   override def toString: String = op.toString
 }
 
-case class HasOpcodeIn(ops: Set[Opcode.Value]) extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case class HasOpcodeIn(ops: Set[Opcode.Value]) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     ops(line.opcode)
 
   override def toString: String = ops.mkString("{", ",", "}")
 }
 
-case class HasAddrMode(am: AddrMode.Value) extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case class HasAddrMode(am: AddrMode.Value) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     line.addrMode == am
 
   override def toString: String = am.toString
 }
 
-case class HasAddrModeIn(ams: Set[AddrMode.Value]) extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case class HasAddrModeIn(ams: Set[AddrMode.Value]) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     ams(line.addrMode)
 
   override def toString: String = ams.mkString("{", ",", "}")
 }
 
-case class HasImmediate(i: Int) extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+case class HasImmediate(i: Int) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
     line.addrMode == AddrMode.Immediate && (line.parameter.quickSimplify match {
       case NumericConstant(j, _) => (i & 0xff) == (j & 0xff)
       case _ => false
@@ -751,4 +754,22 @@ case class HasCallerCount(count: Int) extends AssemblyLinePattern {
       case AssemblyLine(Opcode.LABEL, _, MemoryAddressConstant(Label(l)), _) => flowInfo.labelUseCount(l) == count
       case _ => false
     }
+}
+
+case class MatchElidableCopyOf(i: Int, firstLinePattern: AssemblyLinePattern, lastLinePattern: AssemblyLinePattern) extends AssemblyPattern {
+  override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, AssemblyLine)]): Option[List[(FlowInfo, AssemblyLine)]] = {
+    val pattern = ctx.get[List[AssemblyLine]](i)
+    if (code.length < pattern.length) return None
+    val (before, after) = code.splitAt(pattern.length)
+    val lastIndex = code.length - 1
+    for (((a, (f, b)), ix) <- pattern.zip(before).zipWithIndex) {
+      if (!b.elidable) return None
+      if (a.opcode != b.opcode) return None
+      if (a.addrMode != b.addrMode) return None
+      if (a.parameter.quickSimplify != b.parameter.quickSimplify) return None
+      if (ix == 0 && !firstLinePattern.matchLineTo(ctx, f, b)) return None
+      if (ix == lastIndex && !lastLinePattern.matchLineTo(ctx, f, b)) return None
+    }
+    Some(after)
+  }
 }

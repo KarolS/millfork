@@ -113,10 +113,12 @@ object OptimizationPresets {
 
   val Good: List[AssemblyOptimization] = List[AssemblyOptimization](
     AlwaysGoodOptimizations.Adc0Optimization,
+    AlwaysGoodOptimizations.BitPackingUnpacking,
+    AlwaysGoodOptimizations.BranchInPlaceRemoval,
     AlwaysGoodOptimizations.CarryFlagConversion,
     DangerousOptimizations.ConstantIndexOffsetPropagation,
-    AlwaysGoodOptimizations.BranchInPlaceRemoval,
     AlwaysGoodOptimizations.CommonBranchBodyOptimization,
+    AlwaysGoodOptimizations.CommonExpressionInConditional,
     AlwaysGoodOptimizations.ConstantFlowAnalysis,
     AlwaysGoodOptimizations.ConstantIndexPropagation,
     EmptyMemoryStoreRemoval,
