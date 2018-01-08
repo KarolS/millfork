@@ -862,6 +862,10 @@ object BuiltIns {
       case IndexedExpression(variable, index) =>
         List(MlCompiler.compileByteStorage(ctx, Register.A, lhs))
       case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
+        if (simplicity(ctx.env, h) < 'J' || simplicity(ctx.env, l) < 'J') {
+          // a[b]:c[d] is the most complex expression that doesn't cause the following warning
+          ErrorReporting.warn("Too complex expression given to the `:` operator, generated code might be wrong", ctx.options, lhs.position)
+        }
         List(
           getStorageForEachByte(ctx, l).head,
           MlCompiler.preserveRegisterIfNeeded(ctx, Register.A, getStorageForEachByte(ctx, h).head))
