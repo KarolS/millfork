@@ -17,15 +17,26 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 
   // If any of these opcodes is present within a method,
   // then it's too hard to assign any variable to a register.
-  private val opcodesThatAlwaysPrecludeXAllocation = Set(JSR, STX, TXA, PHX, PLX, INX, DEX, CPX, SBX, SAX)
+  private val opcodesThatAlwaysPrecludeXAllocation = Set(
+    JSR, STX, TXA, INX, DEX, CPX,
+    PHX, PLX,
+    SBX, SAX, LXA, XAA, AHX, SHX, SHY, LAS, TAS)
 
-  private val opcodesThatAlwaysPrecludeYAllocation = Set(JSR, STY, TYA, PHY, PLY, INY, DEY, CPY)
+  private val opcodesThatAlwaysPrecludeYAllocation = Set(
+    JSR, STY, TYA, INY, DEY, CPY,
+    PHY, PLY,
+    AHX, SHX, SHY, LAS, TAS)
 
   // If any of these opcodes is used on a variable
   // then it's too hard to assign that variable to a register.
-  // Also, LDY prevents assigning a variable to X and LDX prevents assigning a variable to Y.
-  private val opcodesThatCannotBeUsedWithIndexRegistersAsParameters =
-  Set(EOR, ORA, AND, BIT, ADC, SBC, CMP, CPX, CPY, STY, STX)
+  // Also, LDY prevents assigning a variable to X and LDX and LAX prevent assigning a variable to Y.
+  private val opcodesThatCannotBeUsedWithIndexRegistersAsParameters = Set(
+    BIT, CPX, CPY, STY,
+    EOR, ORA, AND, ADC, SBC, CMP,
+    ROL, ROR, LSR, ASL, STX,
+    SAX, SLO, SRE, ISC, DCP, RLA, RRA,
+    AHX, SHY, SHX, LAS, TAS,
+    TRB, TSB)
 
   override def name = "Allocating variables to index registers"
 
@@ -138,25 +149,25 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // if an address of a variable is used, then that variable cannot be assigned to a register
         None
 
-      case AssemblyLine(_, AbsoluteX | AbsoluteY | ZeroPageX | ZeroPageY, MemoryAddressConstant(th), _) :: xs =>
-        // if a variable is used as an array, then it cannot be assigned to a register
+      case AssemblyLine(_, AbsoluteX | AbsoluteY | ZeroPageX | ZeroPageY | IndexedY | IndexedX | Indirect | AbsoluteIndexedX, MemoryAddressConstant(th), _) :: xs =>
+        // if a variable is used as an array or a pointer, then it cannot be assigned to a register
         if (th.name == vx || th.name == vy) {
           None
         } else {
           canBeInlined(xCandidate, yCandidate, xs)
         }
 
-      case AssemblyLine(opcode, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vx && (opcode == LDY || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
-      case AssemblyLine(opcode, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vy && (opcode == LDX || opcode == LAX || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
-      case AssemblyLine(LDX, Absolute, MemoryAddressConstant(th), elidable) :: xs
+      case AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), elidable) :: xs
         if xCandidate.isDefined =>
         // if a register is populated with a different variable, then this variable cannot be assigned to that register
         // removing LDX saves 3 cycles
@@ -166,7 +177,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           None
         }
 
-      case AssemblyLine(LAX, Absolute, MemoryAddressConstant(th), elidable) :: xs
+      case AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidable) :: xs
         if xCandidate.isDefined =>
         // LAX = LDX-LDA, and since LDX simplifies to nothing and LDA simplifies to TXA,
         // LAX simplifies to TXA, saving two bytes
@@ -176,7 +187,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           None
         }
 
-      case AssemblyLine(LDY, Absolute, MemoryAddressConstant(th), elidable) :: xs if yCandidate.isDefined =>
+      case AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), elidable) :: xs if yCandidate.isDefined =>
         // if a register is populated with a different variable, then this variable cannot be assigned to that register
         // removing LDX saves 3 cycles
         if (elidable && th.name == vy) {
@@ -193,7 +204,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
         None
 
-      case AssemblyLine(LDA, Absolute, MemoryAddressConstant(th), elidable) :: AssemblyLine(TAX, _, _, elidable2) :: xs
+      case AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidable) :: AssemblyLine(TAX, _, _, elidable2) :: xs
         if xCandidate.isDefined =>
         // a variable cannot be inlined if there is TAX not after LDA of that variable
         // but LDA-TAX can be simplified to TXA
@@ -203,7 +214,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           None
         }
 
-      case AssemblyLine(LDA, Absolute, MemoryAddressConstant(th), elidable) :: AssemblyLine(TAY, _, _, elidable2) :: xs
+      case AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidable) :: AssemblyLine(TAY, _, _, elidable2) :: xs
         if yCandidate.isDefined =>
         // a variable cannot be inlined if there is TAY not after LDA of that variable
         // but LDA-TAY can be simplified to TYA
@@ -213,8 +224,8 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           None
         }
 
-      case AssemblyLine(LDA | STA | INC | DEC, Absolute, MemoryAddressConstant(th), elidable) :: xs =>
-        // changing LDA->TXA, STA->TAX, INC->INX, DEC->DEX saves 2 cycles
+      case AssemblyLine(LDA | STA | INC | DEC | STZ, Absolute | ZeroPage, MemoryAddressConstant(th), elidable) :: xs =>
+        // changing LDA->TXA, STA->TAX, INC->INX, DEC->DEX, STZ->LDA saves 2 cycles
         if (th.name == vy || th.name == vx) {
           if (elidable) {
             canBeInlined(xCandidate, yCandidate, xs).map(_ + 2)
@@ -254,79 +265,87 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     val vx = xCandidate.getOrElse("-")
     val vy = yCandidate.getOrElse("-")
     lines match {
-      case AssemblyLine(INC, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vx =>
         AssemblyLine.implied(INX) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(INC, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vy =>
         AssemblyLine.implied(INY) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(DEC, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vx =>
         AssemblyLine.implied(DEX) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(DEC, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vy =>
         AssemblyLine.implied(DEY) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDX, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vx =>
         inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LAX, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vx =>
         AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDY, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vy =>
         inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDA, Absolute, MemoryAddressConstant(th), true) :: AssemblyLine(TAX, _, _, true) :: xs
+      case AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true) :: AssemblyLine(TAX, _, _, true) :: xs
         if th.name == vx =>
         // these TXA's may get optimized away by a different optimization
         AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDA, Absolute, MemoryAddressConstant(th), true) :: AssemblyLine(TAY, _, _, true) :: xs
+      case AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true) :: AssemblyLine(TAY, _, _, true) :: xs
         if th.name == vy =>
         // these TYA's may get optimized away by a different optimization
         AssemblyLine.implied(TYA) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDA, am, param, true) :: AssemblyLine(STA, Absolute, MemoryAddressConstant(th), true) :: xs
+      case AssemblyLine(LDA, am, param, true) :: AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true) :: xs
         if th.name == vx && doesntUseX(am) =>
         // these TXA's may get optimized away by a different optimization
         AssemblyLine(LDX, am, param) :: AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDA, am, param, true) :: AssemblyLine(STA, Absolute, MemoryAddressConstant(th), true) :: xs
+      case AssemblyLine(LDA, am, param, true) :: AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true) :: xs
         if th.name == vy && doesntUseY(am) =>
         // these TYA's may get optimized away by a different optimization
         AssemblyLine(LDY, am, param) :: AssemblyLine.implied(TYA) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDA, Absolute, MemoryAddressConstant(th), _) :: AssemblyLine(CMP, am, param, true) :: xs
+      case AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: AssemblyLine(CMP, am, param, true) :: xs
         if th.name == vx && doesntUseXOrY(am) =>
         // ditto
         AssemblyLine.implied(TXA) :: AssemblyLine(CPX, am, param) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDA, Absolute, MemoryAddressConstant(th), _) :: AssemblyLine(CMP, am, param, true) :: xs
+      case AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: AssemblyLine(CMP, am, param, true) :: xs
         if th.name == vy && doesntUseXOrY(am) =>
         // ditto
         AssemblyLine.implied(TYA) :: AssemblyLine(CPY, am, param) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDA, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vx =>
         AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(LDA, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vy =>
         AssemblyLine.implied(TYA) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(STA, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vx =>
         AssemblyLine.implied(TAX) :: inlineVars(xCandidate, yCandidate, xs)
 
-      case AssemblyLine(STA, Absolute, MemoryAddressConstant(th), _) :: xs
+      case AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
         if th.name == vy =>
         AssemblyLine.implied(TAY) :: inlineVars(xCandidate, yCandidate, xs)
+
+      case AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
+        if th.name == vx =>
+        AssemblyLine.immediate(LDX, 0) :: inlineVars(xCandidate, yCandidate, xs)
+
+      case AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _) :: xs
+        if th.name == vy =>
+        AssemblyLine.immediate(LDY, 0) :: inlineVars(xCandidate, yCandidate, xs)
 
       case AssemblyLine(TAX, _, _, _) :: xs if xCandidate.isDefined =>
         ErrorReporting.fatal("Unexpected TAX")
@@ -346,12 +365,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
   }
 
   def doesntUseX(am: AddrMode.Value): Boolean = am match {
-    case AbsoluteX | ZeroPageX | IndexedX => false
+    case AbsoluteX | ZeroPageX | IndexedX | AbsoluteIndexedX => false
     case _ => true
   }
 
   def doesntUseXOrY(am: AddrMode.Value): Boolean = am match {
-    case Immediate | ZeroPage | Absolute | Relative | Indirect => true
+    case Immediate | ZeroPage | Absolute | Relative | Indirect | ZeroPageIndirect => true
     case _ => false
   }
 }
