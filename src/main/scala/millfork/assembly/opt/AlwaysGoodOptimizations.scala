@@ -247,9 +247,9 @@ object AlwaysGoodOptimizations {
   val PoinlessFlagChange = new RuleBasedAssemblyOptimization("Pointless flag change",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (HasOpcodeIn(Set(CMP, CPX, CPY)) & Elidable) ~ NoopDiscardsFlags ~~> (_.tail),
-    (OverwritesC & Elidable) ~ (LinearOrLabel & Not(ReadsC) & Not(DiscardsC)).* ~ DiscardsC ~~> (_.tail),
-    (OverwritesD & Elidable) ~ (LinearOrLabel & Not(ReadsD) & Not(DiscardsD)).* ~ DiscardsD ~~> (_.tail),
-    (OverwritesV & Elidable) ~ (LinearOrLabel & Not(ReadsV) & Not(DiscardsV)).* ~ DiscardsV ~~> (_.tail)
+    (OverwritesC & Elidable & Not(ChangesStack)) ~ (LinearOrLabel & Not(ReadsC) & Not(DiscardsC)).* ~ DiscardsC ~~> (_.tail),
+    (OverwritesD & Elidable & Not(ChangesStack)) ~ (LinearOrLabel & Not(ReadsD) & Not(DiscardsD)).* ~ DiscardsD ~~> (_.tail),
+    (OverwritesV & Elidable & Not(ChangesStack)) ~ (LinearOrLabel & Not(ReadsV) & Not(DiscardsV)).* ~ DiscardsV ~~> (_.tail)
   )
 
   // Optimizing Bxx to JMP is generally bad, but it may allow for better optimizations later
