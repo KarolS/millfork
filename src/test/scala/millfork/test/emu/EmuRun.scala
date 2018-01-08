@@ -94,17 +94,18 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.DetailedFlowAnalysis -> quantum,
       CompilationFlag.InlineFunctions -> this.inline,
+      //      CompilationFlag.CheckIndexOutOfBounds -> true,
     ))
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
-    val parserF = MfParser("", source, "", options)
+    val parserF = MfParser("", source + "\n void _panic(){while(true){}}", "", options)
     parserF.toAst match {
       case Success(unoptimized, _) =>
         ErrorReporting.assertNoErrors("Parse failed")
 
 
         // prepare
-        val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt))
+        val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program)
         val env = new Environment(None, "")
         env.collectDeclarations(program, options)

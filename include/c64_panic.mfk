@@ -1,0 +1,27 @@
+void _panic() {
+    asm {
+        SEI
+        PLA // status register
+        PLA
+        TAY
+        PLA
+
+        TAX
+        JSR hi_nibble_to_hex
+        JSR putchar
+        TXA
+        JSR lo_nibble_to_hex
+        JSR putchar
+
+        TYA
+        JSR hi_nibble_to_hex
+        JSR putchar
+        TYA
+        JSR lo_nibble_to_hex
+        JSR putchar
+
+        LDA #2
+        STA $D020
+    }
+    while(true){}
+}

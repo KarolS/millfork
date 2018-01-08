@@ -77,7 +77,7 @@ object Main {
       options = options).run()
 
     val program = if (optLevel > 0) {
-      OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt))
+      OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
     } else {
       unoptimized
     }
@@ -191,10 +191,13 @@ object Main {
     }.description("Whether should prevent indirect JMP bug on page boundary.")
     boolean("-fdecimal-mode", "-fno-decimal-mode").action { (c, v) =>
       c.changeFlag(CompilationFlag.DecimalMode, v)
-    }.description("Whether should decimal mode be available.")
+    }.description("Whether decimal mode should be available.")
     boolean("-fvariable-overlap", "-fno-variable-overlap").action { (c, v) =>
       c.changeFlag(CompilationFlag.VariableOverlap, v)
-    }.description("Whether should variables overlap if their scopes do not intersect.")
+    }.description("Whether variables should overlap if their scopes do not intersect.")
+    boolean("-fbounds-checking", "-fno-bounds-checking").action { (c, v) =>
+      c.changeFlag(CompilationFlag.VariableOverlap, v)
+    }.description("Whether should insert bounds checking on array access.")
 
     fluff("", "Optimization options:", "")
 

@@ -1,5 +1,6 @@
 package millfork.node.opt
 
+import millfork.CompilationOptions
 import millfork.assembly.AssemblyLine
 import millfork.env._
 import millfork.error.ErrorReporting
@@ -10,11 +11,11 @@ import millfork.node._
   */
 object UnusedLocalVariables extends NodeOptimization {
 
-  override def optimize(nodes: List[Node]): List[Node] = nodes match {
+  override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = nodes match {
     case (x: FunctionDeclarationStatement) :: xs =>
-      x.copy(statements = x.statements.map(optimizeVariables)) :: optimize(xs)
+      x.copy(statements = x.statements.map(optimizeVariables)) :: optimize(xs, options)
     case x :: xs =>
-      x :: optimize(xs)
+      x :: optimize(xs, options)
     case Nil =>
       Nil
   }

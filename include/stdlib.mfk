@@ -21,3 +21,25 @@ inline asm void enable_irq() {
     CLI
 }
 
+asm byte hi_nibble_to_hex(byte a) {
+    LSR
+    LSR
+    LSR
+    LSR
+    JMP lo_nibble_to_hex
+}
+
+asm byte lo_nibble_to_hex(byte a) {
+    AND #$F
+    CLC
+    ADC #$30
+    CMP #$3A
+    BCC _lo_nibble_to_hex_lbl
+    ADC #$6 // carry is set
+_lo_nibble_to_hex_lbl:
+    RTS
+}
+
+inline asm void panic() {
+    JSR _panic
+}

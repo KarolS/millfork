@@ -78,6 +78,8 @@ object CompilationFlag extends Enumeration {
   DetailedFlowAnalysis, DangerousOptimizations, InlineFunctions,
   // memory allocation options
   VariableOverlap,
+  // runtime check options
+  CheckIndexOutOfBounds,
   // warning options
   ExtraComparisonWarnings,
   RorWarning,

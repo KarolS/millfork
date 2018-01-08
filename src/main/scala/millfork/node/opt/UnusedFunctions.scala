@@ -1,5 +1,6 @@
 package millfork.node.opt
 
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node._
@@ -9,25 +10,28 @@ import millfork.node._
   */
 object UnusedFunctions extends NodeOptimization {
 
-  override def optimize(nodes: List[Node]): List[Node] = {
+  override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
+    val panicRequired = options.flags(CompilationFlag.CheckIndexOutOfBounds)
     val allNormalFunctions = nodes.flatMap {
-      case v: FunctionDeclarationStatement => if (v.address.isDefined || v.interrupt || v.name == "main") Nil else List(v.name)
+      case v: FunctionDeclarationStatement => if (v.address.isDefined || v.interrupt || v.name == "main" || panicRequired && v.name == "_panic") Nil else List(v.name)
       case _ => Nil
     }.toSet
     val allCalledFunctions = getAllCalledFunctions(nodes).toSet
     val unusedFunctions = allNormalFunctions -- allCalledFunctions
     if (unusedFunctions.nonEmpty) {
       ErrorReporting.debug("Removing unused functions: " + unusedFunctions.mkString(", "))
+      optimize(removeFunctionsFromProgram(nodes, unusedFunctions), options)
+    } else {
+      nodes
     }
-    removeFunctionsFromProgram(nodes, unusedFunctions)
   }
 
-  private def removeFunctionsFromProgram(nodes: List[Node], unusedVariables: Set[String]): List[Node] = {
+  private def removeFunctionsFromProgram(nodes: List[Node], unusedFunctions: Set[String]): List[Node] = {
     nodes match {
-      case (x: FunctionDeclarationStatement) :: xs if unusedVariables(x.name) =>
-        removeFunctionsFromProgram(xs, unusedVariables)
+      case (x: FunctionDeclarationStatement) :: xs if unusedFunctions(x.name) =>
+        removeFunctionsFromProgram(xs, unusedFunctions)
       case x :: xs =>
-        x :: removeFunctionsFromProgram(xs, unusedVariables)
+        x :: removeFunctionsFromProgram(xs, unusedFunctions)
       case Nil =>
         Nil
     }

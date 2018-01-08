@@ -1,5 +1,6 @@
 package millfork.node.opt
 
+import millfork.CompilationOptions
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node._
@@ -9,7 +10,7 @@ import millfork.node._
   */
 object UnusedGlobalVariables extends NodeOptimization {
 
-  override def optimize(nodes: List[Node]): List[Node] = {
+  override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
 
     // TODO: volatile
     val allNonvolatileGlobalVariables = nodes.flatMap {
