@@ -1,6 +1,5 @@
 package millfork.test
 
-import millfork.error.ErrorReporting
 import millfork.test.emu.EmuBenchmarkRun
 import org.scalatest.{FunSuite, Matchers}
 
@@ -124,6 +123,28 @@ class BitPackingSuite extends FunSuite with Matchers {
         | }
       """.stripMargin){m =>
       m.readByte(0xc000) should equal(0x56)
+    }
+  }
+
+  test("Reverse byte") {
+    EmuBenchmarkRun("""
+        | word output_addr @$C000
+        | void main () {
+        |   byte i
+        |   byte input
+        |   byte output
+        |   output_addr = output.addr
+        |   input = $5A
+        |   output = 0
+        |   for i,0,paralleluntil,8 {
+        |     output <<= 1
+        |     output |= input & 1
+        |     input >>= 1
+        |   }
+        | }
+      """.stripMargin){m =>
+      val addr = m.readWord(0xc000)
+      m.readByte(addr) should equal(0x5A)
     }
   }
 }

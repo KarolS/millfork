@@ -528,10 +528,10 @@ object AlwaysGoodOptimizations {
 
   val PointlessLoadBeforeTransfer = new RuleBasedAssemblyOptimization("Pointless load before transfer",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
-    loadBeforeTransfer(LDX, LDA, ConcernsX, State.X, TXA, Set(ZeroPage, Absolute, IndexedY, AbsoluteY)),
-    loadBeforeTransfer(LDA, LDX, ConcernsA, State.A, TAX, Set(ZeroPage, Absolute, IndexedY, AbsoluteY)),
-    loadBeforeTransfer(LDY, LDA, ConcernsY, State.Y, TYA, Set(ZeroPage, Absolute, ZeroPageX, IndexedX, AbsoluteX)),
-    loadBeforeTransfer(LDA, LDY, ConcernsA, State.A, TAY, Set(ZeroPage, Absolute, ZeroPageX, IndexedX, AbsoluteX)),
+    loadBeforeTransfer(LDX, LDA, ConcernsX, State.X, TXA, Set(Immediate, ZeroPage, Absolute, IndexedY, AbsoluteY)),
+    loadBeforeTransfer(LDA, LDX, ConcernsA, State.A, TAX, Set(Immediate, ZeroPage, Absolute, IndexedY, AbsoluteY)),
+    loadBeforeTransfer(LDY, LDA, ConcernsY, State.Y, TYA, Set(Immediate, ZeroPage, Absolute, ZeroPageX, IndexedX, AbsoluteX)),
+    loadBeforeTransfer(LDA, LDY, ConcernsA, State.A, TAY, Set(Immediate, ZeroPage, Absolute, ZeroPageX, IndexedX, AbsoluteX)),
   )
 
   private def immediateLoadBeforeTwoTransfers(ld1: Opcode.Value, ld2: Opcode.Value, concerns1: AssemblyLinePattern, overwrites1: State.Value, t12: Opcode.Value, t21: Opcode.Value) =
@@ -916,8 +916,20 @@ object AlwaysGoodOptimizations {
       (Elidable & (HasOpcode(ORA) | HasOpcode(ADC) & HasClear(State.C) & HasClear(State.D)) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z, State.V, State.A)) ~~> { (code, ctx) =>
       ctx.get[List[AssemblyLine]](3) ++
-        List(AssemblyLine.implied(ROR), code.head.copy(opcode = ROL)) ++
+        List(AssemblyLine.implied(LSR), code.head.copy(opcode = ROL)) ++
         ctx.get[List[AssemblyLine]](2)
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcodeIn(Set(ROL, ASL)) & DoesntMatterWhatItDoesWith(State.A)) ~
+      (Linear & DoesNotConcernMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcodeIn(Set(ROL, ASL)) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      code.last :: code.drop(2).init
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.A)) ~
+      (Linear & DoesNotConcernMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      code.last :: code.drop(2).init
     },
   )
 
