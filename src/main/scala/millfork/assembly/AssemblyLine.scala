@@ -178,7 +178,7 @@ object AssemblyLine {
 
   def discardYF() = AssemblyLine(DISCARD_YF, AddrMode.DoesNotExist, Constant.Zero)
 
-  def immediate(opcode: Opcode.Value, value: Int) = AssemblyLine(opcode, AddrMode.Immediate, NumericConstant(value, 1))
+  def immediate(opcode: Opcode.Value, value: Long) = AssemblyLine(opcode, AddrMode.Immediate, NumericConstant(value, 1))
 
   def immediate(opcode: Opcode.Value, value: Constant) = AssemblyLine(opcode, AddrMode.Immediate, value)
 
