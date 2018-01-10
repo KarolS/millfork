@@ -69,7 +69,7 @@ There are no division, remainder or modulo operators.
 `byte | byte`
 
 * `<<`, `>>`: bit shifting; shifting right pads the result with zeroes  
-`byte * constant byte`
+`byte << constant byte`
 
 * `>>>>`: shifting a 9-bit value and returning a byte; `a >>>> b` is equivalent to `(a & $1FF) >> b`, but the latter doesn't compile yet  
 `word >>>> constant byte`  
@@ -87,7 +87,7 @@ These operators work using the decimal arithmetic and will not work on Ricoh CPU
 `constant *' constant`
 
 * `<<'`, `>>'`: decimal multiplication/division by power of two  
-`byte * constant byte`
+`byte <<' constant byte`
 
 ## Comparison operators
 
@@ -101,9 +101,9 @@ Note you cannot mix those operators, so `a <= b < c` is not valid.
 `long == long`  
 
 * `!=`: inequality  
-`byte == byte`  
-`word == word`  
-`long == long`
+`byte != byte`  
+`word != word`  
+`long != long`
 
 * `>`, `<`, `<=`, `>=`: inequality  
 `byte > byte`  
