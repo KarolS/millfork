@@ -1,7 +1,6 @@
 void _panic() {
     asm {
         SEI
-        PLA // status register
         PLA
         TAY
         PLA
