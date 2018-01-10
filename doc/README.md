@@ -16,6 +16,8 @@
 
 ## Language reference
 
+* [Operators](lang/operators.md)
+
 * [Inline assembly syntax](lang/assembly.md)
 
 * [Important guidelines regarding reentrancy](lang/reentrancy.md)
