@@ -2,6 +2,8 @@
 
 Unlike in high-level languages, operators in Millfork have limited applicability. 
 Not every well-formed expression is actually compilable. 
+Most expressions involving single bytes compile, 
+but for larger types usually you need to use in-place modification operators.  
 Further improvements to the compiler may increase the number of acceptable combinations. 
 
 ## Precedence
@@ -54,22 +56,28 @@ Such expressions have the property that the only register they may clobber is Y.
 
 * `+`, `-`:  
 `byte + byte`  
-`word + word`  
-`long + long`
+`constant word + constant word`  
+`constant long + constant long`
 
-* `*`: 8-bit multiplication  
+* `*`: multiplication; the size of the result is the same as the size of the arguments  
 `byte * constant byte`  
-`constant byte * byte`
+`constant byte * byte`  
+`constant word * constant word`  
+`constant long * constant long`
 
 There are no division, remainder or modulo operators.
 
 ## Bitwise operators
 
 * `|`, `^`, `&`: OR, EXOR and AND  
-`byte | byte`
+`byte | byte`  
+`constant word | constant word`  
+`constant long | constant long`
 
-* `<<`, `>>`: bit shifting; shifting right pads the result with zeroes  
-`byte << constant byte`
+* `<<`, `>>`: bit shifting; shifting pads the result with zeroes  
+`byte << constant byte`  
+`constant word << constant byte`  
+`constant long << constant byte`
 
 * `>>>>`: shifting a 9-bit value and returning a byte; `a >>>> b` is equivalent to `(a & $1FF) >> b`, but the latter doesn't compile yet  
 `word >>>> constant byte`  
@@ -80,8 +88,8 @@ These operators work using the decimal arithmetic and will not work on Ricoh CPU
 
 * `+'`, `-'`: decimal addition/subtraction  
 `byte +' byte`  
-`word +' word`  
-`long +' long`
+`constant word +' constant word`  
+`constant long +' constant long`
 
 * `*'`: decimal multiplication  
 `constant *' constant`
@@ -114,7 +122,7 @@ Currently, `>`, `<`, `<=`, `>=` operators perform unsigned comparison
 if none of the types of their arguments is signed,
 and fail to compile otherwise. This will be changed in the future.  
 
-## Assignment operators
+## Assignment and in-place modification operators
 
 * `=`: normal assignment    
 `mutable byte = byte`  
@@ -139,4 +147,5 @@ and fail to compile otherwise. This will be changed in the future.
 * `*=`: multiplication in place  
 `mutable byte *= constant byte`
 
-There are no `*'=` operator yet.
+There is no `*'=` operator yet.
+
