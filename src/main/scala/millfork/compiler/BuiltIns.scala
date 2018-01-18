@@ -291,7 +291,8 @@ object BuiltIns {
     val env = ctx.env
     val b = env.get[Type]("byte")
     val firstParamCompiled = MlCompiler.compile(ctx, lhs, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
-    env.eval(rhs) match {
+    val maybeConstant = env.eval(rhs)
+    maybeConstant match {
       case Some(NumericConstant(0, _)) =>
         compType match {
           case ComparisonType.LessUnsigned =>
@@ -318,19 +319,30 @@ object BuiltIns {
         }
       case _ =>
     }
-    val secondParamCompiledUnoptimized = simpleOperation(CMP, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
-    val secondParamCompiled = compType match {
-      case ComparisonType.Equal | ComparisonType.NotEqual | ComparisonType.LessSigned | ComparisonType.GreaterOrEqualSigned =>
-        secondParamCompiledUnoptimized match {
-          case List(AssemblyLine(CMP, Immediate, NumericConstant(0, _), true)) =>
-            if (OpcodeClasses.ChangesAAlways(firstParamCompiled.last.opcode)) {
-              Nil
-            } else {
-              secondParamCompiledUnoptimized
-            }
-          case _ => secondParamCompiledUnoptimized
+    val secondParamCompiled = maybeConstant match {
+      case Some(x) =>
+        compType match {
+          case ComparisonType.Equal | ComparisonType.NotEqual | ComparisonType.LessSigned | ComparisonType.GreaterOrEqualSigned =>
+            if (x.quickSimplify.isLowestByteAlwaysEqual(0) && OpcodeClasses.ChangesAAlways(firstParamCompiled.last.opcode)) Nil
+            else List(AssemblyLine.immediate(CMP, x))
+          case _ =>
+            List(AssemblyLine.immediate(CMP, x))
         }
-      case _ => secondParamCompiledUnoptimized
+      case _ => compType match {
+        case ComparisonType.Equal | ComparisonType.NotEqual | ComparisonType.LessSigned | ComparisonType.GreaterOrEqualSigned =>
+          val secondParamCompiledUnoptimized = simpleOperation(CMP, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
+          secondParamCompiledUnoptimized match {
+            case List(AssemblyLine(CMP, Immediate, NumericConstant(0, _), true)) =>
+              if (OpcodeClasses.ChangesAAlways(firstParamCompiled.last.opcode)) {
+                Nil
+              } else {
+                secondParamCompiledUnoptimized
+              }
+            case _ => secondParamCompiledUnoptimized
+          }
+        case _ =>
+          simpleOperation(CMP, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
+      }
     }
     val (effectiveComparisonType, label) = branches match {
       case NoBranching => return Nil

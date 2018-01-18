@@ -270,6 +270,16 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       } yield hc.asl(8) + lc
       case FunctionCallExpression(name, params) =>
         name match {
+          case ">>'" =>
+            constantOperation(MathOperator.DecimalShr, params)
+          case "<<'" =>
+            constantOperation(MathOperator.DecimalShl, params)
+          case ">>" =>
+            constantOperation(MathOperator.Shr, params)
+          case "<<" =>
+            constantOperation(MathOperator.Shl, params)
+          case "*'" =>
+            constantOperation(MathOperator.DecimalTimes, params)
           case "*" =>
             constantOperation(MathOperator.Times, params)
           case "&&" | "&" =>
@@ -282,7 +292,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             None
         }
     }
-  }
+  }.map(_.quickSimplify)
 
   private def constantOperation(op: MathOperator.Value, params: List[Expression]) = {
     params.map(eval).reduceLeft[Option[Constant]] { (oc, om) =>
@@ -515,10 +525,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
                 }
                 addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false), stmt.position)
                 addThing(ConstantThing(stmt.name, a, p), stmt.position)
-                addThing(ConstantThing(stmt.name + ".hi", a.hiByte, b), stmt.position)
-                addThing(ConstantThing(stmt.name + ".lo", a.loByte, b), stmt.position)
-                addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte, b), stmt.position)
-                addThing(ConstantThing(stmt.name + ".array.lo", a.loByte, b), stmt.position)
+                addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
+                addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
+                addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
+                addThing(ConstantThing(stmt.name + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
                 if (length < 256) {
                   addThing(ConstantThing(stmt.name + ".length", lengthConst, b), stmt.position)
                 }
@@ -549,10 +559,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         }
         addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false), stmt.position)
         addThing(ConstantThing(stmt.name, a, p), stmt.position)
-        addThing(ConstantThing(stmt.name + ".hi", a.hiByte, b), stmt.position)
-        addThing(ConstantThing(stmt.name + ".lo", a.loByte, b), stmt.position)
-        addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte, b), stmt.position)
-        addThing(ConstantThing(stmt.name + ".array.lo", a.loByte, b), stmt.position)
+        addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
+        addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
+        addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
+        addThing(ConstantThing(stmt.name + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
         if (length < 256) {
           addThing(ConstantThing(stmt.name + ".length", NumericConstant(length, 1), b), stmt.position)
         }
@@ -588,9 +598,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(Constant.error(s"`$name` has a non-constant value", position))
       if (constantValue.requiredSize > typ.size) ErrorReporting.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
-      if (typ.size == 2) {
-        addThing(ConstantThing(prefix + name + ".hi", constantValue + 1, b), stmt.position)
-        addThing(ConstantThing(prefix + name + ".lo", constantValue, b), stmt.position)
+      if (typ.size >= 2) {
+        addThing(ConstantThing(prefix + name + ".hi", constantValue.hiByte, b), stmt.position)
+        addThing(ConstantThing(prefix + name + ".lo", constantValue.loByte, b), stmt.position)
       }
     } else {
       if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
