@@ -311,7 +311,7 @@ object LaterOptimizations {
       val loadIfNotJumped = ctx.get[List[AssemblyLine]](31)
       List(loadIfJumped, ldy, sty, cpy, branch, loadIfNotJumped, label).flatten
     },
-    (HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.X)) ~
+    (HasOpcode(LDA) & Not(ConcernsX) & DoesntMatterWhatItDoesWith(State.X)) ~
       (Linear & Not(ConcernsX)).*.capture(39) ~
       (Elidable & HasOpcodeIn(OpcodeClasses.ShortConditionalBranching) & MatchParameter(22)).capture(41) ~
       (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdxAddrModes)).capture(31) ~
@@ -329,7 +329,7 @@ object LaterOptimizations {
       val stx = ctx.get[List[AssemblyLine]](33).map(_.copy(opcode = STX))
       List(loadIfJumped, lda, cmp, branch, loadIfNotJumped, label, stx).flatten
     },
-    (HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.Y)) ~
+    (HasOpcode(LDA) & Not(ConcernsY) & DoesntMatterWhatItDoesWith(State.Y)) ~
       (Linear & Not(ConcernsY)).*.capture(39) ~
       (Elidable & HasOpcodeIn(OpcodeClasses.ShortConditionalBranching) & MatchParameter(22)).capture(41) ~
       (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdyAddrModes)).capture(31) ~
