@@ -23,6 +23,8 @@ object ErrorReporting {
     flushOutput()
   }
 
+  def traceEnabled: Boolean = verbosity >= 2
+
   def trace(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 2) return
     println("TRACE: " + f(position) + msg)

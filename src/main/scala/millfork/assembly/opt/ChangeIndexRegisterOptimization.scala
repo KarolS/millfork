@@ -33,14 +33,21 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
   override def name = "Changing index registers"
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
-    val usesIndex = code.exists(l =>
+    val usesX = code.exists(l =>
       OpcodeClasses.ReadsXAlways(l.opcode) ||
         OpcodeClasses.ReadsYAlways(l.opcode) ||
         OpcodeClasses.ChangesX(l.opcode) ||
         OpcodeClasses.ChangesY(l.opcode) ||
         Set(AbsoluteX, AbsoluteY, ZeroPageY, ZeroPageX, IndexedX, IndexedY)(l.addrMode)
     )
-    if (!usesIndex) {
+    val usesY = code.exists(l =>
+      OpcodeClasses.ReadsXAlways(l.opcode) ||
+        OpcodeClasses.ReadsYAlways(l.opcode) ||
+        OpcodeClasses.ChangesX(l.opcode) ||
+        OpcodeClasses.ChangesY(l.opcode) ||
+        Set(AbsoluteX, AbsoluteY, ZeroPageY, ZeroPageX, IndexedX, IndexedY)(l.addrMode)
+    )
+    if (!usesX && !usesY) {
       return code
     }
     val canX2Y = f.returnType.size <= 1 && canOptimize(code, X2Y, None)
@@ -48,19 +55,45 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     (canX2Y, canY2X) match {
       case (false, false) => code
       case (true, false) =>
-        ErrorReporting.debug("Changing index register from X to Y")
-        switchX2Y(code)
+        if (!usesX) code else {
+          ErrorReporting.debug("Changing index register from X to Y")
+          val changed = switchX2Y(code)
+          traceDiff(code, changed)
+          changed
+        }
       case (false, true) =>
-        ErrorReporting.debug("Changing index register from X to Y")
-        switchY2X(code)
+        if (!usesY) code else {
+          ErrorReporting.debug("Changing index register from Y to X")
+          val changed = switchY2X(code)
+          traceDiff(code, changed)
+          changed
+        }
       case (true, true) =>
         if (preferX2Y) {
-          ErrorReporting.debug("Changing index register from X to Y (arbitrarily)")
-          switchX2Y(code)
+          if (!usesX) code else {
+            ErrorReporting.debug("Changing index register from X to Y (arbitrarily)")
+            val changed = switchX2Y(code)
+            traceDiff(code, changed)
+            changed
+          }
         } else {
-          ErrorReporting.debug("Changing index register from Y to X (arbitrarily)")
-          switchY2X(code)
+          if (!usesY) code else {
+            ErrorReporting.debug("Changing index register from Y to X (arbitrarily)")
+            val changed = switchY2X(code)
+            traceDiff(code, changed)
+            changed
+          }
         }
+    }
+  }
+
+  private def traceDiff(original: List[AssemblyLine], changed: List[AssemblyLine]): Unit = {
+    if (ErrorReporting.traceEnabled) {
+      original.zip(changed).foreach{
+        case (o, n) =>
+          if (o.addrMode == n.addrMode && o.opcode == n.opcode) ErrorReporting.trace(n.toString)
+          else ErrorReporting.trace(f"$o%-30s →  $n%s")
+      }
     }
   }
 
@@ -68,10 +101,11 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
   private def canOptimize(code: List[AssemblyLine], dir: IndexDirection, loaded: Option[IndexReg]): Boolean = code match {
     case AssemblyLine(_, AbsoluteY, _, _) :: xs if loaded != Some(Y) => false
     case AssemblyLine(_, ZeroPageY, _, _) :: xs if loaded != Some(Y) => false
-    case AssemblyLine(_, IndexedX, _, _) :: xs if dir == X2Y || loaded != Some(Y) => false
+    case AssemblyLine(_, IndexedY, _, _) :: xs if dir == Y2X || loaded != Some(Y) => false
     case AssemblyLine(_, AbsoluteX, _, _) :: xs if loaded != Some(X) => false
     case AssemblyLine(_, ZeroPageX, _, _) :: xs if loaded != Some(X) => false
-    case AssemblyLine(_, IndexedY, _, _) :: xs if dir == Y2X || loaded != Some(Y) => false
+    case AssemblyLine(_, IndexedX, _, _) :: xs if dir == X2Y || loaded != Some(X) => false
+    case AssemblyLine(_, AbsoluteIndexedX, _, _) :: xs if dir == X2Y => false
 
       // using a wrong index register for one instruction is fine
     case AssemblyLine(LDY | TAY, _, _, _) :: AssemblyLine(_, IndexedY, _, _) :: xs if dir == Y2X =>
