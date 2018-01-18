@@ -259,15 +259,6 @@ object UndocumentedOptimizations {
       (Elidable & HasOpcode(DEC) & HasAddrMode(AbsoluteX) & DoesntMatterWhatItDoesWith(State.A, State.Y, State.X, State.C, State.Z, State.N, State.V)) ~~> { code =>
       List(code.head.copy(opcode = LDY), code.last.copy(opcode = DCP, addrMode = AbsoluteY))
     },
-    (Elidable & HasOpcode(DEC) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Elidable & HasOpcode(LDA) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Elidable & HasOpcode(CMP) & MatchAddrMode(2) & MatchParameter(3) & DoesntMatterWhatItDoesWith(State.V, State.C, State.N, State.A)) ~~> { code =>
-      List(code(2).copy(opcode = LDA), code(1).copy(opcode = DCP))
-    },
-    (Elidable & HasOpcode(DEC) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Elidable & HasOpcode(LDA) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.V, State.C, State.N, State.A)) ~~> { code =>
-      List(AssemblyLine.immediate(LDA, 0), code(1).copy(opcode = DCP))
-    },
   )
 
   val UseIsc = new RuleBasedAssemblyOptimization("Using undocumented instruction ISC",

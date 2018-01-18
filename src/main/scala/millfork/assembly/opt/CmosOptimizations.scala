@@ -32,5 +32,5 @@ object CmosOptimizations {
     (Elidable & HasX(0) & HasAddrMode(IndexedX) & HasOpcodeIn(SupportsZeroPageIndirect)) ~~> (code => code.map(_.copy(addrMode = ZeroPageIndirect))),
   )
 
-  val All: List[AssemblyOptimization] = List(ZeroStoreAsStz)
+  val All: List[AssemblyOptimization] = List(OptimizeZeroIndex, ZeroStoreAsStz)
 }

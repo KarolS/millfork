@@ -153,5 +153,6 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.TailCallOptimization,
     AlwaysGoodOptimizations.UnusedCodeRemoval,
     AlwaysGoodOptimizations.UnusedLabelRemoval,
+    VariableToRegisterOptimization,
   )
 }

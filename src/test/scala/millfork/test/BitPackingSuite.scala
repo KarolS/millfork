@@ -147,4 +147,26 @@ class BitPackingSuite extends FunSuite with Matchers {
       m.readByte(addr) should equal(0x5A)
     }
   }
+
+  test("Reverse word") {
+    EmuBenchmarkRun("""
+        | word output_addr @$C000
+        | void main () {
+        |   byte i
+        |   word input
+        |   word output
+        |   output_addr = output.addr
+        |   input = $5AC1
+        |   output = 0
+        |   for i,0,paralleluntil,16 {
+        |     output <<= 1
+        |     output.lo |= input.lo & 1
+        |     input >>= 1
+        |   }
+        | }
+      """.stripMargin){m =>
+      val addr = m.readWord(0xc000)
+      m.readWord(addr) should equal(0x835A)
+    }
+  }
 }

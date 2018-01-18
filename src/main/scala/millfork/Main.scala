@@ -90,7 +90,7 @@ object Main {
       if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
       if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
     ).flatten
-    val goodCycle = List.fill(optLevel - 1)(OptimizationPresets.Good ++ extras).flatten
+    val goodCycle = List.fill(optLevel - 1)(OptimizationPresets.Good).flatten
     val assemblyOptimizations = if (optLevel <= 0) Nil else if (optLevel >= 9) List(SuperOptimizer) else {
       goodCycle ++ OptimizationPresets.AssOpt ++ extras ++ goodCycle
     }

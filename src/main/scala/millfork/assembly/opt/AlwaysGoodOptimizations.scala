@@ -921,15 +921,22 @@ object AlwaysGoodOptimizations {
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
     (Elidable & HasOpcodeIn(Set(ROL, ASL)) & DoesntMatterWhatItDoesWith(State.A)) ~
-      (Linear & DoesNotConcernMemoryAt(0, 1)).* ~
+      (Linear & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
       (Elidable & HasOpcodeIn(Set(ROL, ASL)) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
       code.last :: code.drop(2).init
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
     (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.A)) ~
-      (Linear & DoesNotConcernMemoryAt(0, 1)).* ~
-      (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      (Linear & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
+      (Elidable & HasOpcode(LSR) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
       code.last :: code.drop(2).init
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.A)) ~
+      (Linear & Not(HasOpcode(LSR)) & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
+      (Elidable & HasOpcode(LSR) & DoesNotConcernMemoryAt(0, 1)) ~
+      (Elidable & HasOpcode(ROR) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      code.init.last :: code.last :: code.drop(2).init.init
     },
   )
 

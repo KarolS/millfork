@@ -12,7 +12,7 @@ import scala.collection.mutable
   */
 object InliningCalculator {
 
-  private val sizes = Seq(30, 30, 8, 6, 5, 5, 4)
+  private val sizes = Seq(64, 64, 8, 6, 5, 5, 4)
 
   def getPotentiallyInlineableFunctions(program: Program): Map[String, Int] = {
     val callCount = mutable.Map[String, Int]().withDefaultValue(0)
