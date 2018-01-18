@@ -2,13 +2,10 @@
 
  **★ WORK IN PROGRESS ★**
 
-## Tutorial
-
-* [Getting started](tutorial/01-getting-started.md)
-
-* [Basic functions and variables](tutorial/02-functions-variables.md)
 
 ## Compiler usage
+
+* [Getting started](api/getting-started.md)
 
 * [Command-line option reference](api/command-line.md)
 
@@ -16,7 +13,13 @@
 
 ## Language reference
 
-* [Operators](lang/operators.md)
+* [Syntax](lang/syntax.md)
+
+* [Types](lang/types.md)
+
+* [Operators reference](lang/operators.md)
+
+* [Functions](lang/functions.md)
 
 * [Inline assembly syntax](lang/assembly.md)
 

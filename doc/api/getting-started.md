@@ -35,7 +35,7 @@ The following options are crucial when compiling your sources:
 
 * `-I DIR;DIR;DIR;...` – specifies the paths to directories with modules to include.  
 
-* `-t PLATFORM` – specifies the target platform (`c64` is the default). Each platform is defined in an `.ini` file in the include directory. For the list of supported platforms, see [Supported platforms](../api/target-platforms.md)
+* `-t PLATFORM` – specifies the target platform (`c64` is the default). Each platform is defined in an `.ini` file in the include directory. For the list of supported platforms, see [Supported platforms](target-platforms.md)
 
 You may be also interested in the following:
 

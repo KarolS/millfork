@@ -14,6 +14,10 @@ even up to hardware damage.
 
 * stack overflow: exhausting the hardware stack due to excess recursion, excess function calls or excess stack-allocated variables
 
+* on ROM-based platforms: writing to arrays
+
+* on ROM-based platforms: using global variables with an initial value
+
 * violating the [safe assembly rules](../lang/assembly.md)
 
 * violating the [safe reentrancy rules](../lang/reentrancy.md)

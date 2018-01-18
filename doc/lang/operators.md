@@ -52,6 +52,11 @@ Such expressions have the property that the only register they may clobber is Y.
 
 * `mutable` means an expression than can be assigned to
 
+## Split-word operator
+
+Expressions of the shape `h:l` where `h` and `l` are of type byte, are considered expressions of type word.  
+If and only if both `h` and `l` are assignable expressions, then `h:l` is also an assignable expression.
+
 ## Binary arithmetic operators
 
 * `+`, `-`:  
@@ -103,6 +108,8 @@ These operators (except for `!=`) can accept more than 2 arguments.
 In such case, the result is true if each comparison in the group is true.
 Note you cannot mix those operators, so `a <= b < c` is not valid.
 
+Note that currently in cases like `a < f() < b`, `f()` will be evaluated twice!
+
 * `==`: equality  
 `byte == byte`  
 `word == word`  
@@ -148,4 +155,17 @@ and fail to compile otherwise. This will be changed in the future.
 `mutable byte *= constant byte`
 
 There is no `*'=` operator yet.
+
+## Indexing
+
+While Millfork does not consider indexing an operator, this is a place as good as any to discuss it.
+
+An expression of form `a[i]`, where `i` is an expression of type `byte`, is:
+
+* when `a` is an array: an access to the `i`-th element of the array `a`
+
+* when `a` is a pointer variable: an access to the byte in memory at address `a + i`
+
+Those exrpressions are of type `byte`. If `a` is any other kind of expression, `a[i]` is invalid.
+
 
