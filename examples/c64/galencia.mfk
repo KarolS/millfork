@@ -1,0 +1,169 @@
+// Parallax starfield effect from Galencia
+// originally written in assembly by Jason Aldred:
+// https://github.com/JasonAldred/C64-Starfield
+// http://www.galencia.games/
+
+// compile with -O3 --inline -t c64
+
+const word starScreenChar  = $0400         // Screen address
+const word StarScreenCols  = $d800         // Character attribute address
+
+const word charBase        = $3000         // Address of our character set
+
+const word star1Init       = charBase+$1d0 // Init address for each star
+const word star2Init       = charBase+$298
+const word star3Init       = charBase+$240
+const word star4Init       = charBase+$2e0
+
+const word star1Limit      = charBase+$298 // Limit for each star
+const word star2Limit      = charBase+$360 // Once limit is reached, they are reset
+const word star3Limit      = charBase+$298
+const word star4Limit      = charBase+$360
+
+const word star1Reset      = charBase+$1d0 // Reset address for each star
+const word star2Reset      = charBase+$298
+const word star3Reset      = charBase+$1d0
+const word star4Reset      = charBase+$298
+
+byte staticStar1     @charBase+$250 // 2 Locations for blinking static stars
+byte staticStar2     @charBase+$1e0
+
+const byte starColourLimit = 20            // use values 1 to 20
+                                // Galencia uses these values
+                                // 1     = mono
+                                // 2     = duo
+                                // 20    = full colour
+								
+byte rasterCount
+pointer starfieldPtr1
+pointer starfieldPtr2
+pointer starfieldPtr3
+pointer starfieldPtr4
+								
+void main() {
+	pointer p
+	disable_irq()
+	p = charBase
+	byte page
+	byte b
+	for page,0,paralleluntil,8 {
+		for b,255,downto,0 {
+			p[b] = 0
+		}
+		p.hi += 1
+	}
+	vic_bg_color0 = black
+	vic_border = black
+	vic_mem = 28
+	initStarfield()
+	createStarScreen()
+	while true {
+		while vic_raster != $FF {}
+		rasterCount += 1
+		vic_border -= 1
+		doStarfield()
+		vic_border += 1		
+	}
+}
+
+void doStarfield() {
+	starfieldPtr1[0] = 0
+	starfieldPtr2[0] = 0
+	starfieldPtr3[0] = 0
+	starfieldPtr4[0] = 0
+	if rasterCount & 1 != 0 {
+		starfieldPtr1 += 1
+		if starfieldPtr1 == star1Limit {
+			starfieldPtr1 = star1Reset
+		}
+	}
+	starfieldPtr2 += 1
+	if starfieldPtr2 == star2Limit {
+		starfieldPtr2 = star2Reset
+	}
+	if rasterCount & 1 != 0 {
+		starfieldPtr3 += 1
+		if starfieldPtr3 == star3Limit {
+			starfieldPtr3 = star3Reset
+		}
+	}
+	starfieldPtr4 += 2
+	if starfieldPtr4 == star4Limit {
+		starfieldPtr4 = star4Reset
+	}
+	if rasterCount >= 230 {
+		staticStar1 = 0
+	} else {
+		staticStar1 = 192
+	}
+	if rasterCount ^ $80 >= 230 {
+		staticStar2 = 0
+	} else {
+		staticStar2 = 192
+	}
+	starfieldPtr1[0] |= 3
+	starfieldPtr2[0] |= 3
+	starfieldPtr3[0] |= 12
+	starfieldPtr4[0] |= 48
+}
+
+void initStarfield() {
+	starfieldPtr1 = star1Init
+	starfieldPtr2 = star2Init
+	starfieldPtr3 = star3Init
+	starfieldPtr4 = star4Init
+}
+
+void createStarScreen() {
+	byte y
+	byte x
+	pointer p
+	p = starScreenChar
+	byte char
+	byte start
+	byte limit
+	for x,0,paralleluntil,40 {
+		char = starfieldRow[x]
+		if char >= (58+25) {
+			limit = 58+50
+		} else {
+		    limit = 58+25
+		}
+		start = limit - 25
+		p = starScreenChar
+		for y,0,paralleluntil,25 {
+			p[x] = char
+			p += 40
+			char += 1
+			if char == limit {
+				char = start
+			}
+		}
+	}
+	p = c64_color_ram
+	byte ci
+	ci = 0
+	for y,0,until,25 {
+		for x,0,paralleluntil,40 {
+			p[x] = starfieldCols[ci]
+			ci += 1
+			if ci == starColourLimit { 
+				ci = 0
+			}
+		}
+		p += 40
+	}
+}
+
+array starfieldCols = [
+         14,10,12,15,14,13,12,11,10,14,
+         14,10,14,15,14,13,12,11,10,12
+]
+
+
+array starfieldRow = [
+        058,092,073,064,091,062,093,081,066,094,
+        086,059,079,087,080,071,076,067,082,095,
+        100,078,099,060,075,063,084,065,083,096,
+        068,088,074,061,090,098,085,101,097,077
+]
