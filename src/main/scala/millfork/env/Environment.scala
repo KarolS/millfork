@@ -3,7 +3,7 @@ package millfork.env
 import java.util.concurrent.atomic.AtomicLong
 
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.assembly.Opcode
+import millfork.assembly.{Opcode, OpcodeClasses}
 import millfork.compiler._
 import millfork.error.ErrorReporting
 import millfork.node._
@@ -691,5 +691,34 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       case a: ArrayDeclarationStatement => registerArray(a)
       case i: ImportStatement => ()
     }
+  }
+
+  private def checkName[T <: Thing : Manifest](name: String, pos: Option[Position]): Unit = {
+    if (maybeGet[T](name).isEmpty) {
+      ErrorReporting.error(s"`$name` is not defined", pos)
+    }
+  }
+
+  def nameCheck(nodes: List[_ <:Node]): Unit = nodes.foreach(nameCheck)
+
+  def nameCheck(node: Node): Unit = node match {
+    case _:AssemblyStatement => ()
+    case _:DeclarationStatement => ()
+    case s:Statement => nameCheck(s.getAllExpressions)
+    case _:LiteralExpression => ()
+    case VariableExpression(name) => checkName[Thing](name, node.position)
+    case IndexedExpression(name, index) =>
+      checkName[Thing](name, node.position)
+      nameCheck(index)
+    case SeparateBytesExpression(h, l) =>
+      nameCheck(h)
+      nameCheck(l)
+    case SumExpression(params, _) =>
+      nameCheck(params.map(_._2))
+    case FunctionCallExpression(name, params) =>
+      if (name.exists(_.isLetter) && name != "not") {
+        checkName[MangledFunction](name, node.position)
+      }
+      nameCheck(params)
   }
 }

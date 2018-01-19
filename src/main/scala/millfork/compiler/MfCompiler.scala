@@ -45,6 +45,7 @@ object MlCompiler {
   def nextLabel(prefix: String): String = "." + prefix + "__" + labelCounter.incrementAndGet().formatted("%05d")
 
   def compile(ctx: CompilationContext): Chunk = {
+    ctx.env.nameCheck(ctx.function.code)
     val chunk = compile(ctx, ctx.function.code)
     val prefix = (if (ctx.function.interrupt) {
       if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {

@@ -259,7 +259,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         |   }
         |   a.lo:a.hi=a
         |   output = a
-        |   couput
+        |   output
         | }
         | void barrier (){}
         |
