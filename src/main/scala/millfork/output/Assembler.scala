@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.assembly.opt.AssemblyOptimization
+import millfork.assembly.opt.{AssemblyOptimization, JumpShortening}
 import millfork.assembly.{AddrMode, AssemblyLine, Opcode}
 import millfork.compiler.{CompilationContext, MfCompiler}
 import millfork.env._
@@ -305,7 +305,8 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
       opt.optimize(f, c, options)
     }
-    code
+    if (optimizations.nonEmpty) JumpShortening(f, JumpShortening(f, code, options), options)
+    else code
   }
 
   private def outputFunction(code: List[AssemblyLine], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
