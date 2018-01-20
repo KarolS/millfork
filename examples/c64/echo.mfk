@@ -1,0 +1,11 @@
+import c64_basic
+import stdio
+void main() {
+    while true {
+        readline()
+        // empty line is read as a single space
+        if readline_out[0] == 32 && readline_out[1] == 0 { return }
+        putstrz(readline_out)
+        putchar(13)
+    }
+}

@@ -1,0 +1,31 @@
+import stdio
+import c64_basic
+
+array text1 = [ "enter first number:" petscii, 13, 0 ]
+array text2 = [ "enter second number:" petscii, 13, 0 ]
+array text3 = [ "the sum is:" petscii, 13, 0 ]
+array texte = [ "that wasn't a number, try again:" petscii, 13, 0 ]
+
+void main() {
+    word a
+    word b
+
+    putstrz(text1)
+    a = readword()
+    while readword_err != 0 {
+        putstrz(texte)
+        a = readword()
+    }
+
+    putstrz(text2)
+    b = readword()
+    while readword_err != 0 {
+        putstrz(texte)
+        b = readword()
+    }
+
+    putstrz(text3)
+    a += b
+    putword(a)
+    putchar(13)
+}
