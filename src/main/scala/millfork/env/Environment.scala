@@ -705,6 +705,22 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   def nameCheck(node: Node): Unit = node match {
     case _:AssemblyStatement => ()
     case _:DeclarationStatement => ()
+    case s:BlockStatement => nameCheck(s.body)
+    case s:ForStatement =>
+      checkName[Variable]("Variable", s.variable, s.position)
+      nameCheck(s.start)
+      nameCheck(s.end)
+      nameCheck(s.body)
+    case s:IfStatement =>
+      nameCheck(s.condition)
+      nameCheck(s.thenBranch)
+      nameCheck(s.elseBranch)
+    case s:WhileStatement =>
+      nameCheck(s.condition)
+      nameCheck(s.body)
+    case s:DoWhileStatement =>
+      nameCheck(s.body)
+      nameCheck(s.condition)
     case s:Statement => nameCheck(s.getAllExpressions)
     case _:LiteralExpression => ()
     case VariableExpression(name) =>

@@ -98,7 +98,8 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     ))
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
-    val parserF = MfParser("", source + "\n void _panic(){while(true){}}", "", options)
+    val sourceWithPanic = if (source.contains("_panic")) source else source + "\n void _panic(){while(true){}}"
+    val parserF = MfParser("", sourceWithPanic, "", options)
     parserF.toAst match {
       case Success(unoptimized, _) =>
         ErrorReporting.assertNoErrors("Parse failed")

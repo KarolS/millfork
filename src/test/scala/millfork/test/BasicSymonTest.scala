@@ -16,6 +16,26 @@ class BasicSymonTest extends FunSuite with Matchers {
       """.stripMargin)
   }
 
+  test("Panic test") {
+    EmuUnoptimizedRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |   panic()
+        | }
+        | inline asm void panic() {
+        |    JSR _panic
+        | }
+        | void _panic() {
+        |   asm {
+        |     JSR doNothing
+        |   }
+        |   output = 1
+        | }
+        | void doNothing() { }
+      """.stripMargin).readByte(0xc000) should equal(1)
+  }
+
   test("Allocation test") {
     val src =
       """
