@@ -605,6 +605,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     } else {
       if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
       if (stmt.initialValue.isDefined && parent.isDefined) ErrorReporting.error(s"`$name` is local and not a constant and therefore cannot have a value", position)
+      if (stmt.initialValue.isDefined && stmt.address.isDefined) ErrorReporting.warn(s"`$name` has both address and initial value - this may not work as expected!", options, position)
       if (stmt.stack) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
         baseStackOffset += typ.size
