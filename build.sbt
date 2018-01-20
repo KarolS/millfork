@@ -52,6 +52,8 @@ releaseDist := {
   IO.createDirectory(releasesDir)
   IO.createDirectory(distDir)
   IO.copyFile(jar, distDir / jar.name)
+  IO.copyFile(base / "LICENSE", distDir / "LICENSE")
+  IO.copyFile(base / "README.md", distDir / "README.md")
   def copyDir(name: String): Unit = {
     IO.createDirectory(distDir / name)
     IO.copyDirectory(base / name, distDir / name)
