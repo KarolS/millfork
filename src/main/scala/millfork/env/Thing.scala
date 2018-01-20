@@ -8,7 +8,13 @@ sealed trait Thing {
   def name: String
 }
 
-sealed trait Type extends Thing {
+sealed trait CallableThing extends Thing
+
+sealed trait VariableLikeThing extends Thing
+
+sealed trait IndexableThing extends Thing
+
+sealed trait Type extends CallableThing {
 
   def size: Int
 
@@ -87,13 +93,13 @@ case class Label(name: String) extends ThingInMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 }
 
-sealed trait Variable extends TypedThing
+sealed trait Variable extends TypedThing with VariableLikeThing
 
 case class BlackHole(typ: Type) extends Variable {
   override def name = "<black hole>"
 }
 
-sealed trait VariableInMemory extends Variable with ThingInMemory {
+sealed trait VariableInMemory extends Variable with ThingInMemory with IndexableThing {
 
   def zeropage: Boolean
 }
@@ -144,7 +150,7 @@ case class InitializedMemoryVariable(name: String, address: Option[Constant], ty
   override def alloc: VariableAllocationMethod.Value = VariableAllocationMethod.Static
 }
 
-trait MfArray extends ThingInMemory
+trait MfArray extends ThingInMemory with IndexableThing
 
 case class UninitializedArray(name: String, sizeInBytes: Int) extends MfArray with UninitializedMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
@@ -164,8 +170,7 @@ case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage
   override def toAddress: Constant = address
 }
 
-
-sealed trait MangledFunction extends Thing {
+sealed trait MangledFunction extends CallableThing {
   def name: String
 
   def returnType: Type
@@ -218,7 +223,7 @@ case class NormalFunction(name: String,
   override def shouldGenerate = true
 }
 
-case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing
+case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing
 
 trait ParamSignature {
   def types: List[Type]

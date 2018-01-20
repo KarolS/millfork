@@ -694,9 +694,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     }
   }
 
-  private def checkName[T <: Thing : Manifest](name: String, pos: Option[Position]): Unit = {
+  private def checkName[T <: Thing : Manifest](objType: String, name: String, pos: Option[Position]): Unit = {
     if (maybeGet[T](name).isEmpty) {
-      ErrorReporting.error(s"`$name` is not defined", pos)
+      ErrorReporting.error(s"$objType `$name` is not defined", pos)
     }
   }
 
@@ -707,9 +707,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     case _:DeclarationStatement => ()
     case s:Statement => nameCheck(s.getAllExpressions)
     case _:LiteralExpression => ()
-    case VariableExpression(name) => checkName[Thing](name, node.position)
+    case VariableExpression(name) =>
+      checkName[VariableLikeThing]("Variable or constant", name, node.position)
     case IndexedExpression(name, index) =>
-      checkName[Thing](name, node.position)
+      checkName[IndexableThing]("Array or pointer", name, node.position)
       nameCheck(index)
     case SeparateBytesExpression(h, l) =>
       nameCheck(h)
@@ -718,7 +719,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       nameCheck(params.map(_._2))
     case FunctionCallExpression(name, params) =>
       if (name.exists(_.isLetter) && name != "not") {
-        checkName[MangledFunction](name, node.position)
+        checkName[CallableThing]("Function or type", name, node.position)
       }
       nameCheck(params)
   }
