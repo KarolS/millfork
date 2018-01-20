@@ -37,7 +37,7 @@ object BranchSpec {
 }
 
 //noinspection NotImplementedCode,ScalaUnusedSymbol
-object MlCompiler {
+object MfCompiler {
 
 
   private val labelCounter = new AtomicLong
@@ -748,9 +748,9 @@ object MlCompiler {
             case (a: ConstantThing, Some(v)) =>
               loadFromArrayAtUnknownIndex(v, a.value)
 
-            case (a: MlArray, None) =>
+            case (a: MfArray, None) =>
               List(AssemblyLine.absolute(load, env.genRelativeVariable(a.toAddress + constantIndex, b, zeropage = false)))
-            case (a: MlArray, Some(v)) =>
+            case (a: MfArray, Some(v)) =>
               loadFromArrayAtUnknownIndex(v, a.toAddress)
 
             // TODO: see above

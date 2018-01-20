@@ -35,7 +35,7 @@ object DecimalBuiltIns {
 
   def compileByteShiftRight(ctx: CompilationContext, l: Expression, r: Expression, rotate: Boolean): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
-    MlCompiler.compile(ctx, l, Some((b, RegisterVariable(Register.A, b))), BranchSpec.None) ++ (ctx.env.eval(r) match {
+    MfCompiler.compile(ctx, l, Some((b, RegisterVariable(Register.A, b))), BranchSpec.None) ++ (ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
         Nil
       case Some(NumericConstant(v, _)) =>
@@ -49,9 +49,9 @@ object DecimalBuiltIns {
   }
 
   private def shiftOrRotateAccumulatorRight(ctx: CompilationContext, rotate: Boolean) = {
-    val constantLabel = MlCompiler.nextLabel("c8")
-    val skipHiDigit = MlCompiler.nextLabel("ds")
-    val skipLoDigit = MlCompiler.nextLabel("ds")
+    val constantLabel = MfCompiler.nextLabel("c8")
+    val skipHiDigit = MfCompiler.nextLabel("ds")
+    val skipLoDigit = MfCompiler.nextLabel("ds")
     val cmos = ctx.options.flags(CompilationFlag.EmitCmosOpcodes)
     val bit = if (cmos) {
       AssemblyLine.immediate(BIT, 8)

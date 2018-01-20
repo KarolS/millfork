@@ -5,7 +5,7 @@ import com.loomcom.symon.InstructionTable.CpuBehavior
 import com.loomcom.symon.{Bus, Cpu, CpuState}
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.opt.AssemblyOptimization
-import millfork.compiler.{CompilationContext, MlCompiler}
+import millfork.compiler.{CompilationContext, MfCompiler}
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph
@@ -115,7 +115,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // print asm
         env.allPreallocatables.foreach {
           case f: NormalFunction =>
-            val result = MlCompiler.compile(CompilationContext(f.environment, f, 0, options))
+            val result = MfCompiler.compile(CompilationContext(f.environment, f, 0, options))
             val unoptimized = result.linearize
             unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
           case d: InitializedArray =>

@@ -2,7 +2,7 @@ package millfork.output
 
 import millfork.assembly.opt.AssemblyOptimization
 import millfork.assembly.{AddrMode, AssemblyLine, Opcode}
-import millfork.compiler.{CompilationContext, MlCompiler}
+import millfork.compiler.{CompilationContext, MfCompiler}
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node.{CallGraph, Program}
@@ -294,7 +294,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
   private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization], options: CompilationOptions, inlinedFunctions: Map[String, List[AssemblyLine]]): List[AssemblyLine] = {
     ErrorReporting.debug("Compiling: " + f.name, f.position)
     val unoptimized =
-      MlCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).linearize.flatMap {
+      MfCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).linearize.flatMap {
         case AssemblyLine(Opcode.JSR, _, p, true) if inlinedFunctions.contains(p.toString) =>
           inlinedFunctions(p.toString)
         case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, true) if inlinedFunctions.contains(p.toString) =>

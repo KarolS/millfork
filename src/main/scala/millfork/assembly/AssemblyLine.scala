@@ -4,7 +4,7 @@ import java.lang.management.MemoryType
 
 import millfork.assembly.Opcode._
 import millfork.assembly.opt.ReadsA
-import millfork.compiler.{CompilationContext, MlCompiler}
+import millfork.compiler.{CompilationContext, MfCompiler}
 import millfork.env._
 
 //noinspection TypeAnnotation
@@ -197,7 +197,7 @@ object AssemblyLine {
         List(AssemblyLine.immediate(opcode, 0))
       } else if (opcodesForZeroedOrSignExtendedVariableOperation(opcode)) {
         if (variable.typ.isSigned) {
-          val label = MlCompiler.nextLabel("sx")
+          val label = MfCompiler.nextLabel("sx")
           AssemblyLine.variable(ctx, opcode, variable, variable.typ.size - 1) ++ List(
             AssemblyLine.immediate(ORA, 0x7f),
             AssemblyLine.relative(BMI, label),

@@ -144,19 +144,19 @@ case class InitializedMemoryVariable(name: String, address: Option[Constant], ty
   override def alloc: VariableAllocationMethod.Value = VariableAllocationMethod.Static
 }
 
-trait MlArray extends ThingInMemory
+trait MfArray extends ThingInMemory
 
-case class UninitializedArray(name: String, sizeInBytes: Int) extends MlArray with UninitializedMemory {
+case class UninitializedArray(name: String, sizeInBytes: Int) extends MfArray with UninitializedMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 
   override def alloc = VariableAllocationMethod.Static
 }
 
-case class RelativeArray(name: String, address: Constant, sizeInBytes: Int) extends MlArray {
+case class RelativeArray(name: String, address: Constant, sizeInBytes: Int) extends MfArray {
   override def toAddress: Constant = address
 }
 
-case class InitializedArray(name: String, address: Option[Constant], contents: List[Constant]) extends MlArray with PreallocableThing {
+case class InitializedArray(name: String, address: Option[Constant], contents: List[Constant]) extends MfArray with PreallocableThing {
   override def shouldGenerate = true
 }
 
