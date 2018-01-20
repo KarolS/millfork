@@ -290,6 +290,9 @@ object BuiltIns {
   def compileByteComparison(ctx: CompilationContext, compType: ComparisonType.Value, lhs: Expression, rhs: Expression, branches: BranchSpec): List[AssemblyLine] = {
     val env = ctx.env
     val b = env.get[Type]("byte")
+    if (simplicity(env, lhs) >= 'J' && simplicity(env, rhs) < 'J') {
+      return compileByteComparison(ctx, ComparisonType.flip(compType), rhs, lhs, branches)
+    }
     val firstParamCompiled = MlCompiler.compile(ctx, lhs, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
     val maybeConstant = env.eval(rhs)
     maybeConstant match {

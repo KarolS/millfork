@@ -1157,6 +1157,24 @@ object MlCompiler {
       case List(_) | Nil =>
         ErrorReporting.fatal("")
       case _ =>
+        params.tail.init.foreach { e =>
+          if (ctx.env.eval(e).isEmpty) e match {
+            case VariableExpression(_) =>
+            case LiteralExpression(_, _) =>
+            case IndexedExpression(_, VariableExpression(_)) =>
+            case IndexedExpression(_, LiteralExpression(_, _)) =>
+            case IndexedExpression(_, SumExpression(List(
+            (_, LiteralExpression(_, _)),
+            (false, VariableExpression(_))
+            ), false)) =>
+            case IndexedExpression(_, SumExpression(List(
+            (false, VariableExpression(_)),
+            (_, LiteralExpression(_, _))
+            ), false)) =>
+            case _ =>
+              ErrorReporting.warn("A complex expression may be evaluated multiple times", ctx.options, e.position)
+          }
+        }
         val conjunction = params.init.zip(params.tail).map {
           case (l, r) => FunctionCallExpression(operator, List(l, r))
         }.reduceLeft((a, b) => FunctionCallExpression("&&", List(a, b)))

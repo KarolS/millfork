@@ -293,4 +293,23 @@ class ComparisonSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readWord(0xc000) should equal(6))
   }
+
+  test("Warnings") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |  output = 5
+        |  if 2 <= three() <= 4 {
+        |   output += 1
+        |  }
+        |  if 2 <= three() <= 2 {
+        |   output += 78
+        |  }
+        | }
+        | byte three() {
+        |   return 3
+        | }
+      """.stripMargin)(_.readWord(0xc000) should equal(6))
+  }
 }
