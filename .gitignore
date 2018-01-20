@@ -4,6 +4,7 @@ target/
 project/target
 project/project/target/
 stuff
+releases
 
 # hidden files
 *.~
@@ -11,6 +12,8 @@ stuff
 # compiled Scala files
 *.jar
 *.class
+*.zip
+*.js
 
 # compiled Millfork files
 *.prg

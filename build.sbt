@@ -33,3 +33,33 @@ lazy val root = (project in file(".")).
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "millfork.buildinfo"
   )
+
+import sbtassembly.AssemblyKeys
+
+val releaseDist = TaskKey[File]("release-dist", "Creates a distributable zip file.")
+
+releaseDist := {
+  val jar = AssemblyKeys.assembly.value
+  val base = Keys.baseDirectory.value
+  val target = Keys.target.value
+  val name = Keys.name.value
+  val version = Keys.version.value
+  val distDir = target / (name + "-" + version)
+  val releasesDir = base / "releases"
+  val zipFile = releasesDir / (name + "-" + version + ".zip")
+  IO.delete(zipFile)
+  IO.delete(distDir)
+  IO.createDirectory(releasesDir)
+  IO.createDirectory(distDir)
+  IO.copyFile(jar, distDir / jar.name)
+  def copyDir(name: String): Unit = {
+    IO.createDirectory(distDir / name)
+    IO.copyDirectory(base / name, distDir / name)
+  }
+  copyDir("include")
+  copyDir("doc")
+  def entries(f: File): List[File] = f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(entries) else Nil)
+  IO.zip(entries(distDir).map(d => (d, d.getAbsolutePath.substring(distDir.getParent.length + 1))), zipFile)
+  IO.delete(distDir)
+  zipFile
+}
