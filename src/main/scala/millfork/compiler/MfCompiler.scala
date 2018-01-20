@@ -137,7 +137,12 @@ object MfCompiler {
       case FunctionCallExpression("<<'=", params) => v
       case FunctionCallExpression(">>'=", params) => v
       case f@FunctionCallExpression(name, params) =>
-        lookupFunction(ctx, f).returnType
+        ctx.env.maybeGet[Type](name) match {
+          case Some(typ) =>
+            typ
+          case None =>
+            lookupFunction(ctx, f).returnType
+        }
     }
   }
 
@@ -1095,6 +1100,27 @@ object MfCompiler {
                 }
             }
           case _ =>
+            env.maybeGet[Type](f.functionName) match {
+              case Some(typ) =>
+                var failed = false
+                if (typ.name == "pointer") {
+                  ErrorReporting.error("Cannot cast into pointer")
+                  failed = true
+                }
+                if (params.length != 1) {
+                  ErrorReporting.error("Type casting should have exactly one argument")
+                  failed = true
+                }
+                val sourceType = getExpressionType(ctx, params.head)
+                if (typ.size != sourceType.size){
+                  ErrorReporting.error("Cannot cast a type to a type of different size")
+                  failed = true
+                }
+                val newExprTypeAndVariable = exprTypeAndVariable.map(i => sourceType -> i._2)
+                return if (failed) Nil else compile(ctx, params.head, newExprTypeAndVariable, branches)
+              case None =>
+                // fallthrough to the lookup below
+            }
             lookupFunction(ctx, f) match {
               case function: InlinedFunction =>
                 inlineFunction(function, params, Some(ctx)).map {

@@ -98,6 +98,8 @@ object BuiltIns {
               }
               calculateIndex -> List(AssemblyLine.absoluteY(opcode, baseAddress))
           }
+        case FunctionCallExpression(name, List(param)) if env.maybeGet[Type](name).isDefined =>
+          return simpleOperation(opcode, ctx, param, indexChoice, preserveA, commutative, decimal)
         case _: FunctionCallExpression | _:SumExpression if commutative =>
           // TODO: is it ok?
           return List(AssemblyLine.implied(PHA)) ++ MfCompiler.compile(ctx.addStack(1), source, Some(b -> RegisterVariable(Register.A, b)), NoBranching) ++ wrapInSedCldIfNeeded(decimal, List(
