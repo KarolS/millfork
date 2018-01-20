@@ -277,7 +277,7 @@ object AlwaysGoodOptimizations {
 
   val TailCallOptimization = new RuleBasedAssemblyOptimization("Tail call optimization",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    (Elidable & HasOpcode(JSR)) ~ HasOpcodeIn(NoopDiscardsFlags).* ~ (Elidable & HasOpcode(RTS)) ~~> (c => c.tail.init :+ c.head.copy(opcode = JMP)),
+    (Elidable & HasOpcode(JSR)) ~ HasOpcodeIn(NoopDiscardsFlags).* ~ (Elidable & HasOpcode(RTS)) ~~> (c => c.head.copy(opcode = JMP) :: Nil),
     (Elidable & HasOpcode(JSR)) ~
       HasOpcode(LABEL).* ~
       HasOpcodeIn(NoopDiscardsFlags).*.capture(0) ~
