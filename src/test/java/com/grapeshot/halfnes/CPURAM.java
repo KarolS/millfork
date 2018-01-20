@@ -3,6 +3,8 @@ package com.grapeshot.halfnes;
 import com.grapeshot.halfnes.mappers.Mapper;
 import millfork.output.MemoryBank;
 
+import java.util.prefs.Preferences;
+
 /**
  * Since the original CPURAM class was a convoluted mess of dependencies,
  * I overrode it with mine that has only few pieces of junk glue to make it work
@@ -10,6 +12,11 @@ import millfork.output.MemoryBank;
  */
 @SuppressWarnings("unused")
 public class CPURAM {
+
+    static {
+        Preferences preferences = Preferences.userNodeForPackage(NES.class);
+        preferences.putBoolean("soundEnable", false);
+    }
 
     private final MemoryBank mem;
 
