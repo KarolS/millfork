@@ -195,6 +195,60 @@ trait AssemblyPattern {
   def capture(i: Int) = Capture(i, this)
 
   def captureLength(i: Int) = CaptureLength(i, this)
+
+  protected def memoryAccessDoesntOverlap(a1: AddrMode.Value, p1: Constant, a2: AddrMode.Value, p2: Constant): Boolean = {
+    import AddrMode._
+    val badAddrModes = Set(IndexedX, IndexedY, ZeroPageIndirect, AbsoluteIndexedX)
+    if (badAddrModes(a1) || badAddrModes(a2)) return false
+    val goodAddrModes = Set(Implied, Immediate, Relative)
+    if (goodAddrModes(a1) || goodAddrModes(a2)) return true
+
+    def handleKnownDistance(distance: Short): Boolean = {
+      val indexingAddrModes = Set(AbsoluteIndexedX, AbsoluteX, ZeroPageX, AbsoluteY, ZeroPageY)
+      val a1Indexing = indexingAddrModes(a1)
+      val a2Indexing = indexingAddrModes(a2)
+      (a1Indexing, a2Indexing) match {
+        case (false, false) => distance != 0
+        case (true, false) => distance > 255 || distance < 0
+        case (false, true) => distance > 0 || distance < -255
+        case (true, true) => distance > 255 || distance < -255
+      }
+    }
+
+    (p1.quickSimplify, p2.quickSimplify) match {
+      case (NumericConstant(n1, _), NumericConstant(n2, _)) =>
+        handleKnownDistance((n2 - n1).toShort)
+      case (a, CompoundConstant(MathOperator.Plus, b, NumericConstant(distance, _))) if a.quickSimplify == b.quickSimplify =>
+        handleKnownDistance(distance.toShort)
+      case (CompoundConstant(MathOperator.Plus, a, NumericConstant(distance, _)), b) if a.quickSimplify == b.quickSimplify =>
+        handleKnownDistance((-distance).toShort)
+      case (a, CompoundConstant(MathOperator.Minus, b, NumericConstant(distance, _))) if a.quickSimplify == b.quickSimplify =>
+        handleKnownDistance((-distance).toShort)
+      case (CompoundConstant(MathOperator.Minus, a, NumericConstant(distance, _)), b) if a.quickSimplify == b.quickSimplify =>
+        handleKnownDistance(distance.toShort)
+      case (MemoryAddressConstant(_: ThingInMemory), NumericConstant(_, _)) =>
+        true // TODO: ???
+      case (NumericConstant(_, _), MemoryAddressConstant(_: ThingInMemory)) =>
+        true // TODO: ???
+      case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)), NumericConstant(_, _)) =>
+        true // TODO: ???
+      case (NumericConstant(_, _), CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _))) =>
+        true // TODO: ???
+      case (MemoryAddressConstant(a: ThingInMemory), MemoryAddressConstant(b: ThingInMemory)) =>
+        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+      case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)),
+      MemoryAddressConstant(b: ThingInMemory)) =>
+        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+      case (MemoryAddressConstant(a: ThingInMemory),
+      CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
+        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+      case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)),
+      CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
+        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+      case _ =>
+        false
+    }
+  }
 }
 
 case class Capture(i: Int, pattern: AssemblyPattern) extends AssemblyPattern {
@@ -352,56 +406,18 @@ trait AssemblyLinePattern extends AssemblyPattern {
   def |(x: AssemblyLinePattern): AssemblyLinePattern = Either(this, x)
 
   def &(x: AssemblyLinePattern): AssemblyLinePattern = Both(this, x)
-
-  protected def memoryAccessDoesntOverlap(a1: AddrMode.Value, p1: Constant, a2: AddrMode.Value, p2: Constant): Boolean = {
-    import AddrMode._
-    val badAddrModes = Set(IndexedX, IndexedY, ZeroPageIndirect, AbsoluteIndexedX)
-    if (badAddrModes(a1) || badAddrModes(a2)) return false
-    val goodAddrModes = Set(Implied, Immediate, Relative)
-    if (goodAddrModes(a1) || goodAddrModes(a2)) return true
-
-    def handleKnownDistance(distance: Short): Boolean = {
-      val indexingAddrModes = Set(AbsoluteIndexedX, AbsoluteX, ZeroPageX, AbsoluteY, ZeroPageY)
-      val a1Indexing = indexingAddrModes(a1)
-      val a2Indexing = indexingAddrModes(a2)
-      (a1Indexing, a2Indexing) match {
-        case (false, false) => distance != 0
-        case (true, false) => distance > 255 || distance < 0
-        case (false, true) => distance > 0 || distance < -255
-        case (true, true) => distance > 255 || distance < -255
-      }
-    }
-
-    (p1.quickSimplify, p2.quickSimplify) match {
-      case (NumericConstant(n1, _), NumericConstant(n2, _)) =>
-        handleKnownDistance((n2 - n1).toShort)
-      case (a, CompoundConstant(MathOperator.Plus, b, NumericConstant(distance, _))) if a.quickSimplify == b.quickSimplify =>
-        handleKnownDistance(distance.toShort)
-      case (CompoundConstant(MathOperator.Plus, a, NumericConstant(distance, _)), b) if a.quickSimplify == b.quickSimplify =>
-        handleKnownDistance((-distance).toShort)
-      case (a, CompoundConstant(MathOperator.Minus, b, NumericConstant(distance, _))) if a.quickSimplify == b.quickSimplify =>
-        handleKnownDistance((-distance).toShort)
-      case (CompoundConstant(MathOperator.Minus, a, NumericConstant(distance, _)), b) if a.quickSimplify == b.quickSimplify =>
-        handleKnownDistance(distance.toShort)
-      case (MemoryAddressConstant(a: ThingInMemory), MemoryAddressConstant(b: ThingInMemory)) =>
-        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
-      case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)),
-      MemoryAddressConstant(b: ThingInMemory)) =>
-        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
-      case (MemoryAddressConstant(a: ThingInMemory),
-      CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
-        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
-      case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)),
-      CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
-        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
-      case _ =>
-        false
-    }
-  }
 }
 
 trait TrivialAssemblyLinePattern extends AssemblyLinePattern with (AssemblyLine => Boolean) {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = this (line)
+}
+
+case class WhereNoMemoryAccessOverlapBetweenTwoLineLists(ix1: Int, ix2: Int) extends AssemblyPattern {
+  override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, AssemblyLine)]): Option[List[(FlowInfo, AssemblyLine)]] = {
+    val s1s = ctx.get[List[AssemblyLine]](ix1)
+    val s2s = ctx.get[List[AssemblyLine]](ix2)
+    if (s1s.forall(s1 => s2s.forall(s2 => memoryAccessDoesntOverlap(s1.addrMode, s1.parameter, s2.addrMode, s2.parameter)))) Some(code) else None
+  }
 }
 
 //noinspection LanguageFeature

@@ -14,6 +14,12 @@ import millfork.env.{Constant, NormalFunction, NumericConstant}
 //noinspection ZeroIndexToHead
 object LaterOptimizations {
 
+  private val LdxAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageY, AbsoluteY)
+  private val LdyAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageX, AbsoluteX)
+  private val StxAddrModes = Set(Absolute, ZeroPage, ZeroPageY)
+  private val StyAddrModes = Set(Absolute, ZeroPage, ZeroPageX)
+  private val StaAddrModes = Set(Absolute, ZeroPage, ZeroPageX, AbsoluteX, IndexedY, IndexedX, AbsoluteY)
+  private val CpxyAddrModes = Set(Immediate, Absolute, ZeroPage)
 
   // This optimization tends to prevent later Variable To Register Optimization,
   // so run this only after it's pretty sure V2RO won't happen any more
@@ -27,6 +33,54 @@ object LaterOptimizations {
     TwoDifferentLoadsWhoseFlagsWillNotBeChecked(LDA, Not(ChangesA), LDY, TAY),
     TwoDifferentLoadsWhoseFlagsWillNotBeChecked(LDX, Not(ChangesX), LDA, TXA),
     TwoDifferentLoadsWhoseFlagsWillNotBeChecked(LDY, Not(ChangesY), LDA, TYA),
+  )
+
+  private def a2x(line: AssemblyLine) = line.opcode match {
+    case LDA => line.copy(opcode = LDX)
+    case STA => line.copy(opcode = STX)
+    case CMP => line.copy(opcode = CPX)
+    case INC => line.copy(opcode = INX)
+    case DEC => line.copy(opcode = DEX)
+  }
+
+  private def a2y(line: AssemblyLine) = line.opcode match {
+    case LDA => line.copy(opcode = LDY)
+    case STA => line.copy(opcode = STY)
+    case CMP => line.copy(opcode = CPY)
+    case INC => line.copy(opcode = INY)
+    case DEC => line.copy(opcode = DEY)
+  }
+
+  private def x2a(line: AssemblyLine) = line.opcode match {
+    case LDX => line.copy(opcode = LDA)
+    case STX => line.copy(opcode = STA)
+    case CPX => line.copy(opcode = CMP)
+    case INX => line.copy(opcode = INC)
+    case DEX => line.copy(opcode = DEC)
+  }
+
+  private def y2a(line: AssemblyLine) = line.opcode match {
+    case LDY => line.copy(opcode = LDA)
+    case STY => line.copy(opcode = STA)
+    case CPY => line.copy(opcode = CMP)
+    case INY => line.copy(opcode = INC)
+    case DEY => line.copy(opcode = DEC)
+  }
+
+  val DoubleLoadToTwoRegistersWhenOneWillBeTrashed = new RuleBasedAssemblyOptimization("Double load to two registers when one will be trashed",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(StxAddrModes) & DoesNotConcernMemoryAt(0, 1) & Not(ConcernsX)).+ ~
+      (Elidable & (HasOpcode(TAX) | HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) & DoesntMatterWhatItDoesWith(State.A)) ~~> (_.init.map(a2x)),
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsY)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(StyAddrModes) & DoesNotConcernMemoryAt(0, 1) & Not(ConcernsY)).+ ~
+      (Elidable & (HasOpcode(TAY) | HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsY)) & DoesntMatterWhatItDoesWith(State.A)) ~~> (_.init.map(a2y)),
+    (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(STX) & HasAddrModeIn(StaAddrModes) & DoesNotConcernMemoryAt(0, 1)).+ ~
+      (Elidable & (HasOpcode(TXA) | HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) & DoesntMatterWhatItDoesWith(State.X)) ~~> (_.init.map(x2a)),
+    (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(STY) & HasAddrModeIn(StaAddrModes) & DoesNotConcernMemoryAt(0, 1)).+ ~
+      (Elidable & (HasOpcode(TYA) | HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) & DoesntMatterWhatItDoesWith(State.Y)) ~~> (_.init.map(y2a)),
   )
 
   private def TwoDifferentLoadsWithNoFlagChangeInBetween(opcode1: Opcode.Value, middle: AssemblyLinePattern, opcode2: Opcode.Value, transferOpcode: Opcode.Value) = {
@@ -72,24 +126,17 @@ object LaterOptimizations {
   }
 
   //noinspection ZeroIndexToHead
-  private def InterleavedImmediateLoads(load: Opcode.Value, store: Opcode.Value) = {
-    (Elidable & HasOpcode(load) & MatchImmediate(0)) ~
-      (Elidable & HasOpcode(store) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(8)) ~
-      (Elidable & HasOpcode(load) & MatchImmediate(1)) ~
-      (Elidable & HasOpcode(store) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(9) & DontMatchParameter(8)) ~
-      (Elidable & HasOpcode(load) & MatchImmediate(0)) ~~> { c =>
-      List(c(2), c(3), c(0), c(1))
-    }
-  }
-
-  //noinspection ZeroIndexToHead
-  private def InterleavedAbsoluteLoads(load: Opcode.Value, store: Opcode.Value) = {
-    (Elidable & HasOpcode(load) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(0)) ~
-      (Elidable & HasOpcode(store) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(8) & DontMatchParameter(0)) ~
-      (Elidable & HasOpcode(load) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(1) & DontMatchParameter(8) & DontMatchParameter(0)) ~
-      (Elidable & HasOpcode(store) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(9) & DontMatchParameter(8) & DontMatchParameter(1) & DontMatchParameter(0)) ~
-      (Elidable & HasOpcode(load) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(0)) ~~> { c =>
-      List(c(2), c(3), c(0), c(1))
+  private def InterleavedLoads(load: Opcode.Value, store: Opcode.Value) = {
+    (Elidable & HasOpcode(load) & MatchAddrMode(0) & MatchParameter(1)).capture(12) ~
+      (Elidable & HasOpcode(store)).+.capture(10) ~
+      (Elidable & HasOpcode(load) & MatchAddrMode(2) & MatchParameter(3) & DoesNotConcernMemoryAt(0, 1)).capture(13) ~
+      (Elidable & HasOpcode(store) & DoesNotConcernMemoryAt(0, 1) & DoesNotConcernMemoryAt(2, 3)).+.capture(11) ~
+      (Elidable & HasOpcode(load) & MatchAddrMode(0) & MatchParameter(1)) ~
+      WhereNoMemoryAccessOverlapBetweenTwoLineLists(10, 11) ~~> { (_, ctx) =>
+      List(ctx.get[List[AssemblyLine]](13),
+        ctx.get[List[AssemblyLine]](11),
+        ctx.get[List[AssemblyLine]](12),
+        ctx.get[List[AssemblyLine]](10)).flatten
     }
   }
 
@@ -106,12 +153,9 @@ object LaterOptimizations {
     TwoIdenticalLoadsWhoseFlagsWillNotBeChecked(LDX, Not(ChangesX)),
     TwoIdenticalLoadsWhoseFlagsWillNotBeChecked(LDY, Not(ChangesY)),
     TwoIdenticalLoadsWhoseFlagsWillNotBeChecked(LAX, Not(ChangesA) & Not(ChangesX)),
-    InterleavedImmediateLoads(LDA, STA),
-    InterleavedImmediateLoads(LDX, STX),
-    InterleavedImmediateLoads(LDY, STY),
-    InterleavedAbsoluteLoads(LDA, STA),
-    InterleavedAbsoluteLoads(LDX, STX),
-    InterleavedAbsoluteLoads(LDY, STY),
+    InterleavedLoads(LDA, STA),
+    InterleavedLoads(LDX, STX),
+    InterleavedLoads(LDY, STY),
   )
 
   private def pointlessLoadAfterStore(store: Opcode.Value, load: Opcode.Value, addrMode: AddrMode.Value, meantime: AssemblyLinePattern = Anything) = {
@@ -228,12 +272,6 @@ object LaterOptimizations {
     },
 
   )
-
-  private val LdxAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageY, AbsoluteY)
-  private val LdyAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageX, AbsoluteX)
-  private val StxAddrModes = Set(Absolute, ZeroPage, ZeroPageY)
-  private val StyAddrModes = Set(Absolute, ZeroPage, ZeroPageX)
-  private val CpxyAddrModes = Set(Immediate, Absolute, ZeroPage)
 
   private def incDecThroughIndexRegister(amount: Int, dec: Boolean, carrySet: Boolean, useX: Boolean) = {
     val ldAddrModes = if (useX) LdxAddrModes else LdyAddrModes

@@ -192,6 +192,51 @@ object AlwaysGoodOptimizations {
     operationPairBuilder(DEY, INY, Not(ConcernsX) & Not(ReadsNOrZ)),
   )
 
+  val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(PHA)) ~
+      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(PLA)) ~~> { code =>
+      code.head :: (code.drop(2).init :+ code.head)
+    },
+    (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(PHX)) ~
+      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(PLX)) ~~> { code =>
+      code.head :: (code.drop(2).init :+ code.head)
+    },
+    (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(PHY)) ~
+      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(PLY)) ~~> { code =>
+      code.head :: (code.drop(2).init :+ code.head)
+    },
+  )
+
+  val IncrementingIndexRegistersAfterTransfer = new RuleBasedAssemblyOptimization("Incrementing index registers after transfer",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C)) ~~> { code =>
+      List(AssemblyLine.implied(TAY), AssemblyLine.implied(INY))
+    },
+    (Elidable & HasOpcode(SEC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(SBC) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C)) ~~> { code =>
+      List(AssemblyLine.implied(TAY), AssemblyLine.implied(DEY))
+    },
+    (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C)) ~~> { code =>
+      List(AssemblyLine.implied(TAX), AssemblyLine.implied(INX))
+    },
+    (Elidable & HasOpcode(SEC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(SBC) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C)) ~~> { code =>
+      List(AssemblyLine.implied(TAX), AssemblyLine.implied(DEX))
+    },
+  )
 
   val BranchInPlaceRemoval = new RuleBasedAssemblyOptimization("Branch in place",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
@@ -253,7 +298,6 @@ object AlwaysGoodOptimizations {
   )
 
   // Optimizing Bxx to JMP is generally bad, but it may allow for better optimizations later
-  // It's okay to undo it at a later stage, but it's not done yet
   val FlagFlowAnalysis = new RuleBasedAssemblyOptimization("Flag flow analysis",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
     (HasSet(State.C) & HasOpcode(SEC) & Elidable) ~~> (_ => Nil),

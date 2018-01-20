@@ -156,6 +156,23 @@ class ArraySuite extends FunSuite with Matchers {
 
   }
 
+  test("Pointer indexing test") {
+    EmuBenchmarkRun(
+      """
+        | array output [4] @$c000
+        |   pointer a
+        |   byte i
+        | void main () {
+        |   setup()
+        |   a[i + 1] = 55
+        | }
+        | void setup() {
+        |   a = output.addr
+        |   i = 2
+        | }
+      """.stripMargin)(_.readByte(0xc003) should equal(55))
+  }
+
   test("Syntax") {
     EmuUnoptimizedRun(
       """
