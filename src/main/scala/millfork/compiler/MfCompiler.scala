@@ -1745,12 +1745,24 @@ object MfCompiler {
                 FunctionCallExpression("<", List(vex, f.end)),
                 f.body :+ increment),
             ))
+//          case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(n, _))) if n > 0 && n < 255 =>
+//            compile(ctx, List(
+//              Assignment(vex, f.start),
+//              WhileStatement(
+//                FunctionCallExpression("<=", List(vex, f.end)),
+//                f.body :+ increment),
+//            ))
           case (ForDirection.To | ForDirection.ParallelTo, _, _) =>
+            val label = nextLabel("to")
             compile(ctx, List(
               Assignment(vex, f.start),
               WhileStatement(
-                FunctionCallExpression("<=", List(vex, f.end)),
-                f.body :+ increment),
+                VariableExpression("true"),
+                f.body :+ IfStatement(
+                  FunctionCallExpression("==", List(vex, f.end)),
+                  List(AssemblyStatement(JMP, AddrMode.Absolute, VariableExpression(label), elidable = true)),
+                  List(increment))),
+              AssemblyStatement(LABEL, AddrMode.DoesNotExist, VariableExpression(label), elidable=true)
             ))
           case (ForDirection.DownTo, _, _) =>
             compile(ctx, List(

@@ -44,6 +44,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `th` – beginning of the "then" block in an `if` statement
 
+* `to` – end of a `for-to` loop
+
 * `wh` – beginning of a `while` statement
 
 

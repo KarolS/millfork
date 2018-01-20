@@ -222,6 +222,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         }
       }
     }
+    ErrorReporting.trace(f"[$$c000] = ${memoryBank.readByte(0xc000)}%02X")
     countCmos should be < TooManyCycles
     println(countNmos + " NMOS cycles")
     println(countCmos + " CMOS cycles")
