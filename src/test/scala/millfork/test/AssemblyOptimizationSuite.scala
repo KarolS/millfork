@@ -36,6 +36,21 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc003) should equal(3))
   }
 
+  test("Inlining variable 2") {
+    EmuBenchmarkRun(
+      """
+        | array output [100] @$C000
+        | void main () {
+        |   byte i
+        |   i = 1
+        |   while (i<50) {
+        |     output[i] = i
+        |     i <<= 1
+        |   }
+        | }
+      """.stripMargin)(_.readByte(0xc004) should equal(4))
+  }
+
   test("Loading modified variables") {
     EmuBenchmarkRun(
       """

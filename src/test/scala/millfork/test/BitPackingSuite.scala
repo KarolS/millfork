@@ -148,6 +148,27 @@ class BitPackingSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Reverse byte 2") {
+    EmuBenchmarkRun("""
+        | byte output_real @$C000
+        | void main () {
+        |   byte i
+        |   byte input
+        |   byte output
+        |   input = $5A
+        |   output = 0
+        |   for i,0,paralleluntil,8 {
+        |     output <<= 1
+        |     output |= input & 1
+        |     input >>= 1
+        |   }
+        |   output_real = output
+        | }
+      """.stripMargin){m =>
+      m.readByte(0xc000) should equal(0x5A)
+    }
+  }
+
   test("Reverse word") {
     EmuBenchmarkRun("""
         | word output_addr @$C000
