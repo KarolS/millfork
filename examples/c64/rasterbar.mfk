@@ -1,0 +1,46 @@
+void main() {
+    byte colour
+    byte colour_index
+    byte wait_for
+    byte bar_start
+    byte direction
+    colour = 0
+    disable_irq()
+    vic_cr1 = 0
+    vic_border = black
+    bar_start = $50
+    direction = 1
+    while true {
+        wait_for = bar_start
+        for colour_index, 0, until, colours.length {
+            colour = colours[colour_index]
+            while wait_for != vic_raster  { }
+            stabilize(8)
+            vic_border = colour
+            wait_for += 2
+        }
+        bar_start += direction
+        if bar_start == $50 { direction = 1 }
+        if bar_start == $A0 { direction = $ff }
+    }
+
+}
+
+asm void stabilize(byte x){
+    burn:
+    DEX
+    BNE burn
+    RTS
+}
+
+array colours = [
+    $06, $06, $06, $0e, $06, $0e, 
+    $0e, $06, $0e, $0e, $0e, $03, 
+    $0e, $03, $03, $0e, $03, $03, 
+    $03, $01, $03, $01, $01, $03, 
+    $01, $01, $01, $03, $01, $01, 
+    $03, $01, $03, $03, $03, $0e, 
+    $03, $03, $0e, $03, $0e, $0e, 
+    $0e, $06, $0e, $0e, $06, $0e, 
+    $06, $06, $06, $00, $00, $00
+]
