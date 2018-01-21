@@ -32,10 +32,14 @@ Distributed under GPLv3 (see [LICENSE](LICENSE))
 
 * multi-pass optimizer (that will even optimize your hand-written assembly if you ask it to)
 
+## More info
+
+* [Documentation](doc/README.md)
+
+* [Example programs](examples/README.md)
+
 ## Planned features
 
 * multi-part programs
 
 * more targets: Famicon/NES, BBC Micro/Electron, Oric computers, Apple II, PC-Engine/Turbografx-16, Atari Lynx
-
-* a better optimizer
