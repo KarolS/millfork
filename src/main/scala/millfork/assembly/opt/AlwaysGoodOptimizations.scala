@@ -964,22 +964,22 @@ object AlwaysGoodOptimizations {
         ctx.get[List[AssemblyLine]](2)
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
-    (Elidable & HasOpcodeIn(Set(ROL, ASL)) & DoesntMatterWhatItDoesWith(State.A)) ~
+      (Elidable & HasOpcodeIn(Set(ROL, ASL)) & DoesntMatterWhatItDoesWith(State.A)) ~
       (Linear & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
-      (Elidable & HasOpcodeIn(Set(ROL, ASL)) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      (Elidable & HasOpcodeIn(Set(ROL, ASL)) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> { code =>
       code.last :: code.drop(2).init
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
-    (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.A)) ~
+      (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.A)) ~
       (Linear & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
-      (Elidable & HasOpcode(LSR) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      (Elidable & HasOpcode(LSR) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> { code =>
       code.last :: code.drop(2).init
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
-    (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.A)) ~
+      (Elidable & HasOpcodeIn(Set(ROR, LSR)) & DoesntMatterWhatItDoesWith(State.A)) ~
       (Linear & Not(HasOpcode(LSR)) & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
       (Elidable & HasOpcode(LSR) & DoesNotConcernMemoryAt(0, 1)) ~
-      (Elidable & HasOpcode(ROR) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      (Elidable & HasOpcode(ROR) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> { code =>
       code.init.last :: code.last :: code.drop(2).init.init
     },
   )
@@ -999,7 +999,7 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     (
       (HasOpcodeIn(Set(LDA, LAX)) & MatchAddrMode(0) & MatchParameter(1)) ~
-      HasOpcodeIn(Set(LDY, LDX, AND, ORA, EOR, ADC, SBC, CLC, SEC, CPY, CPX, CMP)).*
+        HasOpcodeIn(Set(LDY, LDX, AND, ORA, EOR, ADC, SBC, CLC, SEC, CPY, CPX, CMP)).*
       ).capture(7) ~
       blockIsIdempotentWhenItComesToIndexRegisters(7) ~
       HasOpcodeIn(ShortConditionalBranching) ~
@@ -1010,7 +1010,7 @@ object AlwaysGoodOptimizations {
     (
       (
         (HasOpcodeIn(Set(LDA, LAX)) & MatchAddrMode(0) & MatchParameter(1)) ~
-        HasOpcodeIn(Set(LDY, LDX, AND, ORA, EOR, ADC, SBC, CLC, SEC, CPY, CPX, CMP)).*
+          HasOpcodeIn(Set(LDY, LDX, AND, ORA, EOR, ADC, SBC, CLC, SEC, CPY, CPX, CMP)).*
         ).capture(7) ~
         blockIsIdempotentWhenItComesToIndexRegisters(7) ~
         (HasOpcodeIn(ShortConditionalBranching) & MatchParameter(2)) ~
@@ -1035,5 +1035,61 @@ object AlwaysGoodOptimizations {
       List(code(1).copy(opcode = LDA), code(0).copy(opcode = BIT), code(2))
     },
 
+  )
+
+  private def negate(branch: AssemblyLine) = branch.opcode match {
+    case BEQ => branch.copy(opcode = BNE)
+    case BNE => branch.copy(opcode = BEQ)
+    case BCC => branch.copy(opcode = BCS)
+    case BCS => branch.copy(opcode = BCC)
+    case BVC => branch.copy(opcode = BVS)
+    case BVS => branch.copy(opcode = BVC)
+    case BMI => branch.copy(opcode = BPL)
+    case BPL => branch.copy(opcode = BMI)
+  }
+
+  val DoubleJumpSimplification = new RuleBasedAssemblyOptimization("Double jump simplification",
+    needsFlowInfo = FlowInfoRequirement.JustLabels,
+    ((Elidable & HasOpcode(LABEL) & MatchParameter(1)) ~ LinearOrLabel.*).capture(10) ~
+      Where(ctx => ctx.get[List[AssemblyLine]](10).map(_.sizeInBytes).sum < 100) ~
+      (Elidable & HasOpcodeIn(ShortConditionalBranching) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(JMP) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
+      ctx.get[List[AssemblyLine]](10) ++ List(negate(code(code.length - 3).copy(parameter = ctx.get[Constant](1))), code.last)
+    },
+    ((Elidable & HasOpcode(LABEL) & MatchParameter(1)) ~ LinearOrLabel.*).capture(10) ~
+      Where(ctx => ctx.get[List[AssemblyLine]](10).map(_.sizeInBytes).sum < 100) ~
+      (Elidable & HasOpcodeIn(ShortConditionalBranching) & MatchParameter(0)).capture(13) ~
+      ((Elidable & Not(MatchParameter(0))).* ~
+        (Elidable & HasOpcode(LABEL) & MatchParameter(0)) ~
+        (Elidable & HasOpcode(JMP) & MatchParameter(1))).capture(11) ~~> { (code, ctx) =>
+        ctx.get[List[AssemblyLine]](10) ++ ctx.get[List[AssemblyLine]](13).map(_.copy(parameter = ctx.get[Constant](1))) ++ ctx.get[List[AssemblyLine]](11)
+    },
+  )
+
+  val IndexComparisonOptimization = new RuleBasedAssemblyOptimization("Index comparison optimization",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcodeIn(Set(DEX, INX)) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsX)).* ~
+      (Elidable & (HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.A) | HasOpcode(CPX) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
+      code.tail.init :+ code.head
+    },
+    (Elidable & HasOpcodeIn(Set(DEY, INY)) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsY)).* ~
+      (Elidable & (HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.A) | HasOpcode(CPY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
+      code.tail.init :+ code.head
+    },
+    (Elidable & HasAddrMode(Implied) & HasOpcodeIn(Set(DEC, INC)) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsA)).* ~
+      (Elidable & (
+        HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.Y)
+          | HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.X)
+          | HasOpcode(EOR) & HasImmediate(0)
+          | HasOpcode(ORA) & HasImmediate(0)
+          | HasOpcode(AND) & HasImmediate(0xff)
+          | HasOpcode(ANC) & HasImmediate(0xff) & DoesntMatterWhatItDoesWith(State.C, State.V)
+          | HasOpcode(CMP) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
+      code.tail.init :+ code.head
+    },
   )
 }
