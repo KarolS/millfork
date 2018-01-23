@@ -1,0 +1,6 @@
+array hires_page_1 [$2000] @$2000
+array hires_page_2 [$2000] @$4000
+
+asm void bell() @$FBE4 extern
+
+asm void putchar(byte a) @$FDED extern

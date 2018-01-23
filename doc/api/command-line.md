@@ -10,7 +10,7 @@
 
 ## I/O options
 
-*  `-o <file>` – Output filename, without extension. Extension will be added automatically, `.prg` for Commodore and `.xex` for Atari.
+*  `-o <file>` – Output filename, without extension. Extension will be added automatically, `.prg` for Commodore, `.a2` for Apple and `.xex` for Atari.
 
 * `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file and the extension is `.asm`.
 

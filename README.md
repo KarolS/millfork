@@ -23,6 +23,8 @@ Distributed under GPLv3 (see [LICENSE](LICENSE))
     * Commodore Vic-20 (stock or with RAM extensions)
     
     * Atari 8-bit computers
+    
+    * Apple II+/IIe/Enhanced IIe
 
 * inline assembly
 
@@ -42,4 +44,4 @@ Distributed under GPLv3 (see [LICENSE](LICENSE))
 
 * multi-part programs
 
-* more targets: Famicon/NES, BBC Micro/Electron, Oric computers, Apple II, PC-Engine/Turbografx-16, Atari Lynx
+* more targets: Famicon/NES, BBC Micro/Electron, Oric computers, PC-Engine/Turbografx-16, Atari Lynx

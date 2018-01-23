@@ -16,7 +16,7 @@
 
 * [Panic](c64/panic_test.mfk) – how panic works on C64, showing the address of where it happened
 
-### Graphical examples:
+### Graphical examples
 
 * [Rasterbar](c64/rasterbar.mfk) – simple rasterbar effect
 
@@ -24,3 +24,6 @@
 
 * [Galencia starfield](c64/galencia.mfk) – a port of the starfield effect from the game *Galencia* 
 
+## Apple II examples
+
+* [Bell](apple2/bell.mfk) – a program that goes \*ding!\*
