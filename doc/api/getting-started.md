@@ -18,7 +18,7 @@ void main(){
 Compile is using the following commandline:
 
 ```
-java millfork.jar hello_world.mfk -o hello_world -t c64 -I path_to_millfork\include
+java -jar millfork.jar hello_world.mfk -o hello_world -t c64 -I path_to_millfork\include
 ```
 
 Run the output executable (here using the VICE emulator):

@@ -8,6 +8,8 @@ Distributed under GPLv3 (see [LICENSE](LICENSE))
 
 **UNDER DEVELOPMENT, NOT FOR PRODUCTION USE**
 
+For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0.1)
+
 ## Features
 
 * multiple targets:
