@@ -184,6 +184,7 @@ object AddrMode extends Enumeration {
       case IndexedX | AbsoluteIndexedX => "(" + argument + ", X)"
       case IndexedY => "(" + argument + "), Y"
       case Indirect | ZeroPageIndirect => "(" + argument + ")"
+      case ZeroPage => argument // + "\t;zp"
       case _ => argument;
     }
   }

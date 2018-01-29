@@ -282,21 +282,15 @@ object MfCompiler {
           case 0 => ???
           case 1 =>
             v match {
-              case mv: VariableInMemory => AssemblyLine.absolute(store, mv) :: Nil
+              case mv: VariableInMemory => AssemblyLine.variable(ctx, store, mv)
               case sv@StackVariable(_, _, offset) => AssemblyLine.implied(transferToA) :: AssemblyLine.implied(TSX) :: AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset) :: Nil
             }
           case s if s > 1 =>
             v match {
               case mv: VariableInMemory =>
-                if (mv.zeropage) {
-                  AssemblyLine.zeropage(store, mv) ::
-                    AssemblyLine.immediate(LDA, 0) ::
-                    List.tabulate(s - 1)(i => AssemblyLine.zeropage(STA, mv.toAddress + (i + 1)))
-                } else {
-                  AssemblyLine.absolute(store, mv) ::
-                    AssemblyLine.immediate(LDA, 0) ::
-                    List.tabulate(s - 1)(i => AssemblyLine.absolute(STA, mv.toAddress + (i + 1)))
-                }
+                AssemblyLine.variable(ctx, store, mv) ++
+                  List(AssemblyLine.immediate(LDA, 0)) ++
+                  List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, mv, i + 1)).flatten
               case sv@StackVariable(_, _, offset) =>
                 AssemblyLine.implied(transferToA) ::
                   AssemblyLine.implied(TSX) ::
@@ -465,15 +459,14 @@ object MfCompiler {
             env.get[TypedThing](name) match {
               case source: VariableInMemory =>
                 target match {
-                  case RegisterVariable(Register.A, _) => List(AssemblyLine.absolute(LDA, source))
-                  case RegisterVariable(Register.X, _) => List(AssemblyLine.absolute(LDX, source))
-                  case RegisterVariable(Register.Y, _) => List(AssemblyLine.absolute(LDY, source))
+                  case RegisterVariable(Register.A, _) => AssemblyLine.variable(ctx, LDA, source)
+                  case RegisterVariable(Register.X, _) => AssemblyLine.variable(ctx, LDX, source)
+                  case RegisterVariable(Register.Y, _) => AssemblyLine.variable(ctx, LDY, source)
                   case RegisterVariable(Register.AX, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         val label = nextLabel("sx")
-                        List(
-                          AssemblyLine.absolute(LDA, source),
+                        AssemblyLine.variable(ctx, LDA, source) ++ List(
                           AssemblyLine.implied(PHA),
                           AssemblyLine.immediate(ORA, 0x7F),
                           AssemblyLine.relative(BMI, label),
@@ -481,19 +474,15 @@ object MfCompiler {
                           AssemblyLine.label(label),
                           AssemblyLine.implied(TAX),
                           AssemblyLine.implied(PLA))
-                      } else List(
-                        AssemblyLine.absolute(LDA, source),
-                        AssemblyLine.immediate(LDX, 0))
-                      case 2 => List(
-                        AssemblyLine.absolute(LDA, source),
-                        AssemblyLine.absolute(LDX, source, 1))
+                      } else AssemblyLine.variable(ctx, LDA, source) :+ AssemblyLine.immediate(LDX, 0)
+                      case 2 =>
+                        AssemblyLine.variable(ctx, LDA, source) ++ AssemblyLine.variable(ctx, LDX, source, 1)
                     }
                   case RegisterVariable(Register.AY, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         val label = nextLabel("sx")
-                        List(
-                          AssemblyLine.absolute(LDA, source),
+                        AssemblyLine.variable(ctx, LDA, source) ++ List(
                           AssemblyLine.implied(PHA),
                           AssemblyLine.immediate(ORA, 0x7F),
                           AssemblyLine.relative(BMI, label),
@@ -502,56 +491,47 @@ object MfCompiler {
                           AssemblyLine.implied(TAY),
                           AssemblyLine.implied(PLA))
                       } else {
-                        List(
-                          AssemblyLine.absolute(LDA, source),
-                          AssemblyLine.immediate(LDY, 0))
+                        AssemblyLine.variable(ctx, LDA, source) :+ AssemblyLine.immediate(LDY, 0)
                       }
-                      case 2 => List(
-                        AssemblyLine.absolute(LDA, source),
-                        AssemblyLine.absolute(LDY, source, 1))
+                      case 2 =>
+                        AssemblyLine.variable(ctx, LDA, source) ++ AssemblyLine.variable(ctx, LDY, source, 1)
                     }
                   case RegisterVariable(Register.XA, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         val label = nextLabel("sx")
-                        List(
-                          AssemblyLine.absolute(LDX, source),
+                        AssemblyLine.variable(ctx, LDX, source) ++ List(
                           AssemblyLine.implied(TXA),
                           AssemblyLine.immediate(ORA, 0x7F),
                           AssemblyLine.relative(BMI, label),
                           AssemblyLine.immediate(LDA, 0),
                           AssemblyLine.label(label))
-                      } else List(
-                        AssemblyLine.absolute(LDX, source),
-                        AssemblyLine.immediate(LDA, 0))
-                      case 2 => List(
-                        AssemblyLine.absolute(LDX, source),
-                        AssemblyLine.absolute(LDA, source, 1))
+                      } else
+                        AssemblyLine.variable(ctx, LDX, source) :+ AssemblyLine.immediate(LDA, 0)
+                      case 2 =>
+                        AssemblyLine.variable(ctx, LDX, source) ++ AssemblyLine.variable(ctx,LDA, source, 1)
                     }
                   case RegisterVariable(Register.YA, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         val label = nextLabel("sx")
-                        List(
-                          AssemblyLine.absolute(LDY, source),
+                        AssemblyLine.variable(ctx, LDY, source) ++ List(
                           AssemblyLine.implied(TYA),
                           AssemblyLine.immediate(ORA, 0x7F),
                           AssemblyLine.relative(BMI, label),
                           AssemblyLine.immediate(LDA, 0),
                           AssemblyLine.label(label))
-                      } else List(
-                        AssemblyLine.absolute(LDY, source),
-                        AssemblyLine.immediate(LDA, 0))
-                      case 2 => List(
-                        AssemblyLine.absolute(LDY, source),
-                        AssemblyLine.absolute(LDA, source, 1))
+                      } else
+                        AssemblyLine.variable(ctx, LDY, source) :+ AssemblyLine.immediate(LDA, 0)
+                      case 2 =>
+                        AssemblyLine.variable(ctx, LDY, source) ++ AssemblyLine.variable(ctx, LDA, source, 1)
                     }
                   case target: VariableInMemory =>
                     if (exprType.size > target.typ.size) {
                       ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
-                      val copy = List.tabulate(exprType.size)(i => List(AssemblyLine.absolute(LDA, source, i), AssemblyLine.absolute(STA, target, i)))
+                      val copy = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) ++ AssemblyLine.variable(ctx, STA, target, i))
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
                         val label = nextLabel("sx")
                         List(
@@ -559,10 +539,10 @@ object MfCompiler {
                           AssemblyLine.relative(BMI, label),
                           AssemblyLine.immediate(LDA, 0),
                           AssemblyLine.label(label)) ++
-                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absolute(STA, target, i + exprType.size))
+                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
-                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absolute(STA, target, i + exprType.size))
+                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       }
                       copy.flatten ++ extend
                     }
@@ -571,7 +551,7 @@ object MfCompiler {
                       ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
-                      val copy = List.tabulate(exprType.size)(i => List(AssemblyLine.absolute(LDA, source, i), AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i)))
+                      val copy = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) :+ AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i))
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
                         val label = nextLabel("sx")
                         List(
@@ -657,7 +637,7 @@ object MfCompiler {
                       ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
-                      val copy = List.tabulate(exprType.size)(i => List(AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i), AssemblyLine.absolute(STA, target, i)))
+                      val copy = List.tabulate(exprType.size)(i => AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i) :: AssemblyLine.variable(ctx, STA, target, i))
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
                         val label = nextLabel("sx")
                         List(
@@ -665,10 +645,10 @@ object MfCompiler {
                           AssemblyLine.relative(BMI, label),
                           AssemblyLine.immediate(LDA, 0),
                           AssemblyLine.label(label)) ++
-                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absolute(STA, target, i + exprType.size))
+                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
-                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absolute(STA, target, i + exprType.size))
+                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       }
                       AssemblyLine.implied(TSX) :: (copy.flatten ++ extend)
                     }
@@ -1249,21 +1229,18 @@ object MfCompiler {
       case (t, v: VariableInMemory) => t.size match {
         case 1 => v.typ.size match {
           case 1 =>
-            List(AssemblyLine.absolute(STA, v))
+            AssemblyLine.variable(ctx, STA, v)
           case s if s > 1 =>
             if (t.isSigned) {
               val label = nextLabel("sx")
-              List(
-                AssemblyLine.absolute(STA, v),
+              AssemblyLine.variable(ctx, STA, v)++List(
                 AssemblyLine.immediate(ORA, 0x7f),
                 AssemblyLine.relative(BMI, label),
                 AssemblyLine.immediate(LDA, 0),
-                AssemblyLine.label(label)) ++ List.tabulate(s - 1)(i => AssemblyLine.absolute(STA, v, i + 1))
+                AssemblyLine.label(label)) ++ List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, v, i + 1)).flatten
             } else {
-              List(
-                AssemblyLine.absolute(STA, v),
-                AssemblyLine.immediate(LDA, 0)) ++
-                List.tabulate(s - 1)(i => AssemblyLine.absolute(STA, v, i + 1))
+              AssemblyLine.variable(ctx, STA, v) ++ List(AssemblyLine.immediate(LDA, 0)) ++
+                List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, v, i + 1)).flatten
             }
         }
         case 2 => v.typ.size match {
@@ -1271,24 +1248,20 @@ object MfCompiler {
             ErrorReporting.error(s"Variable `${v.name}` cannot hold a word", position)
             Nil
           case 2 =>
-            List(AssemblyLine.absolute(STA, v), AssemblyLine.absolute(STX, v, 1))
+            AssemblyLine.variable(ctx, STA, v) ++ AssemblyLine.variable(ctx, STX, v, 1)
           case s if s > 2 =>
             if (t.isSigned) {
               val label = nextLabel("sx")
-              List(
-                AssemblyLine.absolute(STA, v),
-                AssemblyLine.absolute(STX, v, 1),
+              AssemblyLine.variable(ctx, STA, v) ++ AssemblyLine.variable(ctx, STX, v, 1) ++ List(
                 AssemblyLine.implied(TXA),
                 AssemblyLine.immediate(ORA, 0x7f),
                 AssemblyLine.relative(BMI, label),
                 AssemblyLine.immediate(LDA, 0),
-                AssemblyLine.label(label)) ++ List.tabulate(s - 2)(i => AssemblyLine.absolute(STA, v, i + 2))
+                AssemblyLine.label(label)) ++ List.tabulate(s - 2)(i => AssemblyLine.variable(ctx, STA, v, i + 2)).flatten
             } else {
-              List(
-                AssemblyLine.absolute(STA, v),
-                AssemblyLine.absolute(STX, v, 1),
+              AssemblyLine.variable(ctx, STA, v) ++ AssemblyLine.variable(ctx, STX, v, 1) ++ List(
                 AssemblyLine.immediate(LDA, 0)) ++
-                List.tabulate(s - 2)(i => AssemblyLine.absolute(STA, v, i + 2))
+                List.tabulate(s - 2)(i => AssemblyLine.variable(ctx, STA, v, i + 2)).flatten
             }
         }
       }
