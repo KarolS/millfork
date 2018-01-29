@@ -17,6 +17,8 @@ import millfork.env._
 object AlwaysGoodOptimizations {
 
   val counter = new AtomicInteger(30000)
+  val LdxAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageY, AbsoluteY)
+  val LdyAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageX, AbsoluteX)
 
   def getNextLabel(prefix: String) = f".$prefix%s__${counter.getAndIncrement()}%05d"
 
@@ -340,15 +342,22 @@ object AlwaysGoodOptimizations {
                                              flagsToTrash: Seq[State.Value],
                                              fix: ((AssemblyMatchingContext, Int) => List[AssemblyLine]),
                                              alternateStore: Opcode.Value = LABEL) = {
-    val actualFlagsToTrash = List(State.N, State.Z) ++ flagsToTrash
-    val init = Elidable & HasOpcode(store) & HasAddrMode(addrMode) & MatchAddrMode(3) & MatchParameter(0) & DoesntMatterWhatItDoesWith(actualFlagsToTrash: _*) & initExtra
-    val meantime = (Linear & Not(ConcernsMemory) & meantimeExtra).*
-    val oneModification = Elidable & HasOpcode(modify) & HasAddrMode(addrMode) & MatchParameter(0) & DoesntMatterWhatItDoesWith(actualFlagsToTrash: _*)
+    val actualFlagsToTrashForStore = List(State.N, State.Z) ++ flagsToTrash ++ (store match{
+      case STA => List(State.A)
+      case STY => List(State.Y)
+      case STX => List(State.X)
+      case SAX => List(State.A, State.X)
+      case STZ => Nil
+    })
+    val actualFlagsToTrashForModify = List(State.N, State.Z) ++ flagsToTrash
+    val init = Elidable & HasOpcode(store) & HasAddrMode(addrMode) & MatchAddrMode(3) & MatchParameter(0) & DoesntMatterWhatItDoesWith(actualFlagsToTrashForStore: _*) & initExtra
+    val meantime = (Linear & DoesNotConcernMemoryAt(3, 0) & meantimeExtra).*
+    val oneModification = Elidable & HasOpcode(modify) & HasAddrMode(addrMode) & MatchParameter(0) & DoesntMatterWhatItDoesWith(actualFlagsToTrashForModify: _*)
     val modifications = (if (atLeastTwo) oneModification ~ oneModification.+ else oneModification.+).captureLength(1)
     if (alternateStore == LABEL) {
       ((init ~ meantime).capture(2) ~ modifications) ~~> ((code, ctx) => fix(ctx, ctx.get[Int](1)) ++ ctx.get[List[AssemblyLine]](2))
     } else {
-      (init.capture(3) ~ meantime.capture(2) ~ modifications) ~~> { (code, ctx) =>
+      (init ~ meantime.capture(2) ~ modifications) ~~> { (code, ctx) =>
         fix(ctx, ctx.get[Int](1)) ++
           List(AssemblyLine(alternateStore, ctx.get[AddrMode.Value](3), ctx.get[Constant](0))) ++
           ctx.get[List[AssemblyLine]](2)
@@ -356,8 +365,8 @@ object AlwaysGoodOptimizations {
     }
   }
 
-  val ModificationOfJustWrittenValue = new RuleBasedAssemblyOptimization("Modification of Just written value",
-    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+  val ModificationOfJustWrittenValue = new RuleBasedAssemblyOptimization("Modification of just written value",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
     modificationOfJustWrittenValue(STA, Absolute, MatchA(5), INC, Anything, atLeastTwo = false, Seq(), (c, i) => List(
       AssemblyLine.immediate(LDA, (c.get[Int](5) + i) & 0xff)
     )),
@@ -572,10 +581,10 @@ object AlwaysGoodOptimizations {
 
   val PointlessLoadBeforeTransfer = new RuleBasedAssemblyOptimization("Pointless load before transfer",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
-    loadBeforeTransfer(LDX, LDA, ConcernsX, State.X, TXA, Set(Immediate, ZeroPage, Absolute, IndexedY, AbsoluteY)),
-    loadBeforeTransfer(LDA, LDX, ConcernsA, State.A, TAX, Set(Immediate, ZeroPage, Absolute, IndexedY, AbsoluteY)),
-    loadBeforeTransfer(LDY, LDA, ConcernsY, State.Y, TYA, Set(Immediate, ZeroPage, Absolute, ZeroPageX, IndexedX, AbsoluteX)),
-    loadBeforeTransfer(LDA, LDY, ConcernsA, State.A, TAY, Set(Immediate, ZeroPage, Absolute, ZeroPageX, IndexedX, AbsoluteX)),
+    loadBeforeTransfer(LDX, LDA, ConcernsX, State.X, TXA, LdxAddrModes),
+    loadBeforeTransfer(LDA, LDX, ConcernsA, State.A, TAX, LdxAddrModes),
+    loadBeforeTransfer(LDY, LDA, ConcernsY, State.Y, TYA, LdyAddrModes),
+    loadBeforeTransfer(LDA, LDY, ConcernsA, State.A, TAY, LdyAddrModes),
   )
 
   private def immediateLoadBeforeTwoTransfers(ld1: Opcode.Value, ld2: Opcode.Value, concerns1: AssemblyLinePattern, overwrites1: State.Value, t12: Opcode.Value, t21: Opcode.Value) =
@@ -698,17 +707,21 @@ object AlwaysGoodOptimizations {
     val stax = if (hiFromX) STX else STA
     val restriction = if (hiFromX) Not(ReadsX) else Anything
     val originalStart = if (hiFirst) {
-      (Elidable & HasOpcode(LDA) & MatchParameter(0) & MatchAddrMode(1)) ~
-        (Elidable & HasOpcode(STA) & MatchParameter(2) & MatchAddrMode(3) & restriction) ~
-        (Elidable & HasOpcode(ldax) & HasImmediate(0)) ~
-        (Elidable & HasOpcode(stax) & MatchParameter(4) & MatchAddrMode(5))
-    } else {
-      (Elidable & HasOpcode(ldax) & HasImmediate(0)) ~
+      (HasOpcode(ldax) & HasImmediate(0)) ~
         (Elidable & HasOpcode(stax) & MatchParameter(4) & MatchAddrMode(5)) ~
-        (Elidable & HasOpcode(LDA) & MatchParameter(0) & MatchAddrMode(1)) ~
-        (Elidable & HasOpcode(STA) & MatchParameter(2) & MatchAddrMode(3) & restriction)
+        (HasOpcode(LDA) & MatchParameter(0) & MatchAddrMode(1) & DoesNotConcernMemoryAt(5, 4)) ~
+        (Elidable & HasOpcode(STA) & MatchParameter(2) & MatchAddrMode(3) & DoesntChangeMemoryAt(1, 0) & DoesntChangeMemoryAt(5, 4) & restriction)
+    } else {
+      (HasOpcode(LDA) & MatchParameter(0) & MatchAddrMode(1)) ~
+        (Elidable & HasOpcode(STA) & MatchParameter(2) & MatchAddrMode(3) & DoesntChangeMemoryAt(1, 0) & restriction) ~
+        (HasOpcode(ldax) & HasImmediate(0)) ~
+        (Elidable & HasOpcode(stax) & MatchParameter(4) & MatchAddrMode(5) & DoesntChangeMemoryAt(1, 0) & DoesntChangeMemoryAt(3, 2))
     }
-    val middle = (Linear & Not(ConcernsMemory) & DoesntChangeIndexingInAddrMode(3) & DoesntChangeIndexingInAddrMode(5)).*
+    val middle = (Linear
+      & DoesntChangeIndexingInAddrMode(3)
+      & DoesntChangeIndexingInAddrMode(5)
+      & DoesNotConcernMemoryAt(3, 2)
+      & DoesNotConcernMemoryAt(5, 4)).*
     val singleOriginalShift =
       (Elidable & HasOpcode(ASL) & MatchParameter(2) & MatchAddrMode(3)) ~
         (Elidable & HasOpcode(ROL) & MatchParameter(4) & MatchAddrMode(5) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z))
@@ -1090,6 +1103,29 @@ object AlwaysGoodOptimizations {
           | HasOpcode(ANC) & HasImmediate(0xff) & DoesntMatterWhatItDoesWith(State.C, State.V)
           | HasOpcode(CMP) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
       code.tail.init :+ code.head
+    },
+  )
+
+  private def remapZ2N(line: AssemblyLine) = line.opcode match {
+    case BNE => line.copy(opcode = BMI)
+    case BEQ => line.copy(opcode = BPL)
+  }
+  private def remapZ2V(line: AssemblyLine) = line.opcode match {
+    case BNE => line.copy(opcode = BVS)
+    case BEQ => line.copy(opcode = BVC)
+  }
+
+  val SimplifiableCondition = new RuleBasedAssemblyOptimization("Simplifiable condition",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    HasOpcode(LDA) ~
+      (Elidable & HasOpcode(AND) & HasImmediate(0x80)) ~
+      (Elidable & HasOpcodeIn(Set(BNE, BEQ)) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)) ~~> {code =>
+      List(code(0), remapZ2N(code(2)))
+    },
+    (Elidable & HasOpcode(LDA) & HasImmediate(0x80)) ~
+      (Elidable & HasOpcode(AND)) ~
+      (Elidable & HasOpcodeIn(Set(BNE, BEQ)) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)) ~~> {code =>
+      List(code(1).copy(opcode = LDA), remapZ2N(code(2)))
     },
   )
 }

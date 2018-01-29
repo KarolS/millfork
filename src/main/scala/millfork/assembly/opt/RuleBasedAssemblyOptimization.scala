@@ -72,9 +72,21 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 class AssemblyMatchingContext {
   private val map = mutable.Map[Int, Any]()
 
+  override def toString: String = map.mkString(", ")
+
   def addObject(i: Int, o: Any): Boolean = {
     if (map.contains(i)) {
       map(i) == o
+    } else {
+      map(i) = o
+      true
+    }
+  }
+
+  def addAddrModeLoosely(i: Int, o: AddrMode.Value): Boolean = {
+    if (map.contains(i)) {
+      val a = map(i).asInstanceOf[AddrMode.Value]
+      a == o || a == AddrMode.ZeroPage && o == AddrMode.Absolute || a == AddrMode.Absolute && o == AddrMode.ZeroPage
     } else {
       map(i) = o
       true
@@ -134,44 +146,6 @@ class AssemblyMatchingContext {
     jumps.isEmpty
   }
 
-  def areMemoryReferencesProvablyNonOverlapping(param1: Int, addrMode1: Int, param2: Int, addrMode2: Int): Boolean = {
-    val p1 = get[Constant](param1).quickSimplify
-    val a1 = get[AddrMode.Value](addrMode1)
-    val p2 = get[Constant](param2).quickSimplify
-    val a2 = get[AddrMode.Value](addrMode2)
-    import AddrMode._
-    val badAddrModes = Set(IndexedX, IndexedY, ZeroPageIndirect, AbsoluteIndexedX)
-    if (badAddrModes(a1) || badAddrModes(a2)) return false
-
-    def handleKnownDistance(distance: Short): Boolean = {
-      val indexingAddrModes = Set(AbsoluteIndexedX, AbsoluteX, ZeroPageX, AbsoluteY, ZeroPageY)
-      val a1Indexing = indexingAddrModes(a1)
-      val a2Indexing = indexingAddrModes(a2)
-      (a1Indexing, a2Indexing) match {
-        case (false, false) => distance != 0
-        case (true, false) => distance > 255 || distance < 0
-        case (false, true) => distance > 0 || distance < -255
-        case (true, true) => distance > 255 || distance < -255
-      }
-    }
-
-    (p1, p2) match {
-      case (NumericConstant(n1, _), NumericConstant(n2, _)) =>
-        handleKnownDistance((n2 - n1).toShort)
-      case (a, CompoundConstant(MathOperator.Plus, b, NumericConstant(distance, _))) if a.quickSimplify == b.quickSimplify =>
-        handleKnownDistance(distance.toShort)
-      case (CompoundConstant(MathOperator.Plus, a, NumericConstant(distance, _)), b) if a.quickSimplify == b.quickSimplify =>
-        handleKnownDistance((-distance).toShort)
-      case (a, CompoundConstant(MathOperator.Minus, b, NumericConstant(distance, _))) if a.quickSimplify == b.quickSimplify =>
-        handleKnownDistance((-distance).toShort)
-      case (CompoundConstant(MathOperator.Minus, a, NumericConstant(distance, _)), b) if a.quickSimplify == b.quickSimplify =>
-        handleKnownDistance(distance.toShort)
-      case (MemoryAddressConstant(MemoryVariable(a, _, _)), MemoryAddressConstant(MemoryVariable(b, _, _))) =>
-        a.takeWhile(_ != '.') != a.takeWhile(_ != '.') // TODO: ???
-      case _ =>
-        false
-    }
-  }
 }
 
 case class AssemblyRule(pattern: AssemblyPattern, result: (List[AssemblyLine], AssemblyMatchingContext) => List[AssemblyLine]) {
@@ -236,15 +210,37 @@ trait AssemblyPattern {
         true // TODO: ???
       case (MemoryAddressConstant(a: ThingInMemory), MemoryAddressConstant(b: ThingInMemory)) =>
         a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
-      case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)),
+      case (CompoundConstant(op@(MathOperator.Plus | MathOperator.Minus), MemoryAddressConstant(a: ThingInMemory), NumericConstant(offset, _)),
       MemoryAddressConstant(b: ThingInMemory)) =>
-        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+        if (a.name == b.name) {
+          if (op == MathOperator.Plus) {
+            handleKnownDistance((-offset).toShort)
+          } else {
+            handleKnownDistance(offset.toShort)
+          }
+        } else {
+          a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+        }
       case (MemoryAddressConstant(a: ThingInMemory),
-      CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
-        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
-      case (CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _)),
-      CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(b: ThingInMemory), NumericConstant(_, _))) =>
-        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+      CompoundConstant(op@(MathOperator.Plus | MathOperator.Minus), MemoryAddressConstant(b: ThingInMemory), NumericConstant(offset, _))) =>
+        if (a.name == b.name) {
+          if (op == MathOperator.Minus) {
+            handleKnownDistance((-offset).toShort)
+          } else {
+            handleKnownDistance(offset.toShort)
+          }
+        } else {
+          a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+        }
+      case (CompoundConstant(op1@(MathOperator.Plus | MathOperator.Minus), MemoryAddressConstant(a: ThingInMemory), NumericConstant(o1, _)),
+      CompoundConstant(op2@(MathOperator.Plus | MathOperator.Minus), MemoryAddressConstant(b: ThingInMemory), NumericConstant(o2, _))) =>
+        if (a.name == b.name) {
+          val offset1 = if (op1==MathOperator.Plus) o1 else -o1
+          val offset2 = if (op2==MathOperator.Plus) o2 else -o2
+          handleKnownDistance((offset2 - offset1).toShort)
+        } else {
+          a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+        }
       case _ =>
         false
     }
@@ -550,6 +546,14 @@ case object Elidable extends AssemblyLinePattern {
     line.elidable
 }
 
+case object DebugMatching extends AssemblyPattern {
+  override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, AssemblyLine)]): Option[List[(FlowInfo, AssemblyLine)]] = {
+    println(ctx)
+    code.foreach(println)
+    Some(code)
+  }
+}
+
 case object Linear extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
     OpcodeClasses.AllLinear(line.opcode)
@@ -641,7 +645,7 @@ case class DoesntChangeMemoryAt(addrMode1: Int, param1: Int) extends AssemblyLin
 
 case object ConcernsMemory extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean =
-    ReadsMemory(line) && ChangesMemory(line)
+    ReadsMemory(line) || ChangesMemory(line)
 }
 
 case class DoesNotConcernMemoryAt(addrMode1: Int, param1: Int) extends AssemblyLinePattern {
@@ -715,7 +719,7 @@ case class DontMatchParameter(i: Int) extends AssemblyLinePattern {
 
 case class MatchAddrMode(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
-    ctx.addObject(i, line.addrMode)
+    ctx.addAddrModeLoosely(i, line.addrMode)
 
   override def toString: String = s"¬(?<$i>AddrMode)"
 }

@@ -1,5 +1,5 @@
 package millfork.test
-import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuUltraBenchmarkRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -42,7 +42,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Long shifting left") {
-    EmuBenchmarkRun("""
+    EmuUltraBenchmarkRun("""
         | long output @$c000
         | void main () {
         |   output = $1010301

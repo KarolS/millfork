@@ -244,7 +244,7 @@ object LaterOptimizations {
   // TODO: make it more generic
   val IndexSwitchingOptimization = new RuleBasedAssemblyOptimization("Index switching optimization",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
-    (Elidable & HasOpcode(LDY) & MatchAddrMode(2) & Not(ReadsX) & MatchParameter(0)) ~
+    (Elidable & HasOpcode(LDY) & MatchAddrMode(2) & Not(ReadsX) & MatchParameter(0) & HasAddrModeIn(LdxAddrModes)) ~
       (Elidable & Linear & Not(ChangesY) & HasAddrMode(AbsoluteY) & SupportsAbsoluteX & Not(ConcernsX)) ~
       (HasOpcode(LDY) & Not(ConcernsX)) ~
       (Linear & Not(ChangesY) & Not(ConcernsX) & HasAddrModeIn(Set(AbsoluteY, IndexedY, ZeroPageY))) ~
@@ -257,7 +257,7 @@ object LaterOptimizations {
         code(3),
         code(5).copy(addrMode = AbsoluteX))
     },
-    (Elidable & HasOpcode(LDX) & MatchAddrMode(2) & Not(ReadsY) & MatchParameter(0)) ~
+    (Elidable & HasOpcode(LDX) & MatchAddrMode(2) & Not(ReadsY) & MatchParameter(0) & HasAddrModeIn(LdyAddrModes)) ~
       (Elidable & Linear & Not(ChangesX) & HasAddrMode(AbsoluteX) & SupportsAbsoluteY & Not(ConcernsY)) ~
       (HasOpcode(LDX) & Not(ConcernsY)) ~
       (Linear & Not(ChangesX) & Not(ConcernsY) & HasAddrModeIn(Set(AbsoluteX, IndexedX, ZeroPageX, AbsoluteIndexedX))) ~

@@ -55,14 +55,15 @@ case class CpuImportance(a: Importance = UnknownImportance,
   )
 
   def isUnimportant(state: State.Value): Boolean = state match {
-    case State.A => a == Unimportant
-    case State.X => x == Unimportant
-    case State.Y => y == Unimportant
-    case State.Z => z == Unimportant
-    case State.N => n == Unimportant
-    case State.C => c == Unimportant
-    case State.V => v == Unimportant
-    case State.D => d == Unimportant
+      // UnknownImportance is usually an effect of unreachable code
+    case State.A => a != Important
+    case State.X => x != Important
+    case State.Y => y != Important
+    case State.Z => z != Important
+    case State.N => n != Important
+    case State.C => c != Important
+    case State.V => v != Important
+    case State.D => d != Important
   }
 }
 
@@ -97,8 +98,16 @@ object ReverseFlowAnalyzer {
           case _ =>
         }
         codeArray(i) match {
-          case AssemblyLine(JSR, _, MemoryAddressConstant(fun:FunctionInMemory), _) =>
-            var result = new CpuImportance().copy(d = Important)
+          case AssemblyLine(JSR | JMP, Absolute, MemoryAddressConstant(fun:FunctionInMemory), _) =>
+            var result = new CpuImportance(
+              a = Unimportant,
+              x = Unimportant,
+              y = Unimportant,
+              z = Unimportant,
+              n = Unimportant,
+              c = Unimportant,
+              v = Unimportant,
+              d = Important)
             fun.params match {
               case AssemblyParamSignature(params) =>
                 params.foreach(_.variable match {
@@ -119,16 +128,16 @@ object ReverseFlowAnalyzer {
               case _ =>
             }
             currentImportance = result
-          case AssemblyLine(JSR, _, _, _) =>
+          case AssemblyLine(JSR | BRK, _, _, _) =>
             currentImportance = finalImportance
-          case AssemblyLine(JMP, Absolute, MemoryAddressConstant(Label(l)), _) =>
+          case AssemblyLine(JMP | BRA, Absolute | Relative, MemoryAddressConstant(Label(l)), _) =>
             val L = l
             val labelIndex = codeArray.indexWhere {
               case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(L)), _) => true
               case _ => false
             }
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex)
-          case AssemblyLine(JMP, Indirect, _, _) =>
+          case AssemblyLine(JMP, Indirect | AbsoluteIndexedX, _, _) =>
             currentImportance = finalImportance
           case AssemblyLine(BNE | BEQ, _, _, _) =>
             currentImportance = currentImportance.copy(z = Important)
@@ -136,7 +145,7 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.copy(n = Important)
           case AssemblyLine(SED | CLD, _, _, _) =>
             currentImportance = currentImportance.copy(d = Unimportant)
-          case AssemblyLine(RTS, _, _, _) =>
+          case AssemblyLine(RTS | RTI, _, _, _) =>
             currentImportance = finalImportance
           case AssemblyLine(DISCARD_XF, _, _, _) =>
             currentImportance = currentImportance.copy(x = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)
@@ -158,8 +167,10 @@ object ReverseFlowAnalyzer {
             if (OpcodeClasses.ReadsYAlways(opcode)) currentImportance = currentImportance.copy(y = Important)
             if (OpcodeClasses.ReadsAAlways(opcode)) currentImportance = currentImportance.copy(a = Important)
             if (OpcodeClasses.ReadsAIfImplied(opcode) && addrMode == Implied) currentImportance = currentImportance.copy(a = Important)
-            if (addrMode == AbsoluteX || addrMode == IndexedX || addrMode == ZeroPageX) currentImportance = currentImportance.copy(x = Important)
-            if (addrMode == AbsoluteY || addrMode == IndexedY || addrMode == ZeroPageY) currentImportance = currentImportance.copy(y = Important)
+            if (addrMode == AbsoluteX || addrMode == IndexedX || addrMode == ZeroPageX || addrMode == AbsoluteIndexedX)
+              currentImportance = currentImportance.copy(x = Important)
+            if (addrMode == AbsoluteY || addrMode == IndexedY || addrMode == ZeroPageY)
+              currentImportance = currentImportance.copy(y = Important)
         }
       }
     }

@@ -46,6 +46,18 @@ object Status {
         SingleStatus(y >= 0x80)
       case _ => AnyStatus()
     }
+
+    def adc(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
+      case SingleStatus(x) => decimal match {
+        case SingleStatus(false) => carry match {
+          case SingleStatus(true) => SingleStatus(x + value + 1)
+          case SingleStatus(false) => SingleStatus(x + value)
+          case _ => AnyStatus()
+        }
+        case _ => AnyStatus()
+      }
+      case _ => AnyStatus()
+    }
   }
 
 }
@@ -195,6 +207,10 @@ object CoarseFlowAnalyzer {
             val n = nn.toInt
             currentStatus = currentStatus.nz(n).copy(a = SingleStatus(n), x = SingleStatus(n))
 
+          case AssemblyLine(ADC, Immediate, NumericConstant(nn, _), _) =>
+            val n = nn.toInt
+            val newA = currentStatus.a.adc(n, currentStatus.c, currentStatus.d)
+            currentStatus = currentStatus.copy(n = newA.n(), z = newA.z(), a = newA, c = AnyStatus(), v = AnyStatus())
           case AssemblyLine(EOR, Immediate, NumericConstant(nn, _), _) =>
             val n = nn.toInt
             currentStatus = currentStatus.copy(n = currentStatus.a.n(_ ^ n), z = currentStatus.a.z(_ ^ n), a = currentStatus.a.map(_ ^ n))
@@ -235,6 +251,11 @@ object CoarseFlowAnalyzer {
             currentStatus = currentStatus.copy(y = currentStatus.a, n = currentStatus.a.n(), z = currentStatus.a.z())
           case AssemblyLine(TYA, _, _, _) =>
             currentStatus = currentStatus.copy(a = currentStatus.y, n = currentStatus.y.n(), z = currentStatus.y.z())
+
+          case AssemblyLine(ASL, Implied, _, _) =>
+            currentStatus = currentStatus.copy(a = currentStatus.a.map(_ << 1), n = currentStatus.a.n(_ << 1), z = currentStatus.a.z(_ << 1),c = currentStatus.a.map(a => a.&(0xff).!=(0)))
+          case AssemblyLine(LSR, Implied, _, _) =>
+            currentStatus = currentStatus.copy(a = currentStatus.a.map(a => a.>>(1).&(0x7f)), n = currentStatus.a.n(a => a.>>(1).&(0x7f)), z = currentStatus.a.z(a => a.>>(1).&(0x7f)),c = currentStatus.a.map(a => a.&(1).!=(0)))
 
           case AssemblyLine(opcode, addrMode, parameter, _) =>
             if (OpcodeClasses.ChangesX(opcode)) currentStatus = currentStatus.copy(x = AnyStatus())
