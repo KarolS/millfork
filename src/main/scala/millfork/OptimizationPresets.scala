@@ -14,6 +14,7 @@ object OptimizationPresets {
     UnusedGlobalVariables,
   )
   val AssOpt: List[AssemblyOptimization] = List[AssemblyOptimization](
+    AlwaysGoodOptimizations.PointlessSignCheck,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
     AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
     LaterOptimizations.PointessLoadingForShifting,
@@ -148,6 +149,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessRegisterTransfers,
     AlwaysGoodOptimizations.PointlessRegisterTransfersBeforeCompare,
     AlwaysGoodOptimizations.PointlessRegisterTransfersBeforeReturn,
+    AlwaysGoodOptimizations.PointlessSignCheck,
     AlwaysGoodOptimizations.PointlessStackStashing,
     AlwaysGoodOptimizations.PointlessStashingToIndexOverShortSafeBranch,
     AlwaysGoodOptimizations.PoinlessStoreBeforeStore,

@@ -696,6 +696,14 @@ case class HasImmediate(i: Int) extends TrivialAssemblyLinePattern {
   override def toString: String = "#" + i
 }
 
+case class HasImmediateWhere(predicate: Int => Boolean) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
+    line.addrMode == AddrMode.Immediate && (line.parameter.quickSimplify match {
+      case NumericConstant(j, _) => predicate(j.toInt & 0xff)
+      case _ => false
+    })
+}
+
 case class MatchObject(i: Int, f: Function[AssemblyLine, Any]) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
     ctx.addObject(i, f(line))

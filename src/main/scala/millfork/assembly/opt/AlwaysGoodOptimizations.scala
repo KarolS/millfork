@@ -1128,4 +1128,55 @@ object AlwaysGoodOptimizations {
       List(code(1).copy(opcode = LDA), remapZ2N(code(2)))
     },
   )
+
+  val PointlessSignCheck: RuleBasedAssemblyOptimization = {
+    def loadOldSignedVariable: AssemblyPattern = (
+      (HasOpcodeIn(Set(AND, ANC)) & HasImmediateWhere(i => (i & 0x80) == 0)) ~
+      (HasOpcode(STA) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      DoesNotConcernMemoryAt(0, 1).* ~
+      (HasOpcode(LDA) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(1))
+      ).capture(10) ~ Where(_.isExternallyLinearBlock(10))
+
+    val isNonnegative: Int => Boolean = i => (i & 0x80) == 0
+
+    new RuleBasedAssemblyOptimization("Pointless sign check",
+      needsFlowInfo = FlowInfoRequirement.NoRequirement,
+      (HasOpcode(AND) & HasImmediateWhere(isNonnegative)) ~
+        (Elidable & HasOpcode(BMI)) ~~> (_.take(1)),
+      loadOldSignedVariable ~
+        (Elidable & HasOpcode(BMI)) ~~> { (code, ctx) => ctx.get[List[AssemblyLine]](10) },
+      loadOldSignedVariable ~
+        (Elidable & HasOpcodeIn(Set(ORA, EOR)) & HasImmediateWhere(isNonnegative)) ~
+        (Elidable & HasOpcode(BMI)) ~
+        OverwritesA ~~> { (code, ctx) => ctx.get[List[AssemblyLine]](10) :+ code.last },
+      loadOldSignedVariable ~
+        (Elidable & HasOpcodeIn(Set(ORA, EOR)) & HasImmediateWhere(isNonnegative)) ~
+        (Elidable & HasOpcode(BMI)) ~~> { code => code.init },
+      loadOldSignedVariable ~
+        (Elidable & HasOpcodeIn(Set(ORA, EOR)) & HasImmediateWhere(isNonnegative)).? ~
+        (Elidable & HasOpcode(BPL)) ~~> { code => code.init :+ code.last.copy(opcode = JMP, addrMode = Absolute) },
+      loadOldSignedVariable ~
+        ((Linear & Not(ConcernsX) & Not(ChangesA)).* ~
+          HasOpcode(TAX) ~
+          (Linear & Not(ConcernsX)).*).capture(11) ~
+        (Elidable & HasOpcode(TXA)) ~
+        (Elidable & HasOpcodeIn(Set(ORA, EOR)) & HasImmediateWhere(isNonnegative)).? ~
+        (Elidable & HasOpcode(BMI)) ~
+        OverwritesA ~~> { (code, ctx) => ctx.get[List[AssemblyLine]](10) ++ ctx.get[List[AssemblyLine]](11) :+ code.last },
+      loadOldSignedVariable ~
+        (Linear & Not(ConcernsX) & Not(ChangesA)).* ~
+        HasOpcode(TAX) ~
+        (Linear & Not(ConcernsX)).* ~
+        HasOpcode(TXA) ~
+        (HasOpcodeIn(Set(ORA, EOR)) & HasImmediateWhere(isNonnegative)).? ~
+        (Elidable & HasOpcode(BMI)) ~~> { code => code.init },
+      loadOldSignedVariable ~
+        (Linear & Not(ConcernsX) & Not(ChangesA)).* ~
+        HasOpcode(TAX) ~
+        (Linear & Not(ConcernsX)).* ~
+        HasOpcode(TXA) ~
+        (HasOpcodeIn(Set(ORA, EOR)) & HasImmediateWhere(isNonnegative)).? ~
+        (Elidable & HasOpcode(BPL)) ~~> { code => code.init :+ code.last.copy(opcode = JMP, addrMode = Absolute) },
+    )
+  }
 }

@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.EmuUnoptimizedRun
+import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -40,5 +40,30 @@ class SignExtensionSuite extends FunSuite with Matchers {
         |   return -1
         | }
       """.stripMargin).readLong(0xc000) should equal(420)
+  }
+
+  test("Optimize pointless sign extension") {
+    EmuBenchmarkRun("""
+        | array output [10] @$c000
+        | word w
+        | void main () {
+        |   byte i
+        |   sbyte b
+        |   w = 435
+        |   b = five()
+        |   b &= $7f
+        |   for i,0,paralleluntil,output.length {
+        |     output[i] = i
+        |   }
+        |   w += b
+        |   output[0] = w.lo
+        |   output[1] = w.hi
+        | }
+        | sbyte five() {
+        |   return 5
+        | }
+      """.stripMargin){m =>
+      m.readWord(0xc000) should equal(440)
+    }
   }
 }
