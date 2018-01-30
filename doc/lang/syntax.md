@@ -79,6 +79,72 @@ if <expression> {
 }
 ```
 
+### `return` statement
+
+Syntax:
+
+```
+return
+```
+```
+return <expression>
+```
+
+### `return[]` statement (return dispatch)
+
+Syntax examples:
+
+```
+return [a + b] {
+   0   @ underflow
+   255 @ overflow
+   default @ nothing
+}
+```
+```
+return [getF()] {
+   1 @ function1
+   2 @ function2
+   default(5) @ functionDefault
+}
+```
+```
+return [i] (param1, param2) {
+   1,5,8 @ function1(4, 6)
+   2     @ function2(9)
+   default(0,20) @ functionDefault
+}
+```
+
+Return dispatch calculates the value of an index, picks the correct branch, 
+assigns some global variables and jumps to another function.
+
+The index has to evaluate to a byte. The functions cannot be `inline` and shouldn't have parameters. 
+Jumping to a function with parameters gives those parameters undefined values.
+
+The functions are not called, so they don't return to the function the return dispatch statement is in, but to its caller.
+The return values are passed along. If the dispatching function has a non-`void` return type different that the type 
+of the function dispatched to, the return value is undefined. 
+
+If the `default` branch exists, then it is used for every missing index value between other supported values. 
+Optional parameters to `default` specify the maximum, or both the minimum and maximum supported index value.
+In the above examples: the first example supports values 0–255, second 1–5, and third 0–20.
+
+If the index has an unsupported value, the behaviour is formally undefined, but in practice the program will simply crash.  
+
+Before jumping to the function, the chosen global variables will be assigned parameter values. 
+Variables have to be global byte-sized. Some simple array indexing expressions are also allowed.
+Parameter values have to be constants.
+For example, in the third example one of the following will happen:
+
+* if `i` is 1, 5 or 8, then `param1` is assigned 4, `param2` is assigned 6 and then `function1` is called;
+
+* if `i` is 2, then `param1` is assigned 9, `param2` is assigned an undefined value and then `function2` is called;
+
+* if `i` is any other value from 0 to 20, then `param1` and `param2` are assigned undefined values and then `functionDefault` is called;
+
+* if `i` has any other value, then undefined behaviour.
+
 ### `while` and `do-while` statements
 
 Syntax:

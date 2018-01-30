@@ -1509,6 +1509,8 @@ object MfCompiler {
                 List(AssemblyLine.discardYF()) ++ returnInstructions)
           }
         }
+      case s : ReturnDispatchStatement =>
+        LinearChunk(ReturnDispatch.compile(ctx, s))
       case ReturnStatement(Some(e)) =>
         m.returnType match {
           case _: BooleanType =>

@@ -31,17 +31,28 @@
 
 ## Code generation options
 
-* `-fcmos-ops`, `-fno-cmos-ops` – Whether should emit CMOS opcodes. `.ini` equivalent: `emit_cmos`.
+* `-fcmos-ops`, `-fno-cmos-ops` – Whether should emit CMOS opcodes.  
+`.ini` equivalent: `emit_cmos`. Default: yes if targeting 65C02, no otherwise.
 
-* `-fillegals`, `-fno-illegals` – Whether should emit illegal (undocumented) NMOS opcodes. `.ini` equivalent: `emit_illegals`.
+* `-fillegals`, `-fno-illegals` – Whether should emit illegal (undocumented) NMOS opcodes.  
+`.ini` equivalent: `emit_illegals`. Default: no.
 
-* `-fjmp-fix`, `-fno-jmp-fix` – Whether should prevent indirect JMP bug on page boundary. `.ini` equivalent: `prevent_jmp_indirect_bug`.
+* `-fjmp-fix`, `-fno-jmp-fix` – Whether should prevent indirect JMP bug on page boundary.  
+`.ini` equivalent: `prevent_jmp_indirect_bug`. Default: no if targeting 65C02, yes otherwise.
                     
-* `-fdecimal-mode`, `-fno-decimal-mode` – Whether decimal mode should be available. `.ini` equivalent: `decimal_mode`.
+* `-fdecimal-mode`, `-fno-decimal-mode` – Whether decimal mode should be available.  
+`.ini` equivalent: `decimal_mode`. Default: no if targeting Ricoh, yes otherwise.
 
-* `-fvariable-overlap`, `-fno-variable-overlap` – Whether variables should overlap if their scopes do not intersect. Default: yes.
+* `-fvariable-overlap`, `-fno-variable-overlap` – Whether variables should overlap if their scopes do not intersect.  
+Default: yes.
 
-* `-fbounds-checking`, `-fnobounds-checking` – Whether should insert bounds checking on array access. Default: no.
+* `-fbounds-checking`, `-fnobounds-checking` – Whether should insert bounds checking on array access.  
+Default: no.
+
+* `-fcompact-dispatch-params`, `-fnocompact-dispatch-params` – 
+Whether parameter values in return dispatch statements may overlap other objects. 
+This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.  
+`.ini` equivalent: `compact_dispatch_params`. Default: yes.
 
 ## Optimization options
 

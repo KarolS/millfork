@@ -25,11 +25,12 @@ object InliningCalculator {
     program.declarations.foreach{
       case f:FunctionDeclarationStatement =>
         allFunctions += f.name
-        if (f.inlined) badFunctions += f.name
-        if (f.address.isDefined) badFunctions += f.name
-        if (f.interrupt) badFunctions += f.name
-        if (f.reentrant) badFunctions += f.name
-        if (f.name == "main") badFunctions += f.name
+        if (f.inlined
+          || f.address.isDefined
+          || f.interrupt
+          || f.reentrant
+          || f.name == "main"
+          || f.statements.exists(_.lastOption.exists(_.isInstanceOf[ReturnDispatchStatement]))) badFunctions += f.name
       case _ =>
     }
     allFunctions --= badFunctions
@@ -38,6 +39,8 @@ object InliningCalculator {
 
   private def getAllCalledFunctions(expressions: List[Node]): List[(String, Boolean)] = expressions.flatMap {
     case s: VariableDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.initialValue.toList)
+    case ReturnDispatchStatement(index, params, branches) =>
+      getAllCalledFunctions(List(index)) ++ getAllCalledFunctions(params) ++ getAllCalledFunctions(branches.map(b => b.function))
     case s: ArrayDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.elements.getOrElse(Nil))
     case s: FunctionDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.statements.getOrElse(Nil))
     case Assignment(VariableExpression(_), expr) => getAllCalledFunctions(expr :: Nil)

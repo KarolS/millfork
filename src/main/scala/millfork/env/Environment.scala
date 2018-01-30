@@ -434,7 +434,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         }
         val needsExtraRTS = !stmt.inlined && !stmt.assembly && (statements.isEmpty || !statements.last.isInstanceOf[ReturnStatement])
         if (stmt.inlined) {
-          val mangled = new InlinedFunction(
+          val mangled = InlinedFunction(
             name,
             resultType,
             params,
@@ -498,6 +498,16 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         addThing(RelativeVariable(v.name + ".hi", addr + 1, b, zeropage = false), stmt.position)
         addThing(RelativeVariable(v.name + ".lo", addr, b, zeropage = false), stmt.position)
     }
+  }
+
+  def registerUnnamedArray(array: InitializedArray): Unit = {
+    val b = get[Type]("byte")
+    val p = get[Type]("pointer")
+    if (!array.name.endsWith(".array")) ???
+    val pointerName = array.name.stripSuffix(".array")
+    addThing(ConstantThing(pointerName, array.toAddress, p), None)
+    addThing(ConstantThing(pointerName + ".addr", array.toAddress, p), None)
+    addThing(array, None)
   }
 
   def registerArray(stmt: ArrayDeclarationStatement): Unit = {

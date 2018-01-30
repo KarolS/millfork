@@ -306,7 +306,7 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
   def sizeInBytes: Int = addrMode match {
     case Implied => 1
     case Relative | ZeroPageX | ZeroPage | ZeroPageY | IndexedX | IndexedY | Immediate => 2
-    case AbsoluteX | Absolute | AbsoluteY | Indirect => 3
+    case AbsoluteIndexedX | AbsoluteX | Absolute | AbsoluteY | Indirect => 3
     case DoesNotExist => 0
   }
 

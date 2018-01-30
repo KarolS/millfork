@@ -223,7 +223,9 @@ case class NormalFunction(name: String,
   override def shouldGenerate = true
 }
 
-case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing
+case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing {
+  def map(f: Constant => Constant) = ConstantThing("", f(value), typ)
+}
 
 trait ParamSignature {
   def types: List[Type]

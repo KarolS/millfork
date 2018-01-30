@@ -5,7 +5,7 @@ import millfork.error.ErrorReporting
 /**
   * @author Karol Stasiak
   */
-class CompilationOptions(val platform: Platform, val commandLineFlags: Map[CompilationFlag.Value, Boolean]) {
+case class CompilationOptions(platform: Platform, commandLineFlags: Map[CompilationFlag.Value, Boolean]) {
 
   import CompilationFlag._
   import Cpu._
@@ -46,11 +46,11 @@ object Cpu extends Enumeration {
   import CompilationFlag._
 
   def defaultFlags(x: Cpu.Value): Set[CompilationFlag.Value] = x match {
-    case StrictMos => Set(DecimalMode, PreventJmpIndirectBug, VariableOverlap)
-    case Mos => Set(DecimalMode, PreventJmpIndirectBug, VariableOverlap)
-    case Ricoh => Set(PreventJmpIndirectBug, VariableOverlap)
-    case StrictRicoh => Set(PreventJmpIndirectBug, VariableOverlap)
-    case Cmos => Set(EmitCmosOpcodes, VariableOverlap)
+    case StrictMos => Set(DecimalMode, PreventJmpIndirectBug, VariableOverlap, CompactReturnDispatchParams)
+    case Mos => Set(DecimalMode, PreventJmpIndirectBug, VariableOverlap, CompactReturnDispatchParams)
+    case Ricoh => Set(PreventJmpIndirectBug, VariableOverlap, CompactReturnDispatchParams)
+    case StrictRicoh => Set(PreventJmpIndirectBug, VariableOverlap, CompactReturnDispatchParams)
+    case Cmos => Set(EmitCmosOpcodes, VariableOverlap, CompactReturnDispatchParams)
   }
 
   def fromString(name: String): Cpu.Value = name match {
@@ -77,7 +77,7 @@ object CompilationFlag extends Enumeration {
   // optimization options:
   DetailedFlowAnalysis, DangerousOptimizations, InlineFunctions,
   // memory allocation options
-  VariableOverlap,
+  VariableOverlap, CompactReturnDispatchParams,
   // runtime check options
   CheckIndexOutOfBounds,
   // warning options
@@ -94,6 +94,7 @@ object CompilationFlag extends Enumeration {
     "ro_arrays" -> ReadOnlyArrays,
     "ror_warn" -> RorWarning,
     "prevent_jmp_indirect_bug" -> PreventJmpIndirectBug,
+    "compact_dispatch_params" -> CompactReturnDispatchParams,
   )
 
 }

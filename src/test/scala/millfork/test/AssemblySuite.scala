@@ -132,4 +132,19 @@ class AssemblySuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(10))
   }
+
+  test("JSR") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | asm void main () {
+        |  JSR thing
+        |  RTS
+        | }
+        |
+        | void thing() {
+        |    output = 10
+        | }
+      """.stripMargin)(_.readByte(0xc000) should equal(10))
+  }
 }

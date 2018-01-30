@@ -63,7 +63,7 @@ object Main {
       ErrorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     })
-    val options = new CompilationOptions(platform, c.flags)
+    val options = CompilationOptions(platform, c.flags)
     ErrorReporting.debug("Effective flags: " + options.flags)
 
     val output = c.outputFileName.getOrElse("a")
@@ -195,6 +195,9 @@ object Main {
     boolean("-fvariable-overlap", "-fno-variable-overlap").action { (c, v) =>
       c.changeFlag(CompilationFlag.VariableOverlap, v)
     }.description("Whether variables should overlap if their scopes do not intersect.")
+    boolean("-fcompact-dispatch-params", "-fno-compact-dispatch-params").action { (c, v) =>
+      c.changeFlag(CompilationFlag.CompactReturnDispatchParams, v)
+    }.description("Whether parameter values in return dispatch statements may overlap other objects.")
     boolean("-fbounds-checking", "-fno-bounds-checking").action { (c, v) =>
       c.changeFlag(CompilationFlag.VariableOverlap, v)
     }.description("Whether should insert bounds checking on array access.")

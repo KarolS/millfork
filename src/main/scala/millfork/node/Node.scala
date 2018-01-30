@@ -138,6 +138,26 @@ case class ReturnStatement(value: Option[Expression]) extends ExecutableStatemen
   override def getAllExpressions: List[Expression] = value.toList
 }
 
+trait ReturnDispatchLabel extends Node {
+  def getAllExpressions: List[Expression]
+}
+
+case class DefaultReturnDispatchLabel(start: Option[Expression], end: Option[Expression]) extends ReturnDispatchLabel {
+  def getAllExpressions: List[Expression] = List(start, end).flatten
+}
+
+case class StandardReturnDispatchLabel(labels:List[Expression]) extends ReturnDispatchLabel {
+  def getAllExpressions: List[Expression] = labels
+}
+
+case class ReturnDispatchBranch(label: ReturnDispatchLabel, function: Expression, params: List[Expression]) extends Node {
+  def getAllExpressions: List[Expression] = label.getAllExpressions ++ params
+}
+
+case class ReturnDispatchStatement(indexer: Expression, params: List[LhsExpression], branches: List[ReturnDispatchBranch]) extends ExecutableStatement {
+  override def getAllExpressions: List[Expression] = indexer :: params ++ branches.flatMap(_.getAllExpressions)
+}
+
 case class Assignment(destination: LhsExpression, source: Expression) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(destination, source)
 }

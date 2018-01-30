@@ -12,6 +12,12 @@ even up to hardware damage.
 
 * reading uninitialized variables: will return undefined values
 
+* reading variables used by return dispatch statements but not assigned a value: will return undefined values
+
+* returning a value from a function by return dispatch to a function of different return type: will return undefined values
+
+* passing an index out of range for a return dispatch statement
+
 * stack overflow: exhausting the hardware stack due to excess recursion, excess function calls or excess stack-allocated variables
 
 * on ROM-based platforms: writing to arrays

@@ -191,7 +191,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
   } yield {
     val data = Files.readAllBytes(Paths.get(currentDirectory, filePath.mkString))
     val slice = optSlice.fold(data) {
-      case (start, length) => data.drop(start.value.toInt).take(length.value.toInt)
+      case (start, length) => data.slice(start.value.toInt, start.value.toInt + length.value.toInt)
     }
     slice.map(c => LiteralExpression(c & 0xff, 1)).toList
   }
@@ -211,6 +211,8 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
   } yield ArrayDeclarationStatement(name, length, addr, contents).pos(p)
 
   def tightMlExpression: P[Expression] = P(mlParenExpr | functionCall | mlIndexedExpression | atom) // TODO
+
+  def tightMlExpressionButNotCall: P[Expression] = P(mlParenExpr | mlIndexedExpression | atom) // TODO
 
   def mlExpression(level: Int): P[Expression] = {
     val allowedOperators = mlOperators.drop(level).flatten
@@ -285,7 +287,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       case (p, l, r) => Assignment(l, r).pos(p)
     }
 
-  def keywordStatement: P[ExecutableStatement] = P(returnStatement | ifStatement | whileStatement | forStatement | doWhileStatement | inlineAssembly | assignmentStatement)
+  def keywordStatement: P[ExecutableStatement] = P(returnOrDispatchStatement | ifStatement | whileStatement | forStatement | doWhileStatement | inlineAssembly | assignmentStatement)
 
   def executableStatement: P[ExecutableStatement] = (position() ~ P(keywordStatement | expressionStatement)).map { case (p, s) => s.pos(p) }
 
@@ -336,7 +338,34 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def executableStatements: P[Seq[ExecutableStatement]] = "{" ~/ AWS ~/ executableStatement.rep(sep = EOL ~ !"}" ~/ Pass) ~/ AWS ~ "}"
 
-  def returnStatement: P[ExecutableStatement] = ("return" ~ !letterOrDigit ~/ HWS ~ mlExpression(nonStatementLevel).?).map(ReturnStatement)
+  def dispatchLabel: P[ReturnDispatchLabel] =
+    ("default" ~ !letterOrDigit ~/ AWS ~/ ("(" ~/ position("default branch range") ~ AWS ~/ mlExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?).map{
+      case None => DefaultReturnDispatchLabel(None, None)
+      case Some((_, Seq())) => DefaultReturnDispatchLabel(None, None)
+      case Some((_, Seq(e))) => DefaultReturnDispatchLabel(None, Some(e))
+      case Some((_, Seq(s, e))) => DefaultReturnDispatchLabel(Some(s), Some(e))
+      case Some((pos, _)) =>
+        ErrorReporting.error("Invalid default branch declaration", Some(pos))
+        DefaultReturnDispatchLabel(None, None)
+    } | mlExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS).map(exprs => StandardReturnDispatchLabel(exprs.toList))
+
+  def dispatchBranch: P[ReturnDispatchBranch] = for {
+    pos <- position()
+    l <- dispatchLabel ~/ HWS ~/ "@" ~/ HWS
+    f <- tightMlExpressionButNotCall ~/ HWS
+    parameters <- ("(" ~/ position("dispatch actual parameters") ~ AWS ~/ mlExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?
+  } yield ReturnDispatchBranch(l, f, parameters.map(_._2.toList).getOrElse(Nil)).pos(pos)
+
+  def dispatchStatementBody: P[ExecutableStatement] = for {
+    indexer <- "[" ~/ AWS ~/ mlExpression(nonStatementLevel) ~/ AWS ~/ "]" ~/ AWS
+    _ <- position("dispatch statement body")
+    parameters <- ("(" ~/ position("dispatch parameters") ~ AWS ~/ mlLhsExpression.rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?
+    _ <- AWS ~/ position("dispatch statement body") ~/ "{" ~/ AWS
+    branches <- dispatchBranch.rep(sep = EOL ~ !"}" ~/ Pass)
+    _ <- AWS ~/ "}"
+  } yield ReturnDispatchStatement(indexer, parameters.map(_._2.toList).getOrElse(Nil), branches.toList)
+
+  def returnOrDispatchStatement: P[ExecutableStatement] = "return" ~ !letterOrDigit ~/ HWS ~ (dispatchStatementBody | mlExpression(nonStatementLevel).?.map(ReturnStatement))
 
   def ifStatement: P[ExecutableStatement] = for {
     condition <- "if" ~ !letterOrDigit ~/ HWS ~/ mlExpression(nonStatementLevel)

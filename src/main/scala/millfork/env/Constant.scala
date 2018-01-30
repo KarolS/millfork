@@ -36,7 +36,7 @@ sealed trait Constant {
 
   def +(that: Long): Constant = if (that == 0) this else this + NumericConstant(that, minimumSize(that))
 
-  def -(that: Long): Constant = this + (-that)
+  def -(that: Long): Constant = if (that == 0) this else this - NumericConstant(that, minimumSize(that))
 
   def loByte: Constant = {
     if (requiredSize == 1) return this
@@ -87,6 +87,8 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
 
   override def +(that: Long) = NumericConstant(value + that, minimumSize(value + that))
 
+  override def -(that: Long) = NumericConstant(value - that, minimumSize(value - that))
+
   override def toString: String = if (value > 9) value.formatted("$%X") else value.toString
 
   override def isRelatedTo(v: Variable): Boolean = false
@@ -115,7 +117,7 @@ case class HalfWordConstant(base: Constant, hi: Boolean) extends Constant {
 
   override def requiredSize = 1
 
-  override def toString: String = base + (if (hi) ".hi" else ".lo")
+  override def toString: String = (if (base.isInstanceOf[CompoundConstant]) s"($base)" else base) + (if (hi) ".hi" else ".lo")
 
   override def isRelatedTo(v: Variable): Boolean = base.isRelatedTo(v)
 }
@@ -191,6 +193,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case _ => super.+(that)
     }
   }
+
+  override def -(that: Long): Constant = this + (-that)
 
   override def +(that: Long): Constant = {
     if (that == 0) {

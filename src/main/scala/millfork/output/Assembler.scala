@@ -171,6 +171,12 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
       }
     }
 
+    rootEnv.things.foreach{case (name, thing) =>
+        if (!env.things.contains(name)) {
+          env.things(name) = thing
+        }
+    }
+
     val bank0 = mem.banks(0)
 
     env.allPreallocatables.foreach {

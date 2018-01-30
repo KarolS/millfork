@@ -56,6 +56,8 @@ object UnusedFunctions extends NodeOptimization {
     case s: ArrayDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.elements.getOrElse(Nil))
     case s: FunctionDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.statements.getOrElse(Nil))
     case Assignment(VariableExpression(_), expr) => getAllCalledFunctions(expr :: Nil)
+    case s: ReturnDispatchStatement =>
+      getAllCalledFunctions(s.getAllExpressions) ++ getAllCalledFunctions(s.branches.map(_.function))
     case s: Statement => getAllCalledFunctions(s.getAllExpressions)
     case s: VariableExpression => List(
           s.name,

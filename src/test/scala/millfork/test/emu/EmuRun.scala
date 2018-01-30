@@ -90,10 +90,12 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     Console.err.flush()
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val options = new CompilationOptions(platform, Map(
+    val options = CompilationOptions(platform, Map(
       CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.DetailedFlowAnalysis -> quantum,
       CompilationFlag.InlineFunctions -> this.inline,
+      CompilationFlag.CompactReturnDispatchParams -> true,
+      CompilationFlag.EmitCmosOpcodes -> (platform.cpu == millfork.Cpu.Cmos),
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
     ))
     ErrorReporting.hasErrors = false
@@ -113,7 +115,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
         var unoptimizedSize = 0L
-        // print asm
+        // print unoptimized asm
         env.allPreallocatables.foreach {
           case f: NormalFunction =>
             val result = MfCompiler.compile(CompilationContext(f.environment, f, 0, options))
@@ -129,7 +131,9 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
 
         // compile
-        val assembler = new Assembler(program, env)
+        val env2 = new Environment(None, "")
+        env2.collectDeclarations(program, options)
+        val assembler = new Assembler(program, env2)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).foreach(println)
@@ -148,6 +152,11 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         ErrorReporting.assertNoErrors("Code generation failed")
 
         val memoryBank = assembler.mem.banks(0)
+        if (source.contains("return [")) {
+          for (_ <- 0 until 10; i <- 0xfffe.to(0, -1)) {
+            if (memoryBank.readable(i)) memoryBank.readable(i + 1) = true
+          }
+        }
         platform.cpu match {
           case millfork.Cpu.Cmos =>
             runViaSymon(memoryBank, platform.org, CpuBehavior.CMOS_6502)
