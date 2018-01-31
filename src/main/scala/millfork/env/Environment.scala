@@ -702,6 +702,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       case a: ArrayDeclarationStatement => registerArray(a)
       case i: ImportStatement => ()
     }
+    if (!things.contains("__constant8")) {
+      things("__constant8") = InitializedArray("__constant8", None, List(NumericConstant(8, 1)))
+    }
   }
 
   private def checkName[T <: Thing : Manifest](objType: String, name: String, pos: Option[Position]): Unit = {

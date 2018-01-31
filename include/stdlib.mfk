@@ -43,3 +43,5 @@ _lo_nibble_to_hex_lbl:
 inline asm void panic() {
     JSR _panic
 }
+
+array __constant8 = [8]

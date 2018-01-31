@@ -50,14 +50,12 @@ object MfCompiler {
     val prefix = (if (ctx.function.interrupt) {
       if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
         List(
-          AssemblyLine.implied(SEI),
           AssemblyLine.implied(PHA),
           AssemblyLine.implied(PHX),
           AssemblyLine.implied(PHY),
           AssemblyLine.implied(CLD))
       } else {
         List(
-          AssemblyLine.implied(SEI),
           AssemblyLine.implied(PHA),
           AssemblyLine.implied(TXA),
           AssemblyLine.implied(PHA),
@@ -1046,6 +1044,10 @@ object MfCompiler {
             assertAllBytes("Long multiplication not supported", ctx, params)
             val (l, r, 1) = assertAssignmentLike(ctx, params)
             BuiltIns.compileInPlaceByteMultiplication(ctx, l, r)
+          case "*'=" =>
+            assertAllBytes("Long multiplication not supported", ctx, params)
+            val (l, r, 1) = assertAssignmentLike(ctx, params)
+            DecimalBuiltIns.compileInPlaceByteMultiplication(ctx, l, r)
           case "&=" =>
             val (l, r, size) = assertAssignmentLike(ctx, params)
             size match {
@@ -1443,7 +1445,6 @@ object MfCompiler {
           AssemblyLine.implied(PLY),
           AssemblyLine.implied(PLX),
           AssemblyLine.implied(PLA),
-          AssemblyLine.implied(CLI),
           AssemblyLine.implied(RTI))
       } else {
         List(
@@ -1452,7 +1453,6 @@ object MfCompiler {
           AssemblyLine.implied(PLA),
           AssemblyLine.implied(TAX),
           AssemblyLine.implied(PLA),
-          AssemblyLine.implied(CLI),
           AssemblyLine.implied(RTI))
       }
     } else {

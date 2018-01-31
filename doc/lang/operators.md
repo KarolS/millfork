@@ -27,7 +27,7 @@ Millfork has different operator precedence compared to most other languages. Fro
 You cannot use two different operators at the same precedence levels without using parentheses to disambiguate. 
 It is to prevent confusion about whether `a + b & c << d` means `(a + b) & (c << d)` `((a + b) & c) << d` or something else.   
 The only exceptions are `+` and `-`, and `+'` and `-'`. 
-They are interpeted as expected: `5 - 3 + 2 == 4` and `5 -' 3 +' 2 == 4`.  
+They are interpreted as expected: `5 - 3 + 2 == 4` and `5 -' 3 +' 2 == 4`.  
 Note that you cannot mix `+'` and `-'` with `+` and `-`. 
 
 ## Argument types
@@ -154,7 +154,8 @@ and fail to compile otherwise. This will be changed in the future.
 * `*=`: multiplication in place  
 `mutable byte *= constant byte`
 
-There is no `*'=` operator yet.
+* `*'=`: decimal multiplication in place  
+`mutable byte *'= constant byte`
 
 ## Indexing
 
@@ -166,6 +167,6 @@ An expression of form `a[i]`, where `i` is an expression of type `byte`, is:
 
 * when `a` is a pointer variable: an access to the byte in memory at address `a + i`
 
-Those exrpressions are of type `byte`. If `a` is any other kind of expression, `a[i]` is invalid.
+Those expressions are of type `byte`. If `a` is any other kind of expression, `a[i]` is invalid.
 
 
