@@ -145,8 +145,10 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.copy(n = Important)
           case AssemblyLine(SED | CLD, _, _, _) =>
             currentImportance = currentImportance.copy(d = Unimportant)
-          case AssemblyLine(RTS | RTI, _, _, _) =>
+          case AssemblyLine(RTS, _, _, _) =>
             currentImportance = finalImportance
+          case AssemblyLine(RTI, _, _, _) =>
+            currentImportance = new CpuImportance(a = Unimportant, x = Unimportant, y = Unimportant, z = Unimportant, n = Unimportant, c = Unimportant, v = Unimportant, d = Unimportant)
           case AssemblyLine(DISCARD_XF, _, _, _) =>
             currentImportance = currentImportance.copy(x = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)
           case AssemblyLine(DISCARD_YF, _, _, _) =>

@@ -194,6 +194,47 @@ object AlwaysGoodOptimizations {
     operationPairBuilder(DEY, INY, Not(ConcernsX) & Not(ReadsNOrZ)),
   )
 
+
+  private def operationPairBuilder2(op1: Opcode.Value, op1extra: AssemblyLinePattern, middle: AssemblyLinePattern,op2: Opcode.Value,  op2extra: AssemblyLinePattern) = {
+    (HasOpcode(op1) & Elidable & op1extra) ~
+      (Linear & middle).*.capture(1) ~
+      (HasOpcode(op2) & Elidable & op2extra) ~~> { (_, ctx) =>
+      ctx.get[List[AssemblyLine]](1)
+    }
+  }
+
+  val PointlessOperationPairRemoval2 = new RuleBasedAssemblyOptimization("Pointless operation pair 2",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    operationPairBuilder2(
+      PHA, Anything,
+      Not(ConcernsStack),
+      PLA, DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)),
+    operationPairBuilder2(
+      PHX, Anything,
+      Not(ConcernsStack),
+      PLX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z)),
+    operationPairBuilder2(
+      PHY, Anything,
+      Not(ConcernsStack),
+      PLY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)),
+    operationPairBuilder2(
+      INX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z),
+      Anything,
+      DEX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z)),
+    operationPairBuilder2(
+      DEX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z),
+      Anything,
+      INX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z)),
+    operationPairBuilder2(
+      INY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z),
+      Anything,
+      DEY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)),
+    operationPairBuilder2(
+      DEY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z),
+      Anything,
+      INY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)),
+  )
+
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~

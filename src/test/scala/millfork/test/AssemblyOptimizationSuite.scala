@@ -2,7 +2,7 @@ package millfork.test
 
 import millfork.{Cpu, OptimizationPresets}
 import millfork.assembly.opt.{AlwaysGoodOptimizations, LaterOptimizations, VariableToRegisterOptimization}
-import millfork.test.emu.{EmuBenchmarkRun, EmuUltraBenchmarkRun, EmuRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuRun, EmuSuperOptimizedRun, EmuUltraBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -291,5 +291,15 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(ptrl + 3) should equal(2)
       m.readWord(0xc00c) should equal(0x201)
     }
+  }
+
+  test("Empty interrupt"){
+    EmuSuperOptimizedRun(
+      """
+        | void main () {
+        | }
+        | interrupt void i (){}
+        |
+      """.stripMargin)
   }
 }
