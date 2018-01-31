@@ -31,7 +31,7 @@ It is possible to make a safe nested call to a non-nesting safe function, provid
 
 * the function cannot modify its parameters
 
-* the non-nested parameters have to have the same values in all co-occuring calls: `f(5, f(5, 6, 7), 7)`
+* the non-nested parameters have to have the same values in all co-occurring calls: `f(5, f(5, 6, 7), 7)`
 
 In all other cases, the nested call may cause undefined behaviour.
 
@@ -49,7 +49,7 @@ Since most automatic variables will be overwritten by the inner call, the functi
 
 In all other cases, the recursive call may cause undefined behaviour.
 
-The easiest, but unoptimal way to make a function recursion-safe is to make all local variables stack-allocated
+The easiest, but suboptimal way to make a function recursion-safe is to make all local variables stack-allocated
 and assigning all parameters to variables as soon as possible. This is slow though, so don't do it unless really necessary.
 
 ## Interrupt safety

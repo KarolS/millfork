@@ -25,7 +25,7 @@
 
 ## Verbosity options
 
- * `-q` – Supress all messages except for errors.
+ * `-q` – Suppress all messages except for errors.
 
 * `-v`, `-vv`, `-vvv` – Increase verbosity, various levels.
 

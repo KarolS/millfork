@@ -8,7 +8,7 @@ To call an external function, you need to declare it as `asm extern`. For exampl
 asm void putchar(byte a) @$FFD2 extern
 ```
 
-The function parameter will be passwed via the accumulator,
+The function parameter will be passed via the accumulator,
 the function itself is located in ROM at $FFD2. A call like this:
 
 ```

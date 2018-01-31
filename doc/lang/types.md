@@ -15,7 +15,7 @@ Millfork puts extra limitations on which types can be used in which contexts.
 * `ubyte` – unsigned 1-byte value
 
 * `pointer` – the same as `word`, but variables of this type default to be zero-page-allocated
-and you can index `pointer` variables (not abritrary `pointer`-typed expressions though, `f()[0]` won't compile)
+and you can index `pointer` variables (not arbitrary `pointer`-typed expressions though, `f()[0]` won't compile)
 
 Functions cannot return types longer than 2 bytes. 
 
