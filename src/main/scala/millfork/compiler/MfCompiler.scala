@@ -1105,14 +1105,14 @@ object MfCompiler {
             }
             lookupFunction(ctx, f) match {
               case function: InlinedFunction =>
-                inlineFunction(function, params, Some(ctx)).map {
+                val (paramPreparation, statements) = inlineFunction(ctx, function, params)
+                paramPreparation ++ statements.map {
                   case AssemblyStatement(opcode, addrMode, expression, elidable) =>
                     val param = env.evalForAsm(expression).getOrElse {
                       ErrorReporting.error("Inlining failed due to non-constant things", expression.position)
                       Constant.Zero
                     }
                     AssemblyLine(opcode, addrMode, param, elidable)
-
                 }
               case function: EmptyFunction =>
                 ??? // TODO: type conversion?
@@ -1344,18 +1344,20 @@ object MfCompiler {
     SequenceChunk(statements.map(s => compile(ctx, s)))
   }
 
-  def inlineFunction(i: InlinedFunction, params: List[Expression], cc: Option[CompilationContext]): List[ExecutableStatement] = {
+  def inlineFunction(ctx: CompilationContext, i: InlinedFunction, params: List[Expression]): (List[AssemblyLine], List[ExecutableStatement]) = {
+    var paramPreparation = List[AssemblyLine]()
     var actualCode = i.code
     i.params match {
       case AssemblyParamSignature(assParams) =>
+        var hadRegisterParam = false
         assParams.zip(params).foreach {
           case (AssemblyParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByReference), actualParam) =>
             actualParam match {
               case VariableExpression(vname) =>
-                cc.foreach(_.env.get[ThingInMemory](vname))
+                ctx.env.get[ThingInMemory](vname)
               case l: LhsExpression =>
                 // TODO: ??
-                cc.foreach(c => compileByteStorage(c, Register.A, l))
+                compileByteStorage(ctx, Register.A, l)
               case _ =>
                 ErrorReporting.error("A non-assignable expression was passed to an inlineable function as a `ref` parameter", actualParam.position)
             }
@@ -1365,12 +1367,18 @@ object MfCompiler {
               case x => x
             }
           case (AssemblyParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByConstant), actualParam) =>
-            cc.foreach(_.env.eval(actualParam).getOrElse(Constant.error("Non-constant expression was passed to an inlineable function as a `const` parameter", actualParam.position)))
+            ctx.env.eval(actualParam).getOrElse(Constant.error("Non-constant expression was passed to an inlineable function as a `const` parameter", actualParam.position))
             actualCode = actualCode.map {
               case a@AssemblyStatement(_, _, expr, _) =>
                 a.copy(expression = expr.replaceVariable(ph, actualParam))
               case x => x
             }
+          case (AssemblyParam(typ, v@RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy), actualParam) =>
+            if (hadRegisterParam) {
+              ErrorReporting.error("Only one inline assembly function parameter can be passed via a register")
+            }
+            hadRegisterParam = true
+            paramPreparation = compile(ctx, actualParam, Some(typ, v), BranchSpec.None)
           case (AssemblyParam(_, _, AssemblyParameterPassingBehaviour.Copy), actualParam) =>
             ???
           case (_, actualParam) =>
@@ -1378,7 +1386,18 @@ object MfCompiler {
       case NormalParamSignature(Nil) =>
       case NormalParamSignature(normalParams) => ???
     }
-    actualCode
+    // fix local labels:
+    // TODO: do it even if the labels are in an inline assembly block inside a Millfork function
+    val localLabels = actualCode.flatMap{
+      case AssemblyStatement(LABEL, _, VariableExpression(l), _) => Some(l)
+      case _ => None
+    }.toSet
+    val labelPrefix = nextLabel("il")
+    paramPreparation -> actualCode.map{
+      case s@AssemblyStatement(_, _, VariableExpression(v), _) if localLabels(v) =>
+        s.copy(expression =  VariableExpression(labelPrefix + v))
+      case s => s
+    }
   }
 
   def stackPointerFixAtBeginning(ctx: CompilationContext): List[AssemblyLine] = {
@@ -1483,7 +1502,8 @@ object MfCompiler {
       case ExpressionStatement(e@FunctionCallExpression(name, params)) =>
         env.lookupFunction(name, params.map(p => getExpressionType(ctx, p) -> p)) match {
           case Some(i: InlinedFunction) =>
-            compile(ctx, inlineFunction(i, params, Some(ctx)))
+            val (paramPreparation, inlinedStatements) = inlineFunction(ctx, i, params)
+            SequenceChunk(List(LinearChunk(paramPreparation), compile(ctx, inlinedStatements)))
           case _ =>
             LinearChunk(compile(ctx, e, None, NoBranching))
         }

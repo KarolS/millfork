@@ -13,8 +13,7 @@ class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
   test("Poke test 1") {
     EmuBenchmarkRun(
       """
-        | inline asm void poke(word ref addr, byte const value) {
-        |    ?LDA #value
+        | inline asm void poke(word ref addr, byte a) {
         |    STA addr
         | }
         |
@@ -46,8 +45,7 @@ class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
   test("Poke test 2") {
     EmuBenchmarkRun(
       """
-        | inline asm void poke(word const addr, byte const value) {
-        |    ?LDA #value
+        | inline asm void poke(word const addr, byte a) {
         |    STA addr
         | }
         |
@@ -60,6 +58,7 @@ class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(5)
     }
   }
+
   test("Peek test 2") {
     EmuBenchmarkRun(
       """
@@ -75,6 +74,29 @@ class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
         | }
       """.stripMargin) { m =>
       m.readByte(0xc000) should equal(5)
+    }
+  }
+
+  test("Labels test") {
+    EmuBenchmarkRun(
+      """
+        | inline asm void doNothing () {
+        |    JMP label
+        |    label:
+        | }
+        |
+        | byte output @$c000
+        | void main () {
+        |   output = 0
+        |   doNothing()
+        |   output += 1
+        |   doNothing()
+        |   output += 1
+        |   doNothing()
+        |   output += 1
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(3)
     }
   }
 }

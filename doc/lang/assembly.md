@@ -58,11 +58,12 @@ Assembly functions can be declared as `inline` or not.
 
 An inline assembly function is inserted into the calling function like an inline assembly block,
 and therefore usually it shouldn't end with `RTS` or `RTI`.
-The return type on inline functions has to be `void`.
 
 A non-inline assembly function should end with `RTS`, `JMP` or `RTI` as appropriate,
 or it should be an external function. 
-Their return type can be any valid return type, like for Millfork functions.  
+
+For both inline and non-inline assembly functions,
+the return type can be any valid return type, like for Millfork functions.  
 If the size of the return type is one byte, 
 then the result is passed via the accumulator.  
 If the size of the return type is two bytes,
@@ -102,6 +103,8 @@ Non-inline functions can only have their parameters passed via registers:
 * `byte a`, `byte x`, `byte y`: a single byte passed via the given CPU register
 
 * `word xa`, `word ax`, `word ay`, `word ya`, `word xy`, `word yx`: a 2-byte word byte passed via given two CPU registers, with the high byte passed through the first register and the low byte passed through the second register
+
+Inline assembly functions can have maximum one parameter passed via a register.
 
 ### External functions
 
