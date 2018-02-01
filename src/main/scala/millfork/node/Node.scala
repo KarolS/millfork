@@ -97,6 +97,7 @@ case class VariableDeclarationStatement(name: String,
                                         stack: Boolean,
                                         constant: Boolean,
                                         volatile: Boolean,
+                                        register: Boolean,
                                         initialValue: Option[Expression],
                                         address: Option[Expression]) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = List(initialValue, address).flatten
@@ -121,7 +122,8 @@ case class FunctionDeclarationStatement(name: String,
                                         params: List[ParameterDeclaration],
                                         address: Option[Expression],
                                         statements: Option[List[Statement]],
-                                        inlined: Boolean,
+                                        isMacro: Boolean,
+                                        inlinable: Option[Boolean],
                                         assembly: Boolean,
                                         interrupt: Boolean,
                                         reentrant: Boolean) extends DeclarationStatement {

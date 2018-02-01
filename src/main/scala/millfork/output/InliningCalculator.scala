@@ -14,10 +14,14 @@ object InliningCalculator {
 
   private val sizes = Seq(64, 64, 8, 6, 5, 5, 4)
 
-  def getPotentiallyInlineableFunctions(program: Program): Map[String, Int] = {
+  def getPotentiallyInlineableFunctions(program: Program,
+                                        inlineByDefault: Boolean,
+                                        aggressivenessForNormal: Double = 1.0,
+                                        aggressivenessForRecommended: Double = 1.2): Map[String, Int] = {
     val callCount = mutable.Map[String, Int]().withDefaultValue(0)
     val allFunctions = mutable.Set[String]()
     val badFunctions = mutable.Set[String]()
+    val recommendedFunctions = mutable.Set[String]()
     getAllCalledFunctions(program.declarations).foreach{
       case (name, true) => badFunctions += name
       case (name, false) => callCount(name) += 1
@@ -25,7 +29,11 @@ object InliningCalculator {
     program.declarations.foreach{
       case f:FunctionDeclarationStatement =>
         allFunctions += f.name
-        if (f.inlined
+        if (f.inlinable.contains(true)) {
+          recommendedFunctions += f.name
+        }
+        if (f.isMacro
+          || f.inlinable.contains(false)
           || f.address.isDefined
           || f.interrupt
           || f.reentrant
@@ -34,7 +42,12 @@ object InliningCalculator {
       case _ =>
     }
     allFunctions --= badFunctions
-    allFunctions.map(f => f -> sizes(callCount(f) min (sizes.size - 1))).toMap
+    recommendedFunctions --= badFunctions
+    (if (inlineByDefault) allFunctions else recommendedFunctions).map(f => f -> {
+      val size = sizes(callCount(f) min (sizes.size - 1))
+      val aggressiveness = if (recommendedFunctions(f)) aggressivenessForRecommended else aggressivenessForNormal
+      (size * aggressiveness).floor.toInt
+    }).toMap
   }
 
   private def getAllCalledFunctions(expressions: List[Node]): List[(String, Boolean)] = expressions.flatMap {
@@ -71,6 +84,9 @@ object InliningCalculator {
     if (code.isEmpty) return None
     if (code.last.opcode != RTS) return None
     var result = code.init
+    while (result.nonEmpty && OpcodeClasses.NoopDiscardsFlags(result.last.opcode)) {
+      result = result.init
+    }
     if (result.head.opcode == LABEL && result.head.parameter == Label(fname).toAddress) result = result.tail
     if (result.exists(l => badOpcodes(l.opcode))) return None
     Some(result)

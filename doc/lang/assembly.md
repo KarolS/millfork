@@ -54,15 +54,15 @@ Currently there is no way to insert raw bytes into inline assembly
 
 ## Assembly functions
 
-Assembly functions can be declared as `inline` or not. 
+Assembly functions can be declared as `macro` or not. 
 
-An inline assembly function is inserted into the calling function like an inline assembly block,
+A macro assembly function is inserted into the calling function like an inline assembly block,
 and therefore usually it shouldn't end with `RTS` or `RTI`.
 
-A non-inline assembly function should end with `RTS`, `JMP` or `RTI` as appropriate,
+A non-macro assembly function should end with `RTS`, `JMP` or `RTI` as appropriate,
 or it should be an external function. 
 
-For both inline and non-inline assembly functions,
+For both macro and non-macro assembly functions,
 the return type can be any valid return type, like for Millfork functions.  
 If the size of the return type is one byte, 
 then the result is passed via the accumulator.  
@@ -76,7 +76,7 @@ and the high byte of the result is passed via the X register.
 An assembly function can have parameters. 
 They differ from what is used by Millfork functions.
 
-Inline assembly functions can have the following parameter types:
+Macro assembly functions can have the following parameter types:
 
 * reference parameters: `byte ref paramname`: every occurrence of the parameter will be replaced with the variable given as an argument
 
@@ -98,13 +98,13 @@ and call `increase(score, 10)`, the entire call will compile into:
     ADC #10
     STA score
 
-Non-inline functions can only have their parameters passed via registers:
+Non-macro functions can only have their parameters passed via registers:
 
 * `byte a`, `byte x`, `byte y`: a single byte passed via the given CPU register
 
 * `word xa`, `word ax`, `word ay`, `word ya`, `word xy`, `word yx`: a 2-byte word byte passed via given two CPU registers, with the high byte passed through the first register and the low byte passed through the second register
 
-Inline assembly functions can have maximum one parameter passed via a register.
+Macro assembly functions can have maximum one parameter passed via a register.
 
 ### External functions
 

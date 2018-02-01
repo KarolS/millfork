@@ -61,7 +61,7 @@ class AssemblySuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc000) should equal(10))
   }
 
-  test("Inline asm functions") {
+  test("Macro asm functions") {
     EmuBenchmarkRun(
       """
         | byte output @$c000
@@ -70,14 +70,14 @@ class AssemblySuite extends FunSuite with Matchers {
         |  f()
         |  f()
         | }
-        | inline asm void f() {
+        | macro asm void f() {
         |   inc $c000
         |   rts
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(1))
   }
 
-  test("Inline asm functions 2") {
+  test("macro asm functions 2") {
     EmuBenchmarkRun(
       """
         | byte output @$c000
@@ -86,7 +86,7 @@ class AssemblySuite extends FunSuite with Matchers {
         |  add(output, 5)
         |  add(output, 5)
         | }
-        | inline asm void add(byte ref v, byte const c) {
+        | macro asm void add(byte ref v, byte const c) {
         |   lda v
         |   clc
         |   adc #c
@@ -104,7 +104,7 @@ class AssemblySuite extends FunSuite with Matchers {
         |  output = 0
         |  add256(output)
         | }
-        | inline asm void add256(word ref v) {
+        | macro asm void add256(word ref v) {
         |   inc v+1
         | }
       """.stripMargin)(_.readWord(0xc000) should equal(0x100))

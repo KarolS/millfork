@@ -8,12 +8,12 @@ import org.scalatest.{FunSuite, Matchers}
 /**
   * @author Karol Stasiak
   */
-class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
+class AssemblyMacroSuite extends FunSuite with Matchers {
 
   test("Poke test 1") {
     EmuBenchmarkRun(
       """
-        | inline asm void poke(word ref addr, byte a) {
+        | macro asm void poke(word ref addr, byte a) {
         |    STA addr
         | }
         |
@@ -28,7 +28,7 @@ class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
   test("Peek test 1") {
     EmuBenchmarkRun(
       """
-        | inline asm byte peek(word ref addr) {
+        | macro asm byte peek(word ref addr) {
         |    ?LDA addr
         | }
         |
@@ -45,7 +45,7 @@ class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
   test("Poke test 2") {
     EmuBenchmarkRun(
       """
-        | inline asm void poke(word const addr, byte a) {
+        | macro asm void poke(word const addr, byte a) {
         |    STA addr
         | }
         |
@@ -62,7 +62,7 @@ class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
   test("Peek test 2") {
     EmuBenchmarkRun(
       """
-        | inline asm byte peek(word const addr) {
+        | macro asm byte peek(word const addr) {
         |    ?LDA addr
         | }
         |
@@ -80,7 +80,7 @@ class InlineAssemblyFunctionsSuite extends FunSuite with Matchers {
   test("Labels test") {
     EmuBenchmarkRun(
       """
-        | inline asm void doNothing () {
+        | macro asm void doNothing () {
         |    JMP label
         |    label:
         | }

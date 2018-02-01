@@ -106,7 +106,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     List("&&"),
     List("==", "<=", ">=", "!=", "<", ">"),
     List(":"),
-    List("+'", "-'", "<<'", ">>'", ">>>>", "+", "-", "&", "|", "^", "<<", ">>"),
+    List("+'", "-'", "<<'", ">>'", "<<<<", ">>>>", "+", "-", "&", "|", "^", "<<", ">>"),
     List("*'", "*"))
 
   val nonStatementLevel = 1 // everything but not `=`
@@ -116,7 +116,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def variableDefinition(implicitlyGlobal: Boolean): P[DeclarationStatement] = for {
     p <- position()
-    flags <- flags("const", "static", "volatile", "stack") ~ HWS
+    flags <- flags("const", "static", "volatile", "stack", "register") ~ HWS
     typ <- identifier ~ SWS
     name <- identifier ~/ HWS ~/ Pass
     addr <- ("@" ~/ HWS ~/ mlExpression(1)).?.opaque("<address>") ~ HWS
@@ -128,6 +128,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       stack = flags("stack"),
       constant = flags("const"),
       volatile = flags("volatile"),
+      register = flags("register"),
       initialValue, addr).pos(p)
   }
 
@@ -332,11 +333,11 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def statement: P[Statement] = (position() ~ P(keywordStatement | variableDefinition(false) | expressionStatement)).map { case (p, s) => s.pos(p) }
 
-  def asmStatements: P[List[ExecutableStatement]] = ("{" ~/ AWS ~/ asmStatement.rep(sep = EOL ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
+  def asmStatements: P[List[ExecutableStatement]] = ("{" ~/ AWS ~/ asmStatement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
 
-  def statements: P[List[Statement]] = ("{" ~/ AWS ~ statement.rep(sep = EOL ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
+  def statements: P[List[Statement]] = ("{" ~/ AWS ~ statement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
 
-  def executableStatements: P[Seq[ExecutableStatement]] = "{" ~/ AWS ~/ executableStatement.rep(sep = EOL ~ !"}" ~/ Pass) ~/ AWS ~ "}"
+  def executableStatements: P[Seq[ExecutableStatement]] = "{" ~/ AWS ~/ executableStatement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~ "}"
 
   def dispatchLabel: P[ReturnDispatchLabel] =
     ("default" ~ !letterOrDigit ~/ AWS ~/ ("(" ~/ position("default branch range") ~ AWS ~/ mlExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?).map{
@@ -406,16 +407,19 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def functionDefinition: P[DeclarationStatement] = for {
     p <- position()
-    flags <- flags("asm", "inline", "interrupt", "reentrant") ~ HWS
+    flags <- flags("asm", "inline", "interrupt", "macro", "noinline", "reentrant") ~ HWS
     returnType <- identifier ~ SWS
     name <- identifier ~ HWS
     params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
     addr <- ("@" ~/ HWS ~/ mlExpression(1)).?.opaque("<address>") ~/ AWS
     statements <- (externFunctionBody | (if (flags("asm")) asmStatements else statements).map(l => Some(l))) ~/ Pass
   } yield {
-    if (flags("interrupt") && flags("inline")) ErrorReporting.error(s"Interrupt function `$name` cannot be inline", Some(p))
+    if (flags("interrupt") && flags("macro")) ErrorReporting.error(s"Interrupt function `$name` cannot be macros", Some(p))
     if (flags("interrupt") && flags("reentrant")) ErrorReporting.error("Interrupt function `$name` cannot be reentrant", Some(p))
-    if (flags("inline") && flags("reentrant")) ErrorReporting.error("Reentrant and inline exclude each other", Some(p))
+    if (flags("macro") && flags("reentrant")) ErrorReporting.error("Reentrant and macro exclude each other", Some(p))
+    if (flags("inline") && flags("noinline")) ErrorReporting.error("Noinline and inline exclude each other", Some(p))
+    if (flags("macro") && flags("noinline")) ErrorReporting.error("Noinline and macro exclude each other", Some(p))
+    if (flags("inline") && flags("macro")) ErrorReporting.error("Macro and inline exclude each other", Some(p))
     if (flags("interrupt") && returnType != "void") ErrorReporting.error("Interrupt function `$name` has to return void", Some(p))
     if (addr.isEmpty && statements.isEmpty) ErrorReporting.error("Extern function `$name` must have an address", Some(p))
     if (statements.isEmpty && !flags("asm") && params.nonEmpty) ErrorReporting.error("Extern non-asm function `$name` cannot have parameters", Some(p))
@@ -433,14 +437,14 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
             case _ => false
           }) ErrorReporting.warn("Assembly non-interrupt function `$name` contains RTI, did you mean RTS?", options, Some(p))
         }
-        if (!flags("inline")) {
+        if (!flags("macro")) {
           xs.last match {
             case AssemblyStatement(Opcode.RTS, _, _, _) => () // OK
             case AssemblyStatement(Opcode.RTI, _, _, _) => () // OK
             case AssemblyStatement(Opcode.JMP, _, _, _) => () // OK
             case _ =>
               val validReturn = if (flags("interrupt")) "RTI" else "RTS"
-              ErrorReporting.warn(s"Non-inline assembly function `$name` should end in " + validReturn, options, Some(p))
+              ErrorReporting.warn(s"Non-macro assembly function `$name` should end in " + validReturn, options, Some(p))
           }
         }
       case None => ()
@@ -448,7 +452,8 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     FunctionDeclarationStatement(name, returnType, params.toList,
       addr,
       statements,
-      flags("inline"),
+      flags("macro"),
+      if (flags("inline")) Some(true) else if (flags("noinline")) Some(false) else None,
       flags("asm"),
       flags("interrupt"),
       flags("reentrant")).pos(p)

@@ -112,6 +112,7 @@ object MfCompiler {
       case FunctionCallExpression("<<'", params) => b
       case FunctionCallExpression(">>'", params) => b
       case FunctionCallExpression(">>>>", params) => b
+      case FunctionCallExpression("<<<<", params) => w
       case FunctionCallExpression("&&", params) => bool
       case FunctionCallExpression("||", params) => bool
       case FunctionCallExpression("^^", params) => bool
@@ -390,7 +391,7 @@ object MfCompiler {
 
   def callingContext(ctx: CompilationContext, v: MemoryVariable): CompilationContext = {
     val result = new Environment(Some(ctx.env), "")
-    result.registerVariable(VariableDeclarationStatement(v.name, v.typ.name, stack = false, global = false, constant = false, volatile = false, initialValue = None, address = None), ctx.options)
+    result.registerVariable(VariableDeclarationStatement(v.name, v.typ.name, stack = false, global = false, constant = false, volatile = false, register = false, initialValue = None, address = None), ctx.options)
     ctx.copy(env = result)
   }
 
@@ -866,6 +867,10 @@ object MfCompiler {
               case v: LhsExpression =>
                 BuiltIns.compileNonetOps(ctx, v, r)
             }
+          case "<<<<" =>
+            assertAllBytes("Long shift ops not supported", ctx, params)
+            val (l, r, 1) = assertBinary(ctx, params)
+            BuiltIns.compileNonetLeftShift(ctx, l, r)
           case "<<" =>
             assertAllBytes("Long shift ops not supported", ctx, params)
             val (l, r, 1) = assertBinary(ctx, params)
@@ -1104,8 +1109,8 @@ object MfCompiler {
                 // fallthrough to the lookup below
             }
             lookupFunction(ctx, f) match {
-              case function: InlinedFunction =>
-                val (paramPreparation, statements) = inlineFunction(ctx, function, params)
+              case function: MacroFunction =>
+                val (paramPreparation, statements) = inlineFunction(ctx, function, params, expr.position)
                 paramPreparation ++ statements.map {
                   case AssemblyStatement(opcode, addrMode, expression, elidable) =>
                     val param = env.evalForAsm(expression).getOrElse {
@@ -1344,7 +1349,29 @@ object MfCompiler {
     SequenceChunk(statements.map(s => compile(ctx, s)))
   }
 
-  def inlineFunction(ctx: CompilationContext, i: InlinedFunction, params: List[Expression]): (List[AssemblyLine], List[ExecutableStatement]) = {
+  def replaceVariable(stmt: Statement, paramName: String, target: Expression): Statement = {
+    def f[T <: Expression](e:T) = e.replaceVariable(paramName, target)
+    def fx[T <: Expression](e:T) = e.replaceVariable(paramName, target).asInstanceOf[LhsExpression]
+    def g[T <: Statement](s:T) = replaceVariable(s, paramName, target)
+    def gx[T <: ExecutableStatement](s:T) = replaceVariable(s, paramName, target).asInstanceOf[ExecutableStatement]
+    def h(s:String) = if (s == paramName) target.asInstanceOf[VariableExpression].name else s
+    stmt match {
+      case ExpressionStatement(e) => ExpressionStatement(e.replaceVariable(paramName, target))
+      case ReturnStatement(e) => ReturnStatement(e.map(f))
+      case ReturnDispatchStatement(i,ps, bs) => ReturnDispatchStatement(i.replaceVariable(paramName, target), ps.map(fx), bs.map{
+        case ReturnDispatchBranch(l, fu, pps) => ReturnDispatchBranch(l, f(fu), pps.map(f))
+      })
+      case WhileStatement(c, b) => WhileStatement(f(c), b.map(gx))
+      case DoWhileStatement(b, c) => DoWhileStatement(b.map(gx), f(c))
+      case ForStatement(v, start, end, dir, body) => ForStatement(h(v), f(start), f(end), dir, body.map(gx))
+      case IfStatement(c, t, e) => IfStatement(f(c), t.map(gx), e.map(gx))
+      case s:AssemblyStatement => s.copy(expression =  f(s.expression))
+      case Assignment(d,s) => Assignment(fx(d), f(s))
+      case _ => ???
+    }
+  }
+
+  def inlineFunction(ctx: CompilationContext, i: MacroFunction, params: List[Expression], position: Option[Position]): (List[AssemblyLine], List[ExecutableStatement]) = {
     var paramPreparation = List[AssemblyLine]()
     var actualCode = i.code
     i.params match {
@@ -1375,7 +1402,7 @@ object MfCompiler {
             }
           case (AssemblyParam(typ, v@RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy), actualParam) =>
             if (hadRegisterParam) {
-              ErrorReporting.error("Only one inline assembly function parameter can be passed via a register")
+              ErrorReporting.error("Only one macro assembly function parameter can be passed via a register", position)
             }
             hadRegisterParam = true
             paramPreparation = compile(ctx, actualParam, Some(typ, v), BranchSpec.None)
@@ -1383,8 +1410,18 @@ object MfCompiler {
             ???
           case (_, actualParam) =>
         }
-      case NormalParamSignature(Nil) =>
-      case NormalParamSignature(normalParams) => ???
+      case NormalParamSignature(normalParams) =>
+        if (params.length != normalParams.length) {
+          ErrorReporting.error(s"Invalid number of params for macro function ${i.name}", position)
+        } else {
+          params.zip(normalParams).foreach{
+            case (v@VariableExpression(_), MemoryVariable(paramName, paramType, _)) =>
+              actualCode = actualCode.map(stmt => replaceVariable(stmt, paramName, v).asInstanceOf[ExecutableStatement])
+            case _ =>
+              ErrorReporting.error(s"Parameters to macro functions have to be variables", position)
+          }
+        }
+
     }
     // fix local labels:
     // TODO: do it even if the labels are in an inline assembly block inside a Millfork function
@@ -1501,9 +1538,9 @@ object MfCompiler {
         LinearChunk(compileAssignment(ctx, source, dest))
       case ExpressionStatement(e@FunctionCallExpression(name, params)) =>
         env.lookupFunction(name, params.map(p => getExpressionType(ctx, p) -> p)) match {
-          case Some(i: InlinedFunction) =>
-            val (paramPreparation, inlinedStatements) = inlineFunction(ctx, i, params)
-            SequenceChunk(List(LinearChunk(paramPreparation), compile(ctx, inlinedStatements)))
+          case Some(i: MacroFunction) =>
+            val (paramPreparation, inlinedStatements) = inlineFunction(ctx, i, params, e.position)
+            SequenceChunk(List(LinearChunk(paramPreparation), compile(ctx.withInlinedEnv(i.environment), inlinedStatements)))
           case _ =>
             LinearChunk(compile(ctx, e, None, NoBranching))
         }

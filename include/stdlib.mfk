@@ -4,19 +4,19 @@ word nmi_routine_addr   @$FFFA
 word reset_routine_addr @$FFFC
 word irq_routine_addr   @$FFFE
 
-inline asm void poke(word const addr, byte a) {
+macro asm void poke(word const addr, byte a) {
     STA addr
 }
 
-inline asm byte peek(word const addr) {
+macro asm byte peek(word const addr) {
     ?LDA addr
 }
 
-inline asm void disable_irq() {
+macro asm void disable_irq() {
     SEI
 }
 
-inline asm void enable_irq() {
+macro asm void enable_irq() {
     CLI
 }
 
@@ -39,7 +39,7 @@ _lo_nibble_to_hex_lbl:
     RTS
 }
 
-inline asm void panic() {
+macro asm void panic() {
     JSR _panic
 }
 

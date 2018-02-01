@@ -74,10 +74,15 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case _ => None
     }.toSet
     val localVariables = f.environment.getAllLocalVariables.filter {
-      case MemoryVariable(name, typ, VariableAllocationMethod.Auto) =>
+      case MemoryVariable(name, typ, VariableAllocationMethod.Auto | VariableAllocationMethod.Register) =>
         typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name)
       case _ => false
     }
+    val variablesWithRegisterHint = f.environment.getAllLocalVariables.filter {
+      case MemoryVariable(name, typ, VariableAllocationMethod.Register) =>
+        typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name)
+      case _ => false
+    }.map(_.name).toSet
 
     val variablesWithLifetimes = localVariables.map(v =>
       v.name -> VariableLifetime.apply(v.name, code)
@@ -90,7 +95,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         importances(range.start).x != Important
     }.flatMap {
       case (vName, range) =>
-        canBeInlined(Some(vName), None, code.zip(importances).slice(range.start, range.end)).map(score => (vName, range, score))
+        canBeInlined(Some(vName), None, code.zip(importances).slice(range.start, range.end)).map { score =>
+          (vName, range, if (variablesWithRegisterHint(vName)) score + 16 else score)
+        }
     }
 
     val yCandidates = variablesWithLifetimes.filter {
@@ -98,7 +105,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         importances(range.start).y != Important
     }.flatMap {
       case (vName, range) =>
-        canBeInlined(None, Some(vName), code.zip(importances).slice(range.start, range.end)).map(score => (vName, range, score))
+        canBeInlined(None, Some(vName), code.zip(importances).slice(range.start, range.end)).map { score =>
+          (vName, range, if (variablesWithRegisterHint(vName)) score + 16 else score)
+        }
     }
 
     val aCandidates = variablesWithLifetimes.filter {
@@ -111,7 +120,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           start = true,
           synced = false,
           vName,
-          code.zip(importances).slice(range.start, range.end)).map(score => (vName, range, score))
+          code.zip(importances).slice(range.start, range.end)).map { score =>
+          (vName, range, if (variablesWithRegisterHint(vName)) score + 16 else score)
+        }
     }
 //    println(s"X: $xCandidates")
 //    println(s"Y: $yCandidates")

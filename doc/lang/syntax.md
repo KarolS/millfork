@@ -20,7 +20,8 @@ Syntax:
 
 `[<storage>] <type> <name> [@<address>] [= <initial_value>]`
 
-* `<storage>` can be only specified for local variables. It can be either `stack`, `static` or nothing. 
+* `<storage>` can be only specified for local variables. It can be either `stack`, `static`, `register` or nothing.
+`register` is only a hint for the optimizer. 
 See [the description of variable storage](../abi/variable-storage.md).
 
 * `<address>` is a constant expression that defines where in the memory the variable will be located. 
@@ -119,7 +120,7 @@ return [i] (param1, param2) {
 Return dispatch calculates the value of an index, picks the correct branch, 
 assigns some global variables and jumps to another function.
 
-The index has to evaluate to a byte. The functions cannot be `inline` and shouldn't have parameters. 
+The index has to evaluate to a byte. The functions cannot be `macro` and shouldn't have parameters. 
 Jumping to a function with parameters gives those parameters undefined values.
 
 The functions are not called, so they don't return to the function the return dispatch statement is in, but to its caller.

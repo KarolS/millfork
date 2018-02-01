@@ -117,7 +117,7 @@ sealed trait UninitializedMemory extends ThingInMemory {
 }
 
 object VariableAllocationMethod extends Enumeration {
-  val Auto, Static, Zeropage, None = Value
+  val Auto, Register, Static, Zeropage, None = Value
 }
 
 case class StackVariable(name: String, typ: Type, baseOffset: Int) extends Variable {
@@ -188,11 +188,11 @@ case class EmptyFunction(name: String,
   override def interrupt = false
 }
 
-case class InlinedFunction(name: String,
-                           returnType: Type,
-                           params: ParamSignature,
-                           environment: Environment,
-                           code: List[ExecutableStatement]) extends MangledFunction {
+case class MacroFunction(name: String,
+                         returnType: Type,
+                         params: ParamSignature,
+                         environment: Environment,
+                         code: List[ExecutableStatement]) extends MangledFunction {
   override def interrupt = false
 }
 

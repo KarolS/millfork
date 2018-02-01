@@ -148,7 +148,7 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
 }
 
 object MathOperator extends Enumeration {
-  val Plus, Minus, Times, Shl, Shr,
+  val Plus, Minus, Times, Shl, Shr, Shl9, Shr9,
   DecimalPlus, DecimalMinus, DecimalTimes, DecimalShl, DecimalShr,
   And, Or, Exor = Value
 }
@@ -166,6 +166,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Times => lv * rv
           case MathOperator.Shl => lv << rv
           case MathOperator.Shr => lv >> rv
+          case MathOperator.Shl9 => (lv << rv) & 0x1ff
+          case MathOperator.Shr9 => (lv & 0x1ff) >> rv
           case MathOperator.Exor => lv ^ rv
           case MathOperator.Or => lv | rv
           case MathOperator.And => lv & rv
@@ -229,6 +231,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case Times => f"$plhs * $prhs"
       case Shl => f"$plhs << $prhs"
       case Shr => f"$plhs >> $prhs"
+      case Shl9 => f"$plhs <<<< $prhs"
+      case Shr9 => f"$plhs >>>> $prhs"
       case DecimalPlus => f"$plhs +' $prhs"
       case DecimalMinus => f"$plhs -' $prhs"
       case DecimalTimes => f"$plhs *' $prhs"

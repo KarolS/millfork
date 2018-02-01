@@ -27,6 +27,9 @@ sealed trait ByteAllocator {
         if (counter == 0) {
           lastFree = i
         }
+        if (count == 0) {
+          return lastFree
+        }
         counter += 1
         if (counter == count) {
           return lastFree

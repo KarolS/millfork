@@ -55,6 +55,8 @@ Some small automatic variables may be inlined to index registers.
 They are not automatically initialized before reading, reading them before initialization yields an undefined value. 
 Automatic local variables are not safe to use with reentrant functions, see the [relevant documentation](../lang/reentrancy.md) for more details.
 
+Automatic variables defined with the `register` keyword will have the priority when it comes to register allocation.
+
 ## Parameters
 
 Automatic variables have lifetime starting with the beginning 

@@ -92,11 +92,14 @@ object BuiltIns {
             case IndexChoice.PreferY =>
               val array = env.getArrayOrPointer(arrayName)
               val calculateIndex = MfCompiler.compile(ctx, index, Some(b -> RegisterVariable(Register.Y, b)), NoBranching)
-              val baseAddress = array match {
-                case c: ConstantThing => c.value
-                case a: MfArray => a.toAddress
+              array match {
+                case c: ConstantThing =>
+                  calculateIndex -> List(AssemblyLine.absoluteY(opcode, c.value))
+                case a: MfArray =>
+                  calculateIndex -> List(AssemblyLine.absoluteY(opcode, a.toAddress))
+                case v: VariableInMemory if v.typ.name == "pointer" =>
+                  calculateIndex -> List(AssemblyLine.indexedY(opcode, v.toAddress))
               }
-              calculateIndex -> List(AssemblyLine.absoluteY(opcode, baseAddress))
           }
         case FunctionCallExpression(name, List(param)) if env.maybeGet[Type](name).isDefined =>
           return simpleOperation(opcode, ctx, param, indexChoice, preserveA, commutative, decimal)
@@ -248,6 +251,16 @@ object BuiltIns {
         ErrorReporting.error("Non-constant shift amount", rhs.position) // TODO
         Nil
     }
+  }
+
+  def compileNonetLeftShift(ctx: CompilationContext, lhs: Expression, rhs: Expression): List[AssemblyLine] = {
+    val label = MfCompiler.nextLabel("sh")
+    compileShiftOps(ASL, ctx, lhs, rhs) ++ List(
+      AssemblyLine.immediate(LDX, 0),
+      AssemblyLine.relative(BCC, label),
+      AssemblyLine.implied(INX),
+      AssemblyLine.label(label)
+    )
   }
 
   def compileInPlaceByteShiftOps(opcode: Opcode.Value, ctx: CompilationContext, lhs: LhsExpression, rhs: Expression): List[AssemblyLine] = {

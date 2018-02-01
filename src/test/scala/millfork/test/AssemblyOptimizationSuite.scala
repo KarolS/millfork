@@ -41,7 +41,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       """
         | array output [100] @$C000
         | void main () {
-        |   byte i
+        |   register byte i
         |   i = 1
         |   while (i<50) {
         |     output[i] = i

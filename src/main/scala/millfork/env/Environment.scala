@@ -33,7 +33,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     val allThings: Map[String, Thing] = things.values.map {
       case m: FunctionInMemory =>
         m.environment.getAllPrefixedThings
-      case m: InlinedFunction =>
+      case m: MacroFunction =>
         m.environment.getAllPrefixedThings
       case _ => Map[String, Thing]()
     }.fold(things.toMap)(_ ++ _)
@@ -63,7 +63,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
 
   def allConstants: List[ConstantThing] = things.values.flatMap {
     case m: NormalFunction => m.environment.allConstants
-    case m: InlinedFunction => m.environment.allConstants
+    case m: MacroFunction => m.environment.allConstants
     case m: ConstantThing => List(m)
     case _ => Nil
   }.toList
@@ -105,7 +105,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
                   ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
                 )
             }
-          case VariableAllocationMethod.Auto | VariableAllocationMethod.Static =>
+          case VariableAllocationMethod.Auto | VariableAllocationMethod.Register | VariableAllocationMethod.Static =>
             m.sizeInBytes match {
               case 0 => Nil
               case 2 =>
@@ -278,6 +278,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             constantOperation(MathOperator.Shr, params)
           case "<<" =>
             constantOperation(MathOperator.Shl, params)
+          case "<<<<" =>
+            constantOperation(MathOperator.Shl9, params)
+          case ">>>>" =>
+            constantOperation(MathOperator.Shr9, params)
           case "*'" =>
             constantOperation(MathOperator.DecimalTimes, params)
           case "*" =>
@@ -366,20 +370,19 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     if (stmt.reentrant && stmt.interrupt) ErrorReporting.error(s"Reentrant function `$name` cannot be an interrupt handler", stmt.position)
     if (stmt.reentrant && stmt.params.nonEmpty) ErrorReporting.error(s"Reentrant function `$name` cannot have parameters", stmt.position)
     if (stmt.interrupt && stmt.params.nonEmpty) ErrorReporting.error(s"Interrupt function `$name` cannot have parameters", stmt.position)
-    if (stmt.inlined) {
+    if (stmt.isMacro) {
       if (!stmt.assembly) {
-        if (stmt.params.nonEmpty) ErrorReporting.error(s"Inline non-assembly function `$name` cannot have parameters", stmt.position) // TODO: ???
-        if (resultType != VoidType) ErrorReporting.error(s"Inline non-assembly function `$name` must return void", stmt.position)
+        if (resultType != VoidType) ErrorReporting.error(s"Macro non-assembly function `$name` must return void", stmt.position)
       }
-      if (stmt.params.exists(_.assemblyParamPassingConvention.inNonInlinedOnly))
-        ErrorReporting.error(s"Inline function `$name` cannot have by-variable parameters", stmt.position)
+      if (stmt.assembly && stmt.params.exists(_.assemblyParamPassingConvention.inNonInlinedOnly))
+        ErrorReporting.error(s"Macro function `$name` cannot have by-variable parameters", stmt.position)
     } else {
       if (!stmt.assembly) {
         if (stmt.params.exists(!_.assemblyParamPassingConvention.isInstanceOf[ByVariable]))
           ErrorReporting.error(s"Non-assembly function `$name` cannot have non-variable parameters", stmt.position)
       }
       if (stmt.params.exists(_.assemblyParamPassingConvention.inInlinedOnly))
-        ErrorReporting.error(s"Non-inline function `$name` cannot have inlinable parameters", stmt.position)
+        ErrorReporting.error(s"Non-macro function `$name` cannot have inlinable parameters", stmt.position)
     }
 
     val env = new Environment(Some(this), name + "$")
@@ -432,9 +435,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           case e: ExecutableStatement => Some(e)
           case _ => None
         }
-        val needsExtraRTS = !stmt.inlined && !stmt.assembly && (statements.isEmpty || !statements.last.isInstanceOf[ReturnStatement])
-        if (stmt.inlined) {
-          val mangled = InlinedFunction(
+        val needsExtraRTS = !stmt.isMacro && !stmt.assembly && (statements.isEmpty || !statements.last.isInstanceOf[ReturnStatement])
+        if (stmt.isMacro) {
+          val mangled = MacroFunction(
             name,
             resultType,
             params,
@@ -603,6 +606,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     }
     if (stmt.constant) {
       if (stmt.stack) ErrorReporting.error(s"`$name` is a constant and cannot be on stack", position)
+      if (stmt.register) ErrorReporting.error(s"`$name` is a constant and cannot be in a register", position)
       if (stmt.address.isDefined) ErrorReporting.error(s"`$name` is a constant and cannot have an address", position)
       if (stmt.initialValue.isEmpty) ErrorReporting.error(s"`$name` is a constant and requires a value", position)
       val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(Constant.error(s"`$name` has a non-constant value", position))
@@ -614,8 +618,12 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       }
     } else {
       if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
+      if (stmt.register && typ.size != 1) ErrorReporting.error(s"A register variable `$name` is too large", position)
+      if (stmt.register && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be in a register", position)
+      if (stmt.register && stmt.stack) ErrorReporting.error(s"`$name` cannot be simultaneously on stack and in a register", position)
       if (stmt.initialValue.isDefined && parent.isDefined) ErrorReporting.error(s"`$name` is local and not a constant and therefore cannot have a value", position)
       if (stmt.initialValue.isDefined && stmt.address.isDefined) ErrorReporting.warn(s"`$name` has both address and initial value - this may not work as expected!", options, position)
+      if (stmt.register && stmt.address.isDefined) ErrorReporting.error(s"`$name` cannot by simultaneously at an address and in a register", position)
       if (stmt.stack) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
         baseStackOffset += typ.size
@@ -626,7 +634,11 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         }
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
-          val alloc = if (typ.name == "pointer") VariableAllocationMethod.Zeropage else if (stmt.global) VariableAllocationMethod.Static else VariableAllocationMethod.Auto
+          val alloc =
+            if (typ.name == "pointer") VariableAllocationMethod.Zeropage
+            else if (stmt.global) VariableAllocationMethod.Static
+            else if (stmt.register) VariableAllocationMethod.Register
+            else VariableAllocationMethod.Auto
           if (alloc != VariableAllocationMethod.Static && stmt.initialValue.isDefined) {
             ErrorReporting.error(s"`$name` cannot be preinitialized`", position)
           }

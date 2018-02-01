@@ -52,77 +52,77 @@ byte vic_spr7_color @$D02E
 array vic_spr_coord [16] @$D000
 array vic_spr_color [8] @$D027
 
-inline void vic_enable_multicolor() {
+macro void vic_enable_multicolor() {
     vic_cr2 |= 0x10
 }
 
-inline void vic_disable_multicolor() {
+macro void vic_disable_multicolor() {
     vic_cr2 &= 0xEF
 }
 
-inline void vic_enable_bitmap() {
+macro void vic_enable_bitmap() {
     vic_cr1 |= 0x20
 }
 
-inline void vic_disable_bitmap() {
+macro void vic_disable_bitmap() {
     vic_cr1 &= 0xDF
 }
 
-inline void vic_24_rows() {
+macro void vic_24_rows() {
     vic_cr1 &= 0xF7
 }
 
-inline void vic_25_rows() {
+macro void vic_25_rows() {
     vic_cr1 |= 8
 }
 
-inline void vic_38_columns() {
+macro void vic_38_columns() {
     vic_cr2 &= 0xF7
 }
 
-inline void vic_40_columns() {
+macro void vic_40_columns() {
     vic_cr2 |= 8
 }
 
-inline void vic_disable_irq() {
+macro void vic_disable_irq() {
     vic_irq_ena = 0
     vic_irq += 1
 }
 
 // base: divisible by $400, $0000-$3C00 allowed
-//inline void vic_screen(word const base) {
+//macro void vic_screen(word const base) {
 //    vic_mem = (vic_mem & $0F) | (base >> 6)
 //}
 
-inline void vic_charset_0000() {
+macro void vic_charset_0000() {
     vic_mem = (vic_mem & $F1)
 }
-inline void vic_charset_0800() {
+macro void vic_charset_0800() {
     vic_mem = (vic_mem & $F1) | 2
 }
-inline void vic_charset_1000() {
+macro void vic_charset_1000() {
     vic_mem = (vic_mem & $F1) | 4
 }
-inline void vic_charset_1800() {
+macro void vic_charset_1800() {
     vic_mem = (vic_mem & $F1) | 6
 }
-inline void vic_charset_2000() {
+macro void vic_charset_2000() {
     vic_mem = (vic_mem & $F1) | 8
 }
-inline void vic_charset_2800() {
+macro void vic_charset_2800() {
     vic_mem = (vic_mem & $F1) | $A
 }
-inline void vic_charset_3000() {
+macro void vic_charset_3000() {
     vic_mem = (vic_mem & $F1) | $C
 }
-inline void vic_charset_3800() {
+macro void vic_charset_3800() {
     vic_mem = (vic_mem & $F1) | $E
 }
 
-inline void vic_bitmap_0000() {
+macro void vic_bitmap_0000() {
     vic_mem &= $F7
 }
-inline void vic_bitmap_2000() {
+macro void vic_bitmap_2000() {
     vic_mem |= 8
 }
 

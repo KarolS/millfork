@@ -1,9 +1,11 @@
-# Function inlining
+# Macros and inlining
 
-## Explicit inlining
+## Macros
 
-`inline` keyword
+`macro` keyword
 
 ## Automatic inlining
 
 `--inline` command-line option
+
+`inline` and `noinline` keyword

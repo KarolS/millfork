@@ -5,37 +5,37 @@ import cpu6510
 
 array c64_color_ram [1000] @$D800
 
-inline void c64_ram_only() {
+macro void c64_ram_only() {
     cpu6510_ddr = 7
     cpu6510_port = 0
 }
 
-inline void c64_ram_io() {
+macro void c64_ram_io() {
     cpu6510_ddr = 7
     cpu6510_port = 5
 }
 
-inline void c64_ram_io_kernal() {
+macro void c64_ram_io_kernal() {
     cpu6510_ddr = 7
     cpu6510_port = 6
 }
 
-inline void c64_ram_io_basic() {
+macro void c64_ram_io_basic() {
     cpu6510_ddr = 7
     cpu6510_port = 7
 }
 
-inline void c64_ram_charset() {
+macro void c64_ram_charset() {
     cpu6510_ddr = 7
     cpu6510_port = 1
 }
 
-inline void c64_ram_charset_kernal() {
+macro void c64_ram_charset_kernal() {
     cpu6510_ddr = 7
     cpu6510_port = 2
 }
 
-inline void c64_ram_charset_basic() {
+macro void c64_ram_charset_basic() {
     cpu6510_ddr = 7
     cpu6510_port = 3
 }

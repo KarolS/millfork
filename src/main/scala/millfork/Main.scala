@@ -213,12 +213,12 @@ object Main {
       assertNone(c.optimizationLevel, "Optimization level already defined")
       c.copy(optimizationLevel = Some(1))
     }.description("Optimize code.")
-    for (i <- 2 to 9) {
+    for (i <- 1 to 9) {
       val f = flag("-O" + i).action { c =>
         assertNone(c.optimizationLevel, "Optimization level already defined")
         c.copy(optimizationLevel = Some(i))
       }.description("Optimize code even more.")
-      if (i > 3) f.hidden()
+      if (i == 1 || i > 3) f.hidden()
     }
     flag("--inline").action { c =>
       c.changeFlag(CompilationFlag.InlineFunctions, true)

@@ -10,7 +10,7 @@ byte cia2_prb       @$DD01
 byte cia2_ddra      @$DD02
 byte cia2_ddrb      @$DD03
 
-inline asm void cia_disable_irq() {
+macro asm void cia_disable_irq() {
     LDA #$7f
     LDA $dc0d
     LDA $dd0d
@@ -19,22 +19,22 @@ inline asm void cia_disable_irq() {
 }
 
 
-inline void vic_bank_0000() {
-    cia2_ddra = $C0
-    cia2_pra = $C0
+macro void vic_bank_0000() {
+    cia2_ddra = 3
+    cia2_pra = 3
 }
 
-inline void vic_bank_4000() {
-    cia2_ddra = $C0
-    cia2_pra = $80
+macro void vic_bank_4000() {
+    cia2_ddra = 3
+    cia2_pra = 2
 }
 
-inline void vic_bank_8000() {
-    cia2_ddra = $C0
-    cia2_pra = $40
+macro void vic_bank_8000() {
+    cia2_ddra = 3
+    cia2_pra = 1
 }
 
-inline void vic_bank_C000() {
-    cia2_ddra = $C0
-    cia2_pra = $00
+macro void vic_bank_C000() {
+    cia2_ddra = 3
+    cia2_pra = 0
 }

@@ -12,7 +12,7 @@ Millfork has different operator precedence compared to most other languages. Fro
 
 * `*`, `*'`
 
-* `+`, `+'`, `-`, `-'`, `|`, `&`, `^`, `>>`, `>>'`, `<<`, `<<'`, `>>>>`
+* `+`, `+'`, `-`, `-'`, `|`, `&`, `^`, `>>`, `>>'`, `<<`, `<<'`, `>>>>`, `<<<<`
 
 * `:`
 
@@ -86,6 +86,9 @@ There are no division, remainder or modulo operators.
 
 * `>>>>`: shifting a 9-bit value and returning a byte; `a >>>> b` is equivalent to `(a & $1FF) >> b`, but the latter doesn't compile yet  
 `word >>>> constant byte`  
+
+* `>>>>`: shifting a byte and returning a 9-bit value; `a >>>> b` is equivalent to `(a << b) & 0x1ff` if there was no overflow, but the latter doesn't compile yet  
+`byte <<<< constant byte`  
 
 ## Decimal arithmetic operators
 

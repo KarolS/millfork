@@ -11,8 +11,11 @@ Syntax:
     * `asm` – the function is written in assembly, not in Millfork (doesn't matter for `extern` functions), 
     see [Using assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions)
     
-    * `inline` – the function should be always inlined, 
-    see [Function inlining#Explicit inlining](../abi/inlining.md#explicit-inlining)
+    * `macro` – the function is a macro, 
+    see [Macros_and inlining#Macros](../abi/inlining.md#macros)
+    
+    * `inline` and `noinline` – the function should preferably/should never be inlined
+    see [Macros_and inlining#Inlining](../abi/inlining.md#automatic_inlining.md)
     
     * `interrupt` – the function is a hardware interrupt handler
     

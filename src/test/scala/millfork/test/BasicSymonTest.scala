@@ -23,7 +23,7 @@ class BasicSymonTest extends FunSuite with Matchers {
         | void main () {
         |   panic()
         | }
-        | inline asm void panic() {
+        | macro asm void panic() {
         |    JSR _panic
         | }
         | void _panic() {
