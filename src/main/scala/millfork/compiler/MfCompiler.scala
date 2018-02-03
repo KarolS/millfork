@@ -771,10 +771,23 @@ object MfCompiler {
           }
         }
       case SumExpression(params, decimal) =>
-        assertAllBytesForSum("Long addition not supported", ctx, params)
-        val calculate = BuiltIns.compileAddition(ctx, params, decimal = decimal)
-        val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
-        calculate ++ store
+        val a = params.map{case (n, p) => env.eval(p).map(n -> _)}
+        if (a.forall(_.isDefined)) {
+            val value = a.foldLeft(Constant.Zero){(c, pair) =>
+              val Some((neg, v)) = pair
+              CompoundConstant(if (decimal) {
+                if (neg) MathOperator.DecimalMinus else MathOperator.DecimalPlus
+              } else {
+                if (neg) MathOperator.Minus else MathOperator.Plus
+              }, c, v)
+            }
+          exprTypeAndVariable.map(x => compileConstant(ctx, value.quickSimplify, x._2)).getOrElse(Nil)
+        } else {
+          assertAllBytesForSum("Long addition not supported", ctx, params)
+          val calculate = BuiltIns.compileAddition(ctx, params, decimal = decimal)
+          val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+          calculate ++ store
+        }
       case SeparateBytesExpression(h, l) =>
         exprTypeAndVariable.fold {
           // TODO: order?
@@ -1367,7 +1380,10 @@ object MfCompiler {
       case IfStatement(c, t, e) => IfStatement(f(c), t.map(gx), e.map(gx))
       case s:AssemblyStatement => s.copy(expression =  f(s.expression))
       case Assignment(d,s) => Assignment(fx(d), f(s))
-      case _ => ???
+      case BlockStatement(s) => BlockStatement(s.map(gx))
+      case _ =>
+        println(stmt)
+        ???
     }
   }
 
@@ -1416,7 +1432,7 @@ object MfCompiler {
         } else {
           params.zip(normalParams).foreach{
             case (v@VariableExpression(_), MemoryVariable(paramName, paramType, _)) =>
-              actualCode = actualCode.map(stmt => replaceVariable(stmt, paramName, v).asInstanceOf[ExecutableStatement])
+              actualCode = actualCode.map(stmt => replaceVariable(stmt, paramName.stripPrefix(i.environment.prefix), v).asInstanceOf[ExecutableStatement])
             case _ =>
               ErrorReporting.error(s"Parameters to macro functions have to be variables", position)
           }

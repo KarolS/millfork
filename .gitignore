@@ -5,6 +5,7 @@ project/target
 project/project/target/
 stuff
 releases
+src/test/scala/experiments/
 
 # hidden files
 *.~

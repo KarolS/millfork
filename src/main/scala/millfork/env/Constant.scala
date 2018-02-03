@@ -182,6 +182,34 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case _ =>
         }
         NumericConstant(value, size)
+      case (NumericConstant(0, 1), c) =>
+        operator match {
+          case MathOperator.Plus => c
+          case MathOperator.Minus => CompoundConstant(operator, l, r)
+          case MathOperator.Times => Constant.Zero
+          case MathOperator.Shl => Constant.Zero
+          case MathOperator.Shr => Constant.Zero
+          case MathOperator.Shl9 => Constant.Zero
+          case MathOperator.Shr9 => Constant.Zero
+          case MathOperator.Exor => c
+          case MathOperator.Or => c
+          case MathOperator.And => Constant.Zero
+          case _ => CompoundConstant(operator, l, r)
+        }
+      case (c, NumericConstant(0, 1)) =>
+        operator match {
+          case MathOperator.Plus => c
+          case MathOperator.Minus => c
+          case MathOperator.Times => Constant.Zero
+          case MathOperator.Shl => c
+          case MathOperator.Shr => c
+          case MathOperator.Shl9 => c
+          case MathOperator.Shr9 => c
+          case MathOperator.Exor => c
+          case MathOperator.Or => c
+          case MathOperator.And => Constant.Zero
+          case _ => CompoundConstant(operator, l, r)
+        }
       case _ => CompoundConstant(operator, l, r)
     }
   }
