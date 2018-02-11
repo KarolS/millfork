@@ -20,7 +20,6 @@ import millfork.node.{Expression, Register}
   */
 object DecimalBuiltIns {
   def compileByteShiftLeft(ctx: CompilationContext, l: Expression, r: Expression, rotate: Boolean): List[AssemblyLine] = {
-    val b = ctx.env.get[Type]("byte")
     ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
         Nil
@@ -35,7 +34,7 @@ object DecimalBuiltIns {
 
   def compileByteShiftRight(ctx: CompilationContext, l: Expression, r: Expression, rotate: Boolean): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
-    MfCompiler.compile(ctx, l, Some((b, RegisterVariable(Register.A, b))), BranchSpec.None) ++ (ctx.env.eval(r) match {
+    ExpressionCompiler.compile(ctx, l, Some((b, RegisterVariable(Register.A, b))), BranchSpec.None) ++ (ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
         Nil
       case Some(NumericConstant(v, _)) =>
@@ -143,7 +142,7 @@ object DecimalBuiltIns {
         ErrorReporting.error("Cannot multiply by a non-constant amount", r.position)
         return Nil
     }
-    val fullStorage = MfCompiler.compileByteStorage(ctx, Register.A, l)
+    val fullStorage = ExpressionCompiler.compileByteStorage(ctx, Register.A, l)
     val sta = fullStorage.last
     if (sta.opcode != STA) ???
     val fullLoad = fullStorage.init :+ sta.copy(opcode = LDA)
@@ -174,8 +173,6 @@ object DecimalBuiltIns {
       AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL),
       AssemblyLine.implied(SEC), sta.copy(opcode = SBC),
       sta)
-    def times10 = List(AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), sta)
-    def times11 = List(AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(CLC), sta.copy(opcode = ADC), sta)
 
     val execute = multiplier match {
       case 0 => List(AssemblyLine.immediate(LDA, 0), sta)
@@ -190,11 +187,11 @@ object DecimalBuiltIns {
         ways(x).flatMap {
           case 1 => add1
           case -7 => times7
-          case x if x < 9 => List.fill(x - 1)(List(AssemblyLine.implied(CLC), sta.copy(opcode = ADC))).flatten :+ sta
+          case q if q < 9 => List.fill(q - 1)(List(AssemblyLine.implied(CLC), sta.copy(opcode = ADC))).flatten :+ sta
           case 8 => times8
           case 9 => times9
-          case x => List(AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL)) ++
-            List.fill(x - 10)(List(AssemblyLine.implied(CLC), sta.copy(opcode = ADC))).flatten :+ sta
+          case q => List(AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL)) ++
+            List.fill(q - 10)(List(AssemblyLine.implied(CLC), sta.copy(opcode = ADC))).flatten :+ sta
         }
     }
     if (execute.contains(transferToAccumulator)) {

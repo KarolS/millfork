@@ -37,7 +37,7 @@ object ReturnDispatch {
       }
     }
 
-    val indexerType = MfCompiler.getExpressionType(ctx, stmt.indexer)
+    val indexerType = ExpressionCompiler.getExpressionType(ctx, stmt.indexer)
     if (indexerType.size != 1) {
       ErrorReporting.error("Return dispatch index expression type has to be a byte", stmt.indexer.position)
     }
@@ -139,7 +139,7 @@ object ReturnDispatch {
 
     val ctxForStoringParams = ctx.neverCheckArrayBounds
     val copyParams = stmt.params.zipWithIndex.flatMap { case (paramVar, paramIndex) =>
-      val storeParam = MfCompiler.compileByteStorage(ctxForStoringParams, Register.A, paramVar)
+      val storeParam = ExpressionCompiler.compileByteStorage(ctxForStoringParams, Register.A, paramVar)
       if (storeParam.exists(l => OpcodeClasses.ChangesX(l.opcode)))
         ErrorReporting.error("Invalid/too complex target parameter variable", paramVar.position)
       AssemblyLine.absoluteX(LDA, paramArrays(paramIndex), -paramMins(paramIndex)) :: storeParam
@@ -149,10 +149,10 @@ object ReturnDispatch {
       val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(map(i)._1.loByte, map(i)._1.hiByte)).toList)
       env.registerUnnamedArray(jumpTable)
       if (copyParams.isEmpty) {
-        val loadIndex = MfCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.A, b)), BranchSpec.None)
+        val loadIndex = ExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.A, b)), BranchSpec.None)
         loadIndex ++ List(AssemblyLine.implied(ASL), AssemblyLine.implied(TAX)) ++ copyParams :+ AssemblyLine(JMP, AbsoluteIndexedX, jumpTable.toAddress - actualMin * 2)
       } else {
-        val loadIndex = MfCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.X, b)), BranchSpec.None)
+        val loadIndex = ExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.X, b)), BranchSpec.None)
         loadIndex ++ copyParams ++ List(
           AssemblyLine.implied(TXA),
           AssemblyLine.implied(ASL),
@@ -160,7 +160,7 @@ object ReturnDispatch {
           AssemblyLine(JMP, AbsoluteIndexedX, jumpTable.toAddress - actualMin * 2))
       }
     } else {
-      val loadIndex = MfCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.X, b)), BranchSpec.None)
+      val loadIndex = ExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.X, b)), BranchSpec.None)
       val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => (map(i)._1 - 1).loByte).toList)
       val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => (map(i)._1 - 1).hiByte).toList)
       env.registerUnnamedArray(jumpTableLo)

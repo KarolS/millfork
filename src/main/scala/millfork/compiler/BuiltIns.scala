@@ -11,40 +11,6 @@ import millfork.error.ErrorReporting
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-
-object ComparisonType extends Enumeration {
-  val Equal, NotEqual,
-  LessUnsigned, LessSigned,
-  GreaterUnsigned, GreaterSigned,
-  LessOrEqualUnsigned, LessOrEqualSigned,
-  GreaterOrEqualUnsigned, GreaterOrEqualSigned = Value
-
-  def flip(x: ComparisonType.Value): ComparisonType.Value = x match {
-    case LessUnsigned => GreaterUnsigned
-    case GreaterUnsigned => LessUnsigned
-    case LessOrEqualUnsigned => GreaterOrEqualUnsigned
-    case GreaterOrEqualUnsigned => LessOrEqualUnsigned
-    case LessSigned => GreaterSigned
-    case GreaterSigned => LessSigned
-    case LessOrEqualSigned => GreaterOrEqualSigned
-    case GreaterOrEqualSigned => LessOrEqualSigned
-    case _ => x
-  }
-
-  def negate(x: ComparisonType.Value): ComparisonType.Value = x match {
-    case LessUnsigned => GreaterOrEqualUnsigned
-    case GreaterUnsigned => LessOrEqualUnsigned
-    case LessOrEqualUnsigned => GreaterUnsigned
-    case GreaterOrEqualUnsigned => LessUnsigned
-    case LessSigned => GreaterOrEqualSigned
-    case GreaterSigned => LessOrEqualSigned
-    case LessOrEqualSigned => GreaterSigned
-    case GreaterOrEqualSigned => LessSigned
-    case Equal => NotEqual
-    case NotEqual => Equal
-  }
-}
-
 /**
   * @author Karol Stasiak
   */
@@ -83,7 +49,7 @@ object BuiltIns {
           indexChoice match {
             case IndexChoice.RequireX | IndexChoice.PreferX =>
               val array = env.getArrayOrPointer(arrayName)
-              val calculateIndex = MfCompiler.compile(ctx, index, Some(b -> RegisterVariable(Register.X, b)), NoBranching)
+              val calculateIndex = ExpressionCompiler.compile(ctx, index, Some(b -> RegisterVariable(Register.X, b)), NoBranching)
               val baseAddress = array match {
                 case c: ConstantThing => c.value
                 case a: MfArray => a.toAddress
@@ -91,7 +57,7 @@ object BuiltIns {
               calculateIndex -> List(AssemblyLine.absoluteX(opcode, baseAddress))
             case IndexChoice.PreferY =>
               val array = env.getArrayOrPointer(arrayName)
-              val calculateIndex = MfCompiler.compile(ctx, index, Some(b -> RegisterVariable(Register.Y, b)), NoBranching)
+              val calculateIndex = ExpressionCompiler.compile(ctx, index, Some(b -> RegisterVariable(Register.Y, b)), NoBranching)
               array match {
                 case c: ConstantThing =>
                   calculateIndex -> List(AssemblyLine.absoluteY(opcode, c.value))
@@ -105,7 +71,7 @@ object BuiltIns {
           return simpleOperation(opcode, ctx, param, indexChoice, preserveA, commutative, decimal)
         case _: FunctionCallExpression | _:SumExpression if commutative =>
           // TODO: is it ok?
-          return List(AssemblyLine.implied(PHA)) ++ MfCompiler.compile(ctx.addStack(1), source, Some(b -> RegisterVariable(Register.A, b)), NoBranching) ++ wrapInSedCldIfNeeded(decimal, List(
+          return List(AssemblyLine.implied(PHA)) ++ ExpressionCompiler.compile(ctx.addStack(1), source, Some(b -> RegisterVariable(Register.A, b)), NoBranching) ++ wrapInSedCldIfNeeded(decimal, List(
             AssemblyLine.implied(TSX),
             AssemblyLine.absoluteX(opcode, 0x101),
             AssemblyLine.implied(INX),
@@ -154,7 +120,7 @@ object BuiltIns {
     val normalizedParams = sortedParams
 
     val h = normalizedParams.head
-    val firstParamCompiled = MfCompiler.compile(ctx, h._2, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+    val firstParamCompiled = ExpressionCompiler.compile(ctx, h._2, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
     val firstParamSignCompiled = if (h._1) {
       // TODO: check if decimal subtraction works correctly here
       List(AssemblyLine.immediate(EOR, 0xff), AssemblyLine.implied(SEC), AssemblyLine.immediate(ADC, 0))
@@ -205,7 +171,7 @@ object BuiltIns {
     }
 
     val h = sortedParams.head
-    val firstParamCompiled = MfCompiler.compile(ctx, h, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+    val firstParamCompiled = ExpressionCompiler.compile(ctx, h, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
 
     val remainingParamsCompiled = sortedParams.tail.flatMap { p =>
       simpleOperation(opcode, ctx, p, IndexChoice.PreferY, preserveA = true, commutative = true)
@@ -216,7 +182,7 @@ object BuiltIns {
 
   def compileShiftOps(opcode: Opcode.Value, ctx: CompilationContext, l: Expression, r: Expression): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
-    val firstParamCompiled = MfCompiler.compile(ctx, l, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+    val firstParamCompiled = ExpressionCompiler.compile(ctx, l, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
     ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
         Nil
@@ -266,7 +232,7 @@ object BuiltIns {
   def compileInPlaceByteShiftOps(opcode: Opcode.Value, ctx: CompilationContext, lhs: LhsExpression, rhs: Expression): List[AssemblyLine] = {
     val env = ctx.env
     val b = env.get[Type]("byte")
-    val firstParamCompiled = MfCompiler.compile(ctx, lhs, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+    val firstParamCompiled = ExpressionCompiler.compile(ctx, lhs, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
     env.eval(rhs) match {
       case Some(NumericConstant(0, _)) =>
         Nil
@@ -308,7 +274,7 @@ object BuiltIns {
     if (simplicity(env, lhs) >= 'J' && simplicity(env, rhs) < 'J') {
       return compileByteComparison(ctx, ComparisonType.flip(compType), rhs, lhs, branches)
     }
-    val firstParamCompiled = MfCompiler.compile(ctx, lhs, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+    val firstParamCompiled = ExpressionCompiler.compile(ctx, lhs, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
     val maybeConstant = env.eval(rhs)
     maybeConstant match {
       case Some(NumericConstant(0, _)) =>
@@ -535,11 +501,11 @@ object BuiltIns {
     val b = ctx.env.get[Type]("byte")
     ctx.env.eval(addend) match {
       case Some(NumericConstant(0, _)) =>
-        AssemblyLine.immediate(LDA, 0) :: MfCompiler.compileByteStorage(ctx, Register.A, v)
+        AssemblyLine.immediate(LDA, 0) :: ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
       case Some(NumericConstant(1, _)) =>
         Nil
       case Some(NumericConstant(x, _)) =>
-        compileByteMultiplication(ctx, v, x.toInt) ++ MfCompiler.compileByteStorage(ctx, Register.A, v)
+        compileByteMultiplication(ctx, v, x.toInt) ++ ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
       case _ =>
         ErrorReporting.error("Multiplying by not a constant not supported", v.position)
         Nil
@@ -604,18 +570,18 @@ object BuiltIns {
       }
       case _ =>
         if (!subtract && simplicity(env, v) > simplicity(env, addend)) {
-          val loadRhs = MfCompiler.compile(ctx, addend, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+          val loadRhs = ExpressionCompiler.compile(ctx, addend, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
           val modifyAcc = insertBeforeLast(AssemblyLine.implied(CLC), simpleOperation(ADC, ctx, v, IndexChoice.PreferY, preserveA = true, commutative = true, decimal = decimal))
-          val storeLhs = MfCompiler.compileByteStorage(ctx, Register.A, v)
+          val storeLhs = ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
           loadRhs ++ modifyAcc ++ storeLhs
         } else {
-          val loadLhs = MfCompiler.compile(ctx, v, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+          val loadLhs = ExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
           val modifyLhs = if (subtract) {
             insertBeforeLast(AssemblyLine.implied(SEC), simpleOperation(SBC, ctx, addend, IndexChoice.PreferY, preserveA = true, commutative = false, decimal = decimal))
           } else {
             insertBeforeLast(AssemblyLine.implied(CLC), simpleOperation(ADC, ctx, addend, IndexChoice.PreferY, preserveA = true, commutative = true, decimal = decimal))
           }
-          val storeLhs = MfCompiler.compileByteStorage(ctx, Register.A, v)
+          val storeLhs = ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
           loadLhs ++ modifyLhs ++ storeLhs
         }
     }
@@ -631,7 +597,7 @@ object BuiltIns {
     val targetBytes: List[List[AssemblyLine]] = getStorageForEachByte(ctx, lhs)
     val lhsIsStack = targetBytes.head.head.opcode == TSX
     val targetSize = targetBytes.size
-    val addendType = MfCompiler.getExpressionType(ctx, addend)
+    val addendType = ExpressionCompiler.getExpressionType(ctx, addend)
     var addendSize = addendType.size
 
     def isRhsComplex(xs: List[AssemblyLine]): Boolean = xs match {
@@ -683,7 +649,7 @@ object BuiltIns {
       case None =>
         addendSize match {
           case 1 =>
-            val base = MfCompiler.compile(ctx, addend, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+            val base = ExpressionCompiler.compile(ctx, addend, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
             if (subtract) {
               if (isRhsComplex(base)) {
                 if (isRhsStack(base)) {
@@ -698,9 +664,9 @@ object BuiltIns {
               base -> List(Nil)
             }
           case 2 =>
-            val base = MfCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AX, w)), NoBranching)
+            val base = ExpressionCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AX, w)), NoBranching)
             if (isRhsStack(base)) {
-              val fixedBase = MfCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AY, w)), NoBranching)
+              val fixedBase = ExpressionCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AY, w)), NoBranching)
               if (subtract) {
                 ErrorReporting.warn("Subtracting a stack-based value", ctx.options)
                 if (isRhsComplex(base)) {
@@ -727,7 +693,7 @@ object BuiltIns {
                 }
               } else {
                 if (lhsIsStack) {
-                  val fixedBase = MfCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AY, w)), NoBranching)
+                  val fixedBase = ExpressionCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AY, w)), NoBranching)
                   fixedBase -> List(Nil, List(AssemblyLine.implied(TYA)))
                 } else {
                   base -> List(Nil, List(AssemblyLine.implied(TXA)))
@@ -798,14 +764,14 @@ object BuiltIns {
         Nil
       case _ =>
         if (simplicity(env, v) > simplicity(env, param)) {
-          val loadRhs = MfCompiler.compile(ctx, param, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+          val loadRhs = ExpressionCompiler.compile(ctx, param, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
           val modifyAcc = simpleOperation(operation, ctx, v, IndexChoice.PreferY, preserveA = true, commutative = true)
-          val storeLhs = MfCompiler.compileByteStorage(ctx, Register.A, v)
+          val storeLhs = ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
           loadRhs ++ modifyAcc ++ storeLhs
         } else {
-          val loadLhs = MfCompiler.compile(ctx, v, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+          val loadLhs = ExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
           val modifyLhs = simpleOperation(operation, ctx, param, IndexChoice.PreferY, preserveA = true, commutative = true)
-          val storeLhs = MfCompiler.compileByteStorage(ctx, Register.A, v)
+          val storeLhs = ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
           loadLhs ++ modifyLhs ++ storeLhs
         }
     }
@@ -819,7 +785,7 @@ object BuiltIns {
     val targetBytes: List[List[AssemblyLine]] = getStorageForEachByte(ctx, lhs)
     val lo = targetBytes.head
     val targetSize = targetBytes.size
-    val paramType = MfCompiler.getExpressionType(ctx, param)
+    val paramType = ExpressionCompiler.getExpressionType(ctx, param)
     var paramSize = paramType.size
     val extendMultipleBytes = targetSize > paramSize + 1
     val extendAtLeastOneByte = targetSize > paramSize
@@ -830,10 +796,10 @@ object BuiltIns {
       case None =>
         paramSize match {
           case 1 =>
-            val base = MfCompiler.compile(ctx, param, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
+            val base = ExpressionCompiler.compile(ctx, param, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
             base -> List(Nil)
           case 2 =>
-            val base = MfCompiler.compile(ctx, param, Some(w -> RegisterVariable(Register.AX, w)), NoBranching)
+            val base = ExpressionCompiler.compile(ctx, param, Some(w -> RegisterVariable(Register.AX, w)), NoBranching)
             base -> List(Nil, List(AssemblyLine.implied(TXA)))
           case _ => Nil -> (param match {
             case vv: VariableExpression =>
@@ -890,7 +856,7 @@ object BuiltIns {
         val variable = env.get[Variable](v.name)
         List.tabulate(variable.typ.size) { i => AssemblyLine.variable(ctx, STA, variable, i) }
       case IndexedExpression(variable, index) =>
-        List(MfCompiler.compileByteStorage(ctx, Register.A, lhs))
+        List(ExpressionCompiler.compileByteStorage(ctx, Register.A, lhs))
       case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
         if (simplicity(ctx.env, h) < 'J' || simplicity(ctx.env, l) < 'J') {
           // a[b]:c[d] is the most complex expression that doesn't cause the following warning
@@ -898,7 +864,7 @@ object BuiltIns {
         }
         List(
           getStorageForEachByte(ctx, l).head,
-          MfCompiler.preserveRegisterIfNeeded(ctx, Register.A, getStorageForEachByte(ctx, h).head))
+          ExpressionCompiler.preserveRegisterIfNeeded(ctx, Register.A, getStorageForEachByte(ctx, h).head))
       case _ =>
         ???
     }

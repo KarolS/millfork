@@ -181,6 +181,21 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       getOrElse(ErrorReporting.fatal(s"`$arrayName` is not an array or a pointer"))
   }
 
+  def getPointy(name: String): Pointy = {
+    InitializedMemoryVariable
+    UninitializedMemoryVariable
+    getArrayOrPointer(name) match {
+      case th@InitializedArray(_, _, cs) => ConstantPointy(th.toAddress, Some(cs.length))
+      case th@UninitializedArray(_, size) => ConstantPointy(th.toAddress, Some(size))
+      case th@RelativeArray(_, _, size) => ConstantPointy(th.toAddress, Some(size))
+      case ConstantThing(_, value, typ) if typ.size <= 2 => ConstantPointy(value, None)
+      case th:VariableInMemory => VariablePointy(th.toAddress)
+      case _ =>
+        ErrorReporting.error(s"$name is not a valid pointer or array")
+        ConstantPointy(Constant.Zero, None)
+    }
+  }
+
   if (parent.isEmpty) {
     addThing(VoidType, None)
     addThing(BuiltInBooleanType, None)

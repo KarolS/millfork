@@ -118,8 +118,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // print unoptimized asm
         env.allPreallocatables.foreach {
           case f: NormalFunction =>
-            val result = MfCompiler.compile(CompilationContext(f.environment, f, 0, options))
-            val unoptimized = result.linearize
+            val unoptimized = MfCompiler.compile(CompilationContext(f.environment, f, 0, options))
             unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
           case d: InitializedArray =>
             unoptimizedSize += d.contents.length

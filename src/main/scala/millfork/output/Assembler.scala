@@ -18,15 +18,15 @@ case class AssemblerOutput(code: Array[Byte], asm: Array[String], labels: List[(
 
 class Assembler(private val program: Program, private val rootEnv: Environment) {
 
-  var env = rootEnv.allThings
-  var unoptimizedCodeSize = 0
-  var optimizedCodeSize = 0
-  var initializedVariablesSize = 0
+  private var env = rootEnv.allThings
+  var unoptimizedCodeSize: Int = 0
+  var optimizedCodeSize: Int = 0
+  var initializedVariablesSize: Int = 0
 
   val mem = new CompiledMemory
-  val labelMap = mutable.Map[String, Int]()
-  val bytesToWriteLater = mutable.ListBuffer[(Int, Int, Constant)]()
-  val wordsToWriteLater = mutable.ListBuffer[(Int, Int, Constant)]()
+  val labelMap: mutable.Map[String, Int] = mutable.Map()
+  private val bytesToWriteLater = mutable.ListBuffer[(Int, Int, Constant)]()
+  private val wordsToWriteLater = mutable.ListBuffer[(Int, Int, Constant)]()
 
   def writeByte(bank: Int, addr: Int, value: Byte): Unit = {
     mem.banks(bank).occupied(addr) = true
@@ -298,7 +298,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
   private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization], options: CompilationOptions, inlinedFunctions: Map[String, List[AssemblyLine]]): List[AssemblyLine] = {
     ErrorReporting.debug("Compiling: " + f.name, f.position)
     val unoptimized =
-      MfCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).linearize.flatMap {
+      MfCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).flatMap {
         case AssemblyLine(Opcode.JSR, _, p, true) if inlinedFunctions.contains(p.toString) =>
           inlinedFunctions(p.toString)
         case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, true) if inlinedFunctions.contains(p.toString) =>
