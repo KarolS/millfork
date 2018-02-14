@@ -302,4 +302,42 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         |
       """.stripMargin)
   }
+
+  test("Adding a nonet") {
+    EmuBenchmarkRun(
+      """
+        | word output @$C000
+        | byte source @$C002
+        | void main () {
+        |   init()
+        |   output += source <<<< 1
+        | }
+        | void init() {
+        |   output = 0
+        |   source = $FF
+        | }
+        |
+      """.stripMargin){m =>
+      m.readWord(0xc000) should equal(0x1FE)
+    }
+  }
+
+  test("Common indexing subexpression elimination") {
+    EmuBenchmarkRun(
+      """
+        | array output [55] @$C000
+        | array input = [0,1,2,3,4,5,6,7,8,9,10]
+        | void main () {
+        |   byte indexer
+        |   indexer = init()
+        |   output[(indexer + 1) & 7] = input[(indexer + 1) & 7]
+        | }
+        | byte init() {
+        |   return 2
+        | }
+        |
+      """.stripMargin){m =>
+      m.readWord(0xc003) should equal(3)
+    }
+  }
 }

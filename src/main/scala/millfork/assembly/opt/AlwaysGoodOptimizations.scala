@@ -1220,4 +1220,93 @@ object AlwaysGoodOptimizations {
         (Elidable & HasOpcode(BPL)) ~~> { code => code.init :+ code.last.copy(opcode = JMP, addrMode = Absolute) },
     )
   }
+
+  val NonetAddition = new RuleBasedAssemblyOptimization("Nonet addition",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(LDX) & HasImmediate(0) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(14)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(14) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(ADC) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesNotConcernMemoryAt(0, 1)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)) ~~> { (code, ctx) =>
+      val label = getNextLabel("in")
+      List(
+        code(1), // BCC
+        code(8).copy(opcode = INC),
+        code(3), //LABEL
+        code(4), //CLC
+        code(5), //ADC
+        code(6), //STA
+        AssemblyLine.relative(BCC, label),
+        code(8).copy(opcode = INC),
+        AssemblyLine.label(label))
+    }
+  )
+
+  val CommonIndexSubexpressionElimination: RuleBasedAssemblyOptimization = {
+    def eliminate(firstLda: Boolean, targetY: Boolean): AssemblyRule = {
+      val firstLoad = HasClear(State.D) & (
+        if (firstLda) HasOpcodeIn(Set(LDA, STA, LAX)) & HasAddrModeIn(Set(Absolute, ZeroPage, Immediate)) & MatchParameter(1)
+        else if (targetY) HasOpcodeIn(Set(TXA, TAX))
+        else HasOpcodeIn(Set(TAY, TYA))
+        )
+      val secondLoad = Elidable & (
+        if (firstLda) HasOpcode(LDA) & HasAddrModeIn(Set(Absolute, ZeroPage, Immediate)) & MatchParameter(1)
+        else if (targetY) HasOpcode(TXA)
+        else HasOpcode(TYA)
+        )
+      val firstTransfer = if (targetY) HasOpcode(TAY) else HasOpcode(TAX)
+      val secondTransfer = Elidable & (
+        if (targetY) HasOpcode(TAY)
+        else HasOpcode(TAX)
+        ) & DoesntMatterWhatItDoesWith(State.A, State.Z, State.N, State.C)
+      val fillerLine =
+        HasAddrMode(Implied) & HasOpcodeIn(Set(ASL, CLC, CLD, SEC, SED, LSR, INC, DEC)) |
+          HasOpcodeIn(Set(ADC, ORA, EOR, AND, SBC)) & HasAddrModeIn(Set(Absolute, ZeroPage, Immediate))
+      val firstFiller = fillerLine.*
+      val secondFiller = (Elidable & fillerLine).*
+      val betweenLines = (Linear & Not(secondLoad)).+
+      (firstLoad ~ firstFiller ~ firstTransfer).capture(91) ~ betweenLines.capture(95) ~ (secondLoad ~ secondFiller ~ secondTransfer).capture(92) ~ Where(ctx => {
+        val first = ctx.get[List[AssemblyLine]](91)
+        val second = ctx.get[List[AssemblyLine]](92)
+        val between = ctx.get[List[AssemblyLine]](95)
+        var currentD = false
+        var currentCDefined = false
+        first.length == second.length &&
+          first.head.parameter == second.head.parameter &&
+          (first.head.addrMode == Immediate) == (second.head.addrMode == Immediate) && first.tail.zip(second.tail).forall(p => {
+          p._1.opcode == p._2.opcode && p._1.parameter.quickSimplify == p._2.parameter.quickSimplify && (p._1.addrMode == Immediate) == (p._2.addrMode == Immediate)
+        }) && (for (s1 <- first; s2 <- between) yield HelperCheckers.memoryAccessDoesntOverlap(s1.addrMode, s1.parameter, s2.addrMode, s2.parameter)).forall(identity) && {
+          var currentD = false
+          var currentCDefined = false
+          var noAdditionDependency = true
+          first.tail.map(_.opcode).foreach{
+            case SED => currentD = true
+            case CLD => currentD = false
+            case CLC | SEC => currentCDefined = true
+            case ADC | SBC => noAdditionDependency = currentCDefined
+            case _ => ()
+          }
+          noAdditionDependency && !currentD
+        }
+
+      }) ~~> { (code, ctx) =>
+        val first = ctx.get[List[AssemblyLine]](91)
+        val between = ctx.get[List[AssemblyLine]](95)
+        first ++ between
+      }
+    }
+    new RuleBasedAssemblyOptimization("Common index subexpression elimination",
+      needsFlowInfo = FlowInfoRequirement.BothFlows,
+      eliminate(firstLda = true, targetY = false),
+      eliminate(firstLda = false, targetY = false),
+      eliminate(firstLda = false, targetY = true),
+      eliminate(firstLda = true, targetY = true),
+    )
+  }
+
 }

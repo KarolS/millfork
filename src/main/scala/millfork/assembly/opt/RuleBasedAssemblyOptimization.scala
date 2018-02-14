@@ -170,13 +170,14 @@ trait AssemblyPattern {
 
   def captureLength(i: Int) = CaptureLength(i, this)
 
-  protected def memoryAccessDoesntOverlap(a1: AddrMode.Value, p1: Constant, a2: AddrMode.Value, p2: Constant): Boolean = {
-    import AddrMode._
-    val badAddrModes = Set(IndexedX, IndexedY, ZeroPageIndirect, AbsoluteIndexedX)
+}
+object HelperCheckers {
+  import AddrMode._
+  private val badAddrModes = Set(IndexedX, IndexedY, ZeroPageIndirect, AbsoluteIndexedX)
+  private val goodAddrModes = Set(Implied, Immediate, Relative)
+  def memoryAccessDoesntOverlap(a1: AddrMode.Value, p1: Constant, a2: AddrMode.Value, p2: Constant): Boolean = {
     if (badAddrModes(a1) || badAddrModes(a2)) return false
-    val goodAddrModes = Set(Implied, Immediate, Relative)
     if (goodAddrModes(a1) || goodAddrModes(a2)) return true
-
     def handleKnownDistance(distance: Short): Boolean = {
       val indexingAddrModes = Set(AbsoluteIndexedX, AbsoluteX, ZeroPageX, AbsoluteY, ZeroPageY)
       val a1Indexing = indexingAddrModes(a1)
@@ -412,7 +413,7 @@ case class WhereNoMemoryAccessOverlapBetweenTwoLineLists(ix1: Int, ix2: Int) ext
   override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, AssemblyLine)]): Option[List[(FlowInfo, AssemblyLine)]] = {
     val s1s = ctx.get[List[AssemblyLine]](ix1)
     val s2s = ctx.get[List[AssemblyLine]](ix2)
-    if (s1s.forall(s1 => s2s.forall(s2 => memoryAccessDoesntOverlap(s1.addrMode, s1.parameter, s2.addrMode, s2.parameter)))) Some(code) else None
+    if (s1s.forall(s1 => s2s.forall(s2 => HelperCheckers.memoryAccessDoesntOverlap(s1.addrMode, s1.parameter, s2.addrMode, s2.parameter)))) Some(code) else None
   }
 }
 
@@ -639,7 +640,7 @@ case class DoesntChangeMemoryAt(addrMode1: Int, param1: Int) extends AssemblyLin
     val a1 = ctx.get[AddrMode.Value](addrMode1)
     val a2 = line.addrMode
     val changesSomeMemory = OpcodeClasses.ChangesMemoryAlways(line.opcode) || line.addrMode != AddrMode.Implied && OpcodeClasses.ChangesMemoryIfNotImplied(line.opcode)
-    !changesSomeMemory || memoryAccessDoesntOverlap(a1, p1, a2, p2)
+    !changesSomeMemory || HelperCheckers.memoryAccessDoesntOverlap(a1, p1, a2, p2)
   }
 }
 
@@ -654,7 +655,7 @@ case class DoesNotConcernMemoryAt(addrMode1: Int, param1: Int) extends AssemblyL
     val p2 = line.parameter
     val a1 = ctx.get[AddrMode.Value](addrMode1)
     val a2 = line.addrMode
-    memoryAccessDoesntOverlap(a1, p1, a2, p2)
+    HelperCheckers.memoryAccessDoesntOverlap(a1, p1, a2, p2)
   }
 }
 

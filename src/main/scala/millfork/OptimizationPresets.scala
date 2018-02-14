@@ -14,6 +14,7 @@ object OptimizationPresets {
     UnusedGlobalVariables,
   )
   val AssOpt: List[AssemblyOptimization] = List[AssemblyOptimization](
+    AlwaysGoodOptimizations.NonetAddition,
     AlwaysGoodOptimizations.PointlessSignCheck,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
     AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
@@ -31,6 +32,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessLoadBeforeTransfer,
     VariableToRegisterOptimization,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
+    AlwaysGoodOptimizations.CommonIndexSubexpressionElimination,
     AlwaysGoodOptimizations.PointlessOperationPairRemoval,
     AlwaysGoodOptimizations.PointlessOperationPairRemoval2,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
@@ -125,6 +127,7 @@ object OptimizationPresets {
     DangerousOptimizations.ConstantIndexOffsetPropagation,
     AlwaysGoodOptimizations.CommonBranchBodyOptimization,
     AlwaysGoodOptimizations.CommonExpressionInConditional,
+    AlwaysGoodOptimizations.CommonIndexSubexpressionElimination,
     AlwaysGoodOptimizations.ConstantFlowAnalysis,
     AlwaysGoodOptimizations.ConstantIndexPropagation,
     AlwaysGoodOptimizations.DoubleJumpSimplification,
@@ -137,6 +140,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.IndexSequenceOptimization,
     AlwaysGoodOptimizations.MathOperationOnTwoIdenticalMemoryOperands,
     AlwaysGoodOptimizations.ModificationOfJustWrittenValue,
+    AlwaysGoodOptimizations.NonetAddition,
     AlwaysGoodOptimizations.OperationsAroundShifting,
     AlwaysGoodOptimizations.PoinlessFlagChange,
     AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
