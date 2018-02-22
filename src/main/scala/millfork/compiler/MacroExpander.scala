@@ -88,6 +88,8 @@ object MacroExpander {
           params.zip(normalParams).foreach{
             case (v@VariableExpression(_), MemoryVariable(paramName, paramType, _)) =>
               actualCode = actualCode.map(stmt => replaceVariable(stmt, paramName.stripPrefix(i.environment.prefix), v).asInstanceOf[ExecutableStatement])
+            case (v@IndexedExpression(_, _), MemoryVariable(paramName, paramType, _)) =>
+              actualCode = actualCode.map(stmt => replaceVariable(stmt, paramName.stripPrefix(i.environment.prefix), v).asInstanceOf[ExecutableStatement])
             case _ =>
               ErrorReporting.error(s"Parameters to macro functions have to be variables", position)
           }
