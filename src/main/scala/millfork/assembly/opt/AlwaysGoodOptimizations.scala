@@ -1269,7 +1269,7 @@ object AlwaysGoodOptimizations {
           HasOpcodeIn(Set(ADC, ORA, EOR, AND, SBC)) & HasAddrModeIn(Set(Absolute, ZeroPage, Immediate))
       val firstFiller = fillerLine.*
       val secondFiller = (Elidable & fillerLine).*
-      val betweenLines = (Linear & Not(secondLoad)).+
+      val betweenLines = (Linear & Not(secondLoad) & Not(if (targetY) ChangesY else ChangesX)).+
       (firstLoad ~ firstFiller ~ firstTransfer).capture(91) ~ betweenLines.capture(95) ~ (secondLoad ~ secondFiller ~ secondTransfer).capture(92) ~ Where(ctx => {
         val first = ctx.get[List[AssemblyLine]](91)
         val second = ctx.get[List[AssemblyLine]](92)
