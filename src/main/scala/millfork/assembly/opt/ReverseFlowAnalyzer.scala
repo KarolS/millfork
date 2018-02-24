@@ -1,6 +1,6 @@
 package millfork.assembly.opt
 
-import millfork.assembly.{AssemblyLine, OpcodeClasses, State}
+import millfork.assembly.{AssemblyLine, Opcode, OpcodeClasses, State}
 import millfork.env._
 import millfork.node.Register
 
@@ -68,6 +68,9 @@ case class CpuImportance(a: Importance = UnknownImportance,
 }
 
 object ReverseFlowAnalyzer {
+
+  val aluAdders = Set(Opcode.ADC, Opcode.SBC, Opcode.ISC, Opcode.DCP)
+
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[AssemblyLine]): List[CpuImportance] = {
     val importanceArray = Array.fill[CpuImportance](code.length)(new CpuImportance())
@@ -156,18 +159,32 @@ object ReverseFlowAnalyzer {
           case AssemblyLine(DISCARD_AF, _, _, _) =>
             currentImportance = currentImportance.copy(a = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)
           case AssemblyLine(opcode, addrMode, _, _) =>
+            val reallyIgnoreC =
+              currentImportance.c == Unimportant &&
+                currentImportance.v == Unimportant &&
+                currentImportance.n == Unimportant &&
+                currentImportance.z == Unimportant &&
+                currentImportance.a == Unimportant &&
+                aluAdders.contains(opcode)
+            val reallyIgnoreA =
+              currentImportance.c == Unimportant &&
+                currentImportance.v == Unimportant &&
+                currentImportance.n == Unimportant &&
+                currentImportance.z == Unimportant &&
+                currentImportance.a == Unimportant &&
+                aluAdders.contains(opcode)
             if (OpcodeClasses.ChangesC(opcode)) currentImportance = currentImportance.copy(c = Unimportant)
             if (OpcodeClasses.ChangesV(opcode)) currentImportance = currentImportance.copy(v = Unimportant)
             if (OpcodeClasses.ChangesNAndZ(opcode)) currentImportance = currentImportance.copy(n = Unimportant, z = Unimportant)
             if (OpcodeClasses.OverwritesA(opcode)) currentImportance = currentImportance.copy(a = Unimportant)
             if (OpcodeClasses.OverwritesX(opcode)) currentImportance = currentImportance.copy(x = Unimportant)
             if (OpcodeClasses.OverwritesY(opcode)) currentImportance = currentImportance.copy(y = Unimportant)
-            if (OpcodeClasses.ReadsC(opcode)) currentImportance = currentImportance.copy(c = Important)
+            if (OpcodeClasses.ReadsC(opcode) && !reallyIgnoreC) currentImportance = currentImportance.copy(c = Important)
             if (OpcodeClasses.ReadsD(opcode)) currentImportance = currentImportance.copy(d = Important)
             if (OpcodeClasses.ReadsV(opcode)) currentImportance = currentImportance.copy(v = Important)
             if (OpcodeClasses.ReadsXAlways(opcode)) currentImportance = currentImportance.copy(x = Important)
             if (OpcodeClasses.ReadsYAlways(opcode)) currentImportance = currentImportance.copy(y = Important)
-            if (OpcodeClasses.ReadsAAlways(opcode)) currentImportance = currentImportance.copy(a = Important)
+            if (OpcodeClasses.ReadsAAlways(opcode) && !reallyIgnoreA) currentImportance = currentImportance.copy(a = Important)
             if (OpcodeClasses.ReadsAIfImplied(opcode) && addrMode == Implied) currentImportance = currentImportance.copy(a = Important)
             if (addrMode == AbsoluteX || addrMode == IndexedX || addrMode == ZeroPageX || addrMode == AbsoluteIndexedX)
               currentImportance = currentImportance.copy(x = Important)
