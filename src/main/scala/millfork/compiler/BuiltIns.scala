@@ -98,6 +98,9 @@ object BuiltIns {
 
   def insertBeforeLast(item: AssemblyLine, list: List[AssemblyLine]): List[AssemblyLine] = list match {
     case Nil => Nil
+    case last :: cld :: Nil if cld.opcode == CLD => item :: last :: cld :: Nil
+    case last :: cld :: dex :: txs :: Nil if cld.opcode == CLD && dex.opcode == DEX && txs.opcode == TXS => item :: last :: cld :: dex :: txs :: Nil
+    case last :: cld :: inx :: txs :: Nil if cld.opcode == CLD && inx.opcode == INX && txs.opcode == TXS => item :: last :: cld :: inx :: txs :: Nil
     case last :: dex :: txs :: Nil if dex.opcode == DEX && txs.opcode == TXS => item :: last :: dex :: txs :: Nil
     case last :: inx :: txs :: Nil if inx.opcode == INX && txs.opcode == TXS => item :: last :: inx :: txs :: Nil
     case last :: Nil => item :: last :: Nil
@@ -555,15 +558,23 @@ object BuiltIns {
     }
     val env = ctx.env
     val b = env.get[Type]("byte")
+    val lhsIsDirectlyIncrementable = v match {
+      case _:VariableExpression => true
+      case IndexedExpression(pointy, _) => env.getPointy(pointy) match {
+        case _:ConstantPointy => true
+        case _:VariablePointy => false
+      }
+      case _ => false
+    }
     env.eval(addend) match {
       case Some(NumericConstant(0, _)) => Nil
-      case Some(NumericConstant(1, _)) if !decimal => if (subtract) {
+      case Some(NumericConstant(1, _)) if lhsIsDirectlyIncrementable && !decimal => if (subtract) {
         simpleOperation(DEC, ctx, v, IndexChoice.RequireX, preserveA = false, commutative = true)
       } else {
         simpleOperation(INC, ctx, v, IndexChoice.RequireX, preserveA = false, commutative = true)
       }
       // TODO: compile +=2 to two INCs
-      case Some(NumericConstant(-1, _)) if !decimal => if (subtract) {
+      case Some(NumericConstant(-1, _)) if lhsIsDirectlyIncrementable && !decimal => if (subtract) {
         simpleOperation(INC, ctx, v, IndexChoice.RequireX, preserveA = false, commutative = true)
       } else {
         simpleOperation(DEC, ctx, v, IndexChoice.RequireX, preserveA = false, commutative = true)

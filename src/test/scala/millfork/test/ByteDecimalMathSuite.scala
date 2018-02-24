@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuOptimizedRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -226,6 +226,26 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
           | void run () { output *'= $#j }
         """.stripMargin.replace("#i", i.toString).replace("#j", j.toString))
       toDecimal(m.readWord(0xc000)) should equal((i * j) % 100)
+    }
+  }
+
+  test("Decimal comparison") {
+    // CMP#0 shouldn't be elided after a decimal operation.
+    // Currently no emulator used for testing can catch that.
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |   init()
+        |   if output +' 1 == 0 {
+        |     output = $22
+        |   }
+        |   output +'= 1
+        | }
+        | void init() { output = $99 }
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(0x23)
     }
   }
 }
