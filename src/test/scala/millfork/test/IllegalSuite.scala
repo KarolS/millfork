@@ -184,4 +184,27 @@ class IllegalSuite extends FunSuite with Matchers {
     m.readByte(0xc006) should equal(8)
   }
 
+
+  test("ISC/DCP test 2") {
+    val m = EmuUndocumentedRun("""
+        | array output [3] @$c000
+        | void main () {
+        |   init()
+        |   pointer p
+        |   p = o()
+        |   p[1] -= 1
+        |   p[2] += 1
+        | }
+        | word o () {
+        |   return output.addr
+        | }
+        | void init() {
+        |   output[0] = 4
+        |   output[1] = 4
+        |   output[2] = 4
+        | }
+      """.stripMargin)
+    m.readByte(0xc001) should equal(3)
+    m.readByte(0xc002) should equal(5)
+  }
 }

@@ -165,6 +165,13 @@ object UndocumentedOptimizations {
     },
   )
 
+  private def extraRmw(legal: Opcode.Value, illegal: Opcode.Value) =
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(IndexedY, AbsoluteY, IndexedY)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(legal) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C, State.V)) ~~> { (code, ctx) =>
+      code.head.copy(opcode = illegal) :: Nil
+    }
+
   private def trivialSequence1(o1: Opcode.Value, o2: Opcode.Value, extra: AssemblyLinePattern, combined: Opcode.Value) =
     (Elidable & HasOpcode(o1) & HasAddrMode(Absolute) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & DoesNotConcernMemoryAt(0, 1) & extra).* ~
@@ -193,6 +200,7 @@ object UndocumentedOptimizations {
     trivialSequence1(ASL, ORA, Not(ConcernsC), SLO),
     trivialSequence2(ASL, ORA, Not(ConcernsC), SLO),
     trivialCommutativeSequence(ASL, ORA, SLO),
+    extraRmw(ASL, SLO),
     (Elidable & HasOpcode(ASL) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & Not(ConcernsMemory)).* ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
@@ -215,10 +223,11 @@ object UndocumentedOptimizations {
   )
 
   val UseSre = new RuleBasedAssemblyOptimization("Using undocumented instruction SRE",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
     trivialSequence1(LSR, EOR, Not(ConcernsC), SRE),
     trivialSequence2(LSR, EOR, Not(ConcernsC), SRE),
     trivialCommutativeSequence(LSR, EOR, SRE),
+    extraRmw(LSR, SRE),
     (Elidable & HasOpcode(LSR) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & Not(ConcernsMemory)).* ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
@@ -236,24 +245,32 @@ object UndocumentedOptimizations {
   )
 
   val UseRla = new RuleBasedAssemblyOptimization("Using undocumented instruction RLA",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
     trivialSequence1(ROL, AND, Not(ConcernsC), RLA),
     trivialSequence2(ROL, AND, Not(ConcernsC), RLA),
     trivialCommutativeSequence(ROL, AND, RLA),
+    extraRmw(ROL, RLA),
   )
 
   val UseRra = new RuleBasedAssemblyOptimization("Using undocumented instruction RRA",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
     // TODO: is it ok? carry flag and stuff?
     trivialSequence1(ROR, ADC, Not(ConcernsC), RRA),
     trivialSequence2(ROR, ADC, Not(ConcernsC), RRA),
     trivialCommutativeSequence(ROR, ADC, RRA),
+    extraRmw(ROR, RRA),
   )
 
   val UseDcp = new RuleBasedAssemblyOptimization("Using undocumented instruction DCP",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     trivialSequence1(DEC, CMP, Not(ConcernsC), DCP),
     trivialSequence2(DEC, CMP, Not(ConcernsC), DCP),
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(IndexedY, AbsoluteY, IndexedY)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(SEC)).? ~
+      (Elidable & HasOpcode(SBC) & HasImmediate(1) & HasSet(State.C) & HasClear(State.D)).? ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C, State.V)) ~~> { (code, ctx) =>
+      code.head.copy(opcode = DCP) :: Nil
+    },
     (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(IndexedX, ZeroPageX, AbsoluteX))) ~
       (Elidable & HasOpcode(TAX)) ~
       (Elidable & HasOpcode(DEC) & HasAddrMode(AbsoluteX) & DoesntMatterWhatItDoesWith(State.A, State.Y, State.X, State.C, State.Z, State.N, State.V)) ~~> { code =>
@@ -265,6 +282,12 @@ object UndocumentedOptimizations {
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     trivialSequence1(INC, SBC, Not(ReadsC), ISC),
     trivialSequence2(INC, SBC, Not(ReadsC), ISC),
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(IndexedY, AbsoluteY, IndexedY)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1) & HasClear(State.C) & HasClear(State.D)).? ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C, State.V)) ~~> { (code, ctx) =>
+      code.head.copy(opcode = ISC) :: Nil
+    },
     (Elidable & HasOpcode(LDA) & HasImmediate(0) & HasClear(State.D)) ~
       (Elidable & HasOpcode(ADC) & MatchAddrMode(1) & MatchParameter(2) & HasAddrModeIn(Set(IndexedX, IndexedY, AbsoluteY))) ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(1) & MatchParameter(2) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { code =>
@@ -319,6 +342,50 @@ object UndocumentedOptimizations {
     }
   )
 
+  val UseMultiple = new RuleBasedAssemblyOptimization("Using multiple undocumented instructions",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(LDA) & LaxAddrModeRestriction) ~
+      (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(2) & HasClear(State.C)) ~
+      (Elidable & HasOpcode(TAX)) ~~> { (code, ctx) =>
+      List(code.head.copy(opcode = LAX), AssemblyLine(SBX, Immediate, Constant.Zero - ctx.get[Constant](2)))
+    },
+    (Elidable & HasOpcode(LDA) & LaxAddrModeRestriction) ~
+      (Elidable & HasOpcode(SEC)).? ~
+      (Elidable & HasOpcode(SBC) & HasImmediate(2) & HasSet(State.C)) ~
+      (Elidable & HasOpcode(TAX)) ~~> { (code, ctx) =>
+      List(code.head.copy(opcode = LAX), AssemblyLine(SBX, Immediate, ctx.get[Constant](2)))
+    },
+  )
+
+  private def idempotent(illegal: Opcode.Value, pointless: Opcode.Value) =
+    (HasOpcode(illegal) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(pointless) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      code.take(1)
+    }
+
+  private def preferLegal(illegal: Opcode.Value, legal: Opcode.Value) =
+    (Elidable & HasOpcode(illegal) & HasAddrModeIn(Set(Absolute, AbsoluteX, ZeroPage, ZeroPageX)) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C, State.V))  ~~> { (code, ctx) =>
+      code.map(_.copy(opcode = legal))
+    }
+
+  val CleaningUp = new RuleBasedAssemblyOptimization("Simplifying code that uses undocumented instructions",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    idempotent(SLO, ORA),
+    idempotent(SRE, EOR),
+    idempotent(ROL, AND),
+    idempotent(DCP, CMP),
+    preferLegal(SLO, ASL),
+    preferLegal(SRE, LSR),
+    preferLegal(RLA, ROL),
+    preferLegal(RRA, ROR),
+    preferLegal(DCP, DEC),
+    preferLegal(ISC, INC),
+    HasOpcodeIn(Set(TAX, TXA, LAX)) ~ (Elidable & HasOpcode(SBX) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (code => List(code.head)),
+    HasOpcodeIn(Set(TAX, TXA, LAX)) ~ (Elidable & HasOpcode(SBX) & HasImmediate(1) & DoesntMatterWhatItDoesWith(State.C)) ~~> (code => List(code.head, AssemblyLine.implied(DEX))),
+    HasOpcodeIn(Set(TAX, TXA, LAX)) ~ (Elidable & HasOpcode(SBX) & HasImmediate(0xff) & DoesntMatterWhatItDoesWith(State.C)) ~~> (code => List(code.head, AssemblyLine.implied(INX))),
+  )
+
   val All: List[AssemblyOptimization] = List(
     UseLax,
     UseSax,
@@ -332,5 +399,7 @@ object UndocumentedOptimizations {
     UseRra,
     UseIsc,
     UseDcp,
+    UseMultiple,
+    CleaningUp,
   )
 }
