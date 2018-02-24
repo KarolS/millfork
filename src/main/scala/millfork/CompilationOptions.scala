@@ -33,7 +33,7 @@ case class CompilationOptions(platform: Platform, commandLineFlags: Map[Compilat
     if (platform.cpu == Cmos) {
       ErrorReporting.warn("Illegal opcodes enabled for CMOS architecture", this)
     }
-    if (platform.cpu == StrictRicoh || platform.cpu == Ricoh) {
+    if (platform.cpu == StrictRicoh || platform.cpu == StrictMos) {
       ErrorReporting.warn("Illegal opcodes enabled for strict architecture", this)
     }
   }

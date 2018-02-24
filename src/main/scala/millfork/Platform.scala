@@ -54,7 +54,7 @@ object Platform {
     conf.read(new StringReader(new String(bytes, StandardCharsets.UTF_8)))
 
     val cs = conf.getSection("compilation")
-    val cpu = Cpu.fromString(cs.get(classOf[String], "cpu", "strict"))
+    val cpu = Cpu.fromString(cs.get(classOf[String], "arch", "strict"))
     val flagOverrides = CompilationFlag.fromString.flatMap { case (k, f) =>
       cs.get(classOf[String], k, "").toLowerCase match {
         case "" => None
