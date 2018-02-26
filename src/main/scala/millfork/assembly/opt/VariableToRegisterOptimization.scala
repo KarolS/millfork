@@ -53,6 +53,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     AHX, SHY, SHX, LAS, TAS,
     TRB, TSB)
 
+  private val LdxAddrModes = Set(ZeroPage, Absolute, Immediate, AbsoluteY, ZeroPageY)
+  private val LdyAddrModes = Set(ZeroPage, Absolute, Immediate, AbsoluteX, ZeroPageX)
+
   override def name = "Allocating variables to index registers"
 
 
@@ -543,12 +546,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         AssemblyLine.implied(TAY) :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
 
       case (AssemblyLine(LDA, am, param, true), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
-        if th.name == vx && doesntUseX(am) =>
+        if th.name == vx && LdxAddrModes(am) =>
         // these TXA's may get optimized away by a different optimization
         AssemblyLine(LDX, am, param) :: AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
 
       case (AssemblyLine(LDA, am, param, true), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
-        if th.name == vy && doesntUseY(am) =>
+        if th.name == vy && LdyAddrModes(am) =>
         // these TYA's may get optimized away by a different optimization
         AssemblyLine(LDY, am, param) :: AssemblyLine.implied(TYA) :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
 
@@ -622,16 +625,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 
       case Nil => Nil
     }
-  }
-
-  def doesntUseY(am: AddrMode.Value): Boolean = am match {
-    case AbsoluteY | ZeroPageY | IndexedY => false
-    case _ => true
-  }
-
-  def doesntUseX(am: AddrMode.Value): Boolean = am match {
-    case AbsoluteX | ZeroPageX | IndexedX | AbsoluteIndexedX => false
-    case _ => true
   }
 
   def doesntUseXOrY(am: AddrMode.Value): Boolean = am match {
