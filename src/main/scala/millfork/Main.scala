@@ -226,14 +226,22 @@ object Main {
     flag("--inline").action { c =>
       c.changeFlag(CompilationFlag.InlineFunctions, true)
     }.description("Inline functions automatically.")
-    flag("-Of", "--fast").action { c =>
-      c.changeFlag(CompilationFlag.OptimizeForSize, false)
-      c.changeFlag(CompilationFlag.OptimizeForSpeed, true)
-    }.description("Optimize for speed (experimental).")
     flag("-Os", "--size").action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, true)
       c.changeFlag(CompilationFlag.OptimizeForSpeed, false)
-    }.description("Optimize for size (experimental).")
+      c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
+    }.description("Optimize for size at cost of lower speed (experimental).")
+    flag("-Of", "--fast").action { c =>
+      c.changeFlag(CompilationFlag.OptimizeForSize, false)
+      c.changeFlag(CompilationFlag.OptimizeForSpeed, true)
+      c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
+    }.description("Optimize for speed at cost of bigger size (experimental).")
+    flag("-Ob", "--blast-processing").action { c =>
+      c.changeFlag(CompilationFlag.OptimizeForSize, false)
+      c.changeFlag(CompilationFlag.OptimizeForSpeed, true)
+      c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, true)
+      c.changeFlag(CompilationFlag.InlineFunctions, true)
+    }.description("Optimize for speed at cost of much bigger size (experimental). Implies --inline.")
     flag("--detailed-flow").action { c =>
       c.changeFlag(CompilationFlag.DetailedFlowAnalysis, true)
     }.description("Use detailed flow analysis (experimental).")

@@ -2,15 +2,17 @@
 
 ## Current version
 
-* **Breaking change!** Renamed `inline` to `macro`
+* **Breaking change!** Renamed `inline` to `macro`.
 
-* Added support for parameters for macros written in Millfork
+* Added support for parameters for macros written in Millfork.
 
 * Enabled calling macros with index expression parameters.
 
-* Added optimizer hints: `inline`, `noinline`, `register`
+* Added optimizer hints: `inline`, `noinline`, `register`.
+ 
+* Added command line flags `--size`, `--fast`, `--blast-processing`.
 
-* Added `*'=` and `<<<<` operators
+* Added `*'=` and `<<<<` operators.
 
 * Added return dispatch statements.
 

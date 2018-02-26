@@ -64,6 +64,12 @@ This may cause problems if the parameter table is stored next to a hardware regi
 
 * `--inline` – Inline functions automatically (experimental). See the [documentation about inlining](../abi/inlining.md). Computationally easy, can give decent gains.
 
+* `--size` – Optimize for size, sacrificing some speed (experimental).
+
+* `--fast` – Optimize for speed, even if it increases the size a bit (experimental).
+
+* `--blast-processing` – Optimize for speed, even if it increases the size a lot (experimental).
+
 * `--detailed-flow` – Use detailed flow analysis (experimental). Very computationally expensive and not that great.
 
 * `--dangerous-optimizations` – Use dangerous optimizations (experimental). Dangerous optimizations are more likely to result in broken code.

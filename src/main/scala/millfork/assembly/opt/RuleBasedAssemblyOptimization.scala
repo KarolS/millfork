@@ -41,7 +41,7 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
       case Nil => Nil
       case head :: tail =>
         for ((rule, index) <- rules.zipWithIndex) {
-          val ctx = new AssemblyMatchingContext
+          val ctx = new AssemblyMatchingContext(options)
           rule.pattern.matchTo(ctx, code) match {
             case Some(rest: List[(FlowInfo, AssemblyLine)]) =>
               val matchedChunkToOptimize: List[AssemblyLine] = code.take(code.length - rest.length).map(_._2)
@@ -69,7 +69,7 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
   }
 }
 
-class AssemblyMatchingContext {
+class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
   private val map = mutable.Map[Int, Any]()
 
   override def toString: String = map.mkString(", ")
@@ -101,7 +101,8 @@ class AssemblyMatchingContext {
     }
   }
 
-  def get[T: Manifest](i: Int): T = {
+  private def getImpl[T: Manifest](i: Int): AnyRef = {
+    if (!map.contains(i)) return null
     val t = map(i)
     val clazz = implicitly[Manifest[T]].runtimeClass match {
       case java.lang.Integer.TYPE => classOf[java.lang.Integer]
@@ -110,13 +111,30 @@ class AssemblyMatchingContext {
       case x => x
     }
     if (clazz.isInstance(t)) {
-      t.asInstanceOf[T]
+      t.asInstanceOf[AnyRef]
     } else {
       if (i eq null) {
         ErrorReporting.fatal(s"Value at index $i is null")
       } else {
         ErrorReporting.fatal(s"Value at index $i is a ${t.getClass.getSimpleName}, not a ${clazz.getSimpleName}")
       }
+    }
+  }
+
+  def get[T: Manifest](i: Int): T = {
+    val v = getImpl[T](i)
+    if (v eq null) {
+      ErrorReporting.fatal(s"Value at index $i is null")
+    }
+    v.asInstanceOf[T]
+  }
+
+  def getOrDefault[T: Manifest](i: Int, defau: T): T = {
+    val v = getImpl[T](i)
+    if (v eq null) {
+      defau
+    } else {
+      v.asInstanceOf[T]
     }
   }
 
@@ -744,6 +762,18 @@ case class MatchImmediate(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
     if (line.addrMode == AddrMode.Immediate) {
       ctx.addObject(i, line.parameter.quickSimplify)
+    } else false
+
+  override def toString: String = s"(?<$i>#)"
+}
+
+case class MatchNumericImmediate(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    if (line.addrMode == AddrMode.Immediate) {
+      line.parameter.quickSimplify match {
+        case NumericConstant(value, _) => ctx.addObject(i, value.toInt & 0xff)
+        case _ => false
+      }
     } else false
 
   override def toString: String = s"(?<$i>#)"

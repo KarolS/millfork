@@ -147,9 +147,13 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     val potentiallyInlineable: Map[String, Int] =
       InliningCalculator.getPotentiallyInlineableFunctions(
         program,
-        options.flags(CompilationFlag.InlineFunctions),
-        if (options.flags(CompilationFlag.OptimizeForSpeed)) 1.3 else 1.0,
-        if (options.flags(CompilationFlag.OptimizeForSpeed)) 8.0 else 1.2)
+        options.flags(CompilationFlag.InlineFunctions) || options.flags(CompilationFlag.OptimizeForSonicSpeed),
+        if (options.flags(CompilationFlag.OptimizeForSonicSpeed)) 4.0
+        else if (options.flags(CompilationFlag.OptimizeForSpeed)) 1.3
+        else 1.0,
+        if (options.flags(CompilationFlag.OptimizeForSonicSpeed)) 12.0
+        else if (options.flags(CompilationFlag.OptimizeForSpeed)) 8.0
+        else 1.2)
 
     var inlinedFunctions = Map[String, List[AssemblyLine]]()
     val compiledFunctions = mutable.Map[String, List[AssemblyLine]]()
