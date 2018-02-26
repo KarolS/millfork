@@ -6,6 +6,8 @@
 
 * Added support for parameters for macros written in Millfork
 
+* Enabled calling macros with index expression parameters.
+
 * Added optimizer hints: `inline`, `noinline`, `register`
 
 * Added `*'=` and `<<<<` operators
@@ -16,7 +18,9 @@
 
 * Fixed several C64 library bugs.
 
-* Other minor improvements.
+* Fixed several other bugs.
+
+* Other improvements.
 
 ## 0.1
 
