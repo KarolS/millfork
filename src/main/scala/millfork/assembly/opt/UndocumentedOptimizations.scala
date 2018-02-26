@@ -2,7 +2,7 @@ package millfork.assembly.opt
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import millfork.assembly.{AddrMode, AssemblyLine, Opcode, State}
+import millfork.assembly._
 import millfork.assembly.Opcode._
 import millfork.assembly.AddrMode._
 import millfork.assembly.OpcodeClasses._
@@ -17,6 +17,7 @@ object UndocumentedOptimizations {
 
   def getNextLabel(prefix: String) = f".$prefix%s__${counter.getAndIncrement()}%05d"
 
+  private val LdxAddrModes = Set(ZeroPage, Absolute, Immediate, AbsoluteY, ZeroPageY)
   private val LaxAddrModeRestriction = Not(HasAddrModeIn(Set(AbsoluteX, ZeroPageX, IndexedX, Immediate)))
 
   //noinspection ScalaUnnecessaryParentheses
@@ -390,6 +391,9 @@ object UndocumentedOptimizations {
     HasOpcodeIn(Set(TAX, TXA, LAX)) ~ (Elidable & HasOpcode(SBX) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (code => List(code.head)),
     HasOpcodeIn(Set(TAX, TXA, LAX)) ~ (Elidable & HasOpcode(SBX) & HasImmediate(1) & DoesntMatterWhatItDoesWith(State.C)) ~~> (code => List(code.head, AssemblyLine.implied(DEX))),
     HasOpcodeIn(Set(TAX, TXA, LAX)) ~ (Elidable & HasOpcode(SBX) & HasImmediate(0xff) & DoesntMatterWhatItDoesWith(State.C)) ~~> (code => List(code.head, AssemblyLine.implied(INX))),
+    (Elidable & HasOpcode(LAX) & DoesntMatterWhatItDoesWith(State.X)) ~~> (_.map(_.copy(opcode = LDA))),
+    (Elidable & HasOpcode(LAX) & HasAddrModeIn(LdxAddrModes) & DoesntMatterWhatItDoesWith(State.A)) ~~> (_.map(_.copy(opcode = LDX))),
+    (Elidable & HasOpcode(ANC) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.map(_.copy(opcode = AND))),
   )
 
   val All: List[AssemblyOptimization] = List(
