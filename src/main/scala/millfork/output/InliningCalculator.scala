@@ -16,8 +16,8 @@ object InliningCalculator {
 
   def getPotentiallyInlineableFunctions(program: Program,
                                         inlineByDefault: Boolean,
-                                        aggressivenessForNormal: Double = 1.0,
-                                        aggressivenessForRecommended: Double = 1.2): Map[String, Int] = {
+                                        aggressivenessForNormal: Double,
+                                        aggressivenessForRecommended: Double): Map[String, Int] = {
     val callCount = mutable.Map[String, Int]().withDefaultValue(0)
     val allFunctions = mutable.Set[String]()
     val badFunctions = mutable.Set[String]()

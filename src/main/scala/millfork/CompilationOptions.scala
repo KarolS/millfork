@@ -75,7 +75,7 @@ object CompilationFlag extends Enumeration {
   // compilation options:
   EmitIllegals, EmitCmosOpcodes, DecimalMode, ReadOnlyArrays, PreventJmpIndirectBug,
   // optimization options:
-  DetailedFlowAnalysis, DangerousOptimizations, InlineFunctions,
+  DetailedFlowAnalysis, DangerousOptimizations, InlineFunctions, OptimizeForSize, OptimizeForSpeed,
   // memory allocation options
   VariableOverlap, CompactReturnDispatchParams,
   // runtime check options

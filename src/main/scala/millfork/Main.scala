@@ -225,7 +225,15 @@ object Main {
     }
     flag("--inline").action { c =>
       c.changeFlag(CompilationFlag.InlineFunctions, true)
-    }.description("Inline functions automatically (experimental).")
+    }.description("Inline functions automatically.")
+    flag("-Of", "--fast").action { c =>
+      c.changeFlag(CompilationFlag.OptimizeForSize, false)
+      c.changeFlag(CompilationFlag.OptimizeForSpeed, true)
+    }.description("Optimize for speed (experimental).")
+    flag("-Os", "--size").action { c =>
+      c.changeFlag(CompilationFlag.OptimizeForSize, true)
+      c.changeFlag(CompilationFlag.OptimizeForSpeed, false)
+    }.description("Optimize for size (experimental).")
     flag("--detailed-flow").action { c =>
       c.changeFlag(CompilationFlag.DetailedFlowAnalysis, true)
     }.description("Use detailed flow analysis (experimental).")
