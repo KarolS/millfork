@@ -142,6 +142,12 @@ object UndocumentedOptimizations {
       code.head,
       AssemblyLine.immediate(SBX, ctx.get[Constant](0)),
     )),
+    (HasOpcodeIn(Set(LDA, TYA)) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(AND)) ~
+    (Elidable & HasOpcode(TAX)) ~
+    (Elidable & HasOpcodeIn(Set(LDA, TYA)) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> {code =>
+      List(code.head, code(1).copy(opcode = LDX), AssemblyLine.immediate(SBX, 0))
+    }
   )
 
 

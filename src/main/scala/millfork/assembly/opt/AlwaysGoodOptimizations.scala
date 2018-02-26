@@ -111,6 +111,9 @@ object AlwaysGoodOptimizations {
       HasOpcode(ANC) & HasAddrMode(Immediate) & DoesntMatterWhatItDoesWith(State.C)) ~~> { (code, ctx) =>
       AssemblyLine.immediate(LDA, CompoundConstant(MathOperator.And, NumericConstant(ctx.get[Int](0), 1), ctx.get[Constant](1)).quickSimplify) :: Nil
     },
+    (Elidable & HasA(0) & HasOpcodeIn(Set(ORA, EOR))) ~~> (code => code.map(_.copy(opcode = LDA))),
+    (Elidable & HasA(0) & HasOpcode(AND)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
+    (Elidable & HasX(0) & HasOpcode(XAA)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
   )
 
   val MathOperationOnTwoIdenticalMemoryOperands = new RuleBasedAssemblyOptimization("Math operation on two identical memory operands",
@@ -694,11 +697,52 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
   )
 
+  val RearrangableLoadFromTheSameLocation = new RuleBasedAssemblyOptimization("Rearrangable load from the same location",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+
+    (HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcode(STA) & Not(ReadsX)) ~
+      (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      List(code.head, AssemblyLine.implied(TAX), code(1))
+    },
+    (HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcode(STA) & Not(ReadsY)) ~
+      (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      List(code.head, AssemblyLine.implied(TAY), code(1))
+    },
+    (HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcode(LDA) & Not(ReadsX)) ~
+      (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      List(code.head, AssemblyLine.implied(TAX), code(1))
+    },
+    (HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcode(LDA) & Not(ReadsY)) ~
+      (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      List(code.head, AssemblyLine.implied(TAY), code(1))
+    },
+  )
+
   val PointlessOperationAfterLoad = new RuleBasedAssemblyOptimization("Pointless operation after load",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (ChangesA & ChangesNAndZ) ~ (Elidable & HasOpcode(EOR) & HasImmediate(0)) ~~> (_.init),
     (ChangesA & ChangesNAndZ) ~ (Elidable & HasOpcode(ORA) & HasImmediate(0)) ~~> (_.init),
     (ChangesA & ChangesNAndZ) ~ (Elidable & HasOpcode(AND) & HasImmediate(0xff)) ~~> (_.init)
+  )
+
+  val PointlessOperationFromFlow = new RuleBasedAssemblyOptimization("Pointless operation from flow",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcodeIn(Set(LDA, TXA, TYA, AND, EOR, ORA, XAA)) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(LDX, TSX, TAX, SBX, INX, DEX)) & DoesntMatterWhatItDoesWith(State.X, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(LDY, TAY, INY, DEY)) & DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(LAX, LXA)) & DoesntMatterWhatItDoesWith(State.A, State.X, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(ANC, ALR)) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(ADC, SBC, ARR)) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C, State.V)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(CMP, CPY, CPX, BIT)) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(ROL, ROR, ASL, LSR)) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(INC, DEC)) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(CLC, SEC)) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(CLD, SED)) & DoesntMatterWhatItDoesWith(State.D)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(CLV)) & DoesntMatterWhatItDoesWith(State.V)) ~~> (_ => Nil),
   )
 
   val SimplifiableBitOpsSequence = new RuleBasedAssemblyOptimization("Simplifiable sequence of bit operations",

@@ -207,4 +207,19 @@ class IllegalSuite extends FunSuite with Matchers {
     m.readByte(0xc001) should equal(3)
     m.readByte(0xc002) should equal(5)
   }
+
+  test("SBX test 2") {
+    val m = EmuUndocumentedRun("""
+        | word output @$c000
+        | byte i
+        | void main () {
+        |   i = 5
+        |   output = o()
+        | }
+        | word o () {
+        |   return i&3:i
+        | }
+      """.stripMargin)
+    m.readWord(0xc000) should equal(0x105)
+  }
 }
