@@ -46,6 +46,7 @@ object Main {
     if (args.isEmpty) {
       ErrorReporting.info("For help, use --help")
     }
+    val startTime = System.nanoTime()
     val (status, c) = parser.parse(Context(Nil), args.toList)
     status match {
       case CliStatus.Quit => return
@@ -124,7 +125,9 @@ object Main {
     }
     val path = Paths.get(prgOutput)
     ErrorReporting.debug("Writing output to " + path.toAbsolutePath)
+    ErrorReporting.debug(s"Total output size: ${result.code.length} bytes")
     Files.write(path, result.code)
+    ErrorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
     c.runFileName.foreach(program =>
       new ProcessBuilder(program, path.toAbsolutePath.toString).start()
     )
