@@ -86,14 +86,19 @@ object Main {
 
     val env = new Environment(None, "")
     env.collectDeclarations(program, options)
-    val extras = List(
-      if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
-      if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
-      if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
-    ).flatten
-    val goodCycle = List.fill(optLevel - 1)(OptimizationPresets.Good).flatten
-    val assemblyOptimizations = if (optLevel <= 0) Nil else if (optLevel >= 9) List(SuperOptimizer) else {
-      goodCycle ++ OptimizationPresets.AssOpt ++ extras ++ goodCycle
+
+    val assemblyOptimizations = optLevel match {
+      case 0 => Nil
+      case 1 => OptimizationPresets.QuickPreset
+      case i if i >= 9 => List(SuperOptimizer)
+      case _ =>
+        val extras = List(
+          if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
+          if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
+          if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
+        ).flatten
+        val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good).flatten
+        goodCycle ++ OptimizationPresets.AssOpt ++ extras ++ goodCycle
     }
 
     // compile
@@ -188,7 +193,7 @@ object Main {
     }.description("Whether should emit CMOS opcodes.")
     boolean("-fillegals", "-fno-illegals").action { (c, v) =>
       c.changeFlag(CompilationFlag.EmitIllegals, v)
-    }.description("Whether should emit illegal (undocumented) NMOS opcodes.")
+    }.description("Whether should emit illegal (undocumented) NMOS opcodes. Required -O2 or higher to have an effect.")
     boolean("-fjmp-fix", "-fno-jmp-fix").action { (c, v) =>
       c.changeFlag(CompilationFlag.PreventJmpIndirectBug, v)
     }.description("Whether should prevent indirect JMP bug on page boundary.")
@@ -230,18 +235,18 @@ object Main {
       c.changeFlag(CompilationFlag.OptimizeForSize, true)
       c.changeFlag(CompilationFlag.OptimizeForSpeed, false)
       c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
-    }.description("Optimize for size at cost of lower speed (experimental).")
+    }.description("Prefer smaller code even if it is slightly slower (experimental).")
     flag("-Of", "--fast").action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, false)
       c.changeFlag(CompilationFlag.OptimizeForSpeed, true)
       c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
-    }.description("Optimize for speed at cost of bigger size (experimental).")
+    }.description("Prefer faster code even if it is slightly bigger (experimental).")
     flag("-Ob", "--blast-processing").action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, false)
       c.changeFlag(CompilationFlag.OptimizeForSpeed, true)
       c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, true)
       c.changeFlag(CompilationFlag.InlineFunctions, true)
-    }.description("Optimize for speed at cost of much bigger size (experimental). Implies --inline.")
+    }.description("Prefer faster code even if it is much bigger (experimental). Implies --inline.")
     flag("--detailed-flow").action { c =>
       c.changeFlag(CompilationFlag.DetailedFlowAnalysis, true)
     }.description("Use detailed flow analysis (experimental).")

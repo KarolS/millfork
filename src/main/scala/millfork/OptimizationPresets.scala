@@ -179,4 +179,21 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.UnusedLabelRemoval,
     VariableToRegisterOptimization,
   )
+
+  val QuickPreset: List[AssemblyOptimization] = List[AssemblyOptimization](
+    AlwaysGoodOptimizations.Adc0Optimization,
+    AlwaysGoodOptimizations.BranchInPlaceRemoval,
+    AlwaysGoodOptimizations.CommonBranchBodyOptimization,
+    AlwaysGoodOptimizations.CommonExpressionInConditional,
+    AlwaysGoodOptimizations.CommonIndexSubexpressionElimination,
+    AlwaysGoodOptimizations.IndexSequenceOptimization,
+    AlwaysGoodOptimizations.PoinlessStoreBeforeStore,
+    AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
+    AlwaysGoodOptimizations.PointlessLoadBeforeTransfer,
+    AlwaysGoodOptimizations.PointlessOperationFromFlow,
+    AlwaysGoodOptimizations.ReverseFlowAnalysis,
+    AlwaysGoodOptimizations.SimplifiableCondition,
+    VariableToRegisterOptimization,
+    LaterOptimizations.DoubleLoadToTheSameRegister
+  )
 }
