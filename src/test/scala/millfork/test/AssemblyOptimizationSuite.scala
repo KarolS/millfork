@@ -340,4 +340,27 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readWord(0xc003) should equal(3)
     }
   }
+
+  test("Effectively const variable") {
+    EmuBenchmarkRun(
+      """
+        |byte output @$c000
+        |void main() {
+        |   byte b
+        |   byte c
+        |   b = five()
+        |   five()
+        |   c = b
+        |   if output == 73 {
+        |     output = 1
+        |   } else {
+        |     output = b & c
+        |   }
+        |}
+        |noinline byte five () { return 5 }
+      """.stripMargin
+    ){m =>
+      m.readByte(0xc000) should equal(5)
+    }
+  }
 }

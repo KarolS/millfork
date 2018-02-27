@@ -193,6 +193,11 @@ object HelperCheckers {
   import AddrMode._
   private val badAddrModes = Set(IndexedX, IndexedY, ZeroPageIndirect, AbsoluteIndexedX)
   private val goodAddrModes = Set(Implied, Immediate, Relative)
+
+  def memoryAccessDoesntOverlap(l1: AssemblyLine, l2: AssemblyLine): Boolean = {
+    memoryAccessDoesntOverlap(l1.addrMode, l1.parameter, l2.addrMode, l2.parameter)
+  }
+
   def memoryAccessDoesntOverlap(a1: AddrMode.Value, p1: Constant, a2: AddrMode.Value, p2: Constant): Boolean = {
     if (badAddrModes(a1) || badAddrModes(a2)) return false
     if (goodAddrModes(a1) || goodAddrModes(a2)) return true
@@ -418,7 +423,7 @@ trait AssemblyLinePattern extends AssemblyPattern {
 
   def + : AssemblyPattern = this ~ Many(this)
 
-  def |(x: AssemblyLinePattern): AssemblyLinePattern = Either(this, x)
+  def |(x: AssemblyLinePattern): AssemblyLinePattern = EitherPattern(this, x)
 
   def &(x: AssemblyLinePattern): AssemblyLinePattern = Both(this, x)
 }
@@ -548,7 +553,7 @@ case class Both(l: AssemblyLinePattern, r: AssemblyLinePattern) extends Assembly
   override def toString: String = l + " ∧ " + r
 }
 
-case class Either(l: AssemblyLinePattern, r: AssemblyLinePattern) extends AssemblyLinePattern {
+case class EitherPattern(l: AssemblyLinePattern, r: AssemblyLinePattern) extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit = {
     l.validate(needsFlowInfo)
     r.validate(needsFlowInfo)

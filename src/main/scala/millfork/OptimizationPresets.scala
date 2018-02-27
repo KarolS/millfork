@@ -121,6 +121,7 @@ object OptimizationPresets {
     LaterOptimizations.IndexSwitchingOptimization,
     LaterOptimizations.LoadingBranchesOptimization,
     LaterOptimizations.IncreaseWithLimit,
+    SingleAssignmentVariableOptimization,
   )
 
   val Good: List[AssemblyOptimization] = List[AssemblyOptimization](
