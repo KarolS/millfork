@@ -363,4 +363,49 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(5)
     }
   }
+
+  test("Common conditions") {
+
+    new EmuRun(Cpu.StrictMos,
+      OptimizationPresets.NodeOpt, List(
+        LaterOptimizations.PointlessLoadAfterStore,
+        LaterOptimizations.DoubleLoadToDifferentRegisters,
+        LaterOptimizations.DoubleLoadToTheSameRegister,
+        AlwaysGoodOptimizations.PointlessRegisterTransfers,
+        AlwaysGoodOptimizations.PointlessRegisterTransfersBeforeReturn,
+        AlwaysGoodOptimizations.PointlessLoadBeforeReturn,
+        AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
+        AlwaysGoodOptimizations.PointlessRegisterTransfers,
+        AlwaysGoodOptimizations.PointlessRegisterTransfersBeforeReturn,
+        AlwaysGoodOptimizations.PointlessRegisterTransfersBeforeReturn,
+        AlwaysGoodOptimizations.PointlessLoadBeforeReturn,
+        AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
+        AlwaysGoodOptimizations.PointlessStashingToIndexOverShortSafeBranch,
+        AlwaysGoodOptimizations.PointlessRegisterTransfersBeforeReturn,
+        AlwaysGoodOptimizations.IdempotentDuplicateRemoval,
+        AlwaysGoodOptimizations.IdempotentDuplicateRemoval,
+        AlwaysGoodOptimizations.IdempotentDuplicateRemoval,
+        AlwaysGoodOptimizations.CommonExpressionInConditional), false)(
+      """
+        | byte output @$C000
+        | void main(){
+        |   byte a
+        |   byte b
+        |   output = 0
+        |   a = delta()
+        |   if a == 0 {
+        |     output += 1
+        |     a += 1
+        |   }
+        |   b = a
+        |   if b == 0 {
+        |     output += 1
+        |     a += 1
+        |   }
+        | }
+        | byte delta () {
+        |    return 0
+        | }
+      """.stripMargin).readByte(0xc000) should equal(1)
+  }
 }

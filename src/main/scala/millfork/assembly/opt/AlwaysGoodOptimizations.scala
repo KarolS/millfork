@@ -825,7 +825,7 @@ object AlwaysGoodOptimizations {
     }
   }
 
-  val SmarterShiftingWords = new RuleBasedAssemblyOptimization("Smarter shifting of words",
+  val SmarterShiftingOfWords = new RuleBasedAssemblyOptimization("Smarter shifting of words",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     wordShifting(8, hiFirst = false, hiFromX = true),
     wordShifting(8, hiFirst = false, hiFromX = false),
@@ -843,6 +843,62 @@ object AlwaysGoodOptimizations {
     wordShifting(5, hiFirst = false, hiFromX = false),
     wordShifting(5, hiFirst = true, hiFromX = true),
     wordShifting(5, hiFirst = true, hiFromX = false),
+  )
+
+  val SmarterShiftingBytes = new RuleBasedAssemblyOptimization("Smarter shifting of bytes",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~~> { _ =>
+      List(
+        AssemblyLine.implied(ROR),
+        AssemblyLine.implied(ROR),
+        AssemblyLine.immediate(AND, 0x80)
+      )
+    },
+    (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~~> { _ =>
+      List(
+        AssemblyLine.implied(ROR),
+        AssemblyLine.implied(ROR),
+        AssemblyLine.implied(ROR),
+        AssemblyLine.immediate(AND, 0xC0)
+      )
+    },
+    (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~~> { _ =>
+      List(
+        AssemblyLine.implied(ROL),
+        AssemblyLine.implied(ROL),
+        AssemblyLine.immediate(AND, 0x1)
+      )
+    },
+    (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~~> { _ =>
+      List(
+        AssemblyLine.implied(ROL),
+        AssemblyLine.implied(ROL),
+        AssemblyLine.implied(ROL),
+        AssemblyLine.immediate(AND, 0x3)
+      )
+    },
   )
 
   private def carryFlagConversionCase(shift: Int, firstSet: Boolean, zeroIfSet: Boolean) = {
@@ -1103,20 +1159,6 @@ object AlwaysGoodOptimizations {
       HasOpcodeIn(ShortConditionalBranching) ~
       MatchElidableCopyOf(7, Anything, DoesntMatterWhatItDoesWith(State.C, State.Z, State.N, State.V)) ~~> { code =>
       code.take(code.length / 2 + 1)
-    },
-
-    (
-      (
-        (HasOpcodeIn(Set(LDA, LAX)) & MatchAddrMode(0) & MatchParameter(1)) ~
-          HasOpcodeIn(Set(LDY, LDX, AND, ORA, EOR, ADC, SBC, CLC, SEC, CPY, CPX, CMP)).*
-        ).capture(7) ~
-        blockIsIdempotentWhenItComesToIndexRegisters(7) ~
-        (HasOpcodeIn(ShortConditionalBranching) & MatchParameter(2)) ~
-        Not(HasOpcode(LABEL) & MatchParameter(2)).* ~
-        (HasOpcode(LABEL) & MatchParameter(2))
-      ).capture(3) ~
-      MatchElidableCopyOf(7, Anything, DoesntMatterWhatItDoesWith(State.C, State.Z, State.N, State.V)) ~~> { (_, ctx) =>
-      ctx.get[List[AssemblyLine]](3)
     },
 
     (Elidable & HasOpcodeIn(Set(LDA, LAX)) & MatchAddrMode(0) & MatchParameter(1)) ~
