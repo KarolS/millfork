@@ -46,6 +46,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `to` – end of a `for-to` loop
 
+* `ur` – a copy due to loop unrolling
+
 * `wh` – beginning of a `while` statement
 
 

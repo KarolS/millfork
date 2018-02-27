@@ -34,8 +34,8 @@ Cartridge targets are not yet available.
 
 ### A note about Apple II
 
-Apple II variants other than II+/IIe/Enhanced IIe (which means the original II, IIc and IIc+) 
-and later compatible computers (Apple III and IIgs) are untested.
+Apple II variants other than II+/IIe/Enhanced IIe are untested;
+this includes the original II, IIc and IIc+, but also later compatible computers (Apple III and IIgs).
 They may or may not work.
 
 The compiler output is a raw machine code file, which then has to be put on a disk. 

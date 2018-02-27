@@ -15,11 +15,13 @@ Currently, `RMBx`/`SMBx`/`BBRx`/`BBSx` are not supported yet.
 
 Undocumented instructions are supported using various opcodes
 
-Labels have to be followed by a colon and they can optionally be on a separate line:
+Labels have to be followed by a colon and they can optionally be on a separate line.
+Indentation is not important:
 
     first:  INC x
     second: 
             INC y
+    INC z
 
 
 Label names have to start with a letter and can contain digits, underscores and letters.

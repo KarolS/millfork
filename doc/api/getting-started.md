@@ -31,7 +31,7 @@ x64 hello_world.prg
 
 The following options are crucial when compiling your sources:
 
-* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended (`prg` for Commodore, `xex` for Atari, `asm` for assembly output, `lbl` for label file)
+* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended (`prg` for Commodore, `xex` for Atari, `a2` for Apple, `asm` for assembly output, `lbl` for label file)
 
 * `-I DIR;DIR;DIR;...` – specifies the paths to directories with modules to include.  
 
@@ -41,7 +41,7 @@ You may be also interested in the following:
 
 * `-O`, `-O2`, `-O3` – enable optimization (various levels)
 
-* `--detailed-flow` – use more resource-consuming but more precise flow analysis engine for better optimization
+* `--inline` – automatically inline functions for better optimization
 
 * `-s` – additionally generate assembly output
 
