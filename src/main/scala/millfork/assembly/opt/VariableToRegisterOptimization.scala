@@ -53,6 +53,8 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     AHX, SHY, SHX, LAS, TAS,
     TRB, TSB)
 
+  private val opcodesCommutative = Set(AND, ORA, EOR, ADC)
+
   private val LdxAddrModes = Set(ZeroPage, Absolute, Immediate, AbsoluteY, ZeroPageY)
   private val LdyAddrModes = Set(ZeroPage, Absolute, Immediate, AbsoluteX, ZeroPageX)
 
@@ -288,6 +290,20 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
         None
 
+      case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
+        if opcodesCommutative(op) =>
+        if (th.name == vx || th.name == vy) {
+          if (elidable && elidable2) canBeInlined(xCandidate, yCandidate, xs).map(_ + 2)
+          else None
+        } else canBeInlined(xCandidate, yCandidate, xs)
+
+      case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(CLC, _, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
+        if opcodesCommutative(op) =>
+        if (th.name == vx || th.name == vy) {
+          if (elidable && elidable2) canBeInlined(xCandidate, yCandidate, xs).map(_ + 2)
+          else None
+        } else canBeInlined(xCandidate, yCandidate, xs)
+
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: (AssemblyLine(TAX, _, _, elidable2), _) :: xs
         if xCandidate.isDefined =>
         // a variable cannot be inlined if there is TAX not after LDA of that variable
@@ -416,6 +432,20 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           None
         }
 
+      case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
+        if opcodesCommutative(op) =>
+        if (th.name == candidate) {
+          if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 3)
+          else None
+        } else canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
+
+      case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(CLC, _, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
+        if opcodesCommutative(op) =>
+        if (th.name == candidate) {
+          if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 3)
+          else None
+        } else canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
+
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), imp) :: xs
         if th.name == candidate =>
         // removing LDA saves 3 cycles
@@ -504,6 +534,30 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
         AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
+
+      case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+        if opcodesCommutative(op) && th.name == va =>
+        l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
+
+      case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+        if opcodesCommutative(op) && th.name == va =>
+        l.copy(opcode = op) :: clc :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
+
+      case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+        if opcodesCommutative(op) && th.name == vx =>
+        AssemblyLine.implied(TXA) :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
+
+      case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+        if opcodesCommutative(op) && th.name == vx =>
+        AssemblyLine.implied(TXA) :: l.copy(opcode = op) :: clc :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
+
+      case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+        if opcodesCommutative(op) && th.name == vy =>
+        AssemblyLine.implied(TYA) :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
+
+      case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+        if opcodesCommutative(op) && th.name == vy =>
+        AssemblyLine.implied(TYA) :: l.copy(opcode = op) :: clc :: inlineVars(xCandidate, yCandidate, aCandidate, xs)
 
       case (AssemblyLine(LDA | STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
         if th.name == va =>
