@@ -41,7 +41,7 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & MatchA(0) &
       HasOpcode(ASL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> { (code, ctx) =>
-      AssemblyLine.immediate(LDA, ctx.get[Int](0) << 1) :: Nil
+      AssemblyLine.immediate(LDA, (ctx.get[Int](0) << 1) & 0xff) :: Nil
     },
     (Elidable & MatchA(0) &
       HasOpcode(LSR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> { (code, ctx) =>
