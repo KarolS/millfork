@@ -1,7 +1,8 @@
 package millfork.output
 
-import millfork.assembly.{AssemblyLine, Opcode, OpcodeClasses}
+import millfork.assembly.{AddrMode, AssemblyLine, Opcode, OpcodeClasses}
 import millfork.assembly.Opcode._
+import millfork.compiler.{ExpressionCompiler, MfCompiler}
 import millfork.env._
 import millfork.node._
 
@@ -75,10 +76,8 @@ object InliningCalculator {
     case _ => Nil
   }
 
-  private val badOpcodes =
-    Set(RTI, RTS, JSR, JMP, LABEL, BRK) ++
-      OpcodeClasses.ShortBranching ++
-      OpcodeClasses.ChangesStack
+  private val badOpcodes = Set(RTI, RTS, JSR, BRK) ++ OpcodeClasses.ChangesStack
+  private val jumpingRelatedOpcodes = Set(LABEL, JMP) ++ OpcodeClasses.ShortBranching
 
   def codeForInlining(fname: String, code: List[AssemblyLine]): Option[List[AssemblyLine]] = {
     if (code.isEmpty) return None
@@ -88,7 +87,12 @@ object InliningCalculator {
       result = result.init
     }
     if (result.head.opcode == LABEL && result.head.parameter == Label(fname).toAddress) result = result.tail
-    if (result.exists(l => badOpcodes(l.opcode))) return None
+    if (result.exists{
+      case AssemblyLine(op, AddrMode.Absolute | AddrMode.Relative, MemoryAddressConstant(Label(l)), _) if jumpingRelatedOpcodes(op) =>
+        !l.startsWith(".")
+      case AssemblyLine(op, _, _, _) if jumpingRelatedOpcodes(op) || badOpcodes(op) => true
+      case _ => false
+    }) return None
     Some(result)
   }
 }

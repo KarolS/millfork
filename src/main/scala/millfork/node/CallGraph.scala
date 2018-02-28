@@ -51,9 +51,15 @@ abstract class CallGraph(program: Program) {
         currentFunction.foreach(f => callEdges += f -> g.functionName)
         callingFunctions.foreach(f => paramEdges += f -> g.functionName)
         g.expressions.foreach(expr => add(currentFunction, g.functionName :: callingFunctions, expr))
+      case s: SumExpression =>
+        s.expressions.foreach(expr => add(currentFunction, callingFunctions, expr._2))
       case x: VariableExpression =>
         val varName = x.name.stripSuffix(".hi").stripSuffix(".lo").stripSuffix(".addr")
         everCalledFunctions += varName
+      case i: IndexedExpression =>
+        val varName = i.name.stripSuffix(".hi").stripSuffix(".lo").stripSuffix(".addr")
+        everCalledFunctions += varName
+        add(currentFunction, callingFunctions, i.index)
       case _ => ()
     }
   }

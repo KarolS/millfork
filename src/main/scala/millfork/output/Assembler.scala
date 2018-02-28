@@ -69,22 +69,28 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     c match {
       case NumericConstant(v, _) => v
       case MemoryAddressConstant(th) =>
-        if (labelMap.contains(th.name)) return labelMap(th.name)
-        if (labelMap.contains(th.name + "`")) return labelMap(th.name)
-        if (labelMap.contains(th.name + ".addr")) return labelMap(th.name)
-        val x1 = env.maybeGet[ConstantThing](th.name).map(_.value)
-        val x2 = env.maybeGet[ConstantThing](th.name + "`").map(_.value)
-        val x3 = env.maybeGet[NormalFunction](th.name).flatMap(_.address)
-        val x4 = env.maybeGet[ConstantThing](th.name + ".addr").map(_.value)
-        val x5 = env.maybeGet[RelativeVariable](th.name).map(_.address)
-        val x6 = env.maybeGet[ConstantThing](th.name.stripSuffix(".array") + ".addr").map(_.value)
-        val x = x1.orElse(x2).orElse(x3).orElse(x4).orElse(x5).orElse(x6)
-        x match {
-          case Some(cc) =>
-            deepConstResolve(cc)
-          case None =>
-            println(th)
-            ???
+        try {
+          if (labelMap.contains(th.name)) return labelMap(th.name)
+          if (labelMap.contains(th.name + "`")) return labelMap(th.name)
+          if (labelMap.contains(th.name + ".addr")) return labelMap(th.name)
+          val x1 = env.maybeGet[ConstantThing](th.name).map(_.value)
+          val x2 = env.maybeGet[ConstantThing](th.name + "`").map(_.value)
+          val x3 = env.maybeGet[NormalFunction](th.name).flatMap(_.address)
+          val x4 = env.maybeGet[ConstantThing](th.name + ".addr").map(_.value)
+          val x5 = env.maybeGet[RelativeVariable](th.name).map(_.address)
+          val x6 = env.maybeGet[ConstantThing](th.name.stripSuffix(".array") + ".addr").map(_.value)
+          val x = x1.orElse(x2).orElse(x3).orElse(x4).orElse(x5).orElse(x6)
+          x match {
+            case Some(cc) =>
+              deepConstResolve(cc)
+            case None =>
+              println(th)
+              ???
+          }
+        } catch {
+          case e: StackOverflowError =>
+            e.printStackTrace()
+            ErrorReporting.fatal("Stack overflow")
         }
       case HalfWordConstant(cc, true) => deepConstResolve(cc).>>>(8).&(0xff)
       case HalfWordConstant(cc, false) => deepConstResolve(cc).&(0xff)
@@ -157,7 +163,8 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
 
     var inlinedFunctions = Map[String, List[AssemblyLine]]()
     val compiledFunctions = mutable.Map[String, List[AssemblyLine]]()
-    callGraph.recommendedCompilationOrder.foreach { f =>
+    val recommendedCompilationOrder = callGraph.recommendedCompilationOrder
+    recommendedCompilationOrder.foreach { f =>
       env.maybeGet[NormalFunction](f).foreach { function =>
         val code = compileFunction(function, optimizations, options, inlinedFunctions)
         val strippedCodeForInlining = for {
@@ -308,9 +315,21 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     val unoptimized =
       MfCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).flatMap {
         case AssemblyLine(Opcode.JSR, _, p, true) if inlinedFunctions.contains(p.toString) =>
-          inlinedFunctions(p.toString)
+          val labelPrefix = MfCompiler.nextLabel("ai")
+          inlinedFunctions(p.toString).map{
+            case line@AssemblyLine(_, _, MemoryAddressConstant(Label(label)), _) =>
+              val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
+              line.copy(parameter = newLabel)
+            case l => l
+          }
         case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, true) if inlinedFunctions.contains(p.toString) =>
-          inlinedFunctions(p.toString) :+ AssemblyLine.implied(Opcode.RTS)
+          val labelPrefix = MfCompiler.nextLabel("ai")
+          inlinedFunctions(p.toString).map{
+            case line@AssemblyLine(_, _, MemoryAddressConstant(Label(label)), _) =>
+              val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
+              line.copy(parameter = newLabel)
+            case l => l
+          } :+ AssemblyLine.implied(Opcode.RTS)
         case x => List(x)
       }
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
