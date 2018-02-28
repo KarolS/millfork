@@ -723,6 +723,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   }
 
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
+    if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) {
+      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => NumericConstant(n, 1))), None)
+    }
     program.declarations.foreach {
       case f: FunctionDeclarationStatement => registerFunction(f, options)
       case v: VariableDeclarationStatement => registerVariable(v, options)
@@ -774,9 +777,13 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     case SumExpression(params, _) =>
       nameCheck(params.map(_._2))
     case FunctionCallExpression(name, params) =>
-      if (name.exists(_.isLetter) && name != "not") {
+      if (name.exists(_.isLetter) && !Environment.predefinedFunctions(name)) {
         checkName[CallableThing]("Function or type", name, node.position)
       }
       nameCheck(params)
   }
+}
+
+object Environment {
+  val predefinedFunctions = Set("not", "hi", "lo")
 }

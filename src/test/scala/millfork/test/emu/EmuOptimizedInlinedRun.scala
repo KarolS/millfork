@@ -13,7 +13,10 @@ object EmuOptimizedInlinedRun extends EmuRun(
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     OptimizationPresets.Good,
-  false)
+  false) {
+  override def inline: Boolean = true
+  override def blastProcessing: Boolean = true
+}
 
 
 

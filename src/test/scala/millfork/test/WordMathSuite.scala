@@ -100,4 +100,36 @@ class WordMathSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(m => ())
   }
+
+  test("hi()/lo()") {
+    EmuBenchmarkRun("""
+        | array output [7] @$c000
+        | void main () {
+        |   output[0] = lo(33)
+        |   output[1] = hi(33)
+        |   output[2] = hi(w($504))
+        |   output[3] = lo(w($209))
+        |   output[4] = hi(s(-2))
+        |   output[5] = lo(s(-2))
+        |   output[6] = hi(b(200) + b(200))
+        | }
+        | word w(word w) {
+        |   return w
+        | }
+        | byte b(byte b) {
+        |   return b
+        | }
+        | sbyte s(sbyte s) {
+        |   return s
+        | }
+      """.stripMargin){ m =>
+      m.readByte(0xc000) should equal(33)
+      m.readByte(0xc001) should equal(0)
+      m.readByte(0xc002) should equal(5)
+      m.readByte(0xc003) should equal(9)
+      m.readByte(0xc004) should equal(255)
+      m.readByte(0xc005) should equal(254)
+      m.readByte(0xc006) should equal(0)
+    }
+  }
 }

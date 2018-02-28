@@ -30,6 +30,8 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
   def inline = false
 
+  def blastProcessing = false
+
   private val timingNmos = Array[Int](
     7, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
     2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
@@ -96,6 +98,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.CompactReturnDispatchParams -> true,
       CompilationFlag.EmitCmosOpcodes -> (platform.cpu == millfork.Cpu.Cmos),
+      CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
     ))
     ErrorReporting.hasErrors = false
