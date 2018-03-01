@@ -9,11 +9,11 @@ import millfork.error.ErrorReporting
   */
 object VariableLifetime {
 
-  // TODO: This only works for 1-byte non-stack variables.
-  // Should be fixed to also work with larger variables.
+  // This only works for non-stack variables.
   def apply(variableName: String, code: List[AssemblyLine]): Range = {
     val flags = code.map(_.parameter match {
       case MemoryAddressConstant(MemoryVariable(n, _, _)) if n == variableName => true
+      case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(MemoryVariable(n, _, _)), NumericConstant(_, 1)) if n == variableName => true
       case _ => false
     })
     if (flags.forall(!_)) return Range(0, 0)

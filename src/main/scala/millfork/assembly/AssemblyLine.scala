@@ -50,14 +50,14 @@ object OpcodeClasses {
     PHX, PHY, PLX, PLY, TAS, LAS
   )
   val ChangesMemoryAlways = Set(
-    STA, STY, STZ,
-    STX, DEC, INC,
+    STA, STY, STZ, STX,
+    TRB, TSB,
     SAX, DCP, ISC,
     SLO, RLA, SRE, RRA,
     AHX, SHY, SHX, TAS, LAS
   )
   val ChangesMemoryIfNotImplied = Set(
-    ASL, ROL, LSR, ROR
+    DEC, INC, ASL, ROL, LSR, ROR
   )
   val ReadsMemoryIfNotImpliedOrImmediate = Set(
     LDY, CPX, CPY,
@@ -305,7 +305,7 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
 
   def sizeInBytes: Int = addrMode match {
     case Implied => 1
-    case Relative | ZeroPageX | ZeroPage | ZeroPageY | IndexedX | IndexedY | Immediate => 2
+    case Relative | ZeroPageX | ZeroPage | ZeroPageY | ZeroPageIndirect | IndexedX | IndexedY | Immediate => 2
     case AbsoluteIndexedX | AbsoluteX | Absolute | AbsoluteY | Indirect => 3
     case DoesNotExist => 0
   }

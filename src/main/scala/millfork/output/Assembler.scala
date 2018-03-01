@@ -708,6 +708,7 @@ object Assembler {
   cm(TRB, ZeroPage, 0x14)
   cm(TRB, Absolute, 0x1C)
 
+  cm(BRA, Relative, 0x80)
   cm(BIT, ZeroPageX, 0x34)
   cm(BIT, AbsoluteX, 0x3C)
   cm(INC, Implied, 0x1A)

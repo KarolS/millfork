@@ -195,16 +195,16 @@ object CoarseFlowAnalyzer {
             currentStatus = initialStatus
 
           case AssemblyLine(LDX, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.nz(n).copy(x = SingleStatus(n))
           case AssemblyLine(LDY, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.nz(n).copy(y = SingleStatus(n))
           case AssemblyLine(LDA, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.nz(n).copy(a = SingleStatus(n))
           case AssemblyLine(LAX, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.nz(n).copy(a = SingleStatus(n), x = SingleStatus(n))
 
           case AssemblyLine(ADC, Immediate, NumericConstant(nn, _), _) =>
@@ -232,17 +232,17 @@ object CoarseFlowAnalyzer {
               a = currentStatus.a.map(i => (i & n & 0xff) >> 1))
 
           case AssemblyLine(INX, Implied, _, _) =>
-            currentStatus = currentStatus.copy(n = currentStatus.x.n(_ + 1), z = currentStatus.x.z(_ + 1), x = currentStatus.x.map(_ + 1))
+            currentStatus = currentStatus.copy(n = currentStatus.x.n(_ + 1), z = currentStatus.x.z(_ + 1), x = currentStatus.x.map(v => (v + 1) & 0xff))
           case AssemblyLine(DEX, Implied, _, _) =>
-            currentStatus = currentStatus.copy(n = currentStatus.x.n(_ - 1), z = currentStatus.x.z(_ - 1), x = currentStatus.x.map(_ - 1))
+            currentStatus = currentStatus.copy(n = currentStatus.x.n(_ - 1), z = currentStatus.x.z(_ - 1), x = currentStatus.x.map(v => (v - 1) & 0xff))
           case AssemblyLine(INY, Implied, _, _) =>
-            currentStatus = currentStatus.copy(n = currentStatus.y.n(_ + 1), z = currentStatus.y.z(_ + 1), y = currentStatus.y.map(_ + 1))
+            currentStatus = currentStatus.copy(n = currentStatus.y.n(_ + 1), z = currentStatus.y.z(_ + 1), y = currentStatus.y.map(v => (v + 1) & 0xff))
           case AssemblyLine(DEY, Implied, _, _) =>
-            currentStatus = currentStatus.copy(n = currentStatus.y.n(_ - 1), z = currentStatus.y.z(_ - 1), y = currentStatus.y.map(_ - 1))
+            currentStatus = currentStatus.copy(n = currentStatus.y.n(_ - 1), z = currentStatus.y.z(_ - 1), y = currentStatus.y.map(v => (v - 1) & 0xff))
           case AssemblyLine(INC, Implied, _, _) =>
-            currentStatus = currentStatus.copy(n = currentStatus.a.n(_ + 1), z = currentStatus.a.z(_ + 1), a = currentStatus.a.map(_ + 1))
+            currentStatus = currentStatus.copy(n = currentStatus.a.n(_ + 1), z = currentStatus.a.z(_ + 1), a = currentStatus.a.map(v => (v + 1) & 0xff))
           case AssemblyLine(DEC, Implied, _, _) =>
-            currentStatus = currentStatus.copy(n = currentStatus.a.n(_ - 1), z = currentStatus.a.z(_ - 1), a = currentStatus.a.map(_ - 1))
+            currentStatus = currentStatus.copy(n = currentStatus.a.n(_ - 1), z = currentStatus.a.z(_ - 1), a = currentStatus.a.map(v => (v - 1) & 0xff))
           case AssemblyLine(TAX, _, _, _) =>
             currentStatus = currentStatus.copy(x = currentStatus.a, n = currentStatus.a.n(), z = currentStatus.a.z())
           case AssemblyLine(TXA, _, _, _) =>
@@ -253,7 +253,7 @@ object CoarseFlowAnalyzer {
             currentStatus = currentStatus.copy(a = currentStatus.y, n = currentStatus.y.n(), z = currentStatus.y.z())
 
           case AssemblyLine(ASL, Implied, _, _) =>
-            currentStatus = currentStatus.copy(a = currentStatus.a.map(_ << 1), n = currentStatus.a.n(_ << 1), z = currentStatus.a.z(_ << 1),c = currentStatus.a.map(a => a.&(0xff).!=(0)))
+            currentStatus = currentStatus.copy(a = currentStatus.a.map(v => (v << 1) & 0xff), n = currentStatus.a.n(_ << 1), z = currentStatus.a.z(_ << 1),c = currentStatus.a.map(a => a.&(0xff).!=(0)))
           case AssemblyLine(LSR, Implied, _, _) =>
             currentStatus = currentStatus.copy(a = currentStatus.a.map(a => a.>>(1).&(0x7f)), n = currentStatus.a.n(a => a.>>(1).&(0x7f)), z = currentStatus.a.z(a => a.>>(1).&(0x7f)),c = currentStatus.a.map(a => a.&(1).!=(0)))
 

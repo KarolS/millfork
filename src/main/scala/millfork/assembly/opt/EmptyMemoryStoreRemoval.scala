@@ -4,6 +4,7 @@ import millfork.CompilationOptions
 import millfork.assembly.AssemblyLine
 import millfork.env._
 import millfork.assembly.Opcode._
+import millfork.assembly.AddrMode._
 import millfork.error.ErrorReporting
 
 import scala.collection.{immutable, mutable}
@@ -14,7 +15,7 @@ import scala.collection.{immutable, mutable}
 object EmptyMemoryStoreRemoval extends AssemblyOptimization {
   override def name = "Removing pointless stores to automatic variables"
 
-  private val storeOpcodes = Set(STA, STX, STY, STZ, SAX)
+  private val storeAddrModes = Set(Absolute, ZeroPage, AbsoluteX, AbsoluteY, ZeroPageX, ZeroPageY)
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
     val paramVariables = f.params match {
@@ -26,11 +27,13 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization {
     }
     val stillUsedVariables = code.flatMap {
       case AssemblyLine(_, _, MemoryAddressConstant(th), _) => Some(th.name)
+      case AssemblyLine(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _) => Some(th.name)
       case _ => None
     }.toSet
-    val localVariables = f.environment.getAllLocalVariables.filter {
-      case MemoryVariable(name, typ, VariableAllocationMethod.Auto) =>
-        typ.size == 1 && !paramVariables(name) && stillUsedVariables(name)
+    val allLocalVariables = f.environment.getAllLocalVariables
+    val localVariables = allLocalVariables.filter {
+      case MemoryVariable(name, typ, VariableAllocationMethod.Auto | VariableAllocationMethod.Zeropage) =>
+        typ.size > 0 && !paramVariables(name) && stillUsedVariables(name)
       case _ => false
     }
 
@@ -46,17 +49,43 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization {
       val lifetime = VariableLifetime.apply(v.name, code)
       val lastaccess = lifetime.last
       if (lastaccess >= 0) {
-        if (code(lastaccess).opcode match {
-          case  STA | STX | STY | SAX =>
+        val lastVariableAccess = code(lastaccess)
+        if (lastVariableAccess.elidable && storeAddrModes(lastVariableAccess.addrMode) && (lastVariableAccess.opcode match {
+          case STA | STX | STY | SAX | STZ | SHX | SHY | AHX =>
             true
+          case TSB | TRB =>
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            importances(lastaccess).z != Important
           case INC | DEC =>
-            if (importances eq null) {
-              importances = ReverseFlowAnalyzer.analyze(f, code)
-            }
-            importances(lastaccess).z != Important && importances(lastaccess).n != Important
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            importances(lastaccess).z != Important &&
+              importances(lastaccess).n != Important
+          case ASL | LSR | ROL | ROR | DCP =>
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            importances(lastaccess).z != Important &&
+              importances(lastaccess).n != Important &&
+              importances(lastaccess).c != Important
+          case ISC =>
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            importances(lastaccess).z != Important &&
+              importances(lastaccess).n != Important &&
+              importances(lastaccess).a != Important
+          case DCP | SLO | SRE | RLA =>
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            importances(lastaccess).z != Important &&
+              importances(lastaccess).n != Important &&
+              importances(lastaccess).c != Important &&
+              importances(lastaccess).a != Important
+          case RRA =>
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            importances(lastaccess).z != Important &&
+              importances(lastaccess).n != Important &&
+              importances(lastaccess).c != Important &&
+              importances(lastaccess).a != Important &&
+              importances(lastaccess).v != Important
           case _ => // last variable access is important, or we're in a loop, do not remove
             false
-        }) {
+        })) {
           badVariables += v.name
           toRemove += lastaccess
         }
