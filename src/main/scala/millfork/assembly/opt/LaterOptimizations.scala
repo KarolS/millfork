@@ -439,6 +439,30 @@ object LaterOptimizations {
     },
   )
 
+  val UseIndexedX = new RuleBasedAssemblyOptimization("Using indexed-indirect addressing mode",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    (Elidable & HasOpcode(LDY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsY)).* ~
+      (Elidable & HasAddrMode(IndexedY) & HasX(0) & DoesntMatterWhatItDoesWith(State.Y)) ~~> { code =>
+      code.tail.init :+ code.last.copy(addrMode = IndexedX)
+    },
+
+    (Elidable & HasOpcode(LDY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsY)).* ~
+      (Elidable & HasOpcodeIn(Set(ISC, DCP, SLO, SRE, RRA, RLA)) & HasAddrMode(IndexedY) & HasX(0xff) & DoesntMatterWhatItDoesWith(State.Y, State.X)) ~~> { code =>
+      code.tail.init ++ List(AssemblyLine.implied(INX), code.last.copy(addrMode = IndexedX))
+    },
+
+    (Elidable & HasOpcode(LDY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsY)).* ~
+      (Elidable & HasOpcodeIn(Set(ISC, DCP, SLO, SRE, RRA, RLA)) & HasAddrMode(IndexedY) & HasX(1) & DoesntMatterWhatItDoesWith(State.Y, State.X)) ~~> { code =>
+      code.tail.init ++ List(AssemblyLine.implied(DEX), code.last.copy(addrMode = IndexedX))
+    },
+
+
+  )
+
   val All = List(
     DoubleLoadToDifferentRegisters,
     DoubleLoadToTheSameRegister,
@@ -452,7 +476,8 @@ object LaterOptimizations {
     UseZeropageAddressingMode)
 
   val Nmos = List(
-    IncrementThroughIndexRegisters
+    IncrementThroughIndexRegisters,
+    UseIndexedX
   )
 }
 
