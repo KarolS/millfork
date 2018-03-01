@@ -158,6 +158,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     val l = lhs.quickSimplify
     val r = rhs.quickSimplify
     (l, r) match {
+      case (CompoundConstant(MathOperator.Shl, HalfWordConstant(c1, true), NumericConstant(8, _)), HalfWordConstant(c2, false)) if operator == MathOperator.Or && c1 == c2 => c1
       case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
         var size = ls max rs
         val value = operator match {
@@ -233,6 +234,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     val That = that
     val MinusThat = -that
     this match {
+      case CompoundConstant(Plus, CompoundConstant(Shl, HalfWordConstant(c1, true), NumericConstant(8, _)), HalfWordConstant(c2, false)) if c1 == c2 => c1
       case CompoundConstant(Plus, NumericConstant(MinusThat, _), r) => r
       case CompoundConstant(Plus, l, NumericConstant(MinusThat, _)) => l
       case CompoundConstant(Plus, NumericConstant(x, _), r) => CompoundConstant(Plus, r, NumericConstant(x + that, minimumSize(x + that)))

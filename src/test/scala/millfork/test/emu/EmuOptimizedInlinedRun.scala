@@ -15,7 +15,7 @@ object EmuOptimizedInlinedRun extends EmuRun(
     OptimizationPresets.Good,
   false) {
   override def inline: Boolean = true
-  override def blastProcessing: Boolean = true
+  override def blastProcessing: Boolean = false
 }
 
 

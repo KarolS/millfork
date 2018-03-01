@@ -1395,4 +1395,53 @@ object AlwaysGoodOptimizations {
     )
   }
 
+  // this grows the code by one byte, but shaves 1 cycle and allows for optimizing some stores away
+  val ConstantPointer = new RuleBasedAssemblyOptimization("Constant pointer optimization",
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+
+    (HasOpcode(STA) & MatchA(0) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(4)) ~
+      Where(ctx => {
+        val lo = ctx.get[Constant](4)
+        ctx.addObject(5, lo + 1)
+        ctx.addObject(3, ZeroPage)
+        true
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
+      (HasOpcode(STA) & MatchA(1) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(5)) ~
+      Where(ctx => {
+        val lo = ctx.get[Int](0) & 0xff
+        val hi = ctx.get[Int](1) & 0xff
+        ctx.addObject(2, hi * 256 + lo)
+        true
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
+      (Elidable & MatchParameter(6) & HasAddrModeIn(Set(ZeroPageIndirect, IndexedY))) ~~> { (code, ctx) =>
+      val addr = ctx.get[Int](2)
+      val last = code.last
+      code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == ZeroPageIndirect) Absolute else AbsoluteY)
+    },
+
+    (HasOpcode(STA) & MatchA(0) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(4)) ~
+      Where(ctx => {
+        val lo = ctx.get[Constant](4)
+        ctx.addObject(5, lo + 1)
+        ctx.addObject(3, ZeroPage)
+        true
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
+      (HasOpcode(STX) & MatchX(1) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(5)) ~
+      Where(ctx => {
+        val lo = ctx.get[Int](0) & 0xff
+        val hi = ctx.get[Int](1) & 0xff
+        ctx.addObject(2, hi * 256 + lo)
+        true
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
+      (Elidable & MatchParameter(6) & HasAddrModeIn(Set(ZeroPageIndirect, IndexedY))) ~~> { (code, ctx) =>
+      val addr = ctx.get[Int](2)
+      val last = code.last
+      code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == ZeroPageIndirect) Absolute else AbsoluteY)
+    },
+  )
+
 }

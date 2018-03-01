@@ -133,6 +133,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.CommonBranchBodyOptimization,
     AlwaysGoodOptimizations.CommonExpressionInConditional,
     AlwaysGoodOptimizations.CommonIndexSubexpressionElimination,
+    AlwaysGoodOptimizations.ConstantPointer,
     AlwaysGoodOptimizations.ConstantFlowAnalysis,
     AlwaysGoodOptimizations.ConstantIndexPropagation,
     AlwaysGoodOptimizations.DoubleJumpSimplification,

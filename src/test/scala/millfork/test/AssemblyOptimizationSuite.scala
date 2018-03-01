@@ -408,4 +408,24 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         | }
       """.stripMargin).readByte(0xc000) should equal(1)
   }
+
+  test("Constant pointers") {
+    EmuBenchmarkRun(
+      """
+        |byte output0 @$c000
+        |byte output1 @$c001
+        |void main() {
+        |   pointer p
+        |   p = output0.addr
+        |   p[0] = 33
+        |   p = op()
+        |   p[0] = 34
+        |}
+        |word op () { return output1.addr }
+      """.stripMargin
+    ){m =>
+      m.readByte(0xc000) should equal(33)
+      m.readByte(0xc001) should equal(34)
+    }
+  }
 }
