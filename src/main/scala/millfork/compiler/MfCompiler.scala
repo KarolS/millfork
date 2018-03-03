@@ -27,7 +27,31 @@ object MfCompiler {
     ctx.env.nameCheck(ctx.function.code)
     val chunk = StatementCompiler.compile(ctx, ctx.function.code)
     val prefix = (if (ctx.function.interrupt) {
-      if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
+
+      if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
+        List(
+          AssemblyLine.implied(PHB),
+          AssemblyLine.implied(PHD),
+          AssemblyLine.immediate(REP, 0x30),
+          AssemblyLine.implied(PHA),
+          AssemblyLine.implied(PHX),
+          AssemblyLine.implied(PHY),
+          AssemblyLine.immediate(SEP, 0x30))
+      } else if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+        List(
+          AssemblyLine.implied(PHB),
+          AssemblyLine.implied(PHD),
+          AssemblyLine.implied(PHA),
+          AssemblyLine.implied(PHX),
+          AssemblyLine.implied(PHY))
+      } else if (ctx.options.flag(CompilationFlag.Emit65CE02Opcodes)) {
+        List(
+          AssemblyLine.implied(PHA),
+          AssemblyLine.implied(PHX),
+          AssemblyLine.implied(PHY),
+          AssemblyLine.implied(PHZ),
+          AssemblyLine.implied(CLD))
+      } else if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
         List(
           AssemblyLine.implied(PHA),
           AssemblyLine.implied(PHX),
@@ -56,7 +80,7 @@ object MfCompiler {
           AssemblyLine.implied(TSX),
           AssemblyLine.immediate(LDA, 0xff),
           AssemblyLine.immediate(SBX, m.stackVariablesSize),
-          AssemblyLine.implied(TXS))
+          AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
     }
     List.fill(m.stackVariablesSize)(AssemblyLine.implied(PHA))
   }

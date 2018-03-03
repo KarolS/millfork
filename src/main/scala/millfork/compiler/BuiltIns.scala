@@ -71,11 +71,17 @@ object BuiltIns {
           return simpleOperation(opcode, ctx, param, indexChoice, preserveA, commutative, decimal)
         case _: FunctionCallExpression | _:SumExpression if commutative =>
           // TODO: is it ok?
-          return List(AssemblyLine.implied(PHA)) ++ ExpressionCompiler.compile(ctx.addStack(1), source, Some(b -> RegisterVariable(Register.A, b)), NoBranching) ++ wrapInSedCldIfNeeded(decimal, List(
-            AssemblyLine.implied(TSX),
-            AssemblyLine.absoluteX(opcode, 0x101),
-            AssemblyLine.implied(INX),
-            AssemblyLine.implied(TXS)))
+          if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+            return List(AssemblyLine.implied(PHA)) ++ ExpressionCompiler.compile(ctx.addStack(1), source, Some(b -> RegisterVariable(Register.A, b)), NoBranching) ++ wrapInSedCldIfNeeded(decimal, List(
+              AssemblyLine.stackRelative(opcode, 1),
+              AssemblyLine.implied(PHX)))
+          } else {
+            return List(AssemblyLine.implied(PHA)) ++ ExpressionCompiler.compile(ctx.addStack(1), source, Some(b -> RegisterVariable(Register.A, b)), NoBranching) ++ wrapInSedCldIfNeeded(decimal, List(
+              AssemblyLine.implied(TSX),
+              AssemblyLine.absoluteX(opcode, 0x101),
+              AssemblyLine.implied(INX),
+              AssemblyLine.implied(TXS))) // this TXS is fine, it won't appear in 65816 code
+          }
         case _ =>
           ErrorReporting.error("Right-hand-side expression is too complex", source.position)
           return Nil

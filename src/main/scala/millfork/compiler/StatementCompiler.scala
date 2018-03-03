@@ -35,7 +35,32 @@ object StatementCompiler {
     val someRegisterAX = Some(w, RegisterVariable(Register.AX, w))
     val someRegisterYA = Some(w, RegisterVariable(Register.YA, w))
     val returnInstructions = if (m.interrupt) {
-      if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
+      if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
+        List(
+          AssemblyLine.immediate(REP, 0x30),
+          AssemblyLine.implied(PLY),
+          AssemblyLine.implied(PLX),
+          AssemblyLine.implied(PLA),
+          AssemblyLine.implied(PLD),
+          AssemblyLine.implied(PLB),
+          AssemblyLine.implied(RTI))
+      } else
+      if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+        List(
+          AssemblyLine.implied(PLY),
+          AssemblyLine.implied(PLX),
+          AssemblyLine.implied(PLA),
+          AssemblyLine.implied(PLD),
+          AssemblyLine.implied(PLB),
+          AssemblyLine.implied(RTI))
+      } else if (ctx.options.flag(CompilationFlag.Emit65CE02Opcodes)) {
+        List(
+          AssemblyLine.implied(PLZ),
+          AssemblyLine.implied(PLY),
+          AssemblyLine.implied(PLX),
+          AssemblyLine.implied(PLA),
+          AssemblyLine.implied(RTI))
+      } else if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
         List(
           AssemblyLine.implied(PLY),
           AssemblyLine.implied(PLX),
@@ -50,6 +75,8 @@ object StatementCompiler {
           AssemblyLine.implied(PLA),
           AssemblyLine.implied(RTI))
       }
+    } else if (m.isFar(ctx.options)) {
+      List(AssemblyLine.implied(RTL))
     } else {
       List(AssemblyLine.implied(RTS))
     }
@@ -373,17 +400,17 @@ object StatementCompiler {
           AssemblyLine.implied(TSX),
           AssemblyLine.immediate(LDA, 0xff),
           AssemblyLine.immediate(SBX, 256 - m.stackVariablesSize),
-          AssemblyLine.implied(TXS))
+          AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
       if (m.returnType.size == 1 && m.stackVariablesSize > 6)
         return List(
           AssemblyLine.implied(TAY),
           AssemblyLine.implied(TSX),
           AssemblyLine.immediate(LDA, 0xff),
           AssemblyLine.immediate(SBX, 256 - m.stackVariablesSize),
-          AssemblyLine.implied(TXS),
+          AssemblyLine.implied(TXS), // this TXS is fine, it won't appear in 65816 code
           AssemblyLine.implied(TYA))
     }
-    AssemblyLine.implied(TSX) :: (List.fill(m.stackVariablesSize)(AssemblyLine.implied(INX)) :+ AssemblyLine.implied(TXS))
+    AssemblyLine.implied(TSX) :: (List.fill(m.stackVariablesSize)(AssemblyLine.implied(INX)) :+ AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
   }
 
 }
