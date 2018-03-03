@@ -82,14 +82,14 @@ object Opcode extends Enumeration {
   // 65CE02:
   CPZ, LDZ, DEZ, INZ,
   PHW,
-  // DEW, INW, ASW, ROW, // aliases for DEC_W, INC_W, ASL_W, ROL_W (?)
+  // DEW, INW, ASW, ROW, // aliases for DEC_W, INC_W, ASL_W, ROR_W (?)
   NEG, ASR,
   TAZ, TZA, PHZ, PLZ,
   TSY, TYS,
   TAB, TBA,
-  // CLE, SEE,
+  CLE, SEE, // no idea what these do
   BSR,
-  // MAP,
+  MAP, // also called AUG
 
   //HuC6280:
   CLA, CLX, CLY,
@@ -99,13 +99,13 @@ object Opcode extends Enumeration {
   // ST0, ST1, ST2,
   // BSR, // the same as on 65CE02
   TAM, TMA,
-  // TAI, TIA, TDD, TIN, TII, // memcpy instructions
+  TAI, TIA, TDD, TIN, TII, // memcpy instructions
   TST,
 
   //65816:
   BRL,
   COP,
-  // MVN, MVP,
+  MVN, MVP, // memcpy instructions
   PEA, PEI, PER,
   PHB, PHD, PHK, PLB, PLD, // there's no PLK for the same reason Intel removed POP CS from 80186
   REP, SEP,

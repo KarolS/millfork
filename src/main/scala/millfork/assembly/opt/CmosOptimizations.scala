@@ -37,7 +37,7 @@ object CmosOptimizations {
       (Elidable & HasOpcode(AND) & MatchImmediate(1)) ~
       (Elidable & HasOpcode(STA) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(0) & DoesntMatterWhatItDoesWith(State.A, State.Z, State.N)) ~~> { code =>
       List(
-        code(1).copy(opcode = Opcode.LDA, parameter = CompoundConstant(MathOperator.Exor, NumericConstant(255, 1), code(1).parameter)),
+        code(1).copy(opcode = Opcode.LDA, parameter = CompoundConstant(MathOperator.Exor, NumericConstant(255, 1), code(1).parameter).quickSimplify),
         code.head.copy(opcode = TRB))
     },
   )

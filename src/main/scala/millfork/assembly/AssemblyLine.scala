@@ -13,6 +13,8 @@ object OpcodeClasses {
     ADC_W, AND_W, BIT_W, CMP_W, EOR_W, ORA_W, PHA_W, SBC_W, STA_W,
     TAX, TAY,
     SAX, SBX, ANC, DCP, ISC, RRA, RLA, SRE, SLO, LXA, XAA, AHX, TAS,
+    TSB, TRB,
+    TSB_W, TRB_W,
     TAZ, TAB,
     HuSAX, SAY, TAM,
     TCD, TCS, XBA,
@@ -24,6 +26,7 @@ object OpcodeClasses {
   val ReadsAHAlways = Set(
     ADC_W, AND_W, BIT_W, CMP_W, EOR_W, ORA_W, PHA_W, SBC_W, STA_W,
     TCD, TCS, XBA,
+    TSB_W, TRB_W,
   )
   val ReadsAHIfImplied = Set(
     DEC_W, INC_W, ROL_W, ROR_W, ASL_W, LSR_W,
@@ -113,6 +116,8 @@ object OpcodeClasses {
   val ChangesIZ = Set(
     DEZ, INZ, TAZ, LDZ,
   )
+  val ChangesDirectPageRegister = Set(XCE, PLD, TCD)
+  val ChangesDataBankRegister = Set(XCE, PLB, MVN, MVP)
   val ChangesS = Set(
     PHA, PLA,
     PHA_W, PLA_W,
