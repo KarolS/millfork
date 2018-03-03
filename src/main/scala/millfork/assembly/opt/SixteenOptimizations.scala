@@ -185,11 +185,33 @@ object SixteenOptimizations {
     },
   )
 
+  val PointlessIndexTransfers = new RuleBasedAssemblyOptimization("Pointless index transfer",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(TXY) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Not(ChangesX) & Not(ChangesY) & Linear & (Not(ConcernsY) | Elidable & HasAddrMode(AbsoluteY) & SupportsAbsoluteX)).* ~
+      (Not(ReadsY) & DoesntMatterWhatItDoesWith(State.Y)) ~~> (_.tail.map { l =>
+      if (l.addrMode == AbsoluteY) l.copy(addrMode = AbsoluteX) else l
+    }),
+    (Elidable & HasOpcode(TYX) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Not(ChangesX) & Not(ChangesY) & Linear & (Not(ConcernsX) | Elidable & HasAddrMode(AbsoluteX) & SupportsAbsoluteY)).* ~
+      (Not(ReadsX) & DoesntMatterWhatItDoesWith(State.X)) ~~> (_.tail.map { l =>
+      if (l.addrMode == AbsoluteX) l.copy(addrMode = AbsoluteY) else l
+    }),
+  )
+
   // TODO: rewrite most 8-bit optimizations that are applicable to 16-bit code
 
-  val AllForEmulation: List[AssemblyOptimization] = List(AccumulatorSwapping, OptimizeZeroIndex, RepSepWeakening, OptimizeStackRelative)
+  val AllForEmulation: List[AssemblyOptimization] = List(
+    AccumulatorSwapping,
+    OptimizeStackRelative,
+    OptimizeZeroIndex,
+    PointlessIndexTransfers,
+    RepSepWeakening,
+  )
 
-  val AllForNative: List[AssemblyOptimization] = List(PointlessLoadAfterLoadOrStore)
+  val AllForNative: List[AssemblyOptimization] = List(
+    PointlessLoadAfterLoadOrStore
+  )
 
   val All: List[AssemblyOptimization] = AllForEmulation ++ AllForNative
 }

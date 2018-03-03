@@ -188,9 +188,10 @@ object AlwaysGoodOptimizations {
 
   val PointlessOperationPairRemoval = new RuleBasedAssemblyOptimization("Pointless operation pair",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    operationPairBuilder(PHA, PLA, Not(ConcernsA) & Not(ConcernsStack)),
-    operationPairBuilder(PHX, PLX, Not(ConcernsX) & Not(ConcernsStack)),
-    operationPairBuilder(PHY, PLY, Not(ConcernsY) & Not(ConcernsStack)),
+    operationPairBuilder(PHA, PLA, Not(ChangesA) & Not(ConcernsStack)),
+    operationPairBuilder(PHX, PLX, Not(ChangesX) & Not(ConcernsStack)),
+    operationPairBuilder(PHY, PLY, Not(ChangesY) & Not(ConcernsStack)),
+    operationPairBuilder(PHZ, PLZ, Not(ChangesIZ) & Not(ConcernsStack)),
     operationPairBuilder(INX, DEX, Not(ConcernsX) & Not(ReadsNOrZ)),
     operationPairBuilder(DEX, INX, Not(ConcernsX) & Not(ReadsNOrZ)),
     operationPairBuilder(INY, DEY, Not(ConcernsX) & Not(ReadsNOrZ)),
@@ -202,6 +203,15 @@ object AlwaysGoodOptimizations {
     (HasOpcode(op1) & Elidable & op1extra) ~
       (Linear & middle).*.capture(1) ~
       (HasOpcode(op2) & Elidable & op2extra) ~~> { (_, ctx) =>
+      ctx.get[List[AssemblyLine]](1)
+    }
+  }
+
+  private def operationPairBuilder3(op1: Opcode.Value, op1extra: AssemblyLinePattern, op2: Opcode.Value, middle: AssemblyLinePattern) = {
+    (HasOpcode(op1) & Elidable & op1extra) ~
+      middle.*.capture(1) ~
+      Where(_.isExternallyLinearBlock(1)) ~
+      (HasOpcode(op2) & Elidable) ~~> { (_, ctx) =>
       ctx.get[List[AssemblyLine]](1)
     }
   }
@@ -236,6 +246,16 @@ object AlwaysGoodOptimizations {
       DEY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z),
       Anything,
       INY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)),
+    operationPairBuilder3(PHA, Anything, PLA, Not(ChangesA) & Not(ConcernsStack)),
+    operationPairBuilder3(PHX, Anything, PLX, Not(ChangesX) & Not(ConcernsStack)),
+    operationPairBuilder3(PHY, Anything, PLY, Not(ChangesY) & Not(ConcernsStack)),
+    operationPairBuilder3(PHZ, Anything, PLZ, Not(ChangesIZ) & Not(ConcernsStack)),
+    operationPairBuilder3(PHD, Anything, PHD, Not(ChangesDirectPageRegister)),
+    operationPairBuilder3(PHB, Anything, PHB, Not(ChangesDataBankRegister)),
+    operationPairBuilder3(INX, DoesntMatterWhatItDoesWith(State.N, State.Z), DEX, Not(ConcernsX) & Not(ReadsNOrZ)),
+    operationPairBuilder3(DEX, DoesntMatterWhatItDoesWith(State.N, State.Z), INX, Not(ConcernsX) & Not(ReadsNOrZ)),
+    operationPairBuilder3(INY, DoesntMatterWhatItDoesWith(State.N, State.Z), DEY, Not(ConcernsX) & Not(ReadsNOrZ)),
+    operationPairBuilder3(DEY, DoesntMatterWhatItDoesWith(State.N, State.Z), INY, Not(ConcernsX) & Not(ReadsNOrZ)),
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",

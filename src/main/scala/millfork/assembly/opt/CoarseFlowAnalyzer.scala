@@ -54,11 +54,47 @@ object Status {
       case _ => AnyStatus()
     }
 
+    def zw(f: Int => Int = identity): Status[Boolean] = inner match {
+      case SingleStatus(x) =>
+        val y = f(x) & 0xffff
+        SingleStatus(y == 0)
+      case _ => AnyStatus()
+    }
+
+    def nw(f: Int => Int = identity): Status[Boolean] = inner match {
+      case SingleStatus(x) =>
+        val y = f(x) & 0xffff
+        SingleStatus(y >= 0x8000)
+      case _ => AnyStatus()
+    }
+
+    def lo: Status[Int] = inner match {
+      case SingleStatus(x) => SingleStatus(x & 0xff)
+      case _ => AnyStatus()
+    }
+
+    def hi: Status[Int] = inner match {
+      case SingleStatus(x) => SingleStatus(x.&(0xff00).>>(8))
+      case _ => AnyStatus()
+    }
+
     def adc(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
       case SingleStatus(x) => decimal match {
         case SingleStatus(false) => carry match {
-          case SingleStatus(true) => SingleStatus(x + value + 1)
-          case SingleStatus(false) => SingleStatus(x + value)
+          case SingleStatus(true) => SingleStatus((x + value + 1) & 0xff)
+          case SingleStatus(false) => SingleStatus((x + value) & 0xff)
+          case _ => AnyStatus()
+        }
+        case _ => AnyStatus()
+      }
+      case _ => AnyStatus()
+    }
+
+    def adc_w(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
+      case SingleStatus(x) => decimal match {
+        case SingleStatus(false) => carry match {
+          case SingleStatus(true) => SingleStatus((x + value + 1) & 0xffff)
+          case SingleStatus(false) => SingleStatus((x + value) & 0xffff)
           case _ => AnyStatus()
         }
         case _ => AnyStatus()
@@ -93,6 +129,7 @@ case class AnyStatus[T]() extends Status[T] {
 }
 //noinspection RedundantNewCaseClass
 case class CpuStatus(a: Status[Int] = UnknownStatus(),
+                     ah: Status[Int] = UnknownStatus(),
                      x: Status[Int] = UnknownStatus(),
                      y: Status[Int] = UnknownStatus(),
                      iz: Status[Int] = UnknownStatus(),
@@ -107,14 +144,24 @@ case class CpuStatus(a: Status[Int] = UnknownStatus(),
 
   override def toString: String = s"A=$a,X=$x,Y=$y,Z=$z,N=$n,C=$c,V=$v,D=$d"
 
+  def aw: Status[Int] = (ah, a) match {
+    case (SingleStatus(h), SingleStatus(l)) => SingleStatus(h.&(0xff).<<(8).+(l&0xff))
+    case (UnknownStatus(), UnknownStatus()) => UnknownStatus()
+    case _ => AnyStatus()
+  }
+
   def nz: CpuStatus =
     this.copy(n = AnyStatus(), z = AnyStatus())
 
   def nz(i: Long): CpuStatus =
     this.copy(n = SingleStatus((i & 0x80) != 0), z = SingleStatus((i & 0xff) == 0))
 
+  def nzw(i: Long): CpuStatus =
+    this.copy(n = SingleStatus((i & 0x8000) != 0), z = SingleStatus((i & 0xffff) == 0))
+
   def ~(that: CpuStatus) = new CpuStatus(
     a = this.a ~ that.a,
+    ah = this.ah ~ that.ah,
     x = this.x ~ that.x,
     y = this.y ~ that.y,
     iz = this.iz ~ that.iz,
@@ -129,6 +176,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus(),
 
   def hasClear(state: State.Value): Boolean = state match {
     case State.A => a.contains(0)
+    case State.AH => ah.contains(0)
     case State.X => x.contains(0)
     case State.Y => y.contains(0)
     case State.IZ => iz.contains(0)
@@ -144,6 +192,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus(),
 
   def hasSet(state: State.Value): Boolean = state match {
     case State.A => false
+    case State.AH => false
     case State.X => false
     case State.Y => false
     case State.IZ => false
@@ -254,24 +303,38 @@ object CoarseFlowAnalyzer {
             val n = nn.toInt & 0xff
             currentStatus = currentStatus.nz(n).copy(iz = SingleStatus(n))
 
+          case AssemblyLine(LDX_W, WordImmediate, NumericConstant(nn, _), _) =>
+            val n = nn.toInt & 0xff
+            currentStatus = currentStatus.nzw(nn).copy(x = SingleStatus(n))
+          case AssemblyLine(LDY_W, WordImmediate, NumericConstant(nn, _), _) =>
+            val n = nn.toInt & 0xff
+            currentStatus = currentStatus.nzw(nn).copy(y = SingleStatus(n))
+          case AssemblyLine(LDA_W, WordImmediate, NumericConstant(nn, _), _) =>
+            val n = nn.toInt & 0xff
+            val nh = (nn.toInt >> 8) & 0xff
+            currentStatus = currentStatus.nzw(nn).copy(a = SingleStatus(n), ah = SingleStatus(nh))
+
+          case AssemblyLine(XBA, _, _, _) =>
+            currentStatus = currentStatus.copy(a = currentStatus.ah, n = currentStatus.ah.n(), z = currentStatus.ah.z(), ah = currentStatus.a)
+
           case AssemblyLine(ADC, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             val newA = currentStatus.a.adc(n, currentStatus.c, currentStatus.d)
             currentStatus = currentStatus.copy(n = newA.n(), z = newA.z(), a = newA, c = AnyStatus(), v = AnyStatus())
           case AssemblyLine(EOR, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.copy(n = currentStatus.a.n(_ ^ n), z = currentStatus.a.z(_ ^ n), a = currentStatus.a.map(_ ^ n))
           case AssemblyLine(AND, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.copy(n = currentStatus.a.n(_ & n), z = currentStatus.a.z(_ & n), a = currentStatus.a.map(_ & n))
           case AssemblyLine(ANC, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.copy(n = currentStatus.a.n(_ & n), c = currentStatus.a.n(_ & n), z = currentStatus.x.z(_ & n), a = currentStatus.a.map(_ & n))
           case AssemblyLine(ORA, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.copy(n = currentStatus.a.n(_ | n), z = currentStatus.a.z(_ | n), a = currentStatus.a.map(_ | n))
           case AssemblyLine(ALR, Immediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt
+            val n = nn.toInt & 0xff
             currentStatus = currentStatus.copy(
               n = currentStatus.a.n(i => (i & n & 0xff) >> 1),
               z = currentStatus.a.z(i => (i & n & 0xff) >> 1),
@@ -279,19 +342,23 @@ object CoarseFlowAnalyzer {
               a = currentStatus.a.map(i => (i & n & 0xff) >> 1))
 
 
+
           case AssemblyLine(ADC_W, WordImmediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt & 0xff
-            val newA = currentStatus.a.adc(n, currentStatus.c, currentStatus.d)
-            currentStatus = currentStatus.copy(n = AnyStatus(), z = newA.z().withHiddenHi, a = newA, c = AnyStatus(), v = AnyStatus())
-          case AssemblyLine(EOR_W, WordImmediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt & 0xff
-            currentStatus = currentStatus.copy(n = AnyStatus(), z = currentStatus.a.z(_ ^ n).withHiddenHi, a = currentStatus.a.map(_ ^ n))
+            val n = nn.toInt & 0xffff
+            val newA = currentStatus.aw.adc_w(n, currentStatus.c, currentStatus.d)
+            currentStatus = currentStatus.copy(n = newA.nw(), z = newA.zw(), a = newA.lo, ah = newA.hi, c = AnyStatus(), v = AnyStatus())
           case AssemblyLine(AND_W, WordImmediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt & 0xff
-            currentStatus = currentStatus.copy(n = AnyStatus(), z = currentStatus.a.z(_ & n).withHiddenHi, a = currentStatus.a.map(_ & n))
+            val n = nn.toInt & 0xffff
+            val newA = currentStatus.aw.map(_ & 0xffff)
+            currentStatus = currentStatus.copy(n = newA.nw(), z = newA.zw(), a = newA.lo, ah = newA.hi)
+          case AssemblyLine(EOR_W, WordImmediate, NumericConstant(nn, _), _) =>
+            val n = nn.toInt & 0xffff
+            val newA = currentStatus.aw.map(_ ^ 0xffff)
+            currentStatus = currentStatus.copy(n = newA.nw(), z = newA.zw(), a = newA.lo, ah = newA.hi)
           case AssemblyLine(ORA_W, WordImmediate, NumericConstant(nn, _), _) =>
-            val n = nn.toInt & 0xff
-            currentStatus = currentStatus.copy(n = AnyStatus(), z = currentStatus.a.z(_ | n).withHiddenHi, a = currentStatus.a.map(_ | n))
+            val n = nn.toInt & 0xffff
+            val newA = currentStatus.aw.map(_ | 0xffff)
+            currentStatus = currentStatus.copy(n = newA.nw(), z = newA.zw(), a = newA.lo, ah = newA.hi)
 
           case AssemblyLine(INX, Implied, _, _) =>
             currentStatus = currentStatus.copy(n = currentStatus.x.n(_ + 1), z = currentStatus.x.z(_ + 1), x = currentStatus.x.map(v => (v + 1) & 0xff))
@@ -317,9 +384,11 @@ object CoarseFlowAnalyzer {
           case AssemblyLine(DEY_W, Implied, _, _) =>
             currentStatus = currentStatus.copy(n = AnyStatus(), z = currentStatus.y.z(_ - 1).withHiddenHi, y = currentStatus.y.map(v => (v - 1) & 0xff))
           case AssemblyLine(INC_W, Implied, _, _) =>
-            currentStatus = currentStatus.copy(n = AnyStatus(), z = currentStatus.a.z(_ + 1).withHiddenHi, a = currentStatus.a.map(v => (v + 1) & 0xff))
+            val newA = currentStatus.aw.map(v => (v + 1) & 0xffff)
+            currentStatus = currentStatus.copy(n = newA.nw(), z = newA.zw(), a = newA.lo, ah = newA.hi)
           case AssemblyLine(DEC_W, Implied, _, _) =>
-            currentStatus = currentStatus.copy(n = AnyStatus(), z = currentStatus.a.z(_ - 1).withHiddenHi, a = currentStatus.a.map(v => (v - 1) & 0xff))
+            val newA = currentStatus.aw.map(v => (v - 1) & 0xffff)
+            currentStatus = currentStatus.copy(n = newA.nw(), z = newA.zw(), a = newA.lo, ah = newA.hi)
 
           case AssemblyLine(TAX, _, _, _) =>
             currentStatus = currentStatus.copy(x = currentStatus.a, n = currentStatus.a.n(), z = currentStatus.a.z())
@@ -351,6 +420,8 @@ object CoarseFlowAnalyzer {
             if (OpcodeClasses.ChangesY(opcode)) currentStatus = currentStatus.copy(y = AnyStatus())
             if (OpcodeClasses.ChangesAAlways(opcode)) currentStatus = currentStatus.copy(a = AnyStatus())
             if (addrMode == Implied && OpcodeClasses.ChangesAIfImplied(opcode)) currentStatus = currentStatus.copy(a = AnyStatus())
+            if (OpcodeClasses.ChangesAHAlways(opcode)) currentStatus = currentStatus.copy(ah = AnyStatus())
+            if (addrMode == Implied && OpcodeClasses.ChangesAHIfImplied(opcode)) currentStatus = currentStatus.copy(ah = AnyStatus())
             if (OpcodeClasses.ChangesNAndZ(opcode)) currentStatus = currentStatus.nz
             if (OpcodeClasses.ChangesC(opcode)) currentStatus = currentStatus.copy(c = AnyStatus())
             if (OpcodeClasses.ChangesV(opcode)) currentStatus = currentStatus.copy(v = AnyStatus())
