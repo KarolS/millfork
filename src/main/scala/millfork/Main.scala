@@ -95,16 +95,20 @@ object Main {
       case 1 => OptimizationPresets.QuickPreset
       case i if i >= 9 => List(SuperOptimizer)
       case _ =>
+        val goodExtras = List(
+          if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
+          if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
+        ).flatten
         val extras = List(
           if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
           if (options.flag(CompilationFlag.Emit65CE02Opcodes)) CE02Optimizations.All else Nil,
           if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
           if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.All else Nil,
           if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
-          if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
+          if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
           if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
         ).flatten
-        val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good).flatten
+        val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good ++ goodExtras).flatten
         goodCycle ++ OptimizationPresets.AssOpt ++ extras ++ goodCycle
     }
 

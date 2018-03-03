@@ -30,7 +30,22 @@ object SixteenOptimizations {
 
   val RepSepWeakening = new RuleBasedAssemblyOptimization("REP/SEP weakening",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
+
     (Elidable & HasOpcodeIn(Set(SEP, REP)) & HasImmediate(0)) ~~> (_ => Nil),
+
+    (HasOpcode(SEP) & HasImmediate(0x20)) ~
+      (Linear & Not(HasOpcodeIn(Set(SEP, REP, PLP)))).* ~
+      (Elidable & HasOpcode(SEP) & HasImmediate(0x20)) ~~> (_.init),
+    (HasOpcode(REP) & HasImmediate(0x20)) ~
+      (Linear & Not(HasOpcodeIn(Set(SEP, REP, PLP)))).* ~
+      (Elidable & HasOpcode(REP) & HasImmediate(0x20)) ~~> (_.init),
+    (HasOpcode(SEP) & HasImmediate(0x10)) ~
+      (Linear & Not(HasOpcodeIn(Set(SEP, REP, PLP)))).* ~
+      (Elidable & HasOpcode(SEP) & HasImmediate(0x10)) ~~> (_.init),
+    (HasOpcode(REP) & HasImmediate(0x10)) ~
+      (Linear & Not(HasOpcodeIn(Set(SEP, REP, PLP)))).* ~
+      (Elidable & HasOpcode(REP) & HasImmediate(0x10)) ~~> (_.init),
+
     (Elidable & HasOpcodeIn(Set(SEP, REP)) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~
           Where(c => c.get[Int](0).&(0x1).!=(0)) ~~> { (code, ctx) =>
       val i = ctx.get[Int](0) & 0xFE
