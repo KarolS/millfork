@@ -202,18 +202,24 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       vy <- yCandidateSets
       vz <- zCandidateSets
       va <- aCandidateSets
-      if (vx & vz).isEmpty
-      if (vz & vy).isEmpty
-      if (va & vz).isEmpty
-      if (vx & vy).isEmpty
-      if (vx & va).isEmpty
-      if (va & vy).isEmpty
+      na = va.map(_._1)
+      nx = vx.map(_._1)
+      ny = vy.map(_._1)
+      nz = vz.map(_._1)
+      if (nx & nz).isEmpty
+      if (nz & ny).isEmpty
+      if (na & nz).isEmpty
+      if (nx & ny).isEmpty
+      if (nx & na).isEmpty
+      if (na & ny).isEmpty
       score = vx.toSeq.map(_._3).sum + vy.toSeq.map(_._3).sum + va.toSeq.map(_._3).sum + vz.toSeq.map(_._3).sum
     } yield (score, vx, vy, vz, va)
 
     if (variants.isEmpty) {
       return code
     }
+
+//    variants.foreach(println)
 
     val (_, bestXs, bestYs, bestZs, bestAs) = variants.maxBy(_._1)
 
