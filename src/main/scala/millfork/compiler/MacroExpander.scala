@@ -29,13 +29,15 @@ object MacroExpander {
       case ReturnDispatchStatement(i,ps, bs) => ReturnDispatchStatement(i.replaceVariable(paramName, target), ps.map(fx), bs.map{
         case ReturnDispatchBranch(l, fu, pps) => ReturnDispatchBranch(l, f(fu), pps.map(f))
       })
-      case WhileStatement(c, b) => WhileStatement(f(c), b.map(gx))
-      case DoWhileStatement(b, c) => DoWhileStatement(b.map(gx), f(c))
+      case WhileStatement(c, b, i, n) => WhileStatement(f(c), b.map(gx), i.map(gx), n)
+      case DoWhileStatement(b, i, c, n) => DoWhileStatement(b.map(gx), i.map(gx), f(c), n)
       case ForStatement(v, start, end, dir, body) => ForStatement(h(v), f(start), f(end), dir, body.map(gx))
       case IfStatement(c, t, e) => IfStatement(f(c), t.map(gx), e.map(gx))
       case s:AssemblyStatement => s.copy(expression =  f(s.expression))
       case Assignment(d,s) => Assignment(fx(d), f(s))
       case BlockStatement(s) => BlockStatement(s.map(gx))
+      case BreakStatement(s) => if (s == paramName) BreakStatement(target.toString) else stmt
+      case ContinueStatement(s) => if (s == paramName) ContinueStatement(target.toString) else stmt
       case _ =>
         println(stmt)
         ???

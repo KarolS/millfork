@@ -14,6 +14,7 @@ object OptimizationPresets {
     UnusedGlobalVariables,
   )
   val AssOpt: List[AssemblyOptimization] = List[AssemblyOptimization](
+    UnusedLabelRemoval,
     AlwaysGoodOptimizations.NonetAddition,
     AlwaysGoodOptimizations.PointlessSignCheck,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
@@ -125,6 +126,7 @@ object OptimizationPresets {
   )
 
   val Good: List[AssemblyOptimization] = List[AssemblyOptimization](
+    UnusedLabelRemoval,
     AlwaysGoodOptimizations.Adc0Optimization,
     AlwaysGoodOptimizations.BitPackingUnpacking,
     AlwaysGoodOptimizations.BranchInPlaceRemoval,
@@ -185,6 +187,7 @@ object OptimizationPresets {
   )
 
   val QuickPreset: List[AssemblyOptimization] = List[AssemblyOptimization](
+    UnusedLabelRemoval,
     AlwaysGoodOptimizations.Adc0Optimization,
     AlwaysGoodOptimizations.BranchInPlaceRemoval,
     AlwaysGoodOptimizations.CommonBranchBodyOptimization,

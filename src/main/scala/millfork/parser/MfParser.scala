@@ -312,7 +312,16 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       case (p, l, r) => Assignment(l, r).pos(p)
     }
 
-  def keywordStatement: P[ExecutableStatement] = P(returnOrDispatchStatement | ifStatement | whileStatement | forStatement | doWhileStatement | inlineAssembly | assignmentStatement)
+  def keywordStatement: P[ExecutableStatement] = P(
+    returnOrDispatchStatement |
+      ifStatement |
+      whileStatement |
+      forStatement |
+      doWhileStatement |
+      breakStatement |
+      continueStatement |
+      inlineAssembly |
+      assignmentStatement)
 
   def executableStatement: P[ExecutableStatement] = (position() ~ P(keywordStatement | expressionStatement)).map { case (p, s) => s.pos(p) }
 
@@ -404,6 +413,10 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def returnOrDispatchStatement: P[ExecutableStatement] = "return" ~ !letterOrDigit ~/ HWS ~ (dispatchStatementBody | mlExpression(nonStatementLevel).?.map(ReturnStatement))
 
+  def breakStatement: P[ExecutableStatement] = ("break" ~ !letterOrDigit ~/ HWS ~ identifier.?).map(l => BreakStatement(l.getOrElse("")))
+
+  def continueStatement: P[ExecutableStatement] = ("continue" ~ !letterOrDigit ~/ HWS ~ identifier.?).map(l => ContinueStatement(l.getOrElse("")))
+
   def ifStatement: P[ExecutableStatement] = for {
     condition <- "if" ~ !letterOrDigit ~/ HWS ~/ mlExpression(nonStatementLevel)
     thenBranch <- AWS ~/ executableStatements
@@ -413,7 +426,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
   def whileStatement: P[ExecutableStatement] = for {
     condition <- "while" ~ !letterOrDigit ~/ HWS ~/ mlExpression(nonStatementLevel)
     body <- AWS ~ executableStatements
-  } yield WhileStatement(condition, body.toList)
+  } yield WhileStatement(condition, body.toList, Nil)
 
   def forDirection: P[ForDirection.Value] =
     ("parallel" ~ HWS ~ "to").!.map(_ => ForDirection.ParallelTo) |
@@ -439,7 +452,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
   def doWhileStatement: P[ExecutableStatement] = for {
     body <- "do" ~ !letterOrDigit ~/ AWS ~ executableStatements ~/ AWS
     condition <- "while" ~ !letterOrDigit ~/ HWS ~/ mlExpression(nonStatementLevel)
-  } yield DoWhileStatement(body.toList, condition)
+  } yield DoWhileStatement(body.toList, Nil, condition)
 
   def functionDefinition: P[DeclarationStatement] = for {
     p <- position()

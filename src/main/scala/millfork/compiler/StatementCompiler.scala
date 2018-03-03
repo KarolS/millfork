@@ -111,6 +111,11 @@ object StatementCompiler {
             ExpressionCompiler.compile(ctx, e, None, NoBranching)
         }
       case ExpressionStatement(e) =>
+        e match {
+          case VariableExpression(_) | LiteralExpression(_, _) =>
+            ErrorReporting.warn("Pointless expression statement", ctx.options, statement.position)
+          case _ =>
+        }
         ExpressionCompiler.compile(ctx, e, None, NoBranching)
       case BlockStatement(s) =>
         s.flatMap(compile(ctx, _))
@@ -227,74 +232,67 @@ object StatementCompiler {
             ErrorReporting.error(s"Illegal type for a condition: `$condType`", condition.position)
             Nil
         }
-      case WhileStatement(condition, bodyPart) =>
+      case WhileStatement(condition, bodyPart, incrementPart, labels) =>
+        val start = MfCompiler.nextLabel("wh")
+        val middle = MfCompiler.nextLabel("he")
+        val inc = MfCompiler.nextLabel("fp")
+        val end = MfCompiler.nextLabel("ew")
         val condType = ExpressionCompiler.getExpressionType(ctx, condition)
-        val bodyBlock = compile(ctx, bodyPart)
+        val bodyBlock = compile(ctx.addLabels(labels, Label(end), Label(inc)), bodyPart)
+        val incrementBlock = compile(ctx.addLabels(labels, Label(end), Label(inc)), incrementPart)
         val largeBodyBlock = bodyBlock.map(_.sizeInBytes).sum > 100
         condType match {
           case ConstantBooleanType(_, true) =>
-            val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
-            val start = MfCompiler.nextLabel("wh")
-            List(labelChunk(start), bodyBlock, jmpChunk(start)).flatten
+            List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
           case ConstantBooleanType(_, false) => Nil
           case FlagBooleanType(_, jumpIfTrue, jumpIfFalse) =>
             if (largeBodyBlock) {
-              val start = MfCompiler.nextLabel("wh")
-              val middle = MfCompiler.nextLabel("he")
-              val end = MfCompiler.nextLabel("ew")
               val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
-              List(labelChunk(start), conditionBlock, branchChunk(jumpIfTrue, middle), jmpChunk(end), bodyBlock, jmpChunk(start), labelChunk(end)).flatten
+              List(labelChunk(start), conditionBlock, branchChunk(jumpIfTrue, middle), jmpChunk(end), labelChunk(middle), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
             } else {
-              val start = MfCompiler.nextLabel("wh")
-              val end = MfCompiler.nextLabel("ew")
               val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
-              List(labelChunk(start), conditionBlock, branchChunk(jumpIfFalse, end), bodyBlock, jmpChunk(start), labelChunk(end)).flatten
+              List(labelChunk(start), conditionBlock, branchChunk(jumpIfFalse, end), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
             }
           case BuiltInBooleanType =>
             if (largeBodyBlock) {
-              val start = MfCompiler.nextLabel("wh")
-              val middle = MfCompiler.nextLabel("he")
-              val end = MfCompiler.nextLabel("ew")
               val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(middle))
-              List(labelChunk(start), conditionBlock, jmpChunk(end), labelChunk(middle), bodyBlock, jmpChunk(start), labelChunk(end)).flatten
+              List(labelChunk(start), conditionBlock, jmpChunk(end), labelChunk(middle), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
             } else {
-              val start = MfCompiler.nextLabel("wh")
-              val end = MfCompiler.nextLabel("ew")
               val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfFalse(end))
-              List(labelChunk(start), conditionBlock, bodyBlock, jmpChunk(start), labelChunk(end)).flatten
+              List(labelChunk(start), conditionBlock, bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
             }
           case _ =>
             ErrorReporting.error(s"Illegal type for a condition: `$condType`", condition.position)
             Nil
         }
-      case DoWhileStatement(bodyPart, condition) =>
+      case DoWhileStatement(bodyPart, incrementPart, condition, labels) =>
+        val start = MfCompiler.nextLabel("do")
+        val inc = MfCompiler.nextLabel("fp")
+        val end = MfCompiler.nextLabel("od")
         val condType = ExpressionCompiler.getExpressionType(ctx, condition)
-        val bodyBlock = compile(ctx, bodyPart)
+        val bodyBlock = compile(ctx.addLabels(labels, Label(end), Label(inc)), bodyPart)
+        val incrementBlock = compile(ctx.addLabels(labels, Label(end), Label(inc)), incrementPart)
         val largeBodyBlock = bodyBlock.map(_.sizeInBytes).sum > 100
         condType match {
           case ConstantBooleanType(_, true) =>
-            val start = MfCompiler.nextLabel("do")
             val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
-            List(labelChunk(start), bodyBlock, jmpChunk(start)).flatten
-          case ConstantBooleanType(_, false) => bodyBlock
+            List(labelChunk(start),bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
+          case ConstantBooleanType(_, false) =>
+            List(bodyBlock, labelChunk(inc), incrementBlock, labelChunk(end)).flatten
           case FlagBooleanType(_, jumpIfTrue, jumpIfFalse) =>
-            val start = MfCompiler.nextLabel("do")
             val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
             if (largeBodyBlock) {
-              val end = MfCompiler.nextLabel("od")
-              List(labelChunk(start), bodyBlock, conditionBlock, branchChunk(jumpIfFalse, end), jmpChunk(start), labelChunk(end)).flatten
+              List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, conditionBlock, branchChunk(jumpIfFalse, end), jmpChunk(start), labelChunk(end)).flatten
             } else {
-              List(labelChunk(start), bodyBlock, conditionBlock, branchChunk(jumpIfTrue, start)).flatten
+              List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, conditionBlock, branchChunk(jumpIfTrue, start), labelChunk(end)).flatten
             }
           case BuiltInBooleanType =>
-            val start = MfCompiler.nextLabel("do")
             if (largeBodyBlock) {
-              val end = MfCompiler.nextLabel("od")
               val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfFalse(end))
-              List(labelChunk(start), bodyBlock, conditionBlock, jmpChunk(start), labelChunk(end)).flatten
+              List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, conditionBlock, jmpChunk(start), labelChunk(end)).flatten
             } else {
               val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(start))
-              List(labelChunk(start), bodyBlock, conditionBlock).flatten
+              List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, conditionBlock, labelChunk(end)).flatten
             }
           case _ =>
             ErrorReporting.error(s"Illegal type for a condition: `$condType`", condition.position)
@@ -307,32 +305,36 @@ object StatementCompiler {
         val one = LiteralExpression(1, 1)
         val increment = ExpressionStatement(FunctionCallExpression("+=", List(vex, one)))
         val decrement = ExpressionStatement(FunctionCallExpression("-=", List(vex, one)))
+        val names = Set("", "for", variable)
         (direction, env.eval(start), env.eval(end)) match {
 
           case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e - 1 =>
-            compile(ctx, Assignment(vex, f.start) :: f.body)
+            val end = MfCompiler.nextLabel("of")
+            compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start) :: f.body) ++ labelChunk(end)
           case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s >= e =>
             Nil
 
           case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e =>
-            compile(ctx, Assignment(vex, f.start) :: f.body)
+            val end = MfCompiler.nextLabel("of")
+            compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start) :: f.body) ++ labelChunk(end)
           case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s > e =>
             Nil
 
           case (ForDirection.ParallelUntil, Some(NumericConstant(0, ssize)), Some(NumericConstant(e, _))) if e > 0 =>
             compile(ctx, List(
               Assignment(vex, f.end),
-              DoWhileStatement(decrement :: f.body, FunctionCallExpression("!=", List(vex, f.start)))
+              DoWhileStatement(Nil, decrement :: f.body, FunctionCallExpression("!=", List(vex, f.start)), names)
             ))
 
           case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s == e =>
-            compile(ctx, Assignment(vex, LiteralExpression(s, ssize)) :: f.body)
+            val end = MfCompiler.nextLabel("of")
+            compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)) :: f.body) ++ labelChunk(end)
           case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s < e =>
             Nil
           case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(0, esize))) if s > 0 =>
             compile(ctx, List(
               Assignment(vex, f.start),
-              DoWhileStatement(f.body :+ decrement, FunctionCallExpression("!=", List(vex, f.end)))
+              DoWhileStatement(f.body, List(decrement), FunctionCallExpression("!=", List(vex, f.end)), names)
             ))
 
 
@@ -341,7 +343,7 @@ object StatementCompiler {
               Assignment(vex, f.start),
               WhileStatement(
                 FunctionCallExpression("<", List(vex, f.end)),
-                f.body :+ increment),
+                f.body, List(increment), names),
             ))
 //          case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(n, _))) if n > 0 && n < 255 =>
 //            compile(ctx, List(
@@ -351,16 +353,17 @@ object StatementCompiler {
 //                f.body :+ increment),
 //            ))
           case (ForDirection.To | ForDirection.ParallelTo, _, _) =>
-            val label = MfCompiler.nextLabel("to")
             compile(ctx, List(
               Assignment(vex, f.start),
               WhileStatement(
                 VariableExpression("true"),
-                f.body :+ IfStatement(
+                f.body,
+                List(IfStatement(
                   FunctionCallExpression("==", List(vex, f.end)),
-                  List(AssemblyStatement(JMP, AddrMode.Absolute, VariableExpression(label), elidable = true)),
-                  List(increment))),
-              AssemblyStatement(LABEL, AddrMode.DoesNotExist, VariableExpression(label), elidable=true)
+                  List(BreakStatement(variable)),
+                  List(increment)
+                )),
+                names),
             ))
           case (ForDirection.DownTo, _, _) =>
             compile(ctx, List(
@@ -368,11 +371,33 @@ object StatementCompiler {
               IfStatement(
                 FunctionCallExpression(">=", List(vex, f.end)),
                 List(DoWhileStatement(
-                  f.body :+ decrement,
-                  FunctionCallExpression("!=", List(vex, f.end))
+                  f.body,
+                  List(decrement),
+                  FunctionCallExpression("!=", List(vex, f.end)),
+                  names
                 )),
                 Nil)
             ))
+        }
+
+      case BreakStatement(l) =>
+        ctx.breakLabels.get(l) match {
+          case None =>
+            if (l == "") ErrorReporting.error("`break` outside a loop", statement.position)
+            else ErrorReporting.error("Invalid label: " + l, statement.position)
+            Nil
+          case Some(label) =>
+            List(AssemblyLine.absolute(JMP, label))
+        }
+
+      case ContinueStatement(l) =>
+        ctx.continueLabels.get(l) match {
+          case None =>
+            if (l == "") ErrorReporting.error("`continue` outside a loop", statement.position)
+            else ErrorReporting.error("Invalid label: " + l, statement.position)
+            Nil
+          case Some(label) =>
+            List(AssemblyLine.absolute(JMP, label))
         }
       // TODO
     }

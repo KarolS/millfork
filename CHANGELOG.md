@@ -20,6 +20,8 @@
 
 * Added return dispatch statements.
 
+* Added `break` and `continue` statements.
+
 * Added octal and quaternary literals.
 
 * Fixed several optimization bugs.
