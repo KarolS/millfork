@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCmosBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StackVarSuite extends FunSuite with Matchers {
 
   test("Basic stack assignment") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -23,7 +23,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack byte addition") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -41,7 +41,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Complex expressions involving stack variables") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -74,7 +74,7 @@ class StackVarSuite extends FunSuite with Matchers {
 //  }
 
   test("Stack word addition") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | word output @$c000
         | void main () {
         |   stack word a
@@ -92,7 +92,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
@@ -129,7 +129,7 @@ class StackVarSuite extends FunSuite with Matchers {
 
 
   test("Indexing") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | array output [200] @$c000
         | void main () {
         |   stack byte a

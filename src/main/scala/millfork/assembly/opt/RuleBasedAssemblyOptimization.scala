@@ -142,15 +142,16 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     val labels = mutable.Set[String]()
     val jumps = mutable.Set[String]()
     get[List[AssemblyLine]](i).foreach {
-      case AssemblyLine(Opcode.RTS | Opcode.RTI | Opcode.BRK, _, _, _) =>
+      // JSR and BSR are allowed
+      case AssemblyLine(Opcode.RTS | Opcode.RTI | Opcode.RTL | Opcode.BRK, _, _, _) =>
         return false
-      case AssemblyLine(Opcode.JMP, AddrMode.Indirect, _, _) =>
+      case AssemblyLine(Opcode.JMP, AddrMode.Indirect | AddrMode.AbsoluteIndexedX | AddrMode.LongIndirect, _, _) =>
         return false
       case AssemblyLine(Opcode.LABEL, _, MemoryAddressConstant(Label(l)), _) =>
         labels += l
       case AssemblyLine(Opcode.JMP, AddrMode.Absolute, MemoryAddressConstant(Label(l)), _) =>
         jumps += l
-      case AssemblyLine(Opcode.JMP, AddrMode.Absolute, _, _) =>
+      case AssemblyLine(Opcode.JMP, AddrMode.Absolute | AddrMode.LongAbsolute, _, _) =>
         return false
       case AssemblyLine(_, AddrMode.Relative, MemoryAddressConstant(Label(l)), _) =>
         jumps += l
@@ -191,25 +192,29 @@ trait AssemblyPattern {
 }
 object HelperCheckers {
   import AddrMode._
-  private val badAddrModes = Set(IndexedX, IndexedY, ZeroPageIndirect, AbsoluteIndexedX)
-  private val goodAddrModes = Set(Implied, Immediate, Relative)
+  private val badAddrModes = Set(IndexedX, IndexedY, IndexedZ, LongIndexedY, LongIndexedZ, IndexedSY, Indirect, TripleAbsolute, Stack)
+  private val goodAddrModes = Set(Implied, Immediate, WordImmediate, Relative, LongRelative)
 
   def memoryAccessDoesntOverlap(l1: AssemblyLine, l2: AssemblyLine): Boolean = {
-    memoryAccessDoesntOverlap(l1.addrMode, l1.parameter, l2.addrMode, l2.parameter)
-  }
-
-  def memoryAccessDoesntOverlap(a1: AddrMode.Value, p1: Constant, a2: AddrMode.Value, p2: Constant): Boolean = {
+    val a1 = l1.addrMode
+    val a2 = l2.addrMode
     if (badAddrModes(a1) || badAddrModes(a2)) return false
     if (goodAddrModes(a1) || goodAddrModes(a2)) return true
+    if ((a1 == IndexedSY) != (a2 == IndexedSY)) return true // bold assertion, but usually true
+    val p1 = l1.parameter
+    val p2 = l2.parameter
+    val w1 = OpcodeClasses.AccessesWordInMemory(l1.opcode)
+    val w2 = OpcodeClasses.AccessesWordInMemory(l2.opcode)
     def handleKnownDistance(distance: Short): Boolean = {
-      val indexingAddrModes = Set(AbsoluteIndexedX, AbsoluteX, ZeroPageX, AbsoluteY, ZeroPageY)
+      // `distance` is the distance between the first byte that can be addressed by l1 (b1) and the first byte that can be addressed by l2 (b2): (b2-b1)
+      val indexingAddrModes = Set(AbsoluteIndexedX, AbsoluteX, ZeroPageX, AbsoluteY, ZeroPageY, LongAbsoluteX)
       val a1Indexing = indexingAddrModes(a1)
       val a2Indexing = indexingAddrModes(a2)
       (a1Indexing, a2Indexing) match {
-        case (false, false) => distance != 0
-        case (true, false) => distance > 255 || distance < 0
-        case (false, true) => distance > 0 || distance < -255
-        case (true, true) => distance > 255 || distance < -255
+        case (false, false) => distance != 0 && (distance != 1 || !w1) && (distance != -1 || !w2)
+        case (true, false) => distance > 255 || distance < 0 && (distance != 256 || !w1) && (distance != -1 || !w2)
+        case (false, true) => distance > 0 || distance < -255 && (distance != 1 || !w1) && (distance != -256 || !w2)
+        case (true, true) => distance > 255 || distance < -255 && (distance != 265 || !w1) && (distance != -256 || !w2)
       }
     }
 
@@ -436,7 +441,7 @@ case class WhereNoMemoryAccessOverlapBetweenTwoLineLists(ix1: Int, ix2: Int) ext
   override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, AssemblyLine)]): Option[List[(FlowInfo, AssemblyLine)]] = {
     val s1s = ctx.get[List[AssemblyLine]](ix1)
     val s2s = ctx.get[List[AssemblyLine]](ix2)
-    if (s1s.forall(s1 => s2s.forall(s2 => HelperCheckers.memoryAccessDoesntOverlap(s1.addrMode, s1.parameter, s2.addrMode, s2.parameter)))) Some(code) else None
+    if (s1s.forall(s1 => s2s.forall(s2 => HelperCheckers.memoryAccessDoesntOverlap(s1, s2)))) Some(code) else None
   }
 }
 
@@ -502,6 +507,14 @@ case class HasY(value: Int) extends AssemblyLinePattern {
     flowInfo.statusBefore.y.contains(value)
 }
 
+case class HasZ(value: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.statusBefore.iz.contains(value)
+}
+
 case class DoesntMatterWhatItDoesWith(states: State.Value*) extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertBackward(needsFlowInfo)
@@ -518,6 +531,38 @@ case class HasSet(state: State.Value) extends AssemblyLinePattern {
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
     flowInfo.hasSet(state)
+}
+
+object HasAccu8 extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.hasSet(State.M)
+}
+
+object HasAccu16 extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.hasClear(State.M)
+}
+
+object HasIndex8 extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.hasSet(State.W)
+}
+
+object HasIndex16 extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.hasClear(State.W)
 }
 
 case class HasClear(state: State.Value) extends AssemblyLinePattern {
@@ -598,6 +643,11 @@ case object ReadsA extends TrivialAssemblyLinePattern {
     OpcodeClasses.ReadsAAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ReadsAIfImplied(line.opcode)
 }
 
+case object ReadsAH extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
+    OpcodeClasses.ReadsAHAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ReadsAHIfImplied(line.opcode)
+}
+
 case object ReadsMemory extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean =
     line.addrMode match {
@@ -632,18 +682,37 @@ case object ConcernsA extends TrivialAssemblyLinePattern {
     OpcodeClasses.ConcernsAAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ConcernsAIfImplied(line.opcode)
 }
 
+case object ConcernsAH extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
+    OpcodeClasses.ConcernsAHAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ConcernsAHIfImplied(line.opcode)
+}
+
 case object ConcernsX extends TrivialAssemblyLinePattern {
-  val XAddrModes = Set(AddrMode.AbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX)
+  val XAddrModes = Set(AddrMode.AbsoluteX, AddrMode.AbsoluteIndexedX, AddrMode.LongAbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsXAlways(line.opcode) || XAddrModes(line.addrMode)
 }
 
 case object ConcernsY extends TrivialAssemblyLinePattern {
-  val YAddrModes = Set(AddrMode.AbsoluteY, AddrMode.IndexedY, AddrMode.ZeroPageY)
+  val YAddrModes = Set(AddrMode.AbsoluteY, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.ZeroPageY)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsYAlways(line.opcode) || YAddrModes(line.addrMode)
+}
+
+case object ConcernsStack extends TrivialAssemblyLinePattern {
+  val SAddrModes = Set(AddrMode.IndexedSY, AddrMode.Stack)
+
+  override def apply(line: AssemblyLine): Boolean =
+    OpcodeClasses.ConcernsStackAlways(line.opcode) || SAddrModes(line.addrMode)
+}
+
+case object ConcernsIZ extends TrivialAssemblyLinePattern {
+  val IZAddrModes = Set(AddrMode.IndexedZ, AddrMode.LongIndexedZ)
+
+  override def apply(line: AssemblyLine): Boolean =
+    OpcodeClasses.ConcernsIZAlways(line.opcode) || IZAddrModes(line.addrMode)
 }
 
 case object ChangesA extends TrivialAssemblyLinePattern {
@@ -651,19 +720,38 @@ case object ChangesA extends TrivialAssemblyLinePattern {
     OpcodeClasses.ChangesAAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ChangesAIfImplied(line.opcode)
 }
 
+case object ChangesAH extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean =
+    OpcodeClasses.ChangesAHAlways(line.opcode) || line.addrMode == AddrMode.Implied && OpcodeClasses.ChangesAHIfImplied(line.opcode)
+}
+
+case object ChangesM extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = line match {
+    case AssemblyLine(Opcode.SEP | Opcode.REP, AddrMode.Immediate, NumericConstant(n, _), _) => (n & 0x20) != 0
+    case AssemblyLine(Opcode.SEP | Opcode.REP | Opcode.PLP | Opcode.XCE, _, _, _) => true
+    case _ => false
+  }
+}
+case object ChangesW extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = line match {
+    case AssemblyLine(Opcode.SEP | Opcode.REP, AddrMode.Immediate, NumericConstant(n, _), _) => (n & 0x10) != 0
+    case AssemblyLine(Opcode.SEP | Opcode.REP | Opcode.PLP | Opcode.XCE, _, _, _) => true
+    case _ => false
+  }
+}
 case object ChangesMemory extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ChangesMemoryAlways(line.opcode) || line.addrMode != AddrMode.Implied && OpcodeClasses.ChangesMemoryIfNotImplied(line.opcode)
 }
 
-case class DoesntChangeMemoryAt(addrMode1: Int, param1: Int) extends AssemblyLinePattern {
+case class DoesntChangeMemoryAt(addrMode1: Int, param1: Int, opcode: Opcode.Value = Opcode.NOP) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {
     val p1 = ctx.get[Constant](param1)
-    val p2 = line.parameter
     val a1 = ctx.get[AddrMode.Value](addrMode1)
-    val a2 = line.addrMode
     val changesSomeMemory = OpcodeClasses.ChangesMemoryAlways(line.opcode) || line.addrMode != AddrMode.Implied && OpcodeClasses.ChangesMemoryIfNotImplied(line.opcode)
-    !changesSomeMemory || HelperCheckers.memoryAccessDoesntOverlap(a1, p1, a2, p2)
+    // TODO: NOP
+    // this will break if the actual instruction was 16-bit
+    !changesSomeMemory || HelperCheckers.memoryAccessDoesntOverlap(AssemblyLine(opcode, a1, p1), line)
   }
 }
 
@@ -675,10 +763,10 @@ case object ConcernsMemory extends TrivialAssemblyLinePattern {
 case class DoesNotConcernMemoryAt(addrMode1: Int, param1: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {
     val p1 = ctx.get[Constant](param1)
-    val p2 = line.parameter
     val a1 = ctx.get[AddrMode.Value](addrMode1)
-    val a2 = line.addrMode
-    HelperCheckers.memoryAccessDoesntOverlap(a1, p1, a2, p2)
+    // TODO: NOP
+    // this will break if the actual instruction was 16-bit
+    HelperCheckers.memoryAccessDoesntOverlap(AssemblyLine(Opcode.NOP, a1, p1), line)
   }
 }
 
@@ -788,8 +876,11 @@ case class MatchNumericImmediate(i: Int) extends AssemblyLinePattern {
 case class DoesntChangeIndexingInAddrMode(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
     ctx.get[AddrMode.Value](i) match {
-      case AddrMode.ZeroPageX | AddrMode.AbsoluteX | AddrMode.IndexedX | AddrMode.AbsoluteIndexedX => !OpcodeClasses.ChangesX.contains(line.opcode)
-      case AddrMode.ZeroPageY | AddrMode.AbsoluteY | AddrMode.IndexedY => !OpcodeClasses.ChangesY.contains(line.opcode)
+      case AddrMode.ZeroPageX | AddrMode.AbsoluteX | AddrMode.LongAbsoluteX | AddrMode.IndexedX | AddrMode.AbsoluteIndexedX => !OpcodeClasses.ChangesX.contains(line.opcode)
+      case AddrMode.ZeroPageY | AddrMode.AbsoluteY | AddrMode.IndexedY | AddrMode.LongIndexedY => !OpcodeClasses.ChangesY.contains(line.opcode)
+      case AddrMode.IndexedZ | AddrMode.LongIndexedZ => !OpcodeClasses.ChangesIZ.contains(line.opcode)
+      case AddrMode.Stack => !OpcodeClasses.ChangesS.contains(line.opcode)
+      case AddrMode.IndexedSY => !OpcodeClasses.ChangesS.contains(line.opcode) && !OpcodeClasses.ChangesY.contains(line.opcode)
       case _ => true
     }
 

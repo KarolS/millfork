@@ -20,6 +20,7 @@ class Platform(
                 val allocator: VariableAllocator,
                 val org: Int,
                 val fileExtension: String,
+                var defaultCodeBank: Int = 0,
               )
 
 object Platform {
@@ -55,11 +56,35 @@ object Platform {
 
     val cs = conf.getSection("compilation")
     val cpu = Cpu.fromString(cs.get(classOf[String], "arch", "strict"))
-    val flagOverrides = CompilationFlag.fromString.flatMap { case (k, f) =>
-      cs.get(classOf[String], k, "").toLowerCase match {
+    val value65816 = cs.get(classOf[String], "emit_65816", "")
+    val flagOverrides = (value65816.toLowerCase match {
+      case "" => Nil
+      case "false" | "none" | "no" | "off" | "0" =>
+        List(
+          CompilationFlag.EmitEmulation65816Opcodes -> false,
+          CompilationFlag.EmitNative65816Opcodes -> false,
+          CompilationFlag.ReturnWordsViaAccumulator -> false)
+      case "emulation" =>
+        List(
+          CompilationFlag.EmitEmulation65816Opcodes -> true,
+          CompilationFlag.EmitNative65816Opcodes -> false,
+          CompilationFlag.ReturnWordsViaAccumulator -> false)
+      case "native" =>
+        List(
+          CompilationFlag.EmitEmulation65816Opcodes -> true,
+          CompilationFlag.EmitNative65816Opcodes -> true)
+      case _ =>
+        ErrorReporting.error(s"Unsupported `emit_65816` value: $value65816")
+        Nil
+    }).toMap ++ CompilationFlag.fromString.flatMap { case (k, f) =>
+      val value = cs.get(classOf[String], k, "")
+      value.toLowerCase match {
         case "" => None
-        case "false" | "off" | "0" => Some(f -> false)
-        case "true" | "on" | "1" => Some(f -> true)
+        case "false" | "off" | "no" | "0" => Some(f -> false)
+        case "true" | "on" | "yes" | "1" => Some(f -> true)
+        case _ =>
+          ErrorReporting.error(s"Unsupported `$k` value: $value")
+          None
       }
     }
     val startingModules = cs.get(classOf[String], "modules", "").split("[, ]+").filter(_.nonEmpty).toList
@@ -104,10 +129,22 @@ object Platform {
       Integer.parseInt(s.substring(1), 16)
     } else if (s.startsWith("0x")) {
       Integer.parseInt(s.substring(2), 16)
+    } else if (s.startsWith("0X")) {
+      Integer.parseInt(s.substring(2), 16)
     } else if (s.startsWith("%")) {
       Integer.parseInt(s.substring(1), 2)
     } else if (s.startsWith("0b")) {
       Integer.parseInt(s.substring(2), 2)
+    } else if (s.startsWith("0B")) {
+      Integer.parseInt(s.substring(2), 2)
+    } else if (s.startsWith("0o")) {
+      Integer.parseInt(s.substring(2), 8)
+    } else if (s.startsWith("0O")) {
+      Integer.parseInt(s.substring(2), 8)
+    } else if (s.startsWith("0q")) {
+      Integer.parseInt(s.substring(2), 4)
+    } else if (s.startsWith("0Q")) {
+      Integer.parseInt(s.substring(2), 4)
     } else {
       s.toInt
     }

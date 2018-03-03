@@ -88,7 +88,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     for {
       p <- position()
       minus <- "-".!.?
-      _ <- P("0x" | "$") ~/ Pass
+      _ <- P("0x" | "0X" | "$") ~/ Pass
       s <- CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>")
     } yield {
       val abs = Integer.parseInt(s, 16)
@@ -96,7 +96,31 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       LiteralExpression(value, size(value, s.length > 2, s.length > 4)).pos(p)
     }
 
-  val literalAtom: P[LiteralExpression] = binaryAtom | hexAtom | decimalAtom
+  val octalAtom: P[LiteralExpression] =
+    for {
+      p <- position()
+      minus <- "-".!.?
+      _ <- P("0o" | "0O") ~/ Pass
+      s <- CharsWhileIn("01234567", min = 1).!.opaque("<octal digits>")
+    } yield {
+      val abs = Integer.parseInt(s, 8)
+      val value = sign(abs, minus.isDefined)
+      LiteralExpression(value, size(value, s.length > 3, s.length > 6)).pos(p)
+    }
+
+  val quaternaryAtom: P[LiteralExpression] =
+    for {
+      p <- position()
+      minus <- "-".!.?
+      _ <- P("0q" | "0Q") ~/ Pass
+      s <- CharsWhileIn("0123", min = 1).!.opaque("<quaternary digits>")
+    } yield {
+      val abs = Integer.parseInt(s, 4)
+      val value = sign(abs, minus.isDefined)
+      LiteralExpression(value, size(value, s.length > 4, s.length > 8)).pos(p)
+    }
+
+  val literalAtom: P[LiteralExpression] = binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom
 
   val atom: P[Expression] = P(literalAtom | (position() ~ identifier).map { case (p, i) => VariableExpression(i).pos(p) })
 
@@ -307,13 +331,19 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   val commaX = HWS ~ "," ~ HWS ~ ("X" | "x") ~ HWS
   val commaY = HWS ~ "," ~ HWS ~ ("Y" | "y") ~ HWS
+  val commaZ = HWS ~ "," ~ HWS ~ ("Z" | "z") ~ HWS
+  val commaS = HWS ~ "," ~ HWS ~ ("S" | "s") ~ HWS
 
   def asmParameter: P[(AddrMode.Value, Expression)] = {
     (SWS ~ (
+      ("##" ~ asmExpression).map(AddrMode.WordImmediate -> _) |
       ("#" ~ asmExpression).map(AddrMode.Immediate -> _) |
         ("(" ~ HWS ~ asmExpression ~ HWS ~ ")" ~ commaY).map(AddrMode.IndexedY -> _) |
+        ("(" ~ HWS ~ asmExpression ~ commaS ~ ")" ~ commaY).map(AddrMode.IndexedSY -> _) |
+        ("(" ~ HWS ~ asmExpression ~ HWS ~ ")" ~ commaZ).map(AddrMode.IndexedZ -> _) |
         ("(" ~ HWS ~ asmExpression ~ commaX ~ ")").map(AddrMode.IndexedX -> _) |
         ("(" ~ HWS ~ asmExpression ~ HWS ~ ")").map(AddrMode.Indirect -> _) |
+        (asmExpression ~ commaS).map(AddrMode.Stack -> _) |
         (asmExpression ~ commaX).map(AddrMode.AbsoluteX -> _) |
         (asmExpression ~ commaY).map(AddrMode.AbsoluteY -> _) |
         asmExpression.map(AddrMode.Absolute -> _)
@@ -325,7 +355,13 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
   def asmInstruction: P[ExecutableStatement] = {
     val lineParser: P[(Boolean, Opcode.Value, (AddrMode.Value, Expression))] = !"}" ~ elidable ~/ asmOpcode ~/ asmParameter
     lineParser.map { case (elid, op, param) =>
-      AssemblyStatement(op, param._1, param._2, elid)
+      (op, param._1) match {
+        case (Opcode.SAX, AddrMode.Implied) => AssemblyStatement(Opcode.HuSAX, param._1, param._2, elid)
+        case (Opcode.SBX, AddrMode.Immediate) => AssemblyStatement(Opcode.SBX, param._1, param._2, elid)
+        case (Opcode.SAY, AddrMode.AbsoluteX) => AssemblyStatement(Opcode.SHY, param._1, param._2, elid)
+        case (Opcode.SBX, _) => AssemblyStatement(Opcode.SAX, param._1, param._2, elid)
+        case _ => AssemblyStatement(op, param._1, param._2, elid)
+      }
     }
   }
 

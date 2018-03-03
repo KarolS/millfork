@@ -1,7 +1,7 @@
 package millfork.env
 
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.Opcode
-import millfork.error.ErrorReporting
 import millfork.node._
 
 sealed trait Thing {
@@ -79,6 +79,12 @@ sealed trait TypedThing extends Thing {
 
 sealed trait ThingInMemory extends Thing {
   def toAddress: Constant
+
+  var farFlag: Option[Boolean] = None
+  var declaredBank: Option[Int] = None
+
+  def isFar(compilationOptions: CompilationOptions): Boolean
+  def bank(compilationOptions: CompilationOptions): Int
 }
 
 sealed trait PreallocableThing extends ThingInMemory {
@@ -91,6 +97,12 @@ sealed trait PreallocableThing extends ThingInMemory {
 
 case class Label(name: String) extends ThingInMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
+
+  override def isFar(compilationOptions: CompilationOptions): Boolean =
+    compilationOptions.flag(CompilationFlag.LargeCode) && farFlag.getOrElse(true)
+
+  override def bank(compilationOptions: CompilationOptions): Int =
+    declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
 }
 
 sealed trait Variable extends TypedThing with VariableLikeThing
@@ -100,8 +112,13 @@ case class BlackHole(typ: Type) extends Variable {
 }
 
 sealed trait VariableInMemory extends Variable with ThingInMemory with IndexableThing {
-
   def zeropage: Boolean
+
+  override def isFar(compilationOptions: CompilationOptions): Boolean =
+    !zeropage && farFlag.getOrElse(false)
+
+  override def bank(compilationOptions: CompilationOptions): Int =
+    declaredBank.getOrElse(0)
 }
 
 case class RegisterVariable(register: Register.Value, typ: Type) extends Variable {
@@ -156,14 +173,26 @@ case class UninitializedArray(name: String, sizeInBytes: Int) extends MfArray wi
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 
   override def alloc = VariableAllocationMethod.Static
+
+  override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
+
+  override def bank(compilationOptions: CompilationOptions): Int = declaredBank.getOrElse(0)
 }
 
 case class RelativeArray(name: String, address: Constant, sizeInBytes: Int) extends MfArray {
   override def toAddress: Constant = address
+
+  override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
+
+  override def bank(compilationOptions: CompilationOptions): Int = declaredBank.getOrElse(0)
 }
 
 case class InitializedArray(name: String, address: Option[Constant], contents: List[Constant]) extends MfArray with PreallocableThing {
   override def shouldGenerate = true
+
+  override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
+
+  override def bank(compilationOptions: CompilationOptions): Int = declaredBank.getOrElse(0)
 }
 
 case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean) extends VariableInMemory {
@@ -198,6 +227,12 @@ case class MacroFunction(name: String,
 
 sealed trait FunctionInMemory extends MangledFunction with ThingInMemory {
   def environment: Environment
+
+  override def isFar(compilationOptions: CompilationOptions): Boolean =
+    compilationOptions.flag(CompilationFlag.LargeCode) && farFlag.getOrElse(true)
+
+  override def bank(compilationOptions: CompilationOptions): Int =
+    declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
 }
 
 case class ExternFunction(name: String,

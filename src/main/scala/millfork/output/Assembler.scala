@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.assembly.opt.{AssemblyOptimization, JumpShortening}
+import millfork.assembly.opt.{AssemblyOptimization, HudsonOptimizations, JumpShortening}
 import millfork.assembly.{AddrMode, AssemblyLine, Opcode}
 import millfork.compiler.{CompilationContext, MfCompiler}
 import millfork.env._
@@ -113,6 +113,16 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
           case MathOperator.Exor => l ^ r
           case MathOperator.Or => l | r
         }
+    }
+  }
+
+  def extractBank(c: Constant, options: CompilationOptions): Byte = {
+    c.quickSimplify match {
+      case NumericConstant(nn, _) => nn.>>(16).toInt.&(0xff).toByte
+      case MemoryAddressConstant(th) => th.bank(options).toByte
+      case CompoundConstant(MathOperator.Plus, a, b) => (extractBank(a, options) + extractBank(b, options)).toByte
+      case CompoundConstant(MathOperator.Minus, a, b) => (extractBank(a, options) - extractBank(b, options)).toByte
+      case _ => ErrorReporting.fatal("Failed to extract bank number from constant " + c)
     }
   }
 
@@ -314,7 +324,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     ErrorReporting.debug("Compiling: " + f.name, f.position)
     val unoptimized =
       MfCompiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)).flatMap {
-        case AssemblyLine(Opcode.JSR, _, p, true) if inlinedFunctions.contains(p.toString) =>
+        case AssemblyLine(Opcode.JSR, AddrMode.Absolute | AddrMode.LongAbsolute, p, true) if inlinedFunctions.contains(p.toString) =>
           val labelPrefix = MfCompiler.nextLabel("ai")
           inlinedFunctions(p.toString).map{
             case line@AssemblyLine(_, _, MemoryAddressConstant(Label(label)), _) =>
@@ -336,7 +346,10 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
       opt.optimize(f, c, options)
     }
-    if (optimizations.nonEmpty) JumpShortening(f, JumpShortening(f, code, options), options)
+    if (optimizations.nonEmpty) {
+      val finalCode = if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.removeLoadZero(code) else code
+      JumpShortening(f, JumpShortening(f, finalCode, options), options)
+    }
     else code
   }
 
@@ -361,14 +374,19 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
           writeByte(0, index, Assembler.opcodeFor(op, Relative, options))
           writeByte(0, index + 1, param - (index + 2))
           index += 2
-        case AssemblyLine(op, am@(Immediate | ZeroPage | ZeroPageX | ZeroPageY | IndexedY | IndexedX | ZeroPageIndirect), param, _) =>
+        case AssemblyLine(op, am@(Immediate | ZeroPage | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | LongIndexedY | LongIndexedZ | Stack), param, _) =>
           writeByte(0, index, Assembler.opcodeFor(op, am, options))
           writeByte(0, index + 1, param)
           index += 2
-        case AssemblyLine(op, am@(Absolute | AbsoluteY | AbsoluteX | Indirect | AbsoluteIndexedX), param, _) =>
+        case AssemblyLine(op, am@(WordImmediate | Absolute | AbsoluteY | AbsoluteX | Indirect | AbsoluteIndexedX), param, _) =>
           writeByte(0, index, Assembler.opcodeFor(op, am, options))
           writeWord(0, index + 1, param)
           index += 3
+        case AssemblyLine(op, am@(LongAbsolute | LongAbsoluteX | LongIndirect), param, _) =>
+          writeByte(0, index, Assembler.opcodeFor(op, am, options))
+          writeWord(0, index + 1, param)
+          writeByte(0, index + 3, extractBank(param, options))
+          index += 4
       }
     }
     index
@@ -379,42 +397,64 @@ object Assembler {
   val opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
   val illegalOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
   val cmosOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  val cmosNopOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  val ce02Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  val hudsonOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  val emulation65816Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  val native65816Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
 
   def opcodeFor(opcode: Opcode.Value, addrMode: AddrMode.Value, options: CompilationOptions): Byte = {
     val key = opcode -> addrMode
-    opcodes.get(key) match {
-      case Some(v) => v
-      case None =>
-        illegalOpcodes.get(key) match {
-          case Some(v) =>
-            if (options.flag(CompilationFlag.EmitIllegals)) v
-            else ErrorReporting.fatal("Cannot assemble an illegal opcode " + key)
-          case None =>
-            cmosOpcodes.get(key) match {
-              case Some(v) =>
-                if (options.flag(CompilationFlag.EmitCmosOpcodes)) v
-                else ErrorReporting.fatal("Cannot assemble a CMOS opcode " + key)
-              case None =>
-                ErrorReporting.fatal("Cannot assemble an unknown opcode " + key)
-            }
-        }
-    }
+    opcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitIllegals)) illegalOpcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitCmosOpcodes)) cmosOpcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitCmosNopOpcodes)) cmosNopOpcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.Emit65CE02Opcodes)) ce02Opcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitHudsonOpcodes))  hudsonOpcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) emulation65816Opcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitNative65816Opcodes)) native65816Opcodes.get(key).foreach(return _)
+    ErrorReporting.fatal("Cannot assemble an unknown opcode " + key)
   }
 
   private def op(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ???
+    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
     opcodes(op -> am) = x.toByte
     if (am == AddrMode.Relative) opcodes(op -> AddrMode.Immediate) = x.toByte
   }
 
   private def cm(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ???
+    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
     cmosOpcodes(op -> am) = x.toByte
   }
 
+  private def cn(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
+    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    cmosNopOpcodes(op -> am) = x.toByte
+  }
+
   private def il(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ???
+    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
     illegalOpcodes(op -> am) = x.toByte
+  }
+
+  private def hu(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
+    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    hudsonOpcodes(op -> am) = x.toByte
+  }
+
+  private def ce(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
+    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    ce02Opcodes(op -> am) = x.toByte
+  }
+
+  private def em(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
+    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    emulation65816Opcodes(op -> am) = x.toByte
+  }
+
+  private def na(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
+    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    native65816Opcodes(op -> am) = x.toByte
   }
 
   def getStandardLegalOpcodes: Set[Int] = opcodes.values.map(_ & 0xff).toSet
@@ -617,6 +657,7 @@ object Assembler {
   il(AHX, AbsoluteY, 0x9F)
   il(SAX, IndexedX, 0x83)
   il(AHX, IndexedY, 0x93)
+  il(SHY, AbsoluteX, 0x9C)
 
   il(ANC, Immediate, 0x0B)
   il(ALR, Immediate, 0x4B)
@@ -679,10 +720,10 @@ object Assembler {
   il(NOP, Absolute, 0x5C)
   il(NOP, AbsoluteX, 0x1C)
 
-  cm(NOP, Immediate, 0x02)
-  cm(NOP, ZeroPage, 0x44)
-  cm(NOP, ZeroPageX, 0x54)
-  cm(NOP, Absolute, 0x5C)
+  cn(NOP, Immediate, 0x02)
+  cn(NOP, ZeroPage, 0x44)
+  cn(NOP, ZeroPageX, 0x54)
+  cn(NOP, Absolute, 0x5C)
 
   cm(STZ, ZeroPage, 0x64)
   cm(STZ, ZeroPageX, 0x74)
@@ -694,14 +735,14 @@ object Assembler {
   cm(PLX, Implied, 0xFA)
   cm(PLY, Implied, 0x7A)
 
-  cm(ORA, ZeroPageIndirect, 0x12)
-  cm(AND, ZeroPageIndirect, 0x32)
-  cm(EOR, ZeroPageIndirect, 0x52)
-  cm(ADC, ZeroPageIndirect, 0x72)
-  cm(STA, ZeroPageIndirect, 0x92)
-  cm(LDA, ZeroPageIndirect, 0xB2)
-  cm(CMP, ZeroPageIndirect, 0xD2)
-  cm(SBC, ZeroPageIndirect, 0xF2)
+  cm(ORA, IndexedZ, 0x12)
+  cm(AND, IndexedZ, 0x32)
+  cm(EOR, IndexedZ, 0x52)
+  cm(ADC, IndexedZ, 0x72)
+  cm(STA, IndexedZ, 0x92)
+  cm(LDA, IndexedZ, 0xB2)
+  cm(CMP, IndexedZ, 0xD2)
+  cm(SBC, IndexedZ, 0xF2)
 
   cm(TSB, ZeroPage, 0x04)
   cm(TSB, Absolute, 0x0C)
@@ -716,5 +757,120 @@ object Assembler {
   cm(JMP, AbsoluteIndexedX, 0x7C)
   cm(WAI, Implied, 0xCB)
   cm(STP, Implied, 0xDB)
+
+  ce(CPZ, Immediate, 0xC2)
+  ce(CPZ, ZeroPage, 0xD4)
+  ce(CPZ, Absolute, 0xDC)
+  ce(DEZ, Implied, 0x3B)
+  ce(INZ, Implied,0x1B )
+  ce(DEC_W, ZeroPage, 0xC3)
+  ce(INC_W, ZeroPage, 0xE3)
+  ce(ASL_W, Absolute, 0xCB)
+  // TODO: or is it ROL_W?
+  ce(ROR_W, Absolute, 0xEB)
+  ce(ASR, Implied, 0x43)
+  ce(ASR, ZeroPage, 0x44)
+  ce(ASR, ZeroPageX, 0x54)
+  ce(LDZ, Immediate, 0xA3)
+  ce(LDZ, Absolute, 0xAB)
+  ce(LDZ, AbsoluteX, 0xBB)
+  ce(TAB, Implied, 0x5B)
+  ce(TBA, Implied, 0x7B)
+  ce(TAZ, Implied, 0x4B)
+  ce(TZA, Implied, 0x6B)
+  ce(TSY, Implied, 0x0B)
+  ce(TYS, Implied, 0x2B)
+  ce(PHW, WordImmediate, 0xF4)
+  ce(PHW, Absolute, 0xFC)
+  ce(PHZ, Implied, 0xDB)
+  ce(PLZ, Implied, 0xFB)
+//  ce(CLE, Implied, )
+//  ce(SEE, Implied, )
+//  ce(BSR, , )
+
+  hu(CLY, Implied, 0xC2)
+  hu(CLX, Implied, 0x82)
+  hu(CLA, Implied, 0x62)
+  hu(CSH, Implied, 0xD4)
+  hu(CSL, Implied, 0x54)
+  hu(HuSAX, Implied, 0x22)
+  hu(SAY, Implied, 0x42)
+  hu(SXY, Implied, 0x02)
+  hu(TAM, Immediate, 0x53)
+  hu(TMA, Immediate, 0x43)
+
+  em(ORA, Stack, 0x03)
+  em(ORA, IndexedSY, 0x13)
+  na(ORA, LongIndexedZ, 0x07)
+  na(ORA, LongIndexedY, 0x17)
+  na(ORA, LongAbsolute, 0x0F)
+  na(ORA, LongAbsoluteX, 0x1F)
+  em(AND, Stack, 0x23)
+  em(AND, IndexedSY, 0x33)
+  na(AND, LongIndexedZ, 0x27)
+  na(AND, LongIndexedY, 0x37)
+  na(AND, LongAbsolute, 0x2F)
+  na(AND, LongAbsoluteX, 0x3F)
+  em(EOR, Stack, 0x43)
+  em(EOR, IndexedSY, 0x53)
+  na(EOR, LongIndexedZ, 0x47)
+  na(EOR, LongIndexedY, 0x57)
+  na(EOR, LongAbsolute, 0x4F)
+  na(EOR, LongAbsoluteX, 0x5F)
+  em(ADC, Stack, 0x63)
+  em(ADC, IndexedSY, 0x73)
+  na(ADC, LongIndexedZ, 0x67)
+  na(ADC, LongIndexedY, 0x77)
+  na(ADC, LongAbsolute, 0x6F)
+  na(ADC, LongAbsoluteX, 0x7F)
+  em(STA, Stack, 0x83)
+  em(STA, IndexedSY, 0x93)
+  na(STA, LongIndexedZ, 0x87)
+  na(STA, LongIndexedY, 0x97)
+  na(STA, LongAbsolute, 0x8F)
+  na(STA, LongAbsoluteX, 0x9F)
+  em(LDA, Stack, 0xA3)
+  em(LDA, IndexedSY, 0xB3)
+  na(LDA, LongIndexedZ, 0xA7)
+  na(LDA, LongIndexedY, 0xB7)
+  na(LDA, LongAbsolute, 0xAF)
+  na(LDA, LongAbsoluteX, 0xBF)
+  em(CMP, Stack, 0xA3)
+  em(CMP, IndexedSY, 0xB3)
+  na(CMP, LongIndexedZ, 0xA7)
+  na(CMP, LongIndexedY, 0xB7)
+  na(CMP, LongAbsolute, 0xAF)
+  na(CMP, LongAbsoluteX, 0xBF)
+
+  em(COP, Immediate, 0x02)
+  em(XBA, Implied, 0xEB)
+  em(TXY, Implied, 0x9B)
+  em(TYX, Implied, 0xBB)
+
+
+  na(RTL, Implied, 0x6B)
+  na(JMP, LongAbsolute, 0x5C)
+  na(JMP, LongIndirect, 0x7C)
+  na(BRL, LongRelative, 0x82)
+
+  em(PHD, Implied, 0x0B)
+  em(PLD, Implied, 0x2B)
+  em(PHB, Implied, 0x8B)
+  em(PLB, Implied, 0xAB)
+  em(PHK, Implied, 0x4B)
+
+  na(REP, Immediate, 0xC2)
+  na(SEP, Immediate, 0xE2)
+
+  na(XCE, Implied, 0xFB)
+  na(TCD, Implied, 0x5B)
+  na(TDC, Implied, 0x7B)
+  na(TSC, Implied, 0x3B)
+  na(TCS, Implied, 0x1B)
+
+  for {
+    ((narrow, am), code) <- emulation65816Opcodes ++ opcodes ++ cmosOpcodes ++ native65816Opcodes
+    wide <- Opcode.widen(narrow)
+  } na(wide, if (am == Immediate) WordImmediate else am, code & 0xff)
 
 }

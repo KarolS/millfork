@@ -11,7 +11,8 @@ There are two ways to include raw assembly code in your Millfork programs:
 Millfork inline assembly uses the same three-letter opcodes as most other 6502 assemblers.
 Indexing syntax is also the same. Only instructions available on the current CPU architecture are available.
 
-Currently, `RMBx`/`SMBx`/`BBRx`/`BBSx` are not supported yet.
+**Work in progress**: 
+Currently, `RMBx`/`SMBx`/`BBRx`/`BBSx` and some extra 65CE02/HuC6280/65816 instructions are not supported yet.
 
 Undocumented instructions are supported using various opcodes
 
@@ -135,5 +136,33 @@ it should abide to the following rules:
 * don't change the stack pointer
 
 * end non-inline assembly functions with `RTS`, `JMP` or `RTI` as appropriate
+
+* on NMOS 6502:
+
+    * don't use `XAA`, `LXA`, `AHX`, `SHX`, `SHY`, `LAS` and `TAS` instructions
+
+* on 65816:
+
+    * keep the direct page register set to $0000
+    
+    * keep the M and X flags set to 1 (8-bit registers by default, native mode) 
+    
+    * if running in the native mode, be careful with the stack pointer (you should keep it between $000100 and $0001FF)
+    
+    * do not change the data page register (keep an eye at the `PLD`, `MVN`, `MVP` instructions)
+    
+    * explicitly use 16-bit immediate operands when appropriate; the assembler doesn't track flags and assumes 8-bit immediates by default
+    
+    * use far jumps unless you're sure that the called function returns with an `RTS`  
+    
+* on 65CE02:
+
+    * keep the `B` register set to $00
+    
+    * don't change the `E` flag
+    
+* on HuC6280
+
+    * don't use the `SET` instruction
 
 The above list is not exhaustive.

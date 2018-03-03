@@ -65,7 +65,10 @@ object Main {
       "c64"
     })
     val options = CompilationOptions(platform, c.flags)
-    ErrorReporting.debug("Effective flags: " + options.flags)
+    ErrorReporting.debug("Effective flags: ")
+    options.flags.toSeq.sortBy(_._1).foreach{
+      case (f, b) => ErrorReporting.debug(f"    $f%-30s : $b%s")
+    }
 
     val output = c.outputFileName.getOrElse("a")
     val assOutput = output + ".asm"
@@ -94,7 +97,11 @@ object Main {
       case _ =>
         val extras = List(
           if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
+          if (options.flag(CompilationFlag.Emit65CE02Opcodes)) CE02Optimizations.All else Nil,
           if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
+          if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.All else Nil,
+          if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
+          if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
           if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
         ).flatten
         val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good).flatten
@@ -191,9 +198,32 @@ object Main {
     boolean("-fcmos-ops", "-fno-cmos-ops").action { (c, v) =>
       c.changeFlag(CompilationFlag.EmitCmosOpcodes, v)
     }.description("Whether should emit CMOS opcodes.")
+    boolean("-f65ce02-ops", "-fno-65ce02-ops").action { (c, v) =>
+      c.changeFlag(CompilationFlag.Emit65CE02Opcodes, v)
+    }.description("Whether should emit 65CE02 opcodes.")
+    boolean("-fhuc6280-ops", "-fno-huc6280-ops").action { (c, v) =>
+      c.changeFlag(CompilationFlag.EmitHudsonOpcodes, v)
+    }.description("Whether should emit HuC6280huc6280 opcodes.")
+    flag("-fno-65816-ops").action { c =>
+      c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = false)
+      c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = false)
+      c.changeFlag(CompilationFlag.ReturnWordsViaAccumulator, b = false)
+    }.description("Don't emit 65816 opcodes.")
+    flag("-femulation-65816-ops").action { c =>
+      c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = true)
+      c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = false)
+      c.changeFlag(CompilationFlag.ReturnWordsViaAccumulator, b = false)
+    }.description("Emit 65816 opcodes (experimental).")
+    flag("-fnative-65816-ops").action { c =>
+      c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = true)
+      c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = true)
+    }.description("Emit 65816 opcodes (experimental).")
+    boolean("-flarge-code", "-fsmall-code").action { (c, v) =>
+      c.changeFlag(CompilationFlag.LargeCode, v)
+    }.description("Whether should use 24-bit or 16-bit jumps to subroutines (not yet implemented).").hidden()
     boolean("-fillegals", "-fno-illegals").action { (c, v) =>
       c.changeFlag(CompilationFlag.EmitIllegals, v)
-    }.description("Whether should emit illegal (undocumented) NMOS opcodes. Required -O2 or higher to have an effect.")
+    }.description("Whether should emit illegal (undocumented) NMOS opcodes. Requires -O2 or higher to have an effect.")
     boolean("-fjmp-fix", "-fno-jmp-fix").action { (c, v) =>
       c.changeFlag(CompilationFlag.PreventJmpIndirectBug, v)
     }.description("Whether should prevent indirect JMP bug on page boundary.")

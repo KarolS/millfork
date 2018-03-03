@@ -39,7 +39,7 @@ object FlowAnalyzer {
         if (options.flag(CompilationFlag.DetailedFlowAnalysis)) {
           () => QuantumFlowAnalyzer.analyze(f, code).map(_.collapse)
         } else {
-          () => CoarseFlowAnalyzer.analyze(f, code)
+          () => CoarseFlowAnalyzer.analyze(f, code, options)
         }
       case FlowInfoRequirement.BackwardFlow | FlowInfoRequirement.JustLabels | FlowInfoRequirement.NoRequirement =>
         () => List.fill(code.size)(EmptyCpuStatus)

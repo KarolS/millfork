@@ -69,7 +69,7 @@ object StatementCompiler {
         val actualAddrMode = a match {
           case Absolute if OpcodeClasses.ShortBranching(o) => Relative
           case IndexedX if o == JMP => AbsoluteIndexedX
-          case Indirect if o != JMP => ZeroPageIndirect
+          case Indirect if o != JMP => IndexedZ
           case _ => a
         }
         List(AssemblyLine(o, actualAddrMode, c, e))

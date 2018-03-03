@@ -7,9 +7,18 @@ import millfork.output.MemoryBank
   */
 object EmuCmosBenchmarkRun {
   def apply(source:String)(verifier: MemoryBank=>Unit) = {
+    println(f"Compiling for NMOS (unoptimized)")
     val (Timings(_, t0), m0) = EmuUnoptimizedRun.apply2(source)
+    println(f"Compiling for NMOS")
     val (Timings(_, t1), m1) = EmuOptimizedRun.apply2(source)
+    println(f"Compiling for CMOS")
     val (Timings(_, t2), m2) = EmuOptimizedCmosRun.apply2(source)
+    println(f"Compiling for HuC6280")
+    EmuOptimizedHudsonRun.apply2(source)
+    println(f"Compiling for 65CE02")
+    EmuOptimized65CE02Run.apply2(source)
+    println(f"Compiling for 65816")
+    EmuOptimized65816Run.apply2(source)
     println(f"Before optimization:      $t0%7d")
     println(f"After NMOS optimization:  $t1%7d")
     println(f"After CMOS optimization:  $t2%7d")

@@ -61,7 +61,7 @@ case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends E
 }
 
 object Register extends Enumeration {
-  val A, X, Y, AX, AY, YA, XA, XY, YX = Value
+  val A, X, Y, AX, AY, YA, XA, XY, YX, AW = Value
 }
 
 //case class Indexing(child: Expression, register: Register.Value) extends Expression

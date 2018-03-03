@@ -258,6 +258,14 @@ object BuiltIns {
       case Some(NumericConstant(0, _)) =>
         Nil
       case Some(NumericConstant(shift, _)) if shift > 0 =>
+        if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, a1, l, _)), List(AssemblyLine(STA, a2, h, _))) =>
+              if (a1 == a2 && l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.accu16) ++ List.fill(shift.toInt)(AssemblyLine(if (aslRatherThanLsr) ASL_W else LSR_W, a1, l)) ++ List(AssemblyLine.accu8)
+              }
+          }
+        }
         List.fill(shift.toInt)(if (aslRatherThanLsr) {
           staTo(ASL, lo) ++ targetBytes.tail.flatMap { b => staTo(ROL, b) }
         } else {
@@ -643,15 +651,79 @@ object BuiltIns {
       case Some(NumericConstant(0, _)) =>
         return Nil
       case Some(NumericConstant(1, _)) if canUseIncDec && !subtract =>
+        if (ctx.options.flags(CompilationFlag.Emit65CE02Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, ZeroPage, l, _)), List(AssemblyLine(STA, ZeroPage, h, _))) =>
+              if (l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.zeropage(INC_W, l))
+              }
+          }
+        }
+        if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, a1@(ZeroPage | Absolute | ZeroPageX | AbsoluteX), l, _)), List(AssemblyLine(STA, a2, h, _))) =>
+              if (a1 == a2 && l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.accu16, AssemblyLine(INC_W, a1, l), AssemblyLine.accu8)
+              }
+          }
+        }
         val label = MfCompiler.nextLabel("in")
         return staTo(INC, targetBytes.head) ++ targetBytes.tail.flatMap(l => AssemblyLine.relative(BNE, label)::staTo(INC, l)) :+ AssemblyLine.label(label)
       case Some(NumericConstant(-1, _)) if canUseIncDec && subtract =>
+        if (ctx.options.flags(CompilationFlag.Emit65CE02Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, ZeroPage, l, _)), List(AssemblyLine(STA, ZeroPage, h, _))) =>
+              if (l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.zeropage(INC_W, l))
+              }
+          }
+        }
+        if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, a1@(ZeroPage | Absolute | ZeroPageX | AbsoluteX), l, _)), List(AssemblyLine(STA, a2, h, _))) =>
+              if (a1 == a2 && l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.accu16, AssemblyLine(INC_W, a1, l), AssemblyLine.accu8)
+              }
+          }
+        }
         val label = MfCompiler.nextLabel("in")
         return staTo(INC, targetBytes.head) ++ targetBytes.tail.flatMap(l => AssemblyLine.relative(BNE, label)::staTo(INC, l)) :+ AssemblyLine.label(label)
       case Some(NumericConstant(1, _)) if canUseIncDec && subtract =>
+        if (ctx.options.flags(CompilationFlag.Emit65CE02Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, ZeroPage, l, _)), List(AssemblyLine(STA, ZeroPage, h, _))) =>
+              if (l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.zeropage(DEC_W, l))
+              }
+          }
+        }
+        if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, a1@(ZeroPage | Absolute | ZeroPageX | AbsoluteX), l, _)), List(AssemblyLine(STA, a2, h, _))) =>
+              if (a1 == a2 && l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.accu16, AssemblyLine(DEC_W, a1, l), AssemblyLine.accu8)
+              }
+          }
+        }
         val label = MfCompiler.nextLabel("de")
         return doDec(targetBytes)
       case Some(NumericConstant(-1, _)) if canUseIncDec && !subtract =>
+        if (ctx.options.flags(CompilationFlag.Emit65CE02Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, ZeroPage, l, _)), List(AssemblyLine(STA, ZeroPage, h, _))) =>
+              if (l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.zeropage(DEC_W, l))
+              }
+          }
+        }
+        if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, a1@(ZeroPage | Absolute | ZeroPageX | AbsoluteX), l, _)), List(AssemblyLine(STA, a2, h, _))) =>
+              if (a1 == a2 && l.+(1).quickSimplify == h) {
+                return List(AssemblyLine.accu16, AssemblyLine(DEC_W, a1, l), AssemblyLine.accu8)
+              }
+          }
+        }
         val label = MfCompiler.nextLabel("de")
         return doDec(targetBytes)
       case Some(constant) =>
@@ -719,6 +791,32 @@ object BuiltIns {
         }
     }
     val addendByteRead = addendByteRead0 ++ List.fill((targetSize - addendByteRead0.size) max 0)(List(AssemblyLine.immediate(LDA, 0)))
+
+    if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+      (removeTsx(targetBytes), removeTsx(addendByteRead)) match {
+        case (List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))), List(List(AssemblyLine(LDA, Immediate, al, _)), List(AssemblyLine(LDA, Immediate, ah, _)))) =>
+          if (ta1 == ta2 && tl.+(1).quickSimplify == th) {
+            return wrapInSedCldIfNeeded(decimal, List(
+              AssemblyLine.implied(if(subtract) SEC else CLC),
+              AssemblyLine.accu16,
+              AssemblyLine(LDA_W, ta1, tl),
+              AssemblyLine(if(subtract) SBC_W else ADC_W, WordImmediate, ah.asl(8).+(al).quickSimplify),
+              AssemblyLine(STA_W, ta1, tl),
+              AssemblyLine.accu8))
+          }
+        case (List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))), List(List(AssemblyLine(LDA, aa1, al, _)), List(AssemblyLine(LDA, aa2, ah, _)))) =>
+          if (ta1 == ta2 && aa1 == aa2 && tl.+(1).quickSimplify == th && al.+(1).quickSimplify == ah) {
+            return wrapInSedCldIfNeeded(decimal, List(
+              AssemblyLine.accu16,
+              AssemblyLine.implied(if(subtract) SEC else CLC),
+              AssemblyLine(LDA_W, ta1, tl),
+              AssemblyLine(if(subtract) SBC_W else ADC_W, aa1, al),
+              AssemblyLine(STA_W, ta1, tl),
+              AssemblyLine.accu8))
+          }
+        case _ =>
+      }
+    }
     val buffer = mutable.ListBuffer[AssemblyLine]()
     buffer ++= calculateRhs
     buffer += AssemblyLine.implied(if (subtract) SEC else CLC)
@@ -819,6 +917,29 @@ object BuiltIns {
           })
         }
     }
+    if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+      (removeTsx(targetBytes), removeTsx(addendByteRead)) match {
+        case (List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))), List(List(AssemblyLine(LDA, Immediate, al, _)), List(AssemblyLine(LDA, Immediate, ah, _)))) =>
+          if (ta1 == ta2 && tl.+(1).quickSimplify == th) {
+            return List(
+              AssemblyLine.accu16,
+              AssemblyLine(LDA_W, ta1, tl),
+              AssemblyLine(Opcode.widen(operation).get, WordImmediate, ah.asl(8).+(al).quickSimplify),
+              AssemblyLine(STA_W, ta1, tl),
+              AssemblyLine.accu8)
+          }
+        case (List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))), List(List(AssemblyLine(LDA, aa1, al, _)), List(AssemblyLine(LDA, aa2, ah, _)))) =>
+          if (ta1 == ta2 && aa1 == aa2 && tl.+(1).quickSimplify == th && al.+(1).quickSimplify == ah) {
+            return List(
+              AssemblyLine.accu16,
+              AssemblyLine(LDA_W, ta1, tl),
+              AssemblyLine(Opcode.widen(operation).get, aa1, al),
+              AssemblyLine(STA_W, ta1, tl),
+              AssemblyLine.accu8)
+          }
+        case _ =>
+      }
+    }
     val AllOnes = (1L << (8 * targetSize)) - 1
     (operation, env.eval(param)) match {
       case (EOR, Some(NumericConstant(0, _)))
@@ -879,5 +1000,11 @@ object BuiltIns {
       case _ =>
         ???
     }
+  }
+
+  private def removeTsx(codes: List[List[AssemblyLine]]): List[List[AssemblyLine]] = codes.map {
+    case List(AssemblyLine(TSX, _, _, _), AssemblyLine(op, AbsoluteX, NumericConstant(nn, _), _)) if nn >= 0x100 && nn <= 0x1ff =>
+      List(AssemblyLine(op, Stack, NumericConstant(nn & 0xff, 1)))
+    case x => x
   }
 }

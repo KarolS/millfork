@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import millfork.assembly.AddrMode._
 import millfork.assembly.Opcode._
 import millfork.assembly.OpcodeClasses._
-import millfork.assembly._
+import millfork.assembly.{opt, _}
 import millfork.env._
 
 /**
@@ -745,6 +745,21 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcodeIn(Set(CLV)) & DoesntMatterWhatItDoesWith(State.V)) ~~> (_ => Nil),
   )
 
+  val SimplifiableStackOperation = new RuleBasedAssemblyOptimization("Simplifiable stack operation",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(TSX)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(TXS)) ~
+      (Elidable & HasOpcode(PHA) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_ => List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(STA, 0x101))),
+    (Elidable & HasOpcode(TSX)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(TXS) & DoesntMatterWhatItDoesWith(State.Z, State.N, State.A)) ~~> (_ => List(AssemblyLine.implied(PLA))),
+    (Elidable & HasOpcode(TSX)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(TXS)) ~
+      (ConcernsA & Not(ConcernsStack) & Linear & DoesntMatterWhatItDoesWith(State.Z, State.N, State.A)) ~~> (code => List(code.last, AssemblyLine.implied(PLA))),
+  )
+
   val SimplifiableBitOpsSequence = new RuleBasedAssemblyOptimization("Simplifiable sequence of bit operations",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (Elidable & HasOpcode(EOR) & MatchImmediate(0)) ~
@@ -909,7 +924,7 @@ object AlwaysGoodOptimizations {
     val jump = Elidable & HasOpcodeIn(Set(JMP, if (firstSet) BCS else BCC, if (zeroIfSet) BEQ else BNE)) & MatchParameter(1)
     val elseLabel = Elidable & HasOpcode(LABEL) & MatchParameter(0)
     val afterLabel = Elidable & HasOpcode(LABEL) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)
-    val store = Elidable & (Not(ReadsC) & Linear | HasOpcodeIn(Set(RTS, JSR, RTI)))
+    val store = Elidable & (Not(ReadsC) & Linear | HasOpcodeIn(Set(RTS, JSR, RTI, RTL, BSR)))
     val secondReturn = (Elidable & HasOpcodeIn(Set(RTS, RTI) | NoopDiscardsFlags)).*.capture(6)
     val where = Where { ctx =>
       ctx.get[List[AssemblyLine]](4) == ctx.get[List[AssemblyLine]](5) ||
@@ -1366,7 +1381,7 @@ object AlwaysGoodOptimizations {
           first.head.parameter == second.head.parameter &&
           (first.head.addrMode == Immediate) == (second.head.addrMode == Immediate) && first.tail.zip(second.tail).forall(p => {
           p._1.opcode == p._2.opcode && p._1.parameter.quickSimplify == p._2.parameter.quickSimplify && (p._1.addrMode == Immediate) == (p._2.addrMode == Immediate)
-        }) && (for (s1 <- first; s2 <- between) yield HelperCheckers.memoryAccessDoesntOverlap(s1.addrMode, s1.parameter, s2.addrMode, s2.parameter)).forall(identity) && {
+        }) && (for (s1 <- first; s2 <- between) yield HelperCheckers.memoryAccessDoesntOverlap(s1, s2)).forall(identity) && {
           var currentD = false
           var currentCDefined = false
           var noAdditionDependency = true
@@ -1415,10 +1430,10 @@ object AlwaysGoodOptimizations {
         true
       }) ~
       (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
-      (Elidable & MatchParameter(6) & HasAddrModeIn(Set(ZeroPageIndirect, IndexedY))) ~~> { (code, ctx) =>
+      (Elidable & MatchParameter(6) & HasAddrModeIn(Set(IndexedZ, IndexedY))) ~~> { (code, ctx) =>
       val addr = ctx.get[Int](2)
       val last = code.last
-      code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == ZeroPageIndirect) Absolute else AbsoluteY)
+      code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
     },
 
     (HasOpcode(STA) & MatchA(0) & HasAddrModeIn(Set(Absolute, ZeroPage)) & MatchParameter(4)) ~
@@ -1437,10 +1452,10 @@ object AlwaysGoodOptimizations {
         true
       }) ~
       (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
-      (Elidable & MatchParameter(6) & HasAddrModeIn(Set(ZeroPageIndirect, IndexedY))) ~~> { (code, ctx) =>
+      (Elidable & MatchParameter(6) & HasAddrModeIn(Set(IndexedZ, IndexedY))) ~~> { (code, ctx) =>
       val addr = ctx.get[Int](2)
       val last = code.last
-      code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == ZeroPageIndirect) Absolute else AbsoluteY)
+      code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
     },
   )
 

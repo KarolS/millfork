@@ -173,6 +173,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.ReverseFlowAnalysis,
     AlwaysGoodOptimizations.SimplifiableBitOpsSequence,
     AlwaysGoodOptimizations.SimplifiableCondition,
+    AlwaysGoodOptimizations.SimplifiableStackOperation,
     AlwaysGoodOptimizations.SmarterShiftingOfWords,
     AlwaysGoodOptimizations.SmarterShiftingBytes,
     AlwaysGoodOptimizations.UnconditionalJumpRemoval,

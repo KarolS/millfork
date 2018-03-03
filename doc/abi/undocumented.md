@@ -30,13 +30,13 @@ Millfork supports multiple mnemonics per opcode. The default one is given first:
 
 * **RRA**
 
-* **SAX**
+* **SAX**\*
 
 * **SHX**, XAS
 
-* **SHY**, SAY
+* **SHY**, SAY\*
 
-* **SBX**, AXS\*
+* **SBX**, AXS\*\*
 
 * **SRE**, LSE
 
@@ -46,7 +46,10 @@ Millfork supports multiple mnemonics per opcode. The default one is given first:
 
 * **XAA**, ANE
 
-\* AXS is also used for SAX in some assemblers, but Millfork always interprets AXS as a synonym for SBX
+\* HuC2680 has different instructions also called SAX and SAY, 
+but Millfork can distinguish between them and the NMOS illegal instructions based on the addressing mode.
+
+\*\* AXS is also used for SAX in some assemblers. Millfork interprets AXS based on the addressing mode.
 
 ## Generation
 

@@ -4,6 +4,8 @@
 
 * **Breaking change!** Renamed `inline` to `macro`.
 
+* Added preliminary support for 65CE02, HuC6280 and 65816 processors.
+
 * Added new `-O1` optimization preset; old `-O1` became `-O2`, old `-O2` became `-O3` and so on.
 
 * Added support for parameters for macros written in Millfork.
@@ -17,6 +19,8 @@
 * Added `*'=` and `<<<<` operators.
 
 * Added return dispatch statements.
+
+* Added octal and quaternary literals.
 
 * Fixed several optimization bugs.
 

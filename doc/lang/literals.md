@@ -6,6 +6,10 @@ Decimal: `1`, `10`
 
 Binary: `%0101`, `0b101001`
 
+Quaternary: `0q2131`
+
+Octal: `0o172`
+
 Hexadecimal: `$D323`, `0x2a2`
 
 ## String literals

@@ -32,16 +32,34 @@
 ## Code generation options
 
 * `-fcmos-ops`, `-fno-cmos-ops` – Whether should emit CMOS opcodes.  
-`.ini` equivalent: `emit_cmos`. Default: yes if targeting 65C02, no otherwise.
+`.ini` equivalent: `emit_cmos`.
+Default: yes if targeting a 65C02-compatible architecture, no otherwise.
 
 * `-fillegals`, `-fno-illegals` – Whether should emit illegal (undocumented) NMOS opcodes.  
-`.ini` equivalent: `emit_illegals`. Default: no.
+`.ini` equivalent: `emit_illegals`.
+Default: no.
+
+* `-f65ce02-ops`, `-fno-65ce02-ops` – Whether should emit 65CE02 opcodes.  
+`.ini` equivalent: `emit_65ce026`. 
+Default: yes if targeting 65CE02, no otherwise.
+
+* `-fhuc6280-ops`, `-fno-huc6280-ops` – Whether should emit HuC6280 opcodes.  
+`.ini` equivalent: `emit_huc6280`. 
+Default: yes if targeting HuC6280, no otherwise.
+
+* `-fno-65816-ops`, `-femulation-65816-ops`, `-fnative-65816-ops` – Which subset of 65816 instructions to support. 
+`-fnative-65816-ops` is required to use any 16-bit operations. 
+Currently, there is not much support in the compiler for the native mode.
+`.ini` equivalent: `emit_65816`. 
+Default: native if targeting 65816, no otherwise.
 
 * `-fjmp-fix`, `-fno-jmp-fix` – Whether should prevent indirect JMP bug on page boundary.  
-`.ini` equivalent: `prevent_jmp_indirect_bug`. Default: no if targeting 65C02, yes otherwise.
+`.ini` equivalent: `prevent_jmp_indirect_bug`.
+Default: no if targeting a 65C02-compatible architecture, yes otherwise.
                     
 * `-fdecimal-mode`, `-fno-decimal-mode` – Whether decimal mode should be available.  
-`.ini` equivalent: `decimal_mode`. Default: no if targeting Ricoh, yes otherwise.
+`.ini` equivalent: `decimal_mode`.
+Default: no if targeting Ricoh, yes otherwise.
 
 * `-fvariable-overlap`, `-fno-variable-overlap` – Whether variables should overlap if their scopes do not intersect.  
 Default: yes.

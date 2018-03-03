@@ -1,5 +1,5 @@
 package millfork.test
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.test.emu.{EmuBenchmarkRun, EmuCmosBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -8,7 +8,7 @@ import org.scalatest.{FunSuite, Matchers}
 class WordMathSuite extends FunSuite with Matchers {
 
   test("Word addition") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | word output @$c000
         | word a
         | void main () {
@@ -20,7 +20,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word subtraction") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | word output @$c000
         | word a
         | void main () {
@@ -32,7 +32,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word subtraction 2") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | word output @$c000
         | word a
         | void main () {
@@ -44,7 +44,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Byte-to-word addition") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | word output @$c000
         | word pair
         | void main () {
@@ -57,7 +57,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Literal addition") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | word output @$c000
         | void main () {
         |  output = 640
@@ -67,7 +67,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Array element addition") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | word output @$c000
         | word pair
         | array b[2]
@@ -84,7 +84,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("nesdev.com example") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | byte output @$c000
         | array map [256] @$c300
         | array b[2]
@@ -102,7 +102,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("hi()/lo()") {
-    EmuBenchmarkRun("""
+    EmuCmosBenchmarkRun("""
         | array output [7] @$c000
         | void main () {
         |   output[0] = lo(33)

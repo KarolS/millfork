@@ -87,6 +87,11 @@ object ExpressionCompiler {
   def compileConstant(ctx: CompilationContext, expr: Constant, target: Variable): List[AssemblyLine] = {
     target match {
       case RegisterVariable(Register.A, _) => List(AssemblyLine(LDA, Immediate, expr))
+      case RegisterVariable(Register.AW, _) =>
+        List(
+          AssemblyLine.accu16,
+          AssemblyLine(LDA_W, WordImmediate, expr),
+          AssemblyLine.accu8)
       case RegisterVariable(Register.X, _) => List(AssemblyLine(LDX, Immediate, expr))
       case RegisterVariable(Register.Y, _) => List(AssemblyLine(LDY, Immediate, expr))
       case RegisterVariable(Register.AX, _) => List(
@@ -221,7 +226,12 @@ object ExpressionCompiler {
           case 1 =>
             v match {
               case mv: VariableInMemory => AssemblyLine.variable(ctx, store, mv)
-              case sv@StackVariable(_, _, offset) => AssemblyLine.implied(transferToA) :: AssemblyLine.implied(TSX) :: AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset) :: Nil
+              case sv@StackVariable(_, _, offset) =>
+                if (ctx.options.flags(CompilationFlag.EmitEmulation65816Opcodes)) {
+                  AssemblyLine.implied(transferToA) :: AssemblyLine.stackRelative(STA, offset + ctx.extraStackOffset) :: Nil
+                } else {
+                  AssemblyLine.implied(transferToA) :: AssemblyLine.implied(TSX) :: AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset) :: Nil
+                }
             }
           case s if s > 1 =>
             v match {
@@ -373,6 +383,18 @@ object ExpressionCompiler {
               case source: VariableInMemory =>
                 target match {
                   case RegisterVariable(Register.A, _) => AssemblyLine.variable(ctx, LDA, source)
+                  case RegisterVariable(Register.AW, _) =>
+                    exprType.size match {
+                      case 1 => if (exprType.isSigned) {
+                        AssemblyLine.variable(ctx, LDA, source) ++ List(
+                          AssemblyLine.implied(PHA)) ++ signExtendA() ++ List(
+                          AssemblyLine.implied(XBA),
+                          AssemblyLine.implied(PLA))
+                      } else List(AssemblyLine.immediate(LDX, 0), AssemblyLine.implied(XBA)) ++ AssemblyLine.variable(ctx, LDA, source) :+ AssemblyLine.immediate(LDX, 0)
+                      case 2 =>
+                        // TODO: use LDA_W
+                        AssemblyLine.variable(ctx, LDA, source, 1) ++ List(AssemblyLine.implied(XBA)) ++ AssemblyLine.variable(ctx, LDA, source)
+                    }
                   case RegisterVariable(Register.X, _) => AssemblyLine.variable(ctx, LDX, source)
                   case RegisterVariable(Register.Y, _) => AssemblyLine.variable(ctx, LDY, source)
                   case RegisterVariable(Register.AX, _) =>
@@ -1021,13 +1043,13 @@ object ExpressionCompiler {
                       // TODO: fix
                       case _ => Nil
                     }
-                    secondViaMemory ++ thirdViaRegisters :+ AssemblyLine.absolute(JSR, function)
+                    secondViaMemory ++ thirdViaRegisters :+ AssemblyLine.absoluteOrLongAbsolute(JSR, function, ctx.options)
                   case NormalParamSignature(paramVars) =>
                     params.zip(paramVars).flatMap {
                       case (paramExpr, paramVar) =>
                         val callCtx = callingContext(ctx, paramVar)
                         compileAssignment(callCtx, paramExpr, VariableExpression(paramVar.name))
-                    } ++ List(AssemblyLine.absolute(JSR, function))
+                    } ++ List(AssemblyLine.absoluteOrLongAbsolute(JSR, function, ctx.options))
                 }
                 result
             }
@@ -1076,6 +1098,7 @@ object ExpressionCompiler {
     exprTypeAndVariable.fold(noop) {
       case (VoidType, _) => ???
       case (_, RegisterVariable(Register.A, _)) => noop
+      case (_, RegisterVariable(Register.AW, _)) => List(AssemblyLine.implied(XBA), AssemblyLine.implied(TAX), AssemblyLine.implied(XBA))
       case (_, RegisterVariable(Register.X, _)) => List(AssemblyLine.implied(TAX))
       case (_, RegisterVariable(Register.Y, _)) => List(AssemblyLine.implied(TAY))
       case (_, RegisterVariable(Register.AX, _)) =>
@@ -1083,7 +1106,9 @@ object ExpressionCompiler {
         noop
       case (_, RegisterVariable(Register.XA, _)) =>
         // TODO: sign extension
-        if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
+        if (ctx.options.flag(CompilationFlag.EmitHudsonOpcodes)) {
+          List(AssemblyLine.implied(HuSAX))
+        } else if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
           List(
             AssemblyLine.implied(PHA),
             AssemblyLine.implied(PHX),
@@ -1105,11 +1130,17 @@ object ExpressionCompiler {
           AssemblyLine.implied(TXA))
       case (_, RegisterVariable(Register.AY, _)) =>
         // TODO: sign extension
-        List(
-          AssemblyLine.implied(PHA),
-          AssemblyLine.implied(TXA),
-          AssemblyLine.implied(TAY),
-          AssemblyLine.implied(PLA))
+        if (ctx.options.flag(CompilationFlag.EmitHudsonOpcodes)) {
+          List(AssemblyLine.implied(SXY))
+        } else if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+          List(AssemblyLine.implied(TXY))
+        } else {
+          List(
+            AssemblyLine.implied(PHA),
+            AssemblyLine.implied(TXA),
+            AssemblyLine.implied(TAY),
+            AssemblyLine.implied(PLA))
+        }
       case (t, v: VariableInMemory) => t.size match {
         case 1 => v.typ.size match {
           case 1 =>
@@ -1230,7 +1261,7 @@ object ExpressionCompiler {
           if (i < arrayLength) return Nil
           if (i >= arrayLength) return List(
             AssemblyLine.implied(PHP),
-            AssemblyLine.absolute(JSR, ctx.env.get[ThingInMemory]("_panic")))
+            AssemblyLine.absoluteOrLongAbsolute(JSR, ctx.env.get[ThingInMemory]("_panic"), ctx.options))
         }
       case _ =>
     }
@@ -1245,7 +1276,7 @@ object ExpressionCompiler {
         AssemblyLine.implied(PHP),
         AssemblyLine.immediate(compare, arrayLength),
         AssemblyLine.relative(BCC, label),
-        AssemblyLine.absolute(JSR, ctx.env.get[ThingInMemory]("_panic")),
+        AssemblyLine.absoluteOrLongAbsolute(JSR, ctx.env.get[ThingInMemory]("_panic"), ctx.options),
         AssemblyLine.label(label),
         AssemblyLine.implied(PLP))
     } else {

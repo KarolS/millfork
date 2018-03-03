@@ -1,6 +1,6 @@
 # Target platforms
 
-Currently, Millfork supports creating disk- or tape-based programs for Commodore and Atari 8-bit computers, 
+Currently, Millfork supports creating disk- or tape-based programs for Commodore, Apple and Atari 8-bit computers, 
 but it may be expanded to support other 6502-based platforms in the future.
 
 ## Supported platforms
@@ -8,6 +8,8 @@ but it may be expanded to support other 6502-based platforms in the future.
 The following platforms are currently supported:
 
 * `c64` – Commodore 64
+
+* `c64_scpu` – Commodore 64 with SuperCPU (very buggy)
 
 * `c16` – Commodore 16
 
@@ -57,15 +59,21 @@ Every platform is defined in an `.ini` file with an appropriate name.
 
 * `arch` – CPU architecture. It defines which instructions are available. Available values: 
 
-    * `nmos`
+    * `nmos` (original 6502)
     
-    * `strict` (= NMOS without illegal instructions) 
+    * `strict` (NMOS without illegal instructions) 
     
-    * `ricoh` (= NMOS without decimal mode) 
+    * `ricoh` (Ricoh 2A03/2A07, NMOS without decimal mode) 
     
-    * `strictricoh`
+    * `strictricoh` (Ricoh 2A03/2A07 without illegal instructions)
     
-    * `cmos` (= 65C02)
+    * `cmos` (WDC 65C02 or 65SC02)
+    
+    * `65ce02` (CSG 65CE02; experimental)
+    
+    * `huc6280` (Hudson HuC6280; experimental)
+    
+    * `65816` (WDC 65816/65802; experimental; currently only programs that use only 16-bit addressing are supported)
 
 * `modules` – comma-separated list of modules that will be automatically imported
 
@@ -73,13 +81,16 @@ Every platform is defined in an `.ini` file with an appropriate name.
 
     * `emit_illegals` – whether the compiler should emit illegal instructions, default `false`
     
-    * `emit_cmos` – whether the compiler should emit CMOS instructions, default is `true` on `cmos` and `false` elsewhere
+    * `emit_cmos` – whether the compiler should emit CMOS instructions, default is `true` on compatible processors and `false` elsewhere
+
+    * `emit_65816` – which 65816 instructions should the compiler emit, either `no`, `emulation` or `native` 
     
     * `decimal_mode` – whether the compiler should emit decimal instructions, default is `false` on `ricoh` and `strictricoh` and `true` elsewhere
     
     * `ro_arrays` – whether the compiler should warn upon array writes, default is `false`
     
-    * `prevent_jmp_indirect_bug` – whether the compiler should try to avoid the indirect JMP bug, default is `false` on `cmos` and `true` elsewhere
+    * `prevent_jmp_indirect_bug` – whether the compiler should try to avoid the indirect JMP bug, 
+    default is `false` on 65C02-compatible processors and `true` elsewhere
 
 #### `[allocation]` section
 

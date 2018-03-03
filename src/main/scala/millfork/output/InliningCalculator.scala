@@ -76,12 +76,13 @@ object InliningCalculator {
     case _ => Nil
   }
 
-  private val badOpcodes = Set(RTI, RTS, JSR, BRK) ++ OpcodeClasses.ChangesStack
+  private val badOpcodes = Set(RTI, RTS, JSR, BRK, RTL, BSR) ++ OpcodeClasses.ChangesStack
   private val jumpingRelatedOpcodes = Set(LABEL, JMP) ++ OpcodeClasses.ShortBranching
 
   def codeForInlining(fname: String, code: List[AssemblyLine]): Option[List[AssemblyLine]] = {
     if (code.isEmpty) return None
-    if (code.last.opcode != RTS) return None
+    val lastOpcode = code.last.opcode
+    if (lastOpcode != RTS && lastOpcode != RTL) return None
     var result = code.init
     while (result.nonEmpty && OpcodeClasses.NoopDiscardsFlags(result.last.opcode)) {
       result = result.init

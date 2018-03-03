@@ -10,8 +10,9 @@ class SymonTestRam(mem: MemoryBank) extends Device(0x0000, 0xffff, "RAM") {
 
   mem.readable(1) = true
   mem.readable(2) = true
+  mem.readable(0x23) = true
 
-  (0x100 to 0x1ff).foreach { stack =>
+  (0 to 0x1ff).foreach { stack =>
     mem.writeable(stack) = true
     mem.readable(stack) = true
   }
