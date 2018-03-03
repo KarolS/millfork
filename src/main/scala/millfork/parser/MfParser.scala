@@ -486,7 +486,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
             case _ => false
           }) ErrorReporting.warn("Assembly non-interrupt function `$name` contains RTI, did you mean RTS?", options, Some(p))
         }
-        if (!flags("macro")) {
+        if (!name.startsWith("__") && !flags("macro")) {
           xs.last match {
             case AssemblyStatement(Opcode.RTS, _, _, _) => () // OK
             case AssemblyStatement(Opcode.RTI, _, _, _) => () // OK

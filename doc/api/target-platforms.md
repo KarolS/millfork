@@ -9,7 +9,9 @@ The following platforms are currently supported:
 
 * `c64` – Commodore 64
 
-* `c64_scpu` – Commodore 64 with SuperCPU (very buggy)
+* `c64_scpu` – Commodore 64 with SuperCPU in emulation mode
+
+* `c64_scpu16` – Commodore 64 with SuperCPU in native, 16-bit mode (very buggy)
 
 * `c16` – Commodore 16
 
