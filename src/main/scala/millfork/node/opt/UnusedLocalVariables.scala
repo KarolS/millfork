@@ -74,11 +74,21 @@ object UnusedLocalVariables extends NodeOptimization {
     removeVariables(statements, localsToRemove)
   }
 
-  def removeVariables(statements: List[Statement], localsToRemove: Set[String]): List[Statement] = statements.flatMap {
+  def removeVariables(statements: List[Statement], localsToRemove: Set[String]): List[Statement] = if (localsToRemove.isEmpty) statements else statements.flatMap {
     case s: VariableDeclarationStatement =>
       if (localsToRemove(s.name)) None else Some(s)
     case s@ExpressionStatement(FunctionCallExpression(op, VariableExpression(n) :: params)) if op.endsWith("=") =>
-      if (localsToRemove(n)) params.map(ExpressionStatement) else Some(s)
+      if (localsToRemove(n)) {
+        params.flatMap {
+          case VariableExpression(_) => None
+          case LiteralExpression(_, _) => None
+          case x => Some(ExpressionStatement(x))
+        }
+      } else Some(s)
+    case s@Assignment(VariableExpression(n), VariableExpression(_)) =>
+      if (localsToRemove(n)) Nil else Some(s)
+    case s@Assignment(VariableExpression(n), LiteralExpression(_, _)) =>
+      if (localsToRemove(n)) Nil else Some(s)
     case s@Assignment(VariableExpression(n), expr) =>
       if (localsToRemove(n)) Some(ExpressionStatement(expr)) else Some(s)
     case s@Assignment(SeparateBytesExpression(VariableExpression(h), VariableExpression(l)), expr) =>

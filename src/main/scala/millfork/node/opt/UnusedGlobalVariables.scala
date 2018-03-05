@@ -68,7 +68,17 @@ object UnusedGlobalVariables extends NodeOptimization {
     case s: VariableDeclarationStatement =>
       if (globalsToRemove(s.name)) None else Some(s)
     case s@ExpressionStatement(FunctionCallExpression(op, VariableExpression(n) :: params)) if op.endsWith("=") =>
-      if (globalsToRemove(n)) params.map(ExpressionStatement) else Some(s)
+      if (globalsToRemove(n)) {
+        params.flatMap {
+          case VariableExpression(_) => None
+          case LiteralExpression(_, _) => None
+          case x => Some(ExpressionStatement(x))
+        }
+      } else Some(s)
+    case s@Assignment(VariableExpression(n), VariableExpression(_)) =>
+      if (globalsToRemove(n)) Nil else Some(s)
+    case s@Assignment(VariableExpression(n), LiteralExpression(_, _)) =>
+      if (globalsToRemove(n)) Nil else Some(s)
     case s@Assignment(VariableExpression(n), expr) =>
       if (globalsToRemove(n)) Some(ExpressionStatement(expr)) else Some(s)
     case s@Assignment(SeparateBytesExpression(VariableExpression(h), VariableExpression(l)), expr) =>
