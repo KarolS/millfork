@@ -198,8 +198,8 @@ object HelperCheckers {
   def memoryAccessDoesntOverlap(l1: AssemblyLine, l2: AssemblyLine): Boolean = {
     val a1 = l1.addrMode
     val a2 = l2.addrMode
-    if (badAddrModes(a1) || badAddrModes(a2)) return false
     if (goodAddrModes(a1) || goodAddrModes(a2)) return true
+    if (badAddrModes(a1) || badAddrModes(a2)) return false
     if ((a1 == IndexedSY) != (a2 == IndexedSY)) return true // bold assertion, but usually true
     val p1 = l1.parameter
     val p2 = l2.parameter
@@ -655,6 +655,19 @@ case object ReadsMemory extends TrivialAssemblyLinePattern {
       case AddrMode.Implied | AddrMode.Immediate => false
       case _ =>
         OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(line.opcode)
+    }
+}
+
+case object IsNonvolatile extends TrivialAssemblyLinePattern {
+  // TODO: this is a big hack
+  override def apply(line: AssemblyLine): Boolean =
+    line.addrMode match {
+      case AddrMode.Implied | AddrMode.Immediate => true
+      case _ => line.parameter match {
+        case MemoryAddressConstant(_) => true
+        case CompoundConstant(_, MemoryAddressConstant(_), _) => true
+        case _ => false
+      }
     }
 }
 

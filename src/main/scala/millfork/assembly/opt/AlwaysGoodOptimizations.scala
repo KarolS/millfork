@@ -1096,6 +1096,35 @@ object AlwaysGoodOptimizations {
     }
   )
 
+  val LoopInvariantRegister = new RuleBasedAssemblyOptimization("Loop invariant register",
+    needsFlowInfo = FlowInfoRequirement.JustLabels,
+    (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & IsNonvolatile) ~
+      (Linear & Not(ChangesA) & DoesntChangeMemoryAt(0, 1)).* ~
+      (ShortConditionalBranching & MatchParameter(2)) ~~> { code =>
+      code(1) :: code(0) :: code.drop(2)
+    },
+    (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1) & IsNonvolatile) ~
+      (Linear & Not(ChangesX) & DoesntChangeMemoryAt(0, 1)).* ~
+      (ShortConditionalBranching & MatchParameter(2)) ~~> { code =>
+      code(1) :: code(0) :: code.drop(2)
+    },
+    (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1) & IsNonvolatile) ~
+      (Linear & Not(ChangesY) & DoesntChangeMemoryAt(0, 1)).* ~
+      (ShortConditionalBranching & MatchParameter(2)) ~~> { code =>
+      code(1) :: code(0) :: code.drop(2)
+    },
+    (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(LDZ) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & Not(ChangesIZ) & DoesntChangeMemoryAt(0, 1)).* ~
+      (ShortConditionalBranching & MatchParameter(2)) ~~> { code =>
+      code(1) :: code(0) :: code.drop(2)
+    },
+
+  )
+
 
   val UnusedLabelRemoval = new RuleBasedAssemblyOptimization("Unused label removal",
     needsFlowInfo = FlowInfoRequirement.JustLabels,
