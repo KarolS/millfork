@@ -29,7 +29,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     PHX, PLX,
     SBX, SAX, LXA, XAA, AHX, SHX, SHY, LAS, TAS,
     HuSAX, SXY, TXY, TXY,
-    SEP, REP,
   )
 
   private val opcodesThatAlwaysPrecludeYAllocation = Set(
@@ -38,13 +37,11 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     PHY, PLY,
     AHX, SHX, SHY, LAS, TAS,
     SAY, SXY, TXY, TYX,
-    SEP, REP,
   )
 
   private val opcodesThatAlwaysPrecludeZAllocation = Set(
     JSR, STZ, TZA, INZ, DEZ, CPZ,
     PHZ, PLZ,
-    SEP, REP,
   )
 
   private val opcodesThatAlwaysPrecludeAAllocation = Set(
@@ -55,8 +52,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     ALR, ARR, ANC, SBX, LXA, XAA,
     AHX, SHX, SHY, LAS, TAS,
     HuSAX, SAY,
-    TCD, TDC, TSC, TCS,
-    SEP, REP,
+    TCD, TDC, TSC, TCS, XBA,
   )
 
   // If any of these opcodes is used on a variable
@@ -323,6 +319,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
+      case (AssemblyLine(SEP | REP, Immediate, NumericConstant(nn, _), _), _) :: xs =>
+        if ((nn & 0x10) == 0) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
+        else None
+
+      case (AssemblyLine(SEP | REP, _, _, _), _) :: xs => None
+
       case (AssemblyLine(STY | LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs if th.name == vx =>
         if (features.indexRegisterTransfers) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 2)
         else None
@@ -552,6 +554,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         if th.name == candidate =>
         // if a variable is used as an array or a pointer, then it cannot be assigned to a register
         None
+
+      case (AssemblyLine(SEP | REP, Immediate, NumericConstant(nn, _), _), _) :: xs =>
+        if ((nn & 0x20) == 0) canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs).map(_ + 3)
+        else None
+
+      case (AssemblyLine(SEP | REP, _, _, _), _) :: xs => None
 
       case (AssemblyLine(STA, _, MemoryAddressConstant(th), elidable) ,_):: xs if th.name == candidate =>
         if (synced && elidable) {
