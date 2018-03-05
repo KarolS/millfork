@@ -260,6 +260,24 @@ object AlwaysGoodOptimizations {
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    (Elidable & HasOpcode(LDA) & HasAddrMode(Immediate)) ~
+      (Elidable & HasOpcode(PHA)) ~
+      (Linear & Not(ConcernsStack) | HasOpcodeIn(Set(JSR, BSR))).* ~
+      (Elidable & HasOpcode(PLA)) ~~> { code =>
+      code.head :: (code.drop(2).init :+ code.head)
+    },
+    (Elidable & HasOpcode(LDX) & HasAddrMode(Immediate)) ~
+      (Elidable & HasOpcode(PHX)) ~
+      (Linear & Not(ConcernsStack) | HasOpcodeIn(Set(JSR, BSR))).* ~
+      (Elidable & HasOpcode(PLX)) ~~> { code =>
+      code.head :: (code.drop(2).init :+ code.head)
+    },
+    (Elidable & HasOpcode(LDY) & HasAddrMode(Immediate)) ~
+      (Elidable & HasOpcode(PHY)) ~
+      (Linear & Not(ConcernsStack) | HasOpcodeIn(Set(JSR, BSR))).* ~
+      (Elidable & HasOpcode(PLY)) ~~> { code =>
+      code.head :: (code.drop(2).init :+ code.head)
+    },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(PHA)) ~
       (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
