@@ -14,8 +14,7 @@ object EmuOptimized65816Run extends EmuRun(
     CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good ++
     CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good ++
     CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good ++
-    CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good,
-  false)
+    CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good)
 
 
 

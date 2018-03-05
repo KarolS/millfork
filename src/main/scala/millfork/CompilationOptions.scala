@@ -121,7 +121,7 @@ object CompilationFlag extends Enumeration {
   EmitIllegals, EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
   ZeropagePseudoregister, DecimalMode, ReadOnlyArrays, PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator,
   // optimization options:
-  DetailedFlowAnalysis, DangerousOptimizations, InlineFunctions, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
+  DangerousOptimizations, InlineFunctions, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
   // memory allocation options
   VariableOverlap, CompactReturnDispatchParams,
   // runtime check options

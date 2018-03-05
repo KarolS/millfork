@@ -9,8 +9,7 @@ import millfork.{Cpu, OptimizationPresets}
 object EmuSuperOptimizedRun extends EmuRun(
   Cpu.StrictMos,
   OptimizationPresets.NodeOpt,
-  List(SuperOptimizer),
-  false)
+  List(SuperOptimizer))
 
 
 

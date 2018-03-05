@@ -11,5 +11,4 @@ object EmuNodeOptimizedRun extends EmuRun(
   List(
     UnreachableCode,
     UnusedLocalVariables),
-  Nil,
-  false)
+  Nil)

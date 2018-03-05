@@ -24,7 +24,7 @@ import scala.collection.JavaConverters._
   */
 case class Timings(nmos: Long, cmos: Long)
 
-class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization], quantum: Boolean) extends Matchers {
+class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization]) extends Matchers {
 
   def apply(source: String): MemoryBank = {
     apply2(source)._2
@@ -98,7 +98,6 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     val platform = EmuPlatform.get(cpu)
     val options = CompilationOptions(platform, Map(
       CompilationFlag.EmitIllegals -> this.emitIllegals,
-      CompilationFlag.DetailedFlowAnalysis -> quantum,
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.CompactReturnDispatchParams -> true,
       CompilationFlag.ZeropagePseudoregister -> true,

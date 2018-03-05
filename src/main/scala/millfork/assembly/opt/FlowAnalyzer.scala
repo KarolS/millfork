@@ -36,11 +36,7 @@ object FlowAnalyzer {
   def analyze(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions, req: FlowInfoRequirement.Value): List[(FlowInfo, AssemblyLine)] = {
     val forwardFlow = req match {
       case FlowInfoRequirement.BothFlows | FlowInfoRequirement.ForwardFlow =>
-        if (options.flag(CompilationFlag.DetailedFlowAnalysis)) {
-          () => QuantumFlowAnalyzer.analyze(f, code).map(_.collapse)
-        } else {
-          () => CoarseFlowAnalyzer.analyze(f, code, options)
-        }
+        () => CoarseFlowAnalyzer.analyze(f, code, options)
       case FlowInfoRequirement.BackwardFlow | FlowInfoRequirement.JustLabels | FlowInfoRequirement.NoRequirement =>
         () => List.fill(code.size)(EmptyCpuStatus)
     }

@@ -15,6 +15,9 @@
 * Added optimizer hints: `inline`, `noinline`, `register`.
  
 * Added command line flags `--size`, `--fast`, `--blast-processing`.
+ 
+* Removed command line flag `--detailed-flow`. 
+Detailed flow analysis was slow, broken, hard to maintain, and didn't even help that much.
 
 * Added `*'=` and `<<<<` operators.
 

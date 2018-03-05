@@ -93,8 +93,6 @@ This may cause problems if the parameter table is stored next to a hardware regi
 
 * `--blast-processing` – Optimize for speed, even if it increases the size a lot (experimental).
 
-* `--detailed-flow` – Use detailed flow analysis (experimental). Very computationally expensive and not that great.
-
 * `--dangerous-optimizations` – Use dangerous optimizations (experimental). Dangerous optimizations are more likely to result in broken code.
 
 ## Warning options

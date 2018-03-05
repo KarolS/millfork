@@ -49,7 +49,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array assignment with offset 1") {
-    val m = new EmuRun(Cpu.StrictMos, Nil, DangerousOptimizations.All ++ OptimizationPresets.Good, true)(
+    val m = new EmuRun(Cpu.StrictMos, Nil, DangerousOptimizations.All ++ OptimizationPresets.Good)(
       """
         | array output [8] @$c000
         | void main () {

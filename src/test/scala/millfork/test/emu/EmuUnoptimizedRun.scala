@@ -6,4 +6,4 @@ import millfork.Cpu
 /**
   * @author Karol Stasiak
   */
-object EmuUnoptimizedRun extends EmuRun(Cpu.StrictMos, Nil, Nil, false)
+object EmuUnoptimizedRun extends EmuRun(Cpu.StrictMos, Nil, Nil)

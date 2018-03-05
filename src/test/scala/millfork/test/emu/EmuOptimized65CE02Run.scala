@@ -12,8 +12,7 @@ object EmuOptimized65CE02Run extends EmuRun(
   OptimizationPresets.AssOpt ++
     CmosOptimizations.All ++ CE02Optimizations.All ++ OptimizationPresets.Good ++
     CmosOptimizations.All ++ CE02Optimizations.All ++ OptimizationPresets.Good ++
-    CmosOptimizations.All ++ CE02Optimizations.All ++ OptimizationPresets.Good,
-  false)
+    CmosOptimizations.All ++ CE02Optimizations.All ++ OptimizationPresets.Good)
 
 
 

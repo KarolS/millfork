@@ -285,9 +285,6 @@ object Main {
       c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, true)
       c.changeFlag(CompilationFlag.InlineFunctions, true)
     }.description("Prefer faster code even if it is much bigger (experimental). Implies --inline.")
-    flag("--detailed-flow").action { c =>
-      c.changeFlag(CompilationFlag.DetailedFlowAnalysis, true)
-    }.description("Use detailed flow analysis (experimental).")
     flag("--dangerous-optimizations").action { c =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, true)
     }.description("Use dangerous optimizations (experimental).")

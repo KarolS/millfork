@@ -14,8 +14,7 @@ object EmuOptimizedInlinedRun extends EmuRun(
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     ZeropageRegisterOptimizations.All ++
-    OptimizationPresets.Good,
-  false) {
+    OptimizationPresets.Good) {
   override def inline: Boolean = true
   override def blastProcessing: Boolean = false
 }

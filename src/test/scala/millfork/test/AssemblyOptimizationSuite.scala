@@ -112,7 +112,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("LDA-TAY elimination") {
-    new EmuRun(Cpu.StrictMos, OptimizationPresets.NodeOpt, List(VariableToRegisterOptimization, AlwaysGoodOptimizations.YYY), false)(
+    new EmuRun(Cpu.StrictMos, OptimizationPresets.NodeOpt, List(VariableToRegisterOptimization, AlwaysGoodOptimizations.YYY))(
       """
         |	array mouse_pointer[64]
         |	array arrow[64]
@@ -204,7 +204,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         AlwaysGoodOptimizations.PointlessRegisterTransfersBeforeReturn,
         AlwaysGoodOptimizations.IdempotentDuplicateRemoval,
         AlwaysGoodOptimizations.IdempotentDuplicateRemoval,
-        AlwaysGoodOptimizations.IdempotentDuplicateRemoval), false)(
+        AlwaysGoodOptimizations.IdempotentDuplicateRemoval))(
       """
         | byte output @$C000
         | void main(){ delta() }
@@ -385,7 +385,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         AlwaysGoodOptimizations.IdempotentDuplicateRemoval,
         AlwaysGoodOptimizations.IdempotentDuplicateRemoval,
         AlwaysGoodOptimizations.IdempotentDuplicateRemoval,
-        AlwaysGoodOptimizations.CommonExpressionInConditional), false)(
+        AlwaysGoodOptimizations.CommonExpressionInConditional))(
       """
         | byte output @$C000
         | void main(){

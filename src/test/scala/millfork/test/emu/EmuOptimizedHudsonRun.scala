@@ -12,8 +12,7 @@ object EmuOptimizedHudsonRun extends EmuRun(
   OptimizationPresets.AssOpt ++
     CmosOptimizations.All ++ HudsonOptimizations.All ++ OptimizationPresets.Good ++
     CmosOptimizations.All ++ HudsonOptimizations.All ++ OptimizationPresets.Good ++
-    CmosOptimizations.All ++ HudsonOptimizations.All ++ OptimizationPresets.Good,
-  false)
+    CmosOptimizations.All ++ HudsonOptimizations.All ++ OptimizationPresets.Good)
 
 
 
