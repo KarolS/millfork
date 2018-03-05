@@ -1,0 +1,15 @@
+
+inline asm byte __mul_u8u8u8() {
+    ? LDA #0
+    ? JMP start
+add:
+    CLC
+    ADC __reg.lo
+loop:
+    ASL __reg.lo
+start:
+    LSR __reg.hi
+    BCS add
+    BNE loop
+    ? RTS
+}

@@ -524,8 +524,7 @@ object BuiltIns {
       case Some(NumericConstant(x, _)) =>
         compileByteMultiplication(ctx, v, x.toInt) ++ ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
       case _ =>
-        ErrorReporting.error("Multiplying by not a constant not supported", v.position)
-        Nil
+        PseudoregisterBuiltIns.compileByteMultiplication(ctx, Some(v), addend, storeInRegLo = false) ++ ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
     }
   }
 
@@ -554,15 +553,20 @@ object BuiltIns {
     result.toList
   }
 
+  //noinspection ZeroIndexToHead
   def compileByteMultiplication(ctx: CompilationContext, params: List[Expression]): List[AssemblyLine] = {
     val (constants, variables) = params.map(p => p -> ctx.env.eval(p)).partition(_._2.exists(_.isInstanceOf[NumericConstant]))
     val constant = constants.map(_._2.get.asInstanceOf[NumericConstant].value).foldLeft(1L)(_ * _).toInt
     variables.length match {
       case 0 => List(AssemblyLine.immediate(LDA, constant & 0xff))
-      case 1 =>compileByteMultiplication(ctx, variables.head._1, constant)
+      case 1 => compileByteMultiplication(ctx, variables.head._1, constant)
       case 2 =>
-        ErrorReporting.error("Multiplying by not a constant not supported", params.head.position)
-        Nil
+        if (constant == 1)
+          PseudoregisterBuiltIns.compileByteMultiplication(ctx, Some(variables(0)._1), variables(1)._1, storeInRegLo = false)
+        else
+          PseudoregisterBuiltIns.compileByteMultiplication(ctx, Some(variables(0)._1), variables(1)._1, storeInRegLo = true) ++
+          compileByteMultiplication(ctx, VariableExpression("__reg.lo"), constant)
+      case _ => ??? // TODO
     }
   }
 

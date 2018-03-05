@@ -456,7 +456,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def functionDefinition: P[DeclarationStatement] = for {
     p <- position()
-    flags <- flags("asm", "inline", "interrupt", "macro", "noinline", "reentrant") ~ HWS
+    flags <- flags("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt") ~ HWS
     returnType <- identifier ~ SWS
     name <- identifier ~ HWS
     params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
@@ -464,7 +464,9 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     statements <- (externFunctionBody | (if (flags("asm")) asmStatements else statements).map(l => Some(l))) ~/ Pass
   } yield {
     if (flags("interrupt") && flags("macro")) ErrorReporting.error(s"Interrupt function `$name` cannot be macros", Some(p))
+    if (flags("kernal_interrupt") && flags("macro")) ErrorReporting.error(s"Kernal interrupt function `$name` cannot be macros", Some(p))
     if (flags("interrupt") && flags("reentrant")) ErrorReporting.error("Interrupt function `$name` cannot be reentrant", Some(p))
+    if (flags("interrupt") && flags("kernal_interrupt")) ErrorReporting.error("Interrupt function `$name` cannot be a Kernal interrupt", Some(p))
     if (flags("macro") && flags("reentrant")) ErrorReporting.error("Reentrant and macro exclude each other", Some(p))
     if (flags("inline") && flags("noinline")) ErrorReporting.error("Noinline and inline exclude each other", Some(p))
     if (flags("macro") && flags("noinline")) ErrorReporting.error("Noinline and macro exclude each other", Some(p))
@@ -505,6 +507,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       if (flags("inline")) Some(true) else if (flags("noinline")) Some(false) else None,
       flags("asm"),
       flags("interrupt"),
+      flags("kernal_interrupt"),
       flags("reentrant")).pos(p)
   }
 

@@ -119,7 +119,7 @@ object CompilationFlag extends Enumeration {
   val
   // compilation options:
   EmitIllegals, EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
-  DecimalMode, ReadOnlyArrays, PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator,
+  ZeropagePseudoregister, DecimalMode, ReadOnlyArrays, PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator,
   // optimization options:
   DetailedFlowAnalysis, DangerousOptimizations, InlineFunctions, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
   // memory allocation options
@@ -138,6 +138,7 @@ object CompilationFlag extends Enumeration {
     "emit_cmos" -> EmitCmosOpcodes,
     "emit_65ce02" -> Emit65CE02Opcodes,
     "emit_huc6280" -> EmitHudsonOpcodes,
+    "zeropage_register" -> ZeropagePseudoregister,
     "decimal_mode" -> DecimalMode,
     "ro_arrays" -> ReadOnlyArrays,
     "ror_warn" -> RorWarning,

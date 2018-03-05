@@ -1,5 +1,8 @@
 package millfork.test.emu
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
+
 import com.grapeshot.halfnes.{CPU, CPURAM}
 import com.loomcom.symon.InstructionTable.CpuBehavior
 import com.loomcom.symon.{Bus, Cpu, CpuState}
@@ -14,6 +17,7 @@ import millfork.output.{Assembler, MemoryBank}
 import millfork.parser.MfParser
 import millfork.{CompilationFlag, CompilationOptions}
 import org.scalatest.Matchers
+import scala.collection.JavaConverters._
 
 /**
   * @author Karol Stasiak
@@ -97,6 +101,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.DetailedFlowAnalysis -> quantum,
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.CompactReturnDispatchParams -> true,
+      CompilationFlag.ZeropagePseudoregister -> true,
       CompilationFlag.EmitCmosOpcodes -> millfork.Cpu.CmosCompatible.contains(platform.cpu),
       CompilationFlag.EmitEmulation65816Opcodes -> (platform.cpu == millfork.Cpu.Sixteen),
       CompilationFlag.Emit65CE02Opcodes -> (platform.cpu == millfork.Cpu.CE02),
@@ -106,8 +111,12 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     ))
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
-    val sourceWithPanic = if (source.contains("_panic")) source else source + "\n void _panic(){while(true){}}"
-    val parserF = MfParser("", sourceWithPanic, "", options)
+    var effectiveSource = source
+    if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
+    if (!source.contains("__reg")) effectiveSource += "\n pointer __reg"
+    if (source.contains("import zp_reg"))
+      effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
+    val parserF = MfParser("", effectiveSource, "", options)
     parserF.toAst match {
       case Success(unoptimized, _) =>
         ErrorReporting.assertNoErrors("Parse failed")

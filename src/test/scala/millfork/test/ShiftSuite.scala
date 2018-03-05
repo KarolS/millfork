@@ -60,4 +60,15 @@ class ShiftSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readLong(0xc000) should equal(0x1010301))
   }
+
+  test("Word shifting via pseudoregister") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   output = identity(three() << 7)
+        | }
+        | word three() { return 3 }
+        | word identity(word w) { return w }
+      """.stripMargin)(_.readWord(0xc000) should equal(0x180))
+  }
 }

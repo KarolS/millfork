@@ -17,7 +17,10 @@ object UnusedFunctions extends NodeOptimization {
       case _ => Nil
     }.toSet
     val allCalledFunctions = getAllCalledFunctions(nodes).toSet
-    val unusedFunctions = allNormalFunctions -- allCalledFunctions
+    var unusedFunctions = allNormalFunctions -- allCalledFunctions
+    if (allCalledFunctions.contains("*") && options.flag(CompilationFlag.ZeropagePseudoregister)) {
+      unusedFunctions -= "__mul_u8u8u8"
+    }
     if (unusedFunctions.nonEmpty) {
       ErrorReporting.debug("Removing unused functions: " + unusedFunctions.mkString(", "))
       optimize(removeFunctionsFromProgram(nodes, unusedFunctions), options)

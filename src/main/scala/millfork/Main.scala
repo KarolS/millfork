@@ -98,6 +98,7 @@ object Main {
         val goodExtras = List(
           if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
           if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
+          if (options.flag(CompilationFlag.ZeropagePseudoregister)) ZeropageRegisterOptimizations.All else Nil,
         ).flatten
         val extras = List(
           if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
@@ -228,6 +229,9 @@ object Main {
     boolean("-fillegals", "-fno-illegals").action { (c, v) =>
       c.changeFlag(CompilationFlag.EmitIllegals, v)
     }.description("Whether should emit illegal (undocumented) NMOS opcodes. Requires -O2 or higher to have an effect.")
+    boolean("-fzp-register", "-fno-zp-register").action { (c, v) =>
+      c.changeFlag(CompilationFlag.ZeropagePseudoregister, v)
+    }.description("Whether should use 2 bytes of zeropage as a pseudoregister.")
     boolean("-fjmp-fix", "-fno-jmp-fix").action { (c, v) =>
       c.changeFlag(CompilationFlag.PreventJmpIndirectBug, v)
     }.description("Whether should prevent indirect JMP bug on page boundary.")

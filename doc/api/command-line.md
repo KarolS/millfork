@@ -56,6 +56,11 @@ Default: native if targeting 65816, no otherwise.
 * `-fjmp-fix`, `-fno-jmp-fix` – Whether should prevent indirect JMP bug on page boundary.  
 `.ini` equivalent: `prevent_jmp_indirect_bug`.
 Default: no if targeting a 65C02-compatible architecture, yes otherwise.
+
+* `-fzp-register`, `-fno-zp-register` – Whether should reserve 2 bytes of zero page as a pseudoregister.
+Increases language features. 
+`.ini` equivalent: `zeropage_register`.
+Default: yes.
                     
 * `-fdecimal-mode`, `-fno-decimal-mode` – Whether decimal mode should be available.  
 `.ini` equivalent: `decimal_mode`.

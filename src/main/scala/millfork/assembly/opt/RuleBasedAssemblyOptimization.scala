@@ -777,6 +777,48 @@ case class HasOpcode(op: Opcode.Value) extends TrivialAssemblyLinePattern {
   override def toString: String = op.toString
 }
 
+case class RefersTo(identifier: String, offset: Int) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = {
+    (line.addrMode == AddrMode.ZeroPage || line.addrMode == AddrMode.Absolute || line.addrMode == AddrMode.LongAbsolute) && (line.parameter match {
+      case MemoryAddressConstant(th) =>
+        offset == 0 && th.name == identifier
+      case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
+        offset == nn && th.name == identifier
+      case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) =>
+        offset == nn && th.name == identifier
+      case _ => false
+    })
+  }
+
+  override def toString: String = s"<$identifier+$offset>"
+}
+
+case class CallsAnyOf(identifiers: Set[String]) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = {
+    (line.addrMode == AddrMode.Absolute ||
+      line.addrMode == AddrMode.LongAbsolute ||
+      line.addrMode == AddrMode.LongRelative) && (line.parameter match {
+      case MemoryAddressConstant(th) => identifiers(th.name)
+      case _ => false
+    })
+  }
+
+  override def toString: String = identifiers.mkString("(JSR {", ",", "})")
+}
+
+case class CallsAnyExcept(identifiers: Set[String]) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = {
+    (line.addrMode == AddrMode.Absolute ||
+      line.addrMode == AddrMode.LongAbsolute ||
+      line.addrMode == AddrMode.LongRelative) && (line.parameter match {
+      case MemoryAddressConstant(th) => !identifiers(th.name)
+      case _ => false
+    })
+  }
+
+  override def toString: String = identifiers.mkString("(JSR ¬{", ",", "})")
+}
+
 case class HasOpcodeIn(ops: Set[Opcode.Value]) extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean =
     ops(line.opcode)

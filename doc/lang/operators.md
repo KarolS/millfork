@@ -6,6 +6,10 @@ Most expressions involving single bytes compile,
 but for larger types usually you need to use in-place modification operators.  
 Further improvements to the compiler may increase the number of acceptable combinations. 
 
+Certain expressions require the commandline flag `-fzp-register` (`.ini` equivalent: `zeropage_register`) to be enabled.
+They will be marked with (zpreg) next to them. 
+The flag is enabled by default, but you can disable it if you need it.
+
 ## Precedence
 
 Millfork has different operator precedence compared to most other languages. From highest to lowest it goes:
@@ -68,7 +72,8 @@ If and only if both `h` and `l` are assignable expressions, then `h:l` is also a
 `byte * constant byte`  
 `constant byte * byte`  
 `constant word * constant word`  
-`constant long * constant long`
+`constant long * constant long`  
+`byte * byte` (zpreg)
 
 There are no division, remainder or modulo operators.
 
@@ -81,6 +86,7 @@ There are no division, remainder or modulo operators.
 
 * `<<`, `>>`: bit shifting; shifting pads the result with zeroes  
 `byte << constant byte`  
+`word << constant byte` (zpreg)  
 `constant word << constant byte`  
 `constant long << constant byte`
 

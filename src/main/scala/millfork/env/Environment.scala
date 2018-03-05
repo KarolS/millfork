@@ -474,6 +474,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             stmt.address.map(a => this.eval(a).getOrElse(Constant.error(s"Address of `${stmt.name}` is not a constant"))),
             executableStatements ++ (if (needsExtraRTS) List(ReturnStatement(None)) else Nil),
             interrupt = stmt.interrupt,
+            kernalInterrupt = stmt.kernalInterrupt,
             reentrant = stmt.reentrant,
             position = stmt.position
           )
@@ -731,6 +732,18 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       case v: VariableDeclarationStatement => registerVariable(v, options)
       case a: ArrayDeclarationStatement => registerArray(a)
       case i: ImportStatement => ()
+    }
+    if (options.flag(CompilationFlag.ZeropagePseudoregister) && !things.contains("__reg")) {
+      registerVariable(VariableDeclarationStatement(
+        name = "__reg",
+        typ = "pointer",
+        global = true,
+        stack = false,
+        constant = false,
+        volatile = false,
+        register = false,
+        initialValue = None,
+        address = None), options)
     }
     if (!things.contains("__constant8")) {
       things("__constant8") = InitializedArray("__constant8", None, List(NumericConstant(8, 1)))

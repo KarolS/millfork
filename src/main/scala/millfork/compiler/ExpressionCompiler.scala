@@ -46,8 +46,12 @@ object ExpressionCompiler {
       case FunctionCallExpression("|", params) => b
       case FunctionCallExpression("&", params) => b
       case FunctionCallExpression("^", params) => b
-      case FunctionCallExpression("<<", params) => b
-      case FunctionCallExpression(">>", params) => b
+      case FunctionCallExpression("<<", List(a1, a2)) =>
+        if (getExpressionType(ctx, a2).size > 1) ErrorReporting.error("Shift amount too large", a2.position)
+        getExpressionType(ctx, a1)
+      case FunctionCallExpression(">>", List(a1, a2)) =>
+        if (getExpressionType(ctx, a2).size > 1) ErrorReporting.error("Shift amount too large", a2.position)
+        getExpressionType(ctx, a1)
       case FunctionCallExpression("<<'", params) => b
       case FunctionCallExpression(">>'", params) => b
       case FunctionCallExpression(">>>>", params) => b
@@ -771,13 +775,27 @@ object ExpressionCompiler {
             val (l, r, 1) = assertBinary(ctx, params)
             BuiltIns.compileNonetLeftShift(ctx, l, r)
           case "<<" =>
-            assertAllBytes("Long shift ops not supported", ctx, params)
-            val (l, r, 1) = assertBinary(ctx, params)
-            BuiltIns.compileShiftOps(ASL, ctx, l, r)
+            val (l, r, size) = assertBinary(ctx, params)
+            size match {
+              case 1 =>
+                BuiltIns.compileShiftOps(ASL, ctx, l, r)
+              case 2 =>
+                PseudoregisterBuiltIns.compileWordShiftOps(left = true, ctx, l, r)
+              case _ =>
+                ErrorReporting.error("Long shift ops not supported", l.position)
+                Nil
+            }
           case ">>" =>
-            assertAllBytes("Long shift ops not supported", ctx, params)
-            val (l, r, 1) = assertBinary(ctx, params)
-            BuiltIns.compileShiftOps(LSR, ctx, l, r)
+            val (l, r, size) = assertBinary(ctx, params)
+            size match {
+              case 1 =>
+                BuiltIns.compileShiftOps(LSR, ctx, l, r)
+              case 2 =>
+                PseudoregisterBuiltIns.compileWordShiftOps(left = false, ctx, l, r)
+              case _ =>
+                ErrorReporting.error("Long shift ops not supported", l.position)
+                Nil
+            }
           case "<<'" =>
             assertAllBytes("Long shift ops not supported", ctx, params)
             val (l, r, 1) = assertBinary(ctx, params)

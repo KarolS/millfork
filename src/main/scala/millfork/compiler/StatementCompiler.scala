@@ -31,22 +31,45 @@ object StatementCompiler {
     val m = ctx.function
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")
+    val plReg =
+      if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+        val reg = env.get[VariableInMemory]("__reg")
+        List(
+          AssemblyLine.implied(PLA),
+          AssemblyLine.zeropage(STA, reg, 1),
+          AssemblyLine.implied(PLA),
+          AssemblyLine.zeropage(STA, reg)
+        )
+      } else Nil
     val someRegisterA = Some(b, RegisterVariable(Register.A, b))
     val someRegisterAX = Some(w, RegisterVariable(Register.AX, w))
     val someRegisterYA = Some(w, RegisterVariable(Register.YA, w))
     val returnInstructions = if (m.interrupt) {
       if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
-        List(
-          AssemblyLine.immediate(REP, 0x30),
-          AssemblyLine.implied(PLY),
-          AssemblyLine.implied(PLX),
-          AssemblyLine.implied(PLA),
-          AssemblyLine.implied(PLD),
-          AssemblyLine.implied(PLB),
-          AssemblyLine.implied(RTI))
+        if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+          List(
+            AssemblyLine.immediate(REP, 0x30),
+            AssemblyLine.implied(PLA_W),
+            AssemblyLine.zeropage(STA_W, env.get[VariableInMemory]("__reg")),
+            AssemblyLine.implied(PLY),
+            AssemblyLine.implied(PLX),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.implied(PLD),
+            AssemblyLine.implied(PLB),
+            AssemblyLine.implied(RTI))
+        } else {
+          List(
+            AssemblyLine.immediate(REP, 0x30),
+            AssemblyLine.implied(PLY),
+            AssemblyLine.implied(PLX),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.implied(PLD),
+            AssemblyLine.implied(PLB),
+            AssemblyLine.implied(RTI))
+        }
       } else
       if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
-        List(
+        plReg ++ List(
           AssemblyLine.implied(PLY),
           AssemblyLine.implied(PLX),
           AssemblyLine.implied(PLA),
@@ -54,20 +77,20 @@ object StatementCompiler {
           AssemblyLine.implied(PLB),
           AssemblyLine.implied(RTI))
       } else if (ctx.options.flag(CompilationFlag.Emit65CE02Opcodes)) {
-        List(
+        plReg ++ List(
           AssemblyLine.implied(PLZ),
           AssemblyLine.implied(PLY),
           AssemblyLine.implied(PLX),
           AssemblyLine.implied(PLA),
           AssemblyLine.implied(RTI))
       } else if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
-        List(
+        plReg ++ List(
           AssemblyLine.implied(PLY),
           AssemblyLine.implied(PLX),
           AssemblyLine.implied(PLA),
           AssemblyLine.implied(RTI))
       } else {
-        List(
+        plReg ++ List(
           AssemblyLine.implied(PLA),
           AssemblyLine.implied(TAY),
           AssemblyLine.implied(PLA),
@@ -75,10 +98,20 @@ object StatementCompiler {
           AssemblyLine.implied(PLA),
           AssemblyLine.implied(RTI))
       }
-    } else if (m.isFar(ctx.options)) {
-      List(AssemblyLine.implied(RTL))
     } else {
-      List(AssemblyLine.implied(RTS))
+      (if (m.kernalInterrupt && ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+        if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
+          List(
+            AssemblyLine.accu16,
+            AssemblyLine.implied(PLA_W),
+            AssemblyLine.zeropage(STA_W, env.get[VariableInMemory]("__reg")),
+            AssemblyLine.accu8)
+        } else plReg
+      } else Nil) ++ (if (m.isFar(ctx.options)) {
+        List(AssemblyLine.implied(RTL))
+      } else {
+        List(AssemblyLine.implied(RTS))
+      })
     }
     statement match {
       case AssemblyStatement(o, a, x, e) =>

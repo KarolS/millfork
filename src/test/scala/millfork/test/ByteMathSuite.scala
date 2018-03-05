@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.test.emu.{EmuBenchmarkRun, EmuUltraBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -152,6 +152,82 @@ class ByteMathSuite extends FunSuite with Matchers {
          |  a = $x
          |  output = a * $y
          | }
+          """.
+        stripMargin)(_.readByte(0xc000) should equal(x * y))
+  }
+
+  test("Byte multiplication 2") {
+    EmuUltraBenchmarkRun(
+      """
+        | import zp_reg
+        | byte output1 @$c001
+        | byte output2 @$c002
+        | void main () {
+        |   calc1()
+        |   crash_if_bad()
+        |   calc2()
+        |   crash_if_bad()
+        |   calc3()
+        |   crash_if_bad()
+        | }
+        |
+        | byte three() { return 3 }
+        | byte four() { return 4 }
+        | noinline byte five() { return 5 }
+        |
+        | noinline void calc1() {
+        |   output1 = five() * four()
+        |   output2 = 3 * three() * three()
+        | }
+        |
+        | noinline void calc2() {
+        |   output2 = 3 * three() * three()
+        |   output1 = five() * four()
+        | }
+        |
+        | noinline void calc3() {
+        |   output2 = 3 * three() * three()
+        |   output1 = four() * five()
+        | }
+        |
+        | noinline void crash_if_bad() {
+        |   if output1 != 20 { asm { lda $bfff }}
+        |   if output2 != 27 { asm { lda $bfff }}
+        | }
+      """.stripMargin){m =>
+      m.readByte(0xc002) should equal(27)
+      m.readByte(0xc001) should equal(20)
+    }
+  }
+
+  test("Byte multiplication 3") {
+    multiplyCase3(0, 0)
+    multiplyCase3(0, 1)
+    multiplyCase3(0, 2)
+    multiplyCase3(0, 5)
+    multiplyCase3(1, 0)
+    multiplyCase3(5, 0)
+    multiplyCase3(7, 0)
+    multiplyCase3(2, 5)
+    multiplyCase3(7, 2)
+    multiplyCase3(100, 2)
+    multiplyCase3(54, 4)
+    multiplyCase3(2, 100)
+    multiplyCase3(4, 54)
+  }
+
+  private def multiplyCase3(x: Int, y: Int): Unit = {
+    EmuBenchmarkRun(
+      s"""
+         | import zp_reg
+         | byte output @$$c000
+         | void main () {
+         |  byte a
+         |  a = f()
+         |  output = a * g()
+         | }
+         | byte f() {return $x}
+         | byte g() {return $y}
           """.
         stripMargin)(_.readByte(0xc000) should equal(x * y))
   }

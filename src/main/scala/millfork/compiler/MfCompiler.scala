@@ -26,37 +26,63 @@ object MfCompiler {
   def compile(ctx: CompilationContext): List[AssemblyLine] = {
     ctx.env.nameCheck(ctx.function.code)
     val chunk = StatementCompiler.compile(ctx, ctx.function.code)
+
+    val phReg =
+      if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+        val reg = ctx.env.get[VariableInMemory]("__reg")
+        List(
+          AssemblyLine.zeropage(LDA, reg),
+          AssemblyLine.implied(PHA),
+          AssemblyLine.zeropage(LDA, reg, 1),
+          AssemblyLine.implied(PHA)
+        )
+      } else Nil
+
     val prefix = (if (ctx.function.interrupt) {
 
       if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
-        List(
-          AssemblyLine.implied(PHB),
-          AssemblyLine.implied(PHD),
-          AssemblyLine.immediate(REP, 0x30),
-          AssemblyLine.implied(PHA),
-          AssemblyLine.implied(PHX),
-          AssemblyLine.implied(PHY),
-          AssemblyLine.immediate(SEP, 0x30))
+        if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+          List(
+            AssemblyLine.implied(PHB),
+            AssemblyLine.implied(PHD),
+            AssemblyLine.immediate(REP, 0x30),
+            AssemblyLine.implied(PHA_W),
+            AssemblyLine.implied(PHX_W),
+            AssemblyLine.implied(PHY_W),
+            AssemblyLine.implied(PHY_W),
+            AssemblyLine.zeropage(LDA_W, ctx.env.get[VariableInMemory]("__reg")),
+            AssemblyLine.implied(PHA_W),
+            AssemblyLine.immediate(SEP, 0x30))
+        } else {
+          List(
+            AssemblyLine.implied(PHB),
+            AssemblyLine.implied(PHD),
+            AssemblyLine.immediate(REP, 0x30),
+            AssemblyLine.implied(PHA),
+            AssemblyLine.implied(PHX),
+            AssemblyLine.implied(PHY),
+            AssemblyLine.immediate(SEP, 0x30))
+        }
       } else if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
         List(
           AssemblyLine.implied(PHB),
           AssemblyLine.implied(PHD),
           AssemblyLine.implied(PHA),
           AssemblyLine.implied(PHX),
-          AssemblyLine.implied(PHY))
+          AssemblyLine.implied(PHY)) ++ phReg
       } else if (ctx.options.flag(CompilationFlag.Emit65CE02Opcodes)) {
         List(
           AssemblyLine.implied(PHA),
           AssemblyLine.implied(PHX),
           AssemblyLine.implied(PHY),
           AssemblyLine.implied(PHZ),
-          AssemblyLine.implied(CLD))
+          AssemblyLine.implied(CLD)) ++ phReg
       } else if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
         List(
           AssemblyLine.implied(PHA),
           AssemblyLine.implied(PHX),
           AssemblyLine.implied(PHY),
-          AssemblyLine.implied(CLD))
+          AssemblyLine.implied(CLD)) ++ phReg
       } else {
         List(
           AssemblyLine.implied(PHA),
@@ -64,8 +90,16 @@ object MfCompiler {
           AssemblyLine.implied(PHA),
           AssemblyLine.implied(TYA),
           AssemblyLine.implied(PHA),
-          AssemblyLine.implied(CLD))
+          AssemblyLine.implied(CLD)) ++ phReg
       }
+    } else if (ctx.function.kernalInterrupt && ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+      if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
+        List(
+          AssemblyLine.accu16,
+          AssemblyLine.zeropage(LDA_W, ctx.env.get[VariableInMemory]("__reg")),
+          AssemblyLine.implied(PHA_W),
+          AssemblyLine.accu8)
+      } else phReg
     } else Nil) ++ stackPointerFixAtBeginning(ctx)
     val label = AssemblyLine.label(Label(ctx.function.name)).copy(elidable = false)
     label :: (prefix ++ chunk)

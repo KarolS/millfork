@@ -24,6 +24,21 @@ object SuperOptimizer extends AssemblyOptimization {
     } else {
       allOptimizers ++= LaterOptimizations.Nmos
     }
+    if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+      allOptimizers ++= SixteenOptimizations.AllForEmulation
+    }
+    if (options.flag(CompilationFlag.EmitNative65816Opcodes)) {
+      allOptimizers ++= SixteenOptimizations.AllForNative
+    }
+    if (options.flag(CompilationFlag.EmitHudsonOpcodes)) {
+      allOptimizers ++= HudsonOptimizations.All
+    }
+    if (options.flag(CompilationFlag.Emit65CE02Opcodes)) {
+      allOptimizers ++= CE02Optimizations.All
+    }
+    if (options.flag(CompilationFlag.ZeropagePseudoregister)) {
+      allOptimizers ++= ZeropageRegisterOptimizations.All
+    }
     allOptimizers ++= List(
       VariableToRegisterOptimization,
       ChangeIndexRegisterOptimizationPreferringX2Y,

@@ -3,7 +3,7 @@ package millfork.parser
 import java.nio.file.{Files, Paths}
 
 import fastparse.core.Parsed.{Failure, Success}
-import millfork.CompilationOptions
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.error.ErrorReporting
 import millfork.node.{ImportStatement, Position, Program}
 
@@ -25,6 +25,9 @@ class SourceLoadingQueue(val initialFilenames: List[String], val includePath: Li
     }
     options.platform.startingModules.foreach {m =>
       moduleQueue.enqueue(() => parseModule(m, includePath, Left(None), options))
+    }
+    if (options.flag(CompilationFlag.ZeropagePseudoregister)) {
+      moduleQueue.enqueue(() => parseModule("zp_reg", includePath, Left(None), options))
     }
     while (moduleQueue.nonEmpty) {
       moduleQueue.dequeueAll(_ => true).par.foreach(_())

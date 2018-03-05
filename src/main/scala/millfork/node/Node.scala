@@ -126,6 +126,7 @@ case class FunctionDeclarationStatement(name: String,
                                         inlinable: Option[Boolean],
                                         assembly: Boolean,
                                         interrupt: Boolean,
+                                        kernalInterrupt: Boolean,
                                         reentrant: Boolean) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = address.toList ++ statements.getOrElse(Nil).flatMap(_.getAllExpressions)
 }

@@ -253,6 +253,7 @@ case class NormalFunction(name: String,
                           address: Option[Constant],
                           code: List[ExecutableStatement],
                           interrupt: Boolean,
+                          kernalInterrupt: Boolean,
                           reentrant: Boolean,
                           position: Option[Position]) extends FunctionInMemory with PreallocableThing {
   override def shouldGenerate = true
