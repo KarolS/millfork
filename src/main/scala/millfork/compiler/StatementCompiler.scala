@@ -273,7 +273,7 @@ object StatementCompiler {
         val condType = ExpressionCompiler.getExpressionType(ctx, condition)
         val bodyBlock = compile(ctx.addLabels(labels, Label(end), Label(inc)), bodyPart)
         val incrementBlock = compile(ctx.addLabels(labels, Label(end), Label(inc)), incrementPart)
-        val largeBodyBlock = bodyBlock.map(_.sizeInBytes).sum > 100
+        val largeBodyBlock = bodyBlock.map(_.sizeInBytes).sum + incrementBlock.map(_.sizeInBytes).sum > 100
         condType match {
           case ConstantBooleanType(_, true) =>
             List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
@@ -305,7 +305,7 @@ object StatementCompiler {
         val condType = ExpressionCompiler.getExpressionType(ctx, condition)
         val bodyBlock = compile(ctx.addLabels(labels, Label(end), Label(inc)), bodyPart)
         val incrementBlock = compile(ctx.addLabels(labels, Label(end), Label(inc)), incrementPart)
-        val largeBodyBlock = bodyBlock.map(_.sizeInBytes).sum > 100
+        val largeBodyBlock = bodyBlock.map(_.sizeInBytes).sum + incrementBlock.map(_.sizeInBytes).sum > 100
         condType match {
           case ConstantBooleanType(_, true) =>
             val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
