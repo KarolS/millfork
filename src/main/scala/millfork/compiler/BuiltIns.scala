@@ -803,8 +803,11 @@ object BuiltIns {
     val addendByteRead = addendByteRead0 ++ List.fill((targetSize - addendByteRead0.size) max 0)(List(AssemblyLine.immediate(LDA, 0)))
 
     if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
-      (removeTsx(targetBytes), removeTsx(addendByteRead)) match {
-        case (List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))), List(List(AssemblyLine(LDA, Immediate, al, _)), List(AssemblyLine(LDA, Immediate, ah, _)))) =>
+      (removeTsx(targetBytes), calculateRhs, removeTsx(addendByteRead)) match {
+        case (
+          List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))),
+          Nil,
+          List(List(AssemblyLine(LDA, Immediate, al, _)), List(AssemblyLine(LDA, Immediate, ah, _)))) =>
           if (ta1 == ta2 && tl.+(1).quickSimplify == th) {
             return wrapInSedCldIfNeeded(decimal, List(
               AssemblyLine.implied(if(subtract) SEC else CLC),
@@ -814,13 +817,29 @@ object BuiltIns {
               AssemblyLine(STA_W, ta1, tl),
               AssemblyLine.accu8))
           }
-        case (List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))), List(List(AssemblyLine(LDA, aa1, al, _)), List(AssemblyLine(LDA, aa2, ah, _)))) =>
+        case (
+          List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))),
+          Nil,
+          List(List(AssemblyLine(LDA, aa1, al, _)), List(AssemblyLine(LDA, aa2, ah, _)))) =>
           if (ta1 == ta2 && aa1 == aa2 && tl.+(1).quickSimplify == th && al.+(1).quickSimplify == ah) {
             return wrapInSedCldIfNeeded(decimal, List(
               AssemblyLine.accu16,
               AssemblyLine.implied(if(subtract) SEC else CLC),
               AssemblyLine(LDA_W, ta1, tl),
               AssemblyLine(if(subtract) SBC_W else ADC_W, aa1, al),
+              AssemblyLine(STA_W, ta1, tl),
+              AssemblyLine.accu8))
+          }
+        case (
+          List(List(AssemblyLine(STA, ta1, tl, _)), List(AssemblyLine(STA, ta2, th, _))),
+          List(AssemblyLine(TSX, _, _, _), AssemblyLine(LDA, AbsoluteX, NumericConstant(al, _), _), AssemblyLine(LDY, AbsoluteX, NumericConstant(ah, _), _)),
+          List(Nil, List(AssemblyLine(TYA, _, _, _)))) =>
+          if (ta1 == ta2 && tl.+(1).quickSimplify == th && al + 1 == ah) {
+            return wrapInSedCldIfNeeded(decimal, List(
+              AssemblyLine.accu16,
+              AssemblyLine.implied(if(subtract) SEC else CLC),
+              AssemblyLine(LDA_W, ta1, tl),
+              AssemblyLine(if(subtract) SBC_W else ADC_W, Stack, NumericConstant(al & 0xff, 1)),
               AssemblyLine(STA_W, ta1, tl),
               AssemblyLine.accu8))
           }
