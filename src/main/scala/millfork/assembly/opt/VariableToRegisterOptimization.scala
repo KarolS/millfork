@@ -195,19 +195,23 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 
     val variants = for {
       vx <- xCandidateSets.par
-      vy <- yCandidateSets
-      vz <- zCandidateSets
-      va <- aCandidateSets
-      na = va.map(_._1)
       nx = vx.map(_._1)
+
+      vy <- yCandidateSets
       ny = vy.map(_._1)
+      if (nx & ny).isEmpty
+
+      vz <- zCandidateSets
       nz = vz.map(_._1)
       if (nx & nz).isEmpty
-      if (nz & ny).isEmpty
-      if (na & nz).isEmpty
-      if (nx & ny).isEmpty
+      if (ny & nz).isEmpty
+
+      va <- aCandidateSets
+      na = va.map(_._1)
+      if (nz & na).isEmpty
       if (nx & na).isEmpty
-      if (na & ny).isEmpty
+      if (ny & na).isEmpty
+
       score = vx.toSeq.map(_._3).sum + vy.toSeq.map(_._3).sum + va.toSeq.map(_._3).sum + vz.toSeq.map(_._3).sum
     } yield (score, vx, vy, vz, va)
 
