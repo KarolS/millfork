@@ -80,6 +80,7 @@ object OpcodeClasses {
     TZA, NEG,
     TMA,
     XBA, TDC,
+    HuSAX, SAY,
   )
 
   val ChangesAIfImplied = Set(
