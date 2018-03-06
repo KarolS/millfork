@@ -161,7 +161,8 @@ and fail to compile otherwise. This will be changed in the future.
 `mutable long -= simple long`
 
 * `*=`: multiplication in place  
-`mutable byte *= constant byte`
+`mutable byte *= constant byte`  
+`mutable byte *= byte` (zpreg)
 
 * `*'=`: decimal multiplication in place  
 `mutable byte *'= constant byte`

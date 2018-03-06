@@ -21,9 +21,13 @@ Detailed flow analysis was slow, broken, hard to maintain, and didn't even help 
 
 * Added `*'=` and `<<<<` operators.
 
+* Added support for zeropage pseudoregisters, allowing for some operators work with more types of operands. 
+
 * Added return dispatch statements.
 
 * Added `break` and `continue` statements.
+
+* Allowed the `else if` combination (i.e. the `else` branch doesn't have to be in braces if it's just a single `if`-`else` statement).
 
 * Added octal and quaternary literals.
 

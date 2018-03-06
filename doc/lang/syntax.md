@@ -192,6 +192,23 @@ for <variable>,<start>,<direction>,<end> {
     
     There is no `paralleldownto`, because it would do the same as `parallelto`.
     
+### `break` and `continue` statements
+
+Syntax:
+
+```
+break
+break for
+break while
+break do
+break <variable>
+continue
+continue for
+continue while
+continue do
+continue <variable>
+```
+    
 ### `asm` statements
 
 See [Using assembly within Millfork programs](./assembly.md).
