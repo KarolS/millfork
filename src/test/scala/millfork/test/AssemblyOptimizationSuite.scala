@@ -466,4 +466,26 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(33)
     }
   }
+
+  test("Low bit 3") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | void main() {
+        |   g(1)
+        | }
+        | void g(byte x) {
+        |   if f() << 1 == x {
+        |     output = 5
+        |   }
+        | }
+        | noinline byte f () {
+        |   output = 33
+        |   return 3
+        | }
+      """.stripMargin
+    ){m =>
+      m.readByte(0xc000) should equal(33)
+    }
+  }
 }

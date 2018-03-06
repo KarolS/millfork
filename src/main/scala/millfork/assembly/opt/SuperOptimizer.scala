@@ -40,6 +40,7 @@ object SuperOptimizer extends AssemblyOptimization {
       allOptimizers ++= ZeropageRegisterOptimizations.All
     }
     allOptimizers ++= List(
+      LocalVariableReadOptimization,
       ChangeIndexRegisterOptimizationPreferringX2Y,
       ChangeIndexRegisterOptimizationPreferringY2X)
     val seenSoFar = mutable.Set[CodeView]()
