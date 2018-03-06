@@ -7,40 +7,51 @@ import millfork.assembly.State
   */
 
 
-sealed trait Status[T] {
-  def contains(value: T): Boolean
+sealed trait Status[+T] {
+  def contains[U >: T](value: U): Boolean
 
-  def ~(that: Status[T]): Status[T] = {
+  def ~[U >: T](that: Status[U]): Status[U] = {
     (this, that) match {
-      case (AnyStatus(), _) => AnyStatus()
-      case (_, AnyStatus()) => AnyStatus()
-      case (SingleStatus(x), SingleStatus(y)) => if (x == y) SingleStatus(x) else AnyStatus()
-      case (SingleStatus(x), UnknownStatus()) => SingleStatus(x)
-      case (UnknownStatus(), SingleStatus(x)) => SingleStatus(x)
-      case (UnknownStatus(), UnknownStatus()) => UnknownStatus()
+      case (AnyStatus, _) => AnyStatus
+      case (_, AnyStatus) => AnyStatus
+      case (SingleStatus(x), SingleStatus(y)) => if (x == y) SingleStatus(x) else AnyStatus
+      case (SingleStatus(x), UnknownStatus) => SingleStatus(x)
+      case (UnknownStatus, SingleStatus(x)) => SingleStatus(x)
+      case (UnknownStatus, UnknownStatus) => UnknownStatus
     }
   }
 
   def <*>[U, V](that: Status[U])(f: (T,U) => V): Status[V] = (this, that) match {
     case (SingleStatus(t), SingleStatus(u)) => SingleStatus(f(t, u))
-    case (UnknownStatus(), UnknownStatus()) => UnknownStatus()
-    case _ => AnyStatus()
+    case (UnknownStatus, UnknownStatus) => UnknownStatus
+    case _ => AnyStatus
   }
 
   def map[U](f: T => U): Status[U] = this match {
     case SingleStatus(x) => SingleStatus(f(x))
-    case _ => AnyStatus()
+    case _ => AnyStatus
   }
 
   def flatMap[U](f: T => Status[U]): Status[U] = this match {
     case SingleStatus(x) => f(x)
-    case _ => AnyStatus()
+    case _ => AnyStatus
   }
+}
 
+object SourceOfNZ {
+  val A = SingleStatus(SourceOfNZ(a = true))
+  val AW = SingleStatus(SourceOfNZ(aw = true))
+  val X = SingleStatus(SourceOfNZ(x = true))
+  val Y = SingleStatus(SourceOfNZ(y = true))
+  val Z = SingleStatus(SourceOfNZ(iz = true))
+  val AX = SingleStatus(SourceOfNZ(a = true, x = true))
+  val AY = SingleStatus(SourceOfNZ(a = true, y = true))
+  val AZ = SingleStatus(SourceOfNZ(a = true, iz = true))
+  val XY = SingleStatus(SourceOfNZ(x = true, y = true))
 }
 
 case class SourceOfNZ(a: Boolean = false, aw: Boolean = false, x: Boolean = false, y: Boolean = false, iz: Boolean = false) {
-  override def toString = {
+  override def toString: String = {
     val builder = new StringBuilder
     if (a) builder += 'A'
     if (aw) builder += 'C'
@@ -54,22 +65,33 @@ case class SourceOfNZ(a: Boolean = false, aw: Boolean = false, x: Boolean = fals
 
 object Status {
 
+  val SingleTrue: Status[Boolean] = SingleStatus(true)
+  val SingleFalse: Status[Boolean] = SingleStatus(false)
+  val SingleZero: Status[Int] = Status.SingleZero
+  val SingleFF: Status[Int] = Status.SingleFF
+  @inline
+  private def wrapBool(b: Boolean) = if (b) SingleTrue else SingleFalse
+
   def flatMap2[T, U, R](a: Status[T], b: Status[U])(f: (T, U) => Status[R]): Status[R] = (a, b) match {
     case (SingleStatus(t), SingleStatus(u)) => f(t, u)
-    case (UnknownStatus(), UnknownStatus()) => UnknownStatus()
-    case _ => AnyStatus()
+    case (UnknownStatus, UnknownStatus) => UnknownStatus
+    case _ => AnyStatus
   }
 
   def flatMap3[T, U, V, R](a: Status[T], b: Status[U], c: Status[V])(f: (T, U, V) => Status[R]): Status[R] = (a, b, c) match {
     case (SingleStatus(t), SingleStatus(u), SingleStatus(v)) => f(t, u, v)
-    case (UnknownStatus(), UnknownStatus(), UnknownStatus()) => UnknownStatus()
-    case _ => AnyStatus()
+    case (UnknownStatus, UnknownStatus, UnknownStatus) => UnknownStatus
+    case _ => AnyStatus
   }
 
   implicit class BoolStatusOps(val inner: Status[Boolean]) extends AnyVal {
     def withHiddenHi: Status[Boolean] = inner match {
       case SingleStatus(false) => inner
-      case _ => AnyStatus()
+      case _ => AnyStatus
+    }
+    def negate: Status[Boolean] = inner match {
+      case SingleStatus(x) => wrapBool(!x)
+      case x => x
     }
   }
   implicit class SourceOfNZStatusOps(val inner: Status[SourceOfNZ]) extends AnyVal {
@@ -98,50 +120,50 @@ object Status {
 
     def bit0: Status[Boolean] = inner match {
       case SingleStatus(x) => SingleStatus((x & 1) == 0)
-      case _ => AnyStatus()
+      case _ => AnyStatus
     }
 
     def bit7: Status[Boolean] = inner match {
       case SingleStatus(x) => SingleStatus((x & 0x80) == 0)
-      case _ => AnyStatus()
+      case _ => AnyStatus
     }
 
     def z(f: Int => Int = identity): Status[Boolean] = inner match {
       case SingleStatus(x) =>
         val y = f(x) & 0xff
-        SingleStatus(y == 0)
-      case _ => AnyStatus()
+        wrapBool(y == 0)
+      case _ => AnyStatus
     }
 
     def n(f: Int => Int = identity): Status[Boolean] = inner match {
       case SingleStatus(x) =>
         val y = f(x) & 0xff
-        SingleStatus(y >= 0x80)
-      case _ => AnyStatus()
+        wrapBool(y >= 0x80)
+      case _ => AnyStatus
     }
 
     def zw(f: Int => Int = identity): Status[Boolean] = inner match {
       case SingleStatus(x) =>
         val y = f(x) & 0xffff
-        SingleStatus(y == 0)
-      case _ => AnyStatus()
+        wrapBool(y == 0)
+      case _ => AnyStatus
     }
 
     def nw(f: Int => Int = identity): Status[Boolean] = inner match {
       case SingleStatus(x) =>
         val y = f(x) & 0xffff
-        SingleStatus(y >= 0x8000)
-      case _ => AnyStatus()
+        wrapBool(y >= 0x8000)
+      case _ => AnyStatus
     }
 
     def lo: Status[Int] = inner match {
       case SingleStatus(x) => SingleStatus(x & 0xff)
-      case _ => AnyStatus()
+      case _ => AnyStatus
     }
 
     def hi: Status[Int] = inner match {
       case SingleStatus(x) => SingleStatus(x.&(0xff00).>>(8))
-      case _ => AnyStatus()
+      case _ => AnyStatus
     }
 
     def adc(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
@@ -149,11 +171,11 @@ object Status {
         case SingleStatus(false) => carry match {
           case SingleStatus(true) => SingleStatus((x + value + 1) & 0xff)
           case SingleStatus(false) => SingleStatus((x + value) & 0xff)
-          case _ => AnyStatus()
+          case _ => AnyStatus
         }
-        case _ => AnyStatus()
+        case _ => AnyStatus
       }
-      case _ => AnyStatus()
+      case _ => AnyStatus
     }
 
     def sbc(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
@@ -161,11 +183,11 @@ object Status {
         case SingleStatus(false) => carry match {
           case SingleStatus(true) => SingleStatus((x - value) & 0xff)
           case SingleStatus(false) => SingleStatus((x - value - 1) & 0xff)
-          case _ => AnyStatus()
+          case _ => AnyStatus
         }
-        case _ => AnyStatus()
+        case _ => AnyStatus
       }
-      case _ => AnyStatus()
+      case _ => AnyStatus
     }
 
     def adc_w(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
@@ -173,11 +195,11 @@ object Status {
         case SingleStatus(false) => carry match {
           case SingleStatus(true) => SingleStatus((x + value + 1) & 0xffff)
           case SingleStatus(false) => SingleStatus((x + value) & 0xffff)
-          case _ => AnyStatus()
+          case _ => AnyStatus
         }
-        case _ => AnyStatus()
+        case _ => AnyStatus
       }
-      case _ => AnyStatus()
+      case _ => AnyStatus
     }
   }
 
@@ -185,7 +207,7 @@ object Status {
 
 
 case class SingleStatus[T](t: T) extends Status[T] {
-  override def contains(value: T): Boolean = t == value
+  override def contains[U >: T](value: U): Boolean = t == value
 
   override def toString: String = t match {
     case true => "1"
@@ -194,45 +216,45 @@ case class SingleStatus[T](t: T) extends Status[T] {
   }
 }
 
-case class UnknownStatus[T]() extends Status[T] {
-  override def contains(value: T) = false
+case object UnknownStatus extends Status[Nothing] {
+  override def contains[U >: Nothing](value: U) = false
 
   override def toString: String = "_"
 }
 
-case class AnyStatus[T]() extends Status[T] {
-  override def contains(value: T) = false
+case object AnyStatus extends Status[Nothing] {
+  override def contains[U >: Nothing](value: U) = false
 
   override def toString: String = "#"
 }
 //noinspection RedundantNewCaseClass
-case class CpuStatus(a: Status[Int] = UnknownStatus(),
-                     ah: Status[Int] = UnknownStatus(),
-                     a0: Status[Boolean] = UnknownStatus(),
-                     a7: Status[Boolean] = UnknownStatus(),
-                     x: Status[Int] = UnknownStatus(),
-                     y: Status[Int] = UnknownStatus(),
-                     iz: Status[Int] = UnknownStatus(),
-                     src: Status[SourceOfNZ] = UnknownStatus(),
-                     z: Status[Boolean] = UnknownStatus(),
-                     n: Status[Boolean] = UnknownStatus(),
-                     c: Status[Boolean] = UnknownStatus(),
-                     v: Status[Boolean] = UnknownStatus(),
-                     d: Status[Boolean] = UnknownStatus(),
-                     m: Status[Boolean] = UnknownStatus(),
-                     w: Status[Boolean] = UnknownStatus()
+case class CpuStatus(a: Status[Int] = UnknownStatus,
+                     ah: Status[Int] = UnknownStatus,
+                     a0: Status[Boolean] = UnknownStatus,
+                     a7: Status[Boolean] = UnknownStatus,
+                     x: Status[Int] = UnknownStatus,
+                     y: Status[Int] = UnknownStatus,
+                     iz: Status[Int] = UnknownStatus,
+                     src: Status[SourceOfNZ] = UnknownStatus,
+                     z: Status[Boolean] = UnknownStatus,
+                     n: Status[Boolean] = UnknownStatus,
+                     c: Status[Boolean] = UnknownStatus,
+                     v: Status[Boolean] = UnknownStatus,
+                     d: Status[Boolean] = UnknownStatus,
+                     m: Status[Boolean] = UnknownStatus,
+                     w: Status[Boolean] = UnknownStatus
                     ) {
 
   override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; A7=$a7,A0=$a0,NZ:$src"
 
   def aw: Status[Int] = (ah, a) match {
     case (SingleStatus(h), SingleStatus(l)) => SingleStatus(h.&(0xff).<<(8).+(l&0xff))
-    case (UnknownStatus(), UnknownStatus()) => UnknownStatus()
-    case _ => AnyStatus()
+    case (UnknownStatus, UnknownStatus) => UnknownStatus
+    case _ => AnyStatus
   }
 
   def nz: CpuStatus =
-    this.copy(n = AnyStatus(), z = AnyStatus())
+    this.copy(n = AnyStatus, z = AnyStatus)
 
   def nz(i: Long): CpuStatus =
     this.copy(n = SingleStatus((i & 0x80) != 0), z = SingleStatus((i & 0xff) == 0))

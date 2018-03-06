@@ -40,15 +40,20 @@ object SuperOptimizer extends AssemblyOptimization {
       allOptimizers ++= ZeropageRegisterOptimizations.All
     }
     allOptimizers ++= List(
-      VariableToRegisterOptimization,
       ChangeIndexRegisterOptimizationPreferringX2Y,
-      ChangeIndexRegisterOptimizationPreferringY2X,
-      UnusedLabelRemoval)
+      ChangeIndexRegisterOptimizationPreferringY2X)
     val seenSoFar = mutable.Set[CodeView]()
     val queue = mutable.Queue[(List[AssemblyOptimization], List[AssemblyLine])]()
     val leaves = mutable.ListBuffer[(List[AssemblyOptimization], List[AssemblyLine])]()
-    seenSoFar += viewCode(code)
-    queue.enqueue(Nil -> code)
+
+    val quickScrub = List(
+      UnusedLabelRemoval,
+      AlwaysGoodOptimizations.UnusedCodeRemoval
+    )
+    val quicklyCleanedCode = quickScrub.foldLeft(code)((c, o) => o.optimize(m, c, options))
+    seenSoFar += viewCode(quicklyCleanedCode)
+    queue.enqueue(quickScrub.reverse -> quicklyCleanedCode)
+
     while(queue.nonEmpty) {
       val (optsSoFar, codeSoFar) = queue.dequeue()
       var isLeaf = true
@@ -66,12 +71,16 @@ object SuperOptimizer extends AssemblyOptimization {
       }
       if (isLeaf) {
 //        println(codeSoFar.map(_.sizeInBytes).sum + " B:   " + optsSoFar.reverse.map(_.name).mkString(" -> "))
+//        val view = viewCode(codeSoFar)
+//        println(f"${view.hashCode}%08X ${view.content.map(_._1).mkString(" ")}%s")
         leaves += optsSoFar -> codeSoFar
       }
     }
 
     val result = leaves.minBy(_._2.map(_.cost).sum)
-    ErrorReporting.verbosity = oldVerbosity
+    if (oldVerbosity != 0) {
+      ErrorReporting.verbosity = oldVerbosity
+    }
     ErrorReporting.debug(s"Visited ${leaves.size} leaves")
     ErrorReporting.debug(s"${code.map(_.sizeInBytes).sum} B -> ${result._2.map(_.sizeInBytes).sum} B:   ${result._1.reverse.map(_.name).mkString(" -> ")}")
     result._1.reverse.foldLeft(code){(c, opt) =>
@@ -86,8 +95,9 @@ object SuperOptimizer extends AssemblyOptimization {
   override val name = "Superoptimizer"
 
   def viewCode(code: List[AssemblyLine]): CodeView = {
-    CodeView(code.map(l => l.opcode -> l.addrMode))
+    val indexedSeq = code.view.map(l => l.opcode -> l.addrMode).toIndexedSeq
+    CodeView(indexedSeq.hashCode(), indexedSeq)
   }
 }
 
-case class CodeView(content: List[(Opcode.Value, AddrMode.Value)])
+case class CodeView(override val hashCode: Int, content: IndexedSeq[(Opcode.Value, AddrMode.Value)])

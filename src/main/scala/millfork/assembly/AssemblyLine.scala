@@ -47,7 +47,7 @@ object OpcodeClasses {
     ORA_W, AND_W, EOR_W, ADC_W, SBC_W, CMP_W, LDA_W, STA_W,
     STZ, BIT,
     STZ_W, BIT_W,
-    PHA, PLA,
+    PHA, PLA, PHP,
     PHA_W, PLA_W,
     DEC, INC, ROL, ROR, ASL, LSR,
     DEC_W, INC_W, ROL_W, ROR_W, ASL_W, LSR_W,
@@ -55,7 +55,7 @@ object OpcodeClasses {
   val ReadsW = Set(
     LDX, LDY, CPX, CPY, STX, STY, INX, INY, DEX, DEY,
     LDX_W, LDY_W, CPX_W, CPY_W, STX_W, STY_W, INX_W, INY_W, DEX_W, DEY_W,
-    PLX, PLY, PHX, PHY,
+    PLX, PLY, PHX, PHY, PHP,
     PLX_W, PLY_W, PHX_W, PHY_W,
     TAX, TXA, TAY, TYA, TXY, TYX)
   val ReadsZ = Set(BNE, BEQ, PHP)

@@ -13,7 +13,7 @@ import scala.collection.immutable
   */
 
 sealed trait Importance {
-  def ~(that: Importance) = (this, that) match {
+  def ~(that: Importance): Importance = (this, that) match {
     case (_, Important) | (Important, _) => Important
     case (_, Unimportant) | (Unimportant, _) => Unimportant
     case (UnknownImportance, UnknownImportance) => UnknownImportance
@@ -23,7 +23,6 @@ sealed trait Importance {
 case object Important extends Importance {
   override def toString = "!"
 }
-
 
 case object Unimportant extends Importance {
   override def toString = "*"
@@ -64,7 +63,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
   )
 
   def isUnimportant(state: State.Value): Boolean = state match {
-      // UnknownImportance is usually an effect of unreachable code
+    // UnknownImportance is usually an effect of unreachable code
     case State.A => a != Important
     case State.AH => ah != Important
     case State.X => x != Important
@@ -117,7 +116,9 @@ object ReverseFlowAnalyzer {
           case _ =>
         }
         codeArray(i) match {
-          case AssemblyLine(JSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(fun:FunctionInMemory), _) =>
+
+          case AssemblyLine(JSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(fun: FunctionInMemory), _) =>
+            // this case has to be handled first, because the generic JSR importance handler is too conservative
             var result = new CpuImportance(
               a = Unimportant,
               ah = Unimportant,
@@ -147,14 +148,22 @@ object ReverseFlowAnalyzer {
                   case RegisterVariable(Register.YA | Register.YA, _) =>
                     result = result.copy(a = Important, y = Important)
                   case RegisterVariable(Register.XY | Register.YX, _) =>
-                    result = result.copy(x = Important, y=Important)
+                    result = result.copy(x = Important, y = Important)
                   case _ =>
                 })
               case _ =>
             }
             currentImportance = result
-          case AssemblyLine(JSR | BRK | COP, _, _, _) =>
-            currentImportance = finalImportance
+
+          case AssemblyLine(opcode, addrMode, _, _) if ReverseFlowAnalyzerPerOpcode.hasDefinition(opcode) =>
+            currentImportance = ReverseFlowAnalyzerPerOpcode.get(opcode)(currentImportance)
+            if (addrMode == AbsoluteX || addrMode == LongAbsoluteX || addrMode == IndexedX || addrMode == ZeroPageX || addrMode == AbsoluteIndexedX)
+              currentImportance = currentImportance.copy(x = Important)
+            else if (addrMode == AbsoluteY || addrMode == IndexedY || addrMode == ZeroPageY || addrMode == LongIndexedY || addrMode == IndexedSY)
+              currentImportance = currentImportance.copy(y = Important)
+            else if (addrMode == IndexedZ /*|| addrMode == LongIndexedZ*/ )
+              currentImportance = currentImportance.copy(iz = Important)
+
           case AssemblyLine(JMP | BRA, Absolute | Relative | LongAbsolute | LongRelative, MemoryAddressConstant(Label(l)), _) =>
             val L = l
             val labelIndex = codeArray.indexWhere {
@@ -162,50 +171,10 @@ object ReverseFlowAnalyzer {
               case _ => false
             }
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex)
+
           case AssemblyLine(JMP, Indirect | AbsoluteIndexedX | LongIndirect, _, _) =>
             currentImportance = finalImportance
-          case AssemblyLine(BNE | BEQ, _, _, _) =>
-            currentImportance = currentImportance.copy(z = Important)
-          case AssemblyLine(BMI | BPL, _, _, _) =>
-            currentImportance = currentImportance.copy(n = Important)
-          case AssemblyLine(SED | CLD, _, _, _) =>
-            currentImportance = currentImportance.copy(d = Unimportant)
-          case AssemblyLine(RTS | RTL, _, _, _) =>
-            currentImportance = finalImportance
-          case AssemblyLine(TAX, _, _, _) =>
-            currentImportance = currentImportance.copy(a = currentImportance.x ~ currentImportance.a ~ currentImportance.n ~ currentImportance.z, x = Unimportant, n = Unimportant, z = Unimportant, m = Important, w = Important)
-          case AssemblyLine(TAY, _, _, _) =>
-            currentImportance = currentImportance.copy(a = currentImportance.y ~ currentImportance.a ~ currentImportance.n ~ currentImportance.z, y = Unimportant, n = Unimportant, z = Unimportant, m = Important, w = Important)
-          case AssemblyLine(TXA, _, _, _) =>
-            currentImportance = currentImportance.copy(x = currentImportance.a ~ currentImportance.x ~ currentImportance.n ~ currentImportance.z, a = Unimportant, n = Unimportant, z = Unimportant, m = Important, w = Important)
-          case AssemblyLine(TYA, _, _, _) =>
-            currentImportance = currentImportance.copy(y = currentImportance.a ~ currentImportance.y ~ currentImportance.n ~ currentImportance.z, a = Unimportant, n = Unimportant, z = Unimportant, m = Important, w = Important)
-          case AssemblyLine(TAZ, _, _, _) =>
-            currentImportance = currentImportance.copy(a = currentImportance.iz ~ currentImportance.a ~ currentImportance.n ~ currentImportance.z, iz = Unimportant, n = Unimportant, z = Unimportant, m = Important, w = Important)
-          case AssemblyLine(TZA, _, _, _) =>
-            currentImportance = currentImportance.copy(iz = currentImportance.a ~ currentImportance.iz ~ currentImportance.n ~ currentImportance.z, a = Unimportant, n = Unimportant, z = Unimportant, m = Important, w = Important)
-          case AssemblyLine(TXY, _, _, _) =>
-            currentImportance = currentImportance.copy(x = currentImportance.y ~ currentImportance.x ~ currentImportance.n ~ currentImportance.z, y = Unimportant, n = Unimportant, z = Unimportant, m = Important, w = Important)
-          case AssemblyLine(TYX, _, _, _) =>
-            currentImportance = currentImportance.copy(y = currentImportance.x ~ currentImportance.y ~ currentImportance.n ~ currentImportance.z, x = Unimportant, n = Unimportant, z = Unimportant, m = Important, w = Important)
-          case AssemblyLine(HuSAX, _, _, _) =>
-            currentImportance = currentImportance.copy(a = currentImportance.x, x = currentImportance.a, m = Important, w = Important)
-          case AssemblyLine(SAY, _, _, _) =>
-            currentImportance = currentImportance.copy(y = currentImportance.a, a = currentImportance.y, m = Important, w = Important)
-          case AssemblyLine(SXY, _, _, _) =>
-            currentImportance = currentImportance.copy(y = currentImportance.x, x = currentImportance.y, m = Important, w = Important)
-          case AssemblyLine(RTI, _, _, _) =>
-            currentImportance = new CpuImportance(
-              a = Unimportant, ah = Unimportant,
-              x = Unimportant, y = Unimportant, iz = Unimportant,
-              z = Unimportant, n = Unimportant, c = Unimportant, v = Unimportant, d = Unimportant,
-              m = Unimportant, w = Unimportant)
-          case AssemblyLine(DISCARD_XF, _, _, _) =>
-            currentImportance = currentImportance.copy(x = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)
-          case AssemblyLine(DISCARD_YF, _, _, _) =>
-            currentImportance = currentImportance.copy(y = Unimportant, iz = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)
-          case AssemblyLine(DISCARD_AF, _, _, _) =>
-            currentImportance = currentImportance.copy(a = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)
+
           case AssemblyLine(REP | SEP, _, NumericConstant(n, _), _) =>
             if ((n & 1) != 0) currentImportance = currentImportance.copy(c = Unimportant)
             if ((n & 2) != 0) currentImportance = currentImportance.copy(z = Unimportant)
@@ -214,6 +183,7 @@ object ReverseFlowAnalyzer {
             if ((n & 0x20) != 0) currentImportance = currentImportance.copy(m = Unimportant)
             if ((n & 0x40) != 0) currentImportance = currentImportance.copy(v = Unimportant)
             if ((n & 0x80) != 0) currentImportance = currentImportance.copy(n = Unimportant)
+
           case AssemblyLine(opcode, addrMode, _, _) =>
             val reallyIgnoreC =
               currentImportance.c == Unimportant &&
@@ -251,17 +221,17 @@ object ReverseFlowAnalyzer {
             if (OpcodeClasses.ReadsAHIfImplied(opcode) && addrMode == Implied) currentImportance = currentImportance.copy(ah = Important)
             if (addrMode == AbsoluteX || addrMode == LongAbsoluteX || addrMode == IndexedX || addrMode == ZeroPageX || addrMode == AbsoluteIndexedX)
               currentImportance = currentImportance.copy(x = Important)
-            if (addrMode == IndexedZ /*|| addrMode == LongIndexedZ*/)
-              currentImportance = currentImportance.copy(iz = Important)
-            if (addrMode == AbsoluteY || addrMode == IndexedY || addrMode == ZeroPageY || addrMode == LongIndexedY || addrMode == IndexedSY)
+            else if (addrMode == AbsoluteY || addrMode == IndexedY || addrMode == ZeroPageY || addrMode == LongIndexedY || addrMode == IndexedSY)
               currentImportance = currentImportance.copy(y = Important)
+            else if (addrMode == IndexedZ /*|| addrMode == LongIndexedZ*/ )
+              currentImportance = currentImportance.copy(iz = Important)
         }
       }
     }
-//        importanceArray.zip(codeArray).foreach{
-//          case (i, y) => if (y.isPrintable) println(f"$y%-32s $i%-32s")
-//        }
-//        println("---------------------")
+    //        importanceArray.zip(codeArray).foreach{
+    //          case (i, y) => if (y.isPrintable) println(f"$y%-32s $i%-32s")
+    //        }
+    //        println("---------------------")
 
     importanceArray.toList
   }
