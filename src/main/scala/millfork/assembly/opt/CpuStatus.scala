@@ -8,6 +8,12 @@ import millfork.assembly.State
 
 
 sealed trait Status[+T] {
+
+  def |[U >: T](value: => Status[U]): Status[U] = this match {
+    case AnyStatus | UnknownStatus => value
+    case x => x
+  }
+
   def contains[U >: T](value: U): Boolean
 
   def ~[U >: T](that: Status[U]): Status[U] = {

@@ -149,7 +149,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         val assembler = new Assembler(program, env2)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)
         println(";;; compiled: -----------------")
-        output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).foreach(println)
+        output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
         println(";;; ---------------------------")
         assembler.labelMap.foreach { case (l, addr) => println(f"$l%-15s $$$addr%04x") }
 

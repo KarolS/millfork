@@ -428,4 +428,42 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc001) should equal(34)
     }
   }
+
+  test("Low bit") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | void main() {
+        |   if f() << 1 == 1 {
+        |     output = 5
+        |   }
+        | }
+        | noinline byte f () {
+        |   output = 33
+        |   return 3
+        | }
+      """.stripMargin
+    ){m =>
+      m.readByte(0xc000) should equal(33)
+    }
+  }
+
+  test("Low bit 2") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | void main() {
+        |   if f() << 1 == 2 {
+        |     output = 5
+        |   }
+        | }
+        | noinline byte f () {
+        |   output = 33
+        |   return 3
+        | }
+      """.stripMargin
+    ){m =>
+      m.readByte(0xc000) should equal(33)
+    }
+  }
 }

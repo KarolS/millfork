@@ -176,8 +176,8 @@ object FlowAnalyzerForImmediate {
       currentStatus.copy(
         n = newA.nw(),
         z = newA.zw(),
-        a = newA.lo,
-        ah = newA.hi,
+        a = newA.lo | currentStatus.a.map(_ & n & 0xff),
+        ah = newA.hi | currentStatus.ah.map(_ & (n >> 8) & 0xff),
         a0 = newA.bit0,
         a7 = newA.bit7,
         src = SourceOfNZ.AW)
@@ -188,8 +188,8 @@ object FlowAnalyzerForImmediate {
       currentStatus.copy(
         n = newA.nw(),
         z = newA.zw(),
-        a = newA.lo,
-        ah = newA.hi,
+        a = newA.lo | currentStatus.a.map(_ ^ (n & 0xff)),
+        ah = newA.hi | currentStatus.ah.map(_ ^ ((n >> 8) & 0xff)),
         a0 = newA.bit0,
         a7 = newA.bit7,
         src = SourceOfNZ.AW)
@@ -200,8 +200,8 @@ object FlowAnalyzerForImmediate {
       currentStatus.copy(
         n = newA.nw(),
         z = newA.zw(),
-        a = newA.lo,
-        ah = newA.hi,
+        a = newA.lo | currentStatus.a.map(_ | (n & 0xff)),
+        ah = newA.hi | currentStatus.ah.map(_ | ((n >> 8) & 0xff)),
         a0 = newA.bit0,
         a7 = newA.bit7,
         src = SourceOfNZ.AW)
@@ -210,10 +210,24 @@ object FlowAnalyzerForImmediate {
       currentStatus.copy(
         c = if (nn == 0) Status.SingleTrue else AnyStatus,
         n = AnyStatus,
-        z = currentStatus.a.map(v => (v & 0xff) == (nn & 0xff)),
+        z = currentStatus.a.map(v => (v & 0xff) == (nn & 0xff)) |
+          currentStatus.a0.flatMap(v => if (v) {
+            if ((nn & 1) == 0) Status.SingleFalse
+            else AnyStatus
+          } else {
+            if ((nn & 1) == 0) AnyStatus
+            else Status.SingleFalse
+          }) |
+          currentStatus.a7.flatMap(v => if (v) {
+            if ((nn & 0x80) == 0) Status.SingleFalse
+            else AnyStatus
+          } else {
+            if ((nn & 0x80) == 0) AnyStatus
+            else Status.SingleFalse
+          }),
         src = if (nn == 0) SourceOfNZ.A else AnyStatus)
     },
-    CPX -> {(nn, currentStatus) =>
+    CPX -> { (nn, currentStatus) =>
       currentStatus.copy(
         c = if (nn == 0) Status.SingleTrue else AnyStatus,
         n = AnyStatus,
