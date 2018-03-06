@@ -30,7 +30,11 @@ class SourceLoadingQueue(val initialFilenames: List[String], val includePath: Li
       moduleQueue.enqueue(() => parseModule("zp_reg", includePath, Left(None), options))
     }
     while (moduleQueue.nonEmpty) {
-      moduleQueue.dequeueAll(_ => true).par.foreach(_())
+      if (options.flag(CompilationFlag.SingleThreaded)) {
+        moduleQueue.dequeueAll(_ => true).foreach(_())
+      } else {
+        moduleQueue.dequeueAll(_ => true).par.foreach(_())
+      }
     }
     ErrorReporting.assertNoErrors("Parse failed")
     parsedModules.values.reduce(_ + _)

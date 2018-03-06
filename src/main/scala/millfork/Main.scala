@@ -301,6 +301,10 @@ object Main {
 
     fluff("", "Other options:", "")
 
+    flag("--single-threaded").action(c =>
+      c.changeFlag(CompilationFlag.SingleThreaded, true)
+    ).description("Run the compiler in a single thread.")
+
     flag("--help").action(c => {
       printHelp(20).foreach(println(_))
       assumeStatus(CliStatus.Quit)

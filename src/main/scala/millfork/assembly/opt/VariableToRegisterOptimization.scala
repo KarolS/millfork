@@ -194,7 +194,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     val aCandidateSets = NonOverlappingIntervals.apply[(String, Range, Int)](aCandidates, _._2.start, _._2.end)
 
     val variants = for {
-      vx <- xCandidateSets.par
+      vx <- if (options.flag(CompilationFlag.SingleThreaded)) xCandidateSets else xCandidateSets.par
       nx = vx.map(_._1)
 
       vy <- yCandidateSets

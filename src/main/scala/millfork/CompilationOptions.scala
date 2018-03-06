@@ -126,6 +126,8 @@ object CompilationFlag extends Enumeration {
   VariableOverlap, CompactReturnDispatchParams,
   // runtime check options
   CheckIndexOutOfBounds,
+  // special options
+  SingleThreaded,
   // warning options
   ExtraComparisonWarnings,
   RorWarning,

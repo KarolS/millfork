@@ -52,7 +52,8 @@ object SuperOptimizer extends AssemblyOptimization {
     while(queue.nonEmpty) {
       val (optsSoFar, codeSoFar) = queue.dequeue()
       var isLeaf = true
-      allOptimizers.par.foreach { o =>
+      (if (options.flag(CompilationFlag.SingleThreaded)) allOptimizers
+      else allOptimizers.par).foreach { o =>
         val optimized = o.optimize(m, codeSoFar, options)
         val view = viewCode(optimized)
         seenSoFar.synchronized{
