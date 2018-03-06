@@ -160,8 +160,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
 
     val assembly = mutable.ArrayBuffer[String]()
 
-    val potentiallyInlineable: Map[String, Int] =
-      InliningCalculator.getPotentiallyInlineableFunctions(
+    val inliningResult = InliningCalculator.calculate(
         program,
         options.flags(CompilationFlag.InlineFunctions) || options.flags(CompilationFlag.OptimizeForSonicSpeed),
         if (options.flags(CompilationFlag.OptimizeForSonicSpeed)) 4.0
@@ -170,6 +169,9 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         if (options.flags(CompilationFlag.OptimizeForSonicSpeed)) 12.0
         else if (options.flags(CompilationFlag.OptimizeForSpeed)) 8.0
         else 1.2)
+
+    val potentiallyInlineable: Map[String, Int] = inliningResult.potentiallyInlineableFunctions
+    var nonInlineableFunctions: Set[String] = inliningResult.nonInlineableFunctions
 
     var inlinedFunctions = Map[String, List[AssemblyLine]]()
     val compiledFunctions = mutable.Map[String, List[AssemblyLine]]()
@@ -180,7 +182,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         val strippedCodeForInlining = for {
           limit <- potentiallyInlineable.get(f)
           if code.map(_.sizeInBytes).sum <= limit
-          s <- InliningCalculator.codeForInlining(f, code)
+          s <- InliningCalculator.codeForInlining(f, nonInlineableFunctions, code)
         } yield s
         strippedCodeForInlining match {
           case Some(c) =>
@@ -188,6 +190,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
             inlinedFunctions += f -> c
             compiledFunctions(f) = Nil
           case None =>
+            nonInlineableFunctions += function.name
             compiledFunctions(f) = code
             optimizedCodeSize += code.map(_.sizeInBytes).sum
         }

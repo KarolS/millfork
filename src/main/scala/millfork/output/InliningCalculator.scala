@@ -11,14 +11,17 @@ import scala.collection.mutable
 /**
   * @author Karol Stasiak
   */
+
+case class InliningResult(potentiallyInlineableFunctions: Map[String, Int], nonInlineableFunctions: Set[String])
+
 object InliningCalculator {
 
   private val sizes = Seq(64, 64, 8, 6, 5, 5, 4)
 
-  def getPotentiallyInlineableFunctions(program: Program,
-                                        inlineByDefault: Boolean,
-                                        aggressivenessForNormal: Double,
-                                        aggressivenessForRecommended: Double): Map[String, Int] = {
+  def calculate(program: Program,
+                inlineByDefault: Boolean,
+                aggressivenessForNormal: Double,
+                aggressivenessForRecommended: Double): InliningResult = {
     val callCount = mutable.Map[String, Int]().withDefaultValue(0)
     val allFunctions = mutable.Set[String]()
     val badFunctions = mutable.Set[String]()
@@ -44,11 +47,12 @@ object InliningCalculator {
     }
     allFunctions --= badFunctions
     recommendedFunctions --= badFunctions
-    (if (inlineByDefault) allFunctions else recommendedFunctions).map(f => f -> {
+    val map = (if (inlineByDefault) allFunctions else recommendedFunctions).map(f => f -> {
       val size = sizes(callCount(f) min (sizes.size - 1))
       val aggressiveness = if (recommendedFunctions(f)) aggressivenessForRecommended else aggressivenessForNormal
       (size * aggressiveness).floor.toInt
     }).toMap
+    InliningResult(map, badFunctions.toSet)
   }
 
   private def getAllCalledFunctions(expressions: List[Node]): List[(String, Boolean)] = expressions.flatMap {
@@ -79,7 +83,7 @@ object InliningCalculator {
   private val badOpcodes = Set(RTI, RTS, JSR, BRK, RTL, BSR) ++ OpcodeClasses.ChangesStack
   private val jumpingRelatedOpcodes = Set(LABEL, JMP) ++ OpcodeClasses.ShortBranching
 
-  def codeForInlining(fname: String, code: List[AssemblyLine]): Option[List[AssemblyLine]] = {
+  def codeForInlining(fname: String, functionsAlreadyKnownToBeNonInlineable: Set[String], code: List[AssemblyLine]): Option[List[AssemblyLine]] = {
     if (code.isEmpty) return None
     val lastOpcode = code.last.opcode
     if (lastOpcode != RTS && lastOpcode != RTL) return None
@@ -89,8 +93,11 @@ object InliningCalculator {
     }
     if (result.head.opcode == LABEL && result.head.parameter == Label(fname).toAddress) result = result.tail
     if (result.exists{
-      case AssemblyLine(op, AddrMode.Absolute | AddrMode.Relative, MemoryAddressConstant(Label(l)), _) if jumpingRelatedOpcodes(op) =>
+      case AssemblyLine(op, AddrMode.Absolute | AddrMode.Relative | AddrMode.DoesNotExist, MemoryAddressConstant(Label(l)), _) if jumpingRelatedOpcodes(op) =>
         !l.startsWith(".")
+      case AssemblyLine(JSR, AddrMode.Absolute, MemoryAddressConstant(th:ExternFunction), _) => false
+      case AssemblyLine(JSR, AddrMode.Absolute, MemoryAddressConstant(th:NormalFunction), _) =>
+        !functionsAlreadyKnownToBeNonInlineable(th.name)
       case AssemblyLine(op, _, _, _) if jumpingRelatedOpcodes(op) || badOpcodes(op) => true
       case _ => false
     }) return None
