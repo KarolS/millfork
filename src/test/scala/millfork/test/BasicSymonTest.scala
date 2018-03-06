@@ -116,4 +116,21 @@ class BasicSymonTest extends FunSuite with Matchers {
       """.stripMargin)
       m.readWord(0xc000) should equal(344)
   }
+
+  test("Else if") {
+    val m = EmuUnoptimizedRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |  if 1 == 2 {
+        |    output = 3
+        |  } else if 1 == 1 {
+        |    output = 4
+        |  } else {
+        |    output = 65
+        |  }
+        | }
+      """.stripMargin)
+      m.readWord(0xc000) should equal(4)
+  }
 }

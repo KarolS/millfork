@@ -420,7 +420,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
   def ifStatement: P[ExecutableStatement] = for {
     condition <- "if" ~ !letterOrDigit ~/ HWS ~/ mlExpression(nonStatementLevel)
     thenBranch <- AWS ~/ executableStatements
-    elseBranch <- (AWS ~ "else" ~/ AWS ~/ executableStatements).?
+    elseBranch <- (AWS ~ "else" ~/ AWS ~/ (ifStatement.map(_ :: Nil) | executableStatements)).?
   } yield IfStatement(condition, thenBranch.toList, elseBranch.getOrElse(Nil).toList)
 
   def whileStatement: P[ExecutableStatement] = for {
