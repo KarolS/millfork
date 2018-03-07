@@ -182,15 +182,15 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
 
     pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STA, LDA, STA),
-    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STX, LDA, STA),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDX, LAX), STX, LDA, STA),
     pointlessNonimmediateStoreToTheSameVariable(Set(LDY), STY, LDA, STA),
 
     pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STA, LDX, STX),
-    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STX, LDX, STX),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDX, LAX), STX, LDX, STX),
     pointlessNonimmediateStoreToTheSameVariable(Set(LDY), STY, LDX, STX),
 
     pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STA, LDY, STY),
-    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STX, LDY, STY),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDX, LAX), STX, LDY, STY),
     pointlessNonimmediateStoreToTheSameVariable(Set(LDY), STY, LDY, STY),
 
     pointlessImmediateStoreToTheSameVariable(MatchA(0), STA, MatchA(0), STA),
