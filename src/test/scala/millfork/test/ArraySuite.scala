@@ -184,4 +184,64 @@ class ArraySuite extends FunSuite with Matchers {
       """.stripMargin)
 
   }
+
+  test("Negative subindex") {
+    val m = EmuUnoptimizedRun(
+      """
+        |
+        | array output [$fff] @$c000
+        | void main () {
+        |   byte i
+        |   output[$100] = 55
+        |   i = one()
+        |   output[1 - i] = 5
+        | }
+        | noinline byte one() {return 1}
+      """.stripMargin)
+    m.readByte(0xc100) should equal(55)
+    m.readByte(0xc000) should equal(5)
+
+  }
+
+  test("Word subindex 1") {
+    EmuBenchmarkRun(
+      """
+        |
+        | array output [$fff] @$c000
+        | void main () {
+        |   word i
+        |   i = big()
+        |   output[$64] = 55
+        |   output[i] = 6
+        |   output[i] = 5
+        | }
+        | noinline word big() {return $564}
+      """.stripMargin) {m =>
+      m.readByte(0xc064) should equal(55)
+      m.readByte(0xc564) should equal(5)
+    }
+
+  }
+
+  test("Word subindex 2") {
+    EmuBenchmarkRun(
+      """
+        |
+        | array output [$fff] @$c000
+        | void main () {
+        |   word i
+        |   pointer o
+        |   o = p()
+        |   i = big()
+        |   o[$164] = 55
+        |   o[i] = 5
+        | }
+        | noinline word big() {return $564}
+        | noinline word p() {return output.addr}
+      """.stripMargin) {m =>
+      m.readByte(0xc164) should equal(55)
+      m.readByte(0xc564) should equal(5)
+    }
+
+  }
 }

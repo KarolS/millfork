@@ -46,26 +46,26 @@ object BuiltIns {
           }
           Nil -> AssemblyLine.variable(ctx, opcode, v)
         case IndexedExpression(arrayName, index) =>
-          indexChoice match {
-            case IndexChoice.RequireX | IndexChoice.PreferX =>
-              val array = env.getArrayOrPointer(arrayName)
-              val calculateIndex = ExpressionCompiler.compile(ctx, index, Some(b -> RegisterVariable(Register.X, b)), NoBranching)
-              val baseAddress = array match {
-                case c: ConstantThing => c.value
-                case a: MfArray => a.toAddress
-              }
-              calculateIndex -> List(AssemblyLine.absoluteX(opcode, baseAddress))
-            case IndexChoice.PreferY =>
-              val array = env.getArrayOrPointer(arrayName)
-              val calculateIndex = ExpressionCompiler.compile(ctx, index, Some(b -> RegisterVariable(Register.Y, b)), NoBranching)
-              array match {
-                case c: ConstantThing =>
-                  calculateIndex -> List(AssemblyLine.absoluteY(opcode, c.value))
-                case a: MfArray =>
-                  calculateIndex -> List(AssemblyLine.absoluteY(opcode, a.toAddress))
-                case v: VariableInMemory if v.typ.name == "pointer" =>
-                  calculateIndex -> List(AssemblyLine.indexedY(opcode, v.toAddress))
-              }
+          val pointy = env.getPointy(arrayName)
+          val (variablePart, constantPart) = env.evalVariableAndConstantSubParts(index)
+          val indexerSize = variablePart.map(v => getIndexerSize(ctx, v)).getOrElse(1)
+          val totalIndexSize = getIndexerSize(ctx, index)
+          (pointy, totalIndexSize, indexerSize, indexChoice, variablePart) match {
+            case (p: ConstantPointy, _, _, _, None) =>
+              Nil -> List(AssemblyLine.absolute(opcode, p.value + constantPart))
+            case (p: ConstantPointy, _, 1, IndexChoice.RequireX | IndexChoice.PreferX, Some(v)) =>
+              ExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(Register.X, b)), NoBranching) -> List(AssemblyLine.absoluteX(opcode, p.value + constantPart))
+            case (p: ConstantPointy, _, 1, IndexChoice.PreferY, Some(v)) =>
+              ExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(Register.Y, b)), NoBranching) -> List(AssemblyLine.absoluteY(opcode, p.value + constantPart))
+            case (p: VariablePointy, 0 | 1, _, IndexChoice.PreferX | IndexChoice.PreferY, _) =>
+              ExpressionCompiler.compile(ctx, index, Some(b -> RegisterVariable(Register.Y, b)), NoBranching) -> List(AssemblyLine.indexedY(opcode, p.addr))
+            case (p: ConstantPointy, _, 2, IndexChoice.PreferX | IndexChoice.PreferY, Some(v)) =>
+              ExpressionCompiler.prepareWordIndexing(ctx, p, index) -> List(AssemblyLine.indexedY(opcode, env.get[VariableInMemory]("__reg")))
+            case (p: VariablePointy, 2, _, IndexChoice.PreferX | IndexChoice.PreferY, _) =>
+              ExpressionCompiler.prepareWordIndexing(ctx, p, index) -> List(AssemblyLine.indexedY(opcode, env.get[VariableInMemory]("__reg")))
+            case _ =>
+              ErrorReporting.error("Invalid index for simple operation argument", index.position)
+              Nil -> Nil
           }
         case FunctionCallExpression(name, List(param)) if env.maybeGet[Type](name).isDefined =>
           return simpleOperation(opcode, ctx, param, indexChoice, preserveA, commutative, decimal)
@@ -154,7 +154,7 @@ object BuiltIns {
       case None => expr match {
         case VariableExpression(_) => 'V'
         case IndexedExpression(_, LiteralExpression(_, _)) => 'K'
-        case IndexedExpression(_, VariableExpression(_)) => 'J'
+        case IndexedExpression(_, VariableExpression(v)) if env.get[Variable](v).typ.size == 1 => 'J'
         case IndexedExpression(_, _) => 'I'
         case _ => 'A'
       }
@@ -165,19 +165,7 @@ object BuiltIns {
   def compileBitOps(opcode: Opcode.Value, ctx: CompilationContext, params: List[Expression]): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
 
-    val sortedParams = params.sortBy { expr =>
-      ctx.env.eval(expr) match {
-        case Some(NumericConstant(_, _)) => "Z"
-        case Some(_) => "Y"
-        case None => expr match {
-          case VariableExpression(_) => "V"
-          case IndexedExpression(_, LiteralExpression(_, _)) => "K"
-          case IndexedExpression(_, VariableExpression(_)) => "J"
-          case IndexedExpression(_, _) => "I"
-          case _ => "A"
-        }
-      }
-    }
+    val sortedParams = params.sortBy { expr => simplicity(ctx.env, expr) }
 
     val h = sortedParams.head
     val firstParamCompiled = ExpressionCompiler.compile(ctx, h, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
@@ -577,11 +565,13 @@ object BuiltIns {
     val env = ctx.env
     val b = env.get[Type]("byte")
     val lhsIsDirectlyIncrementable = v match {
-      case _:VariableExpression => true
-      case IndexedExpression(pointy, _) => env.getPointy(pointy) match {
-        case _:ConstantPointy => true
-        case _:VariablePointy => false
-      }
+      case _: VariableExpression => true
+      case IndexedExpression(pointy, indexExpr) =>
+        val indexerSize = getIndexerSize(ctx, indexExpr)
+        indexerSize <= 1 && (env.getPointy(pointy) match {
+          case _: ConstantPointy => true
+          case _: VariablePointy => false
+        })
       case _ => false
     }
     env.eval(addend) match {
@@ -614,6 +604,10 @@ object BuiltIns {
           loadLhs ++ modifyLhs ++ storeLhs
         }
     }
+  }
+
+  private def getIndexerSize(ctx: CompilationContext, indexExpr: Expression) = {
+    ctx.env.evalVariableAndConstantSubParts(indexExpr)._1.map(v => ExpressionCompiler.getExpressionType(ctx, v)).size
   }
 
   def compileInPlaceWordOrLongAddition(ctx: CompilationContext, lhs: LhsExpression, addend: Expression, subtract: Boolean, decimal: Boolean): List[AssemblyLine] = {

@@ -437,6 +437,12 @@ trait TrivialAssemblyLinePattern extends AssemblyLinePattern with (AssemblyLine 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = this (line)
 }
 
+case class Match(predicate: (AssemblyMatchingContext => Boolean)) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = predicate(ctx)
+
+  override def toString: String = "Match(...)"
+}
+
 case class WhereNoMemoryAccessOverlapBetweenTwoLineLists(ix1: Int, ix2: Int) extends AssemblyPattern {
   override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, AssemblyLine)]): Option[List[(FlowInfo, AssemblyLine)]] = {
     val s1s = ctx.get[List[AssemblyLine]](ix1)
@@ -869,6 +875,10 @@ case class HasImmediateWhere(predicate: Int => Boolean) extends TrivialAssemblyL
       case NumericConstant(j, _) => predicate(j.toInt & 0xff)
       case _ => false
     })
+}
+
+case class HasParameterWhere(predicate: Constant => Boolean) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = predicate(line.parameter)
 }
 
 case class MatchObject(i: Int, f: Function[AssemblyLine, Any]) extends AssemblyLinePattern {

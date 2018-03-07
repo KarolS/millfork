@@ -20,6 +20,7 @@ import millfork.error.ErrorReporting
 import millfork.node.Position
 
 sealed trait Constant {
+  def isProvablyZero: Boolean = false
 
   def asl(i: Constant): Constant = i match {
     case NumericConstant(sa, _) => asl(sa.toInt)
@@ -74,6 +75,7 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
       throw new IllegalArgumentException("The constant is too big")
     }
   }
+  override def isProvablyZero: Boolean = value == 0
 
   override def isLowestByteAlwaysEqual(i: Int) : Boolean = (value & 0xff) == (i&0xff)
 

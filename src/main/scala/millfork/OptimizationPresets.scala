@@ -172,6 +172,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessStackStashing,
     AlwaysGoodOptimizations.PointlessStashingToIndexOverShortSafeBranch,
     AlwaysGoodOptimizations.PoinlessStoreBeforeStore,
+    AlwaysGoodOptimizations.PointlessStoreToTheSameVariable,
     AlwaysGoodOptimizations.RearrangableLoadFromTheSameLocation,
     AlwaysGoodOptimizations.RearrangeMath,
     AlwaysGoodOptimizations.RemoveNops,

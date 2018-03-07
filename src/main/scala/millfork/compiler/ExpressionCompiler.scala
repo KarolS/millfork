@@ -209,6 +209,34 @@ object ExpressionCompiler {
     }
   }
 
+  def prepareWordIndexing(ctx: CompilationContext, pointy: Pointy, indexExpression: Expression): List[AssemblyLine] = {
+    val w = ctx.env.get[Type]("word")
+    if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+      ErrorReporting.error("16-bit indexing requires a zeropage pseudoregister")
+      compile(ctx, indexExpression, Some(w -> RegisterVariable(Register.YA, w)), BranchSpec.None)
+      return Nil
+    }
+    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val compileIndex = compile(ctx, indexExpression, Some(w -> RegisterVariable(Register.YA, w)), BranchSpec.None)
+    val prepareRegister = pointy match {
+      case ConstantPointy(addr, _) =>
+        List(
+          AssemblyLine.implied(CLC),
+          AssemblyLine.immediate(ADC, addr.hiByte),
+          AssemblyLine.zeropage(STA, reg, 1),
+          AssemblyLine.immediate(LDA, addr.loByte),
+          AssemblyLine.zeropage(STA, reg))
+      case VariablePointy(addr) =>
+        List(
+          AssemblyLine.implied(CLC),
+          AssemblyLine.zeropage(ADC, addr + 1),
+          AssemblyLine.zeropage(STA, reg, 1),
+          AssemblyLine.zeropage(LDA, addr),
+          AssemblyLine.zeropage(STA, reg))
+    }
+    compileIndex ++ prepareRegister
+  }
+
   def compileByteStorage(ctx: CompilationContext, register: Register.Value, target: LhsExpression): List[AssemblyLine] = {
     val env = ctx.env
     val b = env.get[Type]("byte")
@@ -253,6 +281,8 @@ object ExpressionCompiler {
       case IndexedExpression(arrayName, indexExpr) =>
         val pointy = env.getPointy(arrayName)
         val (variableIndex, constIndex) = env.evalVariableAndConstantSubParts(indexExpr)
+        val variableIndexSize = variableIndex.map(v => getExpressionType(ctx, v).size).getOrElse(0)
+        val totalIndexSize = getExpressionType(ctx, indexExpr).size
 
         def storeToArrayAtUnknownIndex(variableIndex: Expression, arrayAddr: Constant) = {
           // TODO check typ
@@ -274,13 +304,40 @@ object ExpressionCompiler {
             }
           }
         }
-        (pointy, variableIndex) match {
-          case (p: ConstantPointy, None) =>
+        def wrapWordIndexingStorage(code: List[AssemblyLine]) = {
+          val reg = ctx.env.get[VariableInMemory]("__reg")
+          val cmos = ctx.options.flag(CompilationFlag.EmitCmosOpcodes)
+          register match {
+            case Register.A =>
+              List(AssemblyLine.implied(PHA)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+            case Register.X =>
+              if (code.exists(l => OpcodeClasses.ChangesX(l.opcode))) {
+                if (cmos)
+                  List(AssemblyLine.implied(PHX)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+                else
+                  List(AssemblyLine.implied(TXA), AssemblyLine.implied(PHA)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+              } else {
+                code ++ List(AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, reg))
+              }
+            case Register.Y =>
+              if (cmos)
+                List(AssemblyLine.implied(PHY)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+              else
+                List(AssemblyLine.implied(TYA), AssemblyLine.implied(PHA)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+          }
+        }
+
+        (pointy, variableIndex, variableIndexSize, totalIndexSize) match {
+          case (p: ConstantPointy, None, _, _) =>
             List(AssemblyLine.absolute(store, env.genRelativeVariable(p.value + constIndex, b, zeropage = false)))
-          case (p: ConstantPointy, Some(v)) =>
+          case (p: VariablePointy, _, _, 2) =>
+            wrapWordIndexingStorage(prepareWordIndexing(ctx, p, indexExpr))
+          case (p: ConstantPointy, Some(v), 2, _) =>
+            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, if (constIndex.isProvablyZero) p.size else None), v))
+          case (p: ConstantPointy, Some(v), 1, _) =>
             storeToArrayAtUnknownIndex(v, p.value)
           //TODO: should there be a type check or a zeropage check?
-          case (pointerVariable:VariablePointy, None) =>
+          case (pointerVariable:VariablePointy, None, _, 0 | 1) =>
             register match {
               case Register.A =>
                 List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.indexedY(STA, pointerVariable.addr))
@@ -292,7 +349,7 @@ object ExpressionCompiler {
                 ErrorReporting.error("Cannot store a word in an array", target.position)
                 Nil
             }
-          case (pointerVariable:VariablePointy, Some(_)) =>
+          case (pointerVariable:VariablePointy, Some(_), _, 0 | 1) =>
             val calculatingIndex = compile(ctx, indexExpr, Some(b, RegisterVariable(Register.Y, b)), NoBranching)
             register match {
               case Register.A =>
@@ -307,6 +364,9 @@ object ExpressionCompiler {
                 ErrorReporting.error("Cannot store a word in an array", target.position)
                 Nil
             }
+          case _ =>
+            ErrorReporting.error("Invalid index for writing", indexExpr.position)
+            Nil
         }
     }
   }
@@ -570,6 +630,8 @@ object ExpressionCompiler {
         val pointy = env.getPointy(arrayName)
         // TODO: check
         val (variableIndex, constantIndex) = env.evalVariableAndConstantSubParts(indexExpr)
+        val variableIndexSize = variableIndex.map(v => getExpressionType(ctx, v).size).getOrElse(0)
+        val totalIndexSize = getExpressionType(ctx, indexExpr).size
         exprTypeAndVariable.fold(noop) { case (exprType, target) =>
 
           val register = target match {
@@ -609,12 +671,27 @@ object ExpressionCompiler {
             }
           }
 
-          val result = (pointy, variableIndex) match {
-            case (a: ConstantPointy, None) =>
+          def loadFromReg() = {
+            val reg = ctx.env.get[VariableInMemory]("__reg")
+            register match {
+              case Register.A =>
+                List(AssemblyLine.indexedY(LDA, reg))
+              case Register.X =>
+                List(AssemblyLine.indexedY(LDX, reg))
+              case Register.Y =>
+                List(AssemblyLine.indexedY(LDA, reg), AssemblyLine.implied(TAY))
+            }
+          }
+          val result = (pointy, variableIndex, totalIndexSize, variableIndexSize) match {
+            case (a: ConstantPointy, None, _, _) =>
               List(AssemblyLine.absolute(load, env.genRelativeVariable(a.value + constantIndex, b, zeropage = false)))
-            case (a: ConstantPointy, Some(v)) =>
+            case (a: ConstantPointy, Some(v), _, 1) =>
               loadFromArrayAtUnknownIndex(v, a.value)
-            case (p:VariablePointy, None) =>
+            case (a: ConstantPointy, Some(v), _, 2) =>
+              prepareWordIndexing(ctx, ConstantPointy(a.value + constantIndex, if (constantIndex.isProvablyZero) a.size else None), v) ++ loadFromReg()
+            case (a: VariablePointy, _, 2, _) =>
+              prepareWordIndexing(ctx, a, indexExpr) ++ loadFromReg()
+            case (p:VariablePointy, None, 0 | 1, _) =>
               register match {
                 case Register.A =>
                   List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedY(LDA, p.addr))
@@ -623,7 +700,7 @@ object ExpressionCompiler {
                 case Register.X =>
                   List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedY(LDX, p.addr))
               }
-            case (p:VariablePointy, Some(_)) =>
+            case (p:VariablePointy, Some(_), 0 | 1, _) =>
               val calculatingIndex = compile(ctx, indexExpr, Some(b, RegisterVariable(Register.Y, b)), NoBranching)
               register match {
                 case Register.A =>
@@ -633,6 +710,9 @@ object ExpressionCompiler {
                 case Register.Y =>
                   calculatingIndex ++ List(AssemblyLine.indexedY(LDA, p.addr), AssemblyLine.implied(TAY))
               }
+            case _ =>
+              ErrorReporting.error("Invalid index for reading", indexExpr.position)
+              Nil
           }
           register match {
             case Register.A | Register.X | Register.Y => result ++ suffix
@@ -1116,7 +1196,7 @@ object ExpressionCompiler {
     exprTypeAndVariable.fold(noop) {
       case (VoidType, _) => ???
       case (_, RegisterVariable(Register.A, _)) => noop
-      case (_, RegisterVariable(Register.AW, _)) => List(AssemblyLine.implied(XBA), AssemblyLine.implied(TAX), AssemblyLine.implied(XBA))
+      case (_, RegisterVariable(Register.AW, _)) => List(AssemblyLine.implied(XBA), AssemblyLine.implied(TXA), AssemblyLine.implied(XBA))
       case (_, RegisterVariable(Register.X, _)) => List(AssemblyLine.implied(TAX))
       case (_, RegisterVariable(Register.Y, _)) => List(AssemblyLine.implied(TAY))
       case (_, RegisterVariable(Register.AX, _)) =>

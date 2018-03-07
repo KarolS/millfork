@@ -239,6 +239,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   }
 
   def evalVariableAndConstantSubParts(e: Expression): (Option[Expression], Constant) =
+    // TODO: prevent accidental negative indexing more robustly
     e match {
       case SumExpression(params, false) =>
         val (constants, variables) = params.map { case (sign, expr) => (sign, expr, eval(expr)) }.partition(_._3.isDefined)
@@ -248,7 +249,37 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           case List((false, x, _)) => Some(x)
           case _ => Some(SumExpression(variables.map(x => (x._1, x._2)), decimal = false))
         }
-        variable -> constant
+        variable match {
+          case None => variable -> constant
+          case Some(x@VariableExpression(v)) =>
+            if (get[Variable](v).typ.isSigned) Some(FunctionCallExpression("^", List(x, LiteralExpression(0x80, 1)))) -> (constant - 128).quickSimplify
+            else variable -> constant
+          case Some(IndexedExpression(_, _)) => variable -> constant
+          case Some(LiteralExpression(_, _)) => variable -> constant
+          case Some(SumExpression(List(negative@(true, _)), false)) =>
+            Some(SumExpression(List(false -> LiteralExpression(0xff, 1), negative), decimal = false)) -> (constant - 255).quickSimplify
+          case Some(FunctionCallExpression(
+          "<<" | ">>" |
+          "<<'" | ">>'" |
+          "&" | "|" | "^" |
+          ">>>>" | "<<<<" |
+          "*" | "*'", _)) => variable -> constant
+          case Some(FunctionCallExpression(fname, _)) =>
+            maybeGet[Thing](fname) match {
+              case Some(ff: MangledFunction) =>
+                if (ff.returnType.isSigned) Some(e) -> Constant.Zero
+                else variable -> constant
+              case Some(t: Type) =>
+                if (t.isSigned) Some(e) -> Constant.Zero
+                else variable -> constant
+              case _ =>
+                // dunno what to do
+                Some(e) -> Constant.Zero
+            }
+          case _ =>
+            // dunno what to do
+            Some(e) -> Constant.Zero
+        }
       case _ => eval(e) match {
         case Some(c) => None -> c
         case None => Some(e) -> Constant.Zero

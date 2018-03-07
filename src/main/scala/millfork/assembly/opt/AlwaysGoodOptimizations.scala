@@ -156,6 +156,57 @@ object AlwaysGoodOptimizations {
       (MatchParameter(1) & MatchAddrMode(2) & Set(STA, SAX, STX, STZ)) ~~> (_.tail),
   )
 
+  private def pointlessNonimmediateStoreToTheSameVariable(ld1: Set[Opcode.Value], st1: Opcode.Value, ld2: Opcode.Value, st2: Opcode.Value) = {
+    (HasOpcodeIn(ld1) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcode(st1) & MatchAddrMode(2) & MatchParameter(3)) ~
+      (Linear & DoesntChangeIndexingInAddrMode(0) & DoesntChangeIndexingInAddrMode(2) &
+        DoesNotConcernMemoryAt(0, 1) & DoesntChangeMemoryAt(2, 3)).* ~
+      (Elidable & HasOpcode(ld2) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(st2) & MatchAddrMode(2) & MatchParameter(3)) ~~> (code => code.init),
+  }
+
+  private def pointlessImmediateStoreToTheSameVariable(match1: AssemblyLinePattern, st1: Opcode.Value, match2: AssemblyLinePattern, st2: Opcode.Value) = {
+      (HasOpcode(st1) & MatchAddrMode(2) & MatchParameter(3) & match1) ~
+      (Linear & DoesntChangeIndexingInAddrMode(2) & (
+        DoesntChangeMemoryAt(2, 3) |
+          HasAddrModeIn(Set(IndexedX, IndexedY, IndexedZ, LongIndexedY, LongIndexedZ, Indirect)) &
+          MatchParameter(3) & HasParameterWhere({
+            case MemoryAddressConstant(th) => th.name.startsWith("__")
+            case _ => false
+          })
+        )).* ~
+      (Elidable & match2 & HasOpcode(st2) & MatchAddrMode(2) & MatchParameter(3)) ~~> (code => code.init),
+  }
+
+  val PointlessStoreToTheSameVariable = new RuleBasedAssemblyOptimization("Pointless store to the same variable",
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STA, LDA, STA),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STX, LDA, STA),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDY), STY, LDA, STA),
+
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STA, LDX, STX),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STX, LDX, STX),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDY), STY, LDX, STX),
+
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STA, LDY, STY),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDA, LAX), STX, LDY, STY),
+    pointlessNonimmediateStoreToTheSameVariable(Set(LDY), STY, LDY, STY),
+
+    pointlessImmediateStoreToTheSameVariable(MatchA(0), STA, MatchA(0), STA),
+    pointlessImmediateStoreToTheSameVariable(MatchX(0), STX, MatchA(0), STA),
+    pointlessImmediateStoreToTheSameVariable(MatchY(0), STY, MatchA(0), STA),
+
+    pointlessImmediateStoreToTheSameVariable(MatchA(0), STA, MatchX(0), STX),
+    pointlessImmediateStoreToTheSameVariable(MatchX(0), STX, MatchX(0), STX),
+    pointlessImmediateStoreToTheSameVariable(MatchY(0), STY, MatchX(0), STX),
+
+    pointlessImmediateStoreToTheSameVariable(MatchA(0), STA, MatchY(0), STY),
+    pointlessImmediateStoreToTheSameVariable(MatchX(0), STX, MatchY(0), STY),
+    pointlessImmediateStoreToTheSameVariable(MatchY(0), STY, MatchY(0), STY),
+
+  )
+
   val PointlessLoadBeforeReturn = new RuleBasedAssemblyOptimization("Pointless load before return",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (Set(LDA, TXA, TYA, EOR, AND, ORA, ANC) & Elidable) ~ (LinearOrLabel & Not(ConcernsA) & Not(ReadsNOrZ) & Not(HasOpcode(DISCARD_AF))).* ~ HasOpcode(DISCARD_AF) ~~> (_.tail),
