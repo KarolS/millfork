@@ -54,7 +54,7 @@ or a split-word expression made of two simple expressions.
 Examples: `1`, `a`, `p[2]`, `p[i]`, `arr[2]`, `arr[i]`, `arr[i+2]`, `h:l`, `h[i]:l[i]`
 Such expressions have the property that the only register they may clobber is Y.
 
-* `mutable` means an expression than can be assigned to
+* `mutable` means an expression that can be assigned to
 
 ## Split-word operator
 
@@ -93,7 +93,7 @@ There are no division, remainder or modulo operators.
 * `>>>>`: shifting a 9-bit value and returning a byte; `a >>>> b` is equivalent to `(a & $1FF) >> b`, but the latter doesn't compile yet  
 `word >>>> constant byte`  
 
-* `>>>>`: shifting a byte and returning a 9-bit value; `a >>>> b` is equivalent to `(a << b) & 0x1ff` if there was no overflow, but the latter doesn't compile yet  
+* `<<<<`: shifting a byte and returning a 9-bit value; `a <<<< b` is equivalent to `(a << b) & 0x1ff` if there was no overflow, but the latter doesn't compile yet  
 `byte <<<< constant byte`  
 
 ## Decimal arithmetic operators
