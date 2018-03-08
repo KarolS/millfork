@@ -236,15 +236,14 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
       case _ =>
     }
 
-    var justAfterCode = platform.org
-    val allocator = platform.allocator
-    allocator.notifyAboutEndOfCode(platform.org)
+    val codeAllocator = new VariableAllocator(Nil, platform.codeAllocator)
+    var justAfterCode = platform.codeAllocator.startAt
     env.allPreallocatables.foreach {
       case f: NormalFunction if f.address.isEmpty && f.name == "main" =>
         val code = compiledFunctions(f.name)
         if (code.nonEmpty) {
           val size = code.map(_.sizeInBytes).sum
-          val index = allocator.allocateBytes(bank0, options, size, initialized = true, writeable = false)
+          val index = codeAllocator.allocateBytes(bank0, options, size, initialized = true, writeable = false)
           labelMap(f.name) = index
           justAfterCode = outputFunction(code, index, assembly, options)
         }
@@ -255,7 +254,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         val code = compiledFunctions(f.name)
         if (code.nonEmpty) {
           val size = code.map(_.sizeInBytes).sum
-          val index = allocator.allocateBytes(bank0, options, size, initialized = true, writeable = false)
+          val index = codeAllocator.allocateBytes(bank0, options, size, initialized = true, writeable = false)
           labelMap(f.name) = index
           justAfterCode = outputFunction(code, index, assembly, options)
         }
@@ -263,7 +262,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     }
     env.allPreallocatables.foreach {
       case InitializedArray(name, None, items) =>
-        var index = allocator.allocateBytes(bank0, options, items.size, initialized = true, writeable = true)
+        var index = codeAllocator.allocateBytes(bank0, options, items.size, initialized = true, writeable = true)
         labelMap(name) = index
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
@@ -275,7 +274,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         initializedVariablesSize += items.length
         justAfterCode = index
       case m@InitializedMemoryVariable(name, None, typ, value) =>
-        var index = allocator.allocateBytes(bank0, options, typ.size, initialized = true, writeable = true)
+        var index = codeAllocator.allocateBytes(bank0, options, typ.size, initialized = true, writeable = true)
         labelMap(name) = index
         val altName = m.name.stripPrefix(env.prefix) + "`"
         env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
@@ -290,8 +289,9 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         justAfterCode = index
       case _ =>
     }
-    allocator.notifyAboutEndOfCode(justAfterCode)
-    env.allocateVariables(None, bank0, callGraph, allocator, options, labelMap.put)
+    val variableAllocator = platform.variableAllocator
+    variableAllocator.notifyAboutEndOfCode(justAfterCode)
+    env.allocateVariables(None, bank0, callGraph, variableAllocator, options, labelMap.put)
 
     env = rootEnv.allThings
 

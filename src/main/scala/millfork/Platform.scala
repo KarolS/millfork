@@ -17,8 +17,8 @@ class Platform(
                 val flagOverrides: Map[CompilationFlag.Value, Boolean],
                 val startingModules: List[String],
                 val outputPackager: OutputPackager,
-                val allocator: VariableAllocator,
-                val org: Int,
+                val codeAllocator: UpwardByteAllocator,
+                val variableAllocator: VariableAllocator,
                 val fileExtension: String,
                 var defaultCodeBank: Int = 0,
               )
@@ -30,11 +30,11 @@ object Platform {
     Map(),
     List("c64_hardware", "c64_loader"),
     SequenceOutput(List(StartAddressOutput, AllocatedDataOutput)),
+    new UpwardByteAllocator(0x80D, 0xA000),
     new VariableAllocator(
       List(0xC1, 0xC3, 0xFB, 0xFD, 0x39, 0x3B, 0x3D, 0x43, 0x4B),
       new AfterCodeByteAllocator(0xA000)
     ),
-    0x80D,
     ".prg"
   )
 
@@ -98,11 +98,14 @@ object Platform {
       case "all" => List.tabulate(128)(_ * 2)
       case xs => xs.split("[, ]+").map(parseNumber).toList
     }
-    val byteAllocator = (as.get(classOf[String], "himem_start", ""), as.get(classOf[String], "himem_end", "")) match {
-      case ("", _) => ErrorReporting.fatal(s"Undefined himem_start")
-      case (_, "") => ErrorReporting.fatal(s"Undefined himem_end")
-      case ("after_code", end) => new AfterCodeByteAllocator(parseNumber(end) + 1)
-      case (start, end) => new UpwardByteAllocator(parseNumber(start), parseNumber(end) + 1)
+    val himemEnd = as.get(classOf[String], "himem_end", "") match {
+      case "" => ErrorReporting.fatal(s"Undefined himem_end")
+      case end => parseNumber(end) + 1
+    }
+    val byteAllocator = as.get(classOf[String], "himem_start", "") match {
+      case "" => ErrorReporting.fatal(s"Undefined himem_start")
+      case "after_code" => new AfterCodeByteAllocator(himemEnd)
+      case start => new UpwardByteAllocator(parseNumber(start), himemEnd)
     }
 
     val os = conf.getSection("output")
@@ -120,7 +123,8 @@ object Platform {
     var fileExtension = os.get(classOf[String], "extension", ".bin")
 
     new Platform(cpu, flagOverrides, startingModules, outputPackager,
-      new VariableAllocator(freePointers, byteAllocator), org,
+      new UpwardByteAllocator(org, 0xffff),
+      new VariableAllocator(freePointers, byteAllocator),
       if (fileExtension.startsWith(".")) fileExtension else "." + fileExtension)
   }
 

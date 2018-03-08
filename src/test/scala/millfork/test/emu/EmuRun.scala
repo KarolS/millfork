@@ -172,14 +172,14 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         }
         platform.cpu match {
           case millfork.Cpu.Cmos =>
-            runViaSymon(memoryBank, platform.org, CpuBehavior.CMOS_6502)
+            runViaSymon(memoryBank, platform.codeAllocator.startAt, CpuBehavior.CMOS_6502)
           case millfork.Cpu.Ricoh =>
-            runViaHalfnes(memoryBank, platform.org)
+            runViaHalfnes(memoryBank, platform.codeAllocator.startAt)
           case millfork.Cpu.Mos =>
             ErrorReporting.fatal("There's no NMOS emulator with decimal mode support")
             Timings(-1, -1) -> memoryBank
           case millfork.Cpu.StrictMos | millfork.Cpu.StrictRicoh =>
-            runViaSymon(memoryBank, platform.org, CpuBehavior.NMOS_6502)
+            runViaSymon(memoryBank, platform.codeAllocator.startAt, CpuBehavior.NMOS_6502)
           case _ =>
             ErrorReporting.trace("No emulation support for " + platform.cpu)
             Timings(-1, -1) -> memoryBank
