@@ -68,6 +68,18 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     case _ => Nil
   }.toList
 
+  def getAllFixedAddressObjects: List[(Int, Int)] = {
+    things.values.flatMap {
+      case RelativeArray(_, NumericConstant(addr, _), size) =>
+        List(addr.toInt -> size)
+      case RelativeVariable(_, NumericConstant(addr, _), typ, _) =>
+        List(addr.toInt -> typ.size)
+      case f: NormalFunction =>
+        f.environment.getAllFixedAddressObjects
+      case _ => Nil
+    }.toList
+  }
+
   def allocateVariables(nf: Option[NormalFunction], mem: MemoryBank, callGraph: CallGraph, allocator: VariableAllocator, options: CompilationOptions, onEachVariable: (String, Int) => Unit): Unit = {
     val b = get[Type]("byte")
     val p = get[Type]("pointer")

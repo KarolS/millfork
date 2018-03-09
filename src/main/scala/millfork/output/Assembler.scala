@@ -89,8 +89,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
           }
         } catch {
           case e: StackOverflowError =>
-            e.printStackTrace()
-            ErrorReporting.fatal("Stack overflow")
+            ErrorReporting.fatal("Stack overflow " + c)
         }
       case HalfWordConstant(cc, true) => deepConstResolve(cc).>>>(8).&(0xff)
       case HalfWordConstant(cc, false) => deepConstResolve(cc).&(0xff)
@@ -212,12 +211,14 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         assembly.append(name)
         for (item <- items) {
           writeByte(0, index, item)
-          assembly.append("    !byte " + item)
           bank0.occupied(index) = true
           bank0.initialized(index) = true
           bank0.writeable(index) = true
           bank0.readable(index) = true
           index += 1
+        }
+        items.grouped(16).foreach {group =>
+          assembly.append("    !byte " + group.mkString(", "))
         }
         initializedVariablesSize += items.length
       case InitializedArray(name, Some(_), items) => ???
@@ -268,8 +269,10 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         assembly.append(name)
         for (item <- items) {
           writeByte(0, index, item)
-          assembly.append("    !byte " + item)
           index += 1
+        }
+        items.grouped(16).foreach {group =>
+          assembly.append("    !byte " + group.mkString(", "))
         }
         initializedVariablesSize += items.length
         justAfterCode = index
@@ -288,6 +291,11 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         initializedVariablesSize += typ.size
         justAfterCode = index
       case _ =>
+    }
+    env.getAllFixedAddressObjects.foreach {
+      case (addr, size) =>
+        println(addr)
+        for(i <- 0 until size) bank0.occupied(addr + i) = true
     }
     val variableAllocator = platform.variableAllocator
     variableAllocator.notifyAboutEndOfCode(justAfterCode)

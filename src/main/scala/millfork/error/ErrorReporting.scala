@@ -31,6 +31,7 @@ object ErrorReporting {
     flushOutput()
   }
 
+  @inline
   private def flushOutput(): Unit = {
     System.out.flush()
     System.err.flush()
@@ -55,6 +56,7 @@ object ErrorReporting {
     hasErrors = true
     println("FATAL: " + f(position) + msg)
     flushOutput()
+    System.exit(1)
     throw new RuntimeException(msg)
   }
 
