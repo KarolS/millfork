@@ -11,24 +11,24 @@ object FlowAnalyzerForImmediate {
     NOP -> ((_, c) => c),
     REP -> {(nn, c) =>
       var currentStatus = c
-      if ((nn & 1) != 0) currentStatus.copy(c = Status.SingleFalse)
-      if ((nn & 2) != 0) currentStatus.copy(z = Status.SingleFalse)
-      if ((nn & 8) != 0) currentStatus.copy(d = Status.SingleFalse)
-      if ((nn & 0x10) != 0) currentStatus.copy(w = Status.SingleFalse)
-      if ((nn & 0x20) != 0) currentStatus.copy(m = Status.SingleFalse)
-      if ((nn & 0x40) != 0) currentStatus.copy(v = Status.SingleFalse)
-      if ((nn & 0x80) != 0) currentStatus.copy(n = Status.SingleFalse)
+      if ((nn & 1) != 0) currentStatus = currentStatus.copy(c = Status.SingleFalse)
+      if ((nn & 2) != 0) currentStatus = currentStatus.copy(z = Status.SingleFalse)
+      if ((nn & 8) != 0) currentStatus = currentStatus.copy(d = Status.SingleFalse)
+      if ((nn & 0x10) != 0) currentStatus = currentStatus.copy(w = Status.SingleFalse)
+      if ((nn & 0x20) != 0) currentStatus = currentStatus.copy(m = Status.SingleFalse)
+      if ((nn & 0x40) != 0) currentStatus = currentStatus.copy(v = Status.SingleFalse)
+      if ((nn & 0x80) != 0) currentStatus = currentStatus.copy(n = Status.SingleFalse)
       currentStatus
     },
     SEP -> {(nn, c) =>
       var currentStatus = c
-      if ((nn & 1) != 0) currentStatus.copy(c = Status.SingleTrue)
-      if ((nn & 2) != 0) currentStatus.copy(z = Status.SingleTrue)
-      if ((nn & 8) != 0) currentStatus.copy(d = Status.SingleTrue)
-      if ((nn & 0x10) != 0) currentStatus.copy(w = Status.SingleTrue)
-      if ((nn & 0x20) != 0) currentStatus.copy(m = Status.SingleTrue)
-      if ((nn & 0x40) != 0) currentStatus.copy(v = Status.SingleTrue)
-      if ((nn & 0x80) != 0) currentStatus.copy(n = Status.SingleTrue)
+      if ((nn & 1) != 0) currentStatus = currentStatus.copy(c = Status.SingleTrue)
+      if ((nn & 2) != 0) currentStatus = currentStatus.copy(z = Status.SingleTrue)
+      if ((nn & 8) != 0) currentStatus = currentStatus.copy(d = Status.SingleTrue)
+      if ((nn & 0x10) != 0) currentStatus = currentStatus.copy(w = Status.SingleTrue)
+      if ((nn & 0x20) != 0) currentStatus = currentStatus.copy(m = Status.SingleTrue)
+      if ((nn & 0x40) != 0) currentStatus = currentStatus.copy(v = Status.SingleTrue)
+      if ((nn & 0x80) != 0) currentStatus = currentStatus.copy(n = Status.SingleTrue)
       currentStatus
     },
     LDX -> {(nn, currentStatus) =>

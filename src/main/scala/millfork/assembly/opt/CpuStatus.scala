@@ -73,8 +73,9 @@ object Status {
 
   val SingleTrue: Status[Boolean] = SingleStatus(true)
   val SingleFalse: Status[Boolean] = SingleStatus(false)
-  val SingleZero: Status[Int] = Status.SingleZero
-  val SingleFF: Status[Int] = Status.SingleFF
+  val SingleZero: Status[Int] = SingleStatus(0)
+  val SingleFF: Status[Int] = SingleStatus(0xff)
+
   @inline
   private def wrapBool(b: Boolean) = if (b) SingleTrue else SingleFalse
 
@@ -250,6 +251,20 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      m: Status[Boolean] = UnknownStatus,
                      w: Status[Boolean] = UnknownStatus
                     ) {
+  assert(a ne null)
+  assert(ah ne null)
+  assert(x ne null)
+  assert(y ne null)
+  assert(iz ne null)
+  assert(z ne null)
+  assert(n ne null)
+  assert(v ne null)
+  assert(c ne null)
+  assert(d ne null)
+  assert(m ne null)
+  assert(w ne null)
+  assert(a0 ne null)
+  assert(a7 ne null)
 
   override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; A7=$a7,A0=$a0,NZ:$src"
 

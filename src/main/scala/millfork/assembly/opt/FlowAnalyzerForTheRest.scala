@@ -17,6 +17,12 @@ object FlowAnalyzerForTheRest {
     DISCARD_AF -> identity,
     DISCARD_XF -> identity,
     DISCARD_YF -> identity,
+    REP -> (currentStatus => {
+      currentStatus.copy(c = AnyStatus, d = AnyStatus, n = AnyStatus, z= AnyStatus, v = AnyStatus, m = AnyStatus, w = AnyStatus)
+    }),
+    SEP -> (currentStatus => {
+      currentStatus.copy(c = AnyStatus, d = AnyStatus, n = AnyStatus, z= AnyStatus, v = AnyStatus, m = AnyStatus, w = AnyStatus)
+    }),
     BCC -> (currentStatus => {
       currentStatus.copy(c = Status.SingleTrue)
     }),
@@ -31,17 +37,17 @@ object FlowAnalyzerForTheRest {
     }),
     BMI -> (c => {
       var currentStatus = c
-      currentStatus.copy(n = Status.SingleFalse)
+      currentStatus = currentStatus.copy(n = Status.SingleFalse)
       if (currentStatus.src.isFromA) {
-        currentStatus.copy(a7 = Status.SingleTrue)
+        currentStatus = currentStatus.copy(a7 = Status.SingleTrue)
       }
       currentStatus
     }),
     BPL -> (c => {
       var currentStatus = c
-      currentStatus.copy(n = Status.SingleTrue)
+      currentStatus = currentStatus.copy(n = Status.SingleTrue)
       if (currentStatus.src.isFromA) {
-        currentStatus.copy(a7 = Status.SingleFalse)
+        currentStatus = currentStatus.copy(a7 = Status.SingleFalse)
       }
       currentStatus
     }),
@@ -50,25 +56,25 @@ object FlowAnalyzerForTheRest {
     }),
     BNE -> (c => {
       var currentStatus = c
-      currentStatus.copy(z = Status.SingleTrue)
+      currentStatus = currentStatus.copy(z = Status.SingleTrue)
       if (currentStatus.src.isFromA) {
-        currentStatus.copy(a7 = Status.SingleFalse, a0 = Status.SingleFalse, a = Status.SingleZero)
+        currentStatus = currentStatus.copy(a7 = Status.SingleFalse, a0 = Status.SingleFalse, a = Status.SingleZero)
       }
       if (currentStatus.src.isFromAW) {
-        currentStatus.copy(
+        currentStatus = currentStatus.copy(
           a7 = Status.SingleFalse,
           a0 = Status.SingleFalse,
           a = Status.SingleZero,
           ah = Status.SingleZero)
       }
       if (currentStatus.src.isFromX) {
-        currentStatus.copy(x = Status.SingleZero)
+        currentStatus = currentStatus.copy(x = Status.SingleZero)
       }
       if (currentStatus.src.isFromY) {
-        currentStatus.copy(y = Status.SingleZero)
+        currentStatus = currentStatus.copy(y = Status.SingleZero)
       }
       if (currentStatus.src.isFromIZ) {
-        currentStatus.copy(iz = Status.SingleZero)
+        currentStatus = currentStatus.copy(iz = Status.SingleZero)
       }
       currentStatus
     }),
