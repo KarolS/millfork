@@ -330,7 +330,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   //  def zeropageAddrModeHint: P[Option[Boolean]] = Pass
 
-  def asmOpcode: P[Opcode.Value] = (position() ~ letter.rep(exactly = 3).!).map { case (p, o) => Opcode.lookup(o, Some(p)) }
+  def asmOpcode: P[Opcode.Value] = (position() ~ letter.rep(exactly = 3).! ~ ("_W" | "_w").?.!).map { case (p, suffix, o) => Opcode.lookup(o + suffix, Some(p)) }
 
   def asmExpression: P[Expression] = (position() ~ NoCut(
     ("<" ~/ HWS ~ mlExpression(mathLevel)).map(e => HalfWordExpression(e, hiByte = false)) |
@@ -338,20 +338,26 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       mlExpression(mathLevel)
   )).map { case (p, e) => e.pos(p) }
 
-  val commaX = HWS ~ "," ~ HWS ~ ("X" | "x") ~ HWS
-  val commaY = HWS ~ "," ~ HWS ~ ("Y" | "y") ~ HWS
-  val commaZ = HWS ~ "," ~ HWS ~ ("Z" | "z") ~ HWS
-  val commaS = HWS ~ "," ~ HWS ~ ("S" | "s") ~ HWS
+  private val commaX = HWS ~ "," ~ HWS ~ ("X" | "x") ~ HWS
+  private val commaY = HWS ~ "," ~ HWS ~ ("Y" | "y") ~ HWS
+  private val commaZ = HWS ~ "," ~ HWS ~ ("Z" | "z") ~ HWS
+  private val commaS = HWS ~ "," ~ HWS ~ ("S" | "s") ~ HWS
+
+  val farKeyword: P[Unit] = P(("f" | "F") ~ ("a" | "A") ~ ("r" | "R"))
 
   def asmParameter: P[(AddrMode.Value, Expression)] = {
     (SWS ~ (
       ("##" ~ asmExpression).map(AddrMode.WordImmediate -> _) |
       ("#" ~ asmExpression).map(AddrMode.Immediate -> _) |
         ("(" ~ HWS ~ asmExpression ~ HWS ~ ")" ~ commaY).map(AddrMode.IndexedY -> _) |
+        (farKeyword ~ HWS ~ "(" ~ HWS ~ asmExpression ~ HWS ~ ")" ~ commaY).map(AddrMode.LongIndexedY -> _) |
         ("(" ~ HWS ~ asmExpression ~ commaS ~ ")" ~ commaY).map(AddrMode.IndexedSY -> _) |
         ("(" ~ HWS ~ asmExpression ~ HWS ~ ")" ~ commaZ).map(AddrMode.IndexedZ -> _) |
         ("(" ~ HWS ~ asmExpression ~ commaX ~ ")").map(AddrMode.IndexedX -> _) |
         ("(" ~ HWS ~ asmExpression ~ HWS ~ ")").map(AddrMode.Indirect -> _) |
+        (farKeyword ~ HWS ~ "(" ~ HWS ~ asmExpression ~ HWS ~ ")").map(AddrMode.LongIndexedZ -> _) |
+        (farKeyword ~ HWS ~ asmExpression ~ commaX).map(AddrMode.LongAbsoluteX -> _) |
+        (farKeyword ~ HWS ~ asmExpression).map(AddrMode.LongAbsolute -> _) |
         (asmExpression ~ commaS).map(AddrMode.Stack -> _) |
         (asmExpression ~ commaX).map(AddrMode.AbsoluteX -> _) |
         (asmExpression ~ commaY).map(AddrMode.AbsoluteY -> _) |
@@ -369,6 +375,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
         case (Opcode.SBX, AddrMode.Immediate) => AssemblyStatement(Opcode.SBX, param._1, param._2, elid)
         case (Opcode.SAY, AddrMode.AbsoluteX) => AssemblyStatement(Opcode.SHY, param._1, param._2, elid)
         case (Opcode.SBX, _) => AssemblyStatement(Opcode.SAX, param._1, param._2, elid)
+        case (_, AddrMode.Indirect) if op != Opcode.JMP && op != Opcode.JSR => AssemblyStatement(op, AddrMode.IndexedZ, param._2, elid)
         case _ => AssemblyStatement(op, param._1, param._2, elid)
       }
     }

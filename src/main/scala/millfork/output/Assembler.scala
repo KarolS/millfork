@@ -294,7 +294,6 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     }
     env.getAllFixedAddressObjects.foreach {
       case (addr, size) =>
-        println(addr)
         for(i <- 0 until size) bank0.occupied(addr + i) = true
     }
     val variableAllocator = platform.variableAllocator
