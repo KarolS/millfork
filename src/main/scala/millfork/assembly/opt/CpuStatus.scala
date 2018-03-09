@@ -126,12 +126,12 @@ object Status {
   implicit class IntStatusOps(val inner: Status[Int]) extends AnyVal {
 
     def bit0: Status[Boolean] = inner match {
-      case SingleStatus(x) => SingleStatus((x & 1) == 0)
+      case SingleStatus(x) => SingleStatus((x & 1) != 0)
       case _ => AnyStatus
     }
 
     def bit7: Status[Boolean] = inner match {
-      case SingleStatus(x) => SingleStatus((x & 0x80) == 0)
+      case SingleStatus(x) => SingleStatus((x & 0x80) != 0)
       case _ => AnyStatus
     }
 
@@ -251,20 +251,38 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      m: Status[Boolean] = UnknownStatus,
                      w: Status[Boolean] = UnknownStatus
                     ) {
-  assert(a ne null)
-  assert(ah ne null)
-  assert(x ne null)
-  assert(y ne null)
-  assert(iz ne null)
-  assert(z ne null)
-  assert(n ne null)
-  assert(v ne null)
-  assert(c ne null)
-  assert(d ne null)
-  assert(m ne null)
-  assert(w ne null)
-  assert(a0 ne null)
-  assert(a7 ne null)
+//  assert(a ne null)
+//  assert(ah ne null)
+//  assert(x ne null)
+//  assert(y ne null)
+//  assert(iz ne null)
+//  assert(z ne null)
+//  assert(n ne null)
+//  assert(v ne null)
+//  assert(c ne null)
+//  assert(d ne null)
+//  assert(m ne null)
+//  assert(w ne null)
+//  assert(a0 ne null)
+//  assert(a7 ne null)
+//  (a, a7) match {
+//    case (SingleStatus(o), SingleStatus(b7)) => if (o.&(0x80).!=(0).!=(b7)) {
+//      println(a)
+//      println(a7)
+//      println(a0)
+//      ???
+//    }
+//    case _ =>
+//  }
+//  (a, a0) match {
+//    case (SingleStatus(o), SingleStatus(b0)) => if (o.&(1).!=(0).!=(b0)) {
+//      println(a)
+//      println(a7)
+//      println(a0)
+//      ???
+//    }
+//    case _ =>
+//  }
 
   override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; A7=$a7,A0=$a0,NZ:$src"
 

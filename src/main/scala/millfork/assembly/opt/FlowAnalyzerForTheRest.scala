@@ -39,7 +39,7 @@ object FlowAnalyzerForTheRest {
       var currentStatus = c
       currentStatus = currentStatus.copy(n = Status.SingleFalse)
       if (currentStatus.src.isFromA) {
-        currentStatus = currentStatus.copy(a7 = Status.SingleTrue)
+        currentStatus = currentStatus.copy(a = currentStatus.a.flatMap(aa => if (aa.&(0x80)!=0) SingleStatus(aa) else AnyStatus), a7 = Status.SingleTrue)
       }
       currentStatus
     }),
@@ -47,7 +47,7 @@ object FlowAnalyzerForTheRest {
       var currentStatus = c
       currentStatus = currentStatus.copy(n = Status.SingleTrue)
       if (currentStatus.src.isFromA) {
-        currentStatus = currentStatus.copy(a7 = Status.SingleFalse)
+        currentStatus = currentStatus.copy(a = currentStatus.a.flatMap(aa => if (aa.&(0x80)==0) SingleStatus(aa) else AnyStatus), a7 = Status.SingleFalse)
       }
       currentStatus
     }),
