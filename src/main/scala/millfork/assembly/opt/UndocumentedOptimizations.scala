@@ -24,45 +24,45 @@ object UndocumentedOptimizations {
   val UseLax = new RuleBasedAssemblyOptimization("Using undocumented instruction LAX",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     (HasOpcode(LDA) & Elidable & MatchAddrMode(0) & MatchParameter(1) & LaxAddrModeRestriction) ~
-      (LinearOrLabel & Not(ConcernsA) & Not(ChangesMemory) & Not(HasOpcode(LDX))).*.capture(2) ~
+      (LinearOrLabel & Not(ConcernsA) & Not(ChangesMemory) & Not(HasOpcode(LDX)) & DoesntChangeIndexingInAddrMode(0)).*.capture(2) ~
       (HasOpcode(LDX) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       ctx.get[List[AssemblyLine]](2) :+ code.head.copy(opcode = LAX)
     },
     (HasOpcode(LDX) & Elidable & MatchAddrMode(0) & MatchParameter(1) & LaxAddrModeRestriction) ~
-      (LinearOrLabel & Not(ConcernsX) & Not(ChangesMemory) & Not(HasOpcode(LDA))).*.capture(2) ~
+      (LinearOrLabel & Not(ConcernsX) & Not(ChangesMemory) & Not(HasOpcode(LDA)) & DoesntChangeIndexingInAddrMode(0)).*.capture(2) ~
       (HasOpcode(LDA) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       ctx.get[List[AssemblyLine]](2) :+ code.head.copy(opcode = LAX)
     },
 
-    (HasOpcode(LDA) & Elidable & LaxAddrModeRestriction) ~
-      (LinearOrLabel & Not(ConcernsA) & Not(ChangesMemory) & Not(HasOpcode(TAX))).*.capture(2) ~
+    (HasOpcode(LDA) & Elidable & MatchAddrMode(0) & LaxAddrModeRestriction) ~
+      (LinearOrLabel & Not(ConcernsA) & Not(ChangesMemory) & Not(HasOpcode(TAX)) & DoesntChangeIndexingInAddrMode(0)).*.capture(2) ~
       (HasOpcode(TAX) & Elidable) ~~> { (code, ctx) =>
       ctx.get[List[AssemblyLine]](2) :+ code.head.copy(opcode = LAX)
     },
-    (HasOpcode(LDX) & Elidable & LaxAddrModeRestriction) ~
-      (LinearOrLabel & Not(ConcernsX) & Not(ChangesMemory) & Not(HasOpcode(TXA))).*.capture(2) ~
+    (HasOpcode(LDX) & Elidable & MatchAddrMode(0) & LaxAddrModeRestriction) ~
+      (LinearOrLabel & Not(ConcernsX) & Not(ChangesMemory) & Not(HasOpcode(TXA)) & DoesntChangeIndexingInAddrMode(0)).*.capture(2) ~
       (HasOpcode(TXA) & Elidable) ~~> { (code, ctx) =>
       ctx.get[List[AssemblyLine]](2) :+ code.head.copy(opcode = LAX)
     },
 
     (HasOpcode(LDA) & Elidable & MatchAddrMode(0) & MatchParameter(1) & LaxAddrModeRestriction) ~
-      (LinearOrLabel & Not(ConcernsX) & Not(ChangesA) & Not(ChangesMemory) & Not(HasOpcode(LDX))).*.capture(2) ~
+      (LinearOrLabel & Not(ConcernsX) & Not(ChangesA) & Not(ChangesMemory) & Not(HasOpcode(LDX)) & DoesntChangeIndexingInAddrMode(0)).*.capture(2) ~
       (HasOpcode(LDX) & Elidable & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> { (code, ctx) =>
       code.head.copy(opcode = LAX) :: ctx.get[List[AssemblyLine]](2)
     },
     (HasOpcode(LDX) & Elidable & MatchAddrMode(0) & MatchParameter(1) & LaxAddrModeRestriction) ~
-      (LinearOrLabel & Not(ConcernsA) & Not(ChangesX) & Not(ChangesMemory) & Not(HasOpcode(LDA))).*.capture(2) ~
+      (LinearOrLabel & Not(ConcernsA) & Not(ChangesX) & Not(ChangesMemory) & Not(HasOpcode(LDA)) & DoesntChangeIndexingInAddrMode(0)).*.capture(2) ~
       (HasOpcode(LDA) & Elidable & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> { (code, ctx) =>
       code.head.copy(opcode = LAX) :: ctx.get[List[AssemblyLine]](2)
     },
 
-    (HasOpcode(LDA) & Elidable & LaxAddrModeRestriction) ~
-      (LinearOrLabel & Not(ConcernsX) & Not(ChangesA) & Not(ChangesMemory) & Not(HasOpcode(TAX))).*.capture(2) ~
+    (HasOpcode(LDA) & Elidable & MatchAddrMode(0) & LaxAddrModeRestriction) ~
+      (LinearOrLabel & Not(ConcernsX) & Not(ChangesA) & Not(ChangesMemory) & Not(HasOpcode(TAX)) & DoesntChangeIndexingInAddrMode(0)).*.capture(2) ~
       (HasOpcode(TAX) & Elidable & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> { (code, ctx) =>
       code.head.copy(opcode = LAX) :: ctx.get[List[AssemblyLine]](2)
     },
-    (HasOpcode(LDX) & Elidable & LaxAddrModeRestriction) ~
-      (LinearOrLabel & Not(ConcernsA) & Not(ChangesX) & Not(ChangesMemory) & Not(HasOpcode(TXA))).*.capture(2) ~
+    (HasOpcode(LDX) & Elidable & MatchAddrMode(0) & LaxAddrModeRestriction) ~
+      (LinearOrLabel & Not(ConcernsA) & Not(ChangesX) & Not(ChangesMemory) & Not(HasOpcode(TXA)) & DoesntChangeIndexingInAddrMode(0)).*.capture(2) ~
       (HasOpcode(TXA) & Elidable & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> { (code, ctx) =>
       code.head.copy(opcode = LAX) :: ctx.get[List[AssemblyLine]](2)
     },
