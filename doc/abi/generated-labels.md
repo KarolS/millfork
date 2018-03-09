@@ -36,6 +36,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `is` – optimized addition of carry using undocumented instructions
 
+* `no` – nonet to word extension caused by the `nonet` operator
+
 * `od` – end of  a `do-while` statement
 
 * `or` – logical alternative short-circuiting

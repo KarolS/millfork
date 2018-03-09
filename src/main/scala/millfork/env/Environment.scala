@@ -841,5 +841,5 @@ class Environment(val parent: Option[Environment], val prefix: String) {
 }
 
 object Environment {
-  val predefinedFunctions = Set("not", "hi", "lo")
+  val predefinedFunctions = Set("not", "hi", "lo", "nonet")
 }

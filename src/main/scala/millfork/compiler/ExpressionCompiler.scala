@@ -39,6 +39,7 @@ object ExpressionCompiler {
         if (getExpressionType(ctx, lo).size > 1) ErrorReporting.error("Lo byte too large", lo.position)
         w
       case SumExpression(params, _) => b
+      case FunctionCallExpression("nonet", params) => w
       case FunctionCallExpression("not", params) => bool
       case FunctionCallExpression("hi", params) => bool
       case FunctionCallExpression("lo", params) => bool
@@ -805,6 +806,32 @@ object ExpressionCompiler {
                 } else compilation
               }
             }
+          case "nonet" =>
+            if (params.length != 1) {
+              ErrorReporting.error("Invalid number of parameters", f.position)
+              Nil
+            } else {
+              assertAllBytes("Nonet argument has to be a byte", ctx, params)
+              params.head match {
+                case SumExpression(addends, _) =>
+                  if (addends.exists(a => !a._1)) {
+                    ErrorReporting.warn("Nonet subtraction may not work as expected", ctx.options, expr.position)
+                  }
+                  if (addends.size > 2) {
+                    ErrorReporting.warn("Nonet addition works correctly only for two operands", ctx.options, expr.position)
+                  }
+                case FunctionCallExpression("+" | "+'" | "<<" | "<<<<" | "<<'" | "nonet", _) => // ok
+                case _ =>
+                  ErrorReporting.warn("Unspecified nonet operation, results might be unpredictable", ctx.options, expr.position)
+              }
+              val label = MfCompiler.nextLabel("no")
+              compile(ctx, params.head, Some(b -> RegisterVariable(Register.A, b)), BranchSpec.None) ++ List(
+                AssemblyLine.immediate(LDX, 0),
+                AssemblyLine.relative(BCC, label),
+                AssemblyLine.implied(INX),
+                AssemblyLine.label(label)
+              ) ++ expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+            }
           case "&&" =>
             assertBool(ctx, params, 2)
             val a = params.head
@@ -851,6 +878,7 @@ object ExpressionCompiler {
                 BuiltIns.compileNonetOps(ctx, v, r)
             }
           case "<<<<" =>
+            ErrorReporting.warn("`x <<<< y` is obsolete, use `nonet(x << y)`", ctx.options, expr.position)
             assertAllBytes("Long shift ops not supported", ctx, params)
             val (l, r, 1) = assertBinary(ctx, params)
             BuiltIns.compileNonetLeftShift(ctx, l, r)

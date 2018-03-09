@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.EmuUnoptimizedRun
+import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -28,7 +28,7 @@ class NonetSuite extends FunSuite with Matchers {
   }
 
   test("Nonet left shift") {
-    val m = EmuUnoptimizedRun(
+    EmuBenchmarkRun(
       """
         | word output0 @$c000
         | word output1 @$c002
@@ -42,10 +42,34 @@ class NonetSuite extends FunSuite with Matchers {
         |   output2 = a <<<< 6
         |   output3 = a <<<< 7
         | }
-      """.stripMargin)
+      """.stripMargin) { m =>
       m.readWord(0xc000) should equal(0x06)
       m.readWord(0xc002) should equal(0x0C)
       m.readWord(0xc004) should equal(0xC0)
       m.readWord(0xc006) should equal(0x180)
+    }
+  }
+
+  test("Nonet left shift 2") {
+    EmuBenchmarkRun(
+      """
+        | word output0 @$c000
+        | word output1 @$c002
+        | word output2 @$c004
+        | word output3 @$c006
+        | void main () {
+        |   byte a
+        |   a = 3
+        |   output0 = nonet(a << 1)
+        |   output1 = nonet(a << 2)
+        |   output2 = nonet(a << 6)
+        |   output3 = nonet(a << 7)
+        | }
+      """.stripMargin) { m =>
+      m.readWord(0xc000) should equal(0x06)
+      m.readWord(0xc002) should equal(0x0C)
+      m.readWord(0xc004) should equal(0xC0)
+      m.readWord(0xc006) should equal(0x180)
+    }
   }
 }
