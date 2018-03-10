@@ -52,6 +52,22 @@ but you need to be careful with using absolute vs immediate addressing:
 Any assembly opcode can be prefixed with `?`, which allows the optimizer change it or elide it if needed.
 Opcodes without that prefix will be always compiled as written.
 
+You can insert macros into assembly, by prefixing them with `+` and using the same syntax as in Millfork:
+
+    macro void run(byte x) {
+        output = x
+    }
+    
+    byte output @$c000
+    
+    void main () {
+        byte a
+        a = 7
+        asm {
+            + run(a)
+        }
+    } 
+
 Currently there is no way to insert raw bytes into inline assembly 
 (required for certain optimizations and calling conventions).
 
