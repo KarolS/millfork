@@ -132,4 +132,36 @@ class WordMathSuite extends FunSuite with Matchers {
       m.readByte(0xc006) should equal(0)
     }
   }
+
+  test("Word addition 2") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   word v
+        |   v = w($482)
+        |   output = v + w($482) - 3
+        | }
+        | noinline word w(word w) {
+        |   return w
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(0x901)
+    }
+  }
+
+  test("Word bit ops 2") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   word v
+        |   v = w($692)
+        |   output = (v & w($ca2)) | 3
+        | }
+        | noinline word w(word w) {
+        |   return w
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(0x483)
+    }
+  }
 }

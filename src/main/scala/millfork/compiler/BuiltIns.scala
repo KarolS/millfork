@@ -182,7 +182,7 @@ object BuiltIns {
     val firstParamCompiled = ExpressionCompiler.compile(ctx, l, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
     ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
-        Nil
+        ExpressionCompiler.compile(ctx, l, None, NoBranching)
       case Some(NumericConstant(v, _)) if v > 0 =>
         firstParamCompiled ++ List.fill(v.toInt)(AssemblyLine.implied(opcode))
       case _ =>
@@ -216,6 +216,7 @@ object BuiltIns {
     }
   }
 
+  @deprecated
   def compileNonetLeftShift(ctx: CompilationContext, lhs: Expression, rhs: Expression): List[AssemblyLine] = {
     val label = MfCompiler.nextLabel("sh")
     compileShiftOps(ASL, ctx, lhs, rhs) ++ List(
@@ -506,9 +507,9 @@ object BuiltIns {
     val b = ctx.env.get[Type]("byte")
     ctx.env.eval(addend) match {
       case Some(NumericConstant(0, _)) =>
-        AssemblyLine.immediate(LDA, 0) :: ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
+        ExpressionCompiler.compile(ctx, v, None, NoBranching) ++ (AssemblyLine.immediate(LDA, 0) :: ExpressionCompiler.compileByteStorage(ctx, Register.A, v))
       case Some(NumericConstant(1, _)) =>
-        Nil
+        ExpressionCompiler.compile(ctx, v, None, NoBranching)
       case Some(NumericConstant(x, _)) =>
         compileByteMultiplication(ctx, v, x.toInt) ++ ExpressionCompiler.compileByteStorage(ctx, Register.A, v)
       case _ =>
@@ -575,7 +576,7 @@ object BuiltIns {
       case _ => false
     }
     env.eval(addend) match {
-      case Some(NumericConstant(0, _)) => Nil
+      case Some(NumericConstant(0, _)) => ExpressionCompiler.compile(ctx, v, None, NoBranching)
       case Some(NumericConstant(1, _)) if lhsIsDirectlyIncrementable && !decimal => if (subtract) {
         simpleOperation(DEC, ctx, v, IndexChoice.RequireX, preserveA = false, commutative = true)
       } else {
@@ -653,7 +654,7 @@ object BuiltIns {
 
     val (calculateRhs, addendByteRead0): (List[AssemblyLine], List[List[AssemblyLine]]) = env.eval(addend) match {
       case Some(NumericConstant(0, _)) =>
-        return Nil
+        return ExpressionCompiler.compile(ctx, lhs, None, NoBranching)
       case Some(NumericConstant(1, _)) if canUseIncDec && !subtract =>
         if (ctx.options.flags(CompilationFlag.Emit65CE02Opcodes)) {
           targetBytes match {
@@ -968,7 +969,7 @@ object BuiltIns {
       case (EOR, Some(NumericConstant(0, _)))
            | (ORA, Some(NumericConstant(0, _)))
            | (AND, Some(NumericConstant(AllOnes, _))) =>
-        Nil
+        ExpressionCompiler.compile(ctx, lhs, None, NoBranching)
       case _ =>
         val buffer = mutable.ListBuffer[AssemblyLine]()
         buffer ++= calculateRhs

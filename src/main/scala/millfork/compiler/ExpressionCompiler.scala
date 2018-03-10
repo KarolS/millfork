@@ -38,15 +38,21 @@ object ExpressionCompiler {
         if (getExpressionType(ctx, hi).size > 1) ErrorReporting.error("Hi byte too large", hi.position)
         if (getExpressionType(ctx, lo).size > 1) ErrorReporting.error("Lo byte too large", lo.position)
         w
-      case SumExpression(params, _) => b
+      case SumExpression(params, _) => params.map { case (_, e) => getExpressionType(ctx, e).size }.max match {
+        case 1 => b
+        case 2 => w
+        case _ => ErrorReporting.error("Adding values bigger than words", expr.position); w
+      }
       case FunctionCallExpression("nonet", params) => w
       case FunctionCallExpression("not", params) => bool
-      case FunctionCallExpression("hi", params) => bool
-      case FunctionCallExpression("lo", params) => bool
+      case FunctionCallExpression("hi", params) => b
+      case FunctionCallExpression("lo", params) => b
       case FunctionCallExpression("*", params) => b
-      case FunctionCallExpression("|", params) => b
-      case FunctionCallExpression("&", params) => b
-      case FunctionCallExpression("^", params) => b
+      case FunctionCallExpression("|" | "&" | "^", params) => params.map { e => getExpressionType(ctx, e).size }.max match {
+        case 1 => b
+        case 2 => w
+        case _ => ErrorReporting.error("Adding values bigger than words", expr.position); w
+      }
       case FunctionCallExpression("<<", List(a1, a2)) =>
         if (getExpressionType(ctx, a2).size > 1) ErrorReporting.error("Shift amount too large", a2.position)
         getExpressionType(ctx, a1)
@@ -633,7 +639,7 @@ object ExpressionCompiler {
         val (variableIndex, constantIndex) = env.evalVariableAndConstantSubParts(indexExpr)
         val variableIndexSize = variableIndex.map(v => getExpressionType(ctx, v).size).getOrElse(0)
         val totalIndexSize = getExpressionType(ctx, indexExpr).size
-        exprTypeAndVariable.fold(noop) { case (exprType, target) =>
+        exprTypeAndVariable.fold(compile(ctx, indexExpr, None, BranchSpec.None)) { case (exprType, target) =>
 
           val register = target match {
             case RegisterVariable(r, _) => r
@@ -734,10 +740,16 @@ object ExpressionCompiler {
             }
           exprTypeAndVariable.map(x => compileConstant(ctx, value.quickSimplify, x._2)).getOrElse(Nil)
         } else {
-          assertAllBytesForSum("Long addition not supported", ctx, params)
-          val calculate = BuiltIns.compileAddition(ctx, params, decimal = decimal)
-          val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
-          calculate ++ store
+          getSumSize(ctx, params) match {
+            case 1 =>
+              val calculate = BuiltIns.compileAddition(ctx, params, decimal = decimal)
+              val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+              calculate ++ store
+            case 2 =>
+              val calculate = PseudoregisterBuiltIns.compileWordAdditionToAX(ctx, params, decimal = decimal)
+              val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+              calculate ++ store
+          }
         }
       case SeparateBytesExpression(h, l) =>
         exprTypeAndVariable.fold {
@@ -830,7 +842,7 @@ object ExpressionCompiler {
                 AssemblyLine.relative(BCC, label),
                 AssemblyLine.implied(INX),
                 AssemblyLine.label(label)
-              ) ++ expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+              )
             }
           case "&&" =>
             assertBool(ctx, params, 2)
@@ -860,17 +872,23 @@ object ExpressionCompiler {
             }
           case "^^" => ???
           case "&" =>
-            assertAllBytes("Long bit ops not supported", ctx, params)
-            BuiltIns.compileBitOps(AND, ctx, params)
+            getParamMaxSize(ctx, params) match {
+              case 1 => BuiltIns.compileBitOps(AND, ctx, params)
+              case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, AND)
+            }
           case "*" =>
             assertAllBytes("Long multiplication not supported", ctx, params)
             BuiltIns.compileByteMultiplication(ctx, params)
           case "|" =>
-            assertAllBytes("Long bit ops not supported", ctx, params)
-            BuiltIns.compileBitOps(ORA, ctx, params)
+            getParamMaxSize(ctx, params) match {
+              case 1 => BuiltIns.compileBitOps(ORA, ctx, params)
+              case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, ORA)
+            }
           case "^" =>
-            assertAllBytes("Long bit ops not supported", ctx, params)
-            BuiltIns.compileBitOps(EOR, ctx, params)
+            getParamMaxSize(ctx, params) match {
+              case 1 => BuiltIns.compileBitOps(EOR, ctx, params)
+              case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, EOR)
+            }
           case ">>>>" =>
             val (l, r, 2) = assertBinary(ctx, params)
             l match {
@@ -1336,10 +1354,12 @@ object ExpressionCompiler {
     }
   }
 
-  private def assertAllBytesForSum(msg: String, ctx: CompilationContext, params: List[(Boolean, Expression)]): Unit = {
-    if (params.exists { case (_, expr) => getExpressionType(ctx, expr).size != 1 }) {
-      ErrorReporting.fatal(msg, params.head._2.position)
-    }
+  private def getParamMaxSize(ctx: CompilationContext, params: List[Expression]): Int = {
+    params.map { case expr => getExpressionType(ctx, expr).size}.max
+  }
+
+  private def getSumSize(ctx: CompilationContext, params: List[(Boolean, Expression)]): Int = {
+    params.map { case (_, expr) => getExpressionType(ctx, expr).size}.max
   }
 
   private def assertAllBytes(msg: String, ctx: CompilationContext, params: List[Expression]): Unit = {

@@ -66,7 +66,8 @@ If and only if both `h` and `l` are assignable expressions, then `h:l` is also a
 * `+`, `-`:  
 `byte + byte`  
 `constant word + constant word`  
-`constant long + constant long`
+`constant long + constant long`  
+`word + word` (zpreg)
 
 * `*`: multiplication; the size of the result is the same as the size of the arguments  
 `byte * constant byte`  
@@ -82,7 +83,8 @@ There are no division, remainder or modulo operators.
 * `|`, `^`, `&`: OR, EXOR and AND  
 `byte | byte`  
 `constant word | constant word`  
-`constant long | constant long`
+`constant long | constant long`  
+`word | word` (zpreg)
 
 * `<<`, `>>`: bit shifting; shifting pads the result with zeroes  
 `byte << constant byte`  
@@ -103,7 +105,8 @@ These operators work using the decimal arithmetic and will not work on Ricoh CPU
 * `+'`, `-'`: decimal addition/subtraction  
 `byte +' byte`  
 `constant word +' constant word`  
-`constant long +' constant long`
+`constant long +' constant long`  
+`word +' word` (zpreg)
 
 * `*'`: decimal multiplication  
 `constant *' constant`
