@@ -16,7 +16,7 @@ Millfork has different operator precedence compared to most other languages. Fro
 
 * `*`, `*'`
 
-* `+`, `+'`, `-`, `-'`, `|`, `&`, `^`, `>>`, `>>'`, `<<`, `<<'`, `>>>>`, `<<<<`
+* `+`, `+'`, `-`, `-'`, `|`, `&`, `^`, `>>`, `>>'`, `<<`, `<<'`, `>>>>`
 
 * `:`
 
@@ -42,7 +42,7 @@ In the descriptions below, arguments to the operators are explained as follows:
 
 * `word` means any two-byte type, or a byte expanded to a word
 
-* `long` means any type longer than two bytes, or a shorted type expanded to such length to match the other argument
+* `long` means any type longer than two bytes, or a shorter type expanded to such length to match the other argument
 
 * `constant` means a compile-time constant
 
@@ -92,11 +92,8 @@ There are no division, remainder or modulo operators.
 `constant word << constant byte`  
 `constant long << constant byte`
 
-* `>>>>`: shifting a 9-bit value and returning a byte; `a >>>> b` is equivalent to `(a & $1FF) >> b`, but the latter doesn't compile yet  
-`word >>>> constant byte`  
-
-* `<<<<`: shifting a byte and returning a 9-bit value; `a <<<< b` is equivalent to `(a << b) & 0x1ff` if there was no overflow, but the latter doesn't compile yet  
-`byte <<<< constant byte`  
+* `>>>>`: shifting a 9-bit value and returning a byte; `a >>>> b` is equivalent to `(a & $1FF) >> b`    
+`word >>>> constant byte`
 
 ## Decimal arithmetic operators
 
@@ -181,5 +178,17 @@ An expression of form `a[i]`, where `i` is an expression of type `byte`, is:
 * when `a` is a pointer variable: an access to the byte in memory at address `a + i`
 
 Those expressions are of type `byte`. If `a` is any other kind of expression, `a[i]` is invalid.
+
+## Built-in functions
+
+* `not`: negation of a boolean expression  
+`not(bool)`
+
+* `nonet`: expansion of an 8-bit operation to a 9-bit operation  
+`nonet(byte + byte)`  
+`nonet(byte +' byte)`  
+`nonet(byte << constant byte)`  
+`nonet(byte <<' constant byte)`  
+Other kinds of expressions than the above (even `nonet(byte + byte + byte)`) will not work as expected.
 
 

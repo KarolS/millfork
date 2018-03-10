@@ -12,6 +12,8 @@
 
 * Enabled calling macros with index expression parameters.
 
+* Enabled calling macros from assembly.
+
 * Added optimizer hints: `inline`, `noinline`, `register`.
  
 * Added command line flags `--size`, `--fast`, `--blast-processing`.
@@ -19,7 +21,7 @@
 * Removed command line flag `--detailed-flow`. 
 Detailed flow analysis was slow, broken, hard to maintain, and didn't even help that much.
 
-* Added `*'=` and `nonet` operators. (Also, the `<<<<` operator, but it will be phased out before 0.2 and replaced by `nonet(a << b)`.)
+* Added `*'=` and `nonet` operators.
 
 * Added support for zeropage pseudoregisters, allowing for some operators work with more types of operands. 
 
@@ -30,6 +32,8 @@ Detailed flow analysis was slow, broken, hard to maintain, and didn't even help 
 * Allowed the `else if` combination (i.e. the `else` branch doesn't have to be in braces if it's just a single `if`-`else` statement).
 
 * Added octal and quaternary literals.
+
+* Fixed several allocation bugs.
 
 * Fixed several optimization bugs.
 
