@@ -174,7 +174,7 @@ object PseudoregisterBuiltIns {
         if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
           firstParamCompiled ++
             List(AssemblyLine.accu16) ++
-            List.fill(v.toInt)(if (left) AssemblyLine.zeropage(ASL, reg) else AssemblyLine.zeropage(LSR, reg)) ++
+            List.fill(v.toInt)(if (left) AssemblyLine.zeropage(ASL_W, reg) else AssemblyLine.zeropage(LSR_W, reg)) ++
             List(AssemblyLine.accu8, AssemblyLine.zeropage(LDA, reg), AssemblyLine.zeropage(LDX, reg, 1))
         } else {
           val cycle =
@@ -183,8 +183,44 @@ object PseudoregisterBuiltIns {
           firstParamCompiled ++ List.fill(v.toInt)(cycle).flatten ++ List(AssemblyLine.zeropage(LDA, reg), AssemblyLine.zeropage(LDX, reg, 1))
         }
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount")
-        Nil
+        val compileCounter = ExpressionCompiler.compile(ctx, r, Some(b -> RegisterVariable(Register.X, b)), NoBranching)
+        val compileCounterAndPrepareFirstParam = compileCounter match {
+          case List(AssemblyLine(LDX, _, _, _)) => firstParamCompiled ++ compileCounter
+          case List(AssemblyLine(LDY, _, _, _), AssemblyLine(LDX, _, _, _)) => firstParamCompiled ++ compileCounter
+          case _ =>
+            ExpressionCompiler.compile(ctx, r, Some(b -> RegisterVariable(Register.A, b)), NoBranching) ++
+              List(AssemblyLine.implied(PHA)) ++
+              firstParamCompiled ++ (
+              if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) List(AssemblyLine.implied(PLX))
+              else List(AssemblyLine.implied(PLA), AssemblyLine.implied(TAX))
+              )
+        }
+        val labelRepeat = MfCompiler.nextLabel("sr")
+        val labelSkip = MfCompiler.nextLabel("ss")
+        if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
+          compileCounterAndPrepareFirstParam ++ List(
+            AssemblyLine.relative(BEQ, labelSkip),
+            AssemblyLine.accu16,
+            AssemblyLine.label(labelRepeat),
+            AssemblyLine.zeropage(if (left) ASL_W else LSR_W, reg),
+            AssemblyLine.implied(DEX),
+            AssemblyLine.relative(BNE, labelRepeat),
+            AssemblyLine.accu8,
+            AssemblyLine.label(labelSkip),
+            AssemblyLine.zeropage(LDA, reg),
+            AssemblyLine.zeropage(LDX, reg, 1))
+        } else {
+          compileCounterAndPrepareFirstParam ++ List(
+            AssemblyLine.relative(BEQ, labelSkip),
+            AssemblyLine.label(labelRepeat),
+            if (left) AssemblyLine.zeropage(ASL, reg) else AssemblyLine.zeropage(LSR, reg, 1),
+            if (left) AssemblyLine.zeropage(ROL, reg, 1) else AssemblyLine.zeropage(ROR, reg),
+            AssemblyLine.implied(DEX),
+            AssemblyLine.relative(BNE, labelRepeat),
+            AssemblyLine.label(labelSkip),
+            AssemblyLine.zeropage(LDA, reg),
+            AssemblyLine.zeropage(LDX, reg, 1))
+        }
     }
   }
 

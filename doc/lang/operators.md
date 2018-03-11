@@ -87,8 +87,8 @@ There are no division, remainder or modulo operators.
 `word | word` (zpreg)
 
 * `<<`, `>>`: bit shifting; shifting pads the result with zeroes  
-`byte << constant byte`  
-`word << constant byte` (zpreg)  
+`byte << byte`  
+`word << byte` (zpreg)  
 `constant word << constant byte`  
 `constant long << constant byte`
 
@@ -150,7 +150,12 @@ and fail to compile otherwise. This will be changed in the future.
 `mutable word += word`  
 `mutable long += long`
 
-* `<<=`, `>>=`, `<<'=`, `>>'=`: shift in place  
+* `<<=`, `>>=`: shift in place  
+`mutable byte <<= byte`  
+`mutable word <<= byte`  
+`mutable long <<= byte`
+
+* `<<'=`, `>>'=`: decimal shift in place  
 `mutable byte <<= constant byte`  
 `mutable word <<= constant byte`  
 `mutable long <<= constant byte`

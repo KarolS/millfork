@@ -473,6 +473,10 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
     case W => ReadsW(opcode)
   }
 
+  def concernsX: Boolean = addrMode == AbsoluteX || addrMode == LongAbsoluteX || addrMode == ZeroPageX || addrMode == IndexedX || ConcernsXAlways(opcode)
+
+  def concernsY: Boolean = addrMode == AbsoluteY || addrMode == ZeroPageY || addrMode == IndexedY || addrMode == LongIndexedY || ConcernsYAlways(opcode)
+
   def treatment(state: State.Value): Treatment.Value = opcode match {
     case LABEL => Unchanged // TODO: ???
     case NOP => Unchanged

@@ -71,4 +71,27 @@ class ShiftSuite extends FunSuite with Matchers {
         | word identity(word w) { return w }
       """.stripMargin)(_.readWord(0xc000) should equal(0x180))
   }
+
+  test("Variable shifting") {
+    EmuBenchmarkRun("""
+        | word output0 @$c000
+        | word output2 @$c002
+        | byte output4 @$c004
+        | byte output5 @$c005
+        | void main () {
+        |   byte a
+        |   a = b(3)
+        |   output0 = $0001 << a
+        |   output2 = $0001 << b(3)
+        |   output4 = 1 << a
+        |   output5 = 1 << b(3)
+        | }
+        | noinline byte b(byte x) { return x }
+      """.stripMargin){m =>
+      m.readWord(0xc000) should equal(8)
+      m.readWord(0xc002) should equal(8)
+      m.readByte(0xc004) should equal(8)
+      m.readByte(0xc005) should equal(8)
+    }
+  }
 }

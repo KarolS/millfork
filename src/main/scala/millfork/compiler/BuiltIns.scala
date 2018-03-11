@@ -6,6 +6,7 @@ import millfork.env._
 import millfork.node._
 import millfork.assembly.Opcode._
 import millfork.assembly.AddrMode._
+import millfork.assembly.opt.ConcernsY
 import millfork.error.ErrorReporting
 
 import scala.collection.mutable
@@ -186,8 +187,18 @@ object BuiltIns {
       case Some(NumericConstant(v, _)) if v > 0 =>
         firstParamCompiled ++ List.fill(v.toInt)(AssemblyLine.implied(opcode))
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount")
-        Nil
+        val compileCounter = ExpressionCompiler.preserveRegisterIfNeeded(ctx, Register.A,
+          ExpressionCompiler.compile(ctx, r, Some(b -> RegisterVariable(Register.X, b)), NoBranching))
+        val labelSkip = MfCompiler.nextLabel("ss")
+        val labelRepeat = MfCompiler.nextLabel("sr")
+        val loop = List(
+          AssemblyLine.relative(BEQ, labelSkip),
+          AssemblyLine.label(labelRepeat),
+          AssemblyLine.implied(opcode),
+          AssemblyLine.implied(DEX),
+          AssemblyLine.relative(BNE, labelRepeat),
+          AssemblyLine.label(labelSkip))
+        firstParamCompiled ++ compileCounter ++ loop
     }
   }
 
@@ -205,7 +216,7 @@ object BuiltIns {
     }
     env.eval(rhs) match {
       case Some(NumericConstant(0, _)) =>
-        Nil
+        ExpressionCompiler.compile(ctx, lhs, None, NoBranching)
       case Some(NumericConstant(shift, _)) if shift > 0 =>
         if (ctx.options.flag(CompilationFlag.RorWarning))
           ErrorReporting.warn("ROR instruction generated", ctx.options, lhs.position)
@@ -233,13 +244,12 @@ object BuiltIns {
     val firstParamCompiled = ExpressionCompiler.compile(ctx, lhs, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
     env.eval(rhs) match {
       case Some(NumericConstant(0, _)) =>
-        Nil
+        ExpressionCompiler.compile(ctx, lhs, None, NoBranching)
       case Some(NumericConstant(v, _)) if v > 0 =>
         val result = simpleOperation(opcode, ctx, lhs, IndexChoice.RequireX, preserveA = true, commutative = false)
         result ++ List.fill(v.toInt - 1)(result.last)
       case _ =>
-        ErrorReporting.error("Non-constant shift amount", rhs.position) // TODO
-        Nil
+        compileShiftOps(opcode, ctx, lhs, rhs) ++ ExpressionCompiler.compileByteStorage(ctx, Register.A, lhs)
     }
   }
 
@@ -249,9 +259,10 @@ object BuiltIns {
     val targetBytes = getStorageForEachByte(ctx, lhs)
     val lo = targetBytes.head
     val hi = targetBytes.last
+    // TODO: this probably breaks in case of complex split word expressions
     env.eval(rhs) match {
       case Some(NumericConstant(0, _)) =>
-        Nil
+        ExpressionCompiler.compile(ctx, lhs, None, NoBranching)
       case Some(NumericConstant(shift, _)) if shift > 0 =>
         if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
           targetBytes match {
@@ -259,6 +270,7 @@ object BuiltIns {
               if (a1 == a2 && l.+(1).quickSimplify == h) {
                 return List(AssemblyLine.accu16) ++ List.fill(shift.toInt)(AssemblyLine(if (aslRatherThanLsr) ASL_W else LSR_W, a1, l)) ++ List(AssemblyLine.accu8)
               }
+            case _ =>
           }
         }
         List.fill(shift.toInt)(if (aslRatherThanLsr) {
@@ -269,8 +281,50 @@ object BuiltIns {
           staTo(LSR, hi) ++ targetBytes.reverse.tail.flatMap { b => staTo(ROR, b) }
         }).flatten
       case _ =>
-        ErrorReporting.error("Non-constant shift amount", rhs.position) // TODO
-        Nil
+        val usesX = targetBytes.exists(_.exists(_.concernsX))
+        val usesY = targetBytes.exists(_.exists(_.concernsY))
+        val (register, decrease) = (usesX, usesY) match {
+          case (true, false) => Register.Y -> DEY
+          case (false, true) => Register.X -> DEX
+          case (false, false) => Register.X -> DEX
+          case (true, true) => ???
+        }
+
+        val compileCounter = ExpressionCompiler.preserveRegisterIfNeeded(ctx, Register.A,
+          ExpressionCompiler.compile(ctx, rhs, Some(b -> RegisterVariable(register, b)), NoBranching))
+        val labelSkip = MfCompiler.nextLabel("ss")
+        val labelRepeat = MfCompiler.nextLabel("sr")
+
+        if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+          targetBytes match {
+            case List(List(AssemblyLine(STA, a1, l, _)), List(AssemblyLine(STA, a2, h, _))) =>
+              if (a1 == a2 && l.+(1).quickSimplify == h) {
+                return compileCounter ++ List(
+                  AssemblyLine.relative(BEQ, labelSkip),
+                  AssemblyLine.accu16,
+                  AssemblyLine.label(labelRepeat),
+                  AssemblyLine(if (aslRatherThanLsr) ASL_W else LSR_W, a1, l),
+                  AssemblyLine.implied(decrease),
+                  AssemblyLine.relative(BNE, labelRepeat),
+                  AssemblyLine.accu8,
+                  AssemblyLine.label(labelSkip))
+              }
+            case _ =>
+          }
+        }
+
+        compileCounter ++ List(
+          AssemblyLine.relative(BEQ, labelSkip),
+          AssemblyLine.label(labelRepeat)) ++ (if (aslRatherThanLsr) {
+          staTo(ASL, lo) ++ targetBytes.tail.flatMap { b => staTo(ROL, b) }
+        } else {
+          if (ctx.options.flag(CompilationFlag.RorWarning))
+            ErrorReporting.warn("ROR instruction generated", ctx.options, lhs.position)
+          staTo(LSR, hi) ++ targetBytes.reverse.tail.flatMap { b => staTo(ROR, b) }
+        }) ++ List(
+          AssemblyLine.implied(decrease),
+          AssemblyLine.relative(BNE, labelRepeat),
+          AssemblyLine.label(labelSkip))
     }
   }
 
