@@ -111,25 +111,27 @@ object FlowAnalyzerForImmediate {
     },
     AND -> {(nn, currentStatus) =>
       val n = nn & 0xff
-      val newA = currentStatus.a.map(_ & n)
+      val newA = if (n == 0) Status.SingleZero else currentStatus.a.map(_ & n)
+      val newN = if (n <= 0x7f) Status.SingleFalse else newA.n()
       currentStatus.copy(
-        n = newA.n(),
+        n = newN,
         z = newA.z(),
         a = newA,
-        a7 = if ((nn & 0x80) != 0) currentStatus.a7 else Status.SingleFalse,
-        a0 = if ((nn & 1) != 0) currentStatus.a0 else Status.SingleFalse,
+        a7 = if ((nn & 0x80) != 0) newA.bit7 else Status.SingleFalse,
+        a0 = if ((nn & 1) != 0) newA.bit0 else Status.SingleFalse,
         src = SourceOfNZ.A)
     },
     ANC -> {(nn, currentStatus) =>
       val n = nn & 0xff
-      val newA = currentStatus.a.map(_ & n)
+      val newA = if (n == 0) Status.SingleZero else currentStatus.a.map(_ & n)
+      val newNC = if (n <= 0x7f) Status.SingleFalse else newA.n()
       currentStatus.copy(
-        n = newA.n(),
-        c = newA.n(),
+        n = newNC,
+        c = newNC,
         z = newA.z(),
         a = newA,
-        a7 = if ((nn & 0x80) != 0) currentStatus.a7 else Status.SingleFalse,
-        a0 = if ((nn & 1) != 0) currentStatus.a0 else Status.SingleFalse,
+        a7 = if ((nn & 0x80) != 0) newA.bit7 else Status.SingleFalse,
+        a0 = if ((nn & 1) != 0) newA.bit0 else Status.SingleFalse,
         src = SourceOfNZ.A)
     },
     ORA -> {(nn, currentStatus) =>

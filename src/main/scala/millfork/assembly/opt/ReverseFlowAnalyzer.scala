@@ -184,6 +184,11 @@ object ReverseFlowAnalyzer {
             if ((n & 0x40) != 0) currentImportance = currentImportance.copy(v = Unimportant)
             if ((n & 0x80) != 0) currentImportance = currentImportance.copy(n = Unimportant)
 
+          case AssemblyLine(ANC, _, NumericConstant(0, _), _) =>
+            currentImportance = currentImportance.copy(c = Unimportant, n = Unimportant, z = Unimportant, a = Unimportant)
+          case AssemblyLine(AND, _, NumericConstant(0, _), _) =>
+            currentImportance = currentImportance.copy(n = Unimportant, z = Unimportant, a = Unimportant)
+
           case AssemblyLine(opcode, addrMode, _, _) =>
             val reallyIgnoreC =
               currentImportance.c == Unimportant &&

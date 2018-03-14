@@ -222,4 +222,24 @@ class IllegalSuite extends FunSuite with Matchers {
       """.stripMargin)
     m.readWord(0xc000) should equal(0x105)
   }
+
+  test("SAX test 2") {
+    val m = EmuUndocumentedRun("""
+        | byte output @$c000
+        | void main () {
+        |   byte a
+        |   byte b
+        |   byte c
+        |   b = five(a)
+        |   five(a)
+        |   a = 44 ^ b
+        |   output = b & $41
+        |   five(a)
+        | }
+        | noinline byte five (byte ignored) {
+        |   return 5
+        | }
+      """.stripMargin)
+    m.readLong(0xc000) should equal(1)
+  }
 }

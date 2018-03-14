@@ -488,4 +488,22 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(33)
     }
   }
+
+  test("Identity page") {
+      EmuUltraBenchmarkRun(
+        """
+          | byte output @$c000
+          | void main() {
+          |   byte b
+          |   b = f()
+          |   output = (b ^ $40) + b
+          | }
+          | noinline byte f () {
+          |   return 3
+          | }
+        """.stripMargin
+      ){m =>
+        m.readByte(0xc000) should equal(0x46)
+      }
+    }
 }

@@ -19,6 +19,7 @@ object UndocumentedOptimizations {
 
   private val LdxAddrModes = Set(ZeroPage, Absolute, Immediate, AbsoluteY, ZeroPageY)
   private val LaxAddrModeRestriction = Not(HasAddrModeIn(Set(AbsoluteX, ZeroPageX, IndexedX, Immediate)))
+  private val SaxAddrModeRestriction = HasAddrModeIn(Set(IndexedX, ZeroPage, Absolute, AbsoluteY))
 
   //noinspection ScalaUnnecessaryParentheses
   val UseLax = new RuleBasedAssemblyOptimization("Using undocumented instruction LAX",
@@ -157,6 +158,10 @@ object UndocumentedOptimizations {
     (Elidable & HasOpcode(AND) & HasAddrMode(Immediate)) ~
       (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~~> { code =>
       List(AssemblyLine.immediate(ALR, code.head.parameter))
+    },
+    (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(AND) & HasAddrMode(Immediate)) ~~> { code =>
+      List(AssemblyLine.immediate(ALR, code.last.parameter.asl(1).loByte))
     },
     (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
       (Elidable & HasOpcode(CLC)) ~~> { _ =>
@@ -362,6 +367,43 @@ object UndocumentedOptimizations {
       (Elidable & HasOpcode(SBC) & HasImmediate(2) & HasSet(State.C)) ~
       (Elidable & HasOpcode(TAX)) ~~> { (code, ctx) =>
       List(code.head.copy(opcode = LAX), AssemblyLine(SBX, Immediate, ctx.get[Constant](2)))
+    },
+    (Elidable & HasOpcode(LDA) & LaxAddrModeRestriction & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Not(ReadsX) & HasOpcodeIn(Set(ANC, ALR, ARR, ADC, AND, EOR, ORA, ADC, SBC, SEC, CLC, STA, LDY, STY)) |
+        HasAddrMode(Implied) & HasOpcodeIn(Set(ASL, LSR, ROL, ROR, TAY, TYA))).* ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      HasOpcode(LDY).? ~
+      (Elidable & HasOpcode(AND)) ~
+      HasOpcode(LDY).? ~
+      (Elidable & HasOpcode(STA) & SaxAddrModeRestriction & DoesntMatterWhatItDoesWith(State.X)) ~
+      (Elidable & (HasOpcode(TAX) | HasOpcodeIn(Set(LDA, LDX, LAX)) & MatchAddrMode(0) & MatchParameter(1))).? ~~> { (code, ctx) =>
+      var rest = code
+      var result = List[AssemblyLine]()
+      rest.last.opcode match {
+        case STA => ()
+        case TAX | LDX => rest = rest.init
+        case LDA | LAX =>
+          rest = rest.init
+          result = List(AssemblyLine.implied(TXA))
+      }
+      result = rest.last.copy(opcode = SAX) :: result
+      rest = rest.init
+      rest.last.opcode match {
+        case LDY =>
+          result = rest.last :: result
+          rest = rest.init
+        case AND => ()
+      }
+      result = rest.last.copy(opcode = LDA) :: result
+      rest = rest.init
+      rest.last.opcode match {
+        case LDY =>
+          result = rest.last :: result
+          rest = rest.init
+        case LDA => ()
+      }
+      rest = rest.init
+      rest.head.copy(opcode = LAX) :: (rest.tail ++ result)
     },
   )
 

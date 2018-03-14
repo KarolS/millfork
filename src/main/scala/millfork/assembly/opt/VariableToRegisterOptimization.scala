@@ -7,13 +7,19 @@ import millfork.assembly.AddrMode._
 import millfork.env._
 import millfork.error.ErrorReporting
 
-import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
 /**
   * @author Karol Stasiak
   */
 object VariableToRegisterOptimization extends AssemblyOptimization {
+
+  object CyclesAndBytes {
+    val Zero = CyclesAndBytes(0, 0)
+  }
+  case class CyclesAndBytes(bytes: Int, cycles: Int) {
+    def +(that: CyclesAndBytes) = CyclesAndBytes(this.bytes + that.bytes, this.cycles + that.cycles)
+  }
 
   case class Features(
                      blastProcessing: Boolean,
@@ -128,15 +134,16 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       v.name -> VariableLifetime.apply(v.name, code)
     )
 
+    val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
     val importances = ReverseFlowAnalyzer.analyze(f, code)
     val blastProcessing = options.flag(CompilationFlag.OptimizeForSonicSpeed)
     val identityArray = f.environment.maybeGet[ThingInMemory]("identity$").map(MemoryAddressConstant).getOrElse(Constant.Zero)
     val izIsAlwaysZero = !options.flag(CompilationFlag.Emit65CE02Opcodes)
     val features = Features(
-      blastProcessing =options.flag(CompilationFlag.OptimizeForSonicSpeed),
-      izIsAlwaysZero = !options.flag(CompilationFlag.Emit65CE02Opcodes),
+      blastProcessing = blastProcessing,
+      izIsAlwaysZero = izIsAlwaysZero,
       indexRegisterTransfers = options.flag(CompilationFlag.EmitEmulation65816Opcodes),
-      identityArray = f.environment.maybeGet[ThingInMemory]("identity$").map(MemoryAddressConstant).getOrElse(Constant.Zero)      
+      identityArray = identityArray
     )
 
     val xCandidates = variablesWithLifetimes.filter {
@@ -145,7 +152,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     }.flatMap {
       case (vName, range) =>
         canBeInlined(Some(vName), None, None, features, code.zip(importances).slice(range.start, range.end)).map { score =>
-          (vName, range, if (variablesWithRegisterHint(vName)) score + 16 else score)
+          (vName, range, if (variablesWithRegisterHint(vName)) score + CyclesAndBytes(16, 16) else score)
         }
     }
 
@@ -155,7 +162,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     }.flatMap {
       case (vName, range) =>
         canBeInlined(None, Some(vName), None, features, code.zip(importances).slice(range.start, range.end)).map { score =>
-          (vName, range, if (variablesWithRegisterHint(vName)) score + 16 else score)
+          (vName, range, if (variablesWithRegisterHint(vName)) score + CyclesAndBytes(16, 16) else score)
         }
     }
 
@@ -165,7 +172,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     }.flatMap {
       case (vName, range) =>
         canBeInlined(None, None, Some(vName), features, code.zip(importances).slice(range.start, range.end)).map { score =>
-          (vName, range, if (variablesWithRegisterHint(vName)) score + 16 else score)
+          (vName, range, if (variablesWithRegisterHint(vName)) score + CyclesAndBytes(16, 16) else score)
         }
     }
 
@@ -180,7 +187,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           synced = false,
           vName,
           code.zip(importances).slice(range.start, range.end)).map { score =>
-          (vName, range, if (variablesWithRegisterHint(vName)) score + 16 else score)
+          (vName, range, if (variablesWithRegisterHint(vName)) score + CyclesAndBytes(16, 16) else score)
         }
     }
 //    println(s"X: $xCandidates")
@@ -188,10 +195,10 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 //    println(s"Z: $zCandidates")
 //    println(s"A: $aCandidates")
 
-    val xCandidateSets = NonOverlappingIntervals.apply[(String, Range, Int)](xCandidates, _._2.start, _._2.end)
-    val yCandidateSets = NonOverlappingIntervals.apply[(String, Range, Int)](yCandidates, _._2.start, _._2.end)
-    val zCandidateSets = NonOverlappingIntervals.apply[(String, Range, Int)](zCandidates, _._2.start, _._2.end)
-    val aCandidateSets = NonOverlappingIntervals.apply[(String, Range, Int)](aCandidates, _._2.start, _._2.end)
+    val xCandidateSets = NonOverlappingIntervals.apply[(String, Range, CyclesAndBytes)](xCandidates, _._2.start, _._2.end)
+    val yCandidateSets = NonOverlappingIntervals.apply[(String, Range, CyclesAndBytes)](yCandidates, _._2.start, _._2.end)
+    val zCandidateSets = NonOverlappingIntervals.apply[(String, Range, CyclesAndBytes)](zCandidates, _._2.start, _._2.end)
+    val aCandidateSets = NonOverlappingIntervals.apply[(String, Range, CyclesAndBytes)](aCandidates, _._2.start, _._2.end)
 
     val variants = for {
       vx <- if (options.flag(CompilationFlag.SingleThreaded)) xCandidateSets else xCandidateSets.par
@@ -212,7 +219,10 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       if (nx & na).isEmpty
       if (ny & na).isEmpty
 
-      score = vx.toSeq.map(_._3).sum + vy.toSeq.map(_._3).sum + va.toSeq.map(_._3).sum + vz.toSeq.map(_._3).sum
+      score = vx.toSeq.map(x => costFunction(x._3)).sum +
+        vy.toSeq.map(x => costFunction(x._3)).sum +
+        va.toSeq.map(x => costFunction(x._3)).sum +
+        vz.toSeq.map(x => costFunction(x._3)).sum
     } yield (score, vx, vy, vz, va)
 
     if (variants.isEmpty) {
@@ -296,7 +306,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
   }
 
   // TODO: STA has different flag behaviour than TAX, keep it in mind!
-  def canBeInlined(xCandidate: Option[String], yCandidate: Option[String], zCandidate: Option[String], features: Features, lines: List[(AssemblyLine, CpuImportance)]): Option[Int] = {
+  def canBeInlined(xCandidate: Option[String], yCandidate: Option[String], zCandidate: Option[String], features: Features, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
     val vx = xCandidate.getOrElse("-")
     val vy = yCandidate.getOrElse("-")
     val vz = zCandidate.getOrElse("-")
@@ -330,12 +340,22 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case (AssemblyLine(SEP | REP, _, _, _), _) :: xs => None
 
       case (AssemblyLine(STY | LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs if th.name == vx =>
-        if (features.indexRegisterTransfers) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 2)
+        if (features.indexRegisterTransfers) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         else None
 
       case (AssemblyLine(STX | LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs if th.name == vy =>
-        if (features.indexRegisterTransfers) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 2)
+        if (features.indexRegisterTransfers) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         else None
+
+      case (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
+        if opcodesIdentityTable(op) && features.blastProcessing =>
+        if (th.name == vx || th.name == vy) {
+          if (elidable) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 0, cycles = -1))
+          else None
+        } else {
+          if (th.name == vz) None
+          else canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
+        }
 
       case (AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx && (opcode == LDY || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
@@ -358,9 +378,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // removing LDX saves 3 cycles
         if (elidable && th.name == vx) {
           if (imp.z == Unimportant && imp.n == Unimportant) {
-            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 3)
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
           } else {
-            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 1)
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
           }
         } else {
           None
@@ -371,7 +391,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // LAX = LDX-LDA, and since LDX simplifies to nothing and LDA simplifies to TXA,
         // LAX simplifies to TXA, saving two bytes
         if (elidable && th.name == vx) {
-          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 2)
+          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         } else {
           None
         }
@@ -382,9 +402,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // sometimes that LDX has to be converted into CPX#0
         if (elidable && th.name == vy) {
           if (imp.z == Unimportant && imp.n == Unimportant) {
-            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 3)
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           } else {
-            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 1)
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
           }
         } else {
           None
@@ -393,9 +413,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case (AssemblyLine(LDZ, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), imp) :: xs if zCandidate.isDefined =>
         if (elidable && th.name == vz) {
           if (imp.z == Unimportant && imp.n == Unimportant) {
-            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 3)
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           } else {
-            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 1)
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
           }
         } else {
           None
@@ -413,20 +433,11 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
         None
 
-      case (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
-        if opcodesIdentityTable(op) =>
-        if (th.name == vx || th.name == vy) {
-          if (elidable) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
-          else None
-        } else {
-          if (th.name == vz) None
-          else canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
-        }
-
       case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
         if opcodesCommutative(op) =>
+        // LDAw/ANDx -> TXA/ANDw
         if (th.name == vx || th.name == vy) {
-          if (elidable && elidable2) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 2)
+          if (elidable && elidable2) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
           else None
         } else {
           if (th.name == vz) None
@@ -436,7 +447,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(CLC, _, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
         if opcodesCommutative(op) =>
         if (th.name == vx || th.name == vy) {
-          if (elidable && elidable2) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 2)
+          if (elidable && elidable2) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
           else None
         } else {
           if (th.name == vz) None
@@ -448,7 +459,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // a variable cannot be inlined if there is TAX not after LDA of that variable
         // but LDA-TAX can be simplified to TXA
         if (elidable && elidable2 && th.name == vx) {
-          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 3)
+          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
@@ -458,7 +469,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // a variable cannot be inlined if there is TAY not after LDA of that variable
         // but LDA-TAY can be simplified to TYA
         if (elidable && elidable2 && th.name == vy) {
-          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 3)
+          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
@@ -468,16 +479,28 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // a variable cannot be inlined if there is TAZ not after LDA of that variable
         // but LDA-TAZ can be simplified to TZA
         if (elidable && elidable2 && th.name == vy) {
-          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 3)
+          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
 
-      case (AssemblyLine(LDA | STA | INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: xs =>
+      case (AssemblyLine(LDA | STA, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: xs =>
         // changing LDA->TXA, STA->TAX, INC->INX, DEC->DEX saves 2 bytes
         if (th.name == vy || th.name == vx || th.name == vz) {
           if (elidable) {
-            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 2)
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
+          } else {
+            None
+          }
+        } else {
+          canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
+        }
+
+      case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: xs =>
+        // changing LDA->TXA, STA->TAX, INC->INX, DEC->DEX saves 2 bytes
+        if (th.name == vy || th.name == vx || th.name == vz) {
+          if (elidable) {
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
           } else {
             None
           }
@@ -486,10 +509,10 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         }
 
       case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: xs =>
-        // changing STZ->LDX saves 2 bytes
+        // changing STZ->LDX saves 1 byte
         if (th.name == vy || th.name == vx) {
           if (elidable && features.izIsAlwaysZero) {
-            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + 2)
+            canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
           } else {
             None
           }
@@ -524,17 +547,17 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
-      case Nil => Some(0)
+      case Nil => Some(CyclesAndBytes.Zero)
     }
   }
 
-  def canBeInlinedToAccumulator(options: CompilationOptions, start: Boolean, synced: Boolean, candidate: String, lines: List[(AssemblyLine, CpuImportance)]): Option[Int] = {
+  def canBeInlinedToAccumulator(options: CompilationOptions, start: Boolean, synced: Boolean, candidate: String, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
     val cmos = options.flags(CompilationFlag.EmitCmosOpcodes)
     lines match {
 
       case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true),_) :: xs
         if th.name == candidate && start || synced =>
-        canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 3)
+        canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
 
       case (AssemblyLine(op, _, _, _),_) :: xs if opcodesThatAlwaysPrecludeAAllocation(op) =>
         None
@@ -560,14 +583,14 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         None
 
       case (AssemblyLine(SEP | REP, Immediate, NumericConstant(nn, _), _), _) :: xs =>
-        if ((nn & 0x20) == 0) canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs).map(_ + 3)
+        if ((nn & 0x20) == 0) canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
         else None
 
       case (AssemblyLine(SEP | REP, _, _, _), _) :: xs => None
 
       case (AssemblyLine(STA, _, MemoryAddressConstant(th), elidable) ,_):: xs if th.name == candidate =>
         if (synced && elidable) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 3)
+          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
@@ -608,31 +631,31 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
         if opcodesCommutative(op) =>
         if (th.name == candidate) {
-          if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 3)
+          if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           else None
         } else canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(CLC, _, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
         if opcodesCommutative(op) =>
         if (th.name == candidate) {
-          if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 3)
+          if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           else None
         } else canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), imp) :: xs
         if th.name == candidate =>
-        // removing LDA saves 3 cycles
+        // removing LDA saves 3 bytes
         if (imp.z == Unimportant && imp.n == Unimportant) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 3)
+          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 1)
+          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
         }
 
       case (AssemblyLine(LDX | LDY | LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
         if th.name == candidate =>
         // converting a load into a transfer saves 2 bytes
         if (elidable) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + 2)
+          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         } else {
           None
         }
@@ -644,7 +667,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case (AssemblyLine(ASL | LSR | ROR | ROL, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
         if th.name == candidate =>
         if (elidable) {
-          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ + 2)
+          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
           None
         }
@@ -652,7 +675,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
         if th.name == candidate =>
         if (cmos && elidable) {
-          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ + 2)
+          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
           None
         }
@@ -660,14 +683,14 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case (AssemblyLine(TXA | TYA, _, _, elidable), imp) :: xs =>
         if (imp.a == Unimportant && imp.c == Unimportant && imp.v == Unimportant && elidable) {
           // TYA/TXA has to be converted to CPY#0/CPX#0
-          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ - 1)
+          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = -1, cycles = 0))
         } else {
           None
         }
 
       case (x, _) :: xs => canBeInlinedToAccumulator(options, start = false, synced = synced && OpcodeClasses.AllLinear(x.opcode), candidate, xs)
 
-      case Nil => Some(0)
+      case Nil => Some(CyclesAndBytes.Zero)
     }
   }
 

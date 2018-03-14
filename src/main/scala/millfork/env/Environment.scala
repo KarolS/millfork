@@ -118,6 +118,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
                 )
             }
           case VariableAllocationMethod.Auto | VariableAllocationMethod.Register | VariableAllocationMethod.Static =>
+            if (m.alloc == VariableAllocationMethod.Register) {
+              ErrorReporting.warn(s"Failed to inline variable `${m.name}` into a register", options, None)
+            }
             m.sizeInBytes match {
               case 0 => Nil
               case 2 =>
