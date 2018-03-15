@@ -4,6 +4,8 @@
 
 * **Breaking change!** Renamed `inline` to `macro`.
 
+* **Breaking change!** Added support for memory segments. Changed the platform definition file syntax.
+
 * Added preliminary support for 65CE02, HuC6280 and 65816 processors.
 
 * Added new `-O1` optimization preset; old `-O1` became `-O2`, old `-O2` became `-O3` and so on.

@@ -93,6 +93,7 @@ case class TypeDefinitionStatement(name: String, parent: String) extends Declara
 
 case class VariableDeclarationStatement(name: String,
                                         typ: String,
+                                        bank: Option[String],
                                         global: Boolean,
                                         stack: Boolean,
                                         constant: Boolean,
@@ -104,6 +105,7 @@ case class VariableDeclarationStatement(name: String,
 }
 
 case class ArrayDeclarationStatement(name: String,
+                                     bank: Option[String],
                                      length: Option[Expression],
                                      address: Option[Expression],
                                      elements: Option[List[Expression]]) extends DeclarationStatement {
@@ -120,6 +122,7 @@ case class ImportStatement(filename: String) extends DeclarationStatement {
 case class FunctionDeclarationStatement(name: String,
                                         resultType: String,
                                         params: List[ParameterDeclaration],
+                                        bank: Option[String],
                                         address: Option[Expression],
                                         statements: Option[List[Statement]],
                                         isMacro: Boolean,

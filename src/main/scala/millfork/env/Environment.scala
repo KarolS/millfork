@@ -23,7 +23,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   private val relVarId = new AtomicLong
 
   def genRelativeVariable(constant: Constant, typ: Type, zeropage: Boolean): RelativeVariable = {
-    val variable = RelativeVariable(".rv__" + relVarId.incrementAndGet().formatted("%06d"), constant, typ, zeropage = zeropage)
+    val variable = RelativeVariable(".rv__" + relVarId.incrementAndGet().formatted("%06d"), constant, typ, zeropage = zeropage, declaredBank = None /*TODO*/)
     addThing(variable, None)
     variable
   }
@@ -68,19 +68,19 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     case _ => Nil
   }.toList
 
-  def getAllFixedAddressObjects: List[(Int, Int)] = {
+  def getAllFixedAddressObjects: List[(String, Int, Int)] = {
     things.values.flatMap {
-      case RelativeArray(_, NumericConstant(addr, _), size) =>
-        List(addr.toInt -> size)
-      case RelativeVariable(_, NumericConstant(addr, _), typ, _) =>
-        List(addr.toInt -> typ.size)
+      case RelativeArray(_, NumericConstant(addr, _), size, declaredBank) =>
+        List((declaredBank.getOrElse("default"), addr.toInt, size))
+      case RelativeVariable(_, NumericConstant(addr, _), typ, _, declaredBank) =>
+        List((declaredBank.getOrElse("default"), addr.toInt, typ.size))
       case f: NormalFunction =>
         f.environment.getAllFixedAddressObjects
       case _ => Nil
     }.toList
   }
 
-  def allocateVariables(nf: Option[NormalFunction], mem: MemoryBank, callGraph: CallGraph, allocator: VariableAllocator, options: CompilationOptions, onEachVariable: (String, Int) => Unit): Unit = {
+  def allocateVariables(nf: Option[NormalFunction], mem: CompiledMemory, callGraph: CallGraph, allocators: Map[String, VariableAllocator], options: CompilationOptions, onEachVariable: (String, Int) => Unit): Unit = {
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
     val params = nf.fold(List[String]()) { f =>
@@ -104,6 +104,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             }
           }
         } else GlobalVertex
+        val bank = m.bank(options)
         m.alloc match {
           case VariableAllocationMethod.None =>
             Nil
@@ -111,7 +112,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             m.sizeInBytes match {
               case 2 =>
                 val addr =
-                  allocator.allocatePointer(mem, callGraph, vertex)
+                  allocators(bank).allocatePointer(mem.banks(bank), callGraph, vertex)
                 onEachVariable(m.name, addr)
                 List(
                   ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
@@ -125,13 +126,13 @@ class Environment(val parent: Option[Environment], val prefix: String) {
               case 0 => Nil
               case 2 =>
                 val addr =
-                  allocator.allocateBytes(mem, callGraph, vertex, options, 2, initialized = false, writeable = true)
+                  allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, 2, initialized = false, writeable = true)
                 onEachVariable(m.name, addr)
                 List(
                   ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
                 )
               case count =>
-                val addr = allocator.allocateBytes(mem, callGraph, vertex, options, count, initialized = false, writeable = true)
+                val addr = allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, count, initialized = false, writeable = true)
                 onEachVariable(m.name, addr)
                 List(
                   ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
@@ -139,7 +140,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             }
         }
       case f: NormalFunction =>
-        f.environment.allocateVariables(Some(f), mem, callGraph, allocator, options, onEachVariable)
+        f.environment.allocateVariables(Some(f), mem, callGraph, allocators, options, onEachVariable)
         Nil
       case _ => Nil
     }.toList
@@ -200,9 +201,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     InitializedMemoryVariable
     UninitializedMemoryVariable
     getArrayOrPointer(name) match {
-      case th@InitializedArray(_, _, cs) => ConstantPointy(th.toAddress, Some(cs.length))
-      case th@UninitializedArray(_, size) => ConstantPointy(th.toAddress, Some(size))
-      case th@RelativeArray(_, _, size) => ConstantPointy(th.toAddress, Some(size))
+      case th@InitializedArray(_, _, cs, _) => ConstantPointy(th.toAddress, Some(cs.length))
+      case th@UninitializedArray(_, size, _) => ConstantPointy(th.toAddress, Some(size))
+      case th@RelativeArray(_, _, size, _) => ConstantPointy(th.toAddress, Some(size))
       case ConstantThing(_, value, typ) if typ.size <= 2 => ConstantPointy(value, None)
       case th:VariableInMemory => VariablePointy(th.toAddress)
       case _ =>
@@ -480,7 +481,8 @@ class Environment(val parent: Option[Environment], val prefix: String) {
               resultType,
               params,
               addr,
-              env
+              env,
+              stmt.bank
             )
             addThing(mangled, stmt.position)
             registerAddressConstant(mangled, stmt.position)
@@ -498,12 +500,15 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         }
         val needsExtraRTS = !stmt.isMacro && !stmt.assembly && (statements.isEmpty || !statements.last.isInstanceOf[ReturnStatement])
         if (stmt.isMacro) {
+          if (stmt.bank.isDefined) {
+            ErrorReporting.error("Macro functions cannot be in a defined segment", stmt.position)
+          }
           val mangled = MacroFunction(
             name,
             resultType,
             params,
             env,
-            executableStatements ++ (if (needsExtraRTS) List(AssemblyStatement.implied(Opcode.RTS, elidable = true)) else Nil),
+            executableStatements ++ (if (needsExtraRTS) List(AssemblyStatement.implied(Opcode.RTS, elidable = true)) else Nil)
           )
           addThing(mangled, stmt.position)
         } else {
@@ -522,7 +527,8 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             interrupt = stmt.interrupt,
             kernalInterrupt = stmt.kernalInterrupt,
             reentrant = stmt.reentrant,
-            position = stmt.position
+            position = stmt.position,
+            declaredBank = stmt.bank
           )
           addThing(mangled, stmt.position)
           registerAddressConstant(mangled, stmt.position)
@@ -544,13 +550,13 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
         val zp = typ.name == "pointer" // TODO
-      val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto)
+      val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None)
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position)
         if (typ.size == 2) {
           val addr = v.toAddress
-          addThing(RelativeVariable(v.name + ".hi", addr + 1, b, zeropage = zp), stmt.position)
-          addThing(RelativeVariable(v.name + ".lo", addr, b, zeropage = zp), stmt.position)
+          addThing(RelativeVariable(v.name + ".hi", addr + 1, b, zeropage = zp, None), stmt.position)
+          addThing(RelativeVariable(v.name + ".lo", addr, b, zeropage = zp, None), stmt.position)
         }
       case ByRegister(_) => ()
       case ByConstant(name) =>
@@ -558,10 +564,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         addThing(v, stmt.position)
       case ByReference(name) =>
         val addr = UnexpandedConstant(prefix + name, typ.size)
-        val v = RelativeVariable(prefix + name, addr, p, zeropage = false)
+        val v = RelativeVariable(prefix + name, addr, p, zeropage = false, None)
         addThing(v, stmt.position)
-        addThing(RelativeVariable(v.name + ".hi", addr + 1, b, zeropage = false), stmt.position)
-        addThing(RelativeVariable(v.name + ".lo", addr, b, zeropage = false), stmt.position)
+        addThing(RelativeVariable(v.name + ".hi", addr + 1, b, zeropage = false, None), stmt.position)
+        addThing(RelativeVariable(v.name + ".lo", addr, b, zeropage = false, None), stmt.position)
     }
   }
 
@@ -589,16 +595,19 @@ class Environment(val parent: Option[Environment], val prefix: String) {
               case NumericConstant(length, _) =>
                 if (length > 0xffff || length < 0) ErrorReporting.error(s"Array `${stmt.name}` has invalid length", stmt.position)
                 val array = address match {
-                  case None => UninitializedArray(stmt.name + ".array", length.toInt)
-                  case Some(aa) => RelativeArray(stmt.name + ".array", aa, length.toInt)
+                  case None => UninitializedArray(stmt.name + ".array", length.toInt,
+                              declaredBank = stmt.bank)
+                  case Some(aa) => RelativeArray(stmt.name + ".array", aa, length.toInt,
+                              declaredBank = stmt.bank)
                 }
                 addThing(array, stmt.position)
-                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None), stmt.position)
+                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank), stmt.position)
                 val a = address match {
                   case None => array.toAddress
                   case Some(aa) => aa
                 }
-                addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false), stmt.position)
+                addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false,
+                            declaredBank = stmt.bank), stmt.position)
                 addThing(ConstantThing(stmt.name, a, p), stmt.position)
                 addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
                 addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
@@ -625,14 +634,17 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         if (length > 0xffff || length < 0) ErrorReporting.error(s"Array `${stmt.name}` has invalid length", stmt.position)
         val address = stmt.address.map(a => eval(a).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant address", stmt.position)))
         val data = contents.map(x => eval(x).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant contents", stmt.position)))
-        val array = InitializedArray(stmt.name + ".array", address, data)
+        val array = InitializedArray(stmt.name + ".array", address, data,
+                    declaredBank = stmt.bank)
         addThing(array, stmt.position)
-        registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None), stmt.position)
+        registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
+                    declaredBank = stmt.bank), stmt.position)
         val a = address match {
           case None => array.toAddress
           case Some(aa) => aa
         }
-        addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false), stmt.position)
+        addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false,
+                    declaredBank = stmt.bank), stmt.position)
         addThing(ConstantThing(stmt.name, a, p), stmt.position)
         addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
         addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
@@ -704,12 +716,14 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           if (alloc != VariableAllocationMethod.Static && stmt.initialValue.isDefined) {
             ErrorReporting.error(s"`$name` cannot be preinitialized`", position)
           }
-          val v = stmt.initialValue.fold[MemoryVariable](UninitializedMemoryVariable(prefix + name, typ, alloc)){ive =>
+          val v = stmt.initialValue.fold[MemoryVariable](UninitializedMemoryVariable(prefix + name, typ, alloc,
+                      declaredBank = stmt.bank)){ive =>
             if (options.flags(CompilationFlag.ReadOnlyArrays)) {
               ErrorReporting.warn("Initialized variable in read-only segment", options, position)
             }
             val ivc = eval(ive).getOrElse(Constant.error(s"Initial value of `$name` is not a constant", position))
-            InitializedMemoryVariable(name, None, typ, ivc)
+            InitializedMemoryVariable(name, None, typ, ivc,
+                        declaredBank = stmt.bank)
           }
           registerAddressConstant(v, stmt.position)
           (v, v.toAddress)
@@ -719,7 +733,8 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             case NumericConstant(n, _) => n < 0x100
             case _ => false
           }
-          val v = RelativeVariable(prefix + name, addr, typ, zeropage = zp)
+          val v = RelativeVariable(prefix + name, addr, typ, zeropage = zp,
+                      declaredBank = stmt.bank)
           registerAddressConstant(v, stmt.position)
           (v, addr)
         })
@@ -728,8 +743,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           addThing(ConstantThing(v.name + "`", addr, b), stmt.position)
         }
         if (typ.size == 2) {
-          addThing(RelativeVariable(prefix + name + ".hi", addr + 1, b, zeropage = v.zeropage), stmt.position)
-          addThing(RelativeVariable(prefix + name + ".lo", addr, b, zeropage = v.zeropage), stmt.position)
+          addThing(RelativeVariable(prefix + name + ".hi", addr + 1, b, zeropage = v.zeropage,
+                      declaredBank = stmt.bank), stmt.position)
+          addThing(RelativeVariable(prefix + name + ".lo", addr, b, zeropage = v.zeropage,
+                      declaredBank = stmt.bank), stmt.position)
         }
       }
     }
@@ -771,7 +788,8 @@ class Environment(val parent: Option[Environment], val prefix: String) {
 
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
     if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) {
-      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => NumericConstant(n, 1))), None)
+      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => NumericConstant(n, 1)),
+                  declaredBank = None), None)
     }
     program.declarations.foreach {
       case f: FunctionDeclarationStatement => registerFunction(f, options)
@@ -782,6 +800,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     if (options.flag(CompilationFlag.ZeropagePseudoregister) && !things.contains("__reg")) {
       registerVariable(VariableDeclarationStatement(
         name = "__reg",
+        bank = None,
         typ = "pointer",
         global = true,
         stack = false,
@@ -792,7 +811,8 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         address = None), options)
     }
     if (!things.contains("__constant8")) {
-      things("__constant8") = InitializedArray("__constant8", None, List(NumericConstant(8, 1)))
+      things("__constant8") = InitializedArray("__constant8", None, List(NumericConstant(8, 1)),
+                  declaredBank = None)
     }
   }
 

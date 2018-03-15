@@ -73,7 +73,16 @@ object Main {
     val output = c.outputFileName.getOrElse("a")
     val assOutput = output + ".asm"
     val labelOutput = output + ".lbl"
-    val prgOutput = if (!output.endsWith(platform.fileExtension)) output + platform.fileExtension else output
+//    val prgOutputs = (platform.outputStyle match {
+//      case OutputStyle.Single => List("default")
+//      case OutputStyle.PerBank => platform.bankNumbers.keys.toList
+//    }).map(bankName => bankName -> {
+//      if (bankName == "default") {
+//        if (output.endsWith(platform.fileExtension)) output else output + platform.fileExtension
+//      } else {
+//        s"${output.stripSuffix(platform.fileExtension)}.$bankName${platform.fileExtension}"
+//      }
+//    }).toMap
 
     val unoptimized = new SourceLoadingQueue(
       initialFilenames = c.inputFileNames,
@@ -114,7 +123,7 @@ object Main {
     }
 
     // compile
-    val assembler = new Assembler(program, env)
+    val assembler = new Assembler(program, env, platform)
     val result = assembler.assemble(callGraph, assemblyOptimizations, options)
     ErrorReporting.assertNoErrors("Codegen failed")
     ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
@@ -140,13 +149,22 @@ object Main {
         s"al ${a.toHexString} .$normalized"
       }.mkString("\n").getBytes(StandardCharsets.UTF_8))
     }
-    val path = Paths.get(prgOutput)
-    ErrorReporting.debug("Writing output to " + path.toAbsolutePath)
-    ErrorReporting.debug(s"Total output size: ${result.code.length} bytes")
-    Files.write(path, result.code)
+    val defaultPrgOutput = if (output.endsWith(platform.fileExtension)) output else output + platform.fileExtension
+    result.code.foreach{
+      case (bankName, code) =>
+        val prgOutput = if (bankName == "default") {
+          defaultPrgOutput
+        } else {
+          s"${output.stripSuffix(platform.fileExtension)}.$bankName${platform.fileExtension}"
+        }
+        val path = Paths.get(prgOutput)
+        ErrorReporting.debug("Writing output to " + path.toAbsolutePath)
+        ErrorReporting.debug(s"Total output size: ${code.length} bytes")
+        Files.write(path, code)
+    }
     ErrorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
     c.runFileName.foreach(program =>
-      new ProcessBuilder(program, path.toAbsolutePath.toString).start()
+      new ProcessBuilder(program, Paths.get(defaultPrgOutput).toAbsolutePath.toString).start()
     )
   }
 

@@ -126,7 +126,8 @@ object ReturnDispatch {
     val paramArrays = stmt.params.indices.map { ix =>
       val a = InitializedArray(label + "$" + ix + ".array", None, (paramMins(ix) to paramMaxes(ix)).map { key =>
         map(key)._2.lift(ix).getOrElse(Constant.Zero)
-      }.toList)
+      }.toList,
+        ctx.function.declaredBank)
       env.registerUnnamedArray(a)
       a
     }
@@ -146,7 +147,7 @@ object ReturnDispatch {
     }
 
     if (useJmpaix) {
-      val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(map(i)._1.loByte, map(i)._1.hiByte)).toList)
+      val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(map(i)._1.loByte, map(i)._1.hiByte)).toList, ctx.function.declaredBank)
       env.registerUnnamedArray(jumpTable)
       if (copyParams.isEmpty) {
         val loadIndex = ExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.A, b)), BranchSpec.None)
@@ -161,8 +162,8 @@ object ReturnDispatch {
       }
     } else {
       val loadIndex = ExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.X, b)), BranchSpec.None)
-      val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => (map(i)._1 - 1).loByte).toList)
-      val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => (map(i)._1 - 1).hiByte).toList)
+      val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => (map(i)._1 - 1).loByte).toList, ctx.function.declaredBank)
+      val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => (map(i)._1 - 1).hiByte).toList, ctx.function.declaredBank)
       env.registerUnnamedArray(jumpTableLo)
       env.registerUnnamedArray(jumpTableHi)
       loadIndex ++ copyParams ++ List(

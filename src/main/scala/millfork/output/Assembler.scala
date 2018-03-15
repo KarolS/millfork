@@ -6,7 +6,7 @@ import millfork.compiler.{CompilationContext, MfCompiler}
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node.{CallGraph, Program}
-import millfork.{CompilationFlag, CompilationOptions, Tarjan}
+import millfork._
 
 import scala.collection.mutable
 
@@ -14,41 +14,41 @@ import scala.collection.mutable
   * @author Karol Stasiak
   */
 
-case class AssemblerOutput(code: Array[Byte], asm: Array[String], labels: List[(String, Int)])
+case class AssemblerOutput(code: Map[String, Array[Byte]], asm: Array[String], labels: List[(String, Int)])
 
-class Assembler(private val program: Program, private val rootEnv: Environment) {
+class Assembler(private val program: Program, private val rootEnv: Environment, private val platform: Platform) {
 
   private var env = rootEnv.allThings
   var unoptimizedCodeSize: Int = 0
   var optimizedCodeSize: Int = 0
   var initializedVariablesSize: Int = 0
 
-  val mem = new CompiledMemory
+  val mem = new CompiledMemory(platform.bankNumbers.keys.toList)
   val labelMap: mutable.Map[String, Int] = mutable.Map()
-  private val bytesToWriteLater = mutable.ListBuffer[(Int, Int, Constant)]()
-  private val wordsToWriteLater = mutable.ListBuffer[(Int, Int, Constant)]()
+  private val bytesToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
+  private val wordsToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
 
-  def writeByte(bank: Int, addr: Int, value: Byte): Unit = {
+  def writeByte(bank: String, addr: Int, value: Byte): Unit = {
     mem.banks(bank).occupied(addr) = true
     mem.banks(bank).initialized(addr) = true
     mem.banks(bank).readable(addr) = true
     mem.banks(bank).output(addr) = value.toByte
   }
 
-  def writeByte(bank: Int, addr: Int, value: Constant): Unit = {
+  def writeByte(bank: String, addr: Int, value: Constant): Unit = {
     mem.banks(bank).occupied(addr) = true
     mem.banks(bank).initialized(addr) = true
     mem.banks(bank).readable(addr) = true
     value match {
       case NumericConstant(x, _) =>
-        if (x > 0xffff) ErrorReporting.error("Byte overflow")
-        mem.banks(0).output(addr) = x.toByte
+        if (x > 0xff) ErrorReporting.error("Byte overflow")
+        mem.banks(bank).output(addr) = x.toByte
       case _ =>
         bytesToWriteLater += ((bank, addr, value))
     }
   }
 
-  def writeWord(bank: Int, addr: Int, value: Constant): Unit = {
+  def writeWord(bank: String, addr: Int, value: Constant): Unit = {
     mem.banks(bank).occupied(addr) = true
     mem.banks(bank).occupied(addr + 1) = true
     mem.banks(bank).initialized(addr) = true
@@ -202,15 +202,15 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         }
     }
 
-    val bank0 = mem.banks(0)
-
     env.allPreallocatables.foreach {
-      case InitializedArray(name, Some(NumericConstant(address, _)), items) =>
+      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _) =>
+        val bank = thing.bank(options)
+        val bank0 = mem.banks(bank)
         var index = address.toInt
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
         for (item <- items) {
-          writeByte(0, index, item)
+          writeByte(bank, index, item)
           bank0.occupied(index) = true
           bank0.initialized(index) = true
           bank0.writeable(index) = true
@@ -221,13 +221,15 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
           assembly.append("    !byte " + group.mkString(", "))
         }
         initializedVariablesSize += items.length
-      case InitializedArray(name, Some(_), items) => ???
+      case thing@InitializedArray(name, Some(_), items, _) => ???
       case f: NormalFunction if f.address.isDefined =>
+        val bank = f.bank(options)
+        val bank0 = mem.banks(bank)
         val index = f.address.get.asInstanceOf[NumericConstant].value.toInt
         val code = compiledFunctions(f.name)
         if (code.nonEmpty) {
           labelMap(f.name) = index
-          val end = outputFunction(code, index, assembly, options)
+          val end = outputFunction(bank, code, index, assembly, options)
           for(i <- index until end) {
             bank0.occupied(index) = true
             bank0.initialized(index) = true
@@ -237,68 +239,77 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
       case _ =>
     }
 
-    val codeAllocator = new VariableAllocator(Nil, platform.codeAllocator)
-    var justAfterCode = platform.codeAllocator.startAt
+    val codeAllocators = platform.codeAllocators.mapValues(new VariableAllocator(Nil, _))
+    var justAfterCode = platform.codeAllocators.mapValues(a => a.startAt)
     env.allPreallocatables.foreach {
       case f: NormalFunction if f.address.isEmpty && f.name == "main" =>
+        val bank = f.bank(options)
+
         val code = compiledFunctions(f.name)
         if (code.nonEmpty) {
           val size = code.map(_.sizeInBytes).sum
-          val index = codeAllocator.allocateBytes(bank0, options, size, initialized = true, writeable = false)
+          val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false)
           labelMap(f.name) = index
-          justAfterCode = outputFunction(code, index, assembly, options)
+          justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
         }
       case _ =>
     }
     env.allPreallocatables.foreach {
       case f: NormalFunction if f.address.isEmpty && f.name != "main" =>
+        val bank = f.bank(options)
+        val bank0 = mem.banks(bank)
         val code = compiledFunctions(f.name)
         if (code.nonEmpty) {
           val size = code.map(_.sizeInBytes).sum
-          val index = codeAllocator.allocateBytes(bank0, options, size, initialized = true, writeable = false)
+          val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false)
           labelMap(f.name) = index
-          justAfterCode = outputFunction(code, index, assembly, options)
+          justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
         }
       case _ =>
     }
     env.allPreallocatables.foreach {
-      case InitializedArray(name, None, items) =>
-        var index = codeAllocator.allocateBytes(bank0, options, items.size, initialized = true, writeable = true)
+      case thing@InitializedArray(name, None, items, _) =>
+        val bank = thing.bank(options)
+        val bank0 = mem.banks(bank)
+        var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true)
         labelMap(name) = index
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
         for (item <- items) {
-          writeByte(0, index, item)
+          writeByte(bank, index, item)
           index += 1
         }
         items.grouped(16).foreach {group =>
           assembly.append("    !byte " + group.mkString(", "))
         }
         initializedVariablesSize += items.length
-        justAfterCode = index
-      case m@InitializedMemoryVariable(name, None, typ, value) =>
-        var index = codeAllocator.allocateBytes(bank0, options, typ.size, initialized = true, writeable = true)
+        justAfterCode += bank -> index
+      case m@InitializedMemoryVariable(name, None, typ, value, _) =>
+        val bank = m.bank(options)
+        val bank0 = mem.banks(bank)
+        var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true)
         labelMap(name) = index
         val altName = m.name.stripPrefix(env.prefix) + "`"
         env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
         for (i <- 0 until typ.size) {
-          writeByte(0, index, value.subbyte(i))
+          writeByte(bank, index, value.subbyte(i))
           assembly.append("    !byte " + value.subbyte(i).quickSimplify)
           index += 1
         }
         initializedVariablesSize += typ.size
-        justAfterCode = index
+        justAfterCode += bank -> index
       case _ =>
     }
     env.getAllFixedAddressObjects.foreach {
-      case (addr, size) =>
+      case (bank, addr, size) =>
+        val bank0 = mem.banks(bank)
         for(i <- 0 until size) bank0.occupied(addr + i) = true
     }
-    val variableAllocator = platform.variableAllocator
-    variableAllocator.notifyAboutEndOfCode(justAfterCode)
-    env.allocateVariables(None, bank0, callGraph, variableAllocator, options, labelMap.put)
+    val variableAllocators = platform.variableAllocators
+    variableAllocators.foreach{case (b,a) => a.notifyAboutEndOfCode(justAfterCode(b))}
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put)
 
     env = rootEnv.allThings
 
@@ -327,7 +338,12 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
       assembly += f"    ; $$$v%04X = $l%s"
     }
 
-    AssemblerOutput(platform.outputPackager.packageOutput(mem, 0), assembly.toArray, labelMap.toList)
+    // TODO:
+    val code = (platform.outputStyle match {
+      case OutputStyle.Single => List("default")
+      case OutputStyle.PerBank => platform.bankNumbers.keys.toList
+    }).map(b => b -> platform.outputPackager.packageOutput(mem, b)).toMap
+    AssemblerOutput(code, assembly.toArray, labelMap.toList)
   }
 
   private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization], options: CompilationOptions, inlinedFunctions: Map[String, List[AssemblyLine]]): List[AssemblyLine] = {
@@ -363,7 +379,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
     else code
   }
 
-  private def outputFunction(code: List[AssemblyLine], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
+  private def outputFunction(bank: String, code: List[AssemblyLine], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
     var index = startFrom
     assOut.append("* = $" + startFrom.toHexString)
     import millfork.assembly.AddrMode._
@@ -378,24 +394,24 @@ class Assembler(private val program: Program, private val rootEnv: Environment) 
         case AssemblyLine(_, DoesNotExist, _, _) =>
           ()
         case AssemblyLine(op, Implied, _, _) =>
-          writeByte(0, index, Assembler.opcodeFor(op, Implied, options))
+          writeByte(bank, index, Assembler.opcodeFor(op, Implied, options))
           index += 1
         case AssemblyLine(op, Relative, param, _) =>
-          writeByte(0, index, Assembler.opcodeFor(op, Relative, options))
-          writeByte(0, index + 1, param - (index + 2))
+          writeByte(bank, index, Assembler.opcodeFor(op, Relative, options))
+          writeByte(bank, index + 1, param - (index + 2))
           index += 2
         case AssemblyLine(op, am@(Immediate | ZeroPage | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | LongIndexedY | LongIndexedZ | Stack), param, _) =>
-          writeByte(0, index, Assembler.opcodeFor(op, am, options))
-          writeByte(0, index + 1, param)
+          writeByte(bank, index, Assembler.opcodeFor(op, am, options))
+          writeByte(bank, index + 1, param)
           index += 2
         case AssemblyLine(op, am@(WordImmediate | Absolute | AbsoluteY | AbsoluteX | Indirect | AbsoluteIndexedX), param, _) =>
-          writeByte(0, index, Assembler.opcodeFor(op, am, options))
-          writeWord(0, index + 1, param)
+          writeByte(bank, index, Assembler.opcodeFor(op, am, options))
+          writeWord(bank, index + 1, param)
           index += 3
         case AssemblyLine(op, am@(LongAbsolute | LongAbsoluteX | LongIndirect), param, _) =>
-          writeByte(0, index, Assembler.opcodeFor(op, am, options))
-          writeWord(0, index + 1, param)
-          writeByte(0, index + 3, extractBank(param, options))
+          writeByte(bank, index, Assembler.opcodeFor(op, am, options))
+          writeWord(bank, index + 1, param)
+          writeByte(bank, index + 3, extractBank(param, options))
           index += 4
       }
     }

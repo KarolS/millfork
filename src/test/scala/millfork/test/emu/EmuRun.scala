@@ -147,14 +147,14 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // compile
         val env2 = new Environment(None, "")
         env2.collectDeclarations(program, options)
-        val assembler = new Assembler(program, env2)
+        val assembler = new Assembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
         println(";;; ---------------------------")
         assembler.labelMap.foreach { case (l, addr) => println(f"$l%-15s $$$addr%04x") }
 
-        val optimizedSize = assembler.mem.banks(0).initialized.count(identity).toLong
+        val optimizedSize = assembler.mem.banks("default").initialized.count(identity).toLong
         if (unoptimizedSize == optimizedSize) {
           println(f"Size:             $unoptimizedSize%5d B")
         } else {
@@ -165,7 +165,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
         ErrorReporting.assertNoErrors("Code generation failed")
 
-        val memoryBank = assembler.mem.banks(0)
+        val memoryBank = assembler.mem.banks("default")
         if (source.contains("return [")) {
           for (_ <- 0 until 10; i <- 0xfffe.to(0, -1)) {
             if (memoryBank.readable(i)) memoryBank.readable(i + 1) = true
@@ -173,14 +173,14 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         }
         platform.cpu match {
           case millfork.Cpu.Cmos =>
-            runViaSymon(memoryBank, platform.codeAllocator.startAt, CpuBehavior.CMOS_6502)
+            runViaSymon(memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.CMOS_6502)
           case millfork.Cpu.Ricoh =>
-            runViaHalfnes(memoryBank, platform.codeAllocator.startAt)
+            runViaHalfnes(memoryBank, platform.codeAllocators("default").startAt)
           case millfork.Cpu.Mos =>
             ErrorReporting.fatal("There's no NMOS emulator with decimal mode support")
             Timings(-1, -1) -> memoryBank
           case millfork.Cpu.StrictMos | millfork.Cpu.StrictRicoh =>
-            runViaSymon(memoryBank, platform.codeAllocator.startAt, CpuBehavior.NMOS_6502)
+            runViaSymon(memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.NMOS_6502)
           case _ =>
             ErrorReporting.trace("No emulation support for " + platform.cpu)
             Timings(-1, -1) -> memoryBank

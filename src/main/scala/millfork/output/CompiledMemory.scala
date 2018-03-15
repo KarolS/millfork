@@ -5,8 +5,8 @@ import scala.collection.mutable
 /**
   * @author Karol Stasiak
   */
-class CompiledMemory {
-  val banks = mutable.Map(0 -> new MemoryBank)
+class CompiledMemory(bankNames: List[String]) {
+  val banks = mutable.Map(bankNames.map(_ -> new MemoryBank): _*)
 }
 
 class MemoryBank {

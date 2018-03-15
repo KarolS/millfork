@@ -12,31 +12,24 @@ import org.apache.commons.configuration2.INIConfiguration
   * @author Karol Stasiak
   */
 
+object OutputStyle extends Enumeration {
+  val Single, PerBank = Value
+}
+
 class Platform(
                 val cpu: Cpu.Value,
                 val flagOverrides: Map[CompilationFlag.Value, Boolean],
                 val startingModules: List[String],
                 val outputPackager: OutputPackager,
-                val codeAllocator: UpwardByteAllocator,
-                val variableAllocator: VariableAllocator,
+                val codeAllocators: Map[String, UpwardByteAllocator],
+                val variableAllocators: Map[String, VariableAllocator],
                 val fileExtension: String,
-                var defaultCodeBank: Int = 0,
+                val bankNumbers: Map[String, Int],
+                val defaultCodeBank: String,
+                val outputStyle: OutputStyle.Value
               )
 
 object Platform {
-
-  val C64 = new Platform(
-    Cpu.Mos,
-    Map(),
-    List("c64_hardware", "c64_loader"),
-    SequenceOutput(List(StartAddressOutput, AllocatedDataOutput)),
-    new UpwardByteAllocator(0x80D, 0xA000),
-    new VariableAllocator(
-      List(0xC1, 0xC3, 0xFB, 0xFD, 0x39, 0x3B, 0x3D, 0x43, 0x4B),
-      new AfterCodeByteAllocator(0xA000)
-    ),
-    ".prg"
-  )
 
   def lookupPlatformFile(includePath: List[String], platformName: String): Platform = {
     includePath.foreach { dir =>
@@ -79,7 +72,7 @@ object Platform {
     }).toMap ++ CompilationFlag.fromString.flatMap { case (k, f) =>
       val value = cs.get(classOf[String], k, "")
       value.toLowerCase match {
-        case "" => None
+        case "" | null => None
         case "false" | "off" | "no" | "0" => Some(f -> false)
         case "true" | "on" | "yes" | "1" => Some(f -> true)
         case _ =>
@@ -90,23 +83,66 @@ object Platform {
     val startingModules = cs.get(classOf[String], "modules", "").split("[, ]+").filter(_.nonEmpty).toList
 
     val as = conf.getSection("allocation")
-    val org = as.get(classOf[String], "main_org", "") match {
-      case "" => ErrorReporting.fatal(s"Undefined main_org")
-      case m => parseNumber(m)
+
+    val banks = as.get(classOf[String], "segments", "default").split("[, ]+").filter(_.nonEmpty).toList
+    if (!banks.contains("default")) {
+      ErrorReporting.error("A segment named `default` is required")
     }
+    if (banks.toSet.size != banks.length) {
+      ErrorReporting.error("Duplicate segment name")
+    }
+    val BankRegex = """\A[A-Za-z0-9_]+\z""".r
+    banks.foreach {
+      case BankRegex(_*) => // ok
+      case b => ErrorReporting.error(s"Invalid segment name: `$b`")
+    }
+
+    val bankStarts = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_start") match {
+      case "" | null => ErrorReporting.error(s"Undefined segment_${b}_start"); 0
+      case x => parseNumber(x)
+    })).toMap
+    val bankDataStarts = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_datastart", "after_code") match {
+      case "" | "after_code" => None
+      case x => Some(parseNumber(x))
+    })).toMap
+    val bankEnds = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_end") match {
+      case "" | null => ErrorReporting.error(s"Undefined segment_${b}_end"); 0xffff
+      case x => parseNumber(x)
+    })).toMap
+    val bankCodeEnds = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_codeend", "") match {
+      case "" => bankEnds(b)
+      case x => parseNumber(x)
+    })).toMap
+    val defaultCodeBank = as.get(classOf[String], "default_code_segment") match {
+      case "" | null => "default"
+      case x => x
+    }
+    // used by 65816:
+    val bankNumbers = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_bank", "00") match {
+      case "" => 0
+      case x => parseNumber(x)
+    })).toMap
+
+    // TODO: validate stuff
+    banks.foreach(b => {
+      if (bankNumbers(b) < 0 || bankNumbers(b) > 255) ErrorReporting.error(s"Segment $b has invalid bank")
+      if (bankStarts(b) >= bankCodeEnds(b)) ErrorReporting.error(s"Segment $b has invalid range")
+      if (bankCodeEnds(b) > bankEnds(b)) ErrorReporting.error(s"Segment $b has invalid range")
+      if (bankStarts(b) >= bankEnds(b)) ErrorReporting.error(s"Segment $b has invalid range")
+      bankDataStarts(b).foreach(dataStarts => if (dataStarts >= bankEnds(b)) ErrorReporting.error(s"Segment $b has invalid range"))
+    })
+
     val freePointers = as.get(classOf[String], "zp_pointers", "all") match {
       case "all" => List.tabulate(128)(_ * 2)
       case xs => xs.split("[, ]+").map(parseNumber).toList
     }
-    val himemEnd = as.get(classOf[String], "himem_end", "") match {
-      case "" => ErrorReporting.fatal(s"Undefined himem_end")
-      case end => parseNumber(end) + 1
-    }
-    val byteAllocator = as.get(classOf[String], "himem_start", "") match {
-      case "" => ErrorReporting.fatal(s"Undefined himem_start")
-      case "after_code" => new AfterCodeByteAllocator(himemEnd)
-      case start => new UpwardByteAllocator(parseNumber(start), himemEnd)
-    }
+
+    val codeAllocators = banks.map(b => b -> new UpwardByteAllocator(bankStarts(b), bankCodeEnds(b)))
+    val variableAllocators = banks.map(b => b -> new VariableAllocator(
+      if (b == "default") freePointers else Nil, bankDataStarts(b) match {
+        case None => new AfterCodeByteAllocator(bankEnds(b))
+        case Some(start) => new UpwardByteAllocator(start, bankEnds(b))
+      }))
 
     val os = conf.getSection("output")
     val outputPackager = SequenceOutput(os.get(classOf[String], "format", "").split("[, ]+").filter(_.nonEmpty).map {
@@ -114,18 +150,26 @@ object Platform {
       case "endaddr" => EndAddressOutput
       case "allocated" => AllocatedDataOutput
       case n => n.split(":").filter(_.nonEmpty) match {
-        case Array(b, s, e) => BankFragmentOutput(parseNumber(b), parseNumber(s), parseNumber(e))
+        case Array(b, s, e) => BankFragmentOutput(b, parseNumber(s), parseNumber(e))
         case Array(s, e) => CurrentBankFragmentOutput(parseNumber(s), parseNumber(e))
         case Array(b) => ConstOutput(parseNumber(b).toByte)
         case x => ErrorReporting.fatal(s"Invalid output format: `$x`")
       }
     }.toList)
-    var fileExtension = os.get(classOf[String], "extension", ".bin")
+    val fileExtension = os.get(classOf[String], "extension", ".bin")
+    val outputStyle = os.get(classOf[String], "style", "single") match {
+      case "" | "single" => OutputStyle.Single
+      case "per_bank" | "per_segment" => OutputStyle.PerBank
+      case x => ErrorReporting.fatal(s"Invalid output style: `$x`")
+    }
 
     new Platform(cpu, flagOverrides, startingModules, outputPackager,
-      new UpwardByteAllocator(org, 0xffff),
-      new VariableAllocator(freePointers, byteAllocator),
-      if (fileExtension.startsWith(".")) fileExtension else "." + fileExtension)
+      codeAllocators.toMap,
+      variableAllocators.toMap,
+      if (fileExtension.startsWith(".")) fileExtension else "." + fileExtension,
+      bankNumbers,
+      defaultCodeBank,
+      outputStyle)
   }
 
   def parseNumber(s: String): Int = {

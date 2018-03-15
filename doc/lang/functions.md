@@ -2,9 +2,11 @@
 
 Syntax:
 
-`[<modifiers>] <return_type> <name> ( <params> ) [@ <address>] { <body> }`
+`[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [@ <address>] { <body> }`
 
-`asm <return_type> <name> ( <params> ) @ <address> extern`
+`[segment (<segment>)] asm <return_type> <name> ( <params> ) @ <address> extern`
+
+* `<segment>`: segment name; if absent, then defaults to `default_code_segment` as defined for the platform
 
 * `<modifiers>`: zero or more of the following:
 

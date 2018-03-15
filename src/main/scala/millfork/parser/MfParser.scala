@@ -140,6 +140,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def variableDefinition(implicitlyGlobal: Boolean): P[Seq[DeclarationStatement]] = for {
     p <- position()
+    bank <- bankDeclaration
     flags <- flags("const", "static", "volatile", "stack", "register") ~ HWS
     typ <- identifier ~ SWS
     name <- identifier ~/ HWS ~/ Pass
@@ -148,6 +149,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     _ <- &(EOL) ~/ ""
   } yield {
     Seq(VariableDeclarationStatement(name, typ,
+      bank,
       global = implicitlyGlobal || flags("static"),
       stack = flags("stack"),
       constant = flags("const"),
@@ -229,11 +231,12 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def arrayDefinition: P[Seq[ArrayDeclarationStatement]] = for {
     p <- position()
+    bank <- bankDeclaration
     name <- "array" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
     length <- ("[" ~/ AWS ~/ mlExpression(nonStatementLevel) ~ AWS ~ "]").? ~ HWS
     addr <- ("@" ~/ HWS ~/ mlExpression(1)).? ~/ HWS
     contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
-  } yield Seq(ArrayDeclarationStatement(name, length, addr, contents).pos(p))
+  } yield Seq(ArrayDeclarationStatement(name, bank, length, addr, contents).pos(p))
 
   def tightMlExpression: P[Expression] = P(mlParenExpr | functionCall | mlIndexedExpression | atom) // TODO
 
@@ -463,8 +466,14 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     condition <- "while" ~ !letterOrDigit ~/ HWS ~/ mlExpression(nonStatementLevel)
   } yield Seq(DoWhileStatement(body.toList, Nil, condition))
 
+
+
+
+  def bankDeclaration: P[Option[String]] = ("segment" ~/ AWS ~/ "(" ~/ AWS ~/ identifier ~/ AWS ~/ ")" ~/ AWS).?
+
   def functionDefinition: P[Seq[DeclarationStatement]] = for {
     p <- position()
+    bank <- bankDeclaration
     flags <- flags("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt") ~ HWS
     returnType <- identifier ~ SWS
     name <- identifier ~ HWS
@@ -510,6 +519,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       case None => ()
     }
     Seq(FunctionDeclarationStatement(name, returnType, params.toList,
+      bank,
       addr,
       statements,
       flags("macro"),

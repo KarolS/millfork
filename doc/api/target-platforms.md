@@ -96,30 +96,49 @@ Every platform is defined in an `.ini` file with an appropriate name.
 
 #### `[allocation]` section
 
-* `main_org` – the address for the `main` function; all the other functions will be placed after it
-
 * `zp_pointers` – either a list of comma separated zeropage addresses that can be used by the program as zeropage pointers, or `all` for all. Each value should be the address of the first of two free bytes in the zeropage.
 
-* `himem_style` – not yet supported
+* `segments` – a comma-separated list of segment names.  
+A segment named `default` is always required.  
+Default: `default`. In all options below, `NAME` refers to a segment name.
 
-* `himem_start` – the first address used for non-zeropage variables, or `after_code` if the variables should be allocated after the code
+* `default_code_segment` – the default segment for code and initialized arrays.  
+Note that the default segment for uninitialized arrays and variables is always `default`.  
+Default: `default`
 
-* `himem_end` – the last address available for non-zeropage variables
+* `segment_NAME_start` – the first address used for automatic allocation in the segment.  
+Note that the `default` segment shouldn't start before $200, as the $0-$1FF range is reserved for the zeropage and the stack.  
+The `main` function will be placed as close to the beginning of its segment as possible, but not necessarily at `segment_NAME_start`
+
+* `segment_NAME_end` – the last address in the segment
+
+* `segment_NAME_codeend` – the last address in the segment for code and initialized arrays.  
+Only uninitialized variables are allowed between `segment_NAME_codeend` and `segment_NAME_end`.  
+Default: the same as `segment_NAME_end`.
+
+* `segment_NAME_datastart` – the first address used for non-zeropage variables, or `after_code` if the variables should be allocated after the code.  
+Default: `after_code`.
 
 #### `[output]` section
  
-* `style` – not yet supported
+* `style` – how multi-segment programs should be output:
+
+    * `single` – output a single file, based mostly, but not necessarily only on data in the `default` segment (the default)
+    
+    * `per_segment` – generate a separate file with each segment
 
 * `format` – output file format; a comma-separated list of tokens:
 
     * literal byte values
     
-    * `startaddr` – little-endian 16-bit address of the first used byte of the compiled output
+    * `startaddr` – little-endian 16-bit address of the first used byte of the compiled output (not necessarily the segment start)
     
-    * `endaddr` – little-endian 16-bit address of the last used byte of the compiled output
+    * `endaddr` – little-endian 16-bit address of the last used byte of the compiled output (usually not the segment end)
     
     * `allocated` – all used bytes
     
     * `<addr>:<addr>` - inclusive range of bytes
+    
+    * `<segment>:<addr>:<addr>` - inclusive range of bytes in a given segment
     
 * `extension` – target file extension, with or without the dot

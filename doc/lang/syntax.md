@@ -18,7 +18,9 @@ or a top level of a function (*local* variables).
 
 Syntax:
 
-`[<storage>] <type> <name> [@<address>] [= <initial_value>]`
+`[segment(<segment>)] [<storage>] <type> <name> [@<address>] [= <initial_value>]`
+
+* `<segment>`: segment name; if absent, then defaults to `default`.
 
 * `<storage>` can be only specified for local variables. It can be either `stack`, `static`, `register` or nothing.
 `register` is only a hint for the optimizer. 
@@ -44,7 +46,11 @@ An array is a continuous sequence of bytes in memory.
 
 Syntax:
 
-`array <name> [[<size>]] [@<address>] [= <initial_values>]`
+`[segment(<segment>)] array <name> [[<size>]] [@<address>] [= <initial_values>]`
+
+* `<segment>`: segment name; if absent,
+then defaults to `default_code_segment` as defined for the platform if the array has initial values,
+or to `default` if it doesn't.
 
 TODO
 

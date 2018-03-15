@@ -81,10 +81,10 @@ sealed trait ThingInMemory extends Thing {
   def toAddress: Constant
 
   var farFlag: Option[Boolean] = None
-  var declaredBank: Option[Int] = None
+  val declaredBank: Option[String]
 
   def isFar(compilationOptions: CompilationOptions): Boolean
-  def bank(compilationOptions: CompilationOptions): Int
+  def bank(compilationOptions: CompilationOptions): String
 }
 
 sealed trait PreallocableThing extends ThingInMemory {
@@ -101,8 +101,10 @@ case class Label(name: String) extends ThingInMemory {
   override def isFar(compilationOptions: CompilationOptions): Boolean =
     compilationOptions.flag(CompilationFlag.LargeCode) && farFlag.getOrElse(true)
 
-  override def bank(compilationOptions: CompilationOptions): Int =
+  override def bank(compilationOptions: CompilationOptions): String =
     declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
+
+  override val declaredBank: Option[String] = None
 }
 
 sealed trait Variable extends TypedThing with VariableLikeThing
@@ -117,8 +119,8 @@ sealed trait VariableInMemory extends Variable with ThingInMemory with Indexable
   override def isFar(compilationOptions: CompilationOptions): Boolean =
     !zeropage && farFlag.getOrElse(false)
 
-  override def bank(compilationOptions: CompilationOptions): Int =
-    declaredBank.getOrElse(0)
+  override def bank(compilationOptions: CompilationOptions): String =
+    declaredBank.getOrElse("default")
 }
 
 case class RegisterVariable(register: Register.Value, typ: Type) extends Variable {
@@ -149,7 +151,7 @@ abstract class MemoryVariable extends VariableInMemory {
   def alloc: VariableAllocationMethod.Value
 }
 
-case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableAllocationMethod.Value) extends MemoryVariable with UninitializedMemory {
+case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableAllocationMethod.Value, declaredBank: Option[String]) extends MemoryVariable with UninitializedMemory {
   override def sizeInBytes: Int = typ.size
 
   override def zeropage: Boolean = alloc == VariableAllocationMethod.Zeropage
@@ -157,7 +159,7 @@ case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableA
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 }
 
-case class InitializedMemoryVariable(name: String, address: Option[Constant], typ: Type, initialValue: Constant) extends MemoryVariable with PreallocableThing {
+case class InitializedMemoryVariable(name: String, address: Option[Constant], typ: Type, initialValue: Constant, declaredBank: Option[String]) extends MemoryVariable with PreallocableThing {
   override def zeropage: Boolean = false
 
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
@@ -169,33 +171,33 @@ case class InitializedMemoryVariable(name: String, address: Option[Constant], ty
 
 trait MfArray extends ThingInMemory with IndexableThing
 
-case class UninitializedArray(name: String, sizeInBytes: Int) extends MfArray with UninitializedMemory {
+case class UninitializedArray(name: String, sizeInBytes: Int, declaredBank: Option[String]) extends MfArray with UninitializedMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 
   override def alloc = VariableAllocationMethod.Static
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
 
-  override def bank(compilationOptions: CompilationOptions): Int = declaredBank.getOrElse(0)
+  override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse("default")
 }
 
-case class RelativeArray(name: String, address: Constant, sizeInBytes: Int) extends MfArray {
+case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, declaredBank: Option[String]) extends MfArray {
   override def toAddress: Constant = address
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
 
-  override def bank(compilationOptions: CompilationOptions): Int = declaredBank.getOrElse(0)
+  override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse("default")
 }
 
-case class InitializedArray(name: String, address: Option[Constant], contents: List[Constant]) extends MfArray with PreallocableThing {
+case class InitializedArray(name: String, address: Option[Constant], contents: List[Constant], declaredBank: Option[String]) extends MfArray with PreallocableThing {
   override def shouldGenerate = true
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
 
-  override def bank(compilationOptions: CompilationOptions): Int = declaredBank.getOrElse(0)
+  override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
 }
 
-case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean) extends VariableInMemory {
+case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean, declaredBank: Option[String]) extends VariableInMemory {
   override def toAddress: Constant = address
 }
 
@@ -231,7 +233,7 @@ sealed trait FunctionInMemory extends MangledFunction with ThingInMemory {
   override def isFar(compilationOptions: CompilationOptions): Boolean =
     compilationOptions.flag(CompilationFlag.LargeCode) && farFlag.getOrElse(true)
 
-  override def bank(compilationOptions: CompilationOptions): Int =
+  override def bank(compilationOptions: CompilationOptions): String =
     declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
 }
 
@@ -239,7 +241,8 @@ case class ExternFunction(name: String,
                           returnType: Type,
                           params: ParamSignature,
                           address: Constant,
-                          environment: Environment) extends FunctionInMemory {
+                          environment: Environment,
+                          declaredBank: Option[String]) extends FunctionInMemory {
   override def toAddress: Constant = address
 
   override def interrupt = false
@@ -255,7 +258,8 @@ case class NormalFunction(name: String,
                           interrupt: Boolean,
                           kernalInterrupt: Boolean,
                           reentrant: Boolean,
-                          position: Option[Position]) extends FunctionInMemory with PreallocableThing {
+                          position: Option[Position],
+                          declaredBank: Option[String]) extends FunctionInMemory with PreallocableThing {
   override def shouldGenerate = true
 }
 
