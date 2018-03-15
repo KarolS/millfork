@@ -37,10 +37,10 @@ class NonetSuite extends FunSuite with Matchers {
         | void main () {
         |   byte a
         |   a = 3
-        |   output0 = a <<<< 1
-        |   output1 = a <<<< 2
-        |   output2 = a <<<< 6
-        |   output3 = a <<<< 7
+        |   output0 = nonet(a << 1)
+        |   output1 = nonet(a << 2)
+        |   output2 = nonet(a << 6)
+        |   output3 = nonet(a << 7)
         | }
       """.stripMargin) { m =>
       m.readWord(0xc000) should equal(0x06)

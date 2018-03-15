@@ -62,7 +62,6 @@ object ExpressionCompiler {
       case FunctionCallExpression("<<'", params) => b
       case FunctionCallExpression(">>'", params) => b
       case FunctionCallExpression(">>>>", params) => b
-      case FunctionCallExpression("<<<<", params) => w
       case FunctionCallExpression("&&", params) => bool
       case FunctionCallExpression("||", params) => bool
       case FunctionCallExpression("^^", params) => bool
@@ -832,7 +831,7 @@ object ExpressionCompiler {
                   if (addends.size > 2) {
                     ErrorReporting.warn("Nonet addition works correctly only for two operands", ctx.options, expr.position)
                   }
-                case FunctionCallExpression("+" | "+'" | "<<" | "<<<<" | "<<'" | "nonet", _) => // ok
+                case FunctionCallExpression("+" | "+'" | "<<" | "<<'" | "nonet", _) => // ok
                 case _ =>
                   ErrorReporting.warn("Unspecified nonet operation, results might be unpredictable", ctx.options, expr.position)
               }
@@ -895,11 +894,6 @@ object ExpressionCompiler {
               case v: LhsExpression =>
                 BuiltIns.compileNonetOps(ctx, v, r)
             }
-          case "<<<<" =>
-            ErrorReporting.warn("`x <<<< y` is obsolete, use `nonet(x << y)`", ctx.options, expr.position)
-            assertAllBytes("Long shift ops not supported", ctx, params)
-            val (l, r, 1) = assertBinary(ctx, params)
-            BuiltIns.compileNonetLeftShift(ctx, l, r)
           case "<<" =>
             val (l, r, size) = assertBinary(ctx, params)
             size match {

@@ -150,8 +150,8 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
 }
 
 object MathOperator extends Enumeration {
-  val Plus, Minus, Times, Shl, Shr, Shl9, Shr9,
-  DecimalPlus, DecimalMinus, DecimalTimes, DecimalShl, DecimalShr,
+  val Plus, Minus, Times, Shl, Shr, Shl9, Shr9, Plus9, DecimalPlus9,
+  DecimalPlus, DecimalMinus, DecimalTimes, DecimalShl, DecimalShl9, DecimalShr,
   And, Or, Exor = Value
 }
 
@@ -170,6 +170,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Shl => lv << rv
           case MathOperator.Shr => lv >> rv
           case MathOperator.Shl9 => (lv << rv) & 0x1ff
+          case MathOperator.Plus9 => (lv + rv) & 0x1ff
           case MathOperator.Shr9 => (lv & 0x1ff) >> rv
           case MathOperator.Exor => lv ^ rv
           case MathOperator.Or => lv | rv
@@ -177,6 +178,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case _ => return this
         }
         operator match {
+          case MathOperator.Plus9 | MathOperator.DecimalPlus9 =>
+            size = 2
           case MathOperator.Times | MathOperator.Shl =>
             val mask = (1 << (size * 8)) - 1
             if (value != (value & mask)){
@@ -188,6 +191,9 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case (NumericConstant(0, 1), c) =>
         operator match {
           case MathOperator.Plus => c
+          case MathOperator.Plus9 => c
+          case MathOperator.DecimalPlus => c
+          case MathOperator.DecimalPlus9 => c
           case MathOperator.Minus => CompoundConstant(operator, l, r)
           case MathOperator.Times => Constant.Zero
           case MathOperator.Shl => Constant.Zero
@@ -202,6 +208,9 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case (c, NumericConstant(0, 1)) =>
         operator match {
           case MathOperator.Plus => c
+          case MathOperator.Plus9 => c
+          case MathOperator.DecimalPlus => c
+          case MathOperator.DecimalPlus9 => c
           case MathOperator.Minus => c
           case MathOperator.Times => Constant.Zero
           case MathOperator.Shl => c
@@ -259,16 +268,19 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
   override def toString: String = {
     operator match {
       case Plus => f"$plhs + $prhs"
+      case Plus9 => f"nonet($plhs + $prhs)"
       case Minus => f"$plhs - $prhs"
       case Times => f"$plhs * $prhs"
       case Shl => f"$plhs << $prhs"
       case Shr => f"$plhs >> $prhs"
-      case Shl9 => f"$plhs <<<< $prhs"
+      case Shl9 => f"nonet($plhs << $prhs)"
       case Shr9 => f"$plhs >>>> $prhs"
       case DecimalPlus => f"$plhs +' $prhs"
+      case DecimalPlus9 => f"nonet($plhs +' $prhs)"
       case DecimalMinus => f"$plhs -' $prhs"
       case DecimalTimes => f"$plhs *' $prhs"
       case DecimalShl => f"$plhs <<' $prhs"
+      case DecimalShl9 => f"nonet($plhs <<' $prhs)"
       case DecimalShr => f"$plhs >>' $prhs"
       case And => f"$plhs & $prhs"
       case Or => f"$plhs | $prhs"

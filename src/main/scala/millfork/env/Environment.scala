@@ -278,7 +278,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           "<<" | ">>" |
           "<<'" | ">>'" |
           "&" | "|" | "^" |
-          ">>>>" | "<<<<" |
+          ">>>>" |
           "*" | "*'", _)) => variable -> constant
           case Some(FunctionCallExpression(fname, _)) =>
             maybeGet[Thing](fname) match {
@@ -332,6 +332,19 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       } yield hc.asl(8) + lc
       case FunctionCallExpression(name, params) =>
         name match {
+          case "nonet" =>
+            params match {
+              case List(FunctionCallExpression("<<", ps@List(_, _))) =>
+                constantOperation(MathOperator.Shl9, ps)
+              case List(FunctionCallExpression("<<'", ps@List(_, _))) =>
+                constantOperation(MathOperator.DecimalShl9, ps)
+              case List(SumExpression(ps@List((true,_),(true,_)), false)) =>
+                constantOperation(MathOperator.Plus9, ps.map(_._2))
+              case List(SumExpression(ps@List((true,_),(true,_)), true)) =>
+                constantOperation(MathOperator.DecimalPlus9, ps.map(_._2))
+              case _ =>
+                None
+            }
           case ">>'" =>
             constantOperation(MathOperator.DecimalShr, params)
           case "<<'" =>
@@ -340,8 +353,6 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             constantOperation(MathOperator.Shr, params)
           case "<<" =>
             constantOperation(MathOperator.Shl, params)
-          case "<<<<" =>
-            constantOperation(MathOperator.Shl9, params)
           case ">>>>" =>
             constantOperation(MathOperator.Shr9, params)
           case "*'" =>

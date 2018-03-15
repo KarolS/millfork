@@ -99,14 +99,18 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         val r = deepConstResolve(rc)
         operator match {
           case MathOperator.Plus => l + r
+          case MathOperator.Plus9 => (l + r) & 0x1ff
           case MathOperator.Minus => l - r
           case MathOperator.Times => l * r
           case MathOperator.Shl => l << r
+          case MathOperator.Shl9 => (l << r) & 0x1ff
           case MathOperator.Shr => l >>> r
           case MathOperator.DecimalPlus => asDecimal(l, r, _ + _)
+          case MathOperator.DecimalPlus9 => asDecimal(l, r, _ + _) & 0x1ff
           case MathOperator.DecimalMinus => asDecimal(l, r, _ - _)
           case MathOperator.DecimalTimes => asDecimal(l, r, _ * _)
           case MathOperator.DecimalShl => asDecimal(l, 1 << r, _ * _)
+          case MathOperator.DecimalShl9 => asDecimal(l, 1 << r, _ * _) & 0x1ff
           case MathOperator.DecimalShr => asDecimal(l, 1 << r, _ / _)
           case MathOperator.And => l & r
           case MathOperator.Exor => l ^ r

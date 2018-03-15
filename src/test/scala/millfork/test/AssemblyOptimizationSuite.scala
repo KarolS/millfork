@@ -310,7 +310,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         | byte source @$C002
         | void main () {
         |   init()
-        |   output += source <<<< 1
+        |   output += nonet(source << 1)
         | }
         | void init() {
         |   output = 0

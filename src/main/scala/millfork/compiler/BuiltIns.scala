@@ -227,17 +227,6 @@ object BuiltIns {
     }
   }
 
-  @deprecated
-  def compileNonetLeftShift(ctx: CompilationContext, lhs: Expression, rhs: Expression): List[AssemblyLine] = {
-    val label = MfCompiler.nextLabel("sh")
-    compileShiftOps(ASL, ctx, lhs, rhs) ++ List(
-      AssemblyLine.immediate(LDX, 0),
-      AssemblyLine.relative(BCC, label),
-      AssemblyLine.implied(INX),
-      AssemblyLine.label(label)
-    )
-  }
-
   def compileInPlaceByteShiftOps(opcode: Opcode.Value, ctx: CompilationContext, lhs: LhsExpression, rhs: Expression): List[AssemblyLine] = {
     val env = ctx.env
     val b = env.get[Type]("byte")

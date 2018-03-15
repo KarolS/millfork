@@ -130,7 +130,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     List("&&"),
     List("==", "<=", ">=", "!=", "<", ">"),
     List(":"),
-    List("+'", "-'", "<<'", ">>'", "<<<<", ">>>>", "+", "-", "&", "|", "^", "<<", ">>"),
+    List("+'", "-'", "<<'", ">>'", ">>>>", "+", "-", "&", "|", "^", "<<", ">>"),
     List("*'", "*"))
 
   val nonStatementLevel = 1 // everything but not `=`
