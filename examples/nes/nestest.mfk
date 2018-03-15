@@ -1,0 +1,254 @@
+// Based upon the example code from NES 101 tutorial by Michael Martin
+
+void main() {
+    init_graphics()
+    init_input()
+    init_sound()
+    ppu_ctrl = %10001000
+    ppu_mask = %00011110
+    while(true){}
+}
+
+void nmi() {
+    scroll_screen()
+    update_sprite()
+    react_to_input()
+}
+
+void irq() {
+
+}
+
+array oam_buffer [256] @$200
+byte scroll
+byte a
+sbyte dx
+
+void init_graphics() {
+    init_sprites()
+    load_palette()
+    load_name_tables()
+    init_scrolling()
+}
+
+void init_input() {
+    a = 0
+}
+
+void init_sound() {
+    apu_status = 1
+    apu_pulse1_sweep = 0
+    apu_frame_counter = $40
+}
+
+void init_sprites() {
+    byte i
+    for i,255,downto,0 {
+        oam_buffer[i] = 0
+    }
+    oam_buffer[0] = $70
+    oam_buffer[1] = 1
+    oam_buffer[3] = 1
+    dx = 1
+}
+
+void load_palette() {
+    byte i
+    ppu_set_addr($3f00)
+    for i,0,until,palette.length {
+        ppu_write_data(palette[i])
+    }
+}
+
+void load_name_tables() {
+    pointer p
+    byte page_count
+    byte b
+
+    read_ppu_status()
+    p = bg.addr
+    ppu_set_addr($2400)
+    for page_count,0,until,4 {
+        for b,0,until,255 {
+            ppu_write_data(p[b])
+        }
+        p.hi += 1
+    }
+    for page_count,0,until,4 {
+        for b,0,until,255 {
+            ppu_write_data(0)
+        }
+    }
+}
+
+void init_scrolling() {
+    scroll = 240
+}
+
+void update_sprite() {
+    ppu_oam_dma_write(oam_buffer.addr.hi)
+    if oam_buffer[3] == 0 {
+        dx = 1
+        high_c()
+    } else if oam_buffer[3] == 255-8 {
+        dx = -1
+        high_c()
+    }
+    oam_buffer[3] += dx
+}
+
+void react_to_input() {
+    strobe_joypad()
+    if read_joypad1() & 1 != 0 { // A button
+        reverse_dx()
+    }
+    read_joypad1() // B button
+    read_joypad1() // Select button
+    read_joypad1() // Start button
+    if read_joypad1() & 1 != 0 { // Up button
+        if oam_buffer[0] > 7 { oam_buffer[0] -= 1}
+    }
+    if read_joypad1() & 1 != 0 { // Down button
+        if oam_buffer[0] < 223 { oam_buffer[0] += 1}
+    }
+}
+
+void reverse_dx() {
+    dx = 0 - dx
+    low_c()
+}
+
+void low_c() {
+    apu_pulse1_ctrl = $84
+    apu_pulse1_period = $9AA
+}
+
+void high_c() {
+    apu_pulse1_ctrl = $86
+    apu_pulse1_period = $869
+}
+
+void scroll_screen() {
+    ppu_write_data(0)
+    if scroll != 0 {
+        scroll -= 1
+        ppu_set_scroll(0, scroll)
+    }
+}
+
+array bg = [
+    "                                " ascii,
+    "12345678901234567890123456789012" ascii,
+    "                                " ascii,
+    "                                " ascii,
+    " PRESENTING NES 101             " ascii,
+    "    A GUIDE FOR OTHERWISE       " ascii,
+    "    EXPERIENCED PROGRAMMERS     " ascii,
+    "                                " ascii,
+    "    TUTORIAL FILE BY            " ascii,
+    "    MICHAEL MARTIN              " ascii,
+    "                                " ascii,
+    "                                " ascii,
+    "                                " ascii,
+    "    PRESS UP AND DOWN TO SHIFT  " ascii,
+    "    THE SPRITE                  " ascii,
+    "                                " ascii,
+    "    PRESS A TO REVERSE DIRECTION" ascii,
+    "                                " ascii,
+    "                                " ascii,
+    "                                " ascii,
+    "                                " ascii,
+    "                                " ascii,
+    "                                " ascii,
+    "CHARACTER SET HIJACKED FROM     " ascii,
+    "COMMODORE BUSINESS MACHINES     " ascii,
+    "           (C64'S CHARACTER ROM)" ascii,
+    "                                " ascii,
+    "READY.                          " ascii,
+    "                                " ascii,
+    "                                " ascii,
+    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,
+    $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,
+    $00,$00,$00,$00,$00,$00,$00,$00,$F0,$F0,$F0,$F0,$F0,$F0,$F0,$F0,
+    $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$0F,$0F,$0F,$0F,$0F,$0F,$0F,$0F
+]
+
+
+array palette = [
+		$0E,$00,$0E,$19,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$01,$21,
+		$0E,$20,$22,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+]
+
+segment(chrrom)
+array charset @$0200 = [
+		$00,$00,$00,$00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$18,$18,$18,$18,$00,$00,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$66,$66,$00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$66,$FF,$66,$FF,$66,$66,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$18,$3E,$60,$3C,$06,$7C,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$62,$66,$0C,$18,$30,$66,$46,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$3C,$38,$67,$66,$3F,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$06,$0C,$18,$00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$0C,$18,$30,$30,$30,$18,$0C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$30,$18,$0C,$0C,$0C,$18,$30,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$66,$3C,$FF,$3C,$66,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$18,$18,$7E,$18,$18,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$00,$00,$00,$00,$18,$18,$30,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$00,$00,$7E,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$00,$00,$00,$00,$18,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$03,$06,$0C,$18,$30,$60,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$6E,$76,$66,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$18,$18,$38,$18,$18,$18,$7E,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$06,$0C,$30,$60,$7E,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$06,$1C,$06,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$06,$0E,$1E,$66,$7F,$06,$06,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7E,$60,$7C,$06,$06,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$60,$7C,$66,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7E,$66,$0C,$18,$18,$18,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$66,$3C,$66,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$66,$3E,$06,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$00,$18,$00,$00,$18,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$00,$18,$00,$00,$18,$18,$30,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$0E,$18,$30,$60,$30,$18,$0E,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$00,$7E,$00,$7E,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$70,$18,$0C,$06,$0C,$18,$70,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$06,$0C,$18,$00,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$6E,$6E,$60,$62,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$18,$3C,$66,$7E,$66,$66,$66,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7C,$66,$66,$7C,$66,$66,$7C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$60,$60,$60,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$78,$6C,$66,$66,$66,$6C,$78,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7E,$60,$60,$78,$60,$60,$7E,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7E,$60,$60,$78,$60,$60,$60,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$60,$6E,$66,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$66,$66,$7E,$66,$66,$66,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$18,$18,$18,$18,$18,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$1E,$0C,$0C,$0C,$0C,$6C,$38,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$6C,$78,$70,$78,$6C,$66,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$60,$60,$60,$60,$60,$60,$7E,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$63,$77,$7F,$6B,$63,$63,$63,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$76,$7E,$7E,$6E,$66,$66,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$66,$66,$66,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7C,$66,$66,$7C,$60,$60,$60,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$66,$66,$66,$3C,$0E,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7C,$66,$66,$7C,$78,$6C,$66,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$66,$60,$3C,$06,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7E,$18,$18,$18,$18,$18,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$66,$66,$66,$66,$66,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$66,$66,$66,$66,$3C,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$63,$63,$63,$6B,$7F,$77,$63,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$66,$3C,$18,$3C,$66,$66,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$66,$66,$66,$3C,$18,$18,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$7E,$06,$0C,$18,$30,$60,$7E,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$30,$30,$30,$30,$30,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$0C,$12,$30,$7C,$30,$62,$FC,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$3C,$0C,$0C,$0C,$0C,$0C,$3C,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$18,$3C,$7E,$18,$18,$18,$18,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+		$00,$10,$30,$7F,$7F,$30,$10,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+]
+
+segment(chrrom)
+array sprites @$1000 = [
+		$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,
+		$18,$24,$66,$99,$99,$66,$24,$18,$00,$18,$18,$66,$66,$18,$18,$00
+]

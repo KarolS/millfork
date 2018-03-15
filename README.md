@@ -26,6 +26,8 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
     
     * Commodore Vic-20 (stock or with RAM extensions)
     
+    * Famicom/NES
+    
     * Atari 8-bit computers
     
     * Apple II+/IIe/Enhanced IIe
@@ -46,8 +48,6 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
 
 ## Planned features
 
-* multi-part programs
-
-* more targets: Famicon/NES, BBC Micro/Electron, Oric computers, PC-Engine/Turbografx-16, Atari Lynx
+* more targets: BBC Micro/Electron, Oric computers, PC-Engine/Turbografx-16, Atari Lynx
  
-* support for 65816, targetting SuperCPU, SuperFamicom/SNES and Apple IIgs 
+* support for 65816, SuperFamicom/SNES and Apple IIgs 

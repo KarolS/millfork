@@ -27,14 +27,18 @@ The following platforms are currently supported:
 
 * `pet` – Commodore PET
 
+* `nes_small` – a tiny 32K PRGROM + 8K CHRROM Famicom/NES program  
+For more complex programs, you need to create your own "platform" definition.  
+Read [the NES programming guide](./famicom-programming-guide.md) for more info.
+
 * `a8` – Atari 8-bit computers
 
 * `apple2` – Apple II+/IIe/Enhanced IIe
 
 The primary and most tested platform is Commodore 64.
 
-Currently, all targets assume that the program will be loaded from disk or tape.
-Cartridge targets are not yet available.
+Currently, targets that assume that the program will be loaded from disk or tape are better tested.
+Cartridge targets may exhibit unexpected bugs.
 
 ### A note about Apple II
 
@@ -93,6 +97,10 @@ Every platform is defined in an `.ini` file with an appropriate name.
     
     * `prevent_jmp_indirect_bug` – whether the compiler should try to avoid the indirect JMP bug, 
     default is `false` on 65C02-compatible processors and `true` elsewhere
+    
+    * `compact_dispatch_params` – whether parameter values in return dispatch statements may overlap other objects, default is `true`  
+    This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.  
+
 
 #### `[allocation]` section
 

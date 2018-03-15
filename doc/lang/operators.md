@@ -98,6 +98,7 @@ There are no division, remainder or modulo operators.
 ## Decimal arithmetic operators
 
 These operators work using the decimal arithmetic and will not work on Ricoh CPU's.
+The compiler issues a warning if these operators appear in the code.
 
 * `+'`, `-'`: decimal addition/subtraction  
 `byte +' byte`  

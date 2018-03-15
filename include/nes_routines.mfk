@@ -1,0 +1,65 @@
+
+
+asm void on_reset() {
+    SEI
+    CLD
+    LDX #$40
+    STX $4017
+    LDX #$ff
+    TXS
+    INX
+    STX ppu_ctrl
+    STX ppu_mask
+    STX $4010
+    BIT ppu_status
+vwait1:
+    BIT ppu_status
+    BPL vwait1
+vwait2:
+    BIT ppu_status
+    BPL vwait2
+
+
+    LDA #$00
+    LDX #$00
+clean_byte:
+    STA $000,x
+    STA $100,x
+    STA $200,x
+    STA $300,x
+    STA $400,x
+    STA $500,x
+    STA $600,x
+    STA $700,x
+    INX
+    BNE clean_byte
+
+    LDA #$00
+    STA $2000
+    STA $2001
+
+    JMP main
+    JMP on_reset
+}
+
+interrupt void on_irq() {
+    irq()
+}
+
+interrupt void on_nmi() {
+    nmi()
+}
+
+array nmi_vector @$FFFA = [
+    on_nmi.addr.lo,
+    on_nmi.addr.hi
+]
+array reset_vector @$FFFC = [
+    on_reset.addr.lo,
+    on_reset.addr.hi
+]
+array irq_vector @$FFFE = [
+    on_irq.addr.lo,
+    on_irq.addr.hi
+]
+

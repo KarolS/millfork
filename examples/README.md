@@ -24,6 +24,10 @@
 
 * [Galencia starfield](c64/galencia.mfk) – a port of the starfield effect from the game *Galencia* 
 
+## Famicom/NES examples
+
+* [NES 101 tutorial example](nes/nestest.mfk) – a port of the tutorial example from the NES 101 tutorial by Michael Martin
+
 ## Apple II examples
 
 * [Bell](apple2/bell.mfk) – a program that goes \*ding!\*
