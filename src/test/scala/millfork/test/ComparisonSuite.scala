@@ -23,7 +23,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |   output += 78
         |  }
         | }
-      """.stripMargin)(_.readWord(0xc000) should equal(6))
+      """.stripMargin)(_.readByte(0xc000) should equal(6))
   }
 
   test("Less") {
@@ -36,7 +36,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |    output += 1
         |  }
         | }
-      """.stripMargin)(_.readWord(0xc000) should equal(150))
+      """.stripMargin)(_.readByte(0xc000) should equal(150))
   }
 
   test("Compare to zero") {
@@ -51,7 +51,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |    output += 1
         |  }
         | }
-      """.stripMargin)(_.readWord(0xc000) should equal(150))
+      """.stripMargin)(_.readByte(0xc000) should equal(150))
   }
 
   test("Carry flag optimization test") {
@@ -71,7 +71,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         | byte get(byte x) {
         |   if x >= 6 {return 0} else {return 128}
         | }
-      """.stripMargin)(_.readWord(0xc000) should equal(4))
+      """.stripMargin)(_.readByte(0xc000) should equal(4))
   }
 
   test("Does it even work") {
@@ -98,7 +98,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if 2222 == 3333 { output -= 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Word comparison == and !=") {
@@ -118,9 +118,10 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a != c { output += 1 }
         |  if a != 5 { output += 1 }
         |  if a != 260 { output += 1 }
+        |  if a != 0 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Word comparison <=") {
@@ -141,7 +142,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a <= c { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
   test("Word comparison <") {
     val src =
@@ -160,7 +161,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a < 257 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
 
@@ -181,7 +182,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if c > 0 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Word comparison >=") {
@@ -204,7 +205,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a >= 0 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Signed comparison >=") {
@@ -227,7 +228,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a >= 0 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Signed comparison < and <=") {
@@ -259,7 +260,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if c <= -1 { output -= 7 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readWord(0xc000) should equal(src.count(_ == '+')))
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Multiple params for equality") {
@@ -275,7 +276,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |   output += 78
         |  }
         | }
-      """.stripMargin)(_.readWord(0xc000) should equal(6))
+      """.stripMargin)(_.readByte(0xc000) should equal(6))
   }
 
   test("Multiple params for inequality") {
@@ -291,7 +292,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |   output += 78
         |  }
         | }
-      """.stripMargin)(_.readWord(0xc000) should equal(6))
+      """.stripMargin)(_.readByte(0xc000) should equal(6))
   }
 
   test("Warnings") {
@@ -310,6 +311,33 @@ class ComparisonSuite extends FunSuite with Matchers {
         | byte three() {
         |   return 3
         | }
-      """.stripMargin)(_.readWord(0xc000) should equal(6))
+      """.stripMargin)(_.readByte(0xc000) should equal(6))
+  }
+
+  test("Long comparisons") {
+    val src =
+      """
+        | byte output @$c000
+        | void main () {
+        |  long a
+        |  long b
+        |  long c
+        |  output = 0
+        |  a = 1234567
+        |  b = 2345678
+        |  c = 1234599
+        |  if a == a { output += 1 }
+        |  if c >= a { output += 1 }
+        |  if c != a { output += 1 }
+        |  if a <= c { output += 1 }
+        |  if a <  c { output += 1 }
+        |  if b >= a { output += 1 }
+        |  if b >= 0 { output += 1 }
+        |  if b >=  44564 { output += 1 }
+        |  if a >= 335444 { output += 1 }
+        |  if c >  335444 { output += 1 }
+        | }
+      """.stripMargin
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 }

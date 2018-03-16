@@ -931,6 +931,7 @@ object ExpressionCompiler {
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
                 case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
+                case _ => BuiltIns.compileLongComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, size, branches)
               }
             }
           case ">=" =>
@@ -940,6 +941,7 @@ object ExpressionCompiler {
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
                 case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
+                case _ => BuiltIns.compileLongComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, size, branches)
               }
             }
           case ">" =>
@@ -949,6 +951,7 @@ object ExpressionCompiler {
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
                 case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
+                case _ => BuiltIns.compileLongComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, size, branches)
               }
             }
           case "<=" =>
@@ -958,6 +961,7 @@ object ExpressionCompiler {
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
                 case 2 => BuiltIns.compileWordComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
+                case _ => BuiltIns.compileLongComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, size, branches)
               }
             }
           case "==" =>
@@ -966,6 +970,7 @@ object ExpressionCompiler {
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, ComparisonType.Equal, l, r, branches)
                 case 2 => BuiltIns.compileWordComparison(ctx, ComparisonType.Equal, l, r, branches)
+                case _ => BuiltIns.compileLongComparison(ctx, ComparisonType.Equal, l, r, size, branches)
               }
             }
           case "!=" =>
@@ -973,6 +978,7 @@ object ExpressionCompiler {
             size match {
               case 1 => BuiltIns.compileByteComparison(ctx, ComparisonType.NotEqual, l, r, branches)
               case 2 => BuiltIns.compileWordComparison(ctx, ComparisonType.NotEqual, l, r, branches)
+              case _ => BuiltIns.compileLongComparison(ctx, ComparisonType.NotEqual, l, r, size, branches)
             }
           case "+=" =>
             val (l, r, size) = assertAssignmentLike(ctx, params)

@@ -122,18 +122,18 @@ Note that currently in cases like `a < f() < b`, `f()` will be evaluated twice!
 
 * `==`: equality  
 `byte == byte`  
-`word == word`  
-`long == long`  
+`simple word == simple word`  
+`simple long == simple long`
 
 * `!=`: inequality  
 `byte != byte`  
-`word != word`  
-`long != long`
+`simple word != simple word`  
+`simple long != simple long`
 
 * `>`, `<`, `<=`, `>=`: inequality  
 `byte > byte`  
-`word > word`  
-`long > long`  
+`simple word > simple word`  
+`simple long > simple long`
 
 Currently, `>`, `<`, `<=`, `>=` operators perform unsigned comparison 
 if none of the types of their arguments is signed,

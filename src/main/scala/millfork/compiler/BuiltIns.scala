@@ -465,8 +465,8 @@ object BuiltIns {
         val lva = env.get[VariableInMemory](v.name)
         (AssemblyLine.variable(ctx, STA, lva, 1),
           AssemblyLine.variable(ctx, STA, lva, 0),
-          List(AssemblyLine.immediate(STA, rc.hiByte)),
-          List(AssemblyLine.immediate(STA, rc.loByte)))
+          List(AssemblyLine.immediate(STA, rc.hiByte.quickSimplify)),
+          List(AssemblyLine.immediate(STA, rc.loByte.quickSimplify)))
       case (lv: VariableExpression, None, rv: VariableExpression, None) =>
         val lva = env.get[VariableInMemory](lv.name)
         val rva = env.get[VariableInMemory](rv.name)
@@ -474,26 +474,49 @@ object BuiltIns {
           AssemblyLine.variable(ctx, STA, lva, 0),
           AssemblyLine.variable(ctx, STA, rva, 1),
           AssemblyLine.variable(ctx, STA, rva, 0))
+      case _ =>
+        // TODO comparing expressions
+        ErrorReporting.error("Too complex expressions in comparison", lhs.position)
+        (Nil, Nil, Nil, Nil)
+    }
+    val lType = ExpressionCompiler.getExpressionType(ctx, lhs)
+    val rType = ExpressionCompiler.getExpressionType(ctx, rhs)
+    val compactEqualityComparison = if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) {
+      None
+    } else if (lType.size == 1 && !lType.isSigned) {
+      Some(staTo(LDA, ll) ++ staTo(EOR, rl) ++ staTo(ORA, rh))
+    } else if (rType.size == 1 && !rType.isSigned) {
+      Some(staTo(LDA, rl) ++ staTo(EOR, ll) ++ staTo(ORA, lh))
+    } else {
+      None
     }
     effectiveComparisonType match {
       case ComparisonType.Equal =>
-        val innerLabel = MfCompiler.nextLabel("cp")
-        staTo(LDA, ll) ++
-          staTo(CMP, rl) ++
-          List(AssemblyLine.relative(BNE, innerLabel)) ++
-          staTo(LDA, lh) ++
-          staTo(CMP, rh) ++
-          List(
-            AssemblyLine.relative(BEQ, Label(x)),
-            AssemblyLine.label(innerLabel))
+        compactEqualityComparison match {
+          case Some(code) => code :+ AssemblyLine.relative(BEQ, Label(x))
+          case None =>
+            val innerLabel = MfCompiler.nextLabel("cp")
+            staTo(LDA, ll) ++
+              staTo(CMP, rl) ++
+              List(AssemblyLine.relative(BNE, innerLabel)) ++
+              staTo(LDA, lh) ++
+              staTo(CMP, rh) ++
+              List(
+                AssemblyLine.relative(BEQ, Label(x)),
+                AssemblyLine.label(innerLabel))
+        }
 
       case ComparisonType.NotEqual =>
-        staTo(LDA, ll) ++
-          staTo(CMP, rl) ++
-          List(AssemblyLine.relative(BNE, Label(x))) ++
-          staTo(LDA, lh) ++
-          staTo(CMP, rh) ++
-          List(AssemblyLine.relative(BNE, Label(x)))
+        compactEqualityComparison match {
+          case Some(code) => code :+ AssemblyLine.relative(BNE, Label(x))
+          case None =>
+            staTo(LDA, ll) ++
+              staTo(CMP, rl) ++
+              List(AssemblyLine.relative(BNE, Label(x))) ++
+              staTo(LDA, lh) ++
+              staTo(CMP, rh) ++
+              List(AssemblyLine.relative(BNE, Label(x)))
+        }
 
       case ComparisonType.LessUnsigned =>
         val innerLabel = MfCompiler.nextLabel("cp")
@@ -544,6 +567,91 @@ object BuiltIns {
       case _ => ???
       // TODO: signed word comparisons
     }
+  }
+
+  def compileLongComparison(ctx: CompilationContext, compType: ComparisonType.Value, lhs: Expression, rhs: Expression, size:Int, branches: BranchSpec, alreadyFlipped: Boolean = false): List[AssemblyLine] = {
+    val rType = ExpressionCompiler.getExpressionType(ctx, rhs)
+    if (rType.size < size && rType.isSigned) {
+      if (alreadyFlipped) ???
+      else return compileLongComparison(ctx, ComparisonType.flip(compType), rhs, lhs, size, branches, alreadyFlipped = true)
+    }
+
+    val (effectiveComparisonType, label) = branches match {
+      case NoBranching => return Nil
+      case BranchIfTrue(x) => compType -> x
+      case BranchIfFalse(x) => ComparisonType.negate(compType) -> x
+    }
+
+    // TODO: check for carry flag clobbering
+    val l = getLoadForEachByte(ctx, lhs, size)
+    val r = getLoadForEachByte(ctx, rhs, size)
+
+    val mask = (1L << (size * 8)) - 1
+    (ctx.env.eval(lhs), ctx.env.eval(rhs)) match {
+      case (Some(NumericConstant(lc, _)), Some(NumericConstant(rc, _))) =>
+        return if (effectiveComparisonType match {
+          // TODO: those masks are probably wrong
+          case ComparisonType.Equal =>
+            (lc & mask) == (rc & mask) // ??
+          case ComparisonType.NotEqual =>
+            (lc & mask) != (rc & mask) // ??
+
+          case ComparisonType.LessOrEqualUnsigned =>
+            (lc & mask) <= (rc & mask)
+          case ComparisonType.GreaterOrEqualUnsigned =>
+            (lc & mask) >= (rc & mask)
+          case ComparisonType.GreaterUnsigned =>
+            (lc & mask) > (rc & mask)
+          case ComparisonType.LessUnsigned =>
+            (lc & mask) < (rc & mask)
+
+          case ComparisonType.LessOrEqualSigned =>
+            signExtend(lc, mask) <= signExtend(lc, mask)
+          case ComparisonType.GreaterOrEqualSigned =>
+            signExtend(lc, mask) >= signExtend(lc, mask)
+          case ComparisonType.GreaterSigned =>
+            signExtend(lc, mask) > signExtend(lc, mask)
+          case ComparisonType.LessSigned =>
+            signExtend(lc, mask) < signExtend(lc, mask)
+        }) List(AssemblyLine.absolute(JMP, Label(label))) else Nil
+      case  _ =>
+        effectiveComparisonType match {
+          case ComparisonType.Equal =>
+            val innerLabel = MfCompiler.nextLabel("cp")
+            val bytewise = l.zip(r).map{
+              case (staL, staR) => staTo(LDA, staL) ++ staTo(CMP, staR)
+            }
+            bytewise.init.flatMap(b => b :+ AssemblyLine.relative(BNE, innerLabel)) ++ bytewise.last ++List(
+                AssemblyLine.relative(BEQ, Label(label)),
+                AssemblyLine.label(innerLabel))
+          case ComparisonType.NotEqual =>
+            l.zip(r).flatMap {
+              case (staL, staR) => staTo(LDA, staL) ++ staTo(CMP, staR) :+ AssemblyLine.relative(BNE, label)
+            }
+          case ComparisonType.LessUnsigned =>
+            val calculateCarry = AssemblyLine.implied(SEC) :: l.zip(r).flatMap{
+              case (staL, staR) => staTo(LDA, staL) ++ staTo(SBC, staR)
+            }
+            calculateCarry ++ List(AssemblyLine.relative(BCC, Label(label)))
+          case ComparisonType.GreaterOrEqualUnsigned =>
+            val calculateCarry = AssemblyLine.implied(SEC) :: l.zip(r).flatMap{
+              case (staL, staR) => staTo(LDA, staL) ++ staTo(SBC, staR)
+            }
+            calculateCarry ++ List(AssemblyLine.relative(BCS, Label(label)))
+          case ComparisonType.GreaterUnsigned | ComparisonType.LessOrEqualUnsigned =>
+            compileLongComparison(ctx, ComparisonType.flip(compType), rhs, lhs, size, branches, alreadyFlipped = true)
+          case _ =>
+            ErrorReporting.error("Long signed comparisons are not yet supported", lhs.position)
+            Nil
+        }
+    }
+
+  }
+
+  private def signExtend(value: Long, mask: Long): Long = {
+    val masked = value & mask
+    if (masked > mask/2) masked | ~mask
+    else masked
   }
 
   def compileInPlaceByteMultiplication(ctx: CompilationContext, v: LhsExpression, addend: Expression): List[AssemblyLine] = {
@@ -1066,6 +1174,47 @@ object BuiltIns {
           ExpressionCompiler.preserveRegisterIfNeeded(ctx, Register.A, getStorageForEachByte(ctx, h).head))
       case _ =>
         ???
+    }
+  }
+  private def getLoadForEachByte(ctx: CompilationContext, expr: Expression, size: Int): List[List[AssemblyLine]] = {
+    val env = ctx.env
+    env.eval(expr) match {
+      case Some(c) =>
+        List.tabulate(size) { i => List(AssemblyLine.immediate(STA, c.subbyte(i))) }
+      case None =>
+        expr match {
+          case v: VariableExpression =>
+            val variable = env.get[Variable](v.name)
+            List.tabulate(size) { i =>
+              if (i < variable.typ.size) {
+                AssemblyLine.variable(ctx, STA, variable, i)
+              } else if (variable.typ.isSigned) {
+                val label = MfCompiler.nextLabel("sx")
+                AssemblyLine.variable(ctx, STA, variable, i) ++ List(
+                  AssemblyLine.immediate(ORA, 0x7F),
+                  AssemblyLine.relative(BMI, label),
+                  AssemblyLine.immediate(STA, 0),
+                  AssemblyLine.label(label))
+              } else List(AssemblyLine.immediate(STA, 0))
+            }
+          case expr@IndexedExpression(variable, index) =>
+            List.tabulate(size) { i =>
+              if (i == 0) ExpressionCompiler.compileByteStorage(ctx, Register.A, expr)
+              else List(AssemblyLine.immediate(STA, 0))
+            }
+          case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
+            if (simplicity(ctx.env, h) < 'J' || simplicity(ctx.env, l) < 'J') {
+              // a[b]:c[d] is the most complex expression that doesn't cause the following warning
+              ErrorReporting.warn("Too complex expression given to the `:` operator, generated code might be wrong", ctx.options, expr.position)
+            }
+            List.tabulate(size) { i =>
+              if (i == 0) getStorageForEachByte(ctx, l).head
+              else if (i == 1) ExpressionCompiler.preserveRegisterIfNeeded(ctx, Register.A, getStorageForEachByte(ctx, h).head)
+              else List(AssemblyLine.immediate(STA, 0))
+            }
+          case _ =>
+            ???
+        }
     }
   }
 
