@@ -107,15 +107,15 @@ object UndocumentedOptimizations {
       Where(c => andConstant(c.get[Constant](0), 0x80).contains(0x80)) ~
       (Elidable & HasOpcode(SEC)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Constant](0)))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0)) ~
-      (Elidable & HasOpcode(CMP) & HasImmediate(0x80) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Int](0)))),
+      (Elidable & HasOpcode(CMP) & HasImmediate(0x80) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Constant](0)))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0)) ~
-      (Elidable & HasOpcode(CMP) & HasImmediate(0x80) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Int](0)))),
+      (Elidable & HasOpcode(CMP) & HasImmediate(0x80) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Constant](0)))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0) & HasClear(State.C)) ~
-      Where(c => andConstant(c.get[Constant](0), 0x80).contains(0)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Int](0)))),
+      Where(c => andConstant(c.get[Constant](0), 0x80).contains(0)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Constant](0)))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0) & HasSet(State.C)) ~
-      Where(c => andConstant(c.get[Constant](0), 0x80).contains(0)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Int](0)))),
+      Where(c => andConstant(c.get[Constant](0), 0x80).contains(0)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Constant](0)))),
     (Elidable & HasOpcode(AND) & MatchImmediate(0)) ~
-      (Elidable & HasOpcodeIn(Set(ROL, ASL)) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.Z, State.N, State.A)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Int](0)))),
+      (Elidable & HasOpcodeIn(Set(ROL, ASL)) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.Z, State.N, State.A)) ~~> ((_, ctx) => List(AssemblyLine.immediate(ANC, ctx.get[Constant](0)))),
   )
 
   val UseSbx = new RuleBasedAssemblyOptimization("Using undocumented instruction SBX",
@@ -294,7 +294,7 @@ object UndocumentedOptimizations {
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     trivialSequence1(INC, SBC, Not(ReadsC), ISC),
     trivialSequence2(INC, SBC, Not(ReadsC), ISC),
-    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(IndexedY, AbsoluteY, IndexedY)) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(IndexedY, AbsoluteY, IndexedX)) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(CLC)).? ~
       (Elidable & HasOpcode(ADC) & HasImmediate(1) & HasClear(State.C) & HasClear(State.D)).? ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C, State.V)) ~~> { (code, ctx) =>

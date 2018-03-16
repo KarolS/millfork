@@ -1174,6 +1174,18 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { code =>
       List(AssemblyLine.implied(INY))
     },
+    (Elidable & HasOpcode(ADC) & HasImmediate(0) & HasA(0) & DoesntMatterWhatItDoesWith(State.V)) ~~> (_ => List(AssemblyLine.implied(ROL))),
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & HasClear(State.C) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.V)) ~~> { code =>
+      List(code.head, AssemblyLine.implied(ASL))
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.V)) ~~> { code =>
+      List(code.head, AssemblyLine.implied(ROL))
+    },
+    (Elidable & HasOpcode(ROL) & HasClear(State.C)) ~~> (code => code.map(_.copy(opcode = ASL))),
+    (Elidable & HasOpcode(ROR) & HasClear(State.C)) ~~> (code => code.map(_.copy(opcode = LSR))),
   )
 
   val IndexSequenceOptimization = new RuleBasedAssemblyOptimization("Index sequence optimization",
