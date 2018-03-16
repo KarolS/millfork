@@ -906,6 +906,30 @@ object AlwaysGoodOptimizations {
     },
   )
 
+  val SimplifiableIndexChanging = new RuleBasedAssemblyOptimization("Simplifiable index changing",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    (Elidable & HasOpcode(LDX) & MatchImmediate(0)) ~
+      (Linear & Not(ConcernsX) & Not(ReadsNOrZ)).* ~
+      (Elidable & HasOpcode(DEX)) ~~> { (lines, ctx) =>
+      lines.init.tail :+ AssemblyLine.immediate(LDX, (ctx.get[Constant](0) + -1).quickSimplify)
+    },
+    (Elidable & HasOpcode(LDX) & MatchImmediate(0)) ~
+      (Linear & Not(ConcernsX) & Not(ReadsNOrZ)).* ~
+      (Elidable & HasOpcode(INX)) ~~> { (lines, ctx) =>
+      lines.init.tail :+ AssemblyLine.immediate(LDX, (ctx.get[Constant](0) + 1).quickSimplify)
+    },
+    (Elidable & HasOpcode(LDY) & MatchImmediate(0)) ~
+      (Linear & Not(ConcernsY) & Not(ReadsNOrZ)).* ~
+      (Elidable & HasOpcode(DEY)) ~~> { (lines, ctx) =>
+      lines.init.tail :+ AssemblyLine.immediate(LDY, (ctx.get[Constant](0) + -1).quickSimplify)
+    },
+    (Elidable & HasOpcode(LDY) & MatchImmediate(0)) ~
+      (Linear & Not(ConcernsY) & Not(ReadsNOrZ)).* ~
+      (Elidable & HasOpcode(INY)) ~~> { (lines, ctx) =>
+      lines.init.tail :+ AssemblyLine.immediate(LDY, (ctx.get[Constant](0) + 1).quickSimplify)
+    },
+  )
+
   val RemoveNops = new RuleBasedAssemblyOptimization("Removing NOP instructions",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (Elidable & HasOpcode(NOP)) ~~> (_ => Nil)
