@@ -228,41 +228,50 @@ object AlwaysGoodOptimizations {
     },
   )
 
-  private def operationPairBuilder(op1: Opcode.Value, op2: Opcode.Value, middle: AssemblyLinePattern) = {
+  private def operationPairBuilder(op1: Opcode.Value, op2: Opcode.Value, middle: AssemblyLinePattern, discardToRemove: Option[Opcode.Value]) = {
     (HasOpcode(op1) & Elidable) ~
       (Linear & middle).*.capture(1) ~
       (HasOpcode(op2) & Elidable) ~
       ((LinearOrLabel & Not(ReadsNOrZ) & Not(ChangesNAndZ)).* ~ ChangesNAndZ).capture(2) ~~> { (_, ctx) =>
-      ctx.get[List[AssemblyLine]](1) ++ ctx.get[List[AssemblyLine]](2)
+      ctx.get[List[AssemblyLine]](1).filter(l => !discardToRemove.contains(l.opcode)) ++ ctx.get[List[AssemblyLine]](2)
     }
   }
 
   val PointlessOperationPairRemoval = new RuleBasedAssemblyOptimization("Pointless operation pair",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    operationPairBuilder(PHA, PLA, Not(ChangesA) & Not(ConcernsStack)),
-    operationPairBuilder(PHX, PLX, Not(ChangesX) & Not(ConcernsStack)),
-    operationPairBuilder(PHY, PLY, Not(ChangesY) & Not(ConcernsStack)),
-    operationPairBuilder(PHZ, PLZ, Not(ChangesIZ) & Not(ConcernsStack)),
-    operationPairBuilder(INX, DEX, Not(ConcernsX) & Not(ReadsNOrZ)),
-    operationPairBuilder(DEX, INX, Not(ConcernsX) & Not(ReadsNOrZ)),
-    operationPairBuilder(INY, DEY, Not(ConcernsX) & Not(ReadsNOrZ)),
-    operationPairBuilder(DEY, INY, Not(ConcernsX) & Not(ReadsNOrZ)),
+    operationPairBuilder(PHA, PLA, Not(ChangesA) & Not(ConcernsStack), Some(DISCARD_AF)),
+    operationPairBuilder(PHX, PLX, Not(ChangesX) & Not(ConcernsStack), Some(DISCARD_XF)),
+    operationPairBuilder(PHY, PLY, Not(ChangesY) & Not(ConcernsStack), Some(DISCARD_YF)),
+    operationPairBuilder(PHZ, PLZ, Not(ChangesIZ) & Not(ConcernsStack), Some(DISCARD_YF)),
+    operationPairBuilder(INX, DEX, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder(DEX, INX, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder(INY, DEY, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder(DEY, INY, Not(ConcernsX) & Not(ReadsNOrZ), None),
   )
 
 
-  private def operationPairBuilder2(op1: Opcode.Value, op1extra: AssemblyLinePattern, middle: AssemblyLinePattern,op2: Opcode.Value,  op2extra: AssemblyLinePattern) = {
+  private def operationPairBuilder2(op1: Opcode.Value, op1extra: AssemblyLinePattern, middle: AssemblyLinePattern,op2: Opcode.Value,  op2extra: AssemblyLinePattern, discardToRemove: Option[Opcode.Value]) = {
     (HasOpcode(op1) & Elidable & op1extra) ~
       (Linear & middle).*.capture(1) ~
       (HasOpcode(op2) & Elidable & op2extra) ~~> { (_, ctx) =>
-      ctx.get[List[AssemblyLine]](1)
+      ctx.get[List[AssemblyLine]](1).filter(l => !discardToRemove.contains(l.opcode))
     }
   }
 
-  private def operationPairBuilder3(op1: Opcode.Value, op1extra: AssemblyLinePattern, op2: Opcode.Value, middle: AssemblyLinePattern) = {
+  private def operationPairBuilder3(op1: Opcode.Value, op1extra: AssemblyLinePattern, op2: Opcode.Value, middle: AssemblyLinePattern, discardToRemove: Option[Opcode.Value]) = {
     (HasOpcode(op1) & Elidable & op1extra) ~
       middle.*.capture(1) ~
       Where(_.isExternallyLinearBlock(1)) ~
       (HasOpcode(op2) & Elidable) ~~> { (_, ctx) =>
+      ctx.get[List[AssemblyLine]](1).filter(l => !discardToRemove.contains(l.opcode))
+    }
+  }
+
+  private def operationPairBuilder4(op1: Opcode.Value, op1extra: AssemblyLinePattern, middle: AssemblyLinePattern, op2: Opcode.Value, op2extra: AssemblyLinePattern) = {
+    (HasOpcode(op1) & op1extra  & Elidable & HasAddrModeIn(Set(Absolute, ZeroPage, LongAbsolute)) & MatchParameter(3)) ~
+      middle.*.capture(1) ~
+      Where(_.isExternallyLinearBlock(1)) ~
+      (HasOpcode(op2) & op2extra & Elidable & HasAddrModeIn(Set(Absolute, ZeroPage, LongAbsolute)) & MatchParameter(3)) ~~> { (_, ctx) =>
       ctx.get[List[AssemblyLine]](1)
     }
   }
@@ -272,41 +281,65 @@ object AlwaysGoodOptimizations {
     operationPairBuilder2(
       PHA, Anything,
       Not(ConcernsStack),
-      PLA, DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)),
+      PLA, DoesntMatterWhatItDoesWith(State.A, State.N, State.Z), Some(DISCARD_AF)),
     operationPairBuilder2(
       PHX, Anything,
       Not(ConcernsStack),
-      PLX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z)),
+      PLX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z), Some(DISCARD_XF)),
     operationPairBuilder2(
       PHY, Anything,
       Not(ConcernsStack),
-      PLY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)),
+      PLY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z), Some(DISCARD_YF)),
     operationPairBuilder2(
       INX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z),
       Anything,
-      DEX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z)),
+      DEX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z), None),
     operationPairBuilder2(
       DEX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z),
       Anything,
-      INX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z)),
+      INX, DoesntMatterWhatItDoesWith(State.X, State.N, State.Z), None),
     operationPairBuilder2(
       INY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z),
       Anything,
-      DEY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)),
+      DEY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z), None),
     operationPairBuilder2(
       DEY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z),
       Anything,
-      INY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)),
-    operationPairBuilder3(PHA, Anything, PLA, Not(ChangesA) & Not(ConcernsStack)),
-    operationPairBuilder3(PHX, Anything, PLX, Not(ChangesX) & Not(ConcernsStack)),
-    operationPairBuilder3(PHY, Anything, PLY, Not(ChangesY) & Not(ConcernsStack)),
-    operationPairBuilder3(PHZ, Anything, PLZ, Not(ChangesIZ) & Not(ConcernsStack)),
-    operationPairBuilder3(PHD, Anything, PLD, Not(ChangesDirectPageRegister)),
-    operationPairBuilder3(PHB, Anything, PLB, Not(ChangesDataBankRegister)),
-    operationPairBuilder3(INX, DoesntMatterWhatItDoesWith(State.N, State.Z), DEX, Not(ConcernsX) & Not(ReadsNOrZ)),
-    operationPairBuilder3(DEX, DoesntMatterWhatItDoesWith(State.N, State.Z), INX, Not(ConcernsX) & Not(ReadsNOrZ)),
-    operationPairBuilder3(INY, DoesntMatterWhatItDoesWith(State.N, State.Z), DEY, Not(ConcernsX) & Not(ReadsNOrZ)),
-    operationPairBuilder3(DEY, DoesntMatterWhatItDoesWith(State.N, State.Z), INY, Not(ConcernsX) & Not(ReadsNOrZ)),
+      INY, DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z), None),
+    operationPairBuilder3(PHA, Anything, PLA, Not(ChangesA) & Not(ConcernsStack), Some(DISCARD_AF)),
+    operationPairBuilder3(PHX, Anything, PLX, Not(ChangesX) & Not(ConcernsStack), Some(DISCARD_XF)),
+    operationPairBuilder3(PHY, Anything, PLY, Not(ChangesY) & Not(ConcernsStack), Some(DISCARD_YF)),
+    operationPairBuilder3(PHZ, Anything, PLZ, Not(ChangesIZ) & Not(ConcernsStack), Some(DISCARD_YF)),
+    operationPairBuilder3(PHD, Anything, PLD, Not(ChangesDirectPageRegister), None),
+    operationPairBuilder3(PHB, Anything, PLB, Not(ChangesDataBankRegister), None),
+    operationPairBuilder3(INX, DoesntMatterWhatItDoesWith(State.N, State.Z), DEX, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder3(DEX, DoesntMatterWhatItDoesWith(State.N, State.Z), INX, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder3(INY, DoesntMatterWhatItDoesWith(State.N, State.Z), DEY, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder3(DEY, DoesntMatterWhatItDoesWith(State.N, State.Z), INY, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder4(
+      LDA, DoesntMatterWhatItDoesWith(State.N, State.Z),
+      Not(ConcernsA),
+      STA, DoesntMatterWhatItDoesWith(State.A)),
+    operationPairBuilder4(
+      LDX, DoesntMatterWhatItDoesWith(State.N, State.Z),
+      Not(ConcernsX),
+      STX, DoesntMatterWhatItDoesWith(State.X)),
+    operationPairBuilder4(
+      LDY, DoesntMatterWhatItDoesWith(State.N, State.Z),
+      Not(ConcernsY),
+      STY, DoesntMatterWhatItDoesWith(State.Y)),
+    operationPairBuilder4(
+      LAX, DoesntMatterWhatItDoesWith(State.N, State.Z),
+      Not(ConcernsX) & Not(ConcernsA),
+      STA, DoesntMatterWhatItDoesWith(State.A, State.X)),
+    operationPairBuilder4(
+      LAX, DoesntMatterWhatItDoesWith(State.N, State.Z),
+      Not(ConcernsX) & Not(ConcernsA),
+      STX, DoesntMatterWhatItDoesWith(State.A, State.X)),
+    operationPairBuilder4(
+      LAX, DoesntMatterWhatItDoesWith(State.N, State.Z),
+      Not(ConcernsX) & Not(ConcernsA),
+      SAX, DoesntMatterWhatItDoesWith(State.A, State.X)),
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
@@ -762,27 +795,27 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
 
     (HasOpcodeIn(Set(LDA, STA)) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesA)).* ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF))).* ~
       (Elidable & HasOpcode(LDA) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcodeIn(Set(LDX, STX)) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesX)).* ~
+      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF))).* ~
       (Elidable & HasOpcode(LDX) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcodeIn(Set(LDY, STY)) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesY)).* ~
+      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF))).* ~
       (Elidable & HasOpcode(LDY) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcodeIn(Set(LDA, STA)) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesA) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcodeIn(Set(LDX, STX)) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesX) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcodeIn(Set(LDY, STY)) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesY) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
   )
 
