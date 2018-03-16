@@ -288,20 +288,20 @@ object Main {
       c.changeFlag(CompilationFlag.InlineFunctions, true)
     }.description("Inline functions automatically.")
     flag("-Os", "--size").action { c =>
-      c.changeFlag(CompilationFlag.OptimizeForSize, true)
-      c.changeFlag(CompilationFlag.OptimizeForSpeed, false)
-      c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
+      c.changeFlag(CompilationFlag.OptimizeForSize, true).
+        changeFlag(CompilationFlag.OptimizeForSpeed, false).
+        changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
     }.description("Prefer smaller code even if it is slightly slower (experimental).")
     flag("-Of", "--fast").action { c =>
-      c.changeFlag(CompilationFlag.OptimizeForSize, false)
-      c.changeFlag(CompilationFlag.OptimizeForSpeed, true)
-      c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
+      c.changeFlag(CompilationFlag.OptimizeForSize, false).
+        changeFlag(CompilationFlag.OptimizeForSpeed, true).
+        changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
     }.description("Prefer faster code even if it is slightly bigger (experimental).")
     flag("-Ob", "--blast-processing").action { c =>
-      c.changeFlag(CompilationFlag.OptimizeForSize, false)
-      c.changeFlag(CompilationFlag.OptimizeForSpeed, true)
-      c.changeFlag(CompilationFlag.OptimizeForSonicSpeed, true)
-      c.changeFlag(CompilationFlag.InlineFunctions, true)
+      c.changeFlag(CompilationFlag.OptimizeForSize, false).
+        changeFlag(CompilationFlag.OptimizeForSpeed, true).
+        changeFlag(CompilationFlag.OptimizeForSonicSpeed, true).
+        changeFlag(CompilationFlag.InlineFunctions, true)
     }.description("Prefer faster code even if it is much bigger (experimental). Implies --inline.")
     flag("--dangerous-optimizations").action { c =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, true)
