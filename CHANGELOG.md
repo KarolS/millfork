@@ -8,7 +8,11 @@
 
 * Added preliminary support for 65CE02, HuC6280 and 65816 processors.
 
+* Added support for Famicom/NES and C64 with SuperCPU.
+
 * Added new `-O1` optimization preset; old `-O1` became `-O2`, old `-O2` became `-O3` and so on.
+
+* Added command line options for controlling the size-speed trade-offs.
 
 * Added support for parameters for macros written in Millfork.
 
@@ -23,7 +27,7 @@
 * Removed command line flag `--detailed-flow`. 
 Detailed flow analysis was slow, broken, hard to maintain, and didn't even help that much.
 
-* Added `*'=` and `nonet` operators.
+* Added `*'=`, `nonet`, `hi` and `lo` operators.
 
 * Added support for zeropage pseudoregisters, allowing for some operators work with more types of operands. 
 
@@ -39,7 +43,7 @@ Detailed flow analysis was slow, broken, hard to maintain, and didn't even help 
 
 * Fixed several optimization bugs.
 
-* Fixed several C64 library bugs.
+* Fixed several C64 and C16 library bugs.
 
 * Fixed several other bugs.
 
