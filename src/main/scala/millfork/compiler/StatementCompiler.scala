@@ -150,8 +150,6 @@ object StatementCompiler {
           case _ =>
         }
         ExpressionCompiler.compile(ctx, e, None, NoBranching)
-      case BlockStatement(s) =>
-        s.flatMap(compile(ctx, _))
       case ReturnStatement(None) =>
         // TODO: return type check
         // TODO: better stackpointer fix

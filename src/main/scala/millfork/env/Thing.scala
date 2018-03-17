@@ -109,10 +109,6 @@ case class Label(name: String) extends ThingInMemory {
 
 sealed trait Variable extends TypedThing with VariableLikeThing
 
-case class BlackHole(typ: Type) extends Variable {
-  override def name = "<black hole>"
-}
-
 sealed trait VariableInMemory extends Variable with ThingInMemory with IndexableThing {
   def zeropage: Boolean
 

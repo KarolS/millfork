@@ -838,7 +838,6 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   def nameCheck(node: Node): Unit = node match {
     case _:AssemblyStatement => ()
     case _:DeclarationStatement => ()
-    case s:BlockStatement => nameCheck(s.body)
     case s:ForStatement =>
       checkName[Variable]("Variable", s.variable, s.position)
       nameCheck(s.start)
@@ -855,6 +854,8 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       nameCheck(s.body)
       nameCheck(s.condition)
     case s:Statement => nameCheck(s.getAllExpressions)
+    case BlackHoleExpression => ()
+    case _:BooleanLiteralExpression => ()
     case _:LiteralExpression => ()
     case VariableExpression(name) =>
       checkName[VariableLikeThing]("Variable or constant", name, node.position)

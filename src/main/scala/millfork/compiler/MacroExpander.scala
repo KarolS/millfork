@@ -35,7 +35,6 @@ object MacroExpander {
       case IfStatement(c, t, e) => IfStatement(f(c), t.map(gx), e.map(gx))
       case s:AssemblyStatement => s.copy(expression =  f(s.expression))
       case Assignment(d,s) => Assignment(fx(d), f(s))
-      case BlockStatement(s) => BlockStatement(s.map(gx))
       case BreakStatement(s) => if (s == paramName) BreakStatement(target.toString) else stmt
       case ContinueStatement(s) => if (s == paramName) ContinueStatement(target.toString) else stmt
       case _ =>

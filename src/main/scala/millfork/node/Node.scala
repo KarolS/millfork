@@ -168,10 +168,6 @@ case class Assignment(destination: LhsExpression, source: Expression) extends Ex
   override def getAllExpressions: List[Expression] = List(destination, source)
 }
 
-case class LabelStatement(label: Label) extends ExecutableStatement {
-  override def getAllExpressions: List[Expression] = Nil
-}
-
 case class AssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, expression: Expression, elidable: Boolean) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
 }
@@ -194,10 +190,6 @@ case class ForStatement(variable: String, start: Expression, end: Expression, di
 
 case class DoWhileStatement(body: List[ExecutableStatement], increment: List[ExecutableStatement], condition: Expression, labels: Set[String] = Set("", "do")) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = condition :: body.flatMap(_.getAllExpressions)
-}
-
-case class BlockStatement(body: List[ExecutableStatement]) extends ExecutableStatement {
-  override def getAllExpressions: List[Expression] = body.flatMap(_.getAllExpressions)
 }
 
 case class BreakStatement(label: String) extends ExecutableStatement {
