@@ -133,4 +133,14 @@ class BasicSymonTest extends FunSuite with Matchers {
       """.stripMargin)
       m.readWord(0xc000) should equal(4)
   }
+
+  test("Segment syntax") {
+    EmuUnoptimizedRun(
+      """
+        | segment(default)byte output @$c000
+        | segment(default)array x[3]
+        | segment(default)void main () {
+        | }
+      """.stripMargin)
+  }
 }
