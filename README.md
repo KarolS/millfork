@@ -8,7 +8,7 @@ Distributed under GPLv3 (see [LICENSE](LICENSE))
 
 **UNDER DEVELOPMENT, NOT FOR PRODUCTION USE**
 
-For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0.1)
+For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0.2)
 
 ## Features
 
@@ -26,13 +26,15 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
     
     * Commodore Vic-20 (stock or with RAM extensions)
     
-    * Famicom/NES
+    * Famicom/NES (the second most important target)
     
     * Atari 8-bit computers
     
     * Apple II+/IIe/Enhanced IIe
 
 * inline assembly
+
+* simple macros
 
 * pay only for what you use: not a single byte of memory is used unless for code or explicitly declared variables
 

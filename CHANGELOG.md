@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.2
 
 * **Breaking change!** Renamed `inline` to `macro`.
 

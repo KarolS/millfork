@@ -1,6 +1,6 @@
 name := "millfork"
 
-version := "0.1.1-SNAPSHOT"
+version := "0.2"
 
 scalaVersion := "2.12.3"
 
@@ -14,9 +14,9 @@ libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.4"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.4" % "test"
 
-// these two not in Maven Central or any other public repo
+// these two are not in Maven Central or any other public repo
 // get them from the following links or just build millfork without tests:
-// https://github.com/sethm/symon
+// https://github.com/sethm/symon/tree/71905fdb1998ee4f142260879504bc46cf27648f
 // https://github.com/andrew-hoffman/halfnes/tree/061
 
 libraryDependencies += "com.loomcom.symon" % "symon" % "1.3.0-SNAPSHOT" % "test"

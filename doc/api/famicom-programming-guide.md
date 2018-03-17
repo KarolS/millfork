@@ -10,7 +10,7 @@ The `main` routine is not allowed to return, or the program will crash.
 * on NMI, the default interrupt handler calls the `nmi` routine.
 It should not be defined as `interrupt`, the handler is, so your routine shouldn't.
 
-* on IRA, the default interrupt handler calls the `irq` routine.
+* on IRQ, the default interrupt handler calls the `irq` routine.
 It should not be defined as `interrupt`, the handler is, so your routine shouldn't.
 
 The minimal Famicom program thus looks like this:
