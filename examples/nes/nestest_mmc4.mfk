@@ -1,5 +1,5 @@
 // Based upon the example code from NES 101 tutorial by Michael Martin
-// compile with -t nes_small
+// compile with -t nes_mmc4
 
 void main() {
     init_graphics()
@@ -11,8 +11,11 @@ void main() {
 }
 
 void nmi() {
+    set_prg_bank(1)
     scroll_screen()
+    set_prg_bank(2)
     update_sprite()
+    set_prg_bank(3)
     react_to_input()
 }
 
@@ -23,10 +26,13 @@ void irq() {
 array oam_buffer [256] @$200
 byte scroll
 byte a
-sbyte dx
+segment(ram) sbyte dx
 
 void init_graphics() {
+    set_chr_bank0($06)
+    set_chr_bank1($1A)
     init_sprites()
+    set_prg_bank(6)
     load_palette()
     load_name_tables()
     init_scrolling()
@@ -53,7 +59,8 @@ void init_sprites() {
     dx = 1
 }
 
-void load_palette() {
+segment(prgrom6)
+noinline void load_palette() {
     byte i
     ppu_set_addr($3f00)
     for i,0,until,palette.length {
@@ -61,7 +68,8 @@ void load_palette() {
     }
 }
 
-void load_name_tables() {
+segment(prgrom6)
+noinline void load_name_tables() {
     pointer p
     byte page_count
     byte b
@@ -86,7 +94,8 @@ void init_scrolling() {
     scroll = 240
 }
 
-void update_sprite() {
+segment(prgrom2)
+noinline void update_sprite() {
     ppu_oam_dma_write(oam_buffer.addr.hi)
     if oam_buffer[3] == 0 {
         dx = 1
@@ -98,7 +107,8 @@ void update_sprite() {
     oam_buffer[3] += dx
 }
 
-void react_to_input() {
+segment(prgrom3)
+noinline void react_to_input() {
     strobe_joypad()
     if read_joypad1() & 1 != 0 { // A button
         reverse_dx()
@@ -114,22 +124,26 @@ void react_to_input() {
     }
 }
 
+segment(prgrom3)
 void reverse_dx() {
     dx = 0 - dx
     low_c()
 }
 
+segment(prgrom3)
 void low_c() {
     apu_pulse1_ctrl = $84
     apu_pulse1_period = $9AA
 }
 
+segment(prgrom2)
 void high_c() {
     apu_pulse1_ctrl = $86
     apu_pulse1_period = $869
 }
 
-void scroll_screen() {
+segment(prgrom1)
+noinline void scroll_screen() {
     ppu_write_data(0)
     if scroll != 0 {
         scroll -= 1
@@ -180,8 +194,8 @@ array palette = [
 		$0E,$20,$22,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 ]
 
-segment(chrrom)
-array charset @$0200 = [
+segment(chrrom0)
+array charset @$6200 = [
 		$00,$00,$00,$00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
 		$18,$18,$18,$18,$00,$00,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
 		$66,$66,$66,$00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
@@ -248,8 +262,8 @@ array charset @$0200 = [
 		$00,$10,$30,$7F,$7F,$30,$10,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 ]
 
-segment(chrrom)
-array sprites @$1000 = [
+segment(chrrom1)
+array sprites @$A000 = [
 		$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,
 		$18,$24,$66,$99,$99,$66,$24,$18,$00,$18,$18,$66,$66,$18,$18,$00
 ]

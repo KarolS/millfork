@@ -27,7 +27,9 @@ The following platforms are currently supported:
 
 * `pet` – Commodore PET
 
-* `nes_small` – a tiny 32K PRGROM + 8K CHRROM Famicom/NES program  
+* `nes_small` – a tiny 32K PRGROM + 8K CHRROM Famicom/NES program, using iNES mapper 0 (NROM)
+
+* `nes_mcc4` – a 128K PRGROM + 128K CHRROM + extra 8KRAM Famicom/NES program, using iNES mapper 10 (MMC4)  
 For more complex programs, you need to create your own "platform" definition.  
 Read [the NES programming guide](./famicom-programming-guide.md) for more info.
 

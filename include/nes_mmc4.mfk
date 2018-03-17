@@ -1,0 +1,32 @@
+asm inline void set_prg_bank(byte a) {
+    STA $A000
+    ? RTS
+}
+
+// calling with with e.g. $1E will set $0000-$0fff to $E000-$EFFF in chrrom1
+asm inline void set_chr_bank0(byte a) {
+    STA $B000
+    STA $C000
+    ? RTS
+}
+
+// calling with with e.g. $1E will set $1000-$1fff to $E000-$EFFF in chrrom1
+asm inline void set_chr_bank1(byte a) {
+    STA $D000
+    STA $E000
+    ? RTS
+}
+
+// TODO: FD/FE latches
+
+asm inline void set_vertical_mirroring() {
+    LDA #0
+    STA $F000
+    ? RTS
+}
+asm inline void set_horizontal_mirroring() {
+    LDA #1
+    STA $F000
+    ? RTS
+}
+

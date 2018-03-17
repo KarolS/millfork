@@ -28,6 +28,8 @@
 
 * [NES 101 tutorial example](nes/nestest.mfk) – a port of the tutorial example from the NES 101 tutorial by Michael Martin
 
+* [MMC4 example](nes/nestest_mmc4.mfk) – the same thing as above, but uses a MMC4 mapper just to test bankswitching
+
 ## Apple II examples
 
 * [Bell](apple2/bell.mfk) – a program that goes \*ding!\*
