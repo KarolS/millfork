@@ -391,7 +391,7 @@ object AssemblyLine {
       variable match {
         case v@MemoryVariable(_, _, VariableAllocationMethod.Zeropage) =>
           List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
-        case v@RelativeVariable(_, _, _, true) =>
+        case v@RelativeVariable(_, _, _, true, None) =>
           List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
         case v: VariableInMemory => List(AssemblyLine.absolute(opcode, v.toAddress + offset))
         case v: StackVariable =>
