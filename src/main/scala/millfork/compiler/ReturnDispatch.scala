@@ -59,7 +59,7 @@ object ReturnDispatch {
     var default = Option.empty[(Constant, List[Constant])]
     stmt.branches.foreach { branch =>
       val function = ctx.env.evalForAsm(branch.function).getOrElse {
-        ErrorReporting.error("Non-constant function address for dispatch branch", branch.function.position)
+        ErrorReporting.error("Undefined function or Non-constant function address for dispatch branch", branch.function.position)
         Constant.Zero
       }
       if (returnType.name != "void") {
