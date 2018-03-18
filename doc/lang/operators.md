@@ -67,6 +67,7 @@ If and only if both `h` and `l` are assignable expressions, then `h:l` is also a
 `byte + byte`  
 `constant word + constant word`  
 `constant long + constant long`  
+`constant word + byte`  
 `word + word` (zpreg)
 
 * `*`: multiplication; the size of the result is the same as the size of the arguments  

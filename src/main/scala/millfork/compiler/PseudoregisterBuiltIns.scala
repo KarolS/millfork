@@ -15,6 +15,29 @@ import millfork.assembly.AddrMode._
 object PseudoregisterBuiltIns {
 
   def compileWordAdditionToAX(ctx: CompilationContext, params: List[(Boolean, Expression)], decimal: Boolean): List[AssemblyLine] = {
+    val b = ctx.env.get[Type]("byte")
+    val w = ctx.env.get[Type]("word")
+    if (!decimal) {
+      val (variablePart, constPart) = ctx.env.evalVariableAndConstantSubParts(SumExpression(params, decimal = false))
+      variablePart match {
+        case None =>
+          return ExpressionCompiler.compileConstant(ctx, constPart, RegisterVariable(Register.AX, w))
+        case Some(v) =>
+          val typ = ExpressionCompiler.getExpressionType(ctx, v)
+          if (typ.size == 1 && !typ.isSigned) {
+            val bytePart = ExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(Register.A, b)), BranchSpec.None)
+            val label = MfCompiler.nextLabel("ah")
+            return bytePart ++ List(
+              AssemblyLine.implied(CLC),
+              AssemblyLine.immediate(ADC, constPart.loByte),
+              AssemblyLine.immediate(LDX, constPart.hiByte),
+              AssemblyLine.relative(BCC, label),
+              AssemblyLine.implied(INX),
+              AssemblyLine.label(label)
+            )
+          }
+      }
+    }
     if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
       ErrorReporting.error("Word addition or subtraction requires the zeropage pseudoregister", params.headOption.flatMap(_._2.position))
       return Nil
@@ -22,11 +45,9 @@ object PseudoregisterBuiltIns {
     if (params.isEmpty) {
       return List(AssemblyLine.immediate(LDA, 0), AssemblyLine.immediate(LDX, 0))
     }
-    val b = ctx.env.get[Type]("byte")
-    val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg")
     val head = params.head match {
-      case (false, e) => ExpressionCompiler.compile(ctx, e, Some(w -> reg), BranchSpec.None)
+      case (false, e) => ExpressionCompiler.compile(ctx, e, Some(ExpressionCompiler.getExpressionType(ctx, e) -> reg), BranchSpec.None)
       case (true, e) => ???
     }
     params.tail.foldLeft[List[AssemblyLine]](head){case (code, (sub, param)) => code ++ addToReg(ctx, param, sub, decimal)} ++ List(
@@ -44,7 +65,7 @@ object PseudoregisterBuiltIns {
     val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg")
     // TODO: smarter on 65816
-    val compileRight = ExpressionCompiler.compile(ctx, r, Some(w -> reg), BranchSpec.None)
+    val compileRight = ExpressionCompiler.compile(ctx, r, Some(ExpressionCompiler.getExpressionType(ctx, r) -> reg), BranchSpec.None)
     val op = if (subtract) SBC else ADC
     val prepareCarry = AssemblyLine.implied(if (subtract) SEC else CLC)
     compileRight match {
@@ -97,7 +118,7 @@ object PseudoregisterBuiltIns {
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg")
-    val head = ExpressionCompiler.compile(ctx, params.head, Some(w -> reg), BranchSpec.None)
+    val head = ExpressionCompiler.compile(ctx, params.head, Some(ExpressionCompiler.getExpressionType(ctx, params.head) -> reg), BranchSpec.None)
     params.tail.foldLeft[List[AssemblyLine]](head){case (code, param) => code ++ bitOpReg(ctx, param, op)} ++ List(
       AssemblyLine.zeropage(LDA, reg),
       AssemblyLine.zeropage(LDX, reg, 1),
@@ -113,7 +134,7 @@ object PseudoregisterBuiltIns {
     val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg")
     // TODO: smarter on 65816
-    val compileRight = ExpressionCompiler.compile(ctx, r, Some(w -> reg), BranchSpec.None)
+    val compileRight = ExpressionCompiler.compile(ctx, r, Some(ExpressionCompiler.getExpressionType(ctx, r) -> reg), BranchSpec.None)
     compileRight match {
       case List(
       AssemblyLine(LDA, Immediate, NumericConstant(0, _), _),
@@ -166,7 +187,7 @@ object PseudoregisterBuiltIns {
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg")
-    val firstParamCompiled = ExpressionCompiler.compile(ctx, l, Some(w -> reg), NoBranching)
+    val firstParamCompiled = ExpressionCompiler.compile(ctx, l, Some(ExpressionCompiler.getExpressionType(ctx, l) -> reg), NoBranching)
     ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
         Nil

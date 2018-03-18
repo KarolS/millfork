@@ -903,9 +903,9 @@ object BuiltIns {
               base -> List(Nil)
             }
           case 2 =>
-            val base = ExpressionCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AX, w)), NoBranching)
+            val base = ExpressionCompiler.compile(ctx, addend, Some(ExpressionCompiler.getExpressionType(ctx, addend) -> RegisterVariable(Register.AX, w)), NoBranching)
             if (isRhsStack(base)) {
-              val fixedBase = ExpressionCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AY, w)), NoBranching)
+              val fixedBase = ExpressionCompiler.compile(ctx, addend, Some(ExpressionCompiler.getExpressionType(ctx, addend) -> RegisterVariable(Register.AY, w)), NoBranching)
               if (subtract) {
                 ErrorReporting.warn("Subtracting a stack-based value", ctx.options)
                 if (isRhsComplex(base)) {
@@ -932,7 +932,7 @@ object BuiltIns {
                 }
               } else {
                 if (lhsIsStack) {
-                  val fixedBase = ExpressionCompiler.compile(ctx, addend, Some(w -> RegisterVariable(Register.AY, w)), NoBranching)
+                  val fixedBase = ExpressionCompiler.compile(ctx, addend, Some(ExpressionCompiler.getExpressionType(ctx, addend) -> RegisterVariable(Register.AY, w)), NoBranching)
                   fixedBase -> List(Nil, List(AssemblyLine.implied(TYA)))
                 } else {
                   base -> List(Nil, List(AssemblyLine.implied(TXA)))
@@ -1083,7 +1083,7 @@ object BuiltIns {
             val base = ExpressionCompiler.compile(ctx, param, Some(b -> RegisterVariable(Register.A, b)), NoBranching)
             base -> List(Nil)
           case 2 =>
-            val base = ExpressionCompiler.compile(ctx, param, Some(w -> RegisterVariable(Register.AX, w)), NoBranching)
+            val base = ExpressionCompiler.compile(ctx, param, Some(ExpressionCompiler.getExpressionType(ctx, param) -> RegisterVariable(Register.AX, w)), NoBranching)
             base -> List(Nil, List(AssemblyLine.implied(TXA)))
           case _ => Nil -> (param match {
             case vv: VariableExpression =>
@@ -1190,7 +1190,7 @@ object BuiltIns {
                 AssemblyLine.variable(ctx, STA, variable, i)
               } else if (variable.typ.isSigned) {
                 val label = MfCompiler.nextLabel("sx")
-                AssemblyLine.variable(ctx, STA, variable, i) ++ List(
+                AssemblyLine.variable(ctx, STA, variable, variable.typ.size - 1) ++ List(
                   AssemblyLine.immediate(ORA, 0x7F),
                   AssemblyLine.relative(BMI, label),
                   AssemblyLine.immediate(STA, 0),

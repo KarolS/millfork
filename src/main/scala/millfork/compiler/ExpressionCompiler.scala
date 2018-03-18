@@ -219,11 +219,10 @@ object ExpressionCompiler {
     val w = ctx.env.get[Type]("word")
     if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
       ErrorReporting.error("16-bit indexing requires a zeropage pseudoregister")
-      compile(ctx, indexExpression, Some(w -> RegisterVariable(Register.YA, w)), BranchSpec.None)
       return Nil
     }
     val reg = ctx.env.get[VariableInMemory]("__reg")
-    val compileIndex = compile(ctx, indexExpression, Some(w -> RegisterVariable(Register.YA, w)), BranchSpec.None)
+    val compileIndex = compile(ctx, indexExpression, Some(ExpressionCompiler.getExpressionType(ctx, indexExpression) -> RegisterVariable(Register.YA, w)), BranchSpec.None)
     val prepareRegister = pointy match {
       case ConstantPointy(addr, _) =>
         List(
@@ -407,9 +406,20 @@ object ExpressionCompiler {
     }
   }
 
-  def assertBool(ctx: CompilationContext, params: List[Expression], expectedParamCount: Int): Unit = {
+  def assertBool(ctx: CompilationContext, fname: String, params: List[Expression], expectedParamCount: Int): Unit = {
     if (params.length != expectedParamCount) {
-      ErrorReporting.error("Invalid number of parameters", params.headOption.flatMap(_.position))
+      ErrorReporting.error("Invalid number of parameters for " + fname, params.headOption.flatMap(_.position))
+      return
+    }
+    params.foreach { param =>
+      if (!getExpressionType(ctx, param).isInstanceOf[BooleanType])
+        ErrorReporting.fatal("Parameter should be boolean", param.position)
+    }
+  }
+
+  def assertBool(ctx: CompilationContext, fname: String, params: List[Expression]): Unit = {
+    if (params.length < 2) {
+      ErrorReporting.error("Invalid number of parameters for " + fname, params.headOption.flatMap(_.position))
       return
     }
     params.foreach { param =>
@@ -743,7 +753,11 @@ object ExpressionCompiler {
             case 1 =>
               val calculate = BuiltIns.compileAddition(ctx, params, decimal = decimal)
               val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
-              calculate ++ store
+              if (exprTypeAndVariable.exists(_._1.size >= 2)) {
+                calculate ++ List(AssemblyLine.immediate(LDX, 0)) ++ store
+              } else {
+                calculate ++ store
+              }
             case 2 =>
               val calculate = PseudoregisterBuiltIns.compileWordAdditionToAX(ctx, params, decimal = decimal)
               val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
@@ -793,11 +807,13 @@ object ExpressionCompiler {
         }
 
       case f@FunctionCallExpression(name, params) =>
-        val calculate = name match {
+        var zeroExtend = false
+        val calculate: List[AssemblyLine] = name match {
           case "not" =>
-            assertBool(ctx, params, 1)
+            assertBool(ctx, "not", params, 1)
             compile(ctx, params.head, exprTypeAndVariable, branches.flip)
           case "hi" | "lo" =>
+            zeroExtend = true
             val hi = name == "hi"
             if (params.length != 1) {
               ErrorReporting.error("Too many parameters for hi/lo", f.position)
@@ -809,7 +825,7 @@ object ExpressionCompiler {
                 ErrorReporting.error("Invalid parameter type for hi/lo", param.position)
                 compile(ctx, param, None, BranchSpec.None)
               } else {
-                val compilation = compile(ctx, param, Some(w -> RegisterVariable(Register.AX, w)), BranchSpec.None)
+                val compilation = compile(ctx, param, Some(ExpressionCompiler.getExpressionType(ctx, param) -> RegisterVariable(Register.AX, w)), BranchSpec.None)
                 if (hi) {
                   if (typ.size == 2) compilation :+ AssemblyLine.implied(TXA)
                   else if (typ.isSigned) compilation ++ signExtendA()
@@ -844,60 +860,65 @@ object ExpressionCompiler {
               )
             }
           case "&&" =>
-            assertBool(ctx, params, 2)
-            val a = params.head
-            val b = params(1)
+            assertBool(ctx, "&&", params)
             branches match {
               case BranchIfFalse(_) =>
-                compile(ctx, a, exprTypeAndVariable, branches) ++ compile(ctx, b, exprTypeAndVariable, branches)
+                params.flatMap(compile(ctx, _, exprTypeAndVariable, branches))
               case _ =>
                 val skip = MfCompiler.nextLabel("an")
-                compile(ctx, a, exprTypeAndVariable, BranchIfFalse(skip)) ++
-                  compile(ctx, b, exprTypeAndVariable, branches) ++
+                params.init.flatMap(compile(ctx, _, exprTypeAndVariable, BranchIfFalse(skip))) ++
+                  compile(ctx, params.last, exprTypeAndVariable, branches) ++
                   List(AssemblyLine.label(skip))
             }
           case "||" =>
-            assertBool(ctx, params, 2)
-            val a = params.head
-            val b = params(1)
+            assertBool(ctx, "||", params)
             branches match {
               case BranchIfTrue(_) =>
-                compile(ctx, a, exprTypeAndVariable, branches) ++ compile(ctx, b, exprTypeAndVariable, branches)
+                params.flatMap(compile(ctx, _, exprTypeAndVariable, branches))
               case _ =>
                 val skip = MfCompiler.nextLabel("or")
-                compile(ctx, a, exprTypeAndVariable, BranchIfTrue(skip)) ++
-                  compile(ctx, b, exprTypeAndVariable, branches) ++
+                params.init.flatMap(compile(ctx, _, exprTypeAndVariable, BranchIfTrue(skip))) ++
+                  compile(ctx, params.last, exprTypeAndVariable, branches) ++
                   List(AssemblyLine.label(skip))
             }
           case "^^" => ???
           case "&" =>
             getParamMaxSize(ctx, params) match {
-              case 1 => BuiltIns.compileBitOps(AND, ctx, params)
+              case 1 =>
+                zeroExtend = true
+                BuiltIns.compileBitOps(AND, ctx, params)
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, AND)
             }
           case "*" =>
+            zeroExtend = true
             assertAllBytes("Long multiplication not supported", ctx, params)
             BuiltIns.compileByteMultiplication(ctx, params)
           case "|" =>
             getParamMaxSize(ctx, params) match {
-              case 1 => BuiltIns.compileBitOps(ORA, ctx, params)
+              case 1 =>
+                zeroExtend = true
+                BuiltIns.compileBitOps(ORA, ctx, params)
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, ORA)
             }
           case "^" =>
             getParamMaxSize(ctx, params) match {
-              case 1 => BuiltIns.compileBitOps(EOR, ctx, params)
+              case 1 =>
+                zeroExtend = true
+                BuiltIns.compileBitOps(EOR, ctx, params)
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, EOR)
             }
           case ">>>>" =>
             val (l, r, 2) = assertBinary(ctx, params)
             l match {
               case v: LhsExpression =>
+                zeroExtend = true
                 BuiltIns.compileNonetOps(ctx, v, r)
             }
           case "<<" =>
             val (l, r, size) = assertBinary(ctx, params)
             size match {
               case 1 =>
+                zeroExtend = true
                 BuiltIns.compileShiftOps(ASL, ctx, l, r)
               case 2 =>
                 PseudoregisterBuiltIns.compileWordShiftOps(left = true, ctx, l, r)
@@ -909,6 +930,7 @@ object ExpressionCompiler {
             val (l, r, size) = assertBinary(ctx, params)
             size match {
               case 1 =>
+                zeroExtend = true
                 BuiltIns.compileShiftOps(LSR, ctx, l, r)
               case 2 =>
                 PseudoregisterBuiltIns.compileWordShiftOps(left = false, ctx, l, r)
@@ -917,10 +939,12 @@ object ExpressionCompiler {
                 Nil
             }
           case "<<'" =>
+            zeroExtend = true
             assertAllBytes("Long shift ops not supported", ctx, params)
             val (l, r, 1) = assertBinary(ctx, params)
             DecimalBuiltIns.compileByteShiftLeft(ctx, l, r, rotate = false)
           case ">>'" =>
+            zeroExtend = true
             assertAllBytes("Long shift ops not supported", ctx, params)
             val (l, r, 1) = assertBinary(ctx, params)
             DecimalBuiltIns.compileByteShiftRight(ctx, l, r, rotate = false)
@@ -1198,8 +1222,12 @@ object ExpressionCompiler {
                 result
             }
         }
-        val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
-        calculate ++ store
+        val store: List[AssemblyLine] = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+        if (zeroExtend && exprTypeAndVariable.exists(_._1.size >= 2)) {
+          calculate ++ List(AssemblyLine.immediate(LDX, 0)) ++ store
+        } else {
+          calculate ++ store
+        }
     }
   }
 

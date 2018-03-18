@@ -149,6 +149,22 @@ class WordMathSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Word addition 3") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   byte c
+        |   c = b($82)
+        |   output = $482 + c
+        | }
+        | noinline byte b(byte b) {
+        |   return b
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(0x504)
+    }
+  }
+
   test("Word bit ops 2") {
     EmuBenchmarkRun("""
         | word output @$c000
