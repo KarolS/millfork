@@ -76,15 +76,27 @@ object Cpu extends Enumeration {
 
   import CompilationFlag._
 
+  private val alwaysDefaultFlags = Set(
+    VariableOverlap, CompactReturnDispatchParams, ZeropagePseudoregister
+  )
+
   def defaultFlags(x: Cpu.Value): Set[CompilationFlag.Value] = x match {
-    case StrictMos => Set(DecimalMode, PreventJmpIndirectBug, VariableOverlap, CompactReturnDispatchParams)
-    case Mos => Set(DecimalMode, PreventJmpIndirectBug, VariableOverlap, CompactReturnDispatchParams)
-    case Ricoh => Set(PreventJmpIndirectBug, VariableOverlap, CompactReturnDispatchParams)
-    case StrictRicoh => Set(PreventJmpIndirectBug, VariableOverlap, CompactReturnDispatchParams)
-    case Cmos => Set(DecimalMode, EmitCmosOpcodes, VariableOverlap, CompactReturnDispatchParams)
-    case HuC6280 => Set(DecimalMode, EmitCmosOpcodes, EmitHudsonOpcodes, VariableOverlap, CompactReturnDispatchParams)
-    case CE02 => Set(DecimalMode, EmitCmosOpcodes, Emit65CE02Opcodes, VariableOverlap, CompactReturnDispatchParams)
-    case Sixteen => Set(DecimalMode, EmitCmosOpcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes, ReturnWordsViaAccumulator, VariableOverlap, CompactReturnDispatchParams)
+    case StrictMos =>
+      alwaysDefaultFlags ++ Set(DecimalMode, PreventJmpIndirectBug)
+    case Mos =>
+      alwaysDefaultFlags ++ Set(DecimalMode, PreventJmpIndirectBug)
+    case Ricoh =>
+      alwaysDefaultFlags ++ Set(PreventJmpIndirectBug)
+    case StrictRicoh =>
+      alwaysDefaultFlags ++ Set(PreventJmpIndirectBug)
+    case Cmos =>
+      alwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes)
+    case HuC6280 =>
+      alwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitHudsonOpcodes)
+    case CE02 =>
+      alwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, Emit65CE02Opcodes)
+    case Sixteen =>
+      alwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes, ReturnWordsViaAccumulator)
   }
 
   def fromString(name: String): Cpu.Value = name match {
