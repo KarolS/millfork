@@ -1,5 +1,15 @@
 # Change log
 
+## Current version
+
+* Allowed adding constant words to variable bytes without the zeropage pseudoregister.
+
+* `-fzp-register` is now enabled by default, as the documentation has already been saying.
+
+* Fixed several bugs.
+
+* Other improvements.
+
 ## 0.2
 
 * **Breaking change!** Renamed `inline` to `macro`.
