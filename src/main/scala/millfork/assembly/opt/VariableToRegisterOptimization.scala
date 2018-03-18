@@ -132,7 +132,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 
     val variablesWithLifetimes = localVariables.map(v =>
       v.name -> VariableLifetime.apply(v.name, code)
-    )
+    ).toMap
 
     val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
     val importances = ReverseFlowAnalyzer.analyze(f, code)
@@ -240,10 +240,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     }
 
     if (bestXs.nonEmpty || bestYs.nonEmpty || bestZs.nonEmpty || bestAs.nonEmpty) {
-      bestXs.foreach(v => f.environment.removeVariable(v._1))
-      bestYs.foreach(v => f.environment.removeVariable(v._1))
-      bestZs.foreach(v => f.environment.removeVariable(v._1))
-      bestAs.foreach(v => f.environment.removeVariable(v._1))
       val output = ListBuffer[AssemblyLine]()
       var i = 0
       while (i < code.length) {
@@ -256,6 +252,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
             reportOptimizedBlock(oldCode, newCode)
             output ++= newCode
             i = range.end
+            if (contains(range, variablesWithLifetimes(v))) {
+              f.environment.removeVariable(v)
+            }
             done = true
         }
         if (!done) {
@@ -267,6 +266,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
+              if (contains(range, variablesWithLifetimes(v))) {
+                f.environment.removeVariable(v)
+              }
               done = true
           }
         }
@@ -279,6 +281,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
+              if (contains(range, variablesWithLifetimes(v))) {
+                f.environment.removeVariable(v)
+              }
               done = true
           }
         }
@@ -291,6 +296,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
+              if (contains(range, variablesWithLifetimes(v))) {
+                f.environment.removeVariable(v)
+              }
               done = true
           }
         }
@@ -303,6 +311,10 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     } else {
       code
     }
+  }
+
+  def contains(outer: Range, inner: Range): Boolean = {
+    outer.contains(inner.start) && outer.contains(inner.end - 1)
   }
 
   // TODO: STA has different flag behaviour than TAX, keep it in mind!
@@ -628,6 +640,15 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           None
         }
 
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), imp) :: xs
+        if th.name == candidate =>
+        // removing LDA saves 3 bytes
+        if (imp.z == Unimportant && imp.n == Unimportant) {
+          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
+        } else {
+          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
+        }
+
       case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
         if opcodesCommutative(op) =>
         if (th.name == candidate) {
@@ -641,15 +662,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
           if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           else None
         } else canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
-
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), imp) :: xs
-        if th.name == candidate =>
-        // removing LDA saves 3 bytes
-        if (imp.z == Unimportant && imp.n == Unimportant) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
-        } else {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
-        }
 
       case (AssemblyLine(LDX | LDY | LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
         if th.name == candidate =>
@@ -692,6 +704,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 
       case Nil => Some(CyclesAndBytes.Zero)
     }
+  }
+
+  def isNot(v: String, param: Constant): Boolean = param match {
+    case MemoryAddressConstant(th) => th.name != v
+    case CompoundConstant(_, MemoryAddressConstant(th), _) =>  th.name != v
+    case _ => true
   }
 
   def inlineVars(xCandidate: Option[String], yCandidate: Option[String], zCandidate: Option[String], aCandidate: Option[String], features: Features, lines: List[(AssemblyLine, CpuImportance)]): List[AssemblyLine] = {
@@ -841,17 +859,17 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         AssemblyLine(LDZ, am, param) :: AssemblyLine.implied(TZA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
-        if th.name == vx && CpxyzAddrModes(am) =>
+        if th.name == vx && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
         AssemblyLine.implied(TXA) :: AssemblyLine(CPX, am, param) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
-        if th.name == vy && CpxyzAddrModes(am) =>
+        if th.name == vy && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
         AssemblyLine.implied(TYA) :: AssemblyLine(CPY, am, param) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
-        if th.name == vy && CpxyzAddrModes(am) =>
+        if th.name == vy && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
         AssemblyLine.implied(TZA) :: AssemblyLine(CPZ, am, param) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
 

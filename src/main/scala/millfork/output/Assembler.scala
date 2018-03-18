@@ -197,6 +197,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
             compiledFunctions(f) = code
             optimizedCodeSize += code.map(_.sizeInBytes).sum
         }
+        function.environment.removedThings.foreach(env.removeVariable)
       }
     }
 

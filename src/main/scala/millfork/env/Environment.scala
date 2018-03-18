@@ -20,10 +20,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
 
 
   private var baseStackOffset = 0x101
-  private val relVarId = new AtomicLong
 
   def genRelativeVariable(constant: Constant, typ: Type, zeropage: Boolean): RelativeVariable = {
-    val variable = RelativeVariable(".rv__" + relVarId.incrementAndGet().formatted("%06d"), constant, typ, zeropage = zeropage, declaredBank = None /*TODO*/)
+    val variable = RelativeVariable(".rv__" + Environment.relVarId.incrementAndGet().formatted("%06d"), constant, typ, zeropage = zeropage, declaredBank = None /*TODO*/)
     addThing(variable, None)
     variable
   }
@@ -149,6 +148,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   }
 
   val things: mutable.Map[String, Thing] = mutable.Map()
+  val removedThings: mutable.Set[String] = mutable.Set()
 
   private def addThing(t: Thing, position: Option[Position]): Unit = {
     assertNotDefined(t.name, position)
@@ -156,8 +156,24 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   }
 
   def removeVariable(str: String): Unit = {
+    ErrorReporting.trace("Removing variable: " + str)
+    removeVariableImpl(str)
+  }
+
+  private def removeVariableImpl(str: String): Unit = {
+    removedThings += str
+    removedThings += str + ".addr"
+    removedThings += str + ".addr.lo"
+    removedThings += str + ".addr.hi"
     things -= str
     things -= str + ".addr"
+    things -= str + ".addr.lo"
+    things -= str + ".addr.hi"
+    things -= str.stripPrefix(prefix)
+    things -= str.stripPrefix(prefix) + ".addr"
+    things -= str.stripPrefix(prefix) + ".addr.lo"
+    things -= str.stripPrefix(prefix) + ".addr.hi"
+    parent.foreach(_ removeVariableImpl str)
   }
 
   def get[T <: Thing : Manifest](name: String, position: Option[Position] = None): T = {
@@ -877,4 +893,5 @@ class Environment(val parent: Option[Environment], val prefix: String) {
 
 object Environment {
   val predefinedFunctions = Set("not", "hi", "lo", "nonet")
+  val relVarId = new AtomicLong
 }
