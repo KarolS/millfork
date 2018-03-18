@@ -16,6 +16,7 @@ object OptimizationPresets {
   val AssOpt: List[AssemblyOptimization] = List[AssemblyOptimization](
     UnusedLabelRemoval,
     AlwaysGoodOptimizations.NonetAddition,
+    AlwaysGoodOptimizations.NonetBitOp,
     AlwaysGoodOptimizations.PointlessSignCheck,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
     AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
@@ -154,6 +155,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.MathOperationOnTwoIdenticalMemoryOperands,
     AlwaysGoodOptimizations.ModificationOfJustWrittenValue,
     AlwaysGoodOptimizations.NonetAddition,
+    AlwaysGoodOptimizations.NonetBitOp,
     AlwaysGoodOptimizations.OperationsAroundShifting,
     AlwaysGoodOptimizations.PoinlessFlagChange,
     AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,

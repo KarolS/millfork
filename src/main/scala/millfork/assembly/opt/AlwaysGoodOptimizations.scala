@@ -601,6 +601,21 @@ object AlwaysGoodOptimizations {
 
   val ConstantFlowAnalysis = new RuleBasedAssemblyOptimization("Constant flow analysis",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+    (MatchX(0) & HasAddrMode(AbsoluteX) & SupportsAbsolute & Elidable & HasParameterWhere({
+      case MemoryAddressConstant(th) => th.name == "identity$"
+      case _ => false
+    })) ~~> { (code, ctx) =>
+      code.map(l => l.copy(addrMode = Immediate, parameter = NumericConstant(ctx.get[Int](0), 1)))
+    },
+    (MatchY(0) & HasAddrMode(AbsoluteY) & SupportsAbsolute & Elidable & HasParameterWhere({
+      case MemoryAddressConstant(th) => th.name == "identity$"
+      case _ => false
+    })) ~~> { (code, ctx) =>
+      code.map(l => l.copy(addrMode = Immediate, parameter = NumericConstant(ctx.get[Int](0), 1)))
+    },
+    (MatchY(0) & HasAddrMode(AbsoluteY) & SupportsAbsolute & Elidable) ~~> { (code, ctx) =>
+      code.map(l => l.copy(addrMode = Absolute, parameter = l.parameter + ctx.get[Int](0)))
+    },
     (MatchX(0) & HasAddrMode(AbsoluteX) & SupportsAbsolute & Elidable) ~~> { (code, ctx) =>
       code.map(l => l.copy(addrMode = Absolute, parameter = l.parameter + ctx.get[Int](0)))
     },
@@ -1532,7 +1547,79 @@ object AlwaysGoodOptimizations {
         AssemblyLine.relative(BCC, label),
         code(8).copy(opcode = INC),
         AssemblyLine.label(label))
-    }
+    },
+    (Elidable & HasOpcode(LDX) & HasImmediate(0) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(14)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(14) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(ADC) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesNotConcernMemoryAt(0, 1)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)) ~~> { (code, ctx) =>
+      val label = getNextLabel("in")
+      List(
+        code(1), // BCC
+        code(8).copy(opcode = INC),
+        code(3), //LABEL
+        code(4), //CLC
+        code(5), //ADC
+        code(6), //STA
+        AssemblyLine.relative(BCC, label),
+        code(8).copy(opcode = INC),
+        AssemblyLine.label(label))
+    },
+    (Elidable & HasOpcode(LDX) & HasAddrMode(Immediate) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(14)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(14) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(STX) & MatchAddrMode(2) & MatchParameter(3) & DoesNotConcernMemoryAt(0, 1) & Not(HasAddrMode(ZeroPageY)) &
+        DoesntMatterWhatItDoesWith(State.X, State.A, State.C, State.V)) ~~> { (code, ctx) =>
+      val label = getNextLabel("in")
+      List(
+        code(4), // STA
+        code.head.copy(opcode = LDA), // LDX
+        AssemblyLine.immediate(ADC, 0),
+        code(5).copy(opcode = STA)) //STX
+    },
+    (Elidable & HasOpcode(TAX) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(14)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(14) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(STX) & MatchAddrMode(2) & MatchParameter(3) & DoesNotConcernMemoryAt(0, 1) & Not(HasAddrMode(ZeroPageY)) &
+        DoesntMatterWhatItDoesWith(State.X, State.A, State.C, State.V)) ~~> { (code, ctx) =>
+      val label = getNextLabel("in")
+      List(
+        code(4), // STA
+        AssemblyLine.immediate(ADC, 0),
+        code(5).copy(opcode = STA)) //STX
+    },
+  )
+
+  val NonetBitOp = new RuleBasedAssemblyOptimization("Nonet bit operation",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(LDX) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(14)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(14) & HasCallerCount(1)) ~
+      (Elidable & HasOpcodeIn(Set(ORA, EOR)) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcodeIn(Set(ORA, EOR)) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesNotConcernMemoryAt(0, 1)) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)) ~~>{ (code, ctx) =>
+        val label = getNextLabel("in")
+            List(
+              code(4), //EOR/ORA
+              code(5), //STA
+              code(1), // BCC
+              AssemblyLine.immediate(LDA, 1),
+              code(7), //EOR/ORA
+              code(8), //STA
+              code(3)) // LABEL
+          }
   )
 
   val CommonIndexSubexpressionElimination: RuleBasedAssemblyOptimization = {
