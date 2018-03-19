@@ -6,6 +6,8 @@
 
 * `-fzp-register` is now enabled by default, as the documentation has already been saying.
 
+* Allowed more kinds of constants within variable and array initializers.
+
 * Fixed several bugs.
 
 * Other improvements.

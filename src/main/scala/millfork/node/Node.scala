@@ -1,7 +1,7 @@
 package millfork.node
 
 import millfork.assembly.{AddrMode, Opcode}
-import millfork.env.{Label, ParamPassingConvention}
+import millfork.env.{Constant, Label, ParamPassingConvention}
 
 case class Position(filename: String, line: Int, column: Int, cursor: Int)
 

@@ -348,6 +348,20 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       } yield hc.asl(8) + lc
       case FunctionCallExpression(name, params) =>
         name match {
+          case "hi" =>
+            if (params.size == 1) {
+              eval(params.head).map(_.hiByte.quickSimplify)
+            } else {
+              ErrorReporting.error("Invalid number of parameters for `hi`", e.position)
+              None
+            }
+          case "lo" =>
+            if (params.size == 1) {
+              eval(params.head).map(_.loByte.quickSimplify)
+            } else {
+              ErrorReporting.error("Invalid number of parameters for `lo`", e.position)
+              None
+            }
           case "nonet" =>
             params match {
               case List(FunctionCallExpression("<<", ps@List(_, _))) =>
@@ -358,7 +372,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
                 constantOperation(MathOperator.Plus9, ps.map(_._2))
               case List(SumExpression(ps@List((true,_),(true,_)), true)) =>
                 constantOperation(MathOperator.DecimalPlus9, ps.map(_._2))
+              case List(_) =>
+                None
               case _ =>
+                ErrorReporting.error("Invalid number of parameters for `nonet`", e.position)
                 None
             }
           case ">>'" =>
@@ -660,9 +677,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         val length = contents.length
         if (length > 0xffff || length < 0) ErrorReporting.error(s"Array `${stmt.name}` has invalid length", stmt.position)
         val address = stmt.address.map(a => eval(a).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant address", stmt.position)))
-        val data = contents.map(x => eval(x).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant contents", stmt.position)))
-        val array = InitializedArray(stmt.name + ".array", address, data,
-                    declaredBank = stmt.bank)
+        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank)
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
                     declaredBank = stmt.bank), stmt.position)
@@ -748,9 +763,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             if (options.flags(CompilationFlag.ReadOnlyArrays)) {
               ErrorReporting.warn("Initialized variable in read-only segment", options, position)
             }
-            val ivc = eval(ive).getOrElse(Constant.error(s"Initial value of `$name` is not a constant", position))
-            InitializedMemoryVariable(name, None, typ, ivc,
-                        declaredBank = stmt.bank)
+            InitializedMemoryVariable(name, None, typ, ive, declaredBank = stmt.bank)
           }
           registerAddressConstant(v, stmt.position)
           (v, v.toAddress)
@@ -815,8 +828,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
 
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
     if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) {
-      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => NumericConstant(n, 1)),
-                  declaredBank = None), None)
+      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None), None)
     }
     program.declarations.foreach {
       case f: FunctionDeclarationStatement => registerFunction(f, options)
@@ -838,8 +850,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         address = None), options)
     }
     if (!things.contains("__constant8")) {
-      things("__constant8") = InitializedArray("__constant8", None, List(NumericConstant(8, 1)),
-                  declaredBank = None)
+      things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None)
     }
   }
 

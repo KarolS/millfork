@@ -53,25 +53,23 @@ object ReturnDispatch {
     }
 
     val returnType = ctx.function.returnType
-    val map = mutable.Map[Int, (Constant, List[Constant])]()
+    val map: mutable.Map[Int, (String, List[Expression])] = mutable.Map()
     var min = Option.empty[Int]
     var max = Option.empty[Int]
-    var default = Option.empty[(Constant, List[Constant])]
+    var default = Option.empty[(String, List[Expression])]
     stmt.branches.foreach { branch =>
-      val function = ctx.env.evalForAsm(branch.function).getOrElse {
-        ErrorReporting.error("Undefined function or Non-constant function address for dispatch branch", branch.function.position)
-        Constant.Zero
+      val function: String = ctx.env.evalForAsm(branch.function) match {
+        case Some(MemoryAddressConstant(f: FunctionInMemory)) =>
+          if (f.returnType.name != returnType.name) {
+            ErrorReporting.warn(s"Dispatching to a function of different return type: dispatcher return type: ${returnType.name}, dispatchee return type: ${f.returnType.name}", ctx.options, branch.function.position)
+          }
+          f.name
+        case _ =>
+          ErrorReporting.error("Undefined function or Non-constant function address for dispatch branch", branch.function.position)
+          ""
       }
-      if (returnType.name != "void") {
-        function match {
-          case MemoryAddressConstant(f: FunctionInMemory) =>
-            if (f.returnType.name != returnType.name) {
-              ErrorReporting.warn(s"Dispatching to a function of different return type: dispatcher return type: ${returnType.name}, dispatchee return type: ${f.returnType.name}", ctx.options, branch.function.position)
-            }
-          case _ => ()
-        }
-      }
-      val params = branch.params.map(toConstant)
+      branch.params.foreach(toConstant)
+      val params = branch.params
       if (params.length > stmt.params.length) {
         ErrorReporting.error("Too many parameters for dispatch branch", branch.params.head.position)
       }
@@ -102,7 +100,7 @@ object ReturnDispatch {
     }
     val actualMin = defaultMin min nonDefaultMin.getOrElse(defaultMin)
     val actualMax = defaultMax max nonDefaultMax.getOrElse(defaultMax)
-    val zeroes = Constant.Zero -> List[Constant]()
+    val zeroes = "" -> List[Expression]()
     for (i <- actualMin to actualMax) {
       if (!map.contains(i)) map(i) = default.getOrElse {
         // TODO: warning?
@@ -125,7 +123,7 @@ object ReturnDispatch {
     val label = MfCompiler.nextLabel("di")
     val paramArrays = stmt.params.indices.map { ix =>
       val a = InitializedArray(label + "$" + ix + ".array", None, (paramMins(ix) to paramMaxes(ix)).map { key =>
-        map(key)._2.lift(ix).getOrElse(Constant.Zero)
+        map(key)._2.lift(ix).getOrElse(LiteralExpression(0, 1))
       }.toList,
         ctx.function.declaredBank)
       env.registerUnnamedArray(a)
@@ -147,7 +145,7 @@ object ReturnDispatch {
     }
 
     if (useJmpaix) {
-      val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(map(i)._1.loByte, map(i)._1.hiByte)).toList, ctx.function.declaredBank)
+      val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(lobyte0(map(i)._1), hibyte0(map(i)._1))).toList, ctx.function.declaredBank)
       env.registerUnnamedArray(jumpTable)
       if (copyParams.isEmpty) {
         val loadIndex = ExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.A, b)), BranchSpec.None)
@@ -162,8 +160,8 @@ object ReturnDispatch {
       }
     } else {
       val loadIndex = ExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(Register.X, b)), BranchSpec.None)
-      val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => (map(i)._1 - 1).loByte).toList, ctx.function.declaredBank)
-      val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => (map(i)._1 - 1).hiByte).toList, ctx.function.declaredBank)
+      val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte1(map(i)._1)).toList, ctx.function.declaredBank)
+      val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte1(map(i)._1)).toList, ctx.function.declaredBank)
       env.registerUnnamedArray(jumpTableLo)
       env.registerUnnamedArray(jumpTableHi)
       loadIndex ++ copyParams ++ List(
@@ -173,5 +171,21 @@ object ReturnDispatch {
         AssemblyLine.implied(PHA),
         AssemblyLine.implied(RTS))
     }
+  }
+
+  private def lobyte0(fname: String): Expression = if (fname == "") LiteralExpression(0, 1) else {
+    FunctionCallExpression("lo",List(VariableExpression(fname + ".addr")))
+  }
+
+  private def hibyte0(fname: String): Expression = if (fname == "") LiteralExpression(0, 1) else {
+    FunctionCallExpression("hi",List(VariableExpression(fname + ".addr")))
+  }
+
+  private def lobyte1(fname: String): Expression = if (fname == "") LiteralExpression(0, 1) else {
+    FunctionCallExpression("lo", List(SumExpression(List(false -> VariableExpression(fname + ".addr"), true -> LiteralExpression(1, 1)), decimal = false)))
+  }
+
+  private def hibyte1(fname: String): Expression = if (fname == "") LiteralExpression(0, 1) else {
+    FunctionCallExpression("hi", List(SumExpression(List(false -> VariableExpression(fname + ".addr"), true -> LiteralExpression(1, 1)), decimal = false)))
   }
 }

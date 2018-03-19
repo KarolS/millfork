@@ -215,7 +215,10 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
         for (item <- items) {
-          writeByte(bank, index, item)
+          env.eval(item) match {
+            case Some(c) => writeByte(bank, index, c)
+            case None => ErrorReporting.error(s"Non-constant contents of array `$name`")
+          }
           bank0.occupied(index) = true
           bank0.initialized(index) = true
           bank0.writeable(index) = true
@@ -281,7 +284,10 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
         for (item <- items) {
-          writeByte(bank, index, item)
+          env.eval(item) match {
+            case Some(c) => writeByte(bank, index, c)
+            case None => ErrorReporting.error(s"Non-constant contents of array `$name`")
+          }
           index += 1
         }
         items.grouped(16).foreach {group =>
@@ -298,10 +304,16 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
-        for (i <- 0 until typ.size) {
-          writeByte(bank, index, value.subbyte(i))
-          assembly.append("    !byte " + value.subbyte(i).quickSimplify)
-          index += 1
+        env.eval(value) match {
+          case Some(c) =>
+            for (i <- 0 until typ.size) {
+              writeByte(bank, index, c.subbyte(i))
+              assembly.append("    !byte " + c.subbyte(i).quickSimplify)
+              index += 1
+            }
+          case None =>
+            ErrorReporting.error(s"Non-constant initial value for variable `$name`")
+            index += typ.size
         }
         initializedVariablesSize += typ.size
         justAfterCode += bank -> index

@@ -155,7 +155,7 @@ case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableA
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 }
 
-case class InitializedMemoryVariable(name: String, address: Option[Constant], typ: Type, initialValue: Constant, declaredBank: Option[String]) extends MemoryVariable with PreallocableThing {
+case class InitializedMemoryVariable(name: String, address: Option[Constant], typ: Type, initialValue: Expression, declaredBank: Option[String]) extends MemoryVariable with PreallocableThing {
   override def zeropage: Boolean = false
 
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
@@ -185,7 +185,7 @@ case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, decl
   override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse("default")
 }
 
-case class InitializedArray(name: String, address: Option[Constant], contents: List[Constant], declaredBank: Option[String]) extends MfArray with PreallocableThing {
+case class InitializedArray(name: String, address: Option[Constant], contents: List[Expression], declaredBank: Option[String]) extends MfArray with PreallocableThing {
   override def shouldGenerate = true
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
