@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.2.2
 
 * Allowed adding constant words to variable bytes without the zeropage pseudoregister.
 
