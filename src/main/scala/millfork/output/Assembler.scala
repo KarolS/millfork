@@ -225,8 +225,11 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
           bank0.readable(index) = true
           index += 1
         }
-        items.grouped(16).foreach {group =>
-          assembly.append("    !byte " + group.mkString(", "))
+        items.grouped(16).foreach { group =>
+          assembly.append("    !byte " + group.map(expr => env.eval(expr) match {
+            case Some(c) => c.quickSimplify.toString
+            case None => "<? unknown constant ?>"
+          }).mkString(", "))
         }
         initializedVariablesSize += items.length
       case thing@InitializedArray(name, Some(_), items, _) => ???
@@ -290,8 +293,11 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
           }
           index += 1
         }
-        items.grouped(16).foreach {group =>
-          assembly.append("    !byte " + group.mkString(", "))
+        items.grouped(16).foreach { group =>
+          assembly.append("    !byte " + group.map(expr => env.eval(expr) match {
+            case Some(c) => c.quickSimplify.toString
+            case None => "<? unknown constant ?>"
+          }).mkString(", "))
         }
         initializedVariablesSize += items.length
         justAfterCode += bank -> index
