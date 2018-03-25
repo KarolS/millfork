@@ -209,11 +209,14 @@ object StatementCompiler {
         val largeThenBlock = thenBlock.map(_.sizeInBytes).sum > 100
         val largeElseBlock = elseBlock.map(_.sizeInBytes).sum > 100
         condType match {
-          case ConstantBooleanType(_, true) => thenBlock
-          case ConstantBooleanType(_, false) => elseBlock
+          case ConstantBooleanType(_, true) =>
+            ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching) ++ thenBlock
+          case ConstantBooleanType(_, false) =>
+            ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching) ++ elseBlock
           case FlagBooleanType(_, jumpIfTrue, jumpIfFalse) =>
             (thenPart, elsePart) match {
-              case (Nil, Nil) => Nil
+              case (Nil, Nil) =>
+                ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
               case (Nil, _) =>
                 val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
                 if (largeElseBlock) {
@@ -229,35 +232,76 @@ object StatementCompiler {
                 if (largeThenBlock) {
                   val middle = MfCompiler.nextLabel("th")
                   val end = MfCompiler.nextLabel("fi")
-                  List(conditionBlock, branchChunk(jumpIfTrue, middle), jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
+                  List(conditionBlock, branchChunk(jumpIfTrue, middle), jmpChunk(end), labelChunk(middle), thenBlock, labelChunk(end)).flatten
                 } else {
                   val end = MfCompiler.nextLabel("fi")
                   List(conditionBlock, branchChunk(jumpIfFalse, end), thenBlock, labelChunk(end)).flatten
                 }
               case _ =>
-                // TODO: large blocks
-                if (largeElseBlock || largeThenBlock) ErrorReporting.error("Large blocks in if statement", statement.position)
-                val middle = MfCompiler.nextLabel("el")
-                val end = MfCompiler.nextLabel("fi")
                 val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
-                List(conditionBlock, branchChunk(jumpIfFalse, middle), thenBlock, jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
+                if (largeThenBlock) {
+                  if (largeElseBlock) {
+                    val middleT = MfCompiler.nextLabel("th")
+                    val middleE = MfCompiler.nextLabel("el")
+                    val end = MfCompiler.nextLabel("fi")
+                    List(conditionBlock, branchChunk(jumpIfTrue, middleT), jmpChunk(middleE), labelChunk(middleT), thenBlock, jmpChunk(end), labelChunk(middleE), elseBlock, labelChunk(end)).flatten
+                  } else {
+                    val middle = MfCompiler.nextLabel("th")
+                    val end = MfCompiler.nextLabel("fi")
+                    List(conditionBlock, branchChunk(jumpIfTrue, middle), elseBlock, jmpChunk(end), labelChunk(middle), thenBlock, labelChunk(end)).flatten
+                  }
+                } else {
+                  val middle = MfCompiler.nextLabel("el")
+                  val end = MfCompiler.nextLabel("fi")
+                  List(conditionBlock, branchChunk(jumpIfFalse, middle), thenBlock, jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
+                }
             }
           case BuiltInBooleanType =>
             (thenPart, elsePart) match {
-              case (Nil, Nil) => Nil
+              case (Nil, Nil) =>
+                ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
               case (Nil, _) =>
-                val end = MfCompiler.nextLabel("fi")
-                val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(end))
-                List(conditionBlock, elseBlock, labelChunk(end)).flatten
+                if (largeElseBlock) {
+                  val middle = MfCompiler.nextLabel("el")
+                  val end = MfCompiler.nextLabel("fi")
+                  val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfFalse(middle))
+                  List(conditionBlock, jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
+                } else {
+                  val end = MfCompiler.nextLabel("fi")
+                  val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(end))
+                  List(conditionBlock, elseBlock, labelChunk(end)).flatten
+                }
               case (_, Nil) =>
-                val end = MfCompiler.nextLabel("fi")
-                val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfFalse(end))
-                List(conditionBlock, thenBlock, labelChunk(end)).flatten
+                if (largeThenBlock) {
+                  val middle = MfCompiler.nextLabel("th")
+                  val end = MfCompiler.nextLabel("fi")
+                  val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(middle))
+                  List(conditionBlock, jmpChunk(end), labelChunk(middle), thenBlock, labelChunk(end)).flatten
+                } else {
+                  val end = MfCompiler.nextLabel("fi")
+                  val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfFalse(end))
+                  List(conditionBlock, thenBlock, labelChunk(end)).flatten
+                }
               case _ =>
-                val middle = MfCompiler.nextLabel("el")
-                val end = MfCompiler.nextLabel("fi")
-                val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfFalse(middle))
-                List(conditionBlock, thenBlock, jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
+                if (largeThenBlock) {
+                  if (largeElseBlock) {
+                    val middleT = MfCompiler.nextLabel("th")
+                    val middleE = MfCompiler.nextLabel("el")
+                    val end = MfCompiler.nextLabel("fi")
+                    val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(middleT))
+                    List(conditionBlock, jmpChunk(middleE), labelChunk(middleT), thenBlock, jmpChunk(end), labelChunk(middleE), elseBlock, labelChunk(end)).flatten
+                  } else {
+                    val middle = MfCompiler.nextLabel("th")
+                    val end = MfCompiler.nextLabel("fi")
+                    val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(middle))
+                    List(conditionBlock, elseBlock, jmpChunk(end), labelChunk(middle), thenBlock, labelChunk(end)).flatten
+                  }
+                } else {
+                  val middle = MfCompiler.nextLabel("el")
+                  val end = MfCompiler.nextLabel("fi")
+                  val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfFalse(middle))
+                  List(conditionBlock, thenBlock, jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
+                }
             }
           case _ =>
             ErrorReporting.error(s"Illegal type for a condition: `$condType`", condition.position)

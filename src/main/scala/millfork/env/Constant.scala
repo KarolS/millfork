@@ -65,6 +65,16 @@ sealed trait Constant {
   def isRelatedTo(v: Variable): Boolean
 }
 
+case class AssertByte(c: Constant) extends Constant {
+  override def isProvablyZero: Boolean = c.isProvablyZero
+
+  override def requiredSize: Int = 1
+
+  override def isRelatedTo(v: Variable): Boolean = c.isRelatedTo(v)
+
+  override def quickSimplify: Constant = AssertByte(c.quickSimplify)
+}
+
 case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant {
   override def isRelatedTo(v: Variable): Boolean = false
 }

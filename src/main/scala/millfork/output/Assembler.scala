@@ -68,6 +68,12 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
   def deepConstResolve(c: Constant): Long = {
     c match {
       case NumericConstant(v, _) => v
+      case AssertByte(inner) =>
+        val value = deepConstResolve(inner)
+        if (value.toByte == value) value else {
+          ErrorReporting.error("Invalid relative jump: " + c)
+          -2 // spin
+        }
       case MemoryAddressConstant(th) =>
         try {
           if (labelMap.contains(th.name)) return labelMap(th.name)
@@ -421,7 +427,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
           index += 1
         case AssemblyLine(op, Relative, param, _) =>
           writeByte(bank, index, Assembler.opcodeFor(op, Relative, options))
-          writeByte(bank, index + 1, param - (index + 2))
+          writeByte(bank, index + 1, AssertByte(param - (index + 2)))
           index += 2
         case AssemblyLine(op, am@(Immediate | ZeroPage | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | LongIndexedY | LongIndexedZ | Stack), param, _) =>
           writeByte(bank, index, Assembler.opcodeFor(op, am, options))
