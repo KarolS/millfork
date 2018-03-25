@@ -205,6 +205,8 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     case (_, "petscii") => TextCodec.Petscii
     case (_, "pet") => TextCodec.Petscii
     case (_, "scr") => TextCodec.CbmScreencodes
+    case (_, "atascii") => TextCodec.Atascii
+    case (_, "atari") => TextCodec.Atascii
     case (p, x) =>
       ErrorReporting.error(s"Unknown string encoding: `$x`", Some(p))
       TextCodec.Ascii

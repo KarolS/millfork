@@ -28,15 +28,24 @@ object TextCodec {
     "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
       0x20.to(0x3f).map(_.toChar).mkString +
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    Map('^' -> 0x3E, 'π' -> 0x5E))
+    Map('^' -> 0x3E, 'π' -> 0x5E, '♥' -> 0x53, '♡' -> 0x53, '♠' -> 0x41, '♣' -> 0x58, '♢' -> 0x5A, '•' -> 0x51))
 
   val Petscii = new TextCodec("PETSCII",
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    Map('^' -> 0x5E, 'π' -> 0x7E)
+    Map('^' -> 0x5E, 'π' -> 0x7E, '♥' -> 0x73, '♡' -> 0x73, '♠' -> 0x61, '♣' -> 0x78, '♢' -> 0x7A, '•' -> 0x71)
   )
 
+  val Atascii = new TextCodec("ATASCII",
+    "♡" +
+    "\ufffd" * 15 +
+      "♣\ufffd–\ufffd•" +
+    "\ufffd" * 11 +
+      0x20.to(0x5f).map(_.toChar).mkString +
+      "♢abcdefghijklmnopqrstuvwxyz♠|",
+    Map('♥' -> 0, '·' -> 0x14)
+  )
 
 }
