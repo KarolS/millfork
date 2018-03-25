@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Added array initialization syntax with `for` (not yet finalized).
+
 * Fixed several bugs, most importantly invalid offsets for branching instructions.
 
 ## 0.2.2

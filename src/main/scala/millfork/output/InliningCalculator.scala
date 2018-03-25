@@ -59,7 +59,8 @@ object InliningCalculator {
     case s: VariableDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.initialValue.toList)
     case ReturnDispatchStatement(index, params, branches) =>
       getAllCalledFunctions(List(index)) ++ getAllCalledFunctions(params) ++ getAllCalledFunctions(branches.map(b => b.function))
-    case s: ArrayDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.elements.getOrElse(Nil))
+    case s: ArrayDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.elements.toList)
+    case s: ArrayContents => getAllCalledFunctions(s.getAllExpressions)
     case s: FunctionDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.statements.getOrElse(Nil))
     case Assignment(VariableExpression(_), expr) => getAllCalledFunctions(expr :: Nil)
     case AssemblyStatement(JSR, _, VariableExpression(name), true) => (name -> false) :: Nil

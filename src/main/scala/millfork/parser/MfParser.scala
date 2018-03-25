@@ -194,9 +194,9 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     appc <- appcSimple | appcComplex
   } yield ParameterDeclaration(typ, appc).pos(p)
 
-  def arrayListElement: P[List[Expression]] = arrayStringContents | mlExpression(nonStatementLevel).map(List(_))
+  def arrayListElement: P[ArrayContents] = arrayStringContents | arrayLoopContents | mlExpression(nonStatementLevel).map(e => LiteralContents(List(e)))
 
-  def arrayListContents: P[List[Expression]] = ("[" ~/ AWS ~/ arrayListElement.rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ "]" ~/ Pass).map(_.flatten.toList)
+  def arrayListContents: P[ArrayContents] = ("[" ~/ AWS ~/ arrayListElement.rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ "]" ~/ Pass).map(c => CombinedContents(c.toList))
 
   val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').! ~ "\"").map(_.toList)
 
@@ -210,7 +210,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       TextCodec.Ascii
   }
 
-  def arrayFileContents: P[List[Expression]] = for {
+  def arrayFileContents: P[ArrayContents] = for {
     p <- "file" ~ HWS ~/ "(" ~/ HWS ~/ position()
     filePath <- doubleQuotedString ~/ HWS
     optSlice <- ("," ~/ HWS ~/ literalAtom ~/ HWS ~/ "," ~/ HWS ~/ literalAtom ~/ HWS ~/ Pass).?
@@ -220,14 +220,34 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     val slice = optSlice.fold(data) {
       case (start, length) => data.slice(start.value.toInt, start.value.toInt + length.value.toInt)
     }
-    slice.map(c => LiteralExpression(c & 0xff, 1)).toList
+    LiteralContents(slice.map(c => LiteralExpression(c & 0xff, 1)).toList)
   }
 
-  def arrayStringContents: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
-    case (p, s, co) => s.map(c => LiteralExpression(co.decode(None, c), 1).pos(p))
+  def arrayStringContents: P[ArrayContents] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
+    case (p, s, co) => LiteralContents(s.map(c => LiteralExpression(co.decode(None, c), 1).pos(p)))
   }
 
-  def arrayContents: P[List[Expression]] = arrayListContents | arrayFileContents | arrayStringContents
+  def arrayLoopContents: P[ArrayContents] = for {
+      identifier <- "for" ~ SWS ~/ identifier ~/ HWS ~ "," ~/ HWS ~ Pass
+      start <- mlExpression(nonStatementLevel) ~ HWS ~ "," ~/ HWS ~/ Pass
+      pos <- position()
+      direction <- forDirection ~/ HWS ~/ "," ~/ HWS ~/ Pass
+      end <- mlExpression(nonStatementLevel)
+      body <- AWS ~ arrayContents
+    } yield {
+    val fixedDirection = direction match {
+      case ForDirection.ParallelUntil =>
+        ErrorReporting.warn("`paralleluntil` is not allowed in array definitions, assuming `until`", options, Some(pos))
+        ForDirection.Until
+      case ForDirection.ParallelTo =>
+        ErrorReporting.warn("`parallelto` is not allowed in array definitions, assuming `to`", options, Some(pos))
+        ForDirection.To
+      case x => x
+    }
+    ForLoopContents(identifier, start, end, fixedDirection, body)
+  }
+
+  def arrayContents: P[ArrayContents] = arrayListContents | arrayLoopContents | arrayFileContents | arrayStringContents
 
   def arrayDefinition: P[Seq[ArrayDeclarationStatement]] = for {
     p <- position()

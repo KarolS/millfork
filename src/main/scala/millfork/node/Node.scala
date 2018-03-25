@@ -104,12 +104,28 @@ case class VariableDeclarationStatement(name: String,
   override def getAllExpressions: List[Expression] = List(initialValue, address).flatten
 }
 
+trait ArrayContents extends Node {
+  def getAllExpressions: List[Expression]
+}
+
+case class LiteralContents(contents: List[Expression]) extends ArrayContents {
+  override def getAllExpressions: List[Expression] = contents
+}
+
+case class ForLoopContents(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: ArrayContents) extends ArrayContents {
+  override def getAllExpressions: List[Expression] = start :: end :: body.getAllExpressions.map(_.replaceVariable(variable, LiteralExpression(0, 1)))
+}
+
+case class CombinedContents(contents: List[ArrayContents]) extends ArrayContents {
+  override def getAllExpressions: List[Expression] = contents.flatMap(_.getAllExpressions)
+}
+
 case class ArrayDeclarationStatement(name: String,
                                      bank: Option[String],
                                      length: Option[Expression],
                                      address: Option[Expression],
-                                     elements: Option[List[Expression]]) extends DeclarationStatement {
-  override def getAllExpressions: List[Expression] = List(length, address).flatten ++ elements.getOrElse(Nil)
+                                     elements: Option[ArrayContents]) extends DeclarationStatement {
+  override def getAllExpressions: List[Expression] = List(length, address).flatten ++ elements.fold(List[Expression]())(_.getAllExpressions)
 }
 
 case class ParameterDeclaration(typ: String,

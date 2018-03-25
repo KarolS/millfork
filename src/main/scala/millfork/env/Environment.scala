@@ -625,6 +625,29 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     addThing(array, None)
   }
 
+  def extractArrayContents(contents1: ArrayContents): List[Expression] = contents1 match {
+    case LiteralContents(xs) => xs
+    case CombinedContents(xs) => xs.flatMap(extractArrayContents)
+    case ForLoopContents(v, start, end, direction, body) =>
+      (eval(start), eval(end)) match {
+        case (Some(NumericConstant(s, sz1)), Some(NumericConstant(e, sz2))) =>
+          val size = sz1 max sz2
+          val range = (direction match {
+            case ForDirection.To | ForDirection.ParallelTo => s.to(e)
+            case ForDirection.Until | ForDirection.ParallelUntil => s.until(e)
+            case ForDirection.DownTo => s.to(e, -1)
+          }).toList
+          range.flatMap(i => extractArrayContents(body).map(_.replaceVariable(v, LiteralExpression(i, size))))
+        case (Some(_), Some(_)) =>
+          ErrorReporting.error("Array range bounds cannot be evaluated")
+          Nil
+        case _ =>
+          ErrorReporting.error("Non-constant array range bounds")
+          Nil
+
+      }
+  }
+
   def registerArray(stmt: ArrayDeclarationStatement): Unit = {
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
@@ -663,7 +686,8 @@ class Environment(val parent: Option[Environment], val prefix: String) {
               case _ => ErrorReporting.error(s"Array `${stmt.name}` has weird length", stmt.position)
             }
         }
-      case Some(contents) =>
+      case Some(contents1) =>
+        val contents = extractArrayContents(contents1)
         stmt.length match {
           case None =>
           case Some(l) =>
