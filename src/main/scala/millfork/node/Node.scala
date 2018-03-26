@@ -152,6 +152,10 @@ case class FunctionDeclarationStatement(name: String,
 
 sealed trait ExecutableStatement extends Statement
 
+sealed trait CompoundStatement extends ExecutableStatement {
+  def getChildStatements: Seq[Statement]
+}
+
 case class ExpressionStatement(expression: Expression) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
 }
@@ -188,24 +192,32 @@ case class AssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, exp
   override def getAllExpressions: List[Expression] = List(expression)
 }
 
-case class IfStatement(condition: Expression, thenBranch: List[ExecutableStatement], elseBranch: List[ExecutableStatement]) extends ExecutableStatement {
+case class IfStatement(condition: Expression, thenBranch: List[ExecutableStatement], elseBranch: List[ExecutableStatement]) extends CompoundStatement {
   override def getAllExpressions: List[Expression] = condition :: (thenBranch ++ elseBranch).flatMap(_.getAllExpressions)
+
+  override def getChildStatements: Seq[Statement] = thenBranch ++ elseBranch
 }
 
-case class WhileStatement(condition: Expression, body: List[ExecutableStatement], increment: List[ExecutableStatement], labels: Set[String] = Set("", "while")) extends ExecutableStatement {
+case class WhileStatement(condition: Expression, body: List[ExecutableStatement], increment: List[ExecutableStatement], labels: Set[String] = Set("", "while")) extends CompoundStatement {
   override def getAllExpressions: List[Expression] = condition :: body.flatMap(_.getAllExpressions)
+
+  override def getChildStatements: Seq[Statement] = body ++ increment
 }
 
 object ForDirection extends Enumeration {
   val To, Until, DownTo, ParallelTo, ParallelUntil = Value
 }
 
-case class ForStatement(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: List[ExecutableStatement]) extends ExecutableStatement {
+case class ForStatement(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: List[ExecutableStatement]) extends CompoundStatement {
   override def getAllExpressions: List[Expression] = VariableExpression(variable) :: start :: end :: body.flatMap(_.getAllExpressions)
+
+  override def getChildStatements: Seq[Statement] = body
 }
 
-case class DoWhileStatement(body: List[ExecutableStatement], increment: List[ExecutableStatement], condition: Expression, labels: Set[String] = Set("", "do")) extends ExecutableStatement {
+case class DoWhileStatement(body: List[ExecutableStatement], increment: List[ExecutableStatement], condition: Expression, labels: Set[String] = Set("", "do")) extends CompoundStatement {
   override def getAllExpressions: List[Expression] = condition :: body.flatMap(_.getAllExpressions)
+
+  override def getChildStatements: Seq[Statement] = body ++ increment
 }
 
 case class BreakStatement(label: String) extends ExecutableStatement {

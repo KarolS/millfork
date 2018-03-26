@@ -42,7 +42,7 @@ object InliningCalculator {
           || f.interrupt
           || f.reentrant
           || f.name == "main"
-          || f.statements.exists(_.lastOption.exists(_.isInstanceOf[ReturnDispatchStatement]))) badFunctions += f.name
+          || containsReturnDispatch(f.statements.getOrElse(Nil))) badFunctions += f.name
       case _ =>
     }
     allFunctions --= badFunctions
@@ -53,6 +53,12 @@ object InliningCalculator {
       (size * aggressiveness).floor.toInt
     }).toMap
     InliningResult(map, badFunctions.toSet)
+  }
+
+  private def containsReturnDispatch(statements: Seq[Statement]): Boolean = statements.exists {
+    case _: ReturnDispatchStatement => true
+    case c: CompoundStatement => containsReturnDispatch(c.getChildStatements)
+    case _ => false
   }
 
   private def getAllCalledFunctions(expressions: List[Node]): List[(String, Boolean)] = expressions.flatMap {
