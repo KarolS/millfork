@@ -59,7 +59,7 @@ Automatic variables defined with the `register` keyword will have the priority w
 
 ## Parameters
 
-Automatic variables have lifetime starting with the beginning 
+Function parameters have lifetime starting with the beginning 
 of the function call to the function they're defined in 
 and ending when the function returns. 
 They reside in memory and can share their memory location with other parameters and automatic variables, 
