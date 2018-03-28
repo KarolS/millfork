@@ -134,6 +134,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       v.name -> VariableLifetime.apply(v.name, code)
     ).toMap
 
+    val removeVariablesForReal = !options.flag(CompilationFlag.InternalCurrentlyOptimizingForMeasurement)
     val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
     val importances = ReverseFlowAnalyzer.analyze(f, code)
     val blastProcessing = options.flag(CompilationFlag.OptimizeForSonicSpeed)
@@ -252,7 +253,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
             reportOptimizedBlock(oldCode, newCode)
             output ++= newCode
             i = range.end
-            if (contains(range, variablesWithLifetimes(v))) {
+            if (removeVariablesForReal && contains(range, variablesWithLifetimes(v))) {
               f.environment.removeVariable(v)
             }
             done = true
@@ -266,7 +267,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
-              if (contains(range, variablesWithLifetimes(v))) {
+              if (removeVariablesForReal && contains(range, variablesWithLifetimes(v))) {
                 f.environment.removeVariable(v)
               }
               done = true
@@ -281,7 +282,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
-              if (contains(range, variablesWithLifetimes(v))) {
+              if (removeVariablesForReal && contains(range, variablesWithLifetimes(v))) {
                 f.environment.removeVariable(v)
               }
               done = true
@@ -296,7 +297,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
-              if (contains(range, variablesWithLifetimes(v))) {
+              if (removeVariablesForReal && contains(range, variablesWithLifetimes(v))) {
                 f.environment.removeVariable(v)
               }
               done = true

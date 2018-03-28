@@ -118,9 +118,9 @@ object ReverseFlowAnalyzerPerOpcode {
       currentImportance.copy(y = currentImportance.x, x = currentImportance.y, m = Important, w = Important)
     }),
 
-    DISCARD_XF -> (_.copy(x = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)),
-    DISCARD_YF -> (_.copy(y = Unimportant, iz = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)),
-    DISCARD_AF -> (_.copy(a = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant)),
+    DISCARD_XF -> (_.copy(x = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant, r0 = Unimportant, r1 = Unimportant)),
+    DISCARD_YF -> (_.copy(y = Unimportant, iz = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant, r0 = Unimportant, r1 = Unimportant)),
+    DISCARD_AF -> (_.copy(a = Unimportant, n = Unimportant, z = Unimportant, c = Unimportant, v = Unimportant, r0 = Unimportant, r1 = Unimportant)),
 
     LDA -> (_.copy(a = Unimportant, n = Unimportant, z = Unimportant, m = Important)),
     LDX -> (_.copy(x = Unimportant, n = Unimportant, z = Unimportant, w = Important)),
@@ -181,16 +181,16 @@ object ReverseFlowAnalyzerPerOpcode {
     LDX_W -> (_.copy(x = Unimportant, n = Unimportant, z = Unimportant, w = Important)),
     LDY_W -> (_.copy(y = Unimportant, n = Unimportant, z = Unimportant, w = Important)),
 
-    STA -> (_.copy(a = Important, m = Important)),
-    STX -> (_.copy(x = Important, w = Important)),
-    STY -> (_.copy(y = Important, w = Important)),
-    STZ -> (_.copy(iz = Important, m = Important)),
-    SAX -> (_.copy(a = Important, x = Important)),
+    STA -> (importance => importance.copy(a = Important, m = Important)),
+    STX -> (importance => importance.copy(x = Important, w = Important)),
+    STY -> (importance => importance.copy(y = Important, w = Important)),
+    STZ -> (importance => importance.copy(iz = Important, m = Important)),
+    SAX -> (importance => importance.copy(a = Important, x = Important)),
 
-    STA_W -> (_.copy(a = Important, ah = Important, m = Important)),
-    STX_W -> (_.copy(x = Important, w = Important)),
-    STY_W -> (_.copy(y = Important, w = Important)),
-    STZ_W -> (_.copy(iz = Important, m = Important)),
+    STA_W -> (importance => importance.copy(a = Important, ah = Important, m = Important)),
+    STX_W -> (importance => importance.copy(x = Important, w = Important)),
+    STY_W -> (importance => importance.copy(y = Important, w = Important)),
+    STZ_W -> (importance => importance.copy(iz = Important, m = Important)),
 
     DEX -> (_.copy(x = Important, n = Unimportant, z = Unimportant, w = Important)),
     DEY -> (_.copy(y = Important, n = Unimportant, z = Unimportant, w = Important)),

@@ -326,15 +326,17 @@ object StatementCompiler {
               List(labelChunk(start), conditionBlock, branchChunk(jumpIfTrue, middle), jmpChunk(end), labelChunk(middle), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
             } else {
               val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, NoBranching)
-              List(labelChunk(start), conditionBlock, branchChunk(jumpIfFalse, end), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
+              List(jmpChunk(middle), labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, labelChunk(middle), conditionBlock,  branchChunk(jumpIfTrue, start), labelChunk(end)).flatten
+//              List(labelChunk(start), conditionBlock, branchChunk(jumpIfFalse, end), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
             }
           case BuiltInBooleanType =>
             if (largeBodyBlock) {
               val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(middle))
               List(labelChunk(start), conditionBlock, jmpChunk(end), labelChunk(middle), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
             } else {
-              val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfFalse(end))
-              List(labelChunk(start), conditionBlock, bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
+              val conditionBlock = ExpressionCompiler.compile(ctx, condition, someRegisterA, BranchIfTrue(start))
+              List(jmpChunk(middle), labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, labelChunk(middle), conditionBlock, labelChunk(end)).flatten
+//              List(labelChunk(start), conditionBlock, bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
             }
           case _ =>
             ErrorReporting.error(s"Illegal type for a condition: `$condType`", condition.position)

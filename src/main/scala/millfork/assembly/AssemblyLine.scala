@@ -170,6 +170,9 @@ object OpcodeClasses {
   val AccessesWordInMemoryAlwaysIfNotImplied = Set(
   )
 
+  val StoresByte = Set(STA, STX, STY, STZ, SAX)
+  val StoresWord = Set(STA_W, STX_W, STY_W, STZ_W)
+
   val OverwritesA = Set(
     LDA, PLA,
     LDA_W, PLA_W,

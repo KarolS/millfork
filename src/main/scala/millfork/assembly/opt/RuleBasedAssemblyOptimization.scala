@@ -205,6 +205,13 @@ object HelperCheckers {
     val p2 = l2.parameter
     val w1 = OpcodeClasses.AccessesWordInMemory(l1.opcode)
     val w2 = OpcodeClasses.AccessesWordInMemory(l2.opcode)
+
+    def distinctThings(a: String, b: String): Boolean = {
+      if (a == "__reg") return b != "__reg"
+      if (b == "__reg") return a != "__reg"
+      a.takeWhile(_ != '.') != b.takeWhile(_ != '.')
+    }
+
     def handleKnownDistance(distance: Short): Boolean = {
       // `distance` is the distance between the first byte that can be addressed by l1 (b1) and the first byte that can be addressed by l2 (b2): (b2-b1)
       val indexingAddrModes = Set(AbsoluteIndexedX, AbsoluteX, ZeroPageX, AbsoluteY, ZeroPageY, LongAbsoluteX)
@@ -238,7 +245,7 @@ object HelperCheckers {
       case (NumericConstant(_, _), CompoundConstant(MathOperator.Plus | MathOperator.Minus, MemoryAddressConstant(a: ThingInMemory), NumericConstant(_, _))) =>
         true // TODO: ???
       case (MemoryAddressConstant(a: ThingInMemory), MemoryAddressConstant(b: ThingInMemory)) =>
-        a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+        distinctThings(a.name, b.name) // TODO: ???
       case (CompoundConstant(op@(MathOperator.Plus | MathOperator.Minus), MemoryAddressConstant(a: ThingInMemory), NumericConstant(offset, _)),
       MemoryAddressConstant(b: ThingInMemory)) =>
         if (a.name == b.name) {
@@ -248,7 +255,7 @@ object HelperCheckers {
             handleKnownDistance(offset.toShort)
           }
         } else {
-          a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+          distinctThings(a.name, b.name) // TODO: ???
         }
       case (MemoryAddressConstant(a: ThingInMemory),
       CompoundConstant(op@(MathOperator.Plus | MathOperator.Minus), MemoryAddressConstant(b: ThingInMemory), NumericConstant(offset, _))) =>
@@ -259,7 +266,7 @@ object HelperCheckers {
             handleKnownDistance(offset.toShort)
           }
         } else {
-          a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+          distinctThings(a.name, b.name) // TODO: ???
         }
       case (CompoundConstant(op1@(MathOperator.Plus | MathOperator.Minus), MemoryAddressConstant(a: ThingInMemory), NumericConstant(o1, _)),
       CompoundConstant(op2@(MathOperator.Plus | MathOperator.Minus), MemoryAddressConstant(b: ThingInMemory), NumericConstant(o2, _))) =>
@@ -268,7 +275,7 @@ object HelperCheckers {
           val offset2 = if (op2==MathOperator.Plus) o2 else -o2
           handleKnownDistance((offset2 - offset1).toShort)
         } else {
-          a.name.takeWhile(_ != '.') != b.name.takeWhile(_ != '.') // TODO: ???
+          distinctThings(a.name, b.name) // TODO: ???
         }
       case _ =>
         false
@@ -529,6 +536,16 @@ case class DoesntMatterWhatItDoesWith(states: State.Value*) extends AssemblyLine
     states.forall(state => flowInfo.importanceAfter.isUnimportant(state))
 
   override def toString: String = states.mkString("[¯\\_(ツ)_/¯:", ",", "]")
+}
+
+case class DoesntMatterWhatItDoesWithReg(index: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertBackward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.importanceAfter.isPseudoregisterUnimportant(index)
+
+  override def toString: String = s"[¯\\_(ツ)_/¯: __reg+$index]"
 }
 
 case class HasSet(state: State.Value) extends AssemblyLinePattern {
@@ -796,15 +813,15 @@ case class HasOpcode(op: Opcode.Value) extends TrivialAssemblyLinePattern {
   override def toString: String = op.toString
 }
 
-case class RefersTo(identifier: String, offset: Int) extends TrivialAssemblyLinePattern {
+case class RefersTo(identifier: String, offset: Int = 999) extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean = {
     (line.addrMode == AddrMode.ZeroPage || line.addrMode == AddrMode.Absolute || line.addrMode == AddrMode.LongAbsolute) && (line.parameter match {
       case MemoryAddressConstant(th) =>
-        offset == 0 && th.name == identifier
+        (offset == 999 || offset == 0) && th.name == identifier
       case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
-        offset == nn && th.name == identifier
+        (offset == 999 || offset == nn) && th.name == identifier
       case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) =>
-        offset == nn && th.name == identifier
+        (offset == 999 || offset == nn) && th.name == identifier
       case _ => false
     })
   }

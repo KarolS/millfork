@@ -10,7 +10,7 @@ import millfork.env.{CompoundConstant, Constant, MathOperator}
   */
 object ZeropageRegisterOptimizations {
 
-  private val functionsThatUsePseudoregisterAsInput = Set("__mul_u8u8u8")
+  val functionsThatUsePseudoregisterAsInput = Set("__mul_u8u8u8")
 
   val ConstantMultiplication = new RuleBasedAssemblyOptimization("Constant multiplication",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
@@ -21,6 +21,8 @@ object ZeropageRegisterOptimizations {
       val product = ctx.get[Int](4) * ctx.get[Int](5)
       code.init :+ AssemblyLine.immediate(LDA, product & 0xff)
     },
+
+    // TODO: constants other than power of 2:
 
     (Elidable & HasOpcode(STA) & RefersTo("__reg", 0) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & Not(RefersTo("__reg", 1)) & DoesntChangeMemoryAt(0, 1)).* ~
@@ -66,9 +68,16 @@ object ZeropageRegisterOptimizations {
       (HasOpcodeIn(Set(RTS, RTL)) | CallsAnyExcept(functionsThatUsePseudoregisterAsInput)) ~~> (_.tail),
   )
 
+  val DeadRegStoreFromFlow = new RuleBasedAssemblyOptimization("Dead zeropage register store from flow",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(STA) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0)) ~~> (_.tail),
+    (Elidable & HasOpcode(STA) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1)) ~~> (_.tail),
+  )
+
   val All: List[AssemblyOptimization] = List(
     ConstantMultiplication,
     DeadRegStore,
+    DeadRegStoreFromFlow,
   )
 
 }

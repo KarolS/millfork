@@ -143,7 +143,9 @@ object CompilationFlag extends Enumeration {
   // warning options
   ExtraComparisonWarnings,
   RorWarning,
-  FatalWarnings = Value
+  FatalWarnings,
+  // special options for internal compiler use
+  InternalCurrentlyOptimizingForMeasurement = Value
 
   val allWarnings: Set[CompilationFlag.Value] = Set(ExtraComparisonWarnings)
 

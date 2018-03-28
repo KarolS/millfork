@@ -165,6 +165,26 @@ class WordMathSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Word addition 4") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   word v
+        |   word u
+        |   v = w($308)
+        |   u = w($601)
+        |   barrier()
+        |   output = u + v
+        | }
+        | noinline void barrier() { }
+        | noinline word w(word w) {
+        |   return w
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(0x909)
+    }
+  }
+
   test("Word bit ops 2") {
     EmuBenchmarkRun("""
         | word output @$c000
@@ -178,6 +198,24 @@ class WordMathSuite extends FunSuite with Matchers {
         | }
       """.stripMargin){ m =>
       m.readWord(0xc000) should equal(0x483)
+    }
+  }
+
+  test("Word shift") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   word v
+        |   v = w($123)
+        |   barrier()
+        |   output = v << 1
+        | }
+        | noinline void barrier() { }
+        | noinline word w(word w) {
+        |   return w
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(0x246)
     }
   }
 }

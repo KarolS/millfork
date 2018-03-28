@@ -49,18 +49,21 @@ object SuperOptimizer extends AssemblyOptimization {
 
     val quickScrub = List(
       UnusedLabelRemoval,
+      AlwaysGoodOptimizations.BranchInPlaceRemoval,
+      AlwaysGoodOptimizations.PointlessLoadBeforeReturn,
       AlwaysGoodOptimizations.UnusedCodeRemoval
     )
-    val quicklyCleanedCode = quickScrub.foldLeft(code)((c, o) => o.optimize(m, c, options))
+    val optionsForMeasurements = options.copy(commandLineFlags = options.commandLineFlags + (CompilationFlag.InternalCurrentlyOptimizingForMeasurement -> true))
+    val quicklyCleanedCode = quickScrub.foldLeft(code)((c, o) => o.optimize(m, c, optionsForMeasurements))
     seenSoFar += viewCode(quicklyCleanedCode)
     queue.enqueue(quickScrub.reverse -> quicklyCleanedCode)
 
     while(queue.nonEmpty) {
       val (optsSoFar, codeSoFar) = queue.dequeue()
       var isLeaf = true
-      (if (options.flag(CompilationFlag.SingleThreaded)) allOptimizers
+      (if (optionsForMeasurements.flag(CompilationFlag.SingleThreaded)) allOptimizers
       else allOptimizers.par).foreach { o =>
-        val optimized = o.optimize(m, codeSoFar, options)
+        val optimized = o.optimize(m, codeSoFar, optionsForMeasurements)
         val view = viewCode(optimized)
         seenSoFar.synchronized{
           if (!seenSoFar(view)) {
