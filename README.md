@@ -44,9 +44,9 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
 
 ## More info
 
-* [Documentation](doc/README.md)
+* [Documentation](docs/index.md)
 
-* [Example programs](examples/README.md)
+* [Example programs](examples/index.md)
 
 ## Planned features
 

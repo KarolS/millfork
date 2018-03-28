@@ -59,7 +59,7 @@ releaseDist := {
     IO.copyDirectory(base / name, distDir / name)
   }
   copyDir("include")
-  copyDir("doc")
+  copyDir("docs")
   def entries(f: File): List[File] = f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(entries) else Nil)
   IO.zip(entries(distDir).map(d => (d, d.getAbsolutePath.substring(distDir.getParent.length + 1))), zipFile)
   IO.delete(distDir)
