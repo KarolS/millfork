@@ -185,9 +185,9 @@ object UndocumentedOptimizations {
     }
 
   private def trivialSequence1(o1: Opcode.Value, o2: Opcode.Value, extra: AssemblyLinePattern, combined: Opcode.Value) =
-    (Elidable & HasOpcode(o1) & HasAddrMode(Absolute) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(o1) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & DoesNotConcernMemoryAt(0, 1) & extra).* ~
-      (Elidable & HasOpcode(o2) & HasAddrMode(Absolute) & MatchParameter(1)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcode(o2) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchParameter(1)) ~~> { (code, ctx) =>
       code.tail.init :+ AssemblyLine(combined, Absolute, ctx.get[Constant](1))
     }
 
@@ -287,6 +287,26 @@ object UndocumentedOptimizations {
       (Elidable & HasOpcode(TAX)) ~
       (Elidable & HasOpcode(DEC) & HasAddrMode(AbsoluteX) & DoesntMatterWhatItDoesWith(State.A, State.Y, State.X, State.C, State.Z, State.N, State.V)) ~~> { code =>
       List(code.head.copy(opcode = LDY), code.last.copy(opcode = DCP, addrMode = AbsoluteY))
+    },
+    (Elidable & HasOpcode(DEC) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(CMP) & MatchAddrMode(2) & MatchParameter(3) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> { code =>
+      List(code(2).copy(opcode = LDA), code(1).copy(opcode = DCP))
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & HasAddrModeIn(Set(ZeroPage, Absolute))) ~
+    (Elidable & HasOpcode(BNE) & MatchParameter(2)) ~
+      (Elidable & HasOpcode(DEC) & MatchAddrMode(30) & MatchParameter(31) & DoesntChangeMemoryAt(0, 1)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(DEC) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchParameter(1) &
+        DoesntChangeMemoryAt(30, 31) &
+        DoesntMatterWhatItDoesWith(State.Z, State.C, State.N, State.A)) ~~> { code =>
+      List(
+        AssemblyLine.immediate(LDA, 0xff),
+        code.head.copy(opcode =  DCP),
+        code(1), // BNE
+        code(2), // DEC ptr+1
+        code(3)  // LABEL
+      )
     },
   )
 
