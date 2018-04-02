@@ -556,6 +556,14 @@ case class HasSet(state: State.Value) extends AssemblyLinePattern {
     flowInfo.hasSet(state)
 }
 
+case class HasSourceOfNZ(state: State.Value) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.statusBefore.src.exists(s => s.matches(state))
+}
+
 object HasAccu8 extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertForward(needsFlowInfo)

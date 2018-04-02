@@ -42,6 +42,11 @@ sealed trait Status[+T] {
     case SingleStatus(x) => f(x)
     case _ => AnyStatus
   }
+
+  def exists(predicate: T => Boolean): Boolean = this match {
+    case AnyStatus | UnknownStatus => false
+    case SingleStatus(x) => predicate(x)
+  }
 }
 
 object SourceOfNZ {
@@ -57,6 +62,14 @@ object SourceOfNZ {
 }
 
 case class SourceOfNZ(a: Boolean = false, aw: Boolean = false, x: Boolean = false, y: Boolean = false, iz: Boolean = false) {
+  def matches(state: State.Value): Boolean = state match {
+    case State.A => a
+    case State.X => x
+    case State.Y => y
+    case State.IZ => iz
+    case _ => throw new IllegalArgumentException
+  }
+
   override def toString: String = {
     val builder = new StringBuilder
     if (a) builder += 'A'

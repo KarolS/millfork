@@ -1600,6 +1600,14 @@ object AlwaysGoodOptimizations {
     },
   )
 
+  val OptimizeZeroComparisons = new RuleBasedAssemblyOptimization("Optimizing zero comparisons",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasSourceOfNZ(State.A) & HasOpcode(CMP) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.init),
+    (Elidable & HasSourceOfNZ(State.X) & HasOpcode(CPX) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.init),
+    (Elidable & HasSourceOfNZ(State.Y) & HasOpcode(CPY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.init),
+    (Elidable & HasSourceOfNZ(State.IZ) & HasOpcode(CPZ) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.init),
+  )
+
   private def remapZ2N(line: AssemblyLine) = line.opcode match {
     case BNE => line.copy(opcode = BMI)
     case BEQ => line.copy(opcode = BPL)
