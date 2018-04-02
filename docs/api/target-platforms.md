@@ -35,6 +35,8 @@ Read [the NES programming guide](./famicom-programming-guide.md) for more info.
 
 * `a8` – Atari 8-bit computers
 
+* `bbcmicro` – BBC Micro model B (32k RAM)
+
 * `apple2` – Apple II+/IIe/Enhanced IIe
 
 The primary and most tested platform is Commodore 64.
@@ -58,6 +60,20 @@ The file has to be loaded from $0C00. An example how to put such file onto a dis
     java -jar AppleCommander-1.3.5.jar -p disk_image.dsk FILENAME B 0xc00 < compiler_output.a2
     
 Creating a bootable disk is beyond the scope of this document.
+
+### A note about BBC Micro
+
+The default configuration file puts the start address for the program at $0E00.
+
+The compiler outputs two files: a raw machine code file without an extension and a `.inf` file with file metadata.
+To use the file, you need to put it on a disk or a disk image.
+You can for example use tools like BBC Disk Explorer.
+
+After putting it on a disk, the file can be run with:
+
+    *RUN "FILENAME"
+    
+Currently, multipart BBC Micro programs are not supported.
 
 ## Adding a custom platform
 

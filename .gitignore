@@ -27,5 +27,7 @@ src/test/scala/experiments/
 *.a78
 *.a2
 *.dsk
+*.inf
+HELLO
 
 

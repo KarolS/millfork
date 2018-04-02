@@ -166,6 +166,12 @@ object Main {
     c.runFileName.foreach(program =>
       new ProcessBuilder(program, Paths.get(defaultPrgOutput).toAbsolutePath.toString).start()
     )
+    if (platform.generateBbcMicroInfFile) {
+      val start = platform.codeAllocators("default").startAt
+      val codeLength = result.code("default").length
+      Files.write(Paths.get(defaultPrgOutput+".inf"),
+        s"$defaultPrgOutput ${start.toHexString} ${start.toHexString} ${codeLength.toHexString}".getBytes(StandardCharsets.UTF_8))
+    }
   }
 
   private def parser = new CliParser[Context] {

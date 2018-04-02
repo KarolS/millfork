@@ -1,0 +1,4 @@
+
+// OSASCI. Write a character (to screen) from A plus LF if (A)=&0D
+// Input: A = Byte to write.
+asm void putchar(byte a) @$FFE3 extern

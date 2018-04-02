@@ -24,6 +24,7 @@ class Platform(
                 val codeAllocators: Map[String, UpwardByteAllocator],
                 val variableAllocators: Map[String, VariableAllocator],
                 val fileExtension: String,
+                val generateBbcMicroInfFile: Boolean,
                 val bankNumbers: Map[String, Int],
                 val defaultCodeBank: String,
                 val outputStyle: OutputStyle.Value
@@ -157,6 +158,7 @@ object Platform {
       }
     }.toList)
     val fileExtension = os.get(classOf[String], "extension", ".bin")
+    val generateBbcMicroInfFile = os.get(classOf[Boolean], "bbc_inf", false)
     val outputStyle = os.get(classOf[String], "style", "single") match {
       case "" | "single" => OutputStyle.Single
       case "per_bank" | "per_segment" => OutputStyle.PerBank
@@ -166,7 +168,8 @@ object Platform {
     new Platform(cpu, flagOverrides, startingModules, outputPackager,
       codeAllocators.toMap,
       variableAllocators.toMap,
-      if (fileExtension.startsWith(".")) fileExtension else "." + fileExtension,
+      if (fileExtension == "" || fileExtension.startsWith(".")) fileExtension else "." + fileExtension,
+      generateBbcMicroInfFile,
       bankNumbers,
       defaultCodeBank,
       outputStyle)
