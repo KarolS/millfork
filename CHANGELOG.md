@@ -6,6 +6,8 @@
 
 * Added multiple new text codecs.
 
+* Added character literals.
+
 * Fixed several bugs, most importantly invalid offsets for branching instructions.
 
 * Other improvements.

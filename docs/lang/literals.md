@@ -36,7 +36,7 @@ Currently available encodings:
 
 * `bbc` – BBC Micro and ZX Spectrum character set
 
-* `jis` – JIS X 0201
+* `jis` or `jisx` – JIS X 0201
 
 * `iso_de`, `iso_no`, `iso_se`, `iso_yu` – various variants of ISO/IEC-646
  
@@ -46,6 +46,13 @@ When programming for Commodore,
 use `pet` for strings you're printing using standard I/O routines
 and `scr` for strings you're copying to screen memory directly.
 
+## Character literals
+
+Character literals are surrounded by single quotes and followed by the name of the encoding: 
+
+    'x' ascii
+
+From the type system point of view, they are constants of type byte.
 
 ## Array initialisers 
 

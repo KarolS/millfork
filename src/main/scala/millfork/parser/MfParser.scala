@@ -53,6 +53,28 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   //  def operator: P[String] = P(CharsWhileIn("!-+*/><=~|&^", min=1).!) // TODO: only valid operators
 
+  private val invalidCharLiteralTypes = Set[Int](
+    Character.LINE_SEPARATOR,
+    Character.PARAGRAPH_SEPARATOR,
+    Character.CONTROL,
+    Character.PRIVATE_USE,
+    Character.SURROGATE,
+    Character.UNASSIGNED)
+
+  def charAtom: P[LiteralExpression] = for {
+    p <- position()
+    c <- "'" ~/ CharPred(c => c >= ' ' && !invalidCharLiteralTypes(Character.getType(c))).! ~/ "'"
+    co <- HWS ~ codec
+  } yield {
+    co.encode(Some(p), c.charAt(0)) match {
+      case List(value) =>
+        LiteralExpression(value, 1)
+      case _ =>
+        ErrorReporting.error(s"Character `$c` cannot be encoded as one byte", Some(p))
+        LiteralExpression(0, 1)
+    }
+  }
+
   // TODO: 3-byte types
   def size(value: Int, wordLiteral: Boolean, longLiteral: Boolean): Int =
     if (value > 255 || value < -128 || wordLiteral)
@@ -120,7 +142,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       LiteralExpression(value, size(value, s.length > 4, s.length > 8)).pos(p)
     }
 
-  val literalAtom: P[LiteralExpression] = binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom
+  val literalAtom: P[LiteralExpression] = charAtom | binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom
 
   val atom: P[Expression] = P(literalAtom | (position() ~ identifier).map { case (p, i) => VariableExpression(i).pos(p) })
 
@@ -200,7 +222,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').! ~ "\"").map(_.toList)
 
-  val codec: P[TextCodec] = P(position() ~ identifier).map {
+  def codec: P[TextCodec] = P(position() ~ identifier).map {
     case (_, "ascii") => TextCodec.Ascii
     case (_, "petscii") => TextCodec.Petscii
     case (_, "pet") => TextCodec.Petscii
