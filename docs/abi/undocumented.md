@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Undocumented opcodes
 
 Original 6502 processors accidentally supported a bunch of extra undocumented instructions.

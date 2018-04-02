@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Syntax
 
 For information about types, see [Types](./types.md).  
@@ -80,6 +82,16 @@ if <expression> {
 
 ```
 if <expression> {
+    <body>
+} else {
+    <body>
+}
+```
+
+```
+if <expression> {
+    <body>
+} else if <expression> {
     <body>
 } else {
     <body>

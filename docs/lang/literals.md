@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Literals and initializers
 
 ## Numeric literals
@@ -56,11 +58,29 @@ From the type system point of view, they are constants of type byte.
 
 ## Array initialisers 
 
-An array is initialized with either a string literal,
-or a list of byte literals and strings, surrounded by brackets:
+An array is initialized with either:
+
+* a string literal
+
+* a `file` expression
+
+* a `for`-style expression
+
+* a list of byte literals and/or other array initializers, surrounded by brackets:
+
 
     array a = [1, 2]
     array b = "----" scr
     array c = ["hello world!" ascii, 13]
+    array d = file("d.bin")
+    array e = file("d.bin", 128, 256)
+    array f = for x,0,until,8 [x * 3 + 5]  // equivalent to [5, 8, 11, 14, 17, 20, 23, 26]
 
 Trailing commas (`[1, 2,]`) are not allowed.
+
+The parameters for `file` are: file path, optional start offset, optional length
+(start offset and length have to be either both present or both absent).
+
+The `for`-style expression has a variable, a starting index, a direction, a final index, 
+and a parametrizable array initializer.
+The initializer is repeated for every value of the variable in the given range.

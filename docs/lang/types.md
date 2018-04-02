@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Types
 
 Millfork puts extra limitations on which types can be used in which contexts.

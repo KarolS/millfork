@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Operators
 
 Unlike in high-level languages, operators in Millfork have limited applicability. 
@@ -197,5 +199,10 @@ Those expressions are of type `byte`. If `a` is any other kind of expression, `a
 `nonet(byte << constant byte)`  
 `nonet(byte <<' constant byte)`  
 Other kinds of expressions than the above (even `nonet(byte + byte + byte)`) will not work as expected.
+
+* `hi`, `lo`: most/least significant byte of a word  
+`hi(word)`
+
+
 
 

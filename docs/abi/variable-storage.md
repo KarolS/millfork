@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Variable storage
 
 Variables in Millfork can belong to one of the following storage classes:

@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+                                                      
 # Target platforms
 
 Currently, Millfork supports creating disk- or tape-based programs for Commodore, Apple and Atari 8-bit computers, 
@@ -168,3 +170,5 @@ Default: `after_code`.
     * `<segment>:<addr>:<addr>` - inclusive range of bytes in a given segment
     
 * `extension` – target file extension, with or without the dot
+
+* `bbc_inf` – should the `.inf` file with file metadata for BBC Micro be created

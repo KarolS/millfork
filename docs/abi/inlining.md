@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Macros and inlining
 
 ## Macros

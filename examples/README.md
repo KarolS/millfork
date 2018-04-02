@@ -2,7 +2,7 @@
 
 ## Cross-platform examples
 
-* [Hello world](hello_world/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II) – simple text output
+* [Hello world](hello_world/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro) – simple text output
 
 ## Commodore 64 examples
 

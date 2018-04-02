@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Function definitions
 
 Syntax:

@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Getting started
 
 ## Hello world example

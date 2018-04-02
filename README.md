@@ -30,6 +30,8 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
     
     * Atari 8-bit computers
     
+    * BBC Micro
+    
     * Apple II+/IIe/Enhanced IIe
 
 * inline assembly
@@ -46,10 +48,10 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
 
 * [Documentation](docs/index.md)
 
-* [Example programs](examples/index.md)
+* [Example programs](examples/README.md)
 
 ## Planned features
 
-* more targets: BBC Micro/Electron, Oric computers, PC-Engine/Turbografx-16, Atari Lynx
+* more targets: Oric computers, PC-Engine/Turbografx-16, Atari Lynx
  
 * support for 65816, SuperFamicom/SNES and Apple IIgs 

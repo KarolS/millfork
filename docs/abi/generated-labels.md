@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Guide to generated label names
 
 Many Millfork constructs generate labels. 

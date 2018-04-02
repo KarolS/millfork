@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Preliminary BBC Micro support.
+
 * Added array initialization syntax with `for` (not yet finalized).
 
 * Added multiple new text codecs.

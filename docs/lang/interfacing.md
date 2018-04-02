@@ -1,3 +1,5 @@
+[< back to index](../index.md)
+
 # Interfacing with external code 
 
 ## Calling external functions at a static address
