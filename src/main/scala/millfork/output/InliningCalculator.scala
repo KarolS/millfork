@@ -87,7 +87,7 @@ object InliningCalculator {
     case _ => Nil
   }
 
-  private val badOpcodes = Set(RTI, RTS, JSR, BRK, RTL, BSR) ++ OpcodeClasses.ChangesStack
+  private val badOpcodes = Set(RTI, RTS, JSR, BRK, RTL, BSR, BYTE) ++ OpcodeClasses.ChangesStack
   private val jumpingRelatedOpcodes = Set(LABEL, JMP) ++ OpcodeClasses.ShortBranching
 
   def codeForInlining(fname: String, functionsAlreadyKnownToBeNonInlineable: Set[String], code: List[AssemblyLine]): Option[List[AssemblyLine]] = {

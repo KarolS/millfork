@@ -40,7 +40,7 @@ object CoarseFlowAnalyzer {
               case _ => None
             }).fold(emptyStatus)(_ ~ _)
 
-          case AssemblyLine(JSR, _, _, _) =>
+          case AssemblyLine(JSR | BYTE, _, _, _) =>
             currentStatus = initialStatus
 
           case AssemblyLine(op, Implied, _, _) if FlowAnalyzerForImplied.hasDefinition(op) =>

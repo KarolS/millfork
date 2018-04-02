@@ -106,18 +106,33 @@ case class VariableDeclarationStatement(name: String,
 
 trait ArrayContents extends Node {
   def getAllExpressions: List[Expression]
+  def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents
 }
 
 case class LiteralContents(contents: List[Expression]) extends ArrayContents {
   override def getAllExpressions: List[Expression] = contents
+
+  override def replaceVariable(variable: String, expression: Expression): ArrayContents =
+    LiteralContents(contents.map(_.replaceVariable(variable, expression)))
 }
 
 case class ForLoopContents(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: ArrayContents) extends ArrayContents {
   override def getAllExpressions: List[Expression] = start :: end :: body.getAllExpressions.map(_.replaceVariable(variable, LiteralExpression(0, 1)))
+
+  override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
+    if (variableToReplace == variable) this else ForLoopContents(
+      variable,
+      start.replaceVariable(variableToReplace, expression),
+      end.replaceVariable(variableToReplace, expression),
+      direction,
+      body.replaceVariable(variableToReplace, expression))
 }
 
 case class CombinedContents(contents: List[ArrayContents]) extends ArrayContents {
   override def getAllExpressions: List[Expression] = contents.flatMap(_.getAllExpressions)
+
+  override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
+    CombinedContents(contents.map(_.replaceVariable(variableToReplace, expression)))
 }
 
 case class ArrayDeclarationStatement(name: String,
@@ -151,6 +166,10 @@ case class FunctionDeclarationStatement(name: String,
 }
 
 sealed trait ExecutableStatement extends Statement
+
+case class RawBytesStatement(contents: ArrayContents) extends ExecutableStatement {
+  override def getAllExpressions: List[Expression] = contents.getAllExpressions
+}
 
 sealed trait CompoundStatement extends ExecutableStatement {
   def getChildStatements: Seq[Statement]

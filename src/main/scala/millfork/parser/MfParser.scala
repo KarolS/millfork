@@ -244,6 +244,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
       TextCodec.Ascii
   }
 
+  // TODO: should reserve the `file` identifier here?
   def arrayFileContents: P[ArrayContents] = for {
     p <- "file" ~ HWS ~/ "(" ~/ HWS ~/ position()
     filePath <- doubleQuotedString ~/ HWS
@@ -282,6 +283,8 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
   }
 
   def arrayContents: P[ArrayContents] = arrayListContents | arrayLoopContents | arrayFileContents | arrayStringContents
+
+  def arrayContentsForAsm: P[RawBytesStatement] = (arrayListContents | arrayStringContents).map(RawBytesStatement)
 
   def arrayDefinition: P[Seq[ArrayDeclarationStatement]] = for {
     p <- position()
@@ -440,7 +443,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
 
   def asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall).map(ExpressionStatement)
 
-  def asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
+  def asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
 
   def statement: P[Seq[Statement]] = (position() ~ P(keywordStatement | variableDefinition(false) | expressionStatement)).map { case (p, s) => s.map(_.pos(p)) }
 

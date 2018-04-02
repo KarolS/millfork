@@ -121,7 +121,7 @@ object Opcode extends Enumeration {
   PHX_W, PHY_W, PLY_W, PLX_W,
 
   DISCARD_AF, DISCARD_XF, DISCARD_YF,
-  LABEL = Value
+  BYTE, LABEL = Value
 
   def widen(opcode: Opcode.Value): Option[Opcode.Value] = opcode match {
     case ORA => Some(ORA_W)
@@ -327,6 +327,7 @@ object AddrMode extends Enumeration {
   AbsoluteIndexedX,
   TripleAbsolute,
   Undecided,
+  RawByte,
   DoesNotExist = Value
 
 

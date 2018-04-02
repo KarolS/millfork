@@ -418,6 +418,11 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         assOut.append(instr.toString)
       }
       instr match {
+        case AssemblyLine(BYTE, RawByte, c, _) =>
+          writeByte(bank, index, c)
+          index += 1
+        case AssemblyLine(BYTE, _, _, _) => ???
+        case AssemblyLine(_, RawByte, _, _) => ???
         case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(labelName)), _) =>
           labelMap(labelName) = index
         case AssemblyLine(_, DoesNotExist, _, _) =>

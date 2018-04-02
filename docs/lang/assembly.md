@@ -68,8 +68,12 @@ You can insert macros into assembly, by prefixing them with `+` and using the sa
         }
     } 
 
-Currently there is no way to insert raw bytes into inline assembly 
-(required for certain optimizations and calling conventions).
+You can insert raw bytes into your assembly using the array syntax:
+
+    [ $EA, $EA ]
+    "this is a string to print" apple2
+    ["this is a string to print but this time it's zero-terminated so it will actually work" apple2, 0]
+    [for x,0,until,8 [x]]
 
 ## Assembly functions
 

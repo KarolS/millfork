@@ -37,6 +37,7 @@ object ReverseFlowAnalyzerPerOpcode {
     COP -> (_ => finalImportance),
     RTS -> (_ => finalImportance),
     RTL -> (_ => finalImportance),
+    BYTE -> (_ => finalImportance),
 
     RTI -> (_ => CpuImportance(
       a = Unimportant, ah = Unimportant,

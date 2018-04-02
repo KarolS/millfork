@@ -133,6 +133,15 @@ object StatementCompiler {
           case _ => a
         }
         List(AssemblyLine(o, actualAddrMode, c, e))
+      case RawBytesStatement(contents) =>
+        env.extractArrayContents(contents).map { expr =>
+          env.eval(expr) match {
+            case Some(c) => AssemblyLine(BYTE, RawByte, c, elidable = false)
+            case None =>
+              ErrorReporting.error("Non-constant raw byte", position = statement.position)
+              AssemblyLine(BYTE, RawByte, Constant.Zero, elidable = false)
+          }
+        }
       case Assignment(dest, source) =>
         ExpressionCompiler.compileAssignment(ctx, source, dest)
       case ExpressionStatement(e@FunctionCallExpression(name, params)) =>

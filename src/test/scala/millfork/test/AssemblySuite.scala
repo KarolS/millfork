@@ -147,4 +147,20 @@ class AssemblySuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(10))
   }
+
+  test("Inline raw bytes") {
+    EmuBenchmarkRun(
+      """
+        | byte output @$c000
+        | asm void main () {
+        |   ? LDA #10
+        |   [ for x,0,until,8 [$EA] ]
+        |   [ $8d, 0, $c0]
+        |   JMP cc
+        |   "stuff" ascii
+        |   cc:
+        |   RTS
+        | }
+      """.stripMargin)(_.readByte(0xc000) should equal(10))
+  }
 }

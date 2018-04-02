@@ -522,7 +522,7 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
   }
 
   def sizeInBytes: Int = addrMode match {
-    case Implied => 1
+    case Implied | RawByte => 1
     case Relative | ZeroPageX | ZeroPage | ZeroPageY | IndexedZ | IndexedX | IndexedY | IndexedSY | Stack | LongIndexedY | LongIndexedZ | Immediate => 2
     case AbsoluteIndexedX | AbsoluteX | Absolute | AbsoluteY | Indirect | LongRelative | WordImmediate => 3
     case LongAbsolute | LongAbsoluteX | LongIndirect => 4
@@ -530,7 +530,7 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
   }
 
   def cost: Int = addrMode match {
-    case Implied => 1000
+    case Implied | RawByte => 1000
     case Relative | Immediate => 2000
     case ZeroPage => 2001
     case Stack | ZeroPageX | ZeroPageY => 2002
@@ -552,6 +552,8 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
   override def toString: String =
     if (opcode == LABEL) {
       parameter.toString
+    } else if (opcode == BYTE) {
+      "    !byte " + parameter.toString
     } else if (addrMode == DoesNotExist) {
       s"    ; $opcode"
     } else {
