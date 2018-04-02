@@ -4,7 +4,7 @@
 
 * Added array initialization syntax with `for` (not yet finalized).
 
-* Added `atascii` text codec.
+* Added multiple new text codecs.
 
 * Fixed several bugs, most importantly invalid offsets for branching instructions.
 

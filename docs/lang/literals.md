@@ -21,6 +21,9 @@ String literals are surrounded with double quotes and followed by the name of th
 Characters between the quotes are interpreted literally, 
 there are no ways to escape special characters or quotes.
 
+In some encodings, multiple characters are mapped to the same byte value,
+for compatibility with multiple variants.
+
 Currently available encodings:
 
 * `ascii` – standard ASCII
@@ -28,6 +31,16 @@ Currently available encodings:
 * `pet` or `petscii` – PETSCII (ASCII-like character set used by Commodore machines)
 
 * `scr` – Commodore screencodes
+
+* `apple2` – Apple II charset ($A0–$FE)
+
+* `bbc` – BBC Micro and ZX Spectrum character set
+
+* `jis` – JIS X 0201
+
+* `iso_de`, `iso_no`, `iso_se`, `iso_yu` – various variants of ISO/IEC-646
+ 
+* `iso_dk`, `iso_fi` – aliases for `iso_no` and `iso_se` respectively
 
 When programming for Commodore,
 use `pet` for strings you're printing using standard I/O routines

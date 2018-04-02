@@ -207,6 +207,16 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     case (_, "scr") => TextCodec.CbmScreencodes
     case (_, "atascii") => TextCodec.Atascii
     case (_, "atari") => TextCodec.Atascii
+    case (_, "bbc") => TextCodec.Bbc
+    case (_, "apple2") => TextCodec.Apple2
+    case (_, "jis") => TextCodec.Jis
+    case (_, "jisx") => TextCodec.Jis
+    case (_, "iso_de") => TextCodec.IsoIec646De
+    case (_, "iso_no") => TextCodec.IsoIec646No
+    case (_, "iso_dk") => TextCodec.IsoIec646No
+    case (_, "iso_se") => TextCodec.IsoIec646Se
+    case (_, "iso_fi") => TextCodec.IsoIec646Se
+    case (_, "iso_yu") => TextCodec.IsoIec646Yu
     case (p, x) =>
       ErrorReporting.error(s"Unknown string encoding: `$x`", Some(p))
       TextCodec.Ascii
@@ -226,7 +236,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
   }
 
   def arrayStringContents: P[ArrayContents] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
-    case (p, s, co) => LiteralContents(s.map(c => LiteralExpression(co.decode(None, c), 1).pos(p)))
+    case (p, s, co) => LiteralContents(s.flatMap(c => co.encode(None, c)).map(c => LiteralExpression(c, 1).pos(p)))
   }
 
   def arrayLoopContents: P[ArrayContents] = for {
