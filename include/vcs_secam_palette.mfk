@@ -1,0 +1,9 @@
+const byte black = 0
+const byte blue = $d2
+const byte red = $64
+const byte purple = $86
+const byte green = $38
+const byte cyan = $9a
+const byte yellow = $2c
+const byte white = $0e
+

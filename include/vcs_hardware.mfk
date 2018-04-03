@@ -1,0 +1,112 @@
+byte VSYNC @$00
+byte VBLANK @$01
+byte WSYNC @$02
+byte RSYNC @$03
+byte NUSIZ0 @$04
+byte NUSIZ1 @$05
+byte COLUP0 @$06
+byte COLUP1 @$07
+byte COLUPF @$08
+byte COLUBK @$09
+byte CTRLPF @$0A
+byte REFP0 @$0B
+byte REFP1 @$0C
+byte PF0 @$0D
+byte PF1 @$0E
+byte PF2 @$0F
+byte RESP0 @$10
+byte RESP1 @$11
+byte RESM0 @$12
+byte RESM1 @$13
+byte RESBL @$14
+byte AUDC0 @$15
+byte AUDC1 @$16
+byte AUDF0 @$17
+byte AUDF1 @$18
+byte AUDV0 @$19
+byte AUDV1 @$1A
+byte GRP0 @$1B
+byte GRP1 @$1C
+byte ENAM0 @$1D
+byte ENAM1 @$1E
+byte ENABL @$1F
+byte HMP0 @$20
+byte HMP1 @$21
+byte HMM0 @$22
+byte HMM1 @$23
+byte HMBL @$24
+byte VDELP0 @$25
+byte VDELP1 @$26
+byte VDELBL @$27
+byte RESMP0 @$28
+byte RESMP1 @$29
+byte HMOVE @$2A
+byte HMCLR @$2B
+byte CXCLR @$2C
+byte CXM0P @$30
+byte CXM1P @$31
+byte CXP0FB @$32
+byte CXP1FB @$33
+byte CXM0FB @$34
+byte CXM1FB @$35
+byte CXBLPF @$36
+byte CXPPMM @$37
+byte INPT0 @$38
+byte INPT1 @$39
+byte INPT2 @$3A
+byte INPT3 @$3B
+byte INPT4 @$3C
+byte INPT5 @$3D
+byte SWCHA @$0280
+byte SWACNT @$0281
+byte SWCHB @$0282
+byte SWBCNT @$0283
+byte INTIM @$0284
+byte INSTAT @$0285
+byte TIM1T @$0294
+byte TIM8T @$0295
+byte TIM64T @$0296
+byte T1024T @$0297
+
+
+macro asm void wsync() {
+    STA WSYNC
+}
+
+macro asm void start_frame() {
+    LDA #0
+    STA VBLANK
+    LDA #2
+    STA VSYNC
+    STA WSYNC
+    STA WSYNC
+    STA WSYNC
+    LDA #0
+    STA VSYNC
+    LDX #37
+    start_frame_loop:
+    STA WSYNC
+    DEX
+    BNE start_frame_loop
+}
+macro asm void end_frame() {
+    LDA #%01000010
+    STA VBLANK
+    LDX #30
+    end_frame_loop:
+    STA WSYNC
+    DEX
+    BNE end_frame_loop
+}
+
+asm void reset_routine() @$FFF4 {
+    LDX #$FF
+    TXS
+    JMP main
+}
+
+array __vectors @$FFFA = [
+    reset_routine.addr.lo, reset_routine.addr.hi,
+    reset_routine.addr.lo, reset_routine.addr.hi,
+    reset_routine.addr.lo, reset_routine.addr.hi
+]

@@ -1,0 +1,11 @@
+void main() {
+    byte y
+    while true {
+        start_frame()
+        for y,0,until,192 {
+            COLUBK = y
+            wsync()
+        }
+        end_frame()
+    }
+}

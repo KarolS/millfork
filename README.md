@@ -28,6 +28,8 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
     
     * Famicom/NES (the second most important target)
     
+    * Atari 2600 (experimental)
+    
     * Atari 8-bit computers
     
     * BBC Micro
