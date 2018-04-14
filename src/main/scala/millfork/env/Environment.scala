@@ -79,6 +79,15 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     }.toList
   }
 
+  private def isLocalVariableName(name: String): Boolean = name.contains('$') && !name.endsWith("$") && {
+    val fname = name.substring(0, name.indexOf('$'))
+    things.get(fname) -> parent.flatMap(_.things.get(fname)) match {
+      case (Some(_: NormalFunction), _) => true
+      case (_, Some(_: NormalFunction)) => true
+      case _ => false
+    }
+  }
+
   def allocateVariables(nf: Option[NormalFunction], mem: CompiledMemory, callGraph: CallGraph, allocators: Map[String, VariableAllocator], options: CompilationOptions, onEachVariable: (String, Int) => Unit): Unit = {
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
@@ -91,7 +100,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       }
     }.toSet
     val toAdd = things.values.flatMap {
-      case m: UninitializedMemory =>
+      case m: UninitializedMemory if nf.isDefined == isLocalVariableName(m.name) =>
         val vertex = if (options.flag(CompilationFlag.VariableOverlap)) {
           nf.fold[VariableVertex](GlobalVertex) { f =>
             if (m.alloc == VariableAllocationMethod.Static) {

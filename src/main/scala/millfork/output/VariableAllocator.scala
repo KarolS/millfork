@@ -4,6 +4,7 @@ import millfork.error.ErrorReporting
 import millfork.node.{CallGraph, VariableVertex}
 import millfork.{CompilationFlag, CompilationOptions}
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 /**
@@ -49,10 +50,10 @@ class AfterCodeByteAllocator(val endBefore: Int) extends ByteAllocator {
   def notifyAboutEndOfCode(org: Int): Unit = startAt = org
 }
 
-class VariableAllocator(private var pointers: List[Int], private val bytes: ByteAllocator) {
+class VariableAllocator(private val pointers: List[Int], private val bytes: ByteAllocator) {
 
-  private var pointerMap = mutable.Map[Int, Set[VariableVertex]]()
-  private var variableMap = mutable.Map[Int, mutable.Map[Int, Set[VariableVertex]]]()
+  private val pointerMap = mutable.Map[Int, Set[VariableVertex]]()
+  private val variableMap = mutable.Map[Int, mutable.Map[Int, Set[VariableVertex]]]()
 
   def allocatePointer(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex): Int = {
     // TODO: search for free zeropage locations
@@ -62,16 +63,16 @@ class VariableAllocator(private var pointers: List[Int], private val bytes: Byte
         return addr
       }
     }
-    def pickFreePointer(): Int =
-      pointers match {
+    @tailrec
+    def pickFreePointer(ps: List[Int]): Int =
+      ps match {
         case Nil =>
+          ErrorReporting.trace(pointerMap.mkString(", "))
           ErrorReporting.fatal("Out of zero-page memory")
         case next :: rest =>
           if (mem.occupied(next) || mem.occupied(next + 1)) {
-            pointers = rest
-            pickFreePointer()
+            pickFreePointer(rest)
           } else {
-            pointers = rest
             mem.readable(next) = true
             mem.readable(next + 1) = true
             mem.occupied(next) = true
@@ -82,7 +83,7 @@ class VariableAllocator(private var pointers: List[Int], private val bytes: Byte
             next
           }
       }
-    pickFreePointer()
+    pickFreePointer(pointers)
   }
 
   def allocateBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean): Int = {
