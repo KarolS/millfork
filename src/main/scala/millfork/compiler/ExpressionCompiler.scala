@@ -745,7 +745,7 @@ object ExpressionCompiler {
                 if (neg) MathOperator.DecimalMinus else MathOperator.DecimalPlus
               } else {
                 if (neg) MathOperator.Minus else MathOperator.Plus
-              }, c, v)
+              }, c, v).quickSimplify
             }
           exprTypeAndVariable.map(x => compileConstant(ctx, value.quickSimplify, x._2)).getOrElse(Nil)
         } else {

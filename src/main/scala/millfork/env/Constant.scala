@@ -170,6 +170,22 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     val l = lhs.quickSimplify
     val r = rhs.quickSimplify
     (l, r) match {
+      case (CompoundConstant(MathOperator.Plus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv,_)) if operator == MathOperator.Plus =>
+        CompoundConstant(MathOperator.Plus, a, ll + rr).quickSimplify
+      case (CompoundConstant(MathOperator.Minus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv,_)) if operator == MathOperator.Minus =>
+        CompoundConstant(MathOperator.Minus, a, ll + rr).quickSimplify
+      case (CompoundConstant(MathOperator.Plus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv,_)) if operator == MathOperator.Minus =>
+        if (lv >= rv) {
+          CompoundConstant(MathOperator.Plus, a, ll - rr).quickSimplify
+        } else {
+          CompoundConstant(MathOperator.Minus, a, rr - ll).quickSimplify
+        }
+      case (CompoundConstant(MathOperator.Minus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv,_)) if operator == MathOperator.Plus =>
+        if (lv >= rv) {
+          CompoundConstant(MathOperator.Minus, a, ll - rr).quickSimplify
+        } else {
+          CompoundConstant(MathOperator.Plus, a, rr - ll).quickSimplify
+        }
       case (CompoundConstant(MathOperator.Shl, HalfWordConstant(c1, true), NumericConstant(8, _)), HalfWordConstant(c2, false)) if operator == MathOperator.Or && c1 == c2 => c1
       case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
         var size = ls max rs
