@@ -48,7 +48,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          r0: Importance = UnknownImportance,
                          r1: Importance = UnknownImportance,
                         ) {
-  override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; R0=$r0,R1:$r1"
+  override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; R0=$r0,R1=$r1"
 
   def ~(that: CpuImportance) = new CpuImportance(
     a = this.a ~ that.a,
