@@ -112,6 +112,15 @@ object AlwaysGoodOptimizations {
       AssemblyLine.immediate(LDA, CompoundConstant(MathOperator.And, NumericConstant(ctx.get[Int](0), 1), ctx.get[Constant](1)).quickSimplify) :: Nil
     },
     (Elidable & HasA(0) & HasOpcodeIn(Set(ORA, EOR))) ~~> (code => code.map(_.copy(opcode = LDA))),
+    (Elidable & HasA(0) & HasOpcode(ADC) &
+      HasClear(State.D) & HasClear(State.C) &
+      // C stays cleared!
+      DoesntMatterWhatItDoesWith(State.V)) ~~> (code => code.map(_.copy(opcode = LDA))),
+    (Elidable & HasA(0) & HasOpcode(ADC) &
+      HasClear(State.C) &
+      // C stays cleared!
+      DoesntMatterWhatItDoesWith(State.N, State.Z, State.V)) ~~> (code => code.map(_.copy(opcode = LDA))),
+    (Elidable & HasA(0xff) & HasOpcode(AND)) ~~> (code => code.map(_.copy(opcode = LDA))),
     (Elidable & HasA(0) & HasOpcode(AND)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
     (Elidable & HasX(0) & HasOpcode(XAA)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
   )
@@ -956,6 +965,24 @@ object AlwaysGoodOptimizations {
     (HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & Not(ChangesY) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
+
+    (HasOpcodeIn(Set(LDA, STA)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (ShortConditionalBranching & MatchParameter(2)) ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (HasOpcode(LABEL) & MatchParameter(2)) ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
+
+    (HasOpcodeIn(Set(LDX, STX)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (ShortConditionalBranching & MatchParameter(2)) ~
+      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (HasOpcode(LABEL) & MatchParameter(2)) ~
+      (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
+
+    (HasOpcodeIn(Set(LDY, STY)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (ShortConditionalBranching & MatchParameter(2)) ~
+      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (HasOpcode(LABEL) & MatchParameter(2)) ~
+      (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
   )
 
   val RearrangableLoadFromTheSameLocation = new RuleBasedAssemblyOptimization("Rearrangable load from the same location",
