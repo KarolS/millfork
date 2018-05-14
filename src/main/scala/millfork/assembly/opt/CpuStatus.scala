@@ -364,3 +364,76 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case _ => false
   }
 }
+
+object CpuStatus {
+  val initialStatusStandard = CpuStatus(
+        a = AnyStatus,
+        x = AnyStatus,
+        y = AnyStatus,
+        c = AnyStatus,
+        v = AnyStatus,
+        z = AnyStatus,
+        n = AnyStatus,
+        d = SingleStatus(false),
+        m = SingleStatus(true),
+        w = SingleStatus(true),
+        iz = SingleStatus(0)
+      )
+  val initialStatusCE = CpuStatus(
+        a = AnyStatus,
+        x = AnyStatus,
+        y = AnyStatus,
+        c = AnyStatus,
+        v = AnyStatus,
+        z = AnyStatus,
+        n = AnyStatus,
+        d = SingleStatus(false),
+        m = SingleStatus(true),
+        w = SingleStatus(true),
+        iz = AnyStatus
+      )
+
+  val initialInterruptStatusStandard = CpuStatus(
+        a = AnyStatus,
+        x = AnyStatus,
+        y = AnyStatus,
+        c = AnyStatus,
+        v = AnyStatus,
+        z = AnyStatus,
+        n = AnyStatus,
+        d = AnyStatus,
+        m = AnyStatus,
+        w = AnyStatus,
+        iz = SingleStatus(0)
+      )
+  val initialInterruptStatusCmos = CpuStatus(
+        a = AnyStatus,
+        x = AnyStatus,
+        y = AnyStatus,
+        c = AnyStatus,
+        v = AnyStatus,
+        z = AnyStatus,
+        n = AnyStatus,
+        d = SingleStatus(false),
+        m = AnyStatus,
+        w = AnyStatus,
+        iz = SingleStatus(0)
+      )
+  val initialInterruptStatusCE = CpuStatus(
+        a = AnyStatus,
+        x = AnyStatus,
+        y = AnyStatus,
+        c = AnyStatus,
+        v = AnyStatus,
+        z = AnyStatus,
+        n = AnyStatus,
+        d = SingleStatus(false),
+        m = AnyStatus,
+        w = AnyStatus,
+        iz = AnyStatus
+      )
+
+  val emptyStatusStandard = CpuStatus(iz = SingleStatus(0))
+
+  val emptyStatusCE = CpuStatus(iz = AnyStatus)
+}

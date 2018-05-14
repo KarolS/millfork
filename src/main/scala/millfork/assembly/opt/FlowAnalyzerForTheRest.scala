@@ -262,7 +262,7 @@ object FlowAnalyzerForTheRest {
     CPX -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
     CPY -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
     CPZ -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    BIT -> (_.copy(c = AnyStatus, v = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
+    BIT -> (_.copy(v = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
     TRB -> (_.copy(z = AnyStatus, src = AnyStatus)),
     TSB -> (_.copy(z = AnyStatus, src = AnyStatus)),
     JMP -> (_ => CpuStatus()),

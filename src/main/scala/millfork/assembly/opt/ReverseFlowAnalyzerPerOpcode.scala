@@ -150,6 +150,14 @@ object ReverseFlowAnalyzerPerOpcode {
         n = Unimportant, z = Unimportant,
         m = Important)
     }),
+    BIT -> (currentImportance => {
+      currentImportance.copy(
+        a = currentImportance.z,
+        n = Unimportant,
+        z = Unimportant,
+        v = Unimportant,
+        m = Important)
+    }),
 
     ADC -> (currentImportance => {
       val ignoreOutput = allAddingOutputsUnimportant(currentImportance)

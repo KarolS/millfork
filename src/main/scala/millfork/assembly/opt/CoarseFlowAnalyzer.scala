@@ -10,21 +10,27 @@ import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConsta
 object CoarseFlowAnalyzer {
 
   def analyze(f: NormalFunction, code: List[AssemblyLine], compilationOptions: CompilationOptions): List[CpuStatus] = {
-    val emptyIz: Status[Int] = if (compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)) UnknownStatus else SingleStatus(0)
-    val emptyStatus = CpuStatus(iz = emptyIz)
+    val ceFlag = compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
+    val cmosFlag = compilationOptions.flag(CompilationFlag.EmitCmosOpcodes)
+    val initialStatus =
+      if (compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)) CpuStatus.initialStatusCE
+      else CpuStatus.initialStatusStandard
+    val functionStartStatus =
+      if (f.interrupt) {
+        if (ceFlag) CpuStatus.initialInterruptStatusCE
+        else if (cmosFlag) CpuStatus.initialInterruptStatusCE
+        else CpuStatus.initialInterruptStatusStandard
+      } else initialStatus
+    val emptyStatus =
+      if (compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)) CpuStatus.emptyStatusCE
+      else CpuStatus.emptyStatusStandard
     val flagArray = Array.fill[CpuStatus](code.length)(emptyStatus)
     val codeArray = code.toArray
-    val initialStatus = CpuStatus(
-      d = SingleStatus(false),
-      m = SingleStatus(true),
-      w = SingleStatus(true),
-      iz = emptyIz
-    )
 
     var changed = true
     while (changed) {
       changed = false
-      var currentStatus: CpuStatus = if (f.interrupt) emptyStatus else initialStatus
+      var currentStatus: CpuStatus = functionStartStatus
       for (i <- codeArray.indices) {
         import millfork.assembly.Opcode._
         import millfork.assembly.AddrMode._
@@ -38,7 +44,7 @@ object CoarseFlowAnalyzer {
             currentStatus = codeArray.indices.flatMap(j => codeArray(j) match {
               case AssemblyLine(_, _, MemoryAddressConstant(Label(L)), _) => Some(flagArray(j))
               case _ => None
-            }).fold(emptyStatus)(_ ~ _)
+            }).fold(currentStatus)(_ ~ _)
 
           case AssemblyLine(JSR | BYTE, _, _, _) =>
             currentStatus = initialStatus
