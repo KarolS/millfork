@@ -28,7 +28,6 @@ object LocalVariableReadOptimization extends AssemblyOptimization {
       case _ => None
     }.toSet
     val variablesWithAddressesTaken = code.flatMap {
-      case AssemblyLine(_, _, HalfWordConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
       case AssemblyLine(_, _, SubbyteConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
       case _ => None
     }.toSet

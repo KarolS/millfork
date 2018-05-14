@@ -97,8 +97,6 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
           case e: StackOverflowError =>
             ErrorReporting.fatal("Stack overflow " + c)
         }
-      case HalfWordConstant(cc, true) => deepConstResolve(cc).>>>(8).&(0xff)
-      case HalfWordConstant(cc, false) => deepConstResolve(cc).&(0xff)
       case SubbyteConstant(cc, i) => deepConstResolve(cc).>>>(i * 8).&(0xff)
       case CompoundConstant(operator, lc, rc) =>
         val l = deepConstResolve(lc)

@@ -115,7 +115,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
       case _ => None
     }.toSet
     val variablesWithAddressesTaken = code.flatMap {
-      case AssemblyLine(_, _, HalfWordConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
       case AssemblyLine(_, _, SubbyteConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
       case _ => None
     }.toSet
@@ -325,10 +324,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
     val vz = zCandidate.getOrElse("-")
     lines match {
       case (AssemblyLine(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _), _), _) :: xs
-        if th.name == vx || th.name == vy || th.name == vz =>
-        // if an address of a variable is used, then that variable cannot be assigned to a register
-        None
-      case (AssemblyLine(_, Immediate, HalfWordConstant(MemoryAddressConstant(th), _), _), _) :: xs
         if th.name == vx || th.name == vy || th.name == vz =>
         // if an address of a variable is used, then that variable cannot be assigned to a register
         None
@@ -585,11 +580,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
         // if an address of a variable is used, then that variable cannot be assigned to a register
         None
 
-      case (AssemblyLine(_, Immediate, HalfWordConstant(MemoryAddressConstant(th), _), _),_) :: xs
-        if th.name == candidate =>
-        // if an address of a variable is used, then that variable cannot be assigned to a register
-        None
-
       case (AssemblyLine(_, AbsoluteX | AbsoluteY | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | Indirect | AbsoluteIndexedX, MemoryAddressConstant(th), _),_) :: xs
         if th.name == candidate =>
         // if a variable is used as an array or a pointer, then it cannot be assigned to a register
@@ -773,7 +763,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 
       case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == va =>
-        l.copy(opcode = op) :: clc :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        clc :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
 
       case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == vx =>
@@ -781,7 +771,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 
       case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == vx =>
-        AssemblyLine.implied(TXA) :: l.copy(opcode = op) :: clc :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        AssemblyLine.implied(TXA) :: clc :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
 
       case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == vy =>
@@ -789,7 +779,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization {
 
       case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == vy =>
-        AssemblyLine.implied(TYA) :: l.copy(opcode = op) :: clc :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        AssemblyLine.implied(TYA) :: clc :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
 
       case (AssemblyLine(LDA | STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
         if th.name == va =>

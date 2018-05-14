@@ -41,12 +41,12 @@ sealed trait Constant {
 
   def loByte: Constant = {
     if (requiredSize == 1) return this
-    HalfWordConstant(this, hi = false)
+    SubbyteConstant(this, 0)
   }
 
   def hiByte: Constant = {
     if (requiredSize == 1) Constant.Zero
-    else HalfWordConstant(this, hi = true)
+    else SubbyteConstant(this, 1)
   }
 
   def subbyte(index: Int): Constant = {
@@ -55,6 +55,14 @@ sealed trait Constant {
       case 0 => loByte
       case 1 => hiByte
       case _ => SubbyteConstant(this, index)
+    }
+  }
+
+  def subword(index: Int): Constant = {
+    if (requiredSize <= index) Constant.Zero
+    else {
+      // TODO: check if ok
+      CompoundConstant(MathOperator.Or, CompoundConstant(MathOperator.Shl, subbyte(index+1), NumericConstant(8, 1)), subbyte(0)).quickSimplify
     }
   }
 
@@ -114,26 +122,6 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
   override def isRelatedTo(v: Variable): Boolean = thing.name == v.name
 }
 
-case class HalfWordConstant(base: Constant, hi: Boolean) extends Constant {
-  override def quickSimplify: Constant = {
-    val simplified = base.quickSimplify
-    simplified match {
-      case NumericConstant(x, size) => if (hi) {
-        if (size == 1) Constant.Zero else NumericConstant((x >> 8) & 0xff, 1)
-      } else {
-        NumericConstant(x & 0xff, 1)
-      }
-      case _ => HalfWordConstant(simplified, hi)
-    }
-  }
-
-  override def requiredSize = 1
-
-  override def toString: String = (if (base.isInstanceOf[CompoundConstant]) s"($base)" else base) + (if (hi) ".hi" else ".lo")
-
-  override def isRelatedTo(v: Variable): Boolean = base.isRelatedTo(v)
-}
-
 case class SubbyteConstant(base: Constant, index: Int) extends Constant {
   override def quickSimplify: Constant = {
     val simplified = base.quickSimplify
@@ -186,7 +174,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
         } else {
           CompoundConstant(MathOperator.Plus, a, rr - ll).quickSimplify
         }
-      case (CompoundConstant(MathOperator.Shl, HalfWordConstant(c1, true), NumericConstant(8, _)), HalfWordConstant(c2, false)) if operator == MathOperator.Or && c1 == c2 => c1
+      case (CompoundConstant(MathOperator.Shl, SubbyteConstant(c1, 1), NumericConstant(8, _)), SubbyteConstant(c2, 0)) if operator == MathOperator.Or && c1 == c2 => c1
       case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
         var size = ls max rs
         val value = operator match {
@@ -271,7 +259,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     val That = that
     val MinusThat = -that
     this match {
-      case CompoundConstant(Plus, CompoundConstant(Shl, HalfWordConstant(c1, true), NumericConstant(8, _)), HalfWordConstant(c2, false)) if c1 == c2 => c1
+      case CompoundConstant(Plus, CompoundConstant(Shl, SubbyteConstant(c1, 1), NumericConstant(8, _)), SubbyteConstant(c2, 0)) if c1 == c2 => c1
       case CompoundConstant(Plus, NumericConstant(MinusThat, _), r) => r
       case CompoundConstant(Plus, l, NumericConstant(MinusThat, _)) => l
       case CompoundConstant(Plus, NumericConstant(x, _), r) => CompoundConstant(Plus, r, NumericConstant(x + that, minimumSize(x + that)))

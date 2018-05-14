@@ -33,8 +33,6 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization {
     val variablesWithAddressesTaken = code.flatMap {
       case AssemblyLine(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _), _) =>
         Some(th.name)
-      case AssemblyLine(_, Immediate, HalfWordConstant(MemoryAddressConstant(th), _), _) =>
-        Some(th.name)
       case _ => None
     }.toSet
     val allLocalVariables = f.environment.getAllLocalVariables

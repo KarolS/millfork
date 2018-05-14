@@ -29,7 +29,6 @@ object UnusedLocalVariables extends NodeOptimization {
   }
 
   def getAllReadVariables(c: Constant): List[String] = c match {
-    case HalfWordConstant(cc, _) => getAllReadVariables(cc)
     case SubbyteConstant(cc, _) => getAllReadVariables(cc)
     case CompoundConstant(_, l, r) => getAllReadVariables(l) ++ getAllReadVariables(r)
     case MemoryAddressConstant(th) => List(

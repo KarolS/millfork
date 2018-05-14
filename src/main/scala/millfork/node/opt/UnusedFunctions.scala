@@ -41,7 +41,6 @@ object UnusedFunctions extends NodeOptimization {
   }
 
   def getAllCalledFunctions(c: Constant): List[String] = c match {
-    case HalfWordConstant(cc, _) => getAllCalledFunctions(cc)
     case SubbyteConstant(cc, _) => getAllCalledFunctions(cc)
     case CompoundConstant(_, l, r) => getAllCalledFunctions(l) ++ getAllCalledFunctions(r)
     case MemoryAddressConstant(th) => List(
