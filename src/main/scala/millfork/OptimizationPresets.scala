@@ -131,6 +131,7 @@ object OptimizationPresets {
     LaterOptimizations.IncreaseWithLimit,
     SingleAssignmentVariableOptimization,
     LocalVariableReadOptimization,
+    LaterOptimizations.UseBit,
   )
 
   val Good: List[AssemblyOptimization] = List[AssemblyOptimization](

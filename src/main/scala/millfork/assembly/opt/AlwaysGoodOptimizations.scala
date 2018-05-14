@@ -123,6 +123,10 @@ object AlwaysGoodOptimizations {
     (Elidable & HasA(0xff) & HasOpcode(AND)) ~~> (code => code.map(_.copy(opcode = LDA))),
     (Elidable & HasA(0) & HasOpcode(AND)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
     (Elidable & HasX(0) & HasOpcode(XAA)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
+    (Elidable & HasImmediate(0) & HasOpcode(AND)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
+    (Elidable & HasImmediate(0) & HasOpcode(XAA)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
+    (Elidable & HasImmediate(0xff) & HasOpcode(ORA)) ~~> (code => List(AssemblyLine.immediate(LDA, 0xff))),
+    (Elidable & HasImmediate(0xff) & HasOpcode(EOR)) ~~> (code => List(AssemblyLine.immediate(LDA, 0xff))),
   )
 
   val MathOperationOnTwoIdenticalMemoryOperands = new RuleBasedAssemblyOptimization("Math operation on two identical memory operands",
@@ -171,7 +175,7 @@ object AlwaysGoodOptimizations {
       (Linear & DoesntChangeIndexingInAddrMode(0) & DoesntChangeIndexingInAddrMode(2) &
         DoesNotConcernMemoryAt(0, 1) & DoesntChangeMemoryAt(2, 3)).* ~
       (Elidable & HasOpcode(ld2) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Elidable & HasOpcode(st2) & MatchAddrMode(2) & MatchParameter(3)) ~~> (code => code.init),
+      (Elidable & HasOpcode(st2) & MatchAddrMode(2) & MatchParameter(3)) ~~> (code => code.init)
   }
 
   private def pointlessImmediateStoreToTheSameVariable(match1: AssemblyLinePattern, st1: Opcode.Value, match2: AssemblyLinePattern, st2: Opcode.Value) = {
@@ -806,12 +810,18 @@ object AlwaysGoodOptimizations {
       HasOpcode(RTS) ~~> ((code, ctx) => ctx.get[List[AssemblyLine]](1) ++ (AssemblyLine.implied(RTS) :: code.tail)),
   )
 
-  val PointlessRegisterTransfersBeforeCompare = new RuleBasedAssemblyOptimization("Pointless register transfers before compare",
+  val PointlessRegisterTransfersBeforeCompare = new RuleBasedAssemblyOptimization("Pointless register transfers and loads before compare",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     HasOpcodeIn(Set(DEX, INX, LDX, LAX)) ~
       (HasOpcode(TXA) & Elidable & DoesntMatterWhatItDoesWith(State.A)) ~~> (code => code.init),
     HasOpcodeIn(Set(DEY, INY, LDY)) ~
       (HasOpcode(TYA) & Elidable & DoesntMatterWhatItDoesWith(State.A)) ~~> (code => code.init),
+    (HasOpcodeIn(Set(DEC, INC, ASL, ROL, ROR, LSR, SLO, SRE, RLA, RRA, ISC, DCP)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcode(LDA) & Elidable & DoesntMatterWhatItDoesWith(State.A) & MatchAddrMode(0) & MatchParameter(1)) ~~> (code => code.init),
+    (HasOpcodeIn(Set(DEC, INC, ASL, ROL, ROR, LSR, SLO, SRE, RLA, RRA, ISC, DCP)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcode(LDX) & Elidable & DoesntMatterWhatItDoesWith(State.X) & MatchAddrMode(0) & MatchParameter(1)) ~~> (code => code.init),
+    (HasOpcodeIn(Set(DEC, INC, ASL, ROL, ROR, LSR, SLO, SRE, RLA, RRA, ISC, DCP)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcode(LDY) & Elidable & DoesntMatterWhatItDoesWith(State.Y) & MatchAddrMode(0) & MatchParameter(1)) ~~> (code => code.init),
   )
 
   private def stashing(tai: Opcode.Value, tia: Opcode.Value, readsI: AssemblyLinePattern, concernsI: AssemblyLinePattern, discardIF: Opcode.Value, withRts: Boolean, withBeq: Boolean) = {
@@ -983,6 +993,12 @@ object AlwaysGoodOptimizations {
       (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
       (HasOpcode(LABEL) & MatchParameter(2)) ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
+
+    (HasOpcodeIn(Set(LDA, STA)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcodeIn(ShortBranching) & MatchParameter(3)) ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (HasOpcode(LABEL) & MatchParameter(3) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
   )
 
   val RearrangableLoadFromTheSameLocation = new RuleBasedAssemblyOptimization("Rearrangable load from the same location",
@@ -1031,6 +1047,9 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcodeIn(Set(CLC, SEC)) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_ => Nil),
     (Elidable & HasOpcodeIn(Set(CLD, SED)) & DoesntMatterWhatItDoesWith(State.D)) ~~> (_ => Nil),
     (Elidable & HasOpcodeIn(Set(CLV)) & DoesntMatterWhatItDoesWith(State.V)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(ORA, EOR)) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(AND) & HasImmediate(0xff) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(ANC) & HasImmediate(0xff) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C)) ~~> (_ => Nil),
   )
 
   val SimplifiableStackOperation = new RuleBasedAssemblyOptimization("Simplifiable stack operation",

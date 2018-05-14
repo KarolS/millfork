@@ -178,7 +178,7 @@ object UndocumentedOptimizations {
   )
 
   private def extraRmw(legal: Opcode.Value, illegal: Opcode.Value) =
-    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(IndexedY, AbsoluteY, IndexedY)) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(IndexedX, IndexedY, AbsoluteY, IndexedY)) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(legal) & HasAddrMode(Implied)) ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C, State.V)) ~~> { (code, ctx) =>
       code.head.copy(opcode = illegal) :: Nil
@@ -213,17 +213,30 @@ object UndocumentedOptimizations {
     trivialSequence2(ASL, ORA, Not(ConcernsC), SLO),
     trivialCommutativeSequence(ASL, ORA, SLO),
     extraRmw(ASL, SLO),
-    (Elidable & HasOpcode(ASL) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(ASL) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
       (Linear & Not(ConcernsMemory)).* ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       code.tail.init ++ List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SLO, ctx.get[AddrMode.Value](0), ctx.get[Constant](1)))
     },
-    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(2) ~
-      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
-      (Linear & Not(ConcernsMemory) & Not(ChangesA) & Not(ReadsC) & Not(ReadsNOrZ)).*.capture(3) ~
+    (Elidable & HasOpcode(ASL) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SLO, ctx.get[AddrMode.Value](0), ctx.get[Constant](1)))
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ConcernsA) & Not(ChangesC)).*.capture(2) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(3) ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (_, ctx) =>
-      List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SRE, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
+      List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SLO, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
+        ctx.get[List[AssemblyLine]](2) ++
+        ctx.get[List[AssemblyLine]](3)
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ConcernsA)).*.capture(2) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(3) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (_, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SLO, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
         ctx.get[List[AssemblyLine]](2) ++
         ctx.get[List[AssemblyLine]](3)
     },
@@ -240,15 +253,28 @@ object UndocumentedOptimizations {
     trivialSequence2(LSR, EOR, Not(ConcernsC), SRE),
     trivialCommutativeSequence(LSR, EOR, SRE),
     extraRmw(LSR, SRE),
-    (Elidable & HasOpcode(LSR) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(LSR) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
       (Linear & Not(ConcernsMemory)).* ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       code.tail.init ++ List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SRE, ctx.get[AddrMode.Value](0), ctx.get[Constant](1)))
     },
-    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(2) ~
-      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
-      (Linear & Not(ConcernsMemory) & Not(ChangesA) & Not(ReadsC) & Not(ReadsNOrZ)).*.capture(3) ~
+    (Elidable & HasOpcode(LSR) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SRE, ctx.get[AddrMode.Value](0), ctx.get[Constant](1)))
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ConcernsA) & Not(ChangesC)).*.capture(2) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(3) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (_, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SRE, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
+        ctx.get[List[AssemblyLine]](2) ++
+        ctx.get[List[AssemblyLine]](3)
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ConcernsA)).*.capture(2) ~
+      (Elidable & HasOpcode(LSR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(3) ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (_, ctx) =>
       List(AssemblyLine.immediate(LDA, 0), AssemblyLine(SRE, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
         ctx.get[List[AssemblyLine]](2) ++
@@ -262,14 +288,41 @@ object UndocumentedOptimizations {
     trivialSequence2(ROL, AND, Not(ConcernsC), RLA),
     trivialCommutativeSequence(ROL, AND, RLA),
     extraRmw(ROL, RLA),
+    (Elidable & HasOpcode(ROL) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory)).* ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      code.tail.init ++ List(AssemblyLine.immediate(LDA, 0xff), AssemblyLine(RLA, ctx.get[AddrMode.Value](0), ctx.get[Constant](1)))
+    },
+    (Elidable & HasOpcode(ROL) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0xff), AssemblyLine(RLA, ctx.get[AddrMode.Value](0), ctx.get[Constant](1)))
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ConcernsA) & Not(ConcernsC)).*.capture(2) ~
+      (Elidable & HasOpcode(ROL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(3) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (_, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0xff), AssemblyLine(RLA, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
+        ctx.get[List[AssemblyLine]](2) ++
+        ctx.get[List[AssemblyLine]](3)
+    },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ConcernsA) & Not(ConcernsC)).*.capture(2) ~
+      (Elidable & HasOpcode(ROL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsMemory) & Not(ChangesA)).*.capture(3) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (_, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0xff), AssemblyLine(RLA, ctx.get[AddrMode.Value](0), ctx.get[Constant](1))) ++
+        ctx.get[List[AssemblyLine]](2) ++
+        ctx.get[List[AssemblyLine]](3)
+    },
   )
 
   val UseRra = new RuleBasedAssemblyOptimization("Using undocumented instruction RRA",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     // TODO: is it ok? carry flag and stuff?
-    trivialSequence1(ROR, ADC, Not(ConcernsC), RRA),
-    trivialSequence2(ROR, ADC, Not(ConcernsC), RRA),
-    trivialCommutativeSequence(ROR, ADC, RRA),
+//    trivialSequence1(ROR, ADC, Not(ConcernsC), RRA),
+//    trivialSequence2(ROR, ADC, Not(ConcernsC), RRA),
+//    trivialCommutativeSequence(ROR, ADC, RRA),
     extraRmw(ROR, RRA),
   )
 
@@ -292,6 +345,10 @@ object UndocumentedOptimizations {
       (Elidable & HasOpcode(LDA) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(CMP) & MatchAddrMode(2) & MatchParameter(3) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> { code =>
       List(code(2).copy(opcode = LDA), code(1).copy(opcode = DCP))
+    },
+    (Elidable & HasOpcode(DEC) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & Not(HasAddrMode(Immediate)) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> { code =>
+      List(AssemblyLine.immediate(LDA, 0), code(1).copy(opcode = DCP))
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & HasAddrModeIn(Set(ZeroPage, Absolute))) ~
     (Elidable & HasOpcode(BNE) & MatchParameter(2)) ~

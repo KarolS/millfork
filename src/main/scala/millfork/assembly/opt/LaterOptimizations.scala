@@ -460,7 +460,46 @@ object LaterOptimizations {
       code.tail.init ++ List(AssemblyLine.implied(DEX), code.last.copy(addrMode = IndexedX))
     },
 
+    (Elidable & HasOpcode(LDY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsY)).* ~
+      (Elidable & HasAddrMode(IndexedY) & MatchX(1) & DoesntMatterWhatItDoesWith(State.Y)) ~~> { (code, ctx)=>
+      val lastLine = code.last
+      code.tail.init ++ List(lastLine.copy(addrMode = IndexedX, parameter = lastLine.parameter - ctx.get[Int](1)))
+    },
 
+    (Elidable & HasOpcode(LDY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsY)).*.capture(2) ~
+      (Elidable & HasAddrMode(IndexedY) & DoesntMatterWhatItDoesWith(State.Y, State.X)).capture(0) ~
+      Linear.*.capture(3) ~
+      (Elidable & HasOpcode(LDX) & MatchImmediate(1) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> { (code, ctx) =>
+      val mainLine = ctx.get[List[AssemblyLine]](0).head
+      ctx.get[List[AssemblyLine]](2) ++ List(
+        code.last,
+        mainLine.copy(addrMode = IndexedX, parameter = mainLine.parameter - ctx.get[Int](1))) ++
+        ctx.get[List[AssemblyLine]](3)
+    },
+
+  )
+
+  val UseBit = new RuleBasedAssemblyOptimization("Using BIT instruction",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(Absolute, ZeroPage))) ~
+      (Elidable & HasOpcode(AND) & HasImmediate(0x40)) ~
+      (Elidable & HasOpcode(BNE) & DoesntMatterWhatItDoesWith(State.A, State.V, State.Z, State.N)) ~~> (code => List(
+      code.head.copy(opcode = BIT),
+      code.last.copy(opcode = BVS)
+    )),
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(Absolute, ZeroPage))) ~
+      (Elidable & HasOpcode(AND) & HasImmediate(0x40)) ~
+      (Elidable & HasOpcode(BEQ) & DoesntMatterWhatItDoesWith(State.A, State.V, State.Z, State.N)) ~~> (code => List(
+      code.head.copy(opcode = BIT),
+      code.last.copy(opcode = BVC)
+    )),
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Set(Absolute, ZeroPage))) ~
+      (Elidable & HasOpcodeIn(Set(BMI, BPL)) & DoesntMatterWhatItDoesWith(State.A, State.V, State.Z, State.N)) ~~> (code => List(
+      code.head.copy(opcode = BIT),
+      code.last
+    )),
   )
 
   val All = List(
@@ -471,6 +510,7 @@ object LaterOptimizations {
     PointlessLoadAfterStore,
     PointessLoadingForShifting,
     LoadingAfterShifting,
+    UseBit,
     UseXInsteadOfStack,
     UseYInsteadOfStack,
     UseZeropageAddressingMode)
