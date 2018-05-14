@@ -75,11 +75,12 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     }
   }
 
-  // TODO: 3-byte types
-  def size(value: Int, wordLiteral: Boolean, longLiteral: Boolean): Int =
-    if (value > 255 || value < -128 || wordLiteral)
-      if (value > 0xffff || longLiteral) 4 else 2
-    else 1
+  def size(value: Int, wordLiteral: Boolean, farwordLiteral: Boolean, longLiteral: Boolean): Int = {
+    val w = value > 255 || value < -0x80 || wordLiteral
+    val f = value > 0xffff || value < -0x8000 || farwordLiteral
+    val l = value > 0xffffff || value < -0x800000 || longLiteral
+    if (l) 4 else if (f) 3 else if (w) 2 else 1
+  }
 
   def sign(abs: Int, minus: Boolean): Int = if (minus) -abs else abs
 
@@ -91,7 +92,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     } yield {
       val abs = Integer.parseInt(s, 10)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 3, s.length > 5)).pos(p)
+      LiteralExpression(value, size(value, s.length > 3,  s.length > 5, s.length > 7)).pos(p)
     }
 
   val binaryAtom: P[LiteralExpression] =
@@ -103,7 +104,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     } yield {
       val abs = Integer.parseInt(s, 2)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 8, s.length > 16)).pos(p)
+      LiteralExpression(value, size(value, s.length > 8, s.length > 16, s.length > 24)).pos(p)
     }
 
   val hexAtom: P[LiteralExpression] =
@@ -115,7 +116,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     } yield {
       val abs = Integer.parseInt(s, 16)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 2, s.length > 4)).pos(p)
+      LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6)).pos(p)
     }
 
   val octalAtom: P[LiteralExpression] =
@@ -127,7 +128,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     } yield {
       val abs = Integer.parseInt(s, 8)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 3, s.length > 6)).pos(p)
+      LiteralExpression(value, size(value, s.length > 3, s.length > 6, s.length > 9)).pos(p)
     }
 
   val quaternaryAtom: P[LiteralExpression] =
@@ -139,7 +140,7 @@ case class MfParser(filename: String, input: String, currentDirectory: String, o
     } yield {
       val abs = Integer.parseInt(s, 4)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 4, s.length > 8)).pos(p)
+      LiteralExpression(value, size(value, s.length > 4, s.length > 8, s.length > 12)).pos(p)
     }
 
   val literalAtom: P[LiteralExpression] = charAtom | binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom

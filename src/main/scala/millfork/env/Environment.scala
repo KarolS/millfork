@@ -242,11 +242,12 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     addThing(BuiltInBooleanType, None)
     addThing(BasicPlainType("byte", 1), None)
     addThing(BasicPlainType("word", 2), None)
+    addThing(BasicPlainType("farword", 3), None)
     addThing(BasicPlainType("long", 4), None)
     addThing(DerivedPlainType("pointer", get[PlainType]("word"), isSigned = false), None)
+//    addThing(DerivedPlainType("farpointer", get[PlainType]("farword"), isSigned = false), None)
     addThing(DerivedPlainType("ubyte", get[PlainType]("byte"), isSigned = false), None)
     addThing(DerivedPlainType("sbyte", get[PlainType]("byte"), isSigned = true), None)
-    addThing(DerivedPlainType("cent", get[PlainType]("byte"), isSigned = false), None)
     val trueType = ConstantBooleanType("true$", value = true)
     val falseType = ConstantBooleanType("false$", value = false)
     addThing(trueType, None)
@@ -599,6 +600,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   def registerParameter(stmt: ParameterDeclaration): Unit = {
     val typ = get[Type](stmt.typ)
     val b = get[Type]("byte")
+    val w = get[Type]("word")
     val p = get[Type]("pointer")
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
@@ -606,10 +608,25 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None)
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position)
-        if (typ.size == 2) {
-          val addr = v.toAddress
-          addThing(RelativeVariable(v.name + ".hi", addr + 1, b, zeropage = zp, None), stmt.position)
-          addThing(RelativeVariable(v.name + ".lo", addr, b, zeropage = zp, None), stmt.position)
+        val addr = v.toAddress
+        typ.size match {
+          case 2 =>
+            addThing(RelativeVariable(v.name + ".hi", addr + 1, b, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".lo", addr, b, zeropage = zp, None), stmt.position)
+          case 3 =>
+            addThing(RelativeVariable(v.name + ".hiword", addr + 1, w, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".loword", addr, w, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".b2", addr + 2, b, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".b1", addr + 1, b, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".b0", addr, b, zeropage = zp, None), stmt.position)
+          case 4 =>
+            addThing(RelativeVariable(v.name + ".hiword", addr + 2, w, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".loword", addr, w, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".b3", addr + 3, b, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".b2", addr + 2, b, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".b1", addr + 1, b, zeropage = zp, None), stmt.position)
+            addThing(RelativeVariable(v.name + ".b0", addr, b, zeropage = zp, None), stmt.position)
+          case _ =>
         }
       case ByRegister(_) => ()
       case ByConstant(name) =>
@@ -741,8 +758,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
     }
     val b = get[Type]("byte")
+    val w = get[Type]("word")
     val typ = get[PlainType](stmt.typ)
-    if (stmt.typ == "pointer") {
+    if (stmt.typ == "pointer" || stmt.typ == "farpointer") {
       //      if (stmt.constant) {
       //        ErrorReporting.error(s"Pointer `${stmt.name}` cannot be constant")
       //      }
@@ -761,9 +779,24 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(Constant.error(s"`$name` has a non-constant value", position))
       if (constantValue.requiredSize > typ.size) ErrorReporting.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
-      if (typ.size >= 2) {
-        addThing(ConstantThing(prefix + name + ".hi", constantValue.hiByte, b), stmt.position)
-        addThing(ConstantThing(prefix + name + ".lo", constantValue.loByte, b), stmt.position)
+      typ.size match {
+        case 2 =>
+          addThing(ConstantThing(prefix + name + ".hi", constantValue.hiByte, b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".lo", constantValue.loByte, b), stmt.position)
+        case 3 =>
+          addThing(ConstantThing(prefix + name + ".hiword", constantValue.subword(1), b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".loword", constantValue.subword(0), b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".b2", constantValue.subbyte(2), b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".b1", constantValue.hiByte, b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".b0", constantValue.loByte, b), stmt.position)
+        case 4 =>
+          addThing(ConstantThing(prefix + name + ".hiword", constantValue.subword(2), b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".loword", constantValue.subword(0), b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".b3", constantValue.subbyte(3), b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".b2", constantValue.subbyte(2), b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".b1", constantValue.hiByte, b), stmt.position)
+          addThing(ConstantThing(prefix + name + ".b0", constantValue.loByte, b), stmt.position)
+        case _ =>
       }
     } else {
       if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
@@ -777,9 +810,24 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
         baseStackOffset += typ.size
         addThing(v, stmt.position)
-        if (typ.size == 2) {
-          addThing(StackVariable(prefix + name + ".lo", b, baseStackOffset), stmt.position)
-          addThing(StackVariable(prefix + name + ".hi", b, baseStackOffset + 1), stmt.position)
+        typ.size match {
+          case 2 =>
+            addThing(StackVariable(prefix + name + ".hi", b, baseStackOffset + 1), stmt.position)
+            addThing(StackVariable(prefix + name + ".lo", b, baseStackOffset), stmt.position)
+          case 3 =>
+            addThing(StackVariable(prefix + name + ".hiword", w, baseStackOffset + 1), stmt.position)
+            addThing(StackVariable(prefix + name + ".loword", w, baseStackOffset), stmt.position)
+            addThing(StackVariable(prefix + name + ".b2", b, baseStackOffset + 2), stmt.position)
+            addThing(StackVariable(prefix + name + ".b1", b, baseStackOffset + 1), stmt.position)
+            addThing(StackVariable(prefix + name + ".b0", b, baseStackOffset), stmt.position)
+          case 4 =>
+            addThing(StackVariable(prefix + name + ".hiword", w, baseStackOffset + 2), stmt.position)
+            addThing(StackVariable(prefix + name + ".loword", w, baseStackOffset), stmt.position)
+            addThing(StackVariable(prefix + name + ".b3", b, baseStackOffset + 3), stmt.position)
+            addThing(StackVariable(prefix + name + ".b2", b, baseStackOffset + 2), stmt.position)
+            addThing(StackVariable(prefix + name + ".b1", b, baseStackOffset + 1), stmt.position)
+            addThing(StackVariable(prefix + name + ".b0", b, baseStackOffset), stmt.position)
+          case _ =>
         }
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
@@ -815,11 +863,24 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         if (!v.isInstanceOf[MemoryVariable]) {
           addThing(ConstantThing(v.name + "`", addr, b), stmt.position)
         }
-        if (typ.size == 2) {
-          addThing(RelativeVariable(prefix + name + ".hi", addr + 1, b, zeropage = v.zeropage,
-                      declaredBank = stmt.bank), stmt.position)
-          addThing(RelativeVariable(prefix + name + ".lo", addr, b, zeropage = v.zeropage,
-                      declaredBank = stmt.bank), stmt.position)
+        typ.size match {
+          case 2 =>
+            addThing(RelativeVariable(prefix + name + ".hi", addr + 1, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".lo", addr, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+          case 3 =>
+            addThing(RelativeVariable(prefix + name + ".hiword", addr + 1, w, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".loword", addr, w, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".b2", addr + 2, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".b1", addr + 1, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".b0", addr, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+          case 4 =>
+            addThing(RelativeVariable(prefix + name + ".hiword", addr + 2, w, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".loword", addr, w, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".b3", addr + 3, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".b2", addr + 2, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".b1", addr + 1, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+            addThing(RelativeVariable(prefix + name + ".b0", addr, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
+          case _ =>
         }
       }
     }

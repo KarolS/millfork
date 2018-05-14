@@ -10,6 +10,9 @@ Millfork puts extra limitations on which types can be used in which contexts.
 
 * `word` – 2-byte value of undefined signedness, defaulting to unsigned
 
+* `farword` – 4-byte value of undefined signedness, defaulting to unsigned  
+(the name is an analogy to a future 24-bit type called `farpointer`)
+
 * `long` – 4-byte value of undefined signedness, defaulting to unsigned
 
 * `sbyte` – signed 1-byte value
@@ -20,6 +23,8 @@ Millfork puts extra limitations on which types can be used in which contexts.
 and you can index `pointer` variables (not arbitrary `pointer`-typed expressions though, `f()[0]` won't compile)
 
 Functions cannot return types longer than 2 bytes. 
+There's also no reason to make a function return `pointer`, since to dereference it, 
+you need to put it in a variable first anyway.
 
 Numeric types can be converted automatically:
 

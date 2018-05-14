@@ -20,13 +20,13 @@ object ExpressionCompiler {
     val bool = env.get[Type]("bool$")
     val v = env.get[Type]("void")
     val w = env.get[Type]("word")
-    val l = env.get[Type]("long")
     expr match {
       case LiteralExpression(value, size) =>
         size match {
           case 1 => b
           case 2 => w
-          case 3 | 4 => l
+          case 3 => env.get[Type]("farword")
+          case 4 => env.get[Type]("long")
         }
       case VariableExpression(name) =>
         env.get[TypedThing](name, expr.position).typ
@@ -524,7 +524,8 @@ object ExpressionCompiler {
                       ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
-                      val copy = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) ++ AssemblyLine.variable(ctx, STA, target, i))
+                      val copyFromLo  = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) ++ AssemblyLine.variable(ctx, STA, target, i))
+                      val copy = if (shouldCopyFromHiToLo(source.toAddress, target.toAddress)) copyFromLo.reverse else copyFromLo
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
                         signExtendA() ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       } else {
@@ -627,7 +628,8 @@ object ExpressionCompiler {
                       ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
-                      val copy = List.tabulate(exprType.size)(i => List(AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i), AssemblyLine.absoluteX(STA, target.baseOffset + i)))
+                      val copyFromLo = List.tabulate(exprType.size)(i => List(AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i), AssemblyLine.absoluteX(STA, target.baseOffset + i)))
+                      val copy = if (shouldCopyFromHiToLo(NumericConstant(source.baseOffset, 2), NumericConstant(target.baseOffset, 2))) copyFromLo.reverse else copyFromLo
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
                         signExtendA() ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
                       } else {
@@ -1465,5 +1467,18 @@ object ExpressionCompiler {
       AssemblyLine.relative(BMI, label),
       AssemblyLine.immediate(LDA, 0),
       AssemblyLine.label(label))
+  }
+
+  private def shouldCopyFromHiToLo(srcAddress: Constant, destAddress: Constant): Boolean = (srcAddress, destAddress) match {
+    case (
+      CompoundConstant(MathOperator.Plus, a: MemoryAddressConstant, NumericConstant(s, _)),
+      CompoundConstant(MathOperator.Plus, b: MemoryAddressConstant, NumericConstant(d, _))
+      ) if a == b => s < d
+    case (
+     a: MemoryAddressConstant,
+      CompoundConstant(MathOperator.Plus, b: MemoryAddressConstant, NumericConstant(d, _))
+      ) if a == b => 0 < d
+    case (NumericConstant(s, _), NumericConstant(d, _)) => s < d
+    case _ => false
   }
 }
