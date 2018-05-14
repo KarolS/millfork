@@ -459,7 +459,7 @@ object BuiltIns {
       case (_, Some(lc), _, Some(rc)) =>
         // TODO: comparing late-bound constants
         ???
-      case (_, Some(lc), rv: VariableInMemory, None) =>
+      case (_, Some(lc), rv: VariableExpression, None) =>
         return compileWordComparison(ctx, ComparisonType.flip(compType), rhs, lhs, branches)
       case (v: VariableExpression, None, _, Some(rc)) =>
         val lva = env.get[VariableInMemory](v.name)
