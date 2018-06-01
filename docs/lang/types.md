@@ -10,7 +10,7 @@ Millfork puts extra limitations on which types can be used in which contexts.
 
 * `word` – 2-byte value of undefined signedness, defaulting to unsigned
 
-* `farword` – 4-byte value of undefined signedness, defaulting to unsigned  
+* `farword` – 3-byte value of undefined signedness, defaulting to unsigned  
 (the name is an analogy to a future 24-bit type called `farpointer`)
 
 * `long` – 4-byte value of undefined signedness, defaulting to unsigned
