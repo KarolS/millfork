@@ -1388,8 +1388,32 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.V)) ~~> { code =>
       List(code.head, AssemblyLine.implied(ROL))
     },
+    (Elidable & HasOpcode(ADC) & HasImmediate(0) & HasClear(State.C) & DoesntMatterWhatItDoesWith(State.V, State.C, State.N, State.Z)) ~~> (_ => Nil),
     (Elidable & HasOpcode(ROL) & HasClear(State.C)) ~~> (code => code.map(_.copy(opcode = ASL))),
     (Elidable & HasOpcode(ROR) & HasClear(State.C)) ~~> (code => code.map(_.copy(opcode = LSR))),
+    (HasOpcode(AND) & HasImmediate(1)) ~
+      (Linear & Not(ChangesNAndZ) & Not(HasOpcode(CLC)) & Not(ChangesA)).* ~
+      (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & HasAddrModeIn(Set(ZeroPage, ZeroPageX, Absolute, AbsoluteX))) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.V, State.Z, State.N, State.A)) ~~> { code =>
+      val label = getNextLabel("in")
+      code.take(code.length - 3) ++ List(
+        AssemblyLine.relative(BEQ, label),
+        code.last.copy(opcode = INC),
+        AssemblyLine.label(label)
+      )
+    },
+    (HasOpcode(ANC) & HasImmediate(1)) ~
+      (Linear & Not(ChangesNAndZ) & Not(ChangesA) & (Not(ChangesC) | HasOpcode(CLC))).* ~
+      (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & HasClear(State.D) & HasAddrModeIn(Set(ZeroPage, ZeroPageX, Absolute, AbsoluteX))) ~
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.V, State.Z, State.N, State.A)) ~~> { code =>
+      val label = getNextLabel("in")
+      code.head.copy(opcode = AND) :: code.take(code.length - 2).tail ++ List(
+        AssemblyLine.relative(BEQ, label),
+        code.last.copy(opcode = INC),
+        AssemblyLine.label(label)
+      )
+    },
   )
 
   val IndexSequenceOptimization = new RuleBasedAssemblyOptimization("Index sequence optimization",
@@ -1541,6 +1565,19 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(LSR) & DoesNotConcernMemoryAt(0, 1)) ~
       (Elidable & HasOpcode(ROR) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C) & MatchAddrMode(0) & MatchParameter(1)) ~~> { code =>
       code.init.last :: code.last :: code.drop(2).init.init
+    },
+    (Elidable & HasOpcode(ASL) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(INC) & MatchAddrMode(0) & MatchParameter(1)) ~~> { code =>
+      List(AssemblyLine.implied(SEC), code.head.copy(opcode = ROL))
+    },
+    (Elidable & HasOpcode(ASL) & HasAddrMode(AddrMode.Implied)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(SEC), code.head.copy(opcode = ROL))
+    },
+    (Elidable & HasOpcode(ASL) & HasAddrMode(AddrMode.Implied)) ~
+      (Elidable & HasOpcodeIn(Set(ORA, EOR)) & HasImmediate(1)) ~~> { code =>
+      List(AssemblyLine.implied(SEC), code.head.copy(opcode = ROL))
     },
   )
 

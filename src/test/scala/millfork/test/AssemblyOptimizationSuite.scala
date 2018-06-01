@@ -506,4 +506,38 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         m.readByte(0xc000) should equal(0x46)
       }
     }
+
+  test("Shift and increase") {
+      EmuBenchmarkRun(
+        """
+          | byte output @$c000
+          | void main() {
+          |   output = twicePlusOne(5)
+          | }
+          | noinline byte twicePlusOne (byte x) {
+          |   return x * 2 + 1
+          | }
+        """.stripMargin
+      ){m =>
+        m.readByte(0xc000) should equal(11)
+      }
+    }
+
+  test("Add one bit") {
+      EmuBenchmarkRun(
+        """
+          | byte output @$c000
+          | void main() {
+          |   output = 0
+          |   increaseByBit(5)
+          | }
+          | noinline void increaseByBit (byte y) {
+          |   output += y & 1
+          | }
+        """.stripMargin
+      ){m =>
+        m.readByte(0xc000) should equal(1)
+      }
+    }
+
 }
