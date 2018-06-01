@@ -108,7 +108,7 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case AssemblyLine(_, ZeroPageX, _, _) :: xs if loaded != Some(X) => false
     case AssemblyLine(_, IndexedX, _, _) :: xs if dir == X2Y || loaded != Some(X) => false
     case AssemblyLine(_, AbsoluteIndexedX, _, _) :: xs if dir == X2Y => false
-    case AssemblyLine(SHX | SHY | AHX, _, _, _) :: xs => false
+    case AssemblyLine(SHX | SHY | AHX | TAS | LAS, _, _, _) :: xs => false
     case AssemblyLine(TXY, _, _, e) :: xs => e && loaded == Some(X) && canOptimize(xs, dir, Some(Y))
     case AssemblyLine(TYX, _, _, e) :: xs => e && loaded == Some(Y) && canOptimize(xs, dir, Some(X))
 
@@ -117,16 +117,17 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
       canOptimize(xs, dir, None)
     case AssemblyLine(LDX | TAX, _, _, _) :: AssemblyLine(_, IndexedX, _, _) :: xs if dir == X2Y =>
       canOptimize(xs, dir, None)
-    case AssemblyLine(LDX | TAX, _, _, _) :: AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | STZ, AbsoluteX | ZeroPageX, _, _) :: xs if dir == X2Y =>
+    case AssemblyLine(LDX | TAX, _, _, _) :: AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _, _) :: xs if dir == X2Y =>
       canOptimize(xs, dir, None)
     case AssemblyLine(LDY | TAY, _, _, _) :: AssemblyLine(INY | DEY, _, _, _) :: AssemblyLine(_, IndexedY, _, _) :: xs if dir == Y2X =>
       canOptimize(xs, dir, None)
     case AssemblyLine(LDX | TAX, _, _, _) :: AssemblyLine(INX | DEX, _, _, _) :: AssemblyLine(_, IndexedX, _, _) :: xs if dir == X2Y =>
       canOptimize(xs, dir, None)
-    case AssemblyLine(LDX | TAX, _, _, _) :: AssemblyLine(INX | DEX, _, _, _) :: AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | STZ, AbsoluteX | ZeroPageX, _, _) :: xs if dir == X2Y =>
+    case AssemblyLine(LDX | TAX, _, _, _) :: AssemblyLine(INX | DEX, _, _, _) :: AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _, _) :: xs if dir == X2Y =>
       canOptimize(xs, dir, None)
 
-    case AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | STZ | LDZ | BIT, AbsoluteX | ZeroPageX, _, _) :: xs if dir == X2Y => false
+    case AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | STZ | LDZ | LDY | STY | BIT, AbsoluteX | ZeroPageX, _, _) :: xs if dir == X2Y => false
+    case AssemblyLine(LDX | STX, AbsoluteY | ZeroPageY, _, _) :: xs if dir == Y2X => false
 
     case AssemblyLine(LAX, _, _, _) :: xs => false
     case AssemblyLine(JSR | BSR, _, _, _) :: xs => false // TODO
@@ -157,14 +158,14 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
 
   private def switchX2Y(code: List[AssemblyLine]): List[AssemblyLine] = code match {
     case (a@AssemblyLine(LDX | TAX, _, _, _))
-      :: (b@AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | STZ, AbsoluteX | ZeroPageX, _, _))
+      :: (b@AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _, _))
       :: xs => a :: b :: switchX2Y(xs)
     case (a@AssemblyLine(LDX | TAX, _, _, _))
       :: (b@AssemblyLine(_, IndexedX, _, _))
       :: xs => a :: b :: switchX2Y(xs)
     case (a@AssemblyLine(LDX | TAX, _, _, _))
       :: (i@AssemblyLine(INX | DEX, _, _, _))
-      :: (b@AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | STZ, AbsoluteX | ZeroPageX, _, _))
+      :: (b@AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _, _))
       :: xs => a :: i :: b :: switchX2Y(xs)
     case (a@AssemblyLine(LDX | TAX, _, _, _))
       :: (i@AssemblyLine(INX | DEX, _, _, _))
@@ -178,6 +179,8 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case (x@AssemblyLine(INX, _, _, _)) :: xs => x.copy(opcode = INY) :: switchX2Y(xs)
     case (x@AssemblyLine(DEX, _, _, _)) :: xs => x.copy(opcode = DEY) :: switchX2Y(xs)
     case (x@AssemblyLine(CPX, _, _, _)) :: xs => x.copy(opcode = CPY) :: switchX2Y(xs)
+    case (x@AssemblyLine(PHX, _, _, _)) :: xs => x.copy(opcode = PHY) :: switchX2Y(xs)
+    case (x@AssemblyLine(PLX, _, _, _)) :: xs => x.copy(opcode = PLY) :: switchX2Y(xs)
     case (x@AssemblyLine(HuSAX, _, _, _)) :: xs => x.copy(opcode = SAY) :: switchX2Y(xs)
 
     case AssemblyLine(LAX, _, _, _) :: xs => ErrorReporting.fatal("Unexpected LAX")
@@ -211,6 +214,8 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case (x@AssemblyLine(INY, _, _, _)) :: xs => x.copy(opcode = INX) :: switchY2X(xs)
     case (x@AssemblyLine(DEY, _, _, _)) :: xs => x.copy(opcode = DEX) :: switchY2X(xs)
     case (x@AssemblyLine(CPY, _, _, _)) :: xs => x.copy(opcode = CPX) :: switchY2X(xs)
+    case (x@AssemblyLine(PHY, _, _, _)) :: xs => x.copy(opcode = PHX) :: switchY2X(xs)
+    case (x@AssemblyLine(PLY, _, _, _)) :: xs => x.copy(opcode = PLX) :: switchY2X(xs)
     case (x@AssemblyLine(SAY, _, _, _)) :: xs => x.copy(opcode = HuSAX) :: switchY2X(xs)
     case AssemblyLine(SXY, _, _, _) :: xs => ErrorReporting.fatal("Unexpected SXY")
 
