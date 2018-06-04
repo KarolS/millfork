@@ -83,7 +83,7 @@ This may cause problems if the parameter table is stored next to a hardware regi
 
 * `-O0` – Disable all optimizations.
 
-* `-O`, `-O2`, `-O3` – Optimize code, various levels.
+* `-O`, `-O2` ... `-O8` – Optimize code, various levels. For most code, anything above `-O4` doesn't improve it anymore. 
 
 * `-O9` – Optimize code using superoptimizer (experimental). Computationally expensive, decent results.
 

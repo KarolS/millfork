@@ -10,7 +10,15 @@
 
 * Added character literals.
 
-* Fixed several bugs, most importantly invalid offsets for branching instructions.
+* Added 24-bit `farword` type. 
+
+* Fixed invalid offsets for branching instructions.
+
+* Fixed incorrectly overlapping local variables.
+
+* Fixed broken `downto` loops.
+
+* Fixed several other bugs.
 
 * Other improvements.
 

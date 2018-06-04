@@ -24,7 +24,7 @@ even up to hardware damage.
 
 * on ROM-based platforms: writing to arrays
 
-* on ROM-based platforms: using global variables with an initial value
+* on ROM-based platforms: using global variables with an initial value (they will not be initialized!)
 
 * violating the [safe assembly rules](../lang/assembly.md)
 

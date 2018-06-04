@@ -31,9 +31,6 @@ Label names have to start with a letter and can contain digits, underscores and 
 This means than they cannot start with a period like in many other assemblers.
 Similarly, anonymous labels designated with `+` or `-` are also not supported
 
-Labels are global, 
-which means that they live in the same namespace as functions, types and global variables.
-
 Assembly can refer to variables and constants defined in Millfork,
 but you need to be careful with using absolute vs immediate addressing:
 
@@ -173,7 +170,7 @@ it should abide to the following rules:
     
     * do not change the data page register (keep an eye at the `PLD`, `MVN`, `MVP` instructions)
     
-    * explicitly use 16-bit immediate operands when appropriate; the assembler doesn't track flags and assumes 8-bit immediates by default
+    * explicitly use 16-bit immediate operands when appropriate; the assembler doesn't track flags and assumes 8-bit immediates by default (TODO: actually implement the 16-bit inline assembly correctly)
     
     * use far jumps unless you're sure that the called function returns with an `RTS`  
     

@@ -194,7 +194,7 @@ object Main {
     parameter("-t", "--target").placeholder("<platform>").action { (p, c) =>
       assertNone(c.platform, "Platform already defined")
       c.copy(platform = Some(p))
-    }.description("Target platform, any of: c64, c16, plus4, vic20, vic20_3k, vic20_8k, pet, c128, a8.")
+    }.description("Target platform, any of: c64, c16, plus4, vic20, vic20_3k, vic20_8k, pet, c128, a8, bbc, apple2, nes_mmc4, nes_small, c64_scpu, c64_scpu16, vcs.")
 
     parameter("-I", "--include-dir").repeatable().placeholder("<dir>;<dir>;...").action { (paths, c) =>
       val n = paths.split(";")
@@ -242,11 +242,11 @@ object Main {
       c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = true)
       c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = false)
       c.changeFlag(CompilationFlag.ReturnWordsViaAccumulator, b = false)
-    }.description("Emit 65816 opcodes (experimental).")
+    }.description("Emit 65816 opcodes in emulation mode (experimental).")
     flag("-fnative-65816-ops").action { c =>
       c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = true)
       c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = true)
-    }.description("Emit 65816 opcodes (experimental).")
+    }.description("Emit 65816 opcodes in native mode (very experimental and buggy).")
     boolean("-flarge-code", "-fsmall-code").action { (c, v) =>
       c.changeFlag(CompilationFlag.LargeCode, v)
     }.description("Whether should use 24-bit or 16-bit jumps to subroutines (not yet implemented).").hidden()

@@ -25,13 +25,13 @@ Syntax:
     
     * `interrupt` – the function is a hardware interrupt handler.
     You are not allowed to call such functions directly.
-    The function cannot have parameters and the retrn type should be `void`.
+    The function cannot have parameters and the return type should be `void`.
     
     * `kernal_interrupt` – the function is an interrupt handler called from a generic vendor-provider hardware interrupt handler.
     The hardware instruction handler is assumed to have preserved the CPU registers,
     so this function only has to preserve the zeropage pseudoregisters.
     An example is the Commodore 64 interrupt handler that calls the function at an address read from $314/$315.
-    Unline hardware handlers with `interrupt`, you can treat functions with `kernal_interrupt` like normal functions. 
+    Unlike hardware handlers with `interrupt`, you can treat functions with `kernal_interrupt` like normal functions. 
     
 * `<return_type>` is a valid return type, see [Types](./types.md)
 
