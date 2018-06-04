@@ -664,27 +664,27 @@ object AlwaysGoodOptimizations {
     modificationOfJustWrittenValue(STA, AbsoluteX, MatchA(5), DEC, Not(ChangesX), atLeastTwo = false, Seq(), (c, i) => List(
       AssemblyLine.immediate(LDA, (c.get[Int](5) - i) & 0xff)
     )),
-    modificationOfJustWrittenValue(STA, Absolute, Anything, INC, Anything, atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
+    modificationOfJustWrittenValue(STA, Absolute, HasClear(State.D), INC, Anything, atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
       AssemblyLine.implied(CLC),
       AssemblyLine.immediate(ADC, i)
     )),
-    modificationOfJustWrittenValue(STA, Absolute, Anything, DEC, Anything, atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
+    modificationOfJustWrittenValue(STA, Absolute, HasClear(State.D), DEC, Anything, atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
       AssemblyLine.implied(SEC),
       AssemblyLine.immediate(SBC, i)
     )),
-    modificationOfJustWrittenValue(STA, ZeroPage, Anything, INC, Anything, atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
+    modificationOfJustWrittenValue(STA, ZeroPage, HasClear(State.D), INC, Anything, atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
       AssemblyLine.implied(CLC),
       AssemblyLine.immediate(ADC, i)
     )),
-    modificationOfJustWrittenValue(STA, ZeroPage, Anything, DEC, Anything, atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
+    modificationOfJustWrittenValue(STA, ZeroPage, HasClear(State.D), DEC, Anything, atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
       AssemblyLine.implied(SEC),
       AssemblyLine.immediate(SBC, i)
     )),
-    modificationOfJustWrittenValue(STA, AbsoluteX, Anything, INC, Not(ChangesX), atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
+    modificationOfJustWrittenValue(STA, AbsoluteX, HasClear(State.D), INC, Not(ChangesX), atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
       AssemblyLine.implied(CLC),
       AssemblyLine.immediate(ADC, i)
     )),
-    modificationOfJustWrittenValue(STA, AbsoluteX, Anything, DEC, Not(ChangesX), atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
+    modificationOfJustWrittenValue(STA, AbsoluteX, HasClear(State.D), DEC, Not(ChangesX), atLeastTwo = true, Seq(State.C, State.V), (_, i) => List(
       AssemblyLine.implied(SEC),
       AssemblyLine.immediate(SBC, i)
     )),
@@ -1599,7 +1599,7 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(INC) & MatchAddrMode(0) & MatchParameter(1)) ~~> { code =>
       List(AssemblyLine.implied(SEC), code.head.copy(opcode = ROL))
     },
-    (Elidable & HasOpcode(ASL) & HasAddrMode(AddrMode.Implied)) ~
+    (Elidable & HasOpcode(ASL) & HasAddrMode(AddrMode.Implied) & HasClear(State.D)) ~
       (Elidable & HasOpcode(CLC)) ~
       (Elidable & HasOpcode(ADC) & HasImmediate(1) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(SEC), code.head.copy(opcode = ROL))

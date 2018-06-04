@@ -433,21 +433,21 @@ object UndocumentedOptimizations {
 
   val UseMultiple = new RuleBasedAssemblyOptimization("Using multiple undocumented instructions",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
-    (Elidable & HasOpcode(LDA) & LaxAddrModeRestriction) ~
+    (Elidable & HasOpcode(LDA) & LaxAddrModeRestriction & HasClear(State.D)) ~
       (Elidable & HasOpcode(CLC)).? ~
       (Elidable & HasOpcode(ADC) & HasImmediate(2) & HasClear(State.C)) ~
-      (Elidable & HasOpcode(TAX)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
       List(code.head.copy(opcode = LAX), AssemblyLine(SBX, Immediate, Constant.Zero - ctx.get[Constant](2)))
     },
-    (Elidable & HasOpcode(LDA) & LaxAddrModeRestriction) ~
+    (Elidable & HasOpcode(LDA) & LaxAddrModeRestriction & HasClear(State.D)) ~
       (Elidable & HasOpcode(SEC)).? ~
       (Elidable & HasOpcode(SBC) & HasImmediate(2) & HasSet(State.C)) ~
-      (Elidable & HasOpcode(TAX)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
       List(code.head.copy(opcode = LAX), AssemblyLine(SBX, Immediate, ctx.get[Constant](2)))
     },
     (Elidable & HasOpcode(LDA) & LaxAddrModeRestriction & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Not(ReadsX) & HasOpcodeIn(Set(ANC, ALR, ARR, ADC, AND, EOR, ORA, ADC, SBC, SEC, CLC, STA, LDY, STY)) |
-        HasAddrMode(Implied) & HasOpcodeIn(Set(ASL, LSR, ROL, ROR, TAY, TYA))).* ~
+      (Not(ReadsX) & HasOpcodeIn(Set(ANC, ALR, ARR, ADC, AND, EOR, ORA, ADC, SBC, STA, LDY, STY)) |
+        HasAddrMode(Implied) & HasOpcodeIn(Set(ASL, LSR, ROL, ROR, TAY, TYA, SEC, CLC, SED, CLD))).* ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
       HasOpcode(LDY).? ~
       (Elidable & HasOpcode(AND)) ~

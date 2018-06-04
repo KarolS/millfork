@@ -301,9 +301,9 @@ object LaterOptimizations {
     val cState = if (carrySet) HasSet(State.C) else HasClear(State.C)
     val carryOp = if (carrySet) SEC else CLC
 
-    (Elidable & HasOpcode(LDA) & HasAddrModeIn(ldAddrModes)).capture(11) ~
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(ldAddrModes) & HasClear(State.D)).capture(11) ~
       (Elidable & HasOpcode(carryOp)).? ~
-      (Elidable & HasOpcode(addOp) & HasImmediate(addParam) & cState & HasClear(State.D)) ~
+      (Elidable & HasOpcode(addOp) & HasImmediate(addParam) & cState) ~
       (Elidable & HasOpcode(STA) & HasAddrModeIn(stAddrModes) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V, indexState)).capture(12) ~~> { (_, ctx) =>
       ctx.get[List[AssemblyLine]](11).head.copy(opcode = ldOp) ::
         (List.fill(amount)(AssemblyLine.implied(changeOp)) :+
