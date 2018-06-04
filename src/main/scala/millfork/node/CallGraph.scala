@@ -37,6 +37,7 @@ abstract class CallGraph(program: Program) {
   entryPoints += "main"
   program.declarations.foreach(s => add(None, Nil, s))
   everCalledFunctions.retain(allFunctions)
+  fillOut()
 
   def add(currentFunction: Option[String], callingFunctions: List[String], node: Node): Unit = {
     node match {
