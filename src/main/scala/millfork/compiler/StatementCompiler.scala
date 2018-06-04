@@ -419,8 +419,8 @@ object StatementCompiler {
             Nil
           case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(0, esize))) if s > 0 =>
             compile(ctx, List(
-              Assignment(vex, f.start),
-              DoWhileStatement(f.body, List(decrement), FunctionCallExpression("!=", List(vex, f.end)), names)
+              Assignment(vex, SumExpression(List(false -> f.start, false -> LiteralExpression(1, 1)), decimal = false)),
+              DoWhileStatement(decrement :: f.body, Nil, FunctionCallExpression("!=", List(vex, f.end)), names)
             ))
 
 

@@ -54,6 +54,27 @@ class ForLoopSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(15))
   }
+
+  test("For-downto 2") {
+    EmuBenchmarkRun(
+      """
+        | array output [55] @$c000
+        | void main () {
+        |   byte i
+        |   output[0] = 0
+        |   output[5] = 0
+        |   output[6] = 0
+        |   for i,5,downto,0 {
+        |     output[i] += 1
+        |   }
+        | }
+      """.stripMargin){m =>
+      m.readByte(0xc000) should equal(1)
+      m.readByte(0xc005) should equal(1)
+      m.readByte(0xc006) should equal(0)
+    }
+  }
+
   test("For-until") {
     EmuBenchmarkRun(
       """
