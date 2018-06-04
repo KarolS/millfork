@@ -34,6 +34,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessOperationAfterLoad,
     AlwaysGoodOptimizations.PointlessLoadBeforeTransfer,
     VariableToRegisterOptimization,
+    AlwaysGoodOptimizations.RearrangableLoadFromTheSameLocation,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
     AlwaysGoodOptimizations.CommonIndexSubexpressionElimination,
     AlwaysGoodOptimizations.PointlessOperationPairRemoval,
@@ -218,6 +219,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.ReverseFlowAnalysis,
     AlwaysGoodOptimizations.SimplifiableCondition,
     VariableToRegisterOptimization,
+    AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
     LaterOptimizations.DoubleLoadToTheSameRegister
   )
 }

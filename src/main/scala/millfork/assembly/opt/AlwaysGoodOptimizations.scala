@@ -766,6 +766,12 @@ object AlwaysGoodOptimizations {
     HasOpcode(TAX) ~ (Elidable & Set(TXA, TAX)) ~~> (_.init),
     HasOpcode(TSX) ~ (Elidable & Set(TXS, TSX)) ~~> (_.init),
     HasOpcode(TXS) ~ (Elidable & Set(TXS, TSX)) ~~> (_.init),
+    HasOpcodeIn(Set(TXA, TAX)) ~
+      (Linear & Not(ChangesNAndZ) & Not(ChangesA) & Not(ChangesX)).* ~
+      (Elidable & HasOpcodeIn(Set(TXA, TAX))) ~~> (_.init),
+    HasOpcodeIn(Set(TYA, TAY)) ~
+      (Linear & Not(ChangesNAndZ) & Not(ChangesA) & Not(ChangesX)).* ~
+      (Elidable & HasOpcodeIn(Set(TYA, TAY))) ~~> (_.init),
     HasOpcode(TSX) ~ (Not(ChangesX) & Not(ChangesS) & Linear).* ~ (Elidable & Set(TXS, TSX)) ~~> (_.init),
     HasOpcode(TXS) ~ (Not(ChangesX) & Not(ChangesS) & Linear).* ~ (Elidable & Set(TXS, TSX)) ~~> (_.init),
   )
@@ -999,6 +1005,14 @@ object AlwaysGoodOptimizations {
       (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
       (HasOpcode(LABEL) & MatchParameter(3) & HasCallerCount(1)) ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
+
+    HasOpcodeIn(Set(TXA, TAX)) ~
+      (Not(Set(TXA, TAX)) & Linear & Not(ChangesA) & Not(ChangesX)).* ~
+      (Elidable & HasOpcodeIn(Set(TXA, TAX)) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
+
+    HasOpcodeIn(Set(TYA, TAY)) ~
+      (Not(Set(TYA, TAY)) & Linear & Not(ChangesA) & Not(ChangesY)).* ~
+      (Elidable & HasOpcodeIn(Set(TYA, TAY)) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
   )
 
   val RearrangableLoadFromTheSameLocation = new RuleBasedAssemblyOptimization("Rearrangable load from the same location",
@@ -1023,6 +1037,21 @@ object AlwaysGoodOptimizations {
       (HasOpcode(LDA) & Not(ReadsY)) ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
       List(code.head, AssemblyLine.implied(TAY), code(1))
+    },
+    (HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & Not(ChangesA) & Not(ChangesNAndZ) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      code.init
+    },
+    (HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & Not(ChangesX) & Not(ChangesNAndZ) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      code.init
+    },
+    (HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & Not(ChangesY) & Not(ChangesNAndZ) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> {code =>
+      code.init
     },
   )
 
