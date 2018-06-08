@@ -45,10 +45,25 @@ object StartAddressOutput extends OutputPackager {
   }
 }
 
+object StartPageOutput extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    val b = mem.banks(bank)
+    Array(b.start.>>(8).toByte)
+  }
+}
+
 object EndAddressOutput extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     Array(b.end.toByte, b.end.>>(8).toByte)
+  }
+}
+
+object PageCountOutput extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    val e = mem.banks(bank).end.>>(8)
+    val s = mem.banks(bank).start.>>(8)
+    Array((e - s + 1).toByte)
   }
 }
 

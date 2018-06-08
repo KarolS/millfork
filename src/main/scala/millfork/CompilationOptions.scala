@@ -104,6 +104,9 @@ object Cpu extends Enumeration {
     case "6502" => Mos
     case "6510" => Mos
     case "strict" => StrictMos
+    case "strictnmos" => StrictMos
+    case "strict6502" => StrictMos
+    case "strict6510" => StrictMos
     case "cmos" => Cmos
     case "65sc02" => Cmos
     case "sc02" => Cmos
@@ -135,7 +138,7 @@ object CompilationFlag extends Enumeration {
   // optimization options:
   DangerousOptimizations, InlineFunctions, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
   // memory allocation options
-  VariableOverlap, CompactReturnDispatchParams,
+  VariableOverlap, CompactReturnDispatchParams, LUnixRelocatableCode,
   // runtime check options
   CheckIndexOutOfBounds,
   // special options
@@ -150,6 +153,7 @@ object CompilationFlag extends Enumeration {
   val allWarnings: Set[CompilationFlag.Value] = Set(ExtraComparisonWarnings)
 
   val fromString = Map(
+    "lunix" -> LUnixRelocatableCode,
     "emit_illegals" -> EmitIllegals,
     "emit_cmos" -> EmitCmosOpcodes,
     "emit_65ce02" -> Emit65CE02Opcodes,

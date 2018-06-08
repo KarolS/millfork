@@ -100,7 +100,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       }
     }.toSet
     val toAdd = things.values.flatMap {
-      case m: UninitializedMemory if nf.isDefined == isLocalVariableName(m.name) =>
+      case m: UninitializedMemory if nf.isDefined == isLocalVariableName(m.name) && !m.name.endsWith(".addr") && maybeGet[Thing](m.name + ".array").isEmpty =>
         val vertex = if (options.flag(CompilationFlag.VariableOverlap)) {
           nf.fold[VariableVertex](GlobalVertex) { f =>
             if (m.alloc == VariableAllocationMethod.Static) {
@@ -240,20 +240,23 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   if (parent.isEmpty) {
     addThing(VoidType, None)
     addThing(BuiltInBooleanType, None)
-    addThing(BasicPlainType("byte", 1), None)
-    addThing(BasicPlainType("word", 2), None)
+    val b = BasicPlainType("byte", 1)
+    val w = BasicPlainType("word", 2)
+    addThing(b, None)
+    addThing(w, None)
     addThing(BasicPlainType("farword", 3), None)
     addThing(BasicPlainType("long", 4), None)
-    addThing(DerivedPlainType("pointer", get[PlainType]("word"), isSigned = false), None)
-//    addThing(DerivedPlainType("farpointer", get[PlainType]("farword"), isSigned = false), None)
-    addThing(DerivedPlainType("ubyte", get[PlainType]("byte"), isSigned = false), None)
-    addThing(DerivedPlainType("sbyte", get[PlainType]("byte"), isSigned = true), None)
+    addThing(DerivedPlainType("pointer", w, isSigned = false), None)
+    //    addThing(DerivedPlainType("farpointer", get[PlainType]("farword"), isSigned = false), None)
+    addThing(DerivedPlainType("ubyte", b, isSigned = false), None)
+    addThing(DerivedPlainType("sbyte", b, isSigned = true), None)
     val trueType = ConstantBooleanType("true$", value = true)
     val falseType = ConstantBooleanType("false$", value = false)
     addThing(trueType, None)
     addThing(falseType, None)
     addThing(ConstantThing("true", NumericConstant(0, 0), trueType), None)
     addThing(ConstantThing("false", NumericConstant(0, 0), falseType), None)
+    addThing(ConstantThing("__zeropage_usage", UnexpandedConstant("__zeropage_usage", 1), b), None)
     addThing(FlagBooleanType("set_carry", Opcode.BCS, Opcode.BCC), None)
     addThing(FlagBooleanType("clear_carry", Opcode.BCC, Opcode.BCS), None)
     addThing(FlagBooleanType("set_overflow", Opcode.BVS, Opcode.BVC), None)
@@ -502,7 +505,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     }
 
     val env = new Environment(Some(this), name + "$")
-    stmt.params.foreach(p => env.registerParameter(p))
+    stmt.params.foreach(p => env.registerParameter(p, options))
     val params = if (stmt.assembly) {
       AssemblyParamSignature(stmt.params.map {
         pd =>
@@ -539,7 +542,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
               stmt.bank
             )
             addThing(mangled, stmt.position)
-            registerAddressConstant(mangled, stmt.position)
+            registerAddressConstant(mangled, stmt.position, options)
             addThing(ConstantThing(name + '`', addr, w), stmt.position)
         }
 
@@ -585,19 +588,29 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             declaredBank = stmt.bank
           )
           addThing(mangled, stmt.position)
-          registerAddressConstant(mangled, stmt.position)
+          registerAddressConstant(mangled, stmt.position, options)
         }
     }
   }
 
-  private def registerAddressConstant(thing: ThingInMemory, position: Option[Position]): Unit = {
-    val addr = thing.toAddress
-    addThing(ConstantThing(thing.name + ".addr", addr, get[Type]("pointer")), position)
-    addThing(ConstantThing(thing.name + ".addr.hi", addr.hiByte, get[Type]("byte")), position)
-    addThing(ConstantThing(thing.name + ".addr.lo", addr.loByte, get[Type]("byte")), position)
+  private def registerAddressConstant(thing: ThingInMemory, position: Option[Position], options: CompilationOptions): Unit = {
+    if (!thing.zeropage && options.flag(CompilationFlag.LUnixRelocatableCode)) {
+      val b = get[Type]("byte")
+      val w = get[Type]("word")
+      val relocatable = UninitializedMemoryVariable(thing.name + ".addr", w, VariableAllocationMethod.Static, None)
+      val addr = relocatable.toAddress
+      addThing(relocatable, position)
+      addThing(RelativeVariable(thing.name + ".addr.hi", addr + 1, b, zeropage = false, None), position)
+      addThing(RelativeVariable(thing.name + ".addr.lo", addr, b, zeropage = false, None), position)
+    } else {
+      val addr = thing.toAddress
+      addThing(ConstantThing(thing.name + ".addr", addr, get[Type]("pointer")), position)
+      addThing(ConstantThing(thing.name + ".addr.hi", addr.hiByte, get[Type]("byte")), position)
+      addThing(ConstantThing(thing.name + ".addr.lo", addr.loByte, get[Type]("byte")), position)
+    }
   }
 
-  def registerParameter(stmt: ParameterDeclaration): Unit = {
+  def registerParameter(stmt: ParameterDeclaration, options: CompilationOptions): Unit = {
     val typ = get[Type](stmt.typ)
     val b = get[Type]("byte")
     val w = get[Type]("word")
@@ -607,7 +620,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         val zp = typ.name == "pointer" // TODO
       val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None)
         addThing(v, stmt.position)
-        registerAddressConstant(v, stmt.position)
+        registerAddressConstant(v, stmt.position, options)
         val addr = v.toAddress
         typ.size match {
           case 2 =>
@@ -674,7 +687,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       }
   }
 
-  def registerArray(stmt: ArrayDeclarationStatement): Unit = {
+  def registerArray(stmt: ArrayDeclarationStatement, options: CompilationOptions): Unit = {
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
     stmt.elements match {
@@ -694,18 +707,30 @@ class Environment(val parent: Option[Environment], val prefix: String) {
                               declaredBank = stmt.bank)
                 }
                 addThing(array, stmt.position)
-                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank), stmt.position)
+                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank), stmt.position, options)
                 val a = address match {
                   case None => array.toAddress
                   case Some(aa) => aa
                 }
                 addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false,
                             declaredBank = stmt.bank), stmt.position)
-                addThing(ConstantThing(stmt.name, a, p), stmt.position)
-                addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
-                addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
-                addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
-                addThing(ConstantThing(stmt.name + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
+                if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
+                  val b = get[Type]("byte")
+                  val w = get[Type]("word")
+                  val relocatable = UninitializedMemoryVariable(stmt.name, w, VariableAllocationMethod.Static, None)
+                  val addr = relocatable.toAddress
+                  addThing(relocatable, stmt.position)
+                  addThing(RelativeVariable(stmt.name + ".addr.hi", addr + 1, b, zeropage = false, None), stmt.position)
+                  addThing(RelativeVariable(stmt.name + ".addr.lo", addr, b, zeropage = false, None), stmt.position)
+                  addThing(RelativeVariable(stmt.name + ".array.hi", addr + 1, b, zeropage = false, None), stmt.position)
+                  addThing(RelativeVariable(stmt.name + ".array.lo", addr, b, zeropage = false, None), stmt.position)
+                } else {
+                  addThing(ConstantThing(stmt.name, a, p), stmt.position)
+                  addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
+                  addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
+                  addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
+                  addThing(ConstantThing(stmt.name + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
+                }
                 if (length < 256) {
                   addThing(ConstantThing(stmt.name + ".length", lengthConst, b), stmt.position)
                 }
@@ -730,18 +755,28 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank)
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
-                    declaredBank = stmt.bank), stmt.position)
+                    declaredBank = stmt.bank), stmt.position, options)
         val a = address match {
           case None => array.toAddress
           case Some(aa) => aa
         }
         addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false,
                     declaredBank = stmt.bank), stmt.position)
-        addThing(ConstantThing(stmt.name, a, p), stmt.position)
-        addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
-        addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
-        addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
-        addThing(ConstantThing(stmt.name + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
+        if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
+          val b = get[Type]("byte")
+          val w = get[Type]("word")
+          val relocatable = UninitializedMemoryVariable(stmt.name, w, VariableAllocationMethod.Static, None)
+          val addr = relocatable.toAddress
+          addThing(relocatable, stmt.position)
+          addThing(RelativeVariable(stmt.name + ".array.hi", addr + 1, b, zeropage = false, None), stmt.position)
+          addThing(RelativeVariable(stmt.name + ".array.lo", addr, b, zeropage = false, None), stmt.position)
+        } else {
+          addThing(ConstantThing(stmt.name, a, p), stmt.position)
+          addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
+          addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
+          addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
+          addThing(ConstantThing(stmt.name + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
+        }
         if (length < 256) {
           addThing(ConstantThing(stmt.name + ".length", NumericConstant(length, 1), b), stmt.position)
         }
@@ -846,7 +881,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             }
             InitializedMemoryVariable(name, None, typ, ive, declaredBank = stmt.bank)
           }
-          registerAddressConstant(v, stmt.position)
+          registerAddressConstant(v, stmt.position, options)
           (v, v.toAddress)
         })(a => {
           val addr = eval(a).getOrElse(Constant.error(s"Address of `$name` has a non-constant value", position))
@@ -856,7 +891,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           }
           val v = RelativeVariable(prefix + name, addr, typ, zeropage = zp,
                       declaredBank = stmt.bank)
-          registerAddressConstant(v, stmt.position)
+          registerAddressConstant(v, stmt.position, options)
           (v, addr)
         })
         addThing(v, stmt.position)
@@ -927,7 +962,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     program.declarations.foreach {
       case f: FunctionDeclarationStatement => registerFunction(f, options)
       case v: VariableDeclarationStatement => registerVariable(v, options)
-      case a: ArrayDeclarationStatement => registerArray(a)
+      case a: ArrayDeclarationStatement => registerArray(a, options)
       case i: ImportStatement => ()
     }
     if (options.flag(CompilationFlag.ZeropagePseudoregister) && !things.contains("__reg")) {

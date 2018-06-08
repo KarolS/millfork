@@ -1,0 +1,225 @@
+const word lkf_jumptab = $200
+
+inline asm byte get_ipid() {
+    ? lda 2
+    ? rts
+}
+
+pointer tsp @4
+
+pointer argv @$80
+byte argc
+
+inline asm byte get_pdmajor() {
+    ? ldy #$25
+    ? lda (tsp),y
+    ? rts
+}
+
+inline asm byte get_pdminor() {
+    ? ldy #$26
+    ? lda (tsp),y
+    ? rts
+}
+
+inline asm word get_pid() {
+    ? ldy #$28
+    ? lda (tsp),y
+    ? tax
+    ? dey
+    ? lda (tsp),y
+    ? rts
+}
+
+inline asm byte get_parent_ipid() {
+    ? ldy #$29
+    ? lda (tsp),y
+    ? rts
+}
+
+byte errno
+
+inline asm void set_errno_on_carry_return_a() {
+    ? tax
+    ? jmp set_errno_on_carry_return_x()
+}
+
+inline asm void set_errno_on_carry_return_x() {
+    ? bcs _no_error
+    ? lda #0
+    _no_error:
+    ? sta errno
+    ? txa
+    ? rts
+}
+
+inline asm void set_errno_on_carry_return_nothing() {
+    ? bcs _no_error
+    ? lda #0
+    _no_error:
+    ? sta errno
+    ? rts
+}
+
+asm void set_zpsize(byte a)   @lkf_jumptab + $0000 extern
+
+asm void get_moduleif() @lkf_jumptab + $0002 extern // TODO
+
+asm void _fopen(word ay, byte x)        @lkf_jumptab + $0004 extern
+asm byte fopen(word ay, byte x) {
+    ? jsr _fopen
+    ? jmp set_errno_on_carry_return_x
+}
+
+asm void _fopendir(word ay)     @lkf_jumptab + $0006 extern
+asm byte fopendir(word ay) {
+    ? jsr _fopendir
+    ? jmp set_errno_on_carry_return_x
+}
+
+asm void _fclose(byte x)       @lkf_jumptab + $0008 extern
+asm byte fclose(byte x) {
+    ? jsr _fclose
+    ? jmp set_errno_on_carry_return_nothing
+}
+
+asm byte _fgetc(byte x) @lkf_jumptab + $000a extern
+asm byte fgetc(byte x) {
+    ? jsr _fgetc
+    ? jmp set_errno_on_carry_return_a
+}
+
+asm void _fputc(byte x, byte a) @lkf_jumptab + $000c extern
+inline asm void fputc_blocking(byte x, byte a) {
+    ? sec
+    ? jmp _fputc
+}
+inline asm void fputc_nonblocking(byte x, byte a) {
+    ? clc
+    ? jmp _fputc
+}
+
+asm void _fcmd(word ay, byte x) @lkf_jumptab + $000e extern
+asm byte fcmd(word ay, byte x) {
+    ? jsr _fcmd
+    ? jmp set_errno_on_carry_return_x
+}
+asm void _freaddir(word ay, byte x) @lkf_jumptab + $0010 extern
+asm byte freaddir(word ay, byte x) {
+    ? sec
+    ? jsr _freaddir
+    ? jmp set_errno_on_carry_return_a
+}
+
+asm word _fgetdevice(byte x) @lkf_jumptab + $0012 extern
+asm word fgetdevice(byte x) {
+    ? jsr _fgetdevice
+    ? txa
+    ? pha
+    ? tya
+    ? tax
+    ? pla
+    ? rts
+}
+asm void _strout(byte x) @lkf_jumptab + $0014 extern
+macro asm void strout(word const string, byte x) {
+    ? jsr _strout
+    bit string
+    ? jsr set_errno_on_carry_return_nothing
+}
+asm void popen() @lkf_jumptab + $0016 extern // TODO
+asm void ufd_open() @lkf_jumptab + $0018 extern // TODO
+asm void _fdup(byte x) @lkf_jumptab + $001a extern
+inline asm byte fdup(byte x) {
+    ? jsr _fdup
+    ? txa
+    ? rts
+}
+asm void print_error() @lkf_jumptab + $001c extern // TODO
+
+asm void suicerrout(byte a) @lkf_jumptab + $001e extern
+asm void suicide(byte a) @lkf_jumptab + $0020 extern
+
+asm void _palloc(byte a) @lkf_jumptab + $0022 extern
+asm byte palloc(byte a) {
+    ? jsr _palloc
+    ? jmp set_errno_on_carry_return_x
+}
+asm void free(byte x) @lkf_jumptab + $0024 extern
+asm void force_taskswitch() @lkf_jumptab + $0026 extern
+
+asm void forkto() @lkf_jumptab + $0028 extern // TODO
+asm void getipid() @lkf_jumptab + $002a extern // TODO
+asm void signal() @lkf_jumptab + $002c extern // TODO
+asm void sendsignal() @lkf_jumptab + $002e extern // TODO
+asm void wait() @lkf_jumptab + $0030 extern // TODO
+
+asm void sleep(word xy) @lkf_jumptab + $0032 extern
+asm void _lock(byte x) @lkf_jumptab + $0034 extern
+inline asm void lock(byte x) {
+    ? clc
+    ? jmp _lock
+}
+asm void unlock(byte x) @lkf_jumptab + $0036 extern
+asm void suspend(word ax) @lkf_jumptab + $0038 extern
+
+asm void hook_alert() @lkf_jumptab + $003a extern // TODO
+asm void hook_irq() @lkf_jumptab + $003c extern // TODO
+asm void hook_nmi() @lkf_jumptab + $003e extern // TODO
+
+asm void panic() @lkf_jumptab + $0040 extern
+asm void locktsw() @lkf_jumptab + $0042 extern
+asm void unlocktsw() @lkf_jumptab + $0044 extern
+
+asm void add_module() @lkf_jumptab + $0046 extern // TODO
+asm void fix_module() @lkf_jumptab + $0048 extern // TODO
+asm void mpalloc() @lkf_jumptab + $004a extern // TODO
+asm void spalloc() @lkf_jumptab + $004c extern // TODO
+asm void pfree() @lkf_jumptab + $004e extern // TODO
+asm void mun_block() @lkf_jumptab + $0050 extern // TODO
+asm void catcherr() @lkf_jumptab + $0052 extern // TODO
+
+asm void printk(byte a) @lkf_jumptab + $0054 extern
+asm void putchar(byte a) @lkf_jumptab + $0054 extern // alias
+asm void hexout(byte a) @lkf_jumptab + $0056 extern
+asm void disable_nmi() @lkf_jumptab + $0058 extern
+asm void enable_nmi() @lkf_jumptab + $005a extern
+
+asm void get_bitadr() @lkf_jumptab + $005c extern // TODO
+asm void addtask() @lkf_jumptab + $005e extern // TODO
+asm void get_smbptr() @lkf_jumptab + $0060 extern // TODO
+asm void smb_alloc() @lkf_jumptab + $0062 extern // TODO
+asm void smb_free() @lkf_jumptab + $0064 extern // TODO
+asm void alloc_pfd() @lkf_jumptab + $0066 extern // TODO
+asm void io_return() @lkf_jumptab + $0068 extern // TODO
+asm void io_return_error() @lkf_jumptab + $006a extern // TODO
+asm void ref_increment() @lkf_jumptab + $006c extern // TODO
+asm void p_insert() @lkf_jumptab + $006e extern // TODO
+asm void p_remove() @lkf_jumptab + $0070 extern // TODO
+asm void _raw_alloc() @lkf_jumptab + $0072 extern // TODO
+asm void exe_reloc() @lkf_jumptab + $0074 extern // TODO
+asm void exe_test() @lkf_jumptab + $0076 extern // TODO
+asm void init() @lkf_jumptab + $0078 extern // TODO
+asm void keyb_joy0() @lkf_jumptab + $007a extern // TODO
+asm void keyb_joy1() @lkf_jumptab + $007c extern // TODO
+asm void keyb_scan() @lkf_jumptab + $007e extern // TODO
+asm void keyb_stat() @lkf_jumptab + $0080 extern // TODO
+
+asm byte random() @lkf_jumptab + $0082 extern
+asm void srandom(word ay) @lkf_jumptab + $0084 extern
+
+asm void getenv() @lkf_jumptab + $0086 extern // TODO
+asm void setenv() @lkf_jumptab + $0088 extern // TODO
+asm void loado65() @lkf_jumptab + $008a extern // TODO
+
+asm byte __start() @$1006 {
+    ? lda argv
+    ? sta argc
+    ? lda #0
+    ? sta argv
+    lda #__zeropage_usage // TODO
+    jsr set_zpsize
+    jsr main
+    jsr suicide
+}
+

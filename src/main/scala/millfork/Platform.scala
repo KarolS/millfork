@@ -13,7 +13,7 @@ import org.apache.commons.configuration2.INIConfiguration
   */
 
 object OutputStyle extends Enumeration {
-  val Single, PerBank = Value
+  val Single, PerBank, LUnix = Value
 }
 
 class Platform(
@@ -135,7 +135,7 @@ object Platform {
 
     val freePointers = as.get(classOf[String], "zp_pointers", "all") match {
       case "all" => List.tabulate(128)(_ * 2)
-      case xs => xs.split("[, ]+").map(parseNumber).toList
+      case xs => xs.split("[, ]+").flatMap(parseNumberOrRange).toList
     }
 
     val codeAllocators = banks.map(b => b -> new UpwardByteAllocator(bankStarts(b), bankCodeEnds(b)))
@@ -148,7 +148,9 @@ object Platform {
     val os = conf.getSection("output")
     val outputPackager = SequenceOutput(os.get(classOf[String], "format", "").split("[, ]+").filter(_.nonEmpty).map {
       case "startaddr" => StartAddressOutput
+      case "startpage" => StartPageOutput
       case "endaddr" => EndAddressOutput
+      case "pagecount" => PageCountOutput
       case "allocated" => AllocatedDataOutput
       case n => n.split(":").filter(_.nonEmpty) match {
         case Array(b, s, e) => BankFragmentOutput(b, parseNumber(s), parseNumber(e))
@@ -162,6 +164,7 @@ object Platform {
     val outputStyle = os.get(classOf[String], "style", "single") match {
       case "" | "single" => OutputStyle.Single
       case "per_bank" | "per_segment" => OutputStyle.PerBank
+      case "lunix" => OutputStyle.LUnix
       case x => ErrorReporting.fatal(s"Invalid output style: `$x`")
     }
 
@@ -173,6 +176,18 @@ object Platform {
       bankNumbers,
       defaultCodeBank,
       outputStyle)
+  }
+
+  def parseNumberOrRange(s:String): Seq[Int] = {
+    if (s.contains("-")) {
+      var segments = s.split("-")
+      if (segments.length != 2) {
+        ErrorReporting.fatal(s"Invalid range: `$s`")
+      }
+      Range(parseNumber(segments(0)), parseNumber(segments(1)), 2)
+    } else {
+      Seq(parseNumber(s))
+    }
   }
 
   def parseNumber(s: String): Int = {

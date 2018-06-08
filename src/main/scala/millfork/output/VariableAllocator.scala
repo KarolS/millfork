@@ -50,7 +50,7 @@ class AfterCodeByteAllocator(val endBefore: Int) extends ByteAllocator {
   def notifyAboutEndOfCode(org: Int): Unit = startAt = org
 }
 
-class VariableAllocator(private val pointers: List[Int], private val bytes: ByteAllocator) {
+class VariableAllocator(val pointers: List[Int], private val bytes: ByteAllocator) {
 
   private val pointerMap = mutable.Map[Int, Set[VariableVertex]]()
   private val variableMap = mutable.Map[Int, mutable.Map[Int, Set[VariableVertex]]]()

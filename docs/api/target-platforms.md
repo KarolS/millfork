@@ -15,6 +15,8 @@ The following platforms are currently supported:
 
 * `c64_scpu16` – Commodore 64 with SuperCPU in native, 16-bit mode (very buggy)
 
+* `lunix` – Commodore 64 or 128 running LUnix/LNG 0.21
+
 * `c16` – Commodore 16
 
 * `plus4` – Commodore Plus/4
@@ -121,7 +123,9 @@ Every platform is defined in an `.ini` file with an appropriate name.
     default is `false` on 65C02-compatible processors and `true` elsewhere
     
     * `compact_dispatch_params` – whether parameter values in return dispatch statements may overlap other objects, default is `true`  
-    This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.  
+    This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.
+    
+    * `lunix` – generate relocatable code for LUnix/LNG, default is `false`
 
 
 #### `[allocation]` section
@@ -155,6 +159,8 @@ Default: `after_code`.
 
     * `single` – output a single file, based mostly, but not necessarily only on data in the `default` segment (the default)
     
+    * `lunix` – like `single`, but add data necessary for relocation between code and data (requires `lunix` option in the `compilation` section)
+    
     * `per_segment` – generate a separate file with each segment
 
 * `format` – output file format; a comma-separated list of tokens:
@@ -163,9 +169,13 @@ Default: `after_code`.
     
     * `startaddr` – little-endian 16-bit address of the first used byte of the compiled output (not necessarily the segment start)
     
+    * `startpage` – the high byte of `startaddr`
+    
     * `endaddr` – little-endian 16-bit address of the last used byte of the compiled output (usually not the segment end)
     
     * `allocated` – all used bytes
+    
+    * `pagecount` – the number of pages used by all used bytes (including partially filled pages)
     
     * `<addr>:<addr>` - inclusive range of bytes
     

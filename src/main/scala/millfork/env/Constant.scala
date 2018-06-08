@@ -70,7 +70,7 @@ sealed trait Constant {
 
   def quickSimplify: Constant = this
 
-  def isRelatedTo(v: Variable): Boolean
+  def isRelatedTo(v: Thing): Boolean
 }
 
 case class AssertByte(c: Constant) extends Constant {
@@ -78,13 +78,15 @@ case class AssertByte(c: Constant) extends Constant {
 
   override def requiredSize: Int = 1
 
-  override def isRelatedTo(v: Variable): Boolean = c.isRelatedTo(v)
+  override def isRelatedTo(v: Thing): Boolean = c.isRelatedTo(v)
 
   override def quickSimplify: Constant = AssertByte(c.quickSimplify)
 }
 
 case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant {
-  override def isRelatedTo(v: Variable): Boolean = false
+  override def isRelatedTo(v: Thing): Boolean = false
+
+  override def toString: String = name
 }
 
 case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
@@ -111,7 +113,7 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
 
   override def toString: String = if (value > 9) value.formatted("$%X") else value.toString
 
-  override def isRelatedTo(v: Variable): Boolean = false
+  override def isRelatedTo(v: Thing): Boolean = false
 }
 
 case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
@@ -119,7 +121,7 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
 
   override def toString: String = thing.name
 
-  override def isRelatedTo(v: Variable): Boolean = thing.name == v.name
+  override def isRelatedTo(v: Thing): Boolean = thing.name == v.name
 }
 
 case class SubbyteConstant(base: Constant, index: Int) extends Constant {
@@ -144,7 +146,7 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
     case 3 => ".b3"
   })
 
-  override def isRelatedTo(v: Variable): Boolean = base.isRelatedTo(v)
+  override def isRelatedTo(v: Thing): Boolean = base.isRelatedTo(v)
 }
 
 object MathOperator extends Enumeration {
@@ -304,5 +306,5 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
 
   override def requiredSize: Int = lhs.requiredSize max rhs.requiredSize
 
-  override def isRelatedTo(v: Variable): Boolean = lhs.isRelatedTo(v) || rhs.isRelatedTo(v)
+  override def isRelatedTo(v: Thing): Boolean = lhs.isRelatedTo(v) || rhs.isRelatedTo(v)
 }

@@ -2,7 +2,7 @@
 
 ## Current version
 
-* Preliminary Atari 2600 and BBC Micro support.
+* Preliminary Atari 2600, BBC Micro and LUnix support.
 
 * Added array initialization syntax with `for` (not yet finalized).
 

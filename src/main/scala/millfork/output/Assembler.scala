@@ -78,7 +78,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         try {
           if (labelMap.contains(th.name)) return labelMap(th.name)
           if (labelMap.contains(th.name + "`")) return labelMap(th.name)
-          if (labelMap.contains(th.name + ".addr")) return labelMap(th.name)
+          if (labelMap.contains(th.name + ".addr")) return labelMap.getOrElse[Int](th.name, labelMap(th.name + ".array"))
           val x1 = env.maybeGet[ConstantThing](th.name).map(_.value)
           val x2 = env.maybeGet[ConstantThing](th.name + "`").map(_.value)
           val x3 = env.maybeGet[NormalFunction](th.name).flatMap(_.address)
@@ -97,6 +97,9 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
           case e: StackOverflowError =>
             ErrorReporting.fatal("Stack overflow " + c)
         }
+      case UnexpandedConstant(name, _) =>
+        if (labelMap.contains(name)) labelMap(name)
+        else ???
       case SubbyteConstant(cc, i) => deepConstResolve(cc).>>>(i * 8).&(0xff)
       case CompoundConstant(operator, lc, rc) =>
         val l = deepConstResolve(lc)
@@ -282,6 +285,42 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         }
       case _ =>
     }
+    if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
+      env.allThings.things.foreach {
+        case (_, m@UninitializedMemoryVariable(name, typ, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
+          val isUsed = compiledFunctions.values.exists(_.exists(_.parameter.isRelatedTo(m)))
+//          println(m.name -> isUsed)
+          if (isUsed) {
+            val bank = m.bank(options)
+            if (bank != "default") ???
+            val bank0 = mem.banks(bank)
+            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false)
+            labelMap(name) = index + 1
+            val altName = m.name.stripPrefix(env.prefix) + "`"
+            val thing = if (name.endsWith(".addr")) env.get[ThingInMemory](name.stripSuffix(".addr")) else env.get[ThingInMemory](name + ".array")
+            env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
+            assembly.append("* = $" + index.toHexString)
+            assembly.append("    !byte $2c")
+            assembly.append(name)
+            val c = thing.toAddress
+            writeByte(bank, index, 0x2c.toByte) // BIT abs
+            index += 1
+            for (i <- 0 until typ.size) {
+              writeByte(bank, index, c.subbyte(i))
+              assembly.append("    !byte " + c.subbyte(i).quickSimplify)
+              index += 1
+            }
+            initializedVariablesSize += typ.size
+            justAfterCode += bank -> index
+          }
+        case _ => ()
+      }
+      val index = codeAllocators("default").allocateBytes(mem.banks("default"), options, 1, initialized = true, writeable = false)
+      writeByte("default", index, 2.toByte) // BIT abs
+      assembly.append("* = $" + index.toHexString)
+      assembly.append("    !byte 2 ;; end of LUnix relocatable segment")
+      justAfterCode += "default" -> (index + 1)
+    }
     env.allPreallocatables.foreach {
       case thing@InitializedArray(name, None, items, _) =>
         val bank = thing.bank(options)
@@ -305,7 +344,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         }
         initializedVariablesSize += items.length
         justAfterCode += bank -> index
-      case m@InitializedMemoryVariable(name, None, typ, value, _) =>
+      case m@InitializedMemoryVariable(name, None, typ, value, _)  =>
         val bank = m.bank(options)
         val bank0 = mem.banks(bank)
         var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true)
@@ -335,8 +374,14 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
         for(i <- 0 until size) bank0.occupied(addr + i) = true
     }
     val variableAllocators = platform.variableAllocators
-    variableAllocators.foreach{case (b,a) => a.notifyAboutEndOfCode(justAfterCode(b))}
+    variableAllocators.foreach { case (b, a) => a.notifyAboutEndOfCode(justAfterCode(b)) }
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put)
+
+    val zeropageOccupation = mem.banks("default").occupied.slice(variableAllocators("default").pointers.head, variableAllocators("default").pointers.last + 2)
+    labelMap += "__zeropage_usage" -> (zeropageOccupation.lastIndexOf(true) - zeropageOccupation.indexOf(true) + 1)
+    labelMap += "__zeropage_first" -> (zeropageOccupation.indexOf(true) max 0)
+    labelMap += "__zeropage_last" -> (zeropageOccupation.lastIndexOf(true) max 0)
+    labelMap += "__zeropage_end" -> (zeropageOccupation.lastIndexOf(true) + 1)
 
     env = rootEnv.allThings
 
@@ -367,7 +412,7 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
 
     // TODO:
     val code = (platform.outputStyle match {
-      case OutputStyle.Single => List("default")
+      case OutputStyle.Single | OutputStyle.LUnix => List("default")
       case OutputStyle.PerBank => platform.bankNumbers.keys.toList
     }).map(b => b -> platform.outputPackager.packageOutput(mem, b)).toMap
     AssemblerOutput(code, assembly.toArray, labelMap.toList)

@@ -22,6 +22,8 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
     
     * Commodore 128
     
+    * Commodore 64/128 running LUnix/LNG 0.21 (experimental)
+    
     * Commodore PET
     
     * Commodore Vic-20 (stock or with RAM extensions)

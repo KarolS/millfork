@@ -78,6 +78,8 @@ sealed trait TypedThing extends Thing {
 
 
 sealed trait ThingInMemory extends Thing {
+  def zeropage: Boolean
+
   def toAddress: Constant
 
   var farFlag: Option[Boolean] = None
@@ -105,12 +107,13 @@ case class Label(name: String) extends ThingInMemory {
     declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
 
   override val declaredBank: Option[String] = None
+
+  override def zeropage: Boolean = false
 }
 
 sealed trait Variable extends TypedThing with VariableLikeThing
 
 sealed trait VariableInMemory extends Variable with ThingInMemory with IndexableThing {
-  def zeropage: Boolean
 
   override def isFar(compilationOptions: CompilationOptions): Boolean =
     !zeropage && farFlag.getOrElse(false)
@@ -175,6 +178,8 @@ case class UninitializedArray(name: String, sizeInBytes: Int, declaredBank: Opti
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
 
   override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse("default")
+
+  override def zeropage: Boolean = false
 }
 
 case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, declaredBank: Option[String]) extends MfArray {
@@ -183,6 +188,8 @@ case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, decl
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
 
   override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse("default")
+
+  override def zeropage: Boolean = false
 }
 
 case class InitializedArray(name: String, address: Option[Constant], contents: List[Expression], declaredBank: Option[String]) extends MfArray with PreallocableThing {
@@ -191,6 +198,8 @@ case class InitializedArray(name: String, address: Option[Constant], contents: L
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
 
   override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
+
+  override def zeropage: Boolean = false
 }
 
 case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean, declaredBank: Option[String]) extends VariableInMemory {
@@ -242,6 +251,8 @@ case class ExternFunction(name: String,
   override def toAddress: Constant = address
 
   override def interrupt = false
+
+  override def zeropage: Boolean = false
 }
 
 case class NormalFunction(name: String,
@@ -257,6 +268,8 @@ case class NormalFunction(name: String,
                           position: Option[Position],
                           declaredBank: Option[String]) extends FunctionInMemory with PreallocableThing {
   override def shouldGenerate = true
+
+  override def zeropage: Boolean = false
 }
 
 case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing {
