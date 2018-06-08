@@ -13,7 +13,7 @@ object UnusedFunctions extends NodeOptimization {
   override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
     val panicRequired = options.flags(CompilationFlag.CheckIndexOutOfBounds)
     val allNormalFunctions = nodes.flatMap {
-      case v: FunctionDeclarationStatement => if (v.address.isDefined || v.interrupt || v.name == "main" || panicRequired && v.name == "_panic") Nil else List(v.name)
+      case v: FunctionDeclarationStatement => if (v.address.isDefined && v.statements.isDefined || v.interrupt || v.name == "main" || panicRequired && v.name == "_panic") Nil else List(v.name)
       case _ => Nil
     }.toSet
     val allCalledFunctions = getAllCalledFunctions(nodes).toSet

@@ -59,6 +59,26 @@ class ByteMathSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc001) should equal(42))
   }
 
+  test("LHS evaluation during in-place byte addition") {
+    EmuBenchmarkRun(
+      """
+        | array output[1] @$c000
+        | byte call_count @$c001
+        | void main () {
+        |   output[0] = 1
+        |   output[identity(0)] += identity(1)
+        | }
+        | noinline byte identity(byte a) {
+        |   call_count += 1
+        |   return a
+        | }
+      """.stripMargin){m =>
+      m.readByte(0xc000) should equal(2)
+      // TODO: currently the compiler emits separate evaluations of the left hand side for reading and writing
+      // m.readByte(0xc001) should equal(2)
+    }
+  }
+
   test("Parameter order") {
     EmuBenchmarkRun(
       """

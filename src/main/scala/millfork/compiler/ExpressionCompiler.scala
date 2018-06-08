@@ -695,7 +695,7 @@ object ExpressionCompiler {
               case Register.A =>
                 List(AssemblyLine.indexedY(LDA, reg))
               case Register.X =>
-                List(AssemblyLine.indexedY(LDX, reg))
+                List(AssemblyLine.indexedY(LDA, reg), AssemblyLine.implied(TAX))
               case Register.Y =>
                 List(AssemblyLine.indexedY(LDA, reg), AssemblyLine.implied(TAY))
             }
@@ -716,7 +716,7 @@ object ExpressionCompiler {
                 case Register.Y =>
                   List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedY(LDA, p.addr), AssemblyLine.implied(TAY))
                 case Register.X =>
-                  List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedY(LDX, p.addr))
+                  List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedY(LDA, p.addr), AssemblyLine.implied(TAX))
               }
             case (p:VariablePointy, Some(_), 0 | 1, _) =>
               val calculatingIndex = compile(ctx, indexExpr, Some(b, RegisterVariable(Register.Y, b)), NoBranching)
@@ -724,7 +724,7 @@ object ExpressionCompiler {
                 case Register.A =>
                   calculatingIndex :+ AssemblyLine.indexedY(LDA, p.addr)
                 case Register.X =>
-                  calculatingIndex :+ AssemblyLine.indexedY(LDX, p.addr)
+                  calculatingIndex ++ List(AssemblyLine.indexedY(LDA, p.addr), AssemblyLine.implied(TAX))
                 case Register.Y =>
                   calculatingIndex ++ List(AssemblyLine.indexedY(LDA, p.addr), AssemblyLine.implied(TAY))
               }
@@ -1270,7 +1270,7 @@ object ExpressionCompiler {
 
   def expressionStorageFromAX(ctx: CompilationContext, exprTypeAndVariable: Option[(Type, Variable)], position: Option[Position]): List[AssemblyLine] = {
     exprTypeAndVariable.fold(noop) {
-      case (VoidType, _) => ???
+      case (VoidType, _) => ErrorReporting.fatal("Cannot assign word to void", position)
       case (_, RegisterVariable(Register.A, _)) => noop
       case (_, RegisterVariable(Register.AW, _)) => List(AssemblyLine.implied(XBA), AssemblyLine.implied(TXA), AssemblyLine.implied(XBA))
       case (_, RegisterVariable(Register.X, _)) => List(AssemblyLine.implied(TAX))
@@ -1421,7 +1421,7 @@ object ExpressionCompiler {
   def lookupFunction(ctx: CompilationContext, f: FunctionCallExpression): MangledFunction = {
     val paramsWithTypes = f.expressions.map(x => getExpressionType(ctx, x) -> x)
     ctx.env.lookupFunction(f.functionName, paramsWithTypes).getOrElse(
-      ErrorReporting.fatal(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1)}`", f.position))
+      ErrorReporting.fatal(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position))
   }
 
   def arrayBoundsCheck(ctx: CompilationContext, pointy: Pointy, register: Register.Value, index: Expression): List[AssemblyLine] = {

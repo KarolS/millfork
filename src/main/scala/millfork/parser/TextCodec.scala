@@ -15,7 +15,7 @@ class TextCodec(val name: String, private val map: String, private val extra: Ma
       if (index >= 0) {
         List(index)
       } else {
-        ErrorReporting.fatal("Invalid character in string")
+        ErrorReporting.fatal("Invalid character in string", position)
       }
     }
   }
