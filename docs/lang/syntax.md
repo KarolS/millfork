@@ -36,6 +36,24 @@ If not specified, it will be located according to the usual allocation rules.
 Only global variables can be initialized that way.
 The behaviour is undefined when targeting a ROM-based platform.
 
+For every variable `x` larger than a byte, extra subvariables are defined:
+
+* if `x` is of type `word` or `pointer`: 
+
+    * constituent bytes, from low to high: `x.lo`, `x.hi`
+
+* if `x` is of type `farword`: 
+
+    * constituent bytes, from low to high: `x.b0`, `x.b1`, `x.b2`
+    
+    * partial words: `x.loword` (=`x.b1:x.b0`), `x.hiword` (=`x.b2:x.b1`)
+
+* if `x` is of type `long`: 
+
+    * constituent bytes, from low to high: `x.b0`, `x.b1`, `x.b2`, `x.b3`
+    
+    * partial words: `x.loword` (=`x.b1:x.b0`), `x.hiword` (=`x.b3:x.b2`)
+
 ### Constant declarations
 
 `const <type> <name> = <value>`

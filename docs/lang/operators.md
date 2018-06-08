@@ -10,7 +10,7 @@ Further improvements to the compiler may increase the number of acceptable combi
 
 Certain expressions require the commandline flag `-fzp-register` (`.ini` equivalent: `zeropage_register`) to be enabled.
 They will be marked with (zpreg) next to them. 
-The flag is enabled by default, but you can disable it if you need it.
+The flag is enabled by default, but you can disable it if you need to.
 
 ## Precedence
 
@@ -121,7 +121,8 @@ These operators (except for `!=`) can accept more than 2 arguments.
 In such case, the result is true if each comparison in the group is true.
 Note you cannot mix those operators, so `a <= b < c` is not valid.
 
-Note that currently in cases like `a < f() < b`, `f()` will be evaluated twice!
+**WARNING:** Currently in cases like `a < f() < b`, `f()` may be evaluated an undefined number of times 
+(the current implementation calls it twice, but do not rely on this behaviour). 
 
 * `==`: equality  
 `byte == byte`  
@@ -143,6 +144,9 @@ if none of the types of their arguments is signed,
 and fail to compile otherwise. This will be changed in the future.  
 
 ## Assignment and in-place modification operators
+
+**WARNING:** Unlike other languages, Millfork does not provide any guarantees about how many times the left hand side will be evaluated. 
+An expression of form `a[f()] += b` may call `f` an undefined number of times.
 
 * `=`: normal assignment    
 `mutable byte = byte`  
@@ -187,6 +191,8 @@ An expression of form `a[i]`, where `i` is an expression of type `byte`, is:
 * when `a` is a pointer variable: an access to the byte in memory at address `a + i`
 
 Those expressions are of type `byte`. If `a` is any other kind of expression, `a[i]` is invalid.
+
+If the zeropage register is enabled, `i` can also be of type `word`. 
 
 ## Built-in functions
 

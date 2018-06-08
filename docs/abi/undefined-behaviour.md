@@ -30,4 +30,9 @@ even up to hardware damage.
 
 * violating the [safe reentrancy rules](../lang/reentrancy.md)
 
+* when using modifying operators: calling non-pure functions in the left-hand-side index expression (like in `a[f()] += b`).
+Currently, such functions may be evaluated either once or twice. This might be fixed in the future.
+
+* when using modifying operators: calling functions on the right-hand-side index expression than modify any of the variables used on the left hand side
+
 The above list is not exhaustive.
