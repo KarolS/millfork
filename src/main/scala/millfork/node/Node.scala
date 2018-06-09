@@ -22,6 +22,10 @@ sealed trait Expression extends Node {
   def replaceVariable(variable: String, actualParam: Expression): Expression
 }
 
+case class ConstantArrayElementExpression(constant: Constant) extends Expression {
+  override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+}
+
 case class LiteralExpression(value: Long, requiredSize: Int) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
 }

@@ -1,5 +1,7 @@
 const word lkf_jumptab = $200
 
+byte relocation_offset @$1001
+
 inline asm byte get_ipid() {
     ? lda 2
     ? rts

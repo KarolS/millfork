@@ -174,14 +174,23 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     removedThings += str + ".addr"
     removedThings += str + ".addr.lo"
     removedThings += str + ".addr.hi"
+    removedThings += str + ".rawaddr"
+    removedThings += str + ".rawaddr.lo"
+    removedThings += str + ".rawaddr.hi"
     things -= str
     things -= str + ".addr"
     things -= str + ".addr.lo"
     things -= str + ".addr.hi"
+    things -= str + ".rawaddr"
+    things -= str + ".rawaddr.lo"
+    things -= str + ".rawaddr.hi"
     things -= str.stripPrefix(prefix)
     things -= str.stripPrefix(prefix) + ".addr"
     things -= str.stripPrefix(prefix) + ".addr.lo"
     things -= str.stripPrefix(prefix) + ".addr.hi"
+    things -= str.stripPrefix(prefix) + ".rawaddr"
+    things -= str.stripPrefix(prefix) + ".rawaddr.lo"
+    things -= str.stripPrefix(prefix) + ".rawaddr.hi"
     parent.foreach(_ removeVariableImpl str)
   }
 
@@ -334,6 +343,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   def eval(e: Expression): Option[Constant] = {
     e match {
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
+      case ConstantArrayElementExpression(c) => Some(c)
       case VariableExpression(name) =>
         maybeGet[ConstantThing](name).map(_.value)
       case IndexedExpression(_, _) => None
@@ -429,6 +439,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   def evalForAsm(e: Expression): Option[Constant] = {
     e match {
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
+      case ConstantArrayElementExpression(c) => Some(c)
       case VariableExpression(name) =>
         maybeGet[ConstantThing](name).map(_.value).orElse(maybeGet[ThingInMemory](name).map(_.toAddress))
       case IndexedExpression(name, index) => (evalForAsm(VariableExpression(name)), evalForAsm(index)) match {
@@ -602,11 +613,18 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       addThing(relocatable, position)
       addThing(RelativeVariable(thing.name + ".addr.hi", addr + 1, b, zeropage = false, None), position)
       addThing(RelativeVariable(thing.name + ".addr.lo", addr, b, zeropage = false, None), position)
+      val rawaddr = thing.toAddress
+      addThing(ConstantThing(thing.name + ".rawaddr", rawaddr, get[Type]("pointer")), position)
+      addThing(ConstantThing(thing.name + ".rawaddr.hi", rawaddr.hiByte, get[Type]("byte")), position)
+      addThing(ConstantThing(thing.name + ".rawaddr.lo", rawaddr.loByte, get[Type]("byte")), position)
     } else {
       val addr = thing.toAddress
       addThing(ConstantThing(thing.name + ".addr", addr, get[Type]("pointer")), position)
       addThing(ConstantThing(thing.name + ".addr.hi", addr.hiByte, get[Type]("byte")), position)
       addThing(ConstantThing(thing.name + ".addr.lo", addr.loByte, get[Type]("byte")), position)
+      addThing(ConstantThing(thing.name + ".rawaddr", addr, get[Type]("pointer")), position)
+      addThing(ConstantThing(thing.name + ".rawaddr.hi", addr.hiByte, get[Type]("byte")), position)
+      addThing(ConstantThing(thing.name + ".rawaddr.lo", addr.loByte, get[Type]("byte")), position)
     }
   }
 
@@ -661,6 +679,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     val pointerName = array.name.stripSuffix(".array")
     addThing(ConstantThing(pointerName, array.toAddress, p), None)
     addThing(ConstantThing(pointerName + ".addr", array.toAddress, p), None)
+    addThing(ConstantThing(pointerName + ".rawaddr", array.toAddress, p), None)
     addThing(array, None)
   }
 

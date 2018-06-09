@@ -52,11 +52,12 @@ object ReturnDispatch {
       case _ => ()
     }
 
+    var env = ctx.env
     val returnType = ctx.function.returnType
-    val map: mutable.Map[Int, (String, List[Expression])] = mutable.Map()
+    val map: mutable.Map[Int, (Option[ThingInMemory], List[Expression])] = mutable.Map()
     var min = Option.empty[Int]
     var max = Option.empty[Int]
-    var default = Option.empty[(String, List[Expression])]
+    var default = Option.empty[(Option[ThingInMemory], List[Expression])]
     stmt.branches.foreach { branch =>
       val function: String = ctx.env.evalForAsm(branch.function) match {
         case Some(MemoryAddressConstant(f: FunctionInMemory)) =>
@@ -80,14 +81,14 @@ object ReturnDispatch {
           }
           min = start.map(toInt)
           max = end.map(toInt)
-          default = Some(function -> params)
+          default = Some(Some(env.get[FunctionInMemory](function)) -> params)
         case StandardReturnDispatchLabel(labels) =>
           labels.foreach { label =>
             val i = toInt(label)
             if (map.contains(i)) {
               ErrorReporting.error(s"Duplicate dispatch label: $label = $i", label.position)
             }
-            map(i) = function -> params
+            map(i) = Some(env.get[FunctionInMemory](function)) -> params
           }
       }
     }
@@ -100,7 +101,7 @@ object ReturnDispatch {
     }
     val actualMin = defaultMin min nonDefaultMin.getOrElse(defaultMin)
     val actualMax = defaultMax max nonDefaultMax.getOrElse(defaultMax)
-    val zeroes = "" -> List[Expression]()
+    val zeroes = None -> List[Expression]()
     for (i <- actualMin to actualMax) {
       if (!map.contains(i)) map(i) = default.getOrElse {
         // TODO: warning?
@@ -118,7 +119,6 @@ object ReturnDispatch {
       else actualMax
     }
 
-    var env = ctx.env
     while (env.parent.isDefined) env = env.parent.get
     val label = MfCompiler.nextLabel("di")
     val paramArrays = stmt.params.indices.map { ix =>
@@ -130,7 +130,7 @@ object ReturnDispatch {
       a
     }
 
-    val useJmpaix = ctx.options.flag(CompilationFlag.EmitCmosOpcodes) && (actualMax - actualMin) <= 127
+    val useJmpaix = ctx.options.flag(CompilationFlag.EmitCmosOpcodes) && !ctx.options.flag(CompilationFlag.LUnixRelocatableCode) && (actualMax - actualMin) <= 127
     val b = ctx.env.get[Type]("byte")
 
     import millfork.assembly.AddrMode._
@@ -164,28 +164,43 @@ object ReturnDispatch {
       val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte1(map(i)._1)).toList, ctx.function.declaredBank)
       env.registerUnnamedArray(jumpTableLo)
       env.registerUnnamedArray(jumpTableHi)
-      loadIndex ++ copyParams ++ List(
-        AssemblyLine.absoluteX(LDA, jumpTableHi.toAddress - actualMin),
-        AssemblyLine.implied(PHA),
-        AssemblyLine.absoluteX(LDA, jumpTableLo.toAddress - actualMin),
-        AssemblyLine.implied(PHA),
-        AssemblyLine.implied(RTS))
+      val actualJump = if (ctx.options.flag(CompilationFlag.LUnixRelocatableCode)) {
+        List(
+          AssemblyLine.absoluteX(LDA, jumpTableHi.toAddress - actualMin),
+          AssemblyLine.implied(CLC),
+          AssemblyLine.absolute(ADC, env.get[ThingInMemory]("relocation_offset")),
+          AssemblyLine.implied(PHA),
+          AssemblyLine.absoluteX(LDA, jumpTableLo.toAddress - actualMin),
+          AssemblyLine.implied(PHA),
+          AssemblyLine.implied(RTS))
+      }else {
+        List(
+          AssemblyLine.absoluteX(LDA, jumpTableHi.toAddress - actualMin),
+          AssemblyLine.implied(PHA),
+          AssemblyLine.absoluteX(LDA, jumpTableLo.toAddress - actualMin),
+          AssemblyLine.implied(PHA),
+          AssemblyLine.implied(RTS))
+      }
+      loadIndex ++ copyParams ++ actualJump
     }
   }
 
-  private def lobyte0(fname: String): Expression = if (fname == "") LiteralExpression(0, 1) else {
-    FunctionCallExpression("lo",List(VariableExpression(fname + ".addr")))
+  private def zeroOr(function: Option[ThingInMemory])(F: ThingInMemory => Constant): Expression =
+    function.fold[Expression](LiteralExpression(0, 1))(F andThen ConstantArrayElementExpression)
+
+  private def lobyte0(function: Option[ThingInMemory]): Expression = {
+    zeroOr(function)(f => MemoryAddressConstant(f).loByte)
   }
 
-  private def hibyte0(fname: String): Expression = if (fname == "") LiteralExpression(0, 1) else {
-    FunctionCallExpression("hi",List(VariableExpression(fname + ".addr")))
+  private def hibyte0(function: Option[ThingInMemory]): Expression = {
+    zeroOr(function)(f => MemoryAddressConstant(f).hiByte)
   }
 
-  private def lobyte1(fname: String): Expression = if (fname == "") LiteralExpression(0, 1) else {
-    FunctionCallExpression("lo", List(SumExpression(List(false -> VariableExpression(fname + ".addr"), true -> LiteralExpression(1, 1)), decimal = false)))
+  private def lobyte1(function: Option[ThingInMemory]): Expression = {
+    zeroOr(function)(f => MemoryAddressConstant(f).-(1).loByte)
   }
 
-  private def hibyte1(fname: String): Expression = if (fname == "") LiteralExpression(0, 1) else {
-    FunctionCallExpression("hi", List(SumExpression(List(false -> VariableExpression(fname + ".addr"), true -> LiteralExpression(1, 1)), decimal = false)))
+  private def hibyte1(function: Option[ThingInMemory]): Expression = {
+    zeroOr(function)(f => MemoryAddressConstant(f).-(1).hiByte)
   }
 }
