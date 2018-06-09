@@ -126,7 +126,6 @@ object AlwaysGoodOptimizations {
     (Elidable & HasImmediate(0) & HasOpcode(AND)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
     (Elidable & HasImmediate(0) & HasOpcode(XAA)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
     (Elidable & HasImmediate(0xff) & HasOpcode(ORA)) ~~> (code => List(AssemblyLine.immediate(LDA, 0xff))),
-    (Elidable & HasImmediate(0xff) & HasOpcode(EOR)) ~~> (code => List(AssemblyLine.immediate(LDA, 0xff))),
   )
 
   val MathOperationOnTwoIdenticalMemoryOperands = new RuleBasedAssemblyOptimization("Math operation on two identical memory operands",
