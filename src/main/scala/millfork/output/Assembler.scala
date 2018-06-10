@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.assembly.opt.{AssemblyOptimization, HudsonOptimizations, JumpShortening}
+import millfork.assembly.opt.{AssemblyOptimization, HudsonOptimizations, JumpFixing, JumpShortening}
 import millfork.assembly.{AddrMode, AssemblyLine, Opcode}
 import millfork.compiler.{CompilationContext, MfCompiler}
 import millfork.env._
@@ -446,9 +446,9 @@ class Assembler(private val program: Program, private val rootEnv: Environment, 
     }
     if (optimizations.nonEmpty) {
       val finalCode = if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.removeLoadZero(code) else code
-      JumpShortening(f, JumpShortening(f, finalCode, options), options)
+      JumpShortening(f, JumpShortening(f, JumpFixing(f, finalCode, options), options), options)
     }
-    else code
+    else JumpFixing(f, code, options)
   }
 
   private def outputFunction(bank: String, code: List[AssemblyLine], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
