@@ -1,6 +1,6 @@
 package millfork.test.emu
 
-import millfork.assembly.opt.SuperOptimizer
+import millfork.assembly.mos.opt.SuperOptimizer
 import millfork.{Cpu, OptimizationPresets}
 
 /**

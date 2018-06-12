@@ -1,6 +1,6 @@
 package millfork.test.emu
 
-import millfork.assembly.opt.{CmosOptimizations, ZeropageRegisterOptimizations}
+import millfork.assembly.mos.opt.{CmosOptimizations, ZeropageRegisterOptimizations}
 import millfork.{Cpu, OptimizationPresets}
 
 /**

@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.{Cpu, OptimizationPresets}
-import millfork.assembly.opt.{AlwaysGoodOptimizations, DangerousOptimizations}
+import millfork.assembly.mos.opt.{AlwaysGoodOptimizations, DangerousOptimizations}
 import millfork.test.emu._
 import org.scalatest.{FunSuite, Matchers}
 

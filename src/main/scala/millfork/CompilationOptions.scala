@@ -68,6 +68,17 @@ case class CompilationOptions(platform: Platform, commandLineFlags: Map[Compilat
   }
 }
 
+object CpuFamily extends Enumeration {
+  val M6502, Z80, M6809, I8086, M65K, ARM = Value
+
+  def forType(cpu: Cpu.Value): CpuFamily.Value = {
+    import Cpu._
+    cpu match {
+      case Mos | StrictMos | Ricoh | StrictRicoh | Cmos | HuC6280 | CE02 | Sixteen => M6502
+    }
+  }
+}
+
 object Cpu extends Enumeration {
 
   val Mos, StrictMos, Ricoh, StrictRicoh, Cmos, HuC6280, CE02, Sixteen = Value
@@ -76,27 +87,27 @@ object Cpu extends Enumeration {
 
   import CompilationFlag._
 
-  private val alwaysDefaultFlags = Set(
+  private val mosAlwaysDefaultFlags = Set(
     VariableOverlap, CompactReturnDispatchParams, ZeropagePseudoregister
   )
 
   def defaultFlags(x: Cpu.Value): Set[CompilationFlag.Value] = x match {
     case StrictMos =>
-      alwaysDefaultFlags ++ Set(DecimalMode, PreventJmpIndirectBug)
+      mosAlwaysDefaultFlags ++ Set(DecimalMode, PreventJmpIndirectBug)
     case Mos =>
-      alwaysDefaultFlags ++ Set(DecimalMode, PreventJmpIndirectBug)
+      mosAlwaysDefaultFlags ++ Set(DecimalMode, PreventJmpIndirectBug)
     case Ricoh =>
-      alwaysDefaultFlags ++ Set(PreventJmpIndirectBug)
+      mosAlwaysDefaultFlags ++ Set(PreventJmpIndirectBug)
     case StrictRicoh =>
-      alwaysDefaultFlags ++ Set(PreventJmpIndirectBug)
+      mosAlwaysDefaultFlags ++ Set(PreventJmpIndirectBug)
     case Cmos =>
-      alwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes)
+      mosAlwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes)
     case HuC6280 =>
-      alwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitHudsonOpcodes)
+      mosAlwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitHudsonOpcodes)
     case CE02 =>
-      alwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, Emit65CE02Opcodes)
+      mosAlwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, Emit65CE02Opcodes)
     case Sixteen =>
-      alwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes, ReturnWordsViaAccumulator)
+      mosAlwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes, ReturnWordsViaAccumulator)
   }
 
   def fromString(name: String): Cpu.Value = name match {

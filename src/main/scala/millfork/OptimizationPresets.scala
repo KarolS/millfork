@@ -1,6 +1,8 @@
 package millfork
 
-import millfork.assembly.opt._
+import millfork.assembly.AssemblyOptimization
+import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.opt._
 import millfork.node.opt.{UnreachableCode, UnusedFunctions, UnusedGlobalVariables, UnusedLocalVariables}
 
 /**
@@ -13,7 +15,7 @@ object OptimizationPresets {
     UnusedLocalVariables,
     UnusedGlobalVariables,
   )
-  val AssOpt: List[AssemblyOptimization] = List[AssemblyOptimization](
+  val AssOpt: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](
     UnusedLabelRemoval,
     AlwaysGoodOptimizations.NonetAddition,
     AlwaysGoodOptimizations.NonetBitOp,
@@ -135,7 +137,7 @@ object OptimizationPresets {
     LaterOptimizations.UseBit,
   )
 
-  val Good: List[AssemblyOptimization] = List[AssemblyOptimization](
+  val Good: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](
     UnusedLabelRemoval,
     AlwaysGoodOptimizations.Adc0Optimization,
     AlwaysGoodOptimizations.BitPackingUnpacking,
@@ -204,7 +206,7 @@ object OptimizationPresets {
     VariableToRegisterOptimization,
   )
 
-  val QuickPreset: List[AssemblyOptimization] = List[AssemblyOptimization](
+  val QuickPreset: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](
     UnusedLabelRemoval,
     AlwaysGoodOptimizations.Adc0Optimization,
     AlwaysGoodOptimizations.BranchInPlaceRemoval,

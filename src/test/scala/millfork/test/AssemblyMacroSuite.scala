@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.assembly.opt.DangerousOptimizations
+import millfork.assembly.mos.opt.DangerousOptimizations
 import millfork.test.emu.EmuBenchmarkRun
 import millfork.{Cpu, OptimizationPresets}
 import org.scalatest.{FunSuite, Matchers}

@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.assembly.opt.{AlwaysGoodOptimizations, LaterOptimizations, VariableToRegisterOptimization}
+import millfork.assembly.mos.opt.{AlwaysGoodOptimizations, LaterOptimizations, VariableToRegisterOptimization}
 import millfork.test.emu.{EmuBenchmarkRun, EmuRun, EmuUltraBenchmarkRun}
 import millfork.{Cpu, OptimizationPresets}
 import org.scalatest.{FunSuite, Matchers}

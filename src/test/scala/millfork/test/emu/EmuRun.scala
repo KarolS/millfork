@@ -7,16 +7,18 @@ import com.grapeshot.halfnes.{CPU, CPURAM}
 import com.loomcom.symon.InstructionTable.CpuBehavior
 import com.loomcom.symon.{Bus, Cpu, CpuState}
 import fastparse.core.Parsed.{Failure, Success}
-import millfork.assembly.opt.AssemblyOptimization
-import millfork.compiler.{CompilationContext, MfCompiler}
+import millfork.assembly.AssemblyOptimization
+import millfork.assembly.mos.AssemblyLine
+import millfork.compiler.mos.{CompilationContext, MosCompiler}
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
-import millfork.output.{Assembler, MemoryBank}
-import millfork.parser.MfParser
+import millfork.output.{MemoryBank, MosAssembler}
+import millfork.parser.MosParser
 import millfork.{CompilationFlag, CompilationOptions}
 import org.scalatest.Matchers
+
 import scala.collection.JavaConverters._
 
 /**
@@ -24,7 +26,7 @@ import scala.collection.JavaConverters._
   */
 case class Timings(nmos: Long, cmos: Long)
 
-class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization]) extends Matchers {
+class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[AssemblyLine]]) extends Matchers {
 
   def apply(source: String): MemoryBank = {
     apply2(source)._2
@@ -116,7 +118,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     if (!source.contains("__reg")) effectiveSource += "\n pointer __reg"
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
-    val parserF = MfParser("", effectiveSource, "", options)
+    val parserF = MosParser("", effectiveSource, "", options)
     parserF.toAst match {
       case Success(unoptimized, _) =>
         ErrorReporting.assertNoErrors("Parse failed")
@@ -133,7 +135,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // print unoptimized asm
         env.allPreallocatables.foreach {
           case f: NormalFunction =>
-            val unoptimized = MfCompiler.compile(CompilationContext(f.environment, f, 0, options))
+            val unoptimized = MosCompiler.compile(CompilationContext(f.environment, f, 0, options))
             unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
           case d: InitializedArray =>
             unoptimizedSize += d.contents.length
@@ -147,7 +149,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // compile
         val env2 = new Environment(None, "")
         env2.collectDeclarations(program, options)
-        val assembler = new Assembler(program, env2, platform)
+        val assembler = new MosAssembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
@@ -222,7 +224,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     cpu.setBus(bus)
     cpu.setProgramCounter(org)
     cpu.setStackPointer(0xff)
-    val legal = Assembler.getStandardLegalOpcodes
+    val legal = MosAssembler.getStandardLegalOpcodes
 
     var countNmos = 0L
     var countCmos = 0L

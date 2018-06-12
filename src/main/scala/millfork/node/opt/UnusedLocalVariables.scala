@@ -1,7 +1,6 @@
 package millfork.node.opt
 
 import millfork.CompilationOptions
-import millfork.assembly.AssemblyLine
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node._

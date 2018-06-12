@@ -4,14 +4,16 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util.Locale
 
-import millfork.assembly.opt._
+import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.opt._
 import millfork.buildinfo.BuildInfo
 import millfork.cli.{CliParser, CliStatus}
+import millfork.compiler.mos.MosCompiler
 import millfork.env.Environment
 import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph
-import millfork.output.Assembler
-import millfork.parser.SourceLoadingQueue
+import millfork.output.{AbstractAssembler, AssemblerOutput, MosAssembler, MosInliningCalculator}
+import millfork.parser.MosSourceLoadingQueue
 
 /**
   * @author Karol Stasiak
@@ -59,7 +61,6 @@ object Main {
       ErrorReporting.fatalQuit("No input files")
     }
     ErrorReporting.verbosity = c.verbosity.getOrElse(0)
-    val optLevel = c.optimizationLevel.getOrElse(0)
     val platform = Platform.lookupPlatformFile(c.includePath, c.platform.getOrElse {
       ErrorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
@@ -84,52 +85,9 @@ object Main {
 //      }
 //    }).toMap
 
-    val unoptimized = new SourceLoadingQueue(
-      initialFilenames = c.inputFileNames,
-      includePath = c.includePath,
-      options = options).run()
-
-    val program = if (optLevel > 0) {
-      OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
-    } else {
-      unoptimized
+    val result: AssemblerOutput = CpuFamily.forType(platform.cpu) match {
+      case CpuFamily.M6502 => assembleForMos(c, platform, options)
     }
-    val callGraph = new StandardCallGraph(program)
-
-    val env = new Environment(None, "")
-    env.collectDeclarations(program, options)
-
-    val assemblyOptimizations = optLevel match {
-      case 0 => Nil
-      case 1 => OptimizationPresets.QuickPreset
-      case i if i >= 9 => List(SuperOptimizer)
-      case _ =>
-        val goodExtras = List(
-          if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
-          if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
-          if (options.flag(CompilationFlag.ZeropagePseudoregister)) ZeropageRegisterOptimizations.All else Nil,
-        ).flatten
-        val extras = List(
-          if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
-          if (options.flag(CompilationFlag.Emit65CE02Opcodes)) CE02Optimizations.All else Nil,
-          if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
-          if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.All else Nil,
-          if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
-          if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
-          if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
-        ).flatten
-        val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good ++ goodExtras).flatten
-        goodCycle ++ OptimizationPresets.AssOpt ++ extras ++ goodCycle
-    }
-
-    // compile
-    val assembler = new Assembler(program, env, platform)
-    val result = assembler.assemble(callGraph, assemblyOptimizations, options)
-    ErrorReporting.assertNoErrors("Codegen failed")
-    ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
-    ErrorReporting.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
-    ErrorReporting.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
-    ErrorReporting.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
 
     if (c.outputAssembly) {
       val path = Paths.get(assOutput)
@@ -172,6 +130,57 @@ object Main {
       Files.write(Paths.get(defaultPrgOutput+".inf"),
         s"$defaultPrgOutput ${start.toHexString} ${start.toHexString} ${codeLength.toHexString}".getBytes(StandardCharsets.UTF_8))
     }
+  }
+
+  private def assembleForMos(c: Context, platform: Platform, options: CompilationOptions): AssemblerOutput = {
+    val optLevel = c.optimizationLevel.getOrElse(0)
+    val unoptimized = new MosSourceLoadingQueue(
+      initialFilenames = c.inputFileNames,
+      includePath = c.includePath,
+      options = options).run()
+
+    val program = if (optLevel > 0) {
+      OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
+    } else {
+      unoptimized
+    }
+    val callGraph = new StandardCallGraph(program)
+
+    val env = new Environment(None, "")
+    env.collectDeclarations(program, options)
+
+    val assemblyOptimizations = optLevel match {
+      case 0 => Nil
+      case 1 => OptimizationPresets.QuickPreset
+      case i if i >= 9 => List(SuperOptimizer)
+      case _ =>
+        val goodExtras = List(
+          if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
+          if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
+          if (options.flag(CompilationFlag.ZeropagePseudoregister)) ZeropageRegisterOptimizations.All else Nil,
+        ).flatten
+        val extras = List(
+          if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
+          if (options.flag(CompilationFlag.Emit65CE02Opcodes)) CE02Optimizations.All else Nil,
+          if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
+          if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.All else Nil,
+          if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
+          if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
+          if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
+        ).flatten
+        val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good ++ goodExtras).flatten
+        goodCycle ++ OptimizationPresets.AssOpt ++ extras ++ goodCycle
+    }
+
+    // compile
+    val assembler = new MosAssembler(program, env, platform)
+    val result = assembler.assemble(callGraph, assemblyOptimizations, options)
+    ErrorReporting.assertNoErrors("Codegen failed")
+    ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
+    ErrorReporting.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
+    ErrorReporting.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
+    ErrorReporting.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
+    result
   }
 
   private def parser = new CliParser[Context] {

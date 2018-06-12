@@ -1,7 +1,7 @@
 package millfork.env
 
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.assembly.Opcode
+import millfork.assembly.mos.Opcode
 import millfork.node._
 
 sealed trait Thing {
@@ -122,7 +122,7 @@ sealed trait VariableInMemory extends Variable with ThingInMemory with Indexable
     declaredBank.getOrElse("default")
 }
 
-case class RegisterVariable(register: Register.Value, typ: Type) extends Variable {
+case class RegisterVariable(register: MosRegister.Value, typ: Type) extends Variable {
   def name: String = register.toString
 }
 
@@ -294,7 +294,7 @@ sealed trait ParamPassingConvention {
   def inNonInlinedOnly: Boolean
 }
 
-case class ByRegister(register: Register.Value) extends ParamPassingConvention {
+case class ByRegister(register: MosRegister.Value) extends ParamPassingConvention {
   override def inInlinedOnly = false
 
   override def inNonInlinedOnly = false

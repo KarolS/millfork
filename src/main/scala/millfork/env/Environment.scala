@@ -3,11 +3,10 @@ package millfork.env
 import java.util.concurrent.atomic.AtomicLong
 
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.assembly.{Opcode, OpcodeClasses}
-import millfork.compiler._
+import millfork.assembly.mos.Opcode
 import millfork.error.ErrorReporting
 import millfork.node._
-import millfork.output.{CompiledMemory, MemoryBank, VariableAllocator}
+import millfork.output.{CompiledMemory, VariableAllocator}
 
 import scala.collection.mutable
 
@@ -576,7 +575,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             resultType,
             params,
             env,
-            executableStatements ++ (if (needsExtraRTS) List(AssemblyStatement.implied(Opcode.RTS, elidable = true)) else Nil)
+            executableStatements ++ (if (needsExtraRTS) List(MosAssemblyStatement.implied(Opcode.RTS, elidable = true)) else Nil)
           )
           addThing(mangled, stmt.position)
         } else {
@@ -1011,7 +1010,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   def nameCheck(nodes: List[_ <:Node]): Unit = nodes.foreach(nameCheck)
 
   def nameCheck(node: Node): Unit = node match {
-    case _:AssemblyStatement => ()
+    case _:MosAssemblyStatement => ()
     case _:DeclarationStatement => ()
     case s:ForStatement =>
       checkName[Variable]("Variable", s.variable, s.position)

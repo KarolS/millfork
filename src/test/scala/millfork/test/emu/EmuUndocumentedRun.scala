@@ -1,6 +1,6 @@
 package millfork.test.emu
 
-import millfork.assembly.opt.{LaterOptimizations, UndocumentedOptimizations}
+import millfork.assembly.mos.opt.{LaterOptimizations, UndocumentedOptimizations}
 import millfork.{Cpu, OptimizationPresets}
 
 /**

@@ -1,7 +1,8 @@
 package millfork.node
 
-import millfork.assembly.{AddrMode, Opcode}
-import millfork.env.{Constant, Label, ParamPassingConvention}
+import millfork.assembly.AddrMode
+import millfork.assembly.mos.Opcode
+import millfork.env.{Constant, ParamPassingConvention}
 
 case class Position(filename: String, line: Int, column: Int, cursor: Int)
 
@@ -64,7 +65,7 @@ case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends E
     HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte)
 }
 
-object Register extends Enumeration {
+object MosRegister extends Enumeration {
   val A, X, Y, AX, AY, YA, XA, XY, YX, AW = Value
 }
 
@@ -211,7 +212,7 @@ case class Assignment(destination: LhsExpression, source: Expression) extends Ex
   override def getAllExpressions: List[Expression] = List(destination, source)
 }
 
-case class AssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, expression: Expression, elidable: Boolean) extends ExecutableStatement {
+case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, expression: Expression, elidable: Boolean) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
 }
 
@@ -251,8 +252,8 @@ case class ContinueStatement(label: String) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = Nil
 }
 
-object AssemblyStatement {
-  def implied(opcode: Opcode.Value, elidable: Boolean) = AssemblyStatement(opcode, AddrMode.Implied, LiteralExpression(0, 1), elidable)
+object MosAssemblyStatement {
+  def implied(opcode: Opcode.Value, elidable: Boolean) = MosAssemblyStatement(opcode, AddrMode.Implied, LiteralExpression(0, 1), elidable)
 
-  def nonexistent(opcode: Opcode.Value) = AssemblyStatement(opcode, AddrMode.DoesNotExist, LiteralExpression(0, 1), elidable = true)
+  def nonexistent(opcode: Opcode.Value) = MosAssemblyStatement(opcode, AddrMode.DoesNotExist, LiteralExpression(0, 1), elidable = true)
 }

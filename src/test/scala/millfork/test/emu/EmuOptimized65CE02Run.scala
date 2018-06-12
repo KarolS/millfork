@@ -1,6 +1,6 @@
 package millfork.test.emu
 
-import millfork.assembly.opt.{CE02Optimizations, CmosOptimizations}
+import millfork.assembly.mos.opt.{CE02Optimizations, CmosOptimizations}
 import millfork.{Cpu, OptimizationPresets}
 
 /**
