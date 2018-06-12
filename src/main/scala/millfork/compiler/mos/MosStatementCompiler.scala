@@ -415,7 +415,12 @@ object MosStatementCompiler {
             compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)) :: f.body) ++ labelChunk(end)
           case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s < e =>
             Nil
-          case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(0, esize))) if s > 0 =>
+          case (ForDirection.DownTo, Some(NumericConstant(s, 1)), Some(NumericConstant(0, _))) if s > 0 =>
+            compile(ctx, List(
+              Assignment(vex, FunctionCallExpression("lo", List(SumExpression(List(false -> f.start, false -> LiteralExpression(1, 2)), decimal = false)))),
+              DoWhileStatement(decrement :: f.body, Nil, FunctionCallExpression("!=", List(vex, f.end)), names)
+            ))
+          case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(0, _))) if s > 0 =>
             compile(ctx, List(
               Assignment(vex, SumExpression(List(false -> f.start, false -> LiteralExpression(1, 1)), decimal = false)),
               DoWhileStatement(decrement :: f.body, Nil, FunctionCallExpression("!=", List(vex, f.end)), names)
