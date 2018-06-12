@@ -102,7 +102,7 @@ object LaterOptimizations {
 
   private def TwoDifferentLoadsWithNoFlagChangeInBetween(opcode1: Opcode.Value, middle: AssemblyLinePattern, opcode2: Opcode.Value, transferOpcode: Opcode.Value) = {
     (HasOpcode(opcode1) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (LinearOrLabel & Not(ChangesMemory) & middle & Not(HasOpcode(opcode2))).* ~
+      (Linear & Not(ChangesMemory) & middle & Not(HasOpcode(opcode2))).* ~
       (HasOpcode(opcode2) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~~> { c =>
       c.init :+ AssemblyLine.implied(transferOpcode)
     }
@@ -110,7 +110,7 @@ object LaterOptimizations {
 
   private def TwoDifferentLoadsWhoseFlagsWillNotBeChecked(opcode1: Opcode.Value, middle: AssemblyLinePattern, opcode2: Opcode.Value, transferOpcode: Opcode.Value) = {
     ((HasOpcode(opcode1) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (LinearOrLabel & Not(ChangesMemory) & middle & Not(HasOpcode(opcode2))).*).capture(2) ~
+      (Linear & Not(ChangesMemory) & middle & Not(HasOpcode(opcode2))).*).capture(2) ~
       (HasOpcode(opcode2) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~
       ((LinearOrLabel & Not(ReadsNOrZ) & Not(ChangesNAndZ)).* ~ ChangesNAndZ).capture(3) ~~> { (_, ctx) =>
       ctx.get[List[AssemblyLine]](2) ++ (AssemblyLine.implied(transferOpcode) :: ctx.get[List[AssemblyLine]](3))
@@ -119,7 +119,7 @@ object LaterOptimizations {
 
   private def TwoIdenticalLoadsWithNoFlagChangeInBetween(opcode: Opcode.Value, middle: AssemblyLinePattern) = {
     (HasOpcode(opcode) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (LinearOrLabel & Not(ChangesMemory) & DoesntChangeIndexingInAddrMode(0) & middle & Not(ChangesNAndZ)).* ~
+      (Linear & Not(ChangesMemory) & DoesntChangeIndexingInAddrMode(0) & middle & Not(ChangesNAndZ)).* ~
       (HasOpcode(opcode) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~~> { c =>
       c.init
     }
@@ -127,7 +127,7 @@ object LaterOptimizations {
 
   private def TwoIdenticalImmediateLoadsWithNoFlagChangeInBetween(opcode: Opcode.Value, middle: AssemblyLinePattern) = {
     (HasOpcode(opcode) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (LinearOrLabel & middle & Not(ChangesNAndZ)).* ~
+      (Linear & middle & Not(ChangesNAndZ)).* ~
       (HasOpcode(opcode) & Elidable & HasAddrMode(Immediate) & MatchParameter(1)) ~~> { c =>
       c.init
     }
@@ -135,7 +135,7 @@ object LaterOptimizations {
 
   private def TwoIdenticalLoadsWhoseFlagsWillNotBeChecked(opcode: Opcode.Value, middle: AssemblyLinePattern) = {
     ((HasOpcode(opcode) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (LinearOrLabel & Not(ChangesMemory) & DoesntChangeIndexingInAddrMode(0) & middle).*).capture(2) ~
+      (Linear & Not(ChangesMemory) & DoesntChangeIndexingInAddrMode(0) & middle).*).capture(2) ~
       (HasOpcode(opcode) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~
       ((LinearOrLabel & Not(ReadsNOrZ) & Not(ChangesNAndZ)).* ~ ChangesNAndZ).capture(3) ~~> { (_, ctx) =>
       ctx.get[List[AssemblyLine]](2) ++ ctx.get[List[AssemblyLine]](3)
