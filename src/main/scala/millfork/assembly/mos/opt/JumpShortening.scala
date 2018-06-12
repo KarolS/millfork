@@ -65,6 +65,7 @@ object JumpShortening {
               if (bra != JMP) {
                 val result = line.copy(opcode = bra, addrMode = AddrMode.Relative)
                 ErrorReporting.debug("Changing branch from long to short")
+                ErrorReporting.trace(info.statusBefore.toString)
                 ErrorReporting.trace(line.toString)
                 ErrorReporting.trace("     ↓")
                 ErrorReporting.trace(result.toString)
