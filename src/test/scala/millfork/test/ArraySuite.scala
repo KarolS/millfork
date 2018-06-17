@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.{Cpu, OptimizationPresets}
+import millfork.{Cpu, CpuFamily, OptimizationPresets}
 import millfork.assembly.mos.opt.{AlwaysGoodOptimizations, DangerousOptimizations}
 import millfork.test.emu._
 import org.scalatest.{FunSuite, Matchers}
@@ -100,7 +100,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array simple read") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | byte output @$c000
         | array a[7]
@@ -114,7 +114,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array simple read 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | word output @$c000
         | array a[7]
@@ -132,7 +132,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Pointers") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | byte output
         |   pointer a
@@ -157,7 +157,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Pointer indexing test") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | array output [4] @$c000
         |   pointer a
@@ -174,19 +174,19 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Syntax") {
-    EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | array a = [1, 2, 3]
         | array b = "text" ascii
         | array c = ["text" ascii, 5]
         | void main () {
         | }
-      """.stripMargin)
+      """.stripMargin){m => ()}
 
   }
 
   test("Negative subindex") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         |
         | array output [$fff] @$c000
@@ -197,10 +197,10 @@ class ArraySuite extends FunSuite with Matchers {
         |   output[1 - i] = 5
         | }
         | noinline byte one() {return 1}
-      """.stripMargin)
-    m.readByte(0xc100) should equal(55)
-    m.readByte(0xc000) should equal(5)
-
+      """.stripMargin) { m =>
+      m.readByte(0xc100) should equal(55)
+      m.readByte(0xc000) should equal(5)
+    }
   }
 
   test("Word subindex 1") {
@@ -224,7 +224,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Word subindex 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         |
         | array output [$fff] @$c000

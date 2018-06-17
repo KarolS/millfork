@@ -3,6 +3,7 @@ package millfork.assembly.mos.opt
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.OpcodeClasses
+import millfork.assembly.opt.AnyStatus
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConstant}
 
 /**
@@ -34,7 +35,7 @@ object CoarseFlowAnalyzer {
       var currentStatus: CpuStatus = functionStartStatus
       for (i <- codeArray.indices) {
         import millfork.assembly.mos.Opcode._
-        import millfork.assembly.AddrMode._
+        import millfork.assembly.mos.AddrMode._
         if (flagArray(i) != currentStatus) {
           changed = true
           flagArray(i) = currentStatus

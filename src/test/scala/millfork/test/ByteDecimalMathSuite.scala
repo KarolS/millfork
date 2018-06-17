@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.{EmuBenchmarkRun, EmuOptimizedRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**

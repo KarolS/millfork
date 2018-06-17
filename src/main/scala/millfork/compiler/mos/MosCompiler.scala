@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicLong
 import millfork.CompilationFlag
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
-import millfork.compiler.AbstractCompiler
+import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env._
 
 /**

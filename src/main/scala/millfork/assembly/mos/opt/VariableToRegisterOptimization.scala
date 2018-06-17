@@ -1,10 +1,10 @@
 package millfork.assembly.mos.opt
 
 import millfork.{CompilationFlag, CompilationOptions, NonOverlappingIntervals}
-import millfork.assembly.{AddrMode, AssemblyOptimization}
+import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos._
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.AddrMode._
+import AddrMode._
 import millfork.env._
 import millfork.error.ErrorReporting
 

@@ -114,7 +114,7 @@ object ReverseFlowAnalyzer {
       var currentImportance: CpuImportance = finalImportance
       for (i <- codeArray.indices.reverse) {
         import millfork.assembly.mos.Opcode._
-        import millfork.assembly.AddrMode._
+        import AddrMode._
         if (importanceArray(i) != currentImportance) {
           changed = true
           importanceArray(i) = currentImportance

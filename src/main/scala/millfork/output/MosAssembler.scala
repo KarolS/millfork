@@ -6,7 +6,7 @@ import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node.Program
 import millfork._
-import millfork.assembly.mos.{AssemblyLine, Opcode}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.compiler.mos.MosCompiler
 
 import scala.collection.mutable
@@ -28,7 +28,7 @@ class MosAssembler(program: Program,
   }
 
   override def emitInstruction(bank: String, options: CompilationOptions, index: Int, instr: AssemblyLine): Int = {
-    import millfork.assembly.AddrMode._
+    import millfork.assembly.mos.AddrMode._
     import millfork.assembly.mos.Opcode._
     instr match {
       case AssemblyLine(BYTE, RawByte, c, _) =>

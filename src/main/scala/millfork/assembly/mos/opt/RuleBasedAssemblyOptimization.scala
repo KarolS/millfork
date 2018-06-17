@@ -3,6 +3,7 @@ package millfork.assembly.mos.opt
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly._
 import millfork.assembly.mos._
+import millfork.assembly.opt.SingleStatus
 import millfork.env._
 import millfork.error.ErrorReporting
 

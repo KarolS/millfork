@@ -3,7 +3,7 @@ package millfork.assembly.mos.opt
 import millfork.assembly._
 import millfork.assembly.mos._
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.AddrMode._
+import AddrMode._
 import millfork.assembly.mos.OpcodeClasses._
 import millfork.env.{Constant, NormalFunction, NumericConstant}
 

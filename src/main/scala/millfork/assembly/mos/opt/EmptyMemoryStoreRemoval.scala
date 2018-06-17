@@ -5,7 +5,7 @@ import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.AssemblyLine
 import millfork.env._
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.AddrMode._
+import millfork.assembly.mos.AddrMode._
 import millfork.error.ErrorReporting
 
 import scala.collection.{immutable, mutable}

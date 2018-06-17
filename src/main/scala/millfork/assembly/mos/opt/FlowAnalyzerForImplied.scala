@@ -2,6 +2,7 @@ package millfork.assembly.mos.opt
 
 import millfork.assembly.mos.Opcode
 import millfork.assembly.mos.Opcode._
+import millfork.assembly.opt.{AnyStatus, Status}
 
 /**
   * @author Karol Stasiak

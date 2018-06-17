@@ -2,11 +2,10 @@ package millfork.assembly.mos.opt
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import millfork.assembly.AddrMode
-import millfork.assembly.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.OpcodeClasses._
-import millfork.assembly.mos.{opt, _}
+import millfork.assembly.mos.{AddrMode, opt, _}
+import millfork.assembly.mos.AddrMode._
 import millfork.env._
 
 /**

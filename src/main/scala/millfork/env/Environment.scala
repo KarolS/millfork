@@ -2,8 +2,10 @@ package millfork.env
 
 import java.util.concurrent.atomic.AtomicLong
 
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.assembly.BranchingOpcodeMapping
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
 import millfork.assembly.mos.Opcode
+import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
 import millfork.error.ErrorReporting
 import millfork.node._
 import millfork.output.{CompiledMemory, VariableAllocator}
@@ -265,14 +267,38 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     addThing(ConstantThing("true", NumericConstant(0, 0), trueType), None)
     addThing(ConstantThing("false", NumericConstant(0, 0), falseType), None)
     addThing(ConstantThing("__zeropage_usage", UnexpandedConstant("__zeropage_usage", 1), b), None)
-    addThing(FlagBooleanType("set_carry", Opcode.BCS, Opcode.BCC), None)
-    addThing(FlagBooleanType("clear_carry", Opcode.BCC, Opcode.BCS), None)
-    addThing(FlagBooleanType("set_overflow", Opcode.BVS, Opcode.BVC), None)
-    addThing(FlagBooleanType("clear_overflow", Opcode.BVC, Opcode.BVS), None)
-    addThing(FlagBooleanType("set_zero", Opcode.BEQ, Opcode.BNE), None)
-    addThing(FlagBooleanType("clear_zero", Opcode.BNE, Opcode.BEQ), None)
-    addThing(FlagBooleanType("set_negative", Opcode.BMI, Opcode.BPL), None)
-    addThing(FlagBooleanType("clear_negative", Opcode.BPL, Opcode.BMI), None)
+    addThing(FlagBooleanType("set_carry",
+      BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C)),
+      BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C))),
+      None)
+    addThing(FlagBooleanType("clear_carry",
+      BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C)),
+      BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C))),
+      None)
+    addThing(FlagBooleanType("set_overflow",
+      BranchingOpcodeMapping(Opcode.BVS, IfFlagSet(ZFlag.P)),
+      BranchingOpcodeMapping(Opcode.BVC, IfFlagClear(ZFlag.P))),
+      None)
+    addThing(FlagBooleanType("clear_overflow",
+      BranchingOpcodeMapping(Opcode.BVC, IfFlagClear(ZFlag.P)),
+      BranchingOpcodeMapping(Opcode.BVS, IfFlagSet(ZFlag.P))),
+      None)
+    addThing(FlagBooleanType("set_zero",
+      BranchingOpcodeMapping(Opcode.BEQ, IfFlagSet(ZFlag.Z)),
+      BranchingOpcodeMapping(Opcode.BNE, IfFlagClear(ZFlag.Z))),
+      None)
+    addThing(FlagBooleanType("clear_zero",
+      BranchingOpcodeMapping(Opcode.BNE, IfFlagClear(ZFlag.Z)),
+      BranchingOpcodeMapping(Opcode.BEQ, IfFlagSet(ZFlag.Z))),
+      None)
+    addThing(FlagBooleanType("set_negative",
+      BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S)),
+      BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S))),
+      None)
+    addThing(FlagBooleanType("clear_negative",
+      BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S)),
+      BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S))),
+      None)
   }
 
   def assertNotDefined(name: String, position: Option[Position]): Unit = {
@@ -523,7 +549,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           pd.assemblyParamPassingConvention match {
             case ByVariable(vn) =>
               AssemblyParam(typ, env.get[MemoryVariable](vn), AssemblyParameterPassingBehaviour.Copy)
-            case ByRegister(reg) =>
+            case ByMosRegister(reg) =>
               AssemblyParam(typ, RegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
             case ByConstant(vn) =>
               AssemblyParam(typ, Placeholder(vn, typ), AssemblyParameterPassingBehaviour.ByConstant)
@@ -658,7 +684,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
             addThing(RelativeVariable(v.name + ".b0", addr, b, zeropage = zp, None), stmt.position)
           case _ =>
         }
-      case ByRegister(_) => ()
+      case ByMosRegister(_) => ()
       case ByConstant(name) =>
         val v = ConstantThing(prefix + name, UnexpandedConstant(prefix + name, typ.size), typ)
         addThing(v, stmt.position)
@@ -996,8 +1022,10 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         initialValue = None,
         address = None), options)
     }
-    if (!things.contains("__constant8")) {
-      things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None)
+    if (CpuFamily.forType(options.platform.cpu) == CpuFamily.M6502) {
+      if (!things.contains("__constant8")) {
+        things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None)
+      }
     }
   }
 

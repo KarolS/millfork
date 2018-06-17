@@ -3,6 +3,7 @@ package millfork.compiler.mos
 import millfork.CompilationFlag
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
+import millfork.compiler.{BranchSpec, CompilationContext}
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node._
@@ -12,7 +13,7 @@ import scala.collection.mutable
 /**
   * @author Karol Stasiak
   */
-object ReturnDispatch {
+object MosReturnDispatch {
 
   def compile(ctx: CompilationContext, stmt: ReturnDispatchStatement): List[AssemblyLine] = {
     if (stmt.branches.isEmpty) {
@@ -134,7 +135,7 @@ object ReturnDispatch {
     val useJmpaix = ctx.options.flag(CompilationFlag.EmitCmosOpcodes) && !ctx.options.flag(CompilationFlag.LUnixRelocatableCode) && (actualMax - actualMin) <= 127
     val b = ctx.env.get[Type]("byte")
 
-    import millfork.assembly.AddrMode._
+    import AddrMode._
     import millfork.assembly.mos.Opcode._
 
     val ctxForStoringParams = ctx.neverCheckArrayBounds

@@ -9,7 +9,8 @@ import com.loomcom.symon.{Bus, Cpu, CpuState}
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.AssemblyLine
-import millfork.compiler.mos.{CompilationContext, MosCompiler}
+import millfork.compiler.CompilationContext
+import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph

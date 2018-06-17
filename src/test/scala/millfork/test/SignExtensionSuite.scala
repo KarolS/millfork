@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
+import millfork.CpuFamily
+import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,14 +10,16 @@ import org.scalatest.{FunSuite, Matchers}
 class SignExtensionSuite extends FunSuite with Matchers {
 
   test("Sbyte to Word") {
-    EmuUnoptimizedRun("""
+    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)("""
         | word output @$c000
         | void main () {
         |   sbyte b
         |   b = -1
         |   output = b
         | }
-      """.stripMargin).readWord(0xc000) should equal(0xffff)
+      """.stripMargin){m =>
+      m.readWord(0xc000) should equal(0xffff)
+    }
   }
   test("Sbyte to Word 2") {
     EmuUnoptimizedRun("""

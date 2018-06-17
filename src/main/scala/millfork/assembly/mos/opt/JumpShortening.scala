@@ -1,8 +1,7 @@
 package millfork.assembly.mos.opt
 
-import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.{AddrMode, AssemblyLine}
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.assembly.AddrMode
 import millfork.assembly.mos.Opcode._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 import millfork.error.ErrorReporting

@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.EmuUnoptimizedRun
+import millfork.CpuFamily
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -8,12 +9,14 @@ import org.scalatest.{FunSuite, Matchers}
   */
 class BasicSymonTest extends FunSuite with Matchers {
   test("Empty test") {
-    EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | void main () {
         |
         | }
-      """.stripMargin)
+      """.stripMargin) {
+      m => ()
+    }
   }
 
   test("Panic test") {
@@ -81,13 +84,15 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Byte assignment") {
-    EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | byte output @$c000
         | void main () {
         |  output = (1)
         | }
-      """.stripMargin).readByte(0xc000) should equal(1)
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(1)
+    }
   }
 
   test("Preallocated variables") {
@@ -101,20 +106,21 @@ class BasicSymonTest extends FunSuite with Matchers {
         |  output[1] = number
         | }
       """.stripMargin)
-      m.readByte(0xc000) should equal(4)
-      m.readByte(0xc001) should equal(5)
+    m.readByte(0xc000) should equal(4)
+    m.readByte(0xc001) should equal(5)
   }
 
   test("Preallocated variables 2") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | word output @$c000
         | word number = 344
         | void main () {
         |  output = number
         | }
-      """.stripMargin)
+      """.stripMargin) { m =>
       m.readWord(0xc000) should equal(344)
+    }
   }
 
   test("Else if") {
@@ -135,12 +141,12 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Segment syntax") {
-    EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
       """
         | segment(default)byte output @$c000
         | segment(default)array x[3]
         | segment(default)void main () {
         | }
-      """.stripMargin)
+      """.stripMargin){ m => () }
   }
 }

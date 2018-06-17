@@ -1,8 +1,7 @@
 package millfork.output
 
-import millfork.assembly.AddrMode
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.mos._
+import millfork.assembly.mos.{AddrMode, _}
 import millfork.compiler.AbstractCompiler
 import millfork.env._
 import millfork.node._

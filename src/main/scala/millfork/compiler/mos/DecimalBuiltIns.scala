@@ -1,10 +1,11 @@
 package millfork.compiler.mos
 
 import millfork.CompilationFlag
-import millfork.assembly.AddrMode._
+import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
 import millfork.assembly._
+import millfork.compiler.{BranchSpec, CompilationContext}
 import millfork.env.{NumericConstant, RegisterVariable, Type, _}
 import millfork.error.ErrorReporting
 import millfork.node.{Expression, MosRegister, _}

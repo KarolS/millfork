@@ -1,8 +1,8 @@
 package millfork.assembly.mos.opt
 
 import millfork.{CompilationFlag, CompilationOptions, OptimizationPresets}
-import millfork.assembly.{AddrMode, AssemblyOptimization}
-import millfork.assembly.mos.{AssemblyLine, Opcode}
+import millfork.assembly.AssemblyOptimization
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.env.NormalFunction
 import millfork.error.ErrorReporting
 

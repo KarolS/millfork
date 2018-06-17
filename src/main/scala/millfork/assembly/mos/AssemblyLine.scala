@@ -1,8 +1,9 @@
 package millfork.assembly.mos
 
-import millfork.assembly.{AbstractCode, AddrMode}
+import millfork.assembly.AbstractCode
 import millfork.assembly.mos.Opcode._
-import millfork.compiler.mos.{CompilationContext, MosCompiler}
+import millfork.compiler.CompilationContext
+import millfork.compiler.mos.MosCompiler
 import millfork.env._
 import millfork.{CompilationFlag, CompilationOptions}
 
@@ -562,6 +563,6 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
         case HuSAX => "SAX"
         case _ => opcode.toString
       }
-      s"    $op ${AddrMode.addrModeToMosString(addrMode, parameter.toString)}"
+      s"    $op ${AddrMode.addrModeToString(addrMode, parameter.toString)}"
     }
 }

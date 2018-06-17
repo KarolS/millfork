@@ -1,7 +1,7 @@
 package millfork.assembly.mos.opt
 
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.AddrMode._
+import millfork.assembly.mos.AddrMode._
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.AssemblyLine
 import millfork.env.{CompoundConstant, Constant, MathOperator}

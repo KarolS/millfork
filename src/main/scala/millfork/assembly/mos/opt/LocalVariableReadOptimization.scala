@@ -3,8 +3,9 @@ package millfork.assembly.mos.opt
 import millfork.CompilationOptions
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.AddrMode._
+import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.{AssemblyLine, OpcodeClasses}
+import millfork.assembly.opt.SingleStatus
 import millfork.env._
 import millfork.error.ErrorReporting
 

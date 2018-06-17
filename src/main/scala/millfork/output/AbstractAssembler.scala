@@ -1,12 +1,11 @@
 package millfork.output
 
 import millfork.assembly._
-import millfork.compiler.AbstractCompiler
+import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node.{CallGraph, Program}
 import millfork._
-import millfork.compiler.mos.CompilationContext
 
 import scala.collection.mutable
 

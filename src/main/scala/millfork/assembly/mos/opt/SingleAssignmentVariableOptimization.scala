@@ -3,8 +3,8 @@ package millfork.assembly.mos.opt
 import millfork.{CompilationFlag, CompilationOptions, NonOverlappingIntervals}
 import millfork.assembly._
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.AddrMode._
-import millfork.assembly.mos.{AssemblyLine, Opcode}
+import millfork.assembly.mos.AddrMode._
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.env._
 import millfork.error.ErrorReporting
 

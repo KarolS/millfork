@@ -1,4 +1,4 @@
-package millfork.compiler.mos
+package millfork.compiler
 
 import millfork.env.{Environment, Label, NormalFunction}
 import millfork.{CompilationFlag, CompilationOptions}
@@ -12,8 +12,8 @@ case class CompilationContext(env: Environment,
                               options: CompilationOptions,
                               breakLabels: Map[String, Label] = Map(),
                               continueLabels: Map[String, Label] = Map()){
-  def withInlinedEnv(environment: Environment): CompilationContext = {
-    val newEnv = new Environment(Some(env), MosCompiler.nextLabel("en"))
+  def withInlinedEnv(environment: Environment, newLabel: String): CompilationContext = {
+    val newEnv = new Environment(Some(env), newLabel)
     newEnv.things ++= environment.things
     copy(env = newEnv)
   }

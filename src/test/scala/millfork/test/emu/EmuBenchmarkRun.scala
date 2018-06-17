@@ -1,5 +1,6 @@
 package millfork.test.emu
 
+import millfork.CpuFamily
 import millfork.output.MemoryBank
 
 /**
@@ -21,5 +22,17 @@ object EmuBenchmarkRun {
     verifier(m1)
     println(f"Running optimized inlined")
     verifier(m2)
+  }
+}
+
+object EmuCrossPlatformBenchmarkRun {
+  def apply(platforms: CpuFamily.Value*)(source: String)(verifier: MemoryBank => Unit): Unit = {
+    if (platforms.contains(CpuFamily.M6502)) {
+      EmuBenchmarkRun.apply(source)(verifier)
+    }
+    if (platforms.contains(CpuFamily.I80)) {
+      EmuUnoptimizedZ80Run.apply2(source)
+      EmuOptimizedZ80Run.apply2(source)
+    }
   }
 }

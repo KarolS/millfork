@@ -1,10 +1,10 @@
 package millfork.compiler.mos
 
 import millfork.CompilationFlag
-import millfork.assembly.AddrMode._
+import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
-import millfork.compiler.AbstractExpressionCompiler
+import millfork.compiler._
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node.{MosRegister, _}
@@ -294,74 +294,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         }
     }
   }
-
-  def assertCompatible(exprType: Type, variableType: Type): Unit = {
-    // TODO
-  }
-
   val noop: List[AssemblyLine] = Nil
 
-  def callingContext(ctx: CompilationContext, v: MemoryVariable): CompilationContext = {
-    val result = new Environment(Some(ctx.env), "")
-    result.registerVariable(VariableDeclarationStatement(v.name, v.typ.name, stack = false, global = false, constant = false, volatile = false, register = false, initialValue = None, address = None, bank = v.declaredBank), ctx.options)
-    ctx.copy(env = result)
-  }
-
-  def assertBinary(ctx: CompilationContext, params: List[Expression]): (Expression, Expression, Int) = {
-    if (params.length != 2) {
-      ErrorReporting.fatal("sfgdgfsd", None)
-    }
-    (params.head, params(1)) match {
-      case (l: Expression, r: Expression) => (l, r, getExpressionType(ctx, l).size max getExpressionType(ctx, r).size)
-    }
-  }
-
-  def assertComparison(ctx: CompilationContext, params: List[Expression]): (Int, Boolean) = {
-    (params.head, params(1)) match {
-      case (l: Expression, r: Expression) =>
-        val lt = getExpressionType(ctx, l)
-        val rt = getExpressionType(ctx, r)
-        (lt.size max rt.size, lt.isSigned || rt.isSigned)
-    }
-  }
-
-  def assertBool(ctx: CompilationContext, fname: String, params: List[Expression], expectedParamCount: Int): Unit = {
-    if (params.length != expectedParamCount) {
-      ErrorReporting.error("Invalid number of parameters for " + fname, params.headOption.flatMap(_.position))
-      return
-    }
-    params.foreach { param =>
-      if (!getExpressionType(ctx, param).isInstanceOf[BooleanType])
-        ErrorReporting.fatal("Parameter should be boolean", param.position)
-    }
-  }
-
-  def assertBool(ctx: CompilationContext, fname: String, params: List[Expression]): Unit = {
-    if (params.length < 2) {
-      ErrorReporting.error("Invalid number of parameters for " + fname, params.headOption.flatMap(_.position))
-      return
-    }
-    params.foreach { param =>
-      if (!getExpressionType(ctx, param).isInstanceOf[BooleanType])
-        ErrorReporting.fatal("Parameter should be boolean", param.position)
-    }
-  }
-
-  def assertAssignmentLike(ctx: CompilationContext, params: List[Expression]): (LhsExpression, Expression, Int) = {
-    if (params.length != 2) {
-      ErrorReporting.fatal("sfgdgfsd", None)
-    }
-    (params.head, params(1)) match {
-      case (l: LhsExpression, r: Expression) =>
-        val lsize = getExpressionType(ctx, l).size
-        val rsize = getExpressionType(ctx, r).size
-        if (lsize < rsize) {
-          ErrorReporting.error("Left-hand-side expression is of smaller type than the right-hand-side expression", l.position)
-        }
-        (l, r, lsize)
-      case (err: Expression, _) => ErrorReporting.fatal("Invalid left-hand-side expression", err.position)
-    }
-  }
 
   def compile(ctx: CompilationContext, expr: Expression, exprTypeAndVariable: Option[(Type, Variable)], branches: BranchSpec): List[AssemblyLine] = {
     val env = ctx.env
@@ -1098,7 +1032,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
             lookupFunction(ctx, f) match {
               case function: MacroFunction =>
-                val (paramPreparation, statements) = MacroExpander.inlineFunction(ctx, function, params, expr.position)
+                val (paramPreparation, statements) = MosMacroExpander.inlineFunction(ctx, function, params, expr.position)
                 paramPreparation ++ statements.map {
                   case MosAssemblyStatement(opcode, addrMode, expression, elidable) =>
                     val param = env.evalForAsm(expression).getOrElse {
@@ -1300,20 +1234,6 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           case s if s > 2 => ???
         }
       }
-    }
-  }
-
-  private def getParamMaxSize(ctx: CompilationContext, params: List[Expression]): Int = {
-    params.map { case expr => getExpressionType(ctx, expr).size}.max
-  }
-
-  private def getSumSize(ctx: CompilationContext, params: List[(Boolean, Expression)]): Int = {
-    params.map { case (_, expr) => getExpressionType(ctx, expr).size}.max
-  }
-
-  private def assertAllBytes(msg: String, ctx: CompilationContext, params: List[Expression]): Unit = {
-    if (params.exists { expr => getExpressionType(ctx, expr).size != 1 }) {
-      ErrorReporting.fatal(msg, params.head.position)
     }
   }
 

@@ -1,9 +1,7 @@
 package millfork.parser
 
 import fastparse.all._
-import millfork.assembly.AddrMode
-import millfork.assembly.mos.Opcode
-import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node._
@@ -76,15 +74,15 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
 
   val appcSimple: P[ParamPassingConvention] = P("xy" | "yx" | "ax" | "ay" | "xa" | "ya" | "stack" | "a" | "x" | "y").!.map {
-    case "xy" => ByRegister(MosRegister.XY)
-    case "yx" => ByRegister(MosRegister.YX)
-    case "ax" => ByRegister(MosRegister.AX)
-    case "ay" => ByRegister(MosRegister.AY)
-    case "xa" => ByRegister(MosRegister.XA)
-    case "ya" => ByRegister(MosRegister.YA)
-    case "a" => ByRegister(MosRegister.A)
-    case "x" => ByRegister(MosRegister.X)
-    case "y" => ByRegister(MosRegister.Y)
+    case "xy" => ByMosRegister(MosRegister.XY)
+    case "yx" => ByMosRegister(MosRegister.YX)
+    case "ax" => ByMosRegister(MosRegister.AX)
+    case "ay" => ByMosRegister(MosRegister.AY)
+    case "xa" => ByMosRegister(MosRegister.XA)
+    case "ya" => ByMosRegister(MosRegister.YA)
+    case "a" => ByMosRegister(MosRegister.A)
+    case "x" => ByMosRegister(MosRegister.X)
+    case "y" => ByMosRegister(MosRegister.Y)
     case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
   }
 

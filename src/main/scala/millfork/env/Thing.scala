@@ -1,6 +1,7 @@
 package millfork.env
 
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.assembly.BranchingOpcodeMapping
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
 import millfork.assembly.mos.Opcode
 import millfork.node._
 
@@ -66,7 +67,7 @@ sealed trait BooleanType extends Type {
 
 case class ConstantBooleanType(name: String, value: Boolean) extends BooleanType
 
-case class FlagBooleanType(name: String, jumpIfTrue: Opcode.Value, jumpIfFalse: Opcode.Value) extends BooleanType
+case class FlagBooleanType(name: String, jumpIfTrue: BranchingOpcodeMapping, jumpIfFalse: BranchingOpcodeMapping) extends BooleanType
 
 case object BuiltInBooleanType extends BooleanType {
   override def name = "bool$"
@@ -294,7 +295,13 @@ sealed trait ParamPassingConvention {
   def inNonInlinedOnly: Boolean
 }
 
-case class ByRegister(register: MosRegister.Value) extends ParamPassingConvention {
+case class ByMosRegister(register: MosRegister.Value) extends ParamPassingConvention {
+  override def inInlinedOnly = false
+
+  override def inNonInlinedOnly = false
+}
+
+case class ByZRegister(register: ZRegister.Value) extends ParamPassingConvention {
   override def inInlinedOnly = false
 
   override def inNonInlinedOnly = false

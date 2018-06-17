@@ -1,7 +1,6 @@
 package millfork.compiler
 
 import millfork.assembly.AbstractCode
-import millfork.compiler.mos.CompilationContext
 
 /**
   * @author Karol Stasiak

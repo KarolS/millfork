@@ -25,7 +25,7 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
 
   import IndexReg._
   import IndexDirection._
-  import millfork.assembly.AddrMode._
+  import millfork.assembly.mos.AddrMode._
   import millfork.assembly.mos.Opcode._
 
   type IndexReg = IndexReg.Value

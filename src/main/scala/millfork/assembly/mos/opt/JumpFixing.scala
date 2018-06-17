@@ -2,9 +2,8 @@ package millfork.assembly.mos.opt
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import millfork.assembly.mos.{AssemblyLine, Opcode}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.AddrMode
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 import millfork.error.ErrorReporting
 import millfork.CompilationOptions

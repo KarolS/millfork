@@ -1,4 +1,4 @@
-package millfork.assembly
+package millfork.assembly.mos
 
 /**
   * @author Karol Stasiak
@@ -33,7 +33,7 @@ object AddrMode extends Enumeration {
   DoesNotExist = Value
 
 
-  def addrModeToMosString(am: AddrMode.Value, argument: String): String = {
+  def addrModeToString(am: AddrMode.Value, argument: String): String = {
     am match {
       case Implied => ""
       case Immediate => "#" + argument
