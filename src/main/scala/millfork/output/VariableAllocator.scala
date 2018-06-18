@@ -32,10 +32,14 @@ sealed trait ByteAllocator {
     var lastFree = startAt
     var counter = 0
     val occupied = mem.occupied
+    var previous = -800
     for(i <- preferredOrder.getOrElse(startAt until endBefore)) {
       if (occupied(i) || counter == 0 && count == 2 && i.&(0xff) == 0xff && options.flags(CompilationFlag.PreventJmpIndirectBug)) {
         counter = 0
       } else {
+        if (previous != i - 1) {
+          counter = 0
+        }
         if (counter == 0) {
           lastFree = i
         }
@@ -47,6 +51,7 @@ sealed trait ByteAllocator {
           return lastFree
         }
       }
+      previous = i
     }
     -1
   }
