@@ -32,18 +32,18 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 
   rules.foreach(_.pattern.validate(needsFlowInfo))
 
-  override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions, labelMap: Map[String, Int]): List[AssemblyLine] = {
     val effectiveCode = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
     val taggedCode = FlowAnalyzer.analyze(f, effectiveCode, options, needsFlowInfo)
-    optimizeImpl(f, taggedCode, options)
+    optimizeImpl(f, taggedCode, options, labelMap)
   }
 
-  def optimizeImpl(f: NormalFunction, code: List[(FlowInfo, AssemblyLine)], options: CompilationOptions): List[AssemblyLine] = {
+  def optimizeImpl(f: NormalFunction, code: List[(FlowInfo, AssemblyLine)], options: CompilationOptions, labelMap: Map[String, Int]): List[AssemblyLine] = {
     code match {
       case Nil => Nil
       case head :: tail =>
         for ((rule, index) <- rules.zipWithIndex) {
-          val ctx = new AssemblyMatchingContext(options)
+          val ctx = new AssemblyMatchingContext(options, labelMap)
           rule.pattern.matchTo(ctx, code) match {
             case Some(rest: List[(FlowInfo, AssemblyLine)]) =>
               val matchedChunkToOptimize: List[AssemblyLine] = code.take(code.length - rest.length).map(_._2)
@@ -59,19 +59,19 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
               ErrorReporting.trace("     ↓")
               optimizedChunk.filter(_.isPrintable).foreach(l => ErrorReporting.trace(l.toString))
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
-                return optimizedChunk ++ optimizeImpl(f, rest, options)
+                return optimizedChunk ++ optimizeImpl(f, rest, options, labelMap)
               } else {
                 return optimize(f, optimizedChunk ++ rest.map(_._2), options)
               }
             case None => ()
           }
         }
-        head._2 :: optimizeImpl(f, tail, options)
+        head._2 :: optimizeImpl(f, tail, options, labelMap)
     }
   }
 }
 
-class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
+class AssemblyMatchingContext(val compilationOptions: CompilationOptions, val labelMap: Map[String, Int]) {
   private val map = mutable.Map[Int, Any]()
 
   override def toString: String = map.mkString(", ")
@@ -1018,5 +1018,31 @@ case class MatchElidableCopyOf(i: Int, firstLinePattern: AssemblyLinePattern, la
       if (ix == lastIndex && !lastLinePattern.matchLineTo(ctx, f, b)) return None
     }
     Some(after)
+  }
+}
+
+case object IsZeroPage extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {
+    import Opcode._
+    line match {
+      case AssemblyLine(_, AddrMode.ZeroPage, _, _) => true
+      case l@AssemblyLine(LDA | STA | CMP |
+                          LDX | STX | CPX |
+                          LDY | STY | CPY |
+                          LDZ | STZ | CPZ |
+                          BIT |
+                          ADC | SBC | AND | ORA | EOR |
+                          INC | DEC | ROL | ROR | ASL | LSR |
+                          ISC | DCP | LAX | SAX | RLA | RRA | SLO | SRE, AddrMode.Absolute, p, true) =>
+        p match {
+          case NumericConstant(n, _) => n <= 255
+          case MemoryAddressConstant(th) => ctx.labelMap.getOrElse(th.name, 0x800) < 0x100
+          case CompoundConstant(MathOperator.Plus,
+          MemoryAddressConstant(th),
+          NumericConstant(n, _)) => ctx.labelMap.getOrElse(th.name, 0x800) + n < 0x100
+          case _ => false
+        }
+      case _ => false
+    }
   }
 }

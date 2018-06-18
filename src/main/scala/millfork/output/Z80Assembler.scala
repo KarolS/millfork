@@ -18,6 +18,8 @@ class Z80Assembler(program: Program,
     // TODO
     index
   }
+
+  override def injectLabels(labelMap: Map[String, Int], code: List[ZLine]): List[ZLine] = code // TODO
 }
 object Z80Assembler {
 

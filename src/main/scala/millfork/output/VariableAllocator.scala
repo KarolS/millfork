@@ -11,9 +11,20 @@ import scala.collection.mutable
   * @author Karol Stasiak
   */
 
+object AllocationLocation extends Enumeration {
+  val Zeropage, High, Either = Value
+  def matches(addr:Int, location: AllocationLocation.Value): Boolean = location match {
+    case Zeropage => addr < 0x100
+    case High => addr >= 0x100
+    case Either => true
+  }
+}
+
 sealed trait ByteAllocator {
-  protected def startAt: Int
-  protected def endBefore: Int
+  def startAt: Int
+  def endBefore: Int
+
+  def preferredOrder: Option[List[Int]]
 
   def notifyAboutEndOfCode(org: Int): Unit
 
@@ -21,7 +32,7 @@ sealed trait ByteAllocator {
     var lastFree = startAt
     var counter = 0
     val occupied = mem.occupied
-    for(i <- startAt until endBefore) {
+    for(i <- preferredOrder.getOrElse(startAt until endBefore)) {
       if (occupied(i) || counter == 0 && count == 2 && i.&(0xff) == 0xff && options.flags(CompilationFlag.PreventJmpIndirectBug)) {
         counter = 0
       } else {
@@ -37,72 +48,99 @@ sealed trait ByteAllocator {
         }
       }
     }
-    ErrorReporting.fatal("Out of high memory")
+    -1
   }
 }
 
 class UpwardByteAllocator(val startAt: Int, val endBefore: Int) extends ByteAllocator {
   def notifyAboutEndOfCode(org: Int): Unit = ()
+  override def preferredOrder: Option[List[Int]] = None
+}
+
+class ZeropageAllocator(val freeZpPointers: List[Int]) extends ByteAllocator {
+
+  def notifyAboutEndOfCode(org: Int): Unit = ()
+  override def preferredOrder: Option[List[Int]] = if (freeZpPointers.isEmpty) None else Some(freeZpPointers.flatMap(i => Seq(i,i+1)))
+
+  override def startAt: Int = if (freeZpPointers.isEmpty) 2 else freeZpPointers.min
+
+  override def endBefore: Int = if (freeZpPointers.isEmpty) 2 else freeZpPointers.max + 2
 }
 
 class AfterCodeByteAllocator(val endBefore: Int) extends ByteAllocator {
   var startAt = 0x200
   def notifyAboutEndOfCode(org: Int): Unit = startAt = org
+
+  override def preferredOrder: Option[List[Int]] = None
 }
 
-class VariableAllocator(val pointers: List[Int], private val bytes: ByteAllocator) {
+class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
 
-  private val pointerMap = mutable.Map[Int, Set[VariableVertex]]()
+  val zeropage: ByteAllocator = new ZeropageAllocator(pointers)
+
   private val variableMap = mutable.Map[Int, mutable.Map[Int, Set[VariableVertex]]]()
 
-  def allocatePointer(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex): Int = {
-    // TODO: search for free zeropage locations
-    pointerMap.foreach { case (addr, alreadyThere) =>
-      if (alreadyThere.forall(q => callGraph.canOverlap(p, q))) {
-        pointerMap(addr) += p
-        return addr
-      }
-    }
-    @tailrec
-    def pickFreePointer(ps: List[Int]): Int =
-      ps match {
-        case Nil =>
-          ErrorReporting.trace(pointerMap.mkString(", "))
-          ErrorReporting.fatal("Out of zero-page memory")
-        case next :: rest =>
-          if (mem.occupied(next) || mem.occupied(next + 1)) {
-            pickFreePointer(rest)
-          } else {
-            mem.readable(next) = true
-            mem.readable(next + 1) = true
-            mem.occupied(next) = true
-            mem.occupied(next + 1) = true
-            mem.writeable(next) = true
-            mem.writeable(next + 1) = true
-            pointerMap(next) = Set(p)
-            next
-          }
-      }
-    pickFreePointer(pointers)
-  }
-
-  def allocateBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean): Int = {
+  def allocateBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value): Int = {
     if (!variableMap.contains(count)) {
       variableMap(count) = mutable.Map()
     }
     variableMap(count).foreach { case (a, alreadyThere) =>
-      if (alreadyThere.forall(q => callGraph.canOverlap(p, q))) {
+      if (AllocationLocation.matches(a, location) && alreadyThere.forall(q => callGraph.canOverlap(p, q))) {
         variableMap(count)(a) += p
         return a
       }
     }
-    val addr = allocateBytes(mem, options, count, initialized, writeable)
+    val addr = allocateBytes(mem, options, count, initialized, writeable, location)
     variableMap(count)(addr) = Set(p)
     addr
   }
 
-  def allocateBytes(mem: MemoryBank, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean): Int = {
-    val addr = bytes.findFreeBytes(mem, count, options)
+  def tryAllocateZeropageBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int): Option[Int]={
+    if (!variableMap.contains(count)) {
+      variableMap(count) = mutable.Map()
+    }
+    variableMap(count).foreach { case (a, alreadyThere) =>
+      if (a < 0x100 && alreadyThere.forall(q => callGraph.canOverlap(p, q))) {
+        variableMap(count)(a) += p
+        return Some(a)
+      }
+    }
+    val addr = zeropage.findFreeBytes(mem, count, options)
+    if (addr < 0) None else {
+      markBytes(mem, addr, count, initialized = false, writeable = true)
+      Some(addr)
+    }
+  }
+
+  def allocateBytes(mem: MemoryBank, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value): Int = {
+    val addr = location match {
+      case AllocationLocation.Zeropage =>
+        val a = zeropage.findFreeBytes(mem, count, options)
+        if (a < 0) {
+          ErrorReporting.fatal("Out of zeropage memory")
+        }
+        a
+      case AllocationLocation.High =>
+        val a = bytes.findFreeBytes(mem, count, options)
+        if (a < 0) {
+          ErrorReporting.fatal("Out of high memory")
+        }
+        a
+      case AllocationLocation.Either =>
+        var a = zeropage.findFreeBytes(mem, count, options)
+        if (a < 0) {
+          a = bytes.findFreeBytes(mem, count, options)
+          if (a < 0) {
+            ErrorReporting.fatal("Out of high memory")
+          }
+        }
+        a
+    }
+    markBytes(mem, addr, count, initialized, writeable)
+    addr
+  }
+
+  private def markBytes(mem: MemoryBank, addr: Int, count: Int, initialized: Boolean, writeable: Boolean): Unit = {
     ErrorReporting.trace(s"allocating $count bytes at $$${addr.toHexString}")
     (addr until (addr + count)).foreach { i =>
       if (mem.occupied(i)) ErrorReporting.fatal("Overlapping objects")
@@ -111,7 +149,6 @@ class VariableAllocator(val pointers: List[Int], private val bytes: ByteAllocato
       mem.initialized(i) = initialized
       mem.writeable(i) = writeable
     }
-    addr
   }
 
   def notifyAboutEndOfCode(org: Int): Unit = bytes.notifyAboutEndOfCode(org)

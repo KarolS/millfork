@@ -63,6 +63,30 @@ class MosAssembler(program: Program,
         index + 4
     }
   }
+
+  override def injectLabels(labelMap: Map[String, Int], code: List[AssemblyLine]): List[AssemblyLine] = {
+    import Opcode._
+    code.map {
+      case l@AssemblyLine(LDA | STA | CMP |
+                          LDX | STX | CPX |
+                          LDY | STY | CPY |
+                          LDZ | STZ | CPZ |
+                          BIT |
+                          ADC | SBC | AND | ORA | EOR |
+                          INC | DEC | ROL | ROR | ASL | LSR |
+                          ISC | DCP | LAX | SAX | RLA | RRA | SLO | SRE, AddrMode.Absolute, p, true) =>
+        p match {
+          case NumericConstant(n, _) => if (n <= 255) l.copy(addrMode = AddrMode.ZeroPage) else l
+          case MemoryAddressConstant(th) => if (labelMap.getOrElse(th.name, 0x800) < 0x100) l.copy(addrMode = AddrMode.ZeroPage) else l
+          case CompoundConstant(MathOperator.Plus,
+          MemoryAddressConstant(th),
+          NumericConstant(n, _)) => if (labelMap.getOrElse(th.name, 0x800) + n < 0x100) l.copy(addrMode = AddrMode.ZeroPage) else l
+          case _ => l
+        }
+
+      case l => l
+    }
+  }
 }
 
 

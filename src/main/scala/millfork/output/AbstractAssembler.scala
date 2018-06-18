@@ -170,6 +170,13 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   def assemble(callGraph: CallGraph, optimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions): AssemblerOutput = {
     val platform = options.platform
+    val variableAllocators = platform.variableAllocators
+    val zpOccupied = mem.banks("default").occupied
+    (0 until 0x100).foreach(i => zpOccupied(i) = true)
+    platform.freeZpPointers.foreach { i =>
+      zpOccupied(i) = false
+      zpOccupied(i + 1) = false
+    }
 
     val assembly = mutable.ArrayBuffer[String]()
 
@@ -186,12 +193,16 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val potentiallyInlineable: Map[String, Int] = inliningResult.potentiallyInlineableFunctions
     var nonInlineableFunctions: Set[String] = inliningResult.nonInlineableFunctions
 
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 1, forZpOnly = true)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = true)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 3, forZpOnly = true)
+
     var inlinedFunctions = Map[String, List[T]]()
     val compiledFunctions = mutable.Map[String, List[T]]()
     val recommendedCompilationOrder = callGraph.recommendedCompilationOrder
     recommendedCompilationOrder.foreach { f =>
       env.maybeGet[NormalFunction](f).foreach { function =>
-        val code = compileFunction(function, optimizations, options, inlinedFunctions)
+        val code = compileFunction(function, optimizations, options, inlinedFunctions, labelMap.toMap)
         val strippedCodeForInlining = for {
           limit <- potentiallyInlineable.get(f)
           if code.map(_.sizeInBytes).sum <= limit
@@ -269,7 +280,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val code = compiledFunctions(f.name)
         if (code.nonEmpty) {
           val size = code.map(_.sizeInBytes).sum
-          val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false)
+          val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High)
           labelMap(f.name) = index
           justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
         }
@@ -282,7 +293,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val code = compiledFunctions(f.name)
         if (code.nonEmpty) {
           val size = code.map(_.sizeInBytes).sum
-          val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false)
+          val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false, location = AllocationLocation.High)
           labelMap(f.name) = index
           justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
         }
@@ -297,7 +308,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             val bank = m.bank(options)
             if (bank != "default") ???
             val bank0 = mem.banks(bank)
-            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false)
+            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false, location = AllocationLocation.High)
             labelMap(name) = index + 1
             val altName = m.name.stripPrefix(env.prefix) + "`"
             val thing = if (name.endsWith(".addr")) env.get[ThingInMemory](name.stripSuffix(".addr")) else env.get[ThingInMemory](name + ".array")
@@ -318,7 +329,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           }
         case _ => ()
       }
-      val index = codeAllocators("default").allocateBytes(mem.banks("default"), options, 1, initialized = true, writeable = false)
+      val index = codeAllocators("default").allocateBytes(mem.banks("default"), options, 1, initialized = true, writeable = false, location = AllocationLocation.High)
       writeByte("default", index, 2.toByte) // BIT abs
       assembly.append("* = $" + index.toHexString)
       assembly.append("    !byte 2 ;; end of LUnix relocatable segment")
@@ -328,7 +339,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case thing@InitializedArray(name, None, items, _) =>
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)
-        var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true)
+        var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true, location = AllocationLocation.High)
         labelMap(name) = index
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
@@ -350,7 +361,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case m@InitializedMemoryVariable(name, None, typ, value, _)  =>
         val bank = m.bank(options)
         val bank0 = mem.banks(bank)
-        var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true)
+        var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High)
         labelMap(name) = index
         val altName = m.name.stripPrefix(env.prefix) + "`"
         env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
@@ -376,15 +387,23 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val bank0 = mem.banks(bank)
         for(i <- 0 until size) bank0.occupied(addr + i) = true
     }
-    val variableAllocators = platform.variableAllocators
     variableAllocators.foreach { case (b, a) => a.notifyAboutEndOfCode(justAfterCode(b)) }
-    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = false)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 3, forZpOnly = false)
 
-    val zeropageOccupation = mem.banks("default").occupied.slice(variableAllocators("default").pointers.head, variableAllocators("default").pointers.last + 2)
-    labelMap += "__zeropage_usage" -> (zeropageOccupation.lastIndexOf(true) - zeropageOccupation.indexOf(true) + 1)
-    labelMap += "__zeropage_first" -> (zeropageOccupation.indexOf(true) max 0)
-    labelMap += "__zeropage_last" -> (zeropageOccupation.lastIndexOf(true) max 0)
-    labelMap += "__zeropage_end" -> (zeropageOccupation.lastIndexOf(true) + 1)
+    if (platform.freeZpPointers.nonEmpty) {
+      val zpUsageOffset = platform.freeZpPointers.min
+      val zeropageOccupation = zpOccupied.slice(zpUsageOffset, platform.freeZpPointers.max + 2)
+      labelMap += "__zeropage_usage" -> (zeropageOccupation.lastIndexOf(true) - zeropageOccupation.indexOf(true) + 1)
+      labelMap += "__zeropage_first" -> (zpUsageOffset + (zeropageOccupation.indexOf(true) max 0))
+      labelMap += "__zeropage_last" -> (zpUsageOffset + (zeropageOccupation.lastIndexOf(true) max 0))
+      labelMap += "__zeropage_end" -> (zpUsageOffset + zeropageOccupation.lastIndexOf(true) + 1)
+    } else {
+      labelMap += "__zeropage_usage" -> 0
+      labelMap += "__zeropage_first" -> 3
+      labelMap += "__zeropage_last" -> 2
+      labelMap += "__zeropage_end" -> 3
+    }
 
     env = rootEnv.allThings
 
@@ -421,16 +440,18 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     AssemblerOutput(code, assembly.toArray, labelMap.toList)
   }
 
-  private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions, inlinedFunctions: Map[String, List[T]]): List[T] = {
+  def injectLabels(labelMap: Map[String, Int], code: List[T]): List[T]
+
+  private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions, inlinedFunctions: Map[String, List[T]], labelMap: Map[String, Int]): List[T] = {
     ErrorReporting.debug("Compiling: " + f.name, f.position)
     val unoptimized: List[T] =
-      inliningCalculator.inline(
+      injectLabels(labelMap, inliningCalculator.inline(
         compiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)),
         inlinedFunctions,
-        compiler)
+        compiler))
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
-      opt.optimize(f, c, options)
+      opt.optimize(f, c, options, labelMap)
     }
     performFinalOptimizationPass(f, optimizations.nonEmpty, options, code)
   }

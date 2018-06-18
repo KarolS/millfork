@@ -8,7 +8,7 @@ import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
 import millfork.error.ErrorReporting
 import millfork.node._
-import millfork.output.{CompiledMemory, VariableAllocator}
+import millfork.output.{AllocationLocation, CompiledMemory, VariableAllocator}
 
 import scala.collection.mutable
 
@@ -89,7 +89,14 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     }
   }
 
-  def allocateVariables(nf: Option[NormalFunction], mem: CompiledMemory, callGraph: CallGraph, allocators: Map[String, VariableAllocator], options: CompilationOptions, onEachVariable: (String, Int) => Unit): Unit = {
+  def allocateVariables(nf: Option[NormalFunction],
+                        mem: CompiledMemory,
+                        callGraph: CallGraph,
+                        allocators: Map[String, VariableAllocator],
+                        options: CompilationOptions,
+                        onEachVariable: (String, Int) => Unit,
+                        pass: Int,
+                        forZpOnly: Boolean): Unit = {
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
     val params = nf.fold(List[String]()) { f =>
@@ -100,8 +107,13 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           Nil
       }
     }.toSet
+    def passForAlloc(m: VariableAllocationMethod.Value) = m match {
+      case VariableAllocationMethod.Zeropage => 1
+      case VariableAllocationMethod.Register => 2
+      case _ => 3
+    }
     val toAdd = things.values.flatMap {
-      case m: UninitializedMemory if nf.isDefined == isLocalVariableName(m.name) && !m.name.endsWith(".addr") && maybeGet[Thing](m.name + ".array").isEmpty =>
+      case m: UninitializedMemory if passForAlloc(m.alloc) == pass && nf.isDefined == isLocalVariableName(m.name) && !m.name.endsWith(".addr") && maybeGet[Thing](m.name + ".array").isEmpty =>
         val vertex = if (options.flag(CompilationFlag.VariableOverlap)) {
           nf.fold[VariableVertex](GlobalVertex) { f =>
             if (m.alloc == VariableAllocationMethod.Static) {
@@ -118,38 +130,44 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           case VariableAllocationMethod.None =>
             Nil
           case VariableAllocationMethod.Zeropage =>
-            m.sizeInBytes match {
-              case 2 =>
-                val addr =
-                  allocators(bank).allocatePointer(mem.banks(bank), callGraph, vertex)
-                onEachVariable(m.name, addr)
-                List(
-                  ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
-                )
-            }
+            if (forZpOnly) {
+              val addr =
+                allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Zeropage)
+              onEachVariable(m.name, addr)
+              List(
+                ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
+              )
+            } else Nil
           case VariableAllocationMethod.Auto | VariableAllocationMethod.Register | VariableAllocationMethod.Static =>
             if (m.alloc == VariableAllocationMethod.Register) {
               ErrorReporting.warn(s"Failed to inline variable `${m.name}` into a register", options, None)
             }
-            m.sizeInBytes match {
-              case 0 => Nil
-              case 2 =>
-                val addr =
-                  allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, 2, initialized = false, writeable = true)
+            if (m.sizeInBytes == 0) Nil else {
+              val graveName = m.name.stripPrefix(prefix) + "`"
+              if (forZpOnly) {
+                if (bank == "default") {
+                  allocators(bank).tryAllocateZeropageBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes) match {
+                    case None => Nil
+                    case Some(addr) =>
+                      onEachVariable(m.name, addr)
+                      List(
+                        ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
+                      )
+                  }
+                } else Nil
+              } else if (things.contains(graveName)) {
+                Nil
+              } else {
+                val addr = allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Either)
                 onEachVariable(m.name, addr)
                 List(
-                  ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
+                  ConstantThing(graveName, NumericConstant(addr, 2), p)
                 )
-              case count =>
-                val addr = allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, count, initialized = false, writeable = true)
-                onEachVariable(m.name, addr)
-                List(
-                  ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
-                )
+              }
             }
         }
       case f: NormalFunction =>
-        f.environment.allocateVariables(Some(f), mem, callGraph, allocators, options, onEachVariable)
+        f.environment.allocateVariables(Some(f), mem, callGraph, allocators, options, onEachVariable, pass, forZpOnly)
         Nil
       case _ => Nil
     }.toList

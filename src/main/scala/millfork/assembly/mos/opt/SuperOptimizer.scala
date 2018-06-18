@@ -13,7 +13,7 @@ import scala.collection.mutable
   */
 object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
 
-  def optimize(m: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(m: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
     val oldVerbosity = ErrorReporting.verbosity
     ErrorReporting.verbosity = -1
     var allOptimizers = OptimizationPresets.Good ++ LaterOptimizations.All
