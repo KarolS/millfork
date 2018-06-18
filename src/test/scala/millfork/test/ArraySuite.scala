@@ -244,4 +244,17 @@ class ArraySuite extends FunSuite with Matchers {
     }
 
   }
+
+  test("Array filters") {
+    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+      """
+        | array x = @word [$1144]
+        | byte output @$c000
+        | void main () {
+        |   output = x[0]
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(0x44)
+    }
+  }
 }

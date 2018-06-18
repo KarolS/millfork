@@ -159,6 +159,24 @@ case class CombinedContents(contents: List[ArrayContents]) extends ArrayContents
     CombinedContents(contents.map(_.replaceVariable(variableToReplace, expression)))
 }
 
+case class ProcessedContents(processor: String, values: ArrayContents) extends ArrayContents {
+  override def getAllExpressions: List[Expression] = processor match {
+    case "word" | "word_le" =>
+      values.getAllExpressions.flatMap(expr => List(
+        FunctionCallExpression("lo", List(expr)),
+        FunctionCallExpression("hi", List(expr))
+      ))
+    case "word_be" =>
+      values.getAllExpressions.flatMap(expr => List(
+        FunctionCallExpression("hi", List(expr)),
+        FunctionCallExpression("lo", List(expr))
+      ))
+  }
+
+  override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
+    ProcessedContents(processor, values.replaceVariable(variableToReplace, expression))
+}
+
 case class ArrayDeclarationStatement(name: String,
                                      bank: Option[String],
                                      length: Option[Expression],

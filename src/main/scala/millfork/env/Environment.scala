@@ -365,6 +365,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       }
     }
 
+  //noinspection ScalaUnnecessaryParentheses,ZeroIndexToHead
   def eval(e: Expression): Option[Constant] = {
     e match {
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
@@ -408,6 +409,30 @@ class Environment(val parent: Option[Environment], val prefix: String) {
               eval(params.head).map(_.loByte.quickSimplify)
             } else {
               ErrorReporting.error("Invalid number of parameters for `lo`", e.position)
+              None
+            }
+          case "sin" =>
+            if (params.size == 2) {
+              (eval(params(0)) -> eval(params(1))) match {
+                case (Some(NumericConstant(angle, _)), Some(NumericConstant(scale, _))) =>
+                  val value = (scale * math.sin(angle * math.Pi / 128)).toInt
+                  Some(Constant(value))
+                case _ => None
+              }
+            } else {
+              ErrorReporting.error("Invalid number of parameters for `sin`", e.position)
+              None
+            }
+          case "cos" =>
+            if (params.size == 2) {
+              (eval(params(0)) -> eval(params(1))) match {
+                case (Some(NumericConstant(angle, _)), Some(NumericConstant(scale, _))) =>
+                  val value = (scale * math.cos(angle * math.Pi / 128)).toInt
+                  Some(Constant(value))
+                case _ => None
+              }
+            } else {
+              ErrorReporting.error("Invalid number of parameters for `cos`", e.position)
               None
             }
           case "nonet" =>
@@ -711,6 +736,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
   def extractArrayContents(contents1: ArrayContents): List[Expression] = contents1 match {
     case LiteralContents(xs) => xs
     case CombinedContents(xs) => xs.flatMap(extractArrayContents)
+    case pc@ProcessedContents(f, xs) => pc.getAllExpressions
     case ForLoopContents(v, start, end, direction, body) =>
       (eval(start), eval(end)) match {
         case (Some(NumericConstant(s, sz1)), Some(NumericConstant(e, sz2))) =>

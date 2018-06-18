@@ -12,6 +12,8 @@
 
 * Added 24-bit `farword` type. 
 
+* Special array layouts, e.g. `@word`. 
+
 * Fixed invalid offsets for branching instructions.
 
 * Fixed incorrectly overlapping local variables.

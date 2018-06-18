@@ -195,6 +195,13 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
 
   def arrayListElement: P[ArrayContents] = arrayStringContents | arrayLoopContents | mfExpression(nonStatementLevel).map(e => LiteralContents(List(e)))
 
+  def arrayProcessedContents: P[ArrayContents] = for {
+    _ <- "@" ~/ HWS
+    filter <- identifier
+    _ <- AWS
+    contents <- arrayContents
+  } yield ProcessedContents(filter, contents)
+
   def arrayListContents: P[ArrayContents] = ("[" ~/ AWS ~/ arrayListElement.rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ "]" ~/ Pass).map(c => CombinedContents(c.toList))
 
   val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').! ~ "\"").map(_.toList)
@@ -259,7 +266,7 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
     ForLoopContents(identifier, start, end, fixedDirection, body)
   }
 
-  def arrayContents: P[ArrayContents] = arrayListContents | arrayLoopContents | arrayFileContents | arrayStringContents
+  def arrayContents: P[ArrayContents] = arrayProcessedContents | arrayListContents | arrayLoopContents | arrayFileContents | arrayStringContents
 
   def arrayContentsForAsm: P[RawBytesStatement] = (arrayListContents | arrayStringContents).map(RawBytesStatement)
 

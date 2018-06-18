@@ -66,6 +66,15 @@ An array is initialized with either:
 
 * a `for`-style expression
 
+* a format, followed by an array initializer:
+
+   *   `@word` (=`@word_le`): for every term of the array initializer, emit two bytes, first being the low byte of the value, second being the high byte:      
+       `@word [$1122]` is equivalent to `[$22, $11]`
+   
+   *   `@word_be` – like the above, but opposite:  
+       `@word_be [$1122]` is equivalent to `[$11, $22]`
+   
+
 * a list of byte literals and/or other array initializers, surrounded by brackets:
 
 
