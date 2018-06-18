@@ -140,6 +140,7 @@ object OptimizationPresets {
   val Good: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](
     UnusedLabelRemoval,
     AlwaysGoodOptimizations.Adc0Optimization,
+    AlwaysGoodOptimizations.AlwaysTakenJumpRemoval,
     AlwaysGoodOptimizations.BitPackingUnpacking,
     AlwaysGoodOptimizations.BranchInPlaceRemoval,
     AlwaysGoodOptimizations.CarryFlagConversion,
@@ -158,6 +159,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.IncrementingIndexRegistersAfterTransfer,
     AlwaysGoodOptimizations.IndexComparisonOptimization,
     AlwaysGoodOptimizations.IndexSequenceOptimization,
+    AlwaysGoodOptimizations.InefficientStashingToRegister,
     AlwaysGoodOptimizations.LoopInvariantRegister,
     LoopUnrolling.LoopUnrolling,
     AlwaysGoodOptimizations.MathOperationOnTwoIdenticalMemoryOperands,

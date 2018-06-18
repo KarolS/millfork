@@ -337,6 +337,25 @@ object AlwaysGoodOptimizations {
     },
   )
 
+  val InefficientStashingToRegister = new RuleBasedAssemblyOptimization("Inefficient stashing to register",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+
+    (Elidable & HasOpcodeIn(Set(LDA, STA)) & IsZeroPage & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsX) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.X)) ~~> (code => code.head :: (code.drop(2) :+ code.head.copy(opcode = LDA))),
+
+    (Elidable & HasOpcodeIn(Set(LDA, STA)) & IsZeroPage & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsY) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.Y)) ~~> (code => code.head :: (code.drop(2) :+ code.head.copy(opcode = LDA))),
+
+    (Elidable & HasOpcodeIn(Set(LDA, STA)) & IsZeroPage & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(TAZ) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsIZ) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(TZA) & DoesntMatterWhatItDoesWith(State.IZ)) ~~> (code => code.head :: (code.drop(2) :+ code.head.copy(opcode = LDA))),
+  )
+
   private def operationPairBuilder(op1: Opcode.Value, op2: Opcode.Value, middle: AssemblyLinePattern, discardToRemove: Option[Opcode.Value]) = {
     (HasOpcode(op1) & Elidable) ~
       (Linear & middle).*.capture(1) ~
@@ -517,10 +536,34 @@ object AlwaysGoodOptimizations {
 
   val BranchInPlaceRemoval = new RuleBasedAssemblyOptimization("Branch in place",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    (AllDirectJumps & MatchParameter(0) & Elidable) ~
+    (AllDirectJumps & HasAddrModeIn(Set(Absolute, Relative, LongAbsolute, LongRelative)) & MatchParameter(0) & Elidable) ~
       HasOpcodeIn(NoopDiscardsFlags).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (c => c.last :: Nil),
-    (AllDirectJumps & MatchParameter(0) & Elidable) ~
+    (AllDirectJumps & HasAddrModeIn(Set(Absolute, Relative, LongAbsolute, LongRelative)) & MatchParameter(0) & Elidable) ~
+      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
+    (HasOpcode(BEQ) & MatchParameter(0) & Elidable) ~ HasOpcode(BNE) ~
+      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
+    (HasOpcode(BNE) & MatchParameter(0) & Elidable) ~ HasOpcode(BEQ) ~
+      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
+    (HasOpcode(BCC) & MatchParameter(0) & Elidable) ~ HasOpcode(BCS) ~
+      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
+    (HasOpcode(BCS) & MatchParameter(0) & Elidable) ~ HasOpcode(BCC) ~
+      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
+    (HasOpcode(BMI) & MatchParameter(0) & Elidable) ~ HasOpcode(BPL) ~
+      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
+    (HasOpcode(BPL) & MatchParameter(0) & Elidable) ~ HasOpcode(BMI) ~
+      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
+    (HasOpcode(BVS) & MatchParameter(0) & Elidable) ~ HasOpcode(BVC) ~
+      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
+    (HasOpcode(BVC) & MatchParameter(0) & Elidable) ~ HasOpcode(BVS) ~
       (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
   )
@@ -542,6 +585,9 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcode(JMP) & HasAddrMode(Absolute) & MatchParameter(0)) ~
       (Elidable & LinearOrBranch).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(BRA) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
     (Elidable & HasOpcode(JMP) & HasAddrMode(Absolute) & MatchParameter(0)) ~
       (Not(HasOpcode(LABEL)) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~
@@ -553,6 +599,34 @@ object AlwaysGoodOptimizations {
       (HasOpcode(LABEL) & MatchParameter(0)) ~
       HasOpcodeIn(NoopDiscardsFlags).* ~
       (Elidable & HasOpcode(RTS)) ~~> ((code, ctx) => ctx.get[List[AssemblyLine]](1)),
+  )
+
+  val AlwaysTakenJumpRemoval = new RuleBasedAssemblyOptimization("Always taken jump removal",
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+    (Elidable & HasOpcode(BEQ) & HasSet(State.Z) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(BNE) & HasClear(State.Z) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(BCC) & HasClear(State.C) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(BCS) & HasSet(State.C) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(BMI) & HasSet(State.N) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(BPL) & HasClear(State.N) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(BVC) & HasClear(State.V) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcode(BVS) & HasSet(State.V) & MatchParameter(0)) ~
+      (Elidable & LinearOrBranch).* ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
   )
 
   val TailCallOptimization = new RuleBasedAssemblyOptimization("Tail call optimization",
