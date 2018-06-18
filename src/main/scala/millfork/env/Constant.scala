@@ -73,6 +73,8 @@ sealed trait Constant {
   def quickSimplify: Constant = this
 
   def isRelatedTo(v: Thing): Boolean
+
+  def fitsInto(typ: Type): Boolean = true // TODO
 }
 
 case class AssertByte(c: Constant) extends Constant {
@@ -83,6 +85,8 @@ case class AssertByte(c: Constant) extends Constant {
   override def isRelatedTo(v: Thing): Boolean = c.isRelatedTo(v)
 
   override def quickSimplify: Constant = AssertByte(c.quickSimplify)
+
+  override def fitsInto(typ: Type): Boolean = true
 }
 
 case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant {
@@ -116,6 +120,26 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   override def toString: String = if (value > 9) value.formatted("$%X") else value.toString
 
   override def isRelatedTo(v: Thing): Boolean = false
+
+  override def fitsInto(typ: Type): Boolean = {
+    if (typ.isSigned) {
+      typ.size match {
+        case 1 => value == value.toByte
+        case 2 => value == value.toShort
+        case 3 => value == ((value.toInt << 8) >> 8)
+        case 4 => value == value.toInt
+        case _ => true
+      }
+    } else {
+      typ.size match {
+        case 1 => value == (value & 0xff)
+        case 2 => value == (value & 0xffff)
+        case 3 => value == (value & 0xffffff)
+        case 4 => value == (value & 0xffffffffL)
+        case _ => true
+      }
+    }
+  }
 }
 
 case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {

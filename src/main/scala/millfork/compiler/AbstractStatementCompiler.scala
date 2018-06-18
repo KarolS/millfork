@@ -107,7 +107,25 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
     val increment = ExpressionStatement(FunctionCallExpression("+=", List(vex, one)))
     val decrement = ExpressionStatement(FunctionCallExpression("-=", List(vex, one)))
     val names = Set("", "for", f.variable)
-    (f.direction, ctx.env.eval(f.start), ctx.env.eval(f.end)) match {
+
+    val startEvaluated = ctx.env.eval(f.start)
+    val endEvaluated = ctx.env.eval(f.end)
+    ctx.env.maybeGet[Variable](f.variable).foreach{ v=>
+      startEvaluated.foreach(value => if (!value.quickSimplify.fitsInto(v.typ)) {
+        ErrorReporting.error(s"Variable `${f.variable}` is too small to hold the initial value in the for loop", f.position)
+      })
+      endEvaluated.foreach { value =>
+        val max = f.direction match {
+          case ForDirection.To | ForDirection.ParallelTo | ForDirection.DownTo => value
+          case ForDirection.Until | ForDirection.ParallelUntil => value - 1
+          case _ => Constant.Zero
+        }
+        if (!max.quickSimplify.fitsInto(v.typ)) {
+          ErrorReporting.error(s"Variable `${f.variable}` is too small to hold the final value in the for loop", f.position)
+        }
+      }
+    }
+    (f.direction, startEvaluated, endEvaluated) match {
 
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e - 1 =>
         val end = nextLabel("of")

@@ -340,4 +340,22 @@ class ComparisonSuite extends FunSuite with Matchers {
       """.stripMargin
     EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
+
+  test("Mixed type comparison") {
+    val src =
+      """
+        | byte output @$c000
+        | byte x @$c002
+        | byte y @$c003
+        | void main () {
+        |  word z
+        |  output = 0
+        |  z = $100
+        |  x = 4
+        |  y = 1
+        |  if x < z { output += 1 }
+        | }
+      """.stripMargin
+    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(1))
+  }
 }

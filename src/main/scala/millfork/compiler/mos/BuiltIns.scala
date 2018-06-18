@@ -32,6 +32,8 @@ object BuiltIns {
 
   def staTo(op: Opcode.Value, l: List[AssemblyLine]): List[AssemblyLine] = l.map(x => if (x.opcode == STA) x.copy(opcode = op) else x)
 
+  def cmpTo(op: Opcode.Value, l: List[AssemblyLine]): List[AssemblyLine] = l.map(x => if (x.opcode == CMP) x.copy(opcode = op) else x)
+
   def ldTo(op: Opcode.Value, l: List[AssemblyLine]): List[AssemblyLine] = l.map(x => if (x.opcode == LDA || x.opcode == LDX || x.opcode == LDY) x.copy(opcode = op) else x)
 
   def simpleOperation(opcode: Opcode.Value, ctx: CompilationContext, source: Expression, indexChoice: IndexChoice.Value, preserveA: Boolean, commutative: Boolean, decimal: Boolean = false): List[AssemblyLine] = {
@@ -463,17 +465,17 @@ object BuiltIns {
         return compileWordComparison(ctx, ComparisonType.flip(compType), rhs, lhs, branches)
       case (v: VariableExpression, None, _, Some(rc)) =>
         val lva = env.get[VariableInMemory](v.name)
-        (AssemblyLine.variable(ctx, STA, lva, 1),
-          AssemblyLine.variable(ctx, STA, lva, 0),
-          List(AssemblyLine.immediate(STA, rc.hiByte.quickSimplify)),
-          List(AssemblyLine.immediate(STA, rc.loByte.quickSimplify)))
+        (AssemblyLine.variable(ctx, CMP, lva, 1),
+          AssemblyLine.variable(ctx, CMP, lva, 0),
+          List(AssemblyLine.immediate(CMP, rc.hiByte.quickSimplify)),
+          List(AssemblyLine.immediate(CMP, rc.loByte.quickSimplify)))
       case (lv: VariableExpression, None, rv: VariableExpression, None) =>
         val lva = env.get[VariableInMemory](lv.name)
         val rva = env.get[VariableInMemory](rv.name)
-        (AssemblyLine.variable(ctx, STA, lva, 1),
-          AssemblyLine.variable(ctx, STA, lva, 0),
-          AssemblyLine.variable(ctx, STA, rva, 1),
-          AssemblyLine.variable(ctx, STA, rva, 0))
+        (AssemblyLine.variable(ctx, CMP, lva, 1),
+          AssemblyLine.variable(ctx, CMP, lva, 0),
+          AssemblyLine.variable(ctx, CMP, rva, 1),
+          AssemblyLine.variable(ctx, CMP, rva, 0))
       case _ =>
         // TODO comparing expressions
         ErrorReporting.error("Too complex expressions in comparison", lhs.position)
@@ -484,9 +486,9 @@ object BuiltIns {
     val compactEqualityComparison = if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) {
       None
     } else if (lType.size == 1 && !lType.isSigned) {
-      Some(staTo(LDA, ll) ++ staTo(EOR, rl) ++ staTo(ORA, rh))
+      Some(cmpTo(LDA, ll) ++ cmpTo(EOR, rl) ++ cmpTo(ORA, rh))
     } else if (rType.size == 1 && !rType.isSigned) {
-      Some(staTo(LDA, rl) ++ staTo(EOR, ll) ++ staTo(ORA, lh))
+      Some(cmpTo(LDA, rl) ++ cmpTo(EOR, ll) ++ cmpTo(ORA, lh))
     } else {
       None
     }
@@ -496,11 +498,11 @@ object BuiltIns {
           case Some(code) => code :+ AssemblyLine.relative(BEQ, Label(x))
           case None =>
             val innerLabel = MosCompiler.nextLabel("cp")
-            staTo(LDA, ll) ++
-              staTo(CMP, rl) ++
+            cmpTo(LDA, ll) ++
+              cmpTo(CMP, rl) ++
               List(AssemblyLine.relative(BNE, innerLabel)) ++
-              staTo(LDA, lh) ++
-              staTo(CMP, rh) ++
+              cmpTo(LDA, lh) ++
+              cmpTo(CMP, rh) ++
               List(
                 AssemblyLine.relative(BEQ, Label(x)),
                 AssemblyLine.label(innerLabel))
@@ -510,57 +512,57 @@ object BuiltIns {
         compactEqualityComparison match {
           case Some(code) => code :+ AssemblyLine.relative(BNE, Label(x))
           case None =>
-            staTo(LDA, ll) ++
-              staTo(CMP, rl) ++
+            cmpTo(LDA, ll) ++
+              cmpTo(CMP, rl) ++
               List(AssemblyLine.relative(BNE, Label(x))) ++
-              staTo(LDA, lh) ++
-              staTo(CMP, rh) ++
+              cmpTo(LDA, lh) ++
+              cmpTo(CMP, rh) ++
               List(AssemblyLine.relative(BNE, Label(x)))
         }
 
       case ComparisonType.LessUnsigned =>
         val innerLabel = MosCompiler.nextLabel("cp")
-        staTo(LDA, lh) ++
-          staTo(CMP, rh) ++
+        cmpTo(LDA, lh) ++
+          cmpTo(CMP, rh) ++
           List(
             AssemblyLine.relative(BCC, Label(x)),
             AssemblyLine.relative(BNE, innerLabel)) ++
-          staTo(LDA, ll) ++
-          staTo(CMP, rl) ++
+          cmpTo(LDA, ll) ++
+          cmpTo(CMP, rl) ++
           List(
             AssemblyLine.relative(BCC, Label(x)),
             AssemblyLine.label(innerLabel))
 
       case ComparisonType.LessOrEqualUnsigned =>
         val innerLabel = MosCompiler.nextLabel("cp")
-        staTo(LDA, rh) ++
-          staTo(CMP, lh) ++
+        cmpTo(LDA, rh) ++
+          cmpTo(CMP, lh) ++
           List(AssemblyLine.relative(BCC, innerLabel),
             AssemblyLine.relative(BNE, x)) ++
-          staTo(LDA, rl) ++
-          staTo(CMP, ll) ++
+          cmpTo(LDA, rl) ++
+          cmpTo(CMP, ll) ++
           List(AssemblyLine.relative(BCS, x),
             AssemblyLine.label(innerLabel))
 
       case ComparisonType.GreaterUnsigned =>
         val innerLabel = MosCompiler.nextLabel("cp")
-        staTo(LDA, rh) ++
-          staTo(CMP, lh) ++
+        cmpTo(LDA, rh) ++
+          cmpTo(CMP, lh) ++
           List(AssemblyLine.relative(BCC, Label(x)),
             AssemblyLine.relative(BNE, innerLabel)) ++
-          staTo(LDA, rl) ++
-          staTo(CMP, ll) ++
+          cmpTo(LDA, rl) ++
+          cmpTo(CMP, ll) ++
           List(AssemblyLine.relative(BCC, Label(x)),
             AssemblyLine.label(innerLabel))
 
       case ComparisonType.GreaterOrEqualUnsigned =>
         val innerLabel = MosCompiler.nextLabel("cp")
-        staTo(LDA, lh) ++
-          staTo(CMP, rh) ++
+        cmpTo(LDA, lh) ++
+          cmpTo(CMP, rh) ++
           List(AssemblyLine.relative(BCC, innerLabel),
             AssemblyLine.relative(BNE, x)) ++
-          staTo(LDA, ll) ++
-          staTo(CMP, rl) ++
+          cmpTo(LDA, ll) ++
+          cmpTo(CMP, rl) ++
           List(AssemblyLine.relative(BCS, x),
             AssemblyLine.label(innerLabel))
 
@@ -619,23 +621,23 @@ object BuiltIns {
           case ComparisonType.Equal =>
             val innerLabel = MosCompiler.nextLabel("cp")
             val bytewise = l.zip(r).map{
-              case (staL, staR) => staTo(LDA, staL) ++ staTo(CMP, staR)
+              case (cmpL, cmpR) => cmpTo(LDA, cmpL) ++ cmpTo(CMP, cmpR)
             }
             bytewise.init.flatMap(b => b :+ AssemblyLine.relative(BNE, innerLabel)) ++ bytewise.last ++List(
                 AssemblyLine.relative(BEQ, Label(label)),
                 AssemblyLine.label(innerLabel))
           case ComparisonType.NotEqual =>
             l.zip(r).flatMap {
-              case (staL, staR) => staTo(LDA, staL) ++ staTo(CMP, staR) :+ AssemblyLine.relative(BNE, label)
+              case (cmpL, cmpR) => cmpTo(LDA, cmpL) ++ cmpTo(CMP, cmpR) :+ AssemblyLine.relative(BNE, label)
             }
           case ComparisonType.LessUnsigned =>
             val calculateCarry = AssemblyLine.implied(SEC) :: l.zip(r).flatMap{
-              case (staL, staR) => staTo(LDA, staL) ++ staTo(SBC, staR)
+              case (cmpL, cmpR) => cmpTo(LDA, cmpL) ++ cmpTo(SBC, cmpR)
             }
             calculateCarry ++ List(AssemblyLine.relative(BCC, Label(label)))
           case ComparisonType.GreaterOrEqualUnsigned =>
             val calculateCarry = AssemblyLine.implied(SEC) :: l.zip(r).flatMap{
-              case (staL, staR) => staTo(LDA, staL) ++ staTo(SBC, staR)
+              case (cmpL, cmpR) => cmpTo(LDA, cmpL) ++ cmpTo(SBC, cmpR)
             }
             calculateCarry ++ List(AssemblyLine.relative(BCS, Label(label)))
           case ComparisonType.GreaterUnsigned | ComparisonType.LessOrEqualUnsigned =>
@@ -1180,27 +1182,27 @@ object BuiltIns {
     val env = ctx.env
     env.eval(expr) match {
       case Some(c) =>
-        List.tabulate(size) { i => List(AssemblyLine.immediate(STA, c.subbyte(i))) }
+        List.tabulate(size) { i => List(AssemblyLine.immediate(CMP, c.subbyte(i))) }
       case None =>
         expr match {
           case v: VariableExpression =>
             val variable = env.get[Variable](v.name)
             List.tabulate(size) { i =>
               if (i < variable.typ.size) {
-                AssemblyLine.variable(ctx, STA, variable, i)
+                AssemblyLine.variable(ctx, CMP, variable, i)
               } else if (variable.typ.isSigned) {
                 val label = MosCompiler.nextLabel("sx")
-                AssemblyLine.variable(ctx, STA, variable, variable.typ.size - 1) ++ List(
+                AssemblyLine.variable(ctx, LDA, variable, variable.typ.size - 1) ++ List(
                   AssemblyLine.immediate(ORA, 0x7F),
                   AssemblyLine.relative(BMI, label),
-                  AssemblyLine.immediate(STA, 0),
+                  AssemblyLine.immediate(CMP, 0),
                   AssemblyLine.label(label))
-              } else List(AssemblyLine.immediate(STA, 0))
+              } else List(AssemblyLine.immediate(CMP, 0))
             }
           case expr@IndexedExpression(variable, index) =>
             List.tabulate(size) { i =>
               if (i == 0) MosExpressionCompiler.compileByteStorage(ctx, MosRegister.A, expr)
-              else List(AssemblyLine.immediate(STA, 0))
+              else List(AssemblyLine.immediate(CMP, 0))
             }
           case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
             if (simplicity(ctx.env, h) < 'J' || simplicity(ctx.env, l) < 'J') {
@@ -1210,7 +1212,7 @@ object BuiltIns {
             List.tabulate(size) { i =>
               if (i == 0) getStorageForEachByte(ctx, l).head
               else if (i == 1) MosExpressionCompiler.preserveRegisterIfNeeded(ctx, MosRegister.A, getStorageForEachByte(ctx, h).head)
-              else List(AssemblyLine.immediate(STA, 0))
+              else List(AssemblyLine.immediate(CMP, 0))
             }
           case _ =>
             ???

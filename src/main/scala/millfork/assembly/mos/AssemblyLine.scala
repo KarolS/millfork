@@ -369,10 +369,10 @@ object AssemblyLine {
 
   private val opcodesForNopVariableOperation = Set(STA, SAX, STX, STY, STZ)
   private val opcodesForZeroedVariableOperation = Set(ADC, EOR, ORA, AND, SBC, CMP, CPX, CPY)
-  private val opcodesForZeroedOrSignExtendedVariableOperation = Set(LDA, LDX, LDY)
+  private val opcodesForZeroedOrSignExtendedVariableOperation = Set(LDA, LDX, LDY, LDZ)
 
   def variable(ctx: CompilationContext, opcode: Opcode.Value, variable: Variable, offset: Int = 0): List[AssemblyLine] =
-    if (offset > variable.typ.size) {
+    if (offset >= variable.typ.size) {
       if (opcodesForNopVariableOperation(opcode)) {
         Nil
       } else if (opcodesForZeroedVariableOperation(opcode)) {
@@ -381,11 +381,16 @@ object AssemblyLine {
       } else if (opcodesForZeroedOrSignExtendedVariableOperation(opcode)) {
         if (variable.typ.isSigned) {
           val label = MosCompiler.nextLabel("sx")
-          AssemblyLine.variable(ctx, opcode, variable, variable.typ.size - 1) ++ List(
+          AssemblyLine.variable(ctx, LDA, variable, variable.typ.size - 1) ++ List(
             AssemblyLine.immediate(ORA, 0x7f),
             AssemblyLine.relative(BMI, label),
             AssemblyLine.immediate(LDA, 0),
-            AssemblyLine.label(label))
+            AssemblyLine.label(label)) ++ (opcode match {
+            case LDA => Nil
+            case LDX | LAX => List(AssemblyLine.implied(TAX))
+            case LDY => List(AssemblyLine.implied(TAY))
+            case LDZ => List(AssemblyLine.implied(TAZ))
+          })
         } else {
           List(AssemblyLine.immediate(opcode, 0))
         }

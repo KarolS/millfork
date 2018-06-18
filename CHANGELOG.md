@@ -4,7 +4,7 @@
 
 * Preliminary Atari 2600, BBC Micro and LUnix support.
 
-* Added array initialization syntax with `for` (not yet finalized).
+* Added array initialization syntax with `for`.
 
 * Added multiple new text codecs.
 
@@ -19,6 +19,8 @@
 * Fixed incorrectly overlapping local variables.
 
 * Fixed broken `downto` loops.
+
+* Fixed broken comparisons between variables of different sizes.
 
 * Fixed several other bugs.
 
