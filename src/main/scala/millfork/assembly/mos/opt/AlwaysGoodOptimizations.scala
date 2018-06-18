@@ -2076,4 +2076,41 @@ object AlwaysGoodOptimizations {
     },
   )
 
+  val ReplacingArithmeticsWithBitOps = new RuleBasedAssemblyOptimization("Replacing arithmetics with bit ops",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(0x80) & HasClear(State.C) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~>
+      (_ => List(AssemblyLine.immediate(EOR, 0x80))),
+
+    (Elidable & HasOpcode(SEC)).? ~
+      (Elidable & HasOpcode(SBC) & HasImmediate(0x80) & HasSet(State.C) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~>
+      (_ => List(AssemblyLine.immediate(EOR, 0x80))),
+
+    (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1) & HasClearBitA0 & HasClear(State.C) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~>
+      (_ => List(AssemblyLine.immediate(ORA, 1))),
+
+    (HasOpcode(AND) & MatchImmediate(1)) ~
+      (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcode(ADC) & MatchImmediate(2) & HasClear(State.C) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~
+      Where(ctx => (ctx.get[Constant](1), ctx.get[Constant](2)) match {
+        case (NumericConstant(a1, _), NumericConstant(a2, _)) => (a1 & a2) == 0
+        case _ => false
+      }) ~~> ((code,ctx) => List(code.head, AssemblyLine.immediate(ORA, ctx.get[Constant](2)))),
+
+    (Elidable & HasOpcode(ANC) & MatchImmediate(1)) ~
+      (Elidable & HasOpcode(ADC) & MatchImmediate(2) & HasClear(State.C) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~
+      Where(ctx => (ctx.get[Constant](1), ctx.get[Constant](2)) match {
+        case (NumericConstant(a1, _), NumericConstant(a2, _)) => (a1 & 0x80) == 0 && (a1 & a2) == 0 && (a2 & 0xff) > 1
+        case _ => false
+      }) ~~> ((code,ctx) => List(code.head.copy(opcode = AND), AssemblyLine.immediate(ORA, ctx.get[Constant](2)))),
+
+
+    (Elidable & HasOpcode(STA) & HasClearBitA0 & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.N, State.A)) ~
+      (Linear & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
+      (Elidable & HasOpcode(INC) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> { code =>
+      AssemblyLine.immediate(ORA, 1) :: code.init
+    },
+  )
 }

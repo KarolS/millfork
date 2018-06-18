@@ -606,6 +606,14 @@ case class HasClear(state: State.Value) extends AssemblyLinePattern {
     flowInfo.hasClear(state)
 }
 
+case object HasClearBitA0 extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.statusBefore.a0.contains(false)
+}
+
 case object Anything extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean = true
 }

@@ -1,7 +1,7 @@
 package millfork.assembly.mos.opt
 
 import millfork.assembly.AssemblyOptimization
-import millfork.assembly.mos.{AssemblyLine, Opcode, State}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode, State}
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.OpcodeClasses._
@@ -50,5 +50,23 @@ object CmosOptimizations {
     (Elidable & HasX(0) & HasZ(0) & HasAddrMode(AbsoluteIndexedX) & HasOpcode(JMP)) ~~> (code => code.map(_.copy(addrMode = Indirect))),
   )
 
-  val All: List[AssemblyOptimization[AssemblyLine]] = List(OptimizeZeroIndex, SimplerBitFlipping, ZeroStoreAsStz)
+  val OptimizeIncrement = new RuleBasedAssemblyOptimization("Optimizing increment/decrement",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    (Elidable & HasOpcode(CLC)).? ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1) & HasClear(State.C) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> (code => List(AssemblyLine.implied(INC))),
+
+    (Elidable & HasOpcode(SEC)).? ~
+      (Elidable & HasOpcode(SBC) & HasImmediate(1) & HasSet(State.C) & HasClear(State.D) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> (code => List(AssemblyLine.implied(DEC))),
+
+    (Elidable & HasClearBitA0 & HasOpcodeIn(Set(ORA, EOR)) & HasImmediate(1)) ~~> (code => List(AssemblyLine.implied(INC))),
+
+    (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.N, State.A)) ~
+      (Linear & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
+      (Elidable & HasOpcodeIn(Set(INC, DEC)) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> { code =>
+      code.last.copy(addrMode = Implied, parameter = Constant.Zero) :: code.init
+    },
+  )
+
+  val All: List[AssemblyOptimization[AssemblyLine]] = List(OptimizeZeroIndex, SimplerBitFlipping, ZeroStoreAsStz, OptimizeIncrement)
 }
