@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Finally faster than C. 
+
 * Preliminary Atari 2600, BBC Micro and LUnix support.
 
 * Added array initialization syntax with `for`.
