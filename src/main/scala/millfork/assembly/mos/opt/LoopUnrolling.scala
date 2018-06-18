@@ -3,7 +3,7 @@ package millfork.assembly.mos.opt
 import java.util.concurrent.atomic.AtomicInteger
 
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.{AssemblyLine, State}
 import millfork.assembly.mos.OpcodeClasses._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
@@ -37,13 +37,10 @@ object LoopUnrolling {
     val bodyCode = ctx.get[List[AssemblyLine]](Body)
     val start = ctx.get[Int](Start)
     val end = ctx.getOrDefault[Int](End, 0)
-    if (start == end) return true
+    if (start == end) return false // 256 iterations, don't inline ever
     val increasing = isIncreasing(ctx)
     if (increasing != (start < end)) return false // overflow not supported
     val count = Math.abs(start - end)
-    if (count > 32) return false
-    if (count > 8 && !ctx.compilationOptions.flag(CompilationFlag.OptimizeForSonicSpeed)) return false
-    if (count > 3 && !ctx.compilationOptions.flag(CompilationFlag.OptimizeForSpeed)) return false
     val onlyUsedForArrayIndexing = index match {
       case Unrolling.Var => false
       case Unrolling.X => bodyCode.forall(line => !ConcernsX(line) || line.addrMode == AbsoluteX)
@@ -69,7 +66,7 @@ object LoopUnrolling {
 
   private def isIncreasing(ctx: AssemblyMatchingContext) = {
     val opcode = ctx.get[List[AssemblyLine]](Step).head.opcode
-    opcode == INX || opcode == INY || opcode == INC || opcode == ISC
+    opcode == INX || opcode == INY || opcode == INZ || opcode == INC || opcode == ISC
   }
 
   private def fixLabels(code: List[AssemblyLine]) = {
@@ -86,15 +83,15 @@ object LoopUnrolling {
   }
 
   val LoopUnrolling = new RuleBasedAssemblyOptimization("Loop unrolling",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    (Elidable & HasOpcode(LDX) & MatchNumericImmediate(Start)).capture(Initialization) ~
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(LDX) & MatchNumericImmediate(Start) & Not(HasImmediate(0))).capture(Initialization) ~
       (Elidable & HasOpcode(BEQ) & MatchParameter(Skip)) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
       ((Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL))) & Not(ChangesX)).*.capture(Body) ~
         (Elidable & HasOpcodeIn(Set(DEX, INX))).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPX) & MatchNumericImmediate(End)).? ~
-      (Elidable & HasOpcode(BNE) & MatchParameter(Back)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Skip)) ~
       Where(ctx => isFeasible(ctx, 4, Unrolling.X)) ~~> { (code, ctx) =>
       val start = ctx.get[Int](Start)
@@ -108,7 +105,7 @@ object LoopUnrolling {
         (Elidable & HasOpcodeIn(Set(DEX, INX))).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPX) & MatchNumericImmediate(End)).? ~
-      (Elidable & HasOpcode(BNE) & MatchParameter(Back)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
       Where(ctx => isFeasible(ctx, 2, Unrolling.X)) ~~> { (code, ctx) =>
       val start = ctx.get[Int](Start)
       val end = ctx.getOrDefault[Int](End, 0)
@@ -128,14 +125,14 @@ object LoopUnrolling {
       val increasing = isIncreasing(ctx)
       ctx.get[List[AssemblyLine]](Initialization) ++ (0 until Math.abs(start - end)).flatMap(_ => fixLabels(ctx.get[List[AssemblyLine]](BodyWithStep)))
     },
-    (Elidable & HasOpcode(LDY) & MatchNumericImmediate(Start)).capture(Initialization) ~
+    (Elidable & HasOpcode(LDY) & MatchNumericImmediate(Start) & Not(HasImmediate(0))).capture(Initialization) ~
       (Elidable & HasOpcode(BEQ) & MatchParameter(Skip)) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
       ((Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL))) & Not(ChangesY)).*.capture(Body) ~
         (Elidable & HasOpcodeIn(Set(DEY, INY))).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPY) & MatchNumericImmediate(End)).? ~
-      (Elidable & HasOpcode(BNE) & MatchParameter(Back)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Skip)) ~
       Where(ctx => isFeasible(ctx, 4, Unrolling.Y)) ~~> { (code, ctx) =>
       val start = ctx.get[Int](Start)
@@ -149,7 +146,7 @@ object LoopUnrolling {
         (Elidable & HasOpcodeIn(Set(DEY, INY))).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPY) & MatchNumericImmediate(End)).? ~
-      (Elidable & HasOpcode(BNE) & MatchParameter(Back)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
       Where(ctx => isFeasible(ctx, 2, Unrolling.Y)) ~~> { (code, ctx) =>
       val start = ctx.get[Int](Start)
       val end = ctx.getOrDefault[Int](End, 0)
@@ -162,7 +159,7 @@ object LoopUnrolling {
         (Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL, BNE, CPY, TYA))) & Not(ChangesY)).*.capture(Body)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPY) & MatchNumericImmediate(End) | Elidable & HasOpcode(TYA)) ~
-      (Elidable & HasOpcode(BNE) & MatchParameter(Back)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
       Where(ctx => isFeasible(ctx, 2, Unrolling.Y)) ~~> { (code, ctx) =>
       val start = ctx.get[Int](Start)
       val end = ctx.getOrDefault[Int](End, 0)

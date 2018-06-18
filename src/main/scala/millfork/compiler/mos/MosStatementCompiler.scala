@@ -21,7 +21,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
 
   def branchChunk(opcode: BranchingOpcodeMapping, labelName: String) =  List(AssemblyLine.relative(opcode.mosOpcode, Label(labelName)))
 
-  def areBlocksLarge(blocks: List[AssemblyLine]*): Boolean = blocks.map(_.map(_.sizeInBytes).sum).sum > 100
+  def areBlocksLarge(blocks: List[AssemblyLine]*): Boolean = blocks.map(_.map(_.sizeInBytes).sum).sum > 170
 
   def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
