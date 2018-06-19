@@ -508,6 +508,13 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(PLY)) ~~> { code =>
       code.head :: (code.drop(2).init :+ code.head)
     },
+    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(PHA)) ~
+      (Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).*.capture(2) ~
+      Where(ctx => ctx.isExternallyLinearBlock(2))~
+      (Elidable & HasOpcode(PLA)) ~~> { code =>
+      code.head :: (code.drop(2).init :+ code.head)
+    },
   )
 
   val IncrementingIndexRegistersAfterTransfer = new RuleBasedAssemblyOptimization("Incrementing index registers after transfer",
@@ -839,7 +846,7 @@ object AlwaysGoodOptimizations {
     HasOpcode(TAX) ~ (Elidable & Set(TXA, TAX)) ~~> (_.init),
     HasOpcode(TSX) ~ (Elidable & Set(TXS, TSX)) ~~> (_.init),
     HasOpcode(TXS) ~ (Elidable & Set(TXS, TSX)) ~~> (_.init),
-    HasOpcodeIn(Set(TXA, TAX)) ~
+    HasOpcodeIn(Set(TXA, TAX, LAX, LXA)) ~
       (Linear & Not(ChangesNAndZ) & Not(ChangesA) & Not(ChangesX)).* ~
       (Elidable & HasOpcodeIn(Set(TXA, TAX))) ~~> (_.init),
     HasOpcodeIn(Set(TYA, TAY)) ~
@@ -1079,7 +1086,7 @@ object AlwaysGoodOptimizations {
       (HasOpcode(LABEL) & MatchParameter(3) & HasCallerCount(1)) ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
-    HasOpcodeIn(Set(TXA, TAX)) ~
+    HasOpcodeIn(Set(TXA, TAX, LAX, LXA)) ~
       (Not(Set(TXA, TAX)) & Linear & Not(ChangesA) & Not(ChangesX)).* ~
       (Elidable & HasOpcodeIn(Set(TXA, TAX)) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 

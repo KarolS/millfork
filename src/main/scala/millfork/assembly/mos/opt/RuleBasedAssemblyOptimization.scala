@@ -847,6 +847,56 @@ case class RefersTo(identifier: String, offset: Int = 999) extends TrivialAssemb
   override def toString: String = s"<$identifier+$offset>"
 }
 
+case class RefersToOrUses(identifier: String, offset: Int = 999) extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = {
+    line.addrMode match {
+      case AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute | AddrMode.Indirect => line.parameter match {
+        case MemoryAddressConstant(th) =>
+          (offset == 999 || offset == 0) && th.name == identifier
+        case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
+          (offset == 999 || offset == nn) && th.name == identifier
+        case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) =>
+          (offset == 999 || offset == nn) && th.name == identifier
+        case CompoundConstant(MathOperator.Minus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
+          (offset == 999 || offset == -nn) && th.name == identifier
+        case _ => false
+      }
+      case AddrMode.IndexedY | AddrMode.LongIndexedY | AddrMode.IndexedZ | AddrMode.LongIndexedZ => line.parameter match {
+        case MemoryAddressConstant(th) =>
+          (offset == 999 || offset == 0 || offset == 1) && th.name == identifier
+        case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
+          (offset == 999 || offset == nn || offset == nn + 1) && th.name == identifier
+        case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) =>
+          (offset == 999 || offset == nn || offset == nn + 1) && th.name == identifier
+        case CompoundConstant(MathOperator.Minus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
+          (offset == 999 || offset == -nn || offset == -nn + 1) && th.name == identifier
+        case _ => false
+      }
+      case AddrMode.AbsoluteX | AddrMode.AbsoluteY | AddrMode.AbsoluteIndexedX => line.parameter match {
+        case MemoryAddressConstant(th) =>
+          (offset == 999 || offset >= 0 && offset <= 255) && th.name == identifier
+        case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
+          (offset == 999 || offset >= nn && offset <= nn + 255) && th.name == identifier
+        case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) =>
+          (offset == 999 || offset >= nn && offset <= nn + 255) && th.name == identifier
+        case CompoundConstant(MathOperator.Minus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
+          (offset == 999 || offset >= -nn && offset <= -nn + 255) && th.name == identifier
+        case _ => false
+      }
+      case AddrMode.IndexedX => line.parameter match {
+        case MemoryAddressConstant(th) => th.name == identifier
+        case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) => th.name == identifier
+        case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) => th.name == identifier
+        case CompoundConstant(MathOperator.Minus, MemoryAddressConstant(th), NumericConstant(nn, _)) => th.name == identifier
+        case _ => false
+      }
+      case _ => false
+    }
+  }
+
+  override def toString: String = s"<$identifier+$offset>"
+}
+
 case class CallsAnyOf(identifiers: Set[String]) extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean = {
     (line.addrMode == AddrMode.Absolute ||

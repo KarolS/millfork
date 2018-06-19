@@ -92,9 +92,30 @@ case class CpuImportance(a: Importance = UnknownImportance,
 
 object ReverseFlowAnalyzer {
 
-  val aluAdders = Set(Opcode.ADC, Opcode.SBC, Opcode.ISC, Opcode.DCP, Opcode.ADC_W, Opcode.SBC_W)
-  val actuallyRead = Set(AddrMode.IndexedZ, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.LongIndexedZ, AddrMode.IndexedX, AddrMode.Indirect, AddrMode.AbsoluteIndexedX)
-  val absoluteLike = Set(AddrMode.ZeroPage, AddrMode.Absolute, AddrMode.LongAbsolute)
+  private val aluAdders = Set(Opcode.ADC, Opcode.SBC, Opcode.ISC, Opcode.DCP, Opcode.ADC_W, Opcode.SBC_W)
+  private val actuallyRead = Set(AddrMode.IndexedZ, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.LongIndexedZ, AddrMode.IndexedX, AddrMode.Indirect, AddrMode.AbsoluteIndexedX)
+  private val absoluteLike = Set(AddrMode.ZeroPage, AddrMode.Absolute, AddrMode.LongAbsolute)
+  private val importanceBeforeJsr: CpuImportance = CpuImportance(
+    a = Unimportant,
+    ah = Unimportant,
+    x = Unimportant,
+    y = Unimportant,
+    iz = Unimportant,
+    z = Unimportant,
+    n = Unimportant,
+    c = Unimportant,
+    v = Unimportant,
+    d = Important,
+    m = Important,
+    w = Important,
+    r0 = Unimportant,
+    r1 = Unimportant)
+  private val finalImportance: CpuImportance = CpuImportance(
+    a = Important, ah = Important,
+    x = Important, y = Important, iz = Important,
+    c = Important, v = Important, d = Important, z = Important, n = Important,
+    m = Important, w = Important,
+    r0 = Important, r1 = Important)
 
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[AssemblyLine]): List[CpuImportance] = {
@@ -102,16 +123,10 @@ object ReverseFlowAnalyzer {
     val codeArray = code.toArray
 
     var changed = true
-    val finalImportance = new CpuImportance(
-      a = Important, ah = Important,
-      x = Important, y = Important, iz = Important,
-      c = Important, v = Important, d = Important, z = Important, n = Important,
-      m = Important, w = Important,
-      r0 = Important, r1 = Important)
     changed = true
     while (changed) {
       changed = false
-      var currentImportance: CpuImportance = finalImportance
+      var currentImportance = finalImportance
       for (i <- codeArray.indices.reverse) {
         import millfork.assembly.mos.Opcode._
         import AddrMode._
@@ -134,21 +149,7 @@ object ReverseFlowAnalyzer {
 
           case AssemblyLine(JSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(fun: FunctionInMemory), _) =>
             // this case has to be handled first, because the generic JSR importance handler is too conservative
-            var result = new CpuImportance(
-              a = Unimportant,
-              ah = Unimportant,
-              x = Unimportant,
-              y = Unimportant,
-              iz = Unimportant,
-              z = Unimportant,
-              n = Unimportant,
-              c = Unimportant,
-              v = Unimportant,
-              d = Important,
-              m = Important,
-              w = Important,
-              r0 = Unimportant,
-              r1 = Unimportant)
+            var result = importanceBeforeJsr
             fun.params match {
               case AssemblyParamSignature(params) =>
                 params.foreach(_.variable match {
@@ -180,7 +181,10 @@ object ReverseFlowAnalyzer {
           case AssemblyLine(AND, _, NumericConstant(0, _), _) =>
             currentImportance = currentImportance.copy(n = Unimportant, z = Unimportant, a = Unimportant)
 
-          case AssemblyLine(opcode, addrMode, _, _) if ReverseFlowAnalyzerPerOpcode.hasDefinition(opcode) =>
+          case AssemblyLine(opcode, Implied, _, _) if ReverseFlowAnalyzerPerImpiedOpcode.hasDefinition(opcode) =>
+            currentImportance = ReverseFlowAnalyzerPerImpiedOpcode.get(opcode)(currentImportance)
+
+          case AssemblyLine(opcode, addrMode, _, _) if addrMode != Implied && ReverseFlowAnalyzerPerOpcode.hasDefinition(opcode) =>
             currentImportance = ReverseFlowAnalyzerPerOpcode.get(opcode)(currentImportance)
             if (addrMode == AbsoluteX || addrMode == LongAbsoluteX || addrMode == IndexedX || addrMode == ZeroPageX || addrMode == AbsoluteIndexedX)
               currentImportance = currentImportance.copy(x = Important)
@@ -275,7 +279,7 @@ object ReverseFlowAnalyzer {
               if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Important, r1 = Important)
             case _ => ()
           }
-        } else if (OpcodeClasses.ReadsM(currentLine.opcode) || OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(currentLine.opcode)) {
+        } else if (OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(currentLine.opcode)) {
           if (OpcodeClasses.AccessesWordInMemory(currentLine.opcode)) {
             currentLine.parameter match {
               case MemoryAddressConstant(th: Thing)
@@ -294,10 +298,10 @@ object ReverseFlowAnalyzer {
         }
       }
     }
-    //        importanceArray.zip(codeArray).foreach{
-    //          case (i, y) => if (y.isPrintable) println(f"$y%-32s $i%-32s")
-    //        }
-    //        println("---------------------")
+//            importanceArray.zip(codeArray).foreach{
+//              case (i, y) => if (y.isPrintable) println(f"$y%-32s $i%-32s")
+//            }
+//            println("---------------------")
 
     importanceArray.toList
   }
