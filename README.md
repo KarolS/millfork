@@ -4,8 +4,6 @@
 
 A middle-level programming language targeting 6502-based microcomputers. 
 
-Distributed under GPLv3 (see [LICENSE](LICENSE))
-
 **UNDER DEVELOPMENT, NOT FOR PRODUCTION USE**
 
 For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0.2.2)
@@ -47,6 +45,13 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
 * simple memory model that avoids using the stack
 
 * multi-pass optimizer (that will even optimize your hand-written assembly if you ask it to)
+
+## Licensing
+
+The compiler is distributed under GPLv3 (see [LICENSE](LICENSE)).
+
+The standard include files (located in the `include` directory) are distributed under a more permissive Zlib license (see [include/LICENSE](include/LICENSE)).
+Therefore, no attribution is needed if you are developing and distributing Millfork programs.
 
 ## More info
 
