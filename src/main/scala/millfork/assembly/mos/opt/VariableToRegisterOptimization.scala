@@ -105,6 +105,8 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
     val paramVariables = f.params match {
+      case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
+        Set[String]()
       case NormalParamSignature(ps) =>
         ps.map(_.name).toSet
       case _ =>

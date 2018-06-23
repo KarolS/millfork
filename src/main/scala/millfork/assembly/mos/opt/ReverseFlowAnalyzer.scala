@@ -169,6 +169,8 @@ object ReverseFlowAnalyzer {
                     result = result.copy(x = Important, y = Important)
                   case _ =>
                 })
+              case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
+                result = result.copy(a = Important)
               case _ =>
             }
             if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput(fun.name)) {

@@ -23,6 +23,11 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
     ctx.env.nameCheck(ctx.function.code)
     val chunk = MosStatementCompiler.compile(ctx, ctx.function.code)
 
+    val storeParamsFromRegisters = ctx.function.params match {
+      case NormalParamSignature(List(param@MemoryVariable(_, typ, _))) if typ.size == 1 =>
+        List(AssemblyLine.absolute(STA, param))
+      case _ => Nil
+    }
     val phReg =
       if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
         val reg = ctx.env.get[VariableInMemory]("__reg")
@@ -34,7 +39,7 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
         )
       } else Nil
 
-    val prefix = (if (ctx.function.interrupt) {
+    val prefix = storeParamsFromRegisters ++ (if (ctx.function.interrupt) {
 
       if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
         if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {

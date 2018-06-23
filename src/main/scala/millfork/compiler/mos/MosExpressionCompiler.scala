@@ -1067,6 +1067,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       case _ => Nil
                     }
                     secondViaMemory ++ thirdViaRegisters :+ AssemblyLine.absoluteOrLongAbsolute(JSR, function, ctx.options)
+                  case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
+                    compile(ctx, params.head, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None) ++ List(AssemblyLine.absoluteOrLongAbsolute(JSR, function, ctx.options))
                   case NormalParamSignature(paramVars) =>
                     params.zip(paramVars).flatMap {
                       case (paramExpr, paramVar) =>
