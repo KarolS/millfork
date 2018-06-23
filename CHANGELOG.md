@@ -4,6 +4,8 @@
 
 * Finally faster than C. 
 
+* Licenced the standard library more permissively.
+
 * Preliminary Atari 2600, BBC Micro and LUnix support.
 
 * Added array initialization syntax with `for`.
@@ -25,6 +27,8 @@
 * Fixed broken comparisons between variables of different sizes.
 
 * Fixed several other bugs.
+
+* Tons of optimizer improvements.
 
 * Other improvements.
 
