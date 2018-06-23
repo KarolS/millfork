@@ -101,6 +101,8 @@ class Environment(val parent: Option[Environment], val prefix: String) {
     val p = get[Type]("pointer")
     val params = nf.fold(List[String]()) { f =>
       f.params match {
+        case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 && options.platform.cpuFamily == CpuFamily.M6502 =>
+          Nil
         case NormalParamSignature(ps) =>
           ps.map(p => p.name)
         case _ =>

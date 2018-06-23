@@ -29,7 +29,9 @@ class Platform(
                 val bankNumbers: Map[String, Int],
                 val defaultCodeBank: String,
                 val outputStyle: OutputStyle.Value
-              )
+              ) {
+  def cpuFamily: CpuFamily.Value = CpuFamily.forType(this.cpu)
+}
 
 object Platform {
 
