@@ -62,7 +62,7 @@ object CoarseFlowAnalyzer {
 
           case AssemblyLine(opcode, addrMode, _, _) =>
             currentStatus = currentStatus.copy(src = AnyStatus)
-            if (OpcodeClasses.ChangesX(opcode)) currentStatus = currentStatus.copy(x = AnyStatus)
+            if (OpcodeClasses.ChangesX(opcode)) currentStatus = currentStatus.copy(x = AnyStatus, eqSX = false)
             if (OpcodeClasses.ChangesY(opcode)) currentStatus = currentStatus.copy(y = AnyStatus)
             if (OpcodeClasses.ChangesAAlways(opcode)) currentStatus = currentStatus.copy(a = AnyStatus, a0 = AnyStatus, a7 = AnyStatus)
             if (addrMode == Implied && OpcodeClasses.ChangesAIfImplied(opcode)) currentStatus = currentStatus.copy(a = AnyStatus, a0 = AnyStatus, a7 = AnyStatus)
@@ -71,6 +71,7 @@ object CoarseFlowAnalyzer {
             if (OpcodeClasses.ChangesNAndZ(opcode)) currentStatus = currentStatus.nz
             if (OpcodeClasses.ChangesC(opcode)) currentStatus = currentStatus.copy(c = AnyStatus)
             if (OpcodeClasses.ChangesV(opcode)) currentStatus = currentStatus.copy(v = AnyStatus)
+            if (OpcodeClasses.ChangesStack(opcode) || OpcodeClasses.ChangesS(opcode)) currentStatus = currentStatus.copy(eqSX = false)
         }
       }
 //                  flagArray.zip(codeArray).foreach{

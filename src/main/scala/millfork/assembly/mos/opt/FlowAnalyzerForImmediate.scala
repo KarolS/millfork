@@ -15,7 +15,7 @@ object FlowAnalyzerForImmediate {
       if ((nn & 1) != 0) currentStatus = currentStatus.copy(c = Status.SingleFalse)
       if ((nn & 2) != 0) currentStatus = currentStatus.copy(z = Status.SingleFalse)
       if ((nn & 8) != 0) currentStatus = currentStatus.copy(d = Status.SingleFalse)
-      if ((nn & 0x10) != 0) currentStatus = currentStatus.copy(w = Status.SingleFalse)
+      if ((nn & 0x10) != 0) currentStatus = currentStatus.copy(w = Status.SingleFalse, eqSX = false)
       if ((nn & 0x20) != 0) currentStatus = currentStatus.copy(m = Status.SingleFalse)
       if ((nn & 0x40) != 0) currentStatus = currentStatus.copy(v = Status.SingleFalse)
       if ((nn & 0x80) != 0) currentStatus = currentStatus.copy(n = Status.SingleFalse)
@@ -26,7 +26,7 @@ object FlowAnalyzerForImmediate {
       if ((nn & 1) != 0) currentStatus = currentStatus.copy(c = Status.SingleTrue)
       if ((nn & 2) != 0) currentStatus = currentStatus.copy(z = Status.SingleTrue)
       if ((nn & 8) != 0) currentStatus = currentStatus.copy(d = Status.SingleTrue)
-      if ((nn & 0x10) != 0) currentStatus = currentStatus.copy(w = Status.SingleTrue)
+      if ((nn & 0x10) != 0) currentStatus = currentStatus.copy(w = Status.SingleTrue, eqSX = false)
       if ((nn & 0x20) != 0) currentStatus = currentStatus.copy(m = Status.SingleTrue)
       if ((nn & 0x40) != 0) currentStatus = currentStatus.copy(v = Status.SingleTrue)
       if ((nn & 0x80) != 0) currentStatus = currentStatus.copy(n = Status.SingleTrue)
@@ -34,7 +34,7 @@ object FlowAnalyzerForImmediate {
     },
     LDX -> {(nn, currentStatus) =>
       val n = nn & 0xff
-      currentStatus.nz(n).copy(x = SingleStatus(n), src = SourceOfNZ.X)
+      currentStatus.nz(n).copy(x = SingleStatus(n), src = SourceOfNZ.X, eqSX = false)
     },
     LDY -> {(nn, currentStatus) =>
       val n = nn & 0xff
@@ -54,7 +54,7 @@ object FlowAnalyzerForImmediate {
     },
     LDX_W -> {(nn, currentStatus) =>
       val n = nn & 0xff
-      currentStatus.nzw(nn).copy(x = SingleStatus(n), src = AnyStatus)
+      currentStatus.nzw(nn).copy(x = SingleStatus(n), src = AnyStatus, eqSX = false)
     },
     LDY_W -> {(nn, currentStatus) =>
       val n = nn & 0xff
@@ -251,6 +251,17 @@ object FlowAnalyzerForImmediate {
         z = currentStatus.iz.map(v => (v & 0xff) == (nn & 0xff)),
         src = if (nn == 0) SourceOfNZ.Z else AnyStatus)
     },
+
+    SBX -> { (nn, currentStatus) =>
+      val newX = (currentStatus.x <*> currentStatus.a) { (x, a) => (x - (x & a)) & 0xff }
+      currentStatus.copy(
+        x = newX,
+        n = newX.n(),
+        z = newX.z(),
+        c = AnyStatus,
+        eqSX = false,
+        src = SourceOfNZ.X)
+    }
   )
 
   def hasDefinition(opcode: Opcode.Value): Boolean = map.contains(opcode)

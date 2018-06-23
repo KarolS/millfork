@@ -558,6 +558,14 @@ case class HasSet(state: State.Value) extends AssemblyLinePattern {
     flowInfo.hasSet(state)
 }
 
+case object XContainsStackPointer extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.statusBefore.eqSX
+}
+
 case class HasSourceOfNZ(state: State.Value) extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertForward(needsFlowInfo)

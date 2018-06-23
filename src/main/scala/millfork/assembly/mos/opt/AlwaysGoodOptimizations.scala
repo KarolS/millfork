@@ -217,6 +217,20 @@ object AlwaysGoodOptimizations {
     pointlessImmediateStoreToTheSameVariable(MatchX(0), STX, MatchY(0), STY),
     pointlessImmediateStoreToTheSameVariable(MatchY(0), STY, MatchY(0), STY),
 
+    (HasOpcode(PHA)) ~
+      (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
+      (Elidable & XContainsStackPointer & HasOpcode(STA) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
+        case NumericConstant(n, _) => n == 0x101
+        case _ => false
+      })) ~~> (_.init),
+
+    (HasOpcode(PHA)) ~
+      (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
+      (Elidable & HasOpcode(STA) & HasAddrMode(Stack) & HasParameterWhere(p => p.quickSimplify match {
+        case NumericConstant(n, _) => n == 1
+        case _ => false
+      })) ~~> (_.init)
+
   )
 
   val PointlessStashingForLaterStore = new RuleBasedAssemblyOptimization("Pointless stashing for later store",
@@ -1093,6 +1107,18 @@ object AlwaysGoodOptimizations {
     HasOpcodeIn(Set(TYA, TAY)) ~
       (Not(Set(TYA, TAY)) & Linear & Not(ChangesA) & Not(ChangesY)).* ~
       (Elidable & HasOpcodeIn(Set(TYA, TAY)) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
+
+    (HasOpcodeIn(Set(STA, LDA)) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & Not(HasOpcode(TAX)) & Not(ChangesA) & DoesntChangeMemoryAt(0, 1)).* ~
+      HasOpcode(TAX) ~
+      (LinearOrBranch & Not(ChangesX) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(LDX) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
+
+    (HasOpcodeIn(Set(STA, LDA)) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & Not(HasOpcode(TAY)) & Not(ChangesA) & DoesntChangeMemoryAt(0, 1)).* ~
+      HasOpcode(TAY) ~
+      (LinearOrBranch & Not(ChangesY) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(LDY) & HasAddrModeIn(Set(ZeroPage, Absolute)) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
   )
 
   val RearrangableLoadFromTheSameLocation = new RuleBasedAssemblyOptimization("Rearrangable load from the same location",
