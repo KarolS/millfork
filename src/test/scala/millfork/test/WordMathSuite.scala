@@ -218,4 +218,65 @@ class WordMathSuite extends FunSuite with Matchers {
       m.readWord(0xc000) should equal(0x246)
     }
   }
+
+  test("Word shift 2") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   output = five()
+        |   output <<= 5
+        | }
+        | noinline byte five() {
+        |   return 5
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(5 * 32)
+    }
+  }
+
+  test("Word shift 3") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   output = five()
+        |   output <<= 8
+        | }
+        | noinline byte five() {
+        |   return 5
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(5 * 256)
+    }
+  }
+
+  test("Word shift 4") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   output = five()
+        |   output <<= 7
+        | }
+        | noinline byte five() {
+        |   return 5
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(5 * 128)
+    }
+  }
+
+  test("Word shift 5") {
+    EmuBenchmarkRun("""
+        | word output @$c000
+        | void main () {
+        |   output = five()
+        |   output <<= 1
+        |   output >>= 1
+        | }
+        | noinline byte five() {
+        |   return 5
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(5)
+    }
+  }
 }
