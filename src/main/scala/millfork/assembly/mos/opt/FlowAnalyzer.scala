@@ -1,6 +1,7 @@
 package millfork.assembly.mos.opt
 
 import millfork.CompilationOptions
+import millfork.assembly.OptimizationContext
 import millfork.assembly.mos.{AssemblyLine, Opcode, State}
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 
@@ -33,20 +34,20 @@ object FlowAnalyzer {
   private val EmptyCpuStatus = CpuStatus()
   private val EmptyCpuImportance = CpuImportance()
 
-  def analyze(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions, req: FlowInfoRequirement.Value): List[(FlowInfo, AssemblyLine)] = {
+  def analyze(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext, req: FlowInfoRequirement.Value): List[(FlowInfo, AssemblyLine)] = {
     val forwardFlow = req match {
       case FlowInfoRequirement.BothFlows | FlowInfoRequirement.ForwardFlow =>
-        () => CoarseFlowAnalyzer.analyze(f, code, options)
+        () => CoarseFlowAnalyzer.analyze(f, code, optimizationContext)
       case FlowInfoRequirement.BackwardFlow | FlowInfoRequirement.JustLabels | FlowInfoRequirement.NoRequirement =>
         () => List.fill(code.size)(EmptyCpuStatus)
     }
     val reverseFlow = req match {
       case FlowInfoRequirement.BothFlows | FlowInfoRequirement.BackwardFlow =>
-        () => ReverseFlowAnalyzer.analyze(f, code)
+        () => ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
       case FlowInfoRequirement.ForwardFlow | FlowInfoRequirement.JustLabels | FlowInfoRequirement.NoRequirement =>
         () => List.fill(code.size)(EmptyCpuImportance)
     }
-    val labelMap: (() => Option[Map[String, Int]]) = () => req match {
+    val labelMap: () => Option[Map[String, Int]] = () => req match {
       case FlowInfoRequirement.NoRequirement => None
       case _ => Some(code.flatMap {
         case AssemblyLine(op, _, MemoryAddressConstant(Label(l)), _) if op != Opcode.LABEL => Some(l)

@@ -4,7 +4,7 @@ import millfork.assembly._
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env._
 import millfork.error.ErrorReporting
-import millfork.node.{CallGraph, Program}
+import millfork.node.{CallGraph, NiceFunctionProperty, Program}
 import millfork._
 
 import scala.collection.mutable
@@ -97,7 +97,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               ???
           }
         } catch {
-          case e: StackOverflowError =>
+          case _: StackOverflowError =>
             ErrorReporting.fatal("Stack overflow " + c)
         }
       case UnexpandedConstant(name, _) =>
@@ -200,9 +200,10 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     var inlinedFunctions = Map[String, List[T]]()
     val compiledFunctions = mutable.Map[String, List[T]]()
     val recommendedCompilationOrder = callGraph.recommendedCompilationOrder
+    val niceFunctionProperties = mutable.Set[(NiceFunctionProperty, String)]()
     recommendedCompilationOrder.foreach { f =>
       env.maybeGet[NormalFunction](f).foreach { function =>
-        val code = compileFunction(function, optimizations, options, inlinedFunctions, labelMap.toMap)
+        val code = compileFunction(function, optimizations, options, inlinedFunctions, labelMap.toMap, niceFunctionProperties.toSet)
         val strippedCodeForInlining = for {
           limit <- potentiallyInlineable.get(f)
           if code.map(_.sizeInBytes).sum <= limit
@@ -217,8 +218,16 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             nonInlineableFunctions += function.name
             compiledFunctions(f) = code
             optimizedCodeSize += code.map(_.sizeInBytes).sum
+            if (options.flag(CompilationFlag.InterproceduralOptimization)) {
+              gatherNiceFunctionProperties(niceFunctionProperties, f, code)
+            }
         }
         function.environment.removedThings.foreach(env.removeVariable)
+      }
+    }
+    if (ErrorReporting.traceEnabled) {
+      niceFunctionProperties.toList.groupBy(_._2).mapValues(_.map(_._1).sortBy(_.toString)).toList.sortBy(_._1).foreach{ case (fname, properties) =>
+          ErrorReporting.trace(fname.padTo(30, ' ') + properties.mkString(" "))
       }
     }
 
@@ -442,19 +451,26 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   def injectLabels(labelMap: Map[String, Int], code: List[T]): List[T]
 
-  private def compileFunction(f: NormalFunction, optimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions, inlinedFunctions: Map[String, List[T]], labelMap: Map[String, Int]): List[T] = {
+  private def compileFunction(f: NormalFunction,
+                              optimizations: Seq[AssemblyOptimization[T]],
+                              options: CompilationOptions,
+                              inlinedFunctions: Map[String, List[T]],
+                              labelMap: Map[String, Int],
+                              niceFunctionProperties: Set[(NiceFunctionProperty, String)]): List[T] = {
     ErrorReporting.debug("Compiling: " + f.name, f.position)
     val unoptimized: List[T] =
       injectLabels(labelMap, inliningCalculator.inline(
-        compiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options)),
+        compiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options, niceFunctionProperties = niceFunctionProperties)),
         inlinedFunctions,
         compiler))
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
-      opt.optimize(f, c, options, labelMap)
+      opt.optimize(f, c, OptimizationContext(options, labelMap, niceFunctionProperties))
     }
     performFinalOptimizationPass(f, optimizations.nonEmpty, options, code)
   }
+
+  def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[T]): Unit
 
   def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[T]): List[T]
 

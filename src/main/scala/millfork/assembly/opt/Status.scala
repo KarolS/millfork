@@ -124,6 +124,18 @@ object Status {
       case SingleStatus(v) => v.iz
       case _ => false
     }
+    def butNotA: Status[SourceOfNZ] = inner match {
+      case SingleStatus(v) => if (v.a || v.aw) AnyStatus else inner
+      case _ => inner
+    }
+    def butNotX: Status[SourceOfNZ] = inner match {
+      case SingleStatus(v) => if (v.x) AnyStatus else inner
+      case _ => inner
+    }
+    def butNotY: Status[SourceOfNZ] = inner match {
+      case SingleStatus(v) => if (v.y) AnyStatus else inner
+      case _ => inner
+    }
   }
   implicit class IntStatusOps(val inner: Status[Int]) extends AnyVal {
 

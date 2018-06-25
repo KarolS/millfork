@@ -302,6 +302,12 @@ object Main {
     flag("--inline").action { c =>
       c.changeFlag(CompilationFlag.InlineFunctions, true)
     }.description("Inline functions automatically.")
+    flag("--ipo").action { c =>
+      c.changeFlag(CompilationFlag.InterproceduralOptimization, true)
+    }.description("Interprocedural optimization.").hidden()
+    boolean("--fipo", "--fno-ipo").action { (c, v) =>
+      c.changeFlag(CompilationFlag.InterproceduralOptimization, v)
+    }.description("Interprocedural optimization.")
     flag("-Os", "--size").action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, true).
         changeFlag(CompilationFlag.OptimizeForSpeed, false).

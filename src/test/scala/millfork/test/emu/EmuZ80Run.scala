@@ -51,7 +51,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         // print unoptimized asm
         env.allPreallocatables.foreach {
           case f: NormalFunction =>
-            val unoptimized = Z80Compiler.compile(CompilationContext(f.environment, f, 0, options))
+            val unoptimized = Z80Compiler.compile(CompilationContext(f.environment, f, 0, options, Set()))
             unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
           case d: InitializedArray =>
             unoptimizedSize += d.contents.length

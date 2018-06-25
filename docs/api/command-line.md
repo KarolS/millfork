@@ -89,13 +89,19 @@ This may cause problems if the parameter table is stored next to a hardware regi
 
 * `--inline` – Inline functions automatically (experimental). See the [documentation about inlining](../abi/inlining.md). Computationally easy, can give decent gains.
 
+* `--fipo`, `--fno-ipo` – Whether should perform interprocedural optimization.
+It enables certain optimization similar to what inlining would enable, but without actual inlining.
+
 * `--size` – Optimize for size, sacrificing some speed (experimental).
 
 * `--fast` – Optimize for speed, even if it increases the size a bit (experimental).
 
 * `--blast-processing` – Optimize for speed, even if it increases the size a lot (experimental).
+Enables `--inline` automatically. 
 
-* `--dangerous-optimizations` – Use dangerous optimizations (experimental). Dangerous optimizations are more likely to result in broken code.
+* `--dangerous-optimizations` – Use dangerous optimizations (experimental).
+Dangerous optimizations are more likely to result in broken code.
+Enables `--fipo` automatically. 
 
 ## Warning options
 

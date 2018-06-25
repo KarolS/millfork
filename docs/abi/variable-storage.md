@@ -53,7 +53,7 @@ and ending when the function returns.
 Most automatic variables reside in memory. 
 They can share their memory location with other automatic variables and parameters, 
 to conserve memory usage. 
-Some small automatic variables may be inlined to index registers. 
+Some small automatic variables may be inlined to registers. 
 They are not automatically initialized before reading, reading them before initialization yields an undefined value. 
 Automatic local variables are not safe to use with reentrant functions, see the [relevant documentation](../lang/reentrancy.md) for more details.
 
@@ -66,7 +66,7 @@ of the function call to the function they're defined in
 and ending when the function returns. 
 They reside in memory and can share their memory location with other parameters and automatic variables, 
 to conserve memory usage. 
-Unlike automatic variables, they are never inlined into index registers.
+Unlike automatic variables, they are almost never inlined into registers.
 Parameters are not safe to use with reentrant functions, see the [relevant documentation](../lang/reentrancy.md) for more details.
 
 

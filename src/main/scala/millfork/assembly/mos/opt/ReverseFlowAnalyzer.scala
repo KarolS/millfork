@@ -118,7 +118,8 @@ object ReverseFlowAnalyzer {
     r0 = Important, r1 = Important)
 
   //noinspection RedundantNewCaseClass
-  def analyze(f: NormalFunction, code: List[AssemblyLine]): List[CpuImportance] = {
+  def analyze(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[CpuImportance] = {
+    val niceFunctionProperties = optimizationContext.niceFunctionProperties
     val importanceArray = Array.fill[CpuImportance](code.length)(new CpuImportance())
     val codeArray = code.toArray
 
@@ -130,6 +131,7 @@ object ReverseFlowAnalyzer {
       for (i <- codeArray.indices.reverse) {
         import millfork.assembly.mos.Opcode._
         import AddrMode._
+        import millfork.node.MosNiceFunctionProperty._
         if (importanceArray(i) != currentImportance) {
           changed = true
           importanceArray(i) = currentImportance
@@ -173,10 +175,27 @@ object ReverseFlowAnalyzer {
                 result = result.copy(a = Important)
               case _ =>
             }
-            if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput(fun.name)) {
-              result = result.copy(r0 = Important, r1 = Important)
-            }
-            currentImportance = result
+            currentImportance = result.copy(
+              a = if (niceFunctionProperties(DoesntChangeA -> fun.name)) currentImportance.a ~ result.a else result.a,
+              ah = if (niceFunctionProperties(DoesntChangeAH -> fun.name)) currentImportance.ah ~ result.ah else result.ah,
+              x = if (niceFunctionProperties(DoesntChangeX -> fun.name)) currentImportance.x ~ result.x else result.x,
+              y = if (niceFunctionProperties(DoesntChangeY -> fun.name)) currentImportance.y ~ result.y else result.y,
+              iz = if (niceFunctionProperties(DoesntChangeIZ -> fun.name)) currentImportance.iz ~ result.iz else result.iz,
+              c = if (niceFunctionProperties(DoesntChangeC -> fun.name)) currentImportance.c ~ result.c else result.c,
+              d = if (niceFunctionProperties(DoesntConcernD -> fun.name)) currentImportance.d else result.d,
+              r0 =
+                if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput(fun.name))
+                  Important
+                else if (niceFunctionProperties(DoesntChangeZpRegister -> fun.name))
+                  currentImportance.r0 ~ result.r0
+                else result.r0,
+              r1 =
+                if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput(fun.name))
+                  Important
+                else if (niceFunctionProperties(DoesntChangeZpRegister -> fun.name))
+                  currentImportance.r1 ~ result.r1
+                else result.r1
+            )
 
           case AssemblyLine(ANC, _, NumericConstant(0, _), _) =>
             currentImportance = currentImportance.copy(c = Unimportant, n = Unimportant, z = Unimportant, a = Unimportant)

@@ -1,7 +1,7 @@
 package millfork.assembly.mos.opt
 
 import millfork.CompilationOptions
-import millfork.assembly.AssemblyOptimization
+import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.assembly.mos.AssemblyLine
 import millfork.env._
 import millfork.assembly.mos.Opcode._
@@ -18,7 +18,7 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[AssemblyLine] {
 
   private val storeAddrModes = Set(Absolute, ZeroPage, AbsoluteX, AbsoluteY, ZeroPageX, ZeroPageY)
 
-  override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val paramVariables = f.params match {
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
         Set[String]()
@@ -62,30 +62,30 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[AssemblyLine] {
           case STA | STX | STY | SAX | STZ | SHX | SHY | AHX =>
             true
           case TSB | TRB =>
-            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important
           case INC | DEC =>
-            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important
           case ASL | LSR | ROL | ROR | DCP =>
-            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important &&
               importances(lastaccess).c != Important
           case ISC =>
-            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important &&
               importances(lastaccess).a != Important
           case DCP | SLO | SRE | RLA =>
-            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important &&
               importances(lastaccess).c != Important &&
               importances(lastaccess).a != Important
           case RRA =>
-            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code)
+            if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important &&
               importances(lastaccess).c != Important &&

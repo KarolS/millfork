@@ -87,8 +87,8 @@ object LoopUnrolling {
     (Elidable & HasOpcode(LDX) & MatchNumericImmediate(Start) & Not(HasImmediate(0))).capture(Initialization) ~
       (Elidable & HasOpcode(BEQ) & MatchParameter(Skip)) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
-      ((Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL))) & Not(ChangesX)).*.capture(Body) ~
-        (Elidable & HasOpcodeIn(Set(DEX, INX))).capture(Step)
+      ((Elidable & Not(HasOpcodeIn(RTS, JSR, RTI, RTL)) & Not(ChangesX)).*.capture(Body) ~
+        (Elidable & HasOpcodeIn(DEX, INX)).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPX) & MatchNumericImmediate(End)).? ~
       (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
@@ -101,8 +101,8 @@ object LoopUnrolling {
     },
     (Elidable & HasOpcode(LDX) & MatchNumericImmediate(Start)).capture(Initialization) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
-      ((Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL))) & Not(ChangesX)).*.capture(Body) ~
-        (Elidable & HasOpcodeIn(Set(DEX, INX))).capture(Step)
+      ((Elidable & Not(HasOpcodeIn(RTS, JSR, RTI, RTL)) & Not(ChangesX)).*.capture(Body) ~
+        (Elidable & HasOpcodeIn(DEX, INX)).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPX) & MatchNumericImmediate(End)).? ~
       (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
@@ -114,8 +114,8 @@ object LoopUnrolling {
     },
     (Elidable & HasOpcode(LDX) & MatchNumericImmediate(Start)).capture(Initialization) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
-      ((Elidable & HasOpcodeIn(Set(DEX, INX))).capture(Step) ~
-        (Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL, BNE, CPX, TXA))) & Not(ChangesX)).*.capture(Body)
+      ((Elidable & HasOpcodeIn(DEX, INX)).capture(Step) ~
+        (Elidable & Not(HasOpcodeIn(RTS, JSR, RTI, RTL, BNE, CPX, TXA)) & Not(ChangesX)).*.capture(Body)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPX) & MatchNumericImmediate(End) | Elidable & HasOpcode(TXA)) ~
       (Elidable & HasOpcode(BNE) & MatchParameter(Back)) ~
@@ -128,8 +128,8 @@ object LoopUnrolling {
     (Elidable & HasOpcode(LDY) & MatchNumericImmediate(Start) & Not(HasImmediate(0))).capture(Initialization) ~
       (Elidable & HasOpcode(BEQ) & MatchParameter(Skip)) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
-      ((Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL))) & Not(ChangesY)).*.capture(Body) ~
-        (Elidable & HasOpcodeIn(Set(DEY, INY))).capture(Step)
+      ((Elidable & Not(HasOpcodeIn(RTS, JSR, RTI, RTL)) & Not(ChangesY)).*.capture(Body) ~
+        (Elidable & HasOpcodeIn(DEY, INY)).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPY) & MatchNumericImmediate(End)).? ~
       (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
@@ -142,8 +142,8 @@ object LoopUnrolling {
     },
     (Elidable & HasOpcode(LDY) & MatchNumericImmediate(Start)).capture(Initialization) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
-      ((Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL))) & Not(ChangesY)).*.capture(Body) ~
-        (Elidable & HasOpcodeIn(Set(DEY, INY))).capture(Step)
+      ((Elidable & Not(HasOpcodeIn(RTS, JSR, RTI, RTL)) & Not(ChangesY)).*.capture(Body) ~
+        (Elidable & HasOpcodeIn(DEY, INY)).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPY) & MatchNumericImmediate(End)).? ~
       (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~
@@ -155,8 +155,8 @@ object LoopUnrolling {
     },
     (Elidable & HasOpcode(LDY) & MatchNumericImmediate(Start)).capture(Initialization) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
-      ((Elidable & HasOpcodeIn(Set(DEY, INY))).capture(Step) ~
-        (Elidable & Not(HasOpcodeIn(Set(RTS, JSR, RTI, RTL, BNE, CPY, TYA))) & Not(ChangesY)).*.capture(Body)
+      ((Elidable & HasOpcodeIn(DEY, INY)).capture(Step) ~
+        (Elidable & Not(HasOpcodeIn(RTS, JSR, RTI, RTL, BNE, CPY, TYA)) & Not(ChangesY)).*.capture(Body)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPY) & MatchNumericImmediate(End) | Elidable & HasOpcode(TYA)) ~
       (Elidable & HasOpcode(BNE) & MatchParameter(Back) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~

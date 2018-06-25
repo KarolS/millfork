@@ -4,11 +4,12 @@ import millfork.assembly.mos.opt.{HudsonOptimizations, JumpFixing, JumpShortenin
 import millfork.assembly._
 import millfork.env._
 import millfork.error.ErrorReporting
-import millfork.node.Program
+import millfork.node.{MosNiceFunctionProperty, NiceFunctionProperty, Program}
 import millfork._
-import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode, OpcodeClasses}
 import millfork.compiler.mos.MosCompiler
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 /**
@@ -20,9 +21,10 @@ class MosAssembler(program: Program,
 
 
   override def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[AssemblyLine]):List[AssemblyLine] = {
+    val optimizationContext = OptimizationContext(options, Map(), Set())
     if (actuallyOptimize) {
-      val finalCode = if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.removeLoadZero(code) else code
-      JumpShortening(f, JumpShortening(f, JumpFixing(f, finalCode, options), options), options)
+      val finalCode = if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.removeLoadZero(f, code, optimizationContext) else code
+      JumpShortening(f, JumpShortening(f, JumpFixing(f, finalCode, options), optimizationContext), optimizationContext)
     }
     else JumpFixing(f, code, options)
   }
@@ -34,8 +36,8 @@ class MosAssembler(program: Program,
       case AssemblyLine(BYTE, RawByte, c, _) =>
         writeByte(bank, index, c)
         index + 1
-      case AssemblyLine(BYTE, _, _, _) => ???
-      case AssemblyLine(_, RawByte, _, _) => ???
+      case AssemblyLine(BYTE, _, _, _) => ErrorReporting.fatal("BYTE opcode failure")
+      case AssemblyLine(_, RawByte, _, _) => ErrorReporting.fatal("BYTE opcode failure")
       case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(labelName)), _) =>
         labelMap(labelName) = index
         index
@@ -87,18 +89,93 @@ class MosAssembler(program: Program,
       case l => l
     }
   }
+
+  @tailrec
+  private def isNaughty(code: List[AssemblyLine]): Boolean = {
+    import Opcode._
+    import AddrMode._
+    code match {
+      case AssemblyLine(JMP | JSR | BSR, Indirect | LongIndirect | AbsoluteIndexedX, _, _) :: _ => true
+      case AssemblyLine(PHA, _, _, _) :: AssemblyLine(RTS | RTL, _, _, _) :: _ => true
+      case _ :: xs => isNaughty(xs)
+      case Nil => false
+    }
+  }
+
+  override def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[AssemblyLine]): Unit = {
+    import Opcode._
+    import AddrMode._
+    import MosNiceFunctionProperty._
+    import NiceFunctionProperty._
+    if (isNaughty(code)) return
+    val localLabels = code.flatMap {
+      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(l)), _) => Some(l)
+      case _ => None
+    }.toSet
+    def genericPropertyScan(niceFunctionProperty: NiceFunctionProperty)(predicate: AssemblyLine => Boolean): Unit = {
+      val preserved = code.forall {
+        case AssemblyLine(JSR | BSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => niceFunctionProperties(niceFunctionProperty -> th.name)
+        case AssemblyLine(JSR | BSR, _, _, _) => false
+        case AssemblyLine(op, _, MemoryAddressConstant(Label(label)), _) if OpcodeClasses.AllDirectJumps(op) => localLabels(label)
+        case AssemblyLine(op, _, _, _) if OpcodeClasses.AllDirectJumps(op) => false
+        case l => predicate(l)
+      }
+      if (preserved) {
+        niceFunctionProperties += (niceFunctionProperty -> functionName)
+      }
+    }
+    genericPropertyScan(DoesntChangeX) {
+      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ChangesX(op)
+    }
+    genericPropertyScan(DoesntChangeY) {
+      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ChangesY(op)
+    }
+    genericPropertyScan(DoesntChangeA) {
+      case AssemblyLine(op, _, _, _) if OpcodeClasses.ChangesAAlways(op) => false
+      case AssemblyLine(op, _, Implied, _) if OpcodeClasses.ChangesAIfImplied(op) => false
+      case _ => true
+    }
+    genericPropertyScan(DoesntChangeIZ) {
+      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ChangesIZ(op)
+    }
+    genericPropertyScan(DoesntChangeAH) {
+      case AssemblyLine(op, _, _, _) if OpcodeClasses.ChangesAHAlways(op) => false
+      case AssemblyLine(op, _, Implied, _) if OpcodeClasses.ChangesAHIfImplied(op) => false
+      case _ => true
+    }
+    genericPropertyScan(DoesntChangeC) {
+      case AssemblyLine(SEP | REP, Immediate, NumericConstant(imm, _), _) => (imm & 1) == 0
+      case AssemblyLine(SEP | REP, _, _, _) => false
+      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ChangesC(op)
+    }
+    genericPropertyScan(DoesntConcernD) {
+      case AssemblyLine(SEP | REP, Immediate, NumericConstant(imm, _), _) => (imm & 8) == 0
+      case AssemblyLine(SEP | REP, _, _, _) => false
+      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ReadsD(op) && !OpcodeClasses.OverwritesD(op)
+    }
+    genericPropertyScan(DoesntReadMemory) {
+      case AssemblyLine(op, _, Implied | Immediate | WordImmediate, _) => true
+      case AssemblyLine(op, _, _, _) if OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(op) => false
+      case _ => true
+    }
+    genericPropertyScan(DoesntWriteMemory) {
+      case AssemblyLine(op, _, Implied | Immediate | WordImmediate, _)  => true
+      case AssemblyLine(op, _, _, _) if OpcodeClasses.ChangesMemoryIfNotImplied(op) || OpcodeClasses.ChangesMemoryAlways(op) => false
+      case _ => true
+    }
+  }
 }
 
 
 object MosAssembler {
-  val opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
-  val illegalOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
-  val cmosOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
-  val cmosNopOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
-  val ce02Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
-  val hudsonOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
-  val emulation65816Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
-  val native65816Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val illegalOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val cmosOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val cmosNopOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val ce02Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val hudsonOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val emulation65816Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val native65816Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
 
   def opcodeFor(opcode: Opcode.Value, addrMode: AddrMode.Value, options: CompilationOptions): Byte = {
     val key = opcode -> addrMode

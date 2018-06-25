@@ -206,7 +206,7 @@ object CompilationFlag extends Enumeration {
   // compilation options for Z80
   EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, UseIxForStack,
   // optimization options:
-  DangerousOptimizations, InlineFunctions, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
+  DangerousOptimizations, InlineFunctions, InterproceduralOptimization, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
   // memory allocation options
   VariableOverlap, CompactReturnDispatchParams, LUnixRelocatableCode,
   // runtime check options
@@ -232,6 +232,7 @@ object CompilationFlag extends Enumeration {
     "emit_x80" -> EmitExtended80Opcodes,
     "emit_sharp" -> EmitSharpOpcodes,
     "ix_stack" -> UseIxForStack,
+    "ipo" -> InterproceduralOptimization,
     "zeropage_register" -> ZeropagePseudoregister,
     "decimal_mode" -> DecimalMode,
     "ro_arrays" -> ReadOnlyArrays,

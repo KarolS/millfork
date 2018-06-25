@@ -33,7 +33,7 @@ object SingleAssignmentVariableOptimization extends AssemblyOptimization[Assembl
   override def name = "Single assignment variable optimization"
 
 
-  override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val paramVariables = f.params match {
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
         Set[String]()
@@ -65,7 +65,7 @@ object SingleAssignmentVariableOptimization extends AssemblyOptimization[Assembl
       val slice = code.slice(lifetime.start, lifetime.end)
       slice.forall(l => GoodOpcodes.contains(l.opcode) || !BadOpcodes.contains(l.opcode) && source.forall(s =>  HelperCheckers.memoryAccessDoesntOverlap(s,l)))
     }.flatMap{case (v,source) =>
-      replaceVariable(v.name, source, code.zip(ReverseFlowAnalyzer.analyze(f, code))).map(v -> _)
+      replaceVariable(v.name, source, code.zip(ReverseFlowAnalyzer.analyze(f, code, optimizationContext))).map(v -> _)
     }
 
     if (finalGoodVariables.isEmpty) return code

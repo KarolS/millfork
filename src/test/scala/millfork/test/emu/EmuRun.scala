@@ -102,6 +102,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     val options = CompilationOptions(platform, Map(
       CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.InlineFunctions -> this.inline,
+      CompilationFlag.InterproceduralOptimization -> true,
       CompilationFlag.CompactReturnDispatchParams -> true,
       CompilationFlag.ZeropagePseudoregister -> true,
       CompilationFlag.EmitCmosOpcodes -> millfork.Cpu.CmosCompatible.contains(platform.cpu),
@@ -136,7 +137,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // print unoptimized asm
         env.allPreallocatables.foreach {
           case f: NormalFunction =>
-            val unoptimized = MosCompiler.compile(CompilationContext(f.environment, f, 0, options))
+            val unoptimized = MosCompiler.compile(CompilationContext(f.environment, f, 0, options, Set()))
             unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
           case d: InitializedArray =>
             unoptimizedSize += d.contents.length

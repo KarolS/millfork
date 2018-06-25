@@ -1,7 +1,7 @@
 package millfork.assembly.mos.opt
 
 import millfork.CompilationOptions
-import millfork.assembly.AssemblyOptimization
+import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.{AssemblyLine, OpcodeClasses}
@@ -16,7 +16,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
 
   override def name: String = "Local variable read optimization"
 
-  override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
 
     val stillUsedVariables = code.flatMap {
       case AssemblyLine(_, _, MemoryAddressConstant(th: MemoryVariable), _) => th match {
@@ -36,7 +36,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
       return code
     }
 
-    val statuses = CoarseFlowAnalyzer.analyze(f, code, options)
+    val statuses = CoarseFlowAnalyzer.analyze(f, code, optimizationContext)
     val (optimized, result) = optimizeImpl(code.zip(statuses), eligibleVariables, Map())
     if (optimized) {
       ErrorReporting.debug("Optimized local variable reads")

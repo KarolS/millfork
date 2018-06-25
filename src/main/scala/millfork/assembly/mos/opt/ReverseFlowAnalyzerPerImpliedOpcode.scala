@@ -174,6 +174,10 @@ object ReverseFlowAnalyzerPerImpiedOpcode {
     SED -> (_.copy(d = Unimportant)),
     CLV -> (_.copy(v = Unimportant)),
 
+    CLA -> (_.copy(a = Unimportant)),
+    CLX -> (_.copy(x = Unimportant)),
+    CLY -> (_.copy(y = Unimportant)),
+
   )
 
   def hasDefinition(opcode: Opcode.Value): Boolean = map.contains(opcode)

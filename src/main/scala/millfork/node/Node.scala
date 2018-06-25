@@ -64,6 +64,24 @@ case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends E
     HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte)
 }
 
+sealed class NiceFunctionProperty(override val toString: String)
+
+object NiceFunctionProperty {
+  case object DoesntReadMemory extends NiceFunctionProperty("MR")
+  case object DoesntWriteMemory extends NiceFunctionProperty("MW")
+}
+
+object MosNiceFunctionProperty {
+  case object DoesntChangeA extends NiceFunctionProperty("A")
+  case object DoesntChangeX extends NiceFunctionProperty("X")
+  case object DoesntChangeY extends NiceFunctionProperty("Y")
+  case object DoesntChangeIZ extends NiceFunctionProperty("Z")
+  case object DoesntChangeAH extends NiceFunctionProperty("AH")
+  case object DoesntChangeC extends NiceFunctionProperty("C")
+  case object DoesntConcernD extends NiceFunctionProperty("D")
+  case object DoesntChangeZpRegister extends NiceFunctionProperty("reg")
+}
+
 object MosRegister extends Enumeration {
   val A, X, Y, AX, AY, YA, XA, XY, YX, AW = Value
 }
@@ -72,7 +90,7 @@ object ZRegister extends Enumeration {
 
   val A, B, C, D, E, H, L, AF, BC, HL, DE, SP, IXH, IXL, IYH, IYL, IX, IY, R, I, MEM_HL, MEM_BC, MEM_DE, MEM_IX_D, MEM_IY_D, MEM_ABS_8, MEM_ABS_16, IMM_8, IMM_16 = Value
 
-  def size(reg: Value) = reg match {
+  def size(reg: Value): Int = reg match {
     case AF | BC | DE | HL | IX | IY | IMM_16 => 2
     case A | B | C | D | E | H | L | IXH | IXL | IYH | IYL | R | I | IMM_8 => 1
   }

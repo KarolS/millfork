@@ -1,5 +1,6 @@
 package millfork.assembly.mos.opt
 
+import millfork.assembly.OptimizationContext
 import millfork.assembly.mos.{AddrMode, AssemblyLine}
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.Opcode._
@@ -16,7 +17,8 @@ object JumpShortening {
     distance.toByte == distance
   }
 
-  def apply(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  def apply(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
+    val options = optimizationContext.options
     val offsets = new Array[Int](code.length)
     var o = 0
     code.zipWithIndex.foreach{
@@ -46,7 +48,7 @@ object JumpShortening {
           case (line, _) => line
       }
     } else {
-      FlowAnalyzer.analyze(f, code, options, FlowInfoRequirement.ForwardFlow).zipWithIndex.map {
+      FlowAnalyzer.analyze(f, code, optimizationContext, FlowInfoRequirement.ForwardFlow).zipWithIndex.map {
         case ((info, line@AssemblyLine(JMP, AddrMode.Absolute, MemoryAddressConstant(Label(label)), _)), ix) =>
           labelOffsets.get(label).fold(line) { labelOffset =>
             val thisOffset = offsets(ix)

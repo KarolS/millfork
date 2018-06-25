@@ -45,6 +45,8 @@ You may be also interested in the following:
 
 * `--inline` – automatically inline functions for better optimization
 
+* `--fipo` – enable interprocedural optimization
+
 * `-s` – additionally generate assembly output
 
 * `-g` – additionally generate a label file, in format compatible with VICE emulator

@@ -1,7 +1,7 @@
 package millfork.assembly.mos.opt
 
 import millfork.{CompilationFlag, CompilationOptions, OptimizationPresets}
-import millfork.assembly.AssemblyOptimization
+import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.env.NormalFunction
 import millfork.error.ErrorReporting
@@ -13,7 +13,8 @@ import scala.collection.mutable
   */
 object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
 
-  override def optimize(m: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(m: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
+    val options = optimizationContext.options
     val oldVerbosity = ErrorReporting.verbosity
     ErrorReporting.verbosity = -1
     var allOptimizers = OptimizationPresets.Good ++ LaterOptimizations.All
@@ -55,6 +56,7 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
       AlwaysGoodOptimizations.UnusedCodeRemoval
     )
     val optionsForMeasurements = options.copy(commandLineFlags = options.commandLineFlags + (CompilationFlag.InternalCurrentlyOptimizingForMeasurement -> true))
+    val optimizationContextForMeasurements = optimizationContext.copy(options = optionsForMeasurements)
     val quicklyCleanedCode = quickScrub.foldLeft(code)((c, o) => o.optimize(m, c, optionsForMeasurements))
     seenSoFar += viewCode(quicklyCleanedCode)
     queue.enqueue(quickScrub.reverse -> quicklyCleanedCode)
@@ -64,7 +66,7 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
       var isLeaf = true
       (if (optionsForMeasurements.flag(CompilationFlag.SingleThreaded)) allOptimizers
       else allOptimizers.par).foreach { o =>
-        val optimized = o.optimize(m, codeSoFar, optionsForMeasurements)
+        val optimized = o.optimize(m, codeSoFar, optimizationContextForMeasurements)
         val view = viewCode(optimized)
         seenSoFar.synchronized{
           if (!seenSoFar(view)) {

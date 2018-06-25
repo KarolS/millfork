@@ -33,52 +33,52 @@ object SixteenOptimizations {
   val RepSepWeakening = new RuleBasedAssemblyOptimization("REP/SEP weakening",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
 
-    (Elidable & HasOpcodeIn(Set(SEP, REP)) & HasImmediate(0)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(SEP, REP) & HasImmediate(0)) ~~> (_ => Nil),
 
     (HasOpcode(SEP) & HasImmediate(0x20)) ~
-      (Linear & Not(HasOpcodeIn(Set(SEP, REP, PLP)))).* ~
+      (Linear & Not(HasOpcodeIn(SEP, REP, PLP))).* ~
       (Elidable & HasOpcode(SEP) & HasImmediate(0x20)) ~~> (_.init),
     (HasOpcode(REP) & HasImmediate(0x20)) ~
-      (Linear & Not(HasOpcodeIn(Set(SEP, REP, PLP)))).* ~
+      (Linear & Not(HasOpcodeIn(SEP, REP, PLP))).* ~
       (Elidable & HasOpcode(REP) & HasImmediate(0x20)) ~~> (_.init),
     (HasOpcode(SEP) & HasImmediate(0x10)) ~
-      (Linear & Not(HasOpcodeIn(Set(SEP, REP, PLP)))).* ~
+      (Linear & Not(HasOpcodeIn(SEP, REP, PLP))).* ~
       (Elidable & HasOpcode(SEP) & HasImmediate(0x10)) ~~> (_.init),
     (HasOpcode(REP) & HasImmediate(0x10)) ~
-      (Linear & Not(HasOpcodeIn(Set(SEP, REP, PLP)))).* ~
+      (Linear & Not(HasOpcodeIn(SEP, REP, PLP))).* ~
       (Elidable & HasOpcode(REP) & HasImmediate(0x10)) ~~> (_.init),
 
-    (Elidable & HasOpcodeIn(Set(SEP, REP)) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~
+    (Elidable & HasOpcodeIn(SEP, REP) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~
           Where(c => c.get[Int](0).&(0x1).!=(0)) ~~> { (code, ctx) =>
       val i = ctx.get[Int](0) & 0xFE
       if (i == 0) Nil else List(AssemblyLine.immediate(code.head.opcode, i))
     },
-    (Elidable & HasOpcodeIn(Set(SEP, REP)) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.Z)) ~
+    (Elidable & HasOpcodeIn(SEP, REP) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.Z)) ~
           Where(c => c.get[Int](0).&(0x2).!=(0)) ~~> { (code, ctx) =>
       val i = ctx.get[Int](0) & 0xFD
       if (i == 0) Nil else List(AssemblyLine.immediate(code.head.opcode, i))
     },
-    (Elidable & HasOpcodeIn(Set(SEP, REP)) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.D)) ~
+    (Elidable & HasOpcodeIn(SEP, REP) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.D)) ~
           Where(c => c.get[Int](0).&(0x8).!=(0)) ~~> { (code, ctx) =>
       val i = ctx.get[Int](0) & 0xF7
       if (i == 0) Nil else List(AssemblyLine.immediate(code.head.opcode, i))
     },
-    (Elidable & HasOpcodeIn(Set(SEP, REP)) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.W)) ~
+    (Elidable & HasOpcodeIn(SEP, REP) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.W)) ~
           Where(c => c.get[Int](0).&(0x10).!=(0)) ~~> { (code, ctx) =>
       val i = ctx.get[Int](0) & 0xEF
       if (i == 0) Nil else List(AssemblyLine.immediate(code.head.opcode, i))
     },
-    (Elidable & HasOpcodeIn(Set(SEP, REP)) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.M)) ~
+    (Elidable & HasOpcodeIn(SEP, REP) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.M)) ~
           Where(c => c.get[Int](0).&(0x20).!=(0)) ~~> { (code, ctx) =>
       val i = ctx.get[Int](0) & 0xDF
       if (i == 0) Nil else List(AssemblyLine.immediate(code.head.opcode, i))
     },
-    (Elidable & HasOpcodeIn(Set(SEP, REP)) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.V)) ~
+    (Elidable & HasOpcodeIn(SEP, REP) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.V)) ~
           Where(c => c.get[Int](0).&(0x40).!=(0)) ~~> { (code, ctx) =>
       val i = ctx.get[Int](0) & 0xBF
       if (i == 0) Nil else List(AssemblyLine.immediate(code.head.opcode, i))
     },
-    (Elidable & HasOpcodeIn(Set(SEP, REP)) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.N)) ~
+    (Elidable & HasOpcodeIn(SEP, REP) & MatchNumericImmediate(0) & DoesntMatterWhatItDoesWith(State.N)) ~
           Where(c => c.get[Int](0).&(0x80).!=(0)) ~~> { (code, ctx) =>
       val i = ctx.get[Int](0) & 0x7F
       if (i == 0) Nil else List(AssemblyLine.immediate(code.head.opcode, i))
@@ -122,11 +122,11 @@ object SixteenOptimizations {
   val PointlessLoadAfterLoadOrStore = new RuleBasedAssemblyOptimization("Pointless 16-bit load after load or store",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
 
-    (HasOpcodeIn(Set(LDA_W, STA_W)) & HasAddrMode(WordImmediate) & MatchParameter(1)) ~
+    (HasOpcodeIn(LDA_W, STA_W) & HasAddrMode(WordImmediate) & MatchParameter(1)) ~
       (Linear & Not(ChangesA) & Not(ChangesAH)).* ~
       (Elidable & HasOpcode(LDA_W) & HasAddrMode(WordImmediate) & MatchParameter(1)) ~~> (_.init),
 
-    (HasOpcodeIn(Set(LDA_W, STA_W)) & MatchAddrMode(0) & MatchParameter(1)) ~
+    (HasOpcodeIn(LDA_W, STA_W) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & Not(ChangesA) & Not(ChangesAH) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1, LDA_W)).* ~
       (Elidable & HasOpcode(LDA_W) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
   )
@@ -136,7 +136,7 @@ object SixteenOptimizations {
     (Elidable & HasY(0) /*& HasZ(0)*/ & HasIndex8 & HasAddrMode(LongIndexedY) & HasOpcodeIn(SupportsLongIndexedZ)) ~~> (code => code.map(_.copy(addrMode = LongIndexedZ))),
   )
 
-  private val SupportsStackAddressing = Set(
+  private val SupportsStackAddressing = HasOpcodeIn(
     ADC, AND, EOR, ORA, LDA, STA, SBC, CMP,
   )
 

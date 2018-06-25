@@ -1,12 +1,13 @@
 package millfork.assembly.mos.opt
 
-import millfork.{CompilationFlag, CompilationOptions, NonOverlappingIntervals}
-import millfork.assembly.AssemblyOptimization
+import millfork.{CompilationFlag, NonOverlappingIntervals}
+import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.assembly.mos._
 import millfork.assembly.mos.Opcode._
 import AddrMode._
 import millfork.env._
 import millfork.error.ErrorReporting
+import millfork.node.MosNiceFunctionProperty
 
 import scala.collection.mutable.ListBuffer
 
@@ -22,11 +23,18 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     def +(that: CyclesAndBytes) = CyclesAndBytes(this.bytes + that.bytes, this.cycles + that.cycles)
   }
 
-  case class Features(
+  case class FeaturesForIndexRegisters(
                      blastProcessing: Boolean,
                      izIsAlwaysZero: Boolean,
                      indexRegisterTransfers: Boolean,
+                     functionsSafeForX: Set[String],
+                     functionsSafeForY: Set[String],
+                     functionsSafeForZ: Set[String],
                      identityArray: Constant)
+
+  case class FeaturesForAccumulator(
+                     cmos: Boolean,
+                     safeFunctions: Set[String])
 
   // If any of these opcodes is present within a method,
   // then it's too hard to assign any variable to a register.
@@ -103,7 +111,8 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
   override def name = "Allocating variables to index registers"
 
 
-  override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
+    val options = optimizationContext.options
     val paramVariables = f.params match {
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
         Set[String]()
@@ -138,15 +147,22 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
 
     val removeVariablesForReal = !options.flag(CompilationFlag.InternalCurrentlyOptimizingForMeasurement)
     val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
-    val importances = ReverseFlowAnalyzer.analyze(f, code)
+    val importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
     val blastProcessing = options.flag(CompilationFlag.OptimizeForSonicSpeed)
     val identityArray = f.environment.maybeGet[ThingInMemory]("identity$").map(MemoryAddressConstant).getOrElse(Constant.Zero)
     val izIsAlwaysZero = !options.flag(CompilationFlag.Emit65CE02Opcodes)
-    val features = Features(
+    val featuresForIndices = FeaturesForIndexRegisters(
       blastProcessing = blastProcessing,
       izIsAlwaysZero = izIsAlwaysZero,
       indexRegisterTransfers = options.flag(CompilationFlag.EmitEmulation65816Opcodes),
+      functionsSafeForX = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeX).map(_._2),
+      functionsSafeForY = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeY).map(_._2),
+      functionsSafeForZ = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeIZ).map(_._2),
       identityArray = identityArray
+    )
+    val featuresForAcc = FeaturesForAccumulator(
+      cmos = options.flag(CompilationFlag.EmitCmosOpcodes),
+      safeFunctions = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeA).map(_._2)
     )
 
     val xCandidates = variablesWithLifetimes.filter {
@@ -154,7 +170,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         importances(range.start).x != Important
     }.flatMap {
       case (vName, range) =>
-        canBeInlined(Some(vName), None, None, features, code.zip(importances).slice(range.start, range.end)).map { score =>
+        canBeInlined(Some(vName), None, None, featuresForIndices, code.zip(importances).slice(range.start, range.end)).map { score =>
           (vName, range, if (variablesWithRegisterHint(vName)) score + CyclesAndBytes(16, 16) else score)
         }
     }
@@ -164,7 +180,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         importances(range.start).y != Important
     }.flatMap {
       case (vName, range) =>
-        canBeInlined(None, Some(vName), None, features, code.zip(importances).slice(range.start, range.end)).map { score =>
+        canBeInlined(None, Some(vName), None, featuresForIndices, code.zip(importances).slice(range.start, range.end)).map { score =>
           (vName, range, if (variablesWithRegisterHint(vName)) score + CyclesAndBytes(16, 16) else score)
         }
     }
@@ -174,7 +190,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         importances(range.start).iz != Important
     }.flatMap {
       case (vName, range) =>
-        canBeInlined(None, None, Some(vName), features, code.zip(importances).slice(range.start, range.end)).map { score =>
+        canBeInlined(None, None, Some(vName), featuresForIndices, code.zip(importances).slice(range.start, range.end)).map { score =>
           (vName, range, if (variablesWithRegisterHint(vName)) score + CyclesAndBytes(16, 16) else score)
         }
     }
@@ -185,7 +201,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     }.flatMap {
       case (vName, range) =>
         canBeInlinedToAccumulator(
-          options,
+          featuresForAcc,
           start = true,
           synced = false,
           vName,
@@ -251,7 +267,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           case (v, range, _) =>
             ErrorReporting.debug(s"Inlining $v to register X")
             val oldCode = code.zip(importances).slice(range.start, range.end)
-            val newCode = inlineVars(Some(v), None, None, None, features, oldCode)
+            val newCode = inlineVars(Some(v), None, None, None, featuresForIndices, oldCode)
             reportOptimizedBlock(oldCode, newCode)
             output ++= newCode
             i = range.end
@@ -265,7 +281,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
             case (v, range, _) =>
               ErrorReporting.debug(s"Inlining $v to register Y")
               val oldCode = code.zip(importances).slice(range.start, range.end)
-              val newCode = inlineVars(None, Some(v), None, None, features, oldCode)
+              val newCode = inlineVars(None, Some(v), None, None, featuresForIndices, oldCode)
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
@@ -280,7 +296,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
             case (v, range, _) =>
               ErrorReporting.debug(s"Inlining $v to register Z")
               val oldCode = code.zip(importances).slice(range.start, range.end)
-              val newCode = inlineVars(None, None, Some(v), None, features, oldCode)
+              val newCode = inlineVars(None, None, Some(v), None, featuresForIndices, oldCode)
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
@@ -295,7 +311,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
             case (v, range, _) =>
               ErrorReporting.debug(s"Inlining $v to register A")
               val oldCode = code.zip(importances).slice(range.start, range.end)
-              val newCode = inlineVars(None, None, None, Some(v), features, oldCode)
+              val newCode = inlineVars(None, None, None, Some(v), featuresForIndices, oldCode)
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
@@ -321,7 +337,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
   }
 
   // TODO: STA has different flag behaviour than TAX, keep it in mind!
-  def canBeInlined(xCandidate: Option[String], yCandidate: Option[String], zCandidate: Option[String], features: Features, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
+  def canBeInlined(xCandidate: Option[String], yCandidate: Option[String], zCandidate: Option[String], features: FeaturesForIndexRegisters, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
     val vx = xCandidate.getOrElse("-")
     val vy = yCandidate.getOrElse("-")
     val vz = zCandidate.getOrElse("-")
@@ -369,17 +385,17 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         }
 
       case (AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
-        if th.name == vx && (opcode == LDY || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
+        if th.name == vx && (opcode == LDY || opcode == LDZ || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
       case (AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
-        if th.name == vy && (opcode == LDX || opcode == LAX || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
+        if th.name == vy && (opcode == LDX || opcode == LAX || opcode == LDZ || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
       case (AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
-        if th.name == vz && (opcode == LDZ || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
+        if th.name == vz && (opcode == LDX || opcode == LDY || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
@@ -547,6 +563,14 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         // labels always end the initial section
         canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
 
+      case (AssemblyLine(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _), _) :: xs =>
+        if (
+          xCandidate.isDefined && features.functionsSafeForX(th.name) ||
+          yCandidate.isDefined && features.functionsSafeForY(th.name) ||
+          zCandidate.isDefined && features.functionsSafeForZ(th.name)
+        ) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
+        else None
+
       case (x, _) :: xs =>
         if (xCandidate.isDefined && opcodesThatAlwaysPrecludeXAllocation(x.opcode)) {
           None
@@ -562,13 +586,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     }
   }
 
-  def canBeInlinedToAccumulator(options: CompilationOptions, start: Boolean, synced: Boolean, candidate: String, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
-    val cmos = options.flags(CompilationFlag.EmitCmosOpcodes)
+  def canBeInlinedToAccumulator(features: FeaturesForAccumulator, start: Boolean, synced: Boolean, candidate: String, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
     lines match {
 
       case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true),_) :: xs
         if th.name == candidate && start || synced =>
-        canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
+        canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
 
       case (AssemblyLine(op, _, _, _),_) :: xs if opcodesThatAlwaysPrecludeAAllocation(op) =>
         None
@@ -589,35 +612,35 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         None
 
       case (AssemblyLine(SEP | REP, Immediate, NumericConstant(nn, _), _), _) :: xs =>
-        if ((nn & 0x20) == 0) canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
+        if ((nn & 0x20) == 0) canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
         else None
 
       case (AssemblyLine(SEP | REP, _, _, _), _) :: xs => None
 
       case (AssemblyLine(STA, _, MemoryAddressConstant(th), elidable) ,_):: xs if th.name == candidate =>
         if (synced && elidable) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
+          canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
 
       case (AssemblyLine(DCP, Absolute | ZeroPage, MemoryAddressConstant(th), _) ,_):: xs if th.name == candidate =>
         if (synced) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs)
+          canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
           None
         }
 
       case (AssemblyLine(STA | SAX, _, MemoryAddressConstant(th), elidable) ,_):: xs if th.name != candidate =>
         if (synced) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs)
+          canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
           None
         }
 
       case (AssemblyLine(STA | SAX, _, NumericConstant(_, _), _) ,_):: xs =>
         if (synced) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs)
+          canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
           None
         }
@@ -629,7 +652,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
 
       case (AssemblyLine(TAX | TAY, _, _, _),_) :: xs =>
         if (synced) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs)
+          canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
           None
         }
@@ -638,30 +661,30 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if th.name == candidate =>
         // removing LDA saves 3 bytes
         if (imp.z == Unimportant && imp.n == Unimportant) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
+          canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
+          canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
         }
 
       case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
         if opcodesCommutative(op) =>
         if (th.name == candidate) {
-          if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
+          if (elidable && elidable2) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           else None
-        } else canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
+        } else canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(CLC, _, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
         if opcodesCommutative(op) =>
         if (th.name == candidate) {
-          if (elidable && elidable2) canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
+          if (elidable && elidable2) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           else None
-        } else canBeInlinedToAccumulator(options, start = false, synced = synced, candidate, xs)
+        } else canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDX | LDY | LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
         if th.name == candidate =>
         // converting a load into a transfer saves 2 bytes
         if (elidable) {
-          canBeInlinedToAccumulator(options, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
+          canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         } else {
           None
         }
@@ -673,15 +696,15 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       case (AssemblyLine(ASL | LSR | ROR | ROL, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
         if th.name == candidate =>
         if (elidable) {
-          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
+          canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
           None
         }
 
       case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
         if th.name == candidate =>
-        if (cmos && elidable) {
-          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
+        if (features.cmos && elidable) {
+          canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
           None
         }
@@ -689,12 +712,16 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       case (AssemblyLine(TXA | TYA, _, _, elidable), imp) :: xs =>
         if (imp.a == Unimportant && imp.c == Unimportant && imp.v == Unimportant && elidable) {
           // TYA/TXA has to be converted to CPY#0/CPX#0
-          canBeInlinedToAccumulator(options, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = -1, cycles = 0))
+          canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = -1, cycles = 0))
         } else {
           None
         }
 
-      case (x, _) :: xs => canBeInlinedToAccumulator(options, start = false, synced = synced && OpcodeClasses.AllLinear(x.opcode), candidate, xs)
+      case (AssemblyLine(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _), _) :: xs =>
+        if (features.safeFunctions(th.name)) canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
+        else None
+
+      case (x, _) :: xs => canBeInlinedToAccumulator(features, start = false, synced = synced && OpcodeClasses.AllLinear(x.opcode), candidate, xs)
 
       case Nil => Some(CyclesAndBytes.Zero)
     }
@@ -706,7 +733,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     case _ => true
   }
 
-  def inlineVars(xCandidate: Option[String], yCandidate: Option[String], zCandidate: Option[String], aCandidate: Option[String], features: Features, lines: List[(AssemblyLine, CpuImportance)]): List[AssemblyLine] = {
+  def inlineVars(xCandidate: Option[String], yCandidate: Option[String], zCandidate: Option[String], aCandidate: Option[String], features: FeaturesForIndexRegisters, lines: List[(AssemblyLine, CpuImportance)]): List[AssemblyLine] = {
     val vx = xCandidate.getOrElse("-")
     val vy = yCandidate.getOrElse("-")
     val vz = zCandidate.getOrElse("-")

@@ -1,6 +1,7 @@
 package millfork.compiler
 
 import millfork.env.{Environment, Label, NormalFunction}
+import millfork.node.NiceFunctionProperty
 import millfork.{CompilationFlag, CompilationOptions}
 
 /**
@@ -10,6 +11,7 @@ case class CompilationContext(env: Environment,
                               function: NormalFunction,
                               extraStackOffset: Int,
                               options: CompilationOptions,
+                              niceFunctionProperties: Set[(NiceFunctionProperty, String)],
                               breakLabels: Map[String, Label] = Map(),
                               continueLabels: Map[String, Label] = Map()){
   def withInlinedEnv(environment: Environment, newLabel: String): CompilationContext = {

@@ -1,5 +1,6 @@
 package millfork.assembly.mos.opt
 
+import millfork.assembly.OptimizationContext
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.OpcodeClasses
@@ -11,7 +12,9 @@ import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConsta
   */
 object CoarseFlowAnalyzer {
 
-  def analyze(f: NormalFunction, code: List[AssemblyLine], compilationOptions: CompilationOptions): List[CpuStatus] = {
+  def analyze(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[CpuStatus] = {
+    val compilationOptions = optimizationContext.options
+    val niceFunctionProperties = optimizationContext.niceFunctionProperties
     val ceFlag = compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
     val cmosFlag = compilationOptions.flag(CompilationFlag.EmitCmosOpcodes)
     val initialStatus =
@@ -36,6 +39,7 @@ object CoarseFlowAnalyzer {
       for (i <- codeArray.indices) {
         import millfork.assembly.mos.Opcode._
         import millfork.assembly.mos.AddrMode._
+        import millfork.node.MosNiceFunctionProperty._
         if (flagArray(i) != currentStatus) {
           changed = true
           flagArray(i) = currentStatus
@@ -47,6 +51,17 @@ object CoarseFlowAnalyzer {
               case AssemblyLine(_, _, MemoryAddressConstant(Label(L)), _) => Some(flagArray(j))
               case _ => None
             }).fold(currentStatus)(_ ~ _)
+
+          case AssemblyLine(JSR, _, MemoryAddressConstant(th), _) =>
+            currentStatus = initialStatus.copy(
+              a = if (niceFunctionProperties(DoesntChangeA -> th.name)) currentStatus.a else AnyStatus,
+              ah = if (niceFunctionProperties(DoesntChangeAH -> th.name)) currentStatus.ah else AnyStatus,
+              x = if (niceFunctionProperties(DoesntChangeX -> th.name)) currentStatus.x else AnyStatus,
+              eqSX = if (niceFunctionProperties(DoesntChangeX -> th.name)) currentStatus.eqSX else false,
+              y = if (niceFunctionProperties(DoesntChangeY -> th.name)) currentStatus.y else AnyStatus,
+              iz = if (niceFunctionProperties(DoesntChangeIZ -> th.name)) currentStatus.iz else AnyStatus,
+              c = if (niceFunctionProperties(DoesntChangeC -> th.name)) currentStatus.c else AnyStatus
+            )
 
           case AssemblyLine(JSR | BYTE, _, _, _) =>
             currentStatus = initialStatus
