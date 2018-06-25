@@ -61,6 +61,13 @@ object Main {
       ErrorReporting.fatalQuit("No input files")
     }
     ErrorReporting.verbosity = c.verbosity.getOrElse(0)
+
+    ErrorReporting.debug("millfork version " + BuildInfo.version)
+    ErrorReporting.trace(s"Copyright (C) $copyrightYears  Karol Stasiak")
+    ErrorReporting.trace("This program comes with ABSOLUTELY NO WARRANTY.")
+    ErrorReporting.trace("This is free software, and you are welcome to redistribute it under certain conditions")
+    ErrorReporting.trace("You should have received a copy of the GNU General Public License along with this program. If not, see https://www.gnu.org/licenses/")
+
     val platform = Platform.lookupPlatformFile(c.includePath, c.platform.getOrElse {
       ErrorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
@@ -345,6 +352,12 @@ object Main {
     ).description("Run the compiler in a single thread.")
 
     flag("--help").action(c => {
+      println("millfork version " + BuildInfo.version)
+      println(s"Copyright (C) $copyrightYears  Karol Stasiak")
+      println("This program comes with ABSOLUTELY NO WARRANTY.")
+      println("This is free software, and you are welcome to redistribute it under certain conditions")
+      println("You should have received a copy of the GNU General Public License along with this program. If not, see https://www.gnu.org/licenses/")
+      println()
       printHelp(20).foreach(println(_))
       assumeStatus(CliStatus.Quit)
       c

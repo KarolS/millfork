@@ -10,8 +10,6 @@ libraryDependencies += "com.lihaoyi" %% "fastparse" % "1.0.0"
 
 libraryDependencies += "org.apache.commons" % "commons-configuration2" % "2.2"
 
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.4"
-
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.4" % "test"
 
 // these two are not in Maven Central or any other public repo
@@ -53,6 +51,8 @@ releaseDist := {
   IO.createDirectory(distDir)
   IO.copyFile(jar, distDir / jar.name)
   IO.copyFile(base / "LICENSE", distDir / "LICENSE")
+  IO.copyFile(base / "src/3rd-party-licenses.txt", distDir / "3rd-party-licenses.txt")
+  IO.copyFile(base / "CHANGELOG.md", distDir / "CHANGELOG.md")
   IO.copyFile(base / "README.md", distDir / "README.md")
   def copyDir(name: String): Unit = {
     IO.createDirectory(distDir / name)

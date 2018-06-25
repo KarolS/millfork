@@ -1,0 +1,8 @@
+Millfork binary distribution contains a copy of the Scala standard library.
+The license for Scala is contained at docs/legal/Scala-license.txt
+
+Millfork binary distribution contains a copy of the Apache Configuration library.
+The license for it is contained at docs/legal/Apache-license.txt
+
+Millfork binary distribution contains a copy of the Fastparse library.
+The license for Fastparse is contained at docs/legal/Fastparse-license.txt
