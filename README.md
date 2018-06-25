@@ -4,9 +4,7 @@
 
 A middle-level programming language targeting 6502-based microcomputers. 
 
-**UNDER DEVELOPMENT, NOT FOR PRODUCTION USE**
-
-For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0.2.2)
+For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0.3.0)
 
 ## Features
 
