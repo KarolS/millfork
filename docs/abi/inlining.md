@@ -8,6 +8,6 @@
 
 ## Automatic inlining
 
-`--inline` command-line option
+`-finline` command-line option
 
 `inline` and `noinline` keyword

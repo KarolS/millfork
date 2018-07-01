@@ -308,11 +308,17 @@ object Main {
     }
     flag("--inline").action { c =>
       c.changeFlag(CompilationFlag.InlineFunctions, true)
+    }.description("Inline functions automatically.").hidden()
+    boolean("-finline", "-fno-inline").action { (c, v) =>
+      c.changeFlag(CompilationFlag.InlineFunctions, v)
     }.description("Inline functions automatically.")
     flag("--ipo").action { c =>
       c.changeFlag(CompilationFlag.InterproceduralOptimization, true)
     }.description("Interprocedural optimization.").hidden()
     boolean("--fipo", "--fno-ipo").action { (c, v) =>
+      c.changeFlag(CompilationFlag.InterproceduralOptimization, v)
+    }.description("Interprocedural optimization.").hidden()
+    boolean("-fipo", "-fno-ipo").action { (c, v) =>
       c.changeFlag(CompilationFlag.InterproceduralOptimization, v)
     }.description("Interprocedural optimization.")
     flag("-Os", "--size").action { c =>
@@ -330,9 +336,12 @@ object Main {
         changeFlag(CompilationFlag.OptimizeForSpeed, true).
         changeFlag(CompilationFlag.OptimizeForSonicSpeed, true).
         changeFlag(CompilationFlag.InlineFunctions, true)
-    }.description("Prefer faster code even if it is much bigger (experimental). Implies --inline.")
+    }.description("Prefer faster code even if it is much bigger (experimental). Implies -finline.")
     flag("--dangerous-optimizations").action { c =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, true)
+    }.description("Use dangerous optimizations (experimental).").hidden()
+    boolean("-fdangerous-optimizations", "-fnodangerous-optimizations").action { (c, v) =>
+      c.changeFlag(CompilationFlag.DangerousOptimizations, v)
     }.description("Use dangerous optimizations (experimental).")
 
     fluff("", "Warning options:", "")

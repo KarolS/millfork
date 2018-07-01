@@ -233,6 +233,8 @@ object CompilationFlag extends Enumeration {
     "emit_sharp" -> EmitSharpOpcodes,
     "ix_stack" -> UseIxForStack,
     "ipo" -> InterproceduralOptimization,
+    "inline" -> InlineFunctions,
+    "dangerous_optimizations" -> DangerousOptimizations,
     "zeropage_register" -> ZeropagePseudoregister,
     "decimal_mode" -> DecimalMode,
     "ro_arrays" -> ReadOnlyArrays,

@@ -3,7 +3,7 @@
 // https://github.com/JasonAldred/C64-Starfield
 // http://www.galencia.games/
 
-// compile with -O3 --inline -t c64
+// compile with -O3 -finline -t c64
 
 const word starScreenChar  = $0400         // Screen address
 const word StarScreenCols  = $d800         // Character attribute address

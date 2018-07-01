@@ -43,9 +43,9 @@ You may be also interested in the following:
 
 * `-O`, `-O2`, `-O3`, `-O4` – enable optimization (various levels)
 
-* `--inline` – automatically inline functions for better optimization
+* `-finline` – automatically inline functions for better optimization
 
-* `--fipo` – enable interprocedural optimization
+* `-fipo` – enable interprocedural optimization
 
 * `-s` – additionally generate assembly output
 
