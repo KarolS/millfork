@@ -1,4 +1,4 @@
-package millfork.compiler.mos
+package millfork.compiler
 
 /**
   * @author Karol Stasiak

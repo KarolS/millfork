@@ -216,22 +216,52 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 ???
               case "<" =>
                 val (size, signed) = assertComparison(ctx, params)
-                ???
+                compileTransitiveRelation(ctx, "<", params, target, branches) { (l, r) =>
+                  size match {
+                    case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
+                    case _ => ???
+                  }
+                }
               case ">=" =>
                 val (size, signed) = assertComparison(ctx, params)
-                ???
+                compileTransitiveRelation(ctx, ">=", params, target, branches) { (l, r) =>
+                  size match {
+                    case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
+                    case _ => ???
+                  }
+                }
               case ">" =>
                 val (size, signed) = assertComparison(ctx, params)
-                ???
+                compileTransitiveRelation(ctx, ">", params, target, branches) { (l, r) =>
+                  size match {
+                    case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
+                    case _ => ???
+                  }
+                }
               case "<=" =>
                 val (size, signed) = assertComparison(ctx, params)
-                ???
+                compileTransitiveRelation(ctx, "<=", params, target, branches) { (l, r) =>
+                  size match {
+                    case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
+                    case _ => ???
+                  }
+                }
               case "==" =>
                 val size = params.map(p => getExpressionType(ctx, p).size).max
-                ???
+                compileTransitiveRelation(ctx, "==", params, target, branches) { (l, r) =>
+                  size match {
+                    case 1 => Z80Comparisons.compile8BitComparison(ctx, ComparisonType.Equal, l, r, branches)
+                    case _ => ???
+                  }
+                }
               case "!=" =>
                 val (l, r, size) = assertBinary(ctx, params)
-                ???
+                compileTransitiveRelation(ctx, "!=", params, target, branches) { (l, r) =>
+                  size match {
+                    case 1 => Z80Comparisons.compile8BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
+                    case _ => ???
+                  }
+                }
               case "+=" =>
                 val (l, r, size) = assertAssignmentLike(ctx, params)
                 size match {
@@ -493,6 +523,41 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         }
       //TODO
       case SeparateBytesExpression(hi, lo) => ???
+    }
+  }
+
+  private def compileTransitiveRelation(ctx: CompilationContext,
+                                        operator: String,
+                                        params: List[Expression],
+                                        target: ZExpressionTarget.Value,
+                                        branches: BranchSpec)(binary: (Expression, Expression) => List[ZLine]): List[ZLine] = {
+    params match {
+      case List(l, r) => binary(l, r)
+      case List(_) | Nil =>
+        ErrorReporting.fatal("")
+      case _ =>
+        params.tail.init.foreach { e =>
+          if (ctx.env.eval(e).isEmpty) e match {
+            case VariableExpression(_) =>
+            case LiteralExpression(_, _) =>
+            case IndexedExpression(_, VariableExpression(_)) =>
+            case IndexedExpression(_, LiteralExpression(_, _)) =>
+            case IndexedExpression(_, SumExpression(List(
+            (_, LiteralExpression(_, _)),
+            (false, VariableExpression(_))
+            ), false)) =>
+            case IndexedExpression(_, SumExpression(List(
+            (false, VariableExpression(_)),
+            (_, LiteralExpression(_, _))
+            ), false)) =>
+            case _ =>
+              ErrorReporting.warn("A complex expression may be evaluated multiple times", ctx.options, e.position)
+          }
+        }
+        val conjunction = params.init.zip(params.tail).map {
+          case (l, r) => FunctionCallExpression(operator, List(l, r))
+        }.reduceLeft((a, b) => FunctionCallExpression("&&", List(a, b)))
+        compile(ctx, conjunction, target, branches)
     }
   }
 }
