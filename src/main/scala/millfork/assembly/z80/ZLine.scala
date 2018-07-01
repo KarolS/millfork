@@ -24,6 +24,20 @@ case class OneRegister(register: ZRegister.Value) extends ZRegisters
 
 case class TwoRegisters(target: ZRegister.Value, source: ZRegister.Value) extends ZRegisters
 
+sealed abstract class LocalVariableAddressOperand(val memViaRegister: ZRegister.Value) {
+  def offsetConstant: Constant
+}
+
+case class LocalVariableAddressViaIX(offset: Int) extends LocalVariableAddressOperand(ZRegister.MEM_IX_D) {
+  override def offsetConstant: Constant = NumericConstant(offset, 1)
+}
+case class LocalVariableAddressViaIY(offset: Int) extends LocalVariableAddressOperand(ZRegister.MEM_IY_D) {
+  override def offsetConstant: Constant = NumericConstant(offset, 1)
+}
+case object LocalVariableAddressViaHL extends LocalVariableAddressOperand(ZRegister.MEM_HL) {
+  override def offsetConstant: Constant = Constant.Zero
+}
+
 object ZLine {
 
   import ZOpcode._
@@ -41,9 +55,15 @@ object ZLine {
 
   def jump(label: Label, condition: ZRegisters): ZLine = ZLine(JP, condition, label.toAddress)
 
+  def djnz(label: String): ZLine = ZLine(DJNZ, NoRegisters, Label(label).toAddress)
+
+  def djnz(label: Label): ZLine = ZLine(DJNZ, NoRegisters, label.toAddress)
+
   def implied(opcode: ZOpcode.Value): ZLine = ZLine(opcode, NoRegisters, Constant.Zero)
 
   def register(opcode: ZOpcode.Value, register: ZRegister.Value): ZLine = ZLine(opcode, OneRegister(register), Constant.Zero)
+
+  def register(opcode: ZOpcode.Value, register: LocalVariableAddressOperand): ZLine = ZLine(opcode, OneRegister(register.memViaRegister), register.offsetConstant)
 
   def imm8(opcode: ZOpcode.Value, value: Constant): ZLine = ZLine(opcode, OneRegister(IMM_8), value)
 
@@ -52,6 +72,10 @@ object ZLine {
   def registers(opcode: ZOpcode.Value, target: ZRegister.Value, source: ZRegister.Value): ZLine = ZLine(opcode, TwoRegisters(target, source), Constant.Zero)
 
   def ld8(target: ZRegister.Value, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegisters(target, source), Constant.Zero)
+
+  def ld8(target: LocalVariableAddressOperand, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegisters(target.memViaRegister, source), target.offsetConstant)
+
+  def ld8(target: ZRegister.Value, source: LocalVariableAddressOperand): ZLine = ZLine(LD, TwoRegisters(target, source.memViaRegister), source.offsetConstant)
 
   def ld16(target: ZRegister.Value, source: ZRegister.Value): ZLine = ZLine(LD_16, TwoRegisters(target, source), Constant.Zero)
 
@@ -159,11 +183,13 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
         case OneRegister(r) => s"    EX (SP),${asAssemblyString(r)})"
         case _ => ???
       }
-      case JP | JR =>
+      case JP | JR | DJNZ | CALL =>
         val ps = registers match {
-          case NoRegisters => parameter.toString
+          case NoRegisters => s" $parameter"
           case IfFlagSet(ZFlag.P) => " PO,$parameter"
           case IfFlagClear(ZFlag.P) => " PE,$parameter"
+          case IfFlagSet(ZFlag.S) => " M,$parameter"
+          case IfFlagClear(ZFlag.S) => " P,$parameter"
           case IfFlagSet(f) => s" $f,$parameter"
           case IfFlagClear(f) => s" N$f,$parameter"
           case OneRegister(r) => s" (${asAssemblyString(r)})"
@@ -175,6 +201,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case NoRegisters => ""
           case IfFlagSet(ZFlag.P) => " PO"
           case IfFlagClear(ZFlag.P) => " PE"
+          case IfFlagSet(ZFlag.S) => " M"
+          case IfFlagClear(ZFlag.S) => " P"
           case IfFlagSet(f) => s" $f"
           case IfFlagClear(f) => s" N$f"
           case OneRegister(r) => s" ${asAssemblyString(r)}"

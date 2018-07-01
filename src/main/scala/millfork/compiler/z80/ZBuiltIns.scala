@@ -148,7 +148,10 @@ object ZBuiltIns {
         }
     }
     if (hasConst) {
-      result += ZLine.imm8(AND, const.loByte)
+      result += ZLine.imm8(ADD, const.loByte)
+      if (decimal) {
+        result += ZLine.implied(DAA)
+      }
     }
     result.toList
   }
