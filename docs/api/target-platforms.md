@@ -45,6 +45,8 @@ Read [the NES programming guide](./famicom-programming-guide.md) for more info.
 
 * `apple2` – Apple II+/IIe/Enhanced IIe
 
+* `pc88` – NEC PC-88 (very incomplete and not usable for anything yet)
+
 The primary and most tested platform is Commodore 64.
 
 Currently, targets that assume that the program will be loaded from disk or tape are better tested.
@@ -115,6 +117,8 @@ Every platform is defined in an `.ini` file with an appropriate name.
     * `huc6280` (Hudson HuC6280; experimental)
     
     * `65816` (WDC 65816/65802; experimental; currently only programs that use only 16-bit addressing are supported)
+    
+    * `z80` (Zilog Z80; experimental and very incomplete)
 
 * `modules` – comma-separated list of modules that will be automatically imported
 
@@ -141,7 +145,10 @@ Every platform is defined in an `.ini` file with an appropriate name.
 
 #### `[allocation]` section
 
-* `zp_pointers` – either a list of comma separated zeropage addresses that can be used by the program as zeropage pointers, or `all` for all. Each value should be the address of the first of two free bytes in the zeropage.
+* `zp_pointers` – 
+either a list of comma separated zeropage addresses that can be used by the program as zeropage pointers, or `all` for all. 
+Each value should be the address of the first of two free bytes in the zeropage.
+Only used for 6502-based targets.
 
 * `segments` – a comma-separated list of segment names.  
 A segment named `default` is always required.  
@@ -191,6 +198,8 @@ Default: `after_code`.
     * `<addr>:<addr>` - inclusive range of bytes
     
     * `<segment>:<addr>:<addr>` - inclusive range of bytes in a given segment
+    
+    * `d88` - a D88 floppy disk image for PC-88
     
 * `extension` – target file extension, with or without the dot
 

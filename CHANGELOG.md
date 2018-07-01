@@ -2,6 +2,10 @@
 
 ## Current version
 
+* A very incomplete support for the Z80 microprocessor.
+
+* A very incomplete support for NEC PC-88.
+
 ## 0.3.0
 
 * Finally faster than C. 

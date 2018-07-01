@@ -192,6 +192,7 @@ object Cpu extends Enumeration {
     case "strictricoh" => StrictRicoh
     case "strict2a03" => StrictRicoh
     case "strict2a07" => StrictRicoh
+    case "z80" => Z80
     case _ => ErrorReporting.fatal("Unknown CPU achitecture: " + name)
   }
 }

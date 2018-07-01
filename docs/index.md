@@ -21,7 +21,7 @@
 
 * [Functions](lang/functions.md)
 
-* [Inline assembly syntax](lang/assembly.md)
+* [Inline 6502 assembly syntax](lang/assembly.md)
 
 * [Important guidelines regarding reentrancy](lang/reentrancy.md)
 

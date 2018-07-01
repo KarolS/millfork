@@ -1,6 +1,6 @@
 [< back to index](../index.md)
 
-# Using assembly within Millfork programs
+# Using 6502 assembly within Millfork programs
 
 There are two ways to include raw assembly code in your Millfork programs:
 

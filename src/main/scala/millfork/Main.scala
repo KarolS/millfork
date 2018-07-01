@@ -6,14 +6,15 @@ import java.util.Locale
 
 import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.opt._
+import millfork.assembly.z80.opt.Z80OptimizationPresets
 import millfork.buildinfo.BuildInfo
 import millfork.cli.{CliParser, CliStatus}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.Environment
 import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph
-import millfork.output.{AbstractAssembler, AssemblerOutput, MosAssembler, MosInliningCalculator}
-import millfork.parser.MosSourceLoadingQueue
+import millfork.output._
+import millfork.parser.{MosSourceLoadingQueue, ZSourceLoadingQueue}
 
 /**
   * @author Karol Stasiak
@@ -94,6 +95,7 @@ object Main {
 
     val result: AssemblerOutput = CpuFamily.forType(platform.cpu) match {
       case CpuFamily.M6502 => assembleForMos(c, platform, options)
+      case CpuFamily.I80 => assembleForI80(c, platform, options)
     }
 
     if (c.outputAssembly) {
@@ -181,6 +183,39 @@ object Main {
 
     // compile
     val assembler = new MosAssembler(program, env, platform)
+    val result = assembler.assemble(callGraph, assemblyOptimizations, options)
+    ErrorReporting.assertNoErrors("Codegen failed")
+    ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
+    ErrorReporting.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
+    ErrorReporting.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
+    ErrorReporting.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
+    result
+  }
+
+  private def assembleForI80(c: Context, platform: Platform, options: CompilationOptions): AssemblerOutput = {
+    val optLevel = c.optimizationLevel.getOrElse(0)
+    val unoptimized = new ZSourceLoadingQueue(
+      initialFilenames = c.inputFileNames,
+      includePath = c.includePath,
+      options = options).run()
+
+    val program = if (optLevel > 0) {
+      OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
+    } else {
+      unoptimized
+    }
+    val callGraph = new StandardCallGraph(program)
+
+    val env = new Environment(None, "")
+    env.collectDeclarations(program, options)
+
+    val assemblyOptimizations = optLevel match {
+      case 0 => Nil
+      case _ => Z80OptimizationPresets.Good
+    }
+
+    // compile
+    val assembler = new Z80Assembler(program, env, platform)
     val result = assembler.assemble(callGraph, assemblyOptimizations, options)
     ErrorReporting.assertNoErrors("Codegen failed")
     ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")

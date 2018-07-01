@@ -59,6 +59,8 @@ Therefore, no attribution is needed if you are developing and distributing Millf
 
 ## Planned features
 
-* more targets: Oric computers, PC-Engine/Turbografx-16, Atari Lynx
+* Z80 support, targetting PC-88, ZX Spectrum, later also maybe Armstrad CPC, MSX, TI-83
+
+* more 6502 targets: Oric computers, PC-Engine/Turbografx-16, Atari Lynx
  
 * support for 65816, SuperFamicom/SNES and Apple IIgs 

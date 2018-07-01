@@ -143,7 +143,7 @@ object Platform {
 
     val codeAllocators = banks.map(b => b -> new UpwardByteAllocator(bankStarts(b), bankCodeEnds(b)))
     val variableAllocators = banks.map(b => b -> new VariableAllocator(
-      if (b == "default") freePointers else Nil, bankDataStarts(b) match {
+      if (b == "default" && CpuFamily.forType(cpu) == CpuFamily.M6502) freePointers else Nil, bankDataStarts(b) match {
         case None => new AfterCodeByteAllocator(bankEnds(b))
         case Some(start) => new UpwardByteAllocator(start, bankEnds(b))
       }))
@@ -155,6 +155,7 @@ object Platform {
       case "endaddr" => EndAddressOutput
       case "pagecount" => PageCountOutput
       case "allocated" => AllocatedDataOutput
+      case "d88" => D88Output
       case n => n.split(":").filter(_.nonEmpty) match {
         case Array(b, s, e) => BankFragmentOutput(b, parseNumber(s), parseNumber(e))
         case Array(s, e) => CurrentBankFragmentOutput(parseNumber(s), parseNumber(e))
