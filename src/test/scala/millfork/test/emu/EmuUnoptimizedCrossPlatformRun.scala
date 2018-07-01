@@ -14,5 +14,9 @@ object EmuUnoptimizedCrossPlatformRun {
       println(f"Running MOS")
       verifier(mm)
     }
+    if (platforms.contains(CpuFamily.I80)) {
+      println(f"Running Z80")
+      verifier(mz)
+    }
   }
 }

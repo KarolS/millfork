@@ -12,6 +12,8 @@ libraryDependencies += "org.apache.commons" % "commons-configuration2" % "2.2"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.4" % "test"
 
+libraryDependencies += "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test"
+
 // these two are not in Maven Central or any other public repo
 // get them from the following links or just build millfork without tests:
 // https://github.com/sethm/symon/tree/71905fdb1998ee4f142260879504bc46cf27648f

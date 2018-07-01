@@ -1,5 +1,6 @@
 package millfork.test.emu
 
+import com.codingrodent.microprocessor.Z80.{CPUConstants, Z80Core}
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.z80.ZLine
@@ -84,12 +85,34 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         ErrorReporting.assertNoErrors("Code generation failed")
 
         val memoryBank = assembler.mem.banks("default")
-        if (source.contains("return [")) {
-          for (_ <- 0 until 10; i <- 0xfffe.to(0, -1)) {
-            if (memoryBank.readable(i)) memoryBank.readable(i + 1) = true
-          }
+        (0x1f0 until 0x200).foreach(i => memoryBank.readable(i) = true)
+        (0xff00 to 0xffff).foreach{i =>
+          memoryBank.readable(i) = true
+          memoryBank.writeable(i) = true
         }
+
+        // CALL $0200
+        // HALT
+        memoryBank.output(0x1f0) = 0xCD.toByte
+        memoryBank.output(0x1f1) = 0
+        memoryBank.output(0x1f2) = 2
+        memoryBank.output(0x1f3) = 0x76.toByte
+
+        (0x200 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(ErrorReporting.debug(_))
+
         platform.cpu match {
+          case millfork.Cpu.Z80 =>
+            val cpu = new Z80Core(Z80Memory(memoryBank), DummyIO)
+            cpu.reset()
+            cpu.setProgramCounter(0x1f0)
+            cpu.resetTStates()
+            while (!cpu.getHalt) {
+              cpu.executeOneInstruction()
+              dump(cpu)
+              cpu.getTStates should be < TooManyCycles
+            }
+            val tStates = cpu.getTStates
+            Timings(tStates, tStates) -> memoryBank
           case _ =>
             Timings(-1, -1) -> memoryBank
         }
@@ -100,6 +123,14 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         ErrorReporting.error("Syntax error", Some(parserF.lastPosition))
         ???
     }
+  }
+
+  def dump(cpu: Z80Core): Unit = {
+    val a = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
+    val bc = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
+    val de = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
+    val hl = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
+    println(f"A=$a%02x,BC=$bc%04x,DE=$de%04x,HL=$hl%04x")
   }
 
 }
