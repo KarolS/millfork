@@ -3,13 +3,13 @@ inline asm byte __mul_u8u8u8() {
     ? LDA #0
     ? JMP __mul_u8u8u8_start
 __mul_u8u8u8_add:
-    CLC
-    ADC __reg.lo
+    ? CLC
+    ? ADC __reg.lo
 __mul_u8u8u8_loop:
-    ASL __reg.lo
+    ? ASL __reg.lo
 __mul_u8u8u8_start:
-    LSR __reg.hi
-    BCS __mul_u8u8u8_add
-    BNE __mul_u8u8u8_loop
+    ? LSR __reg.hi
+    ? BCS __mul_u8u8u8_add
+    ? BNE __mul_u8u8u8_loop
     ? RTS
 }
