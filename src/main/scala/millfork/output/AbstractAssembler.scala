@@ -38,6 +38,14 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     mem.banks(bank).output(addr) = value.toByte
   }
 
+  protected def writeByte(bank: String, addr: Int, value: Int): Unit = {
+    mem.banks(bank).occupied(addr) = true
+    mem.banks(bank).initialized(addr) = true
+    mem.banks(bank).readable(addr) = true
+    if ((value & 0xff) != value) ???
+    mem.banks(bank).output(addr) = value.toByte
+  }
+
   def writeByte(bank: String, addr: Int, value: Constant): Unit = {
     mem.banks(bank).occupied(addr) = true
     mem.banks(bank).initialized(addr) = true
