@@ -11,6 +11,8 @@
 
 * [Target platform reference](api/target-platforms.md)
 
+* [Defining a custom platform](api/custom-platform.md)
+
 ## Language reference
 
 * [Syntax](lang/syntax.md)
