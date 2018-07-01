@@ -194,10 +194,18 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 ???
               case "<<" =>
                 val (l, r, size) = assertBinary(ctx, params)
-                ???
+                size match {
+                  case 1 => targetifyA(target, Z80Shifting.compile8BitShift(ctx, l, r, left = true))
+                  case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = true)
+                  case _ => ???
+                }
               case ">>" =>
                 val (l, r, size) = assertBinary(ctx, params)
-                ???
+                size match {
+                  case 1 => targetifyA(target, Z80Shifting.compile8BitShift(ctx, l, r, left = false))
+                  case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = false)
+                  case _ => ???
+                }
               case "<<'" =>
                 assertAllBytes("Long shift ops not supported", ctx, params)
                 val (l, r, 1) = assertBinary(ctx, params)
@@ -251,10 +259,18 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 Nil
               case "<<=" =>
                 val (l, r, size) = assertAssignmentLike(ctx, params)
-                ???
+                size match {
+                  case 1 => Z80Shifting.compile8BitShiftInPlace(ctx, l, r, left = true)
+                  case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = true) ++ storeHL(ctx, l, signedSource = false)
+                  case _ => ???
+                }
               case ">>=" =>
                 val (l, r, size) = assertAssignmentLike(ctx, params)
-                ???
+                size match {
+                  case 1 => Z80Shifting.compile8BitShiftInPlace(ctx, l, r, left = false)
+                  case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = false) ++ storeHL(ctx, l, signedSource = false)
+                  case _ => ???
+                }
               case "<<'=" =>
                 val (l, r, size) = assertAssignmentLike(ctx, params)
                 ???
@@ -349,6 +365,20 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             }
 
         }
+    }
+  }
+
+  def calculateAddressToAppropriatePointer(ctx: CompilationContext, expr: LhsExpression): Option[(LocalVariableAddressOperand, List[ZLine])] = {
+    val env = ctx.env
+    expr match {
+      case VariableExpression(name) =>
+        env.get[Variable](name) match {
+          case v:VariableInMemory => Some(LocalVariableAddressViaHL -> List(ZLine.ldImm16(ZRegister.HL, v.toAddress)))
+          case v:StackVariable => Some(LocalVariableAddressViaIX(v.baseOffset) -> Nil)
+        }
+      case i:IndexedExpression => Some(LocalVariableAddressViaHL -> calculateAddressToHL(ctx, i))
+      case _:SeparateBytesExpression => None
+      case _ => ???
     }
   }
 

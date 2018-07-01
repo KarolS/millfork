@@ -1,5 +1,6 @@
 package millfork.test
-import millfork.test.emu.{EmuBenchmarkRun, EmuUltraBenchmarkRun, EmuUnoptimizedRun}
+import millfork.CpuFamily
+import millfork.test.emu._
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -8,18 +9,18 @@ import org.scalatest.{FunSuite, Matchers}
 class ShiftSuite extends FunSuite with Matchers {
 
   test("In-place shifting") {
-    EmuUnoptimizedRun("""
+    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)("""
         | array output [3] @$c000
         | void main () {
         |   output[0] = 1
         |   output[1] = 3
         |   output[output[0]] <<= 2
         | }
-      """.stripMargin).readByte(0xc001) should equal(12)
+      """.stripMargin){_.readByte(0xc001) should equal(12)}
   }
 
   test("Byte shifting") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)("""
         | byte output @$c000
         | void main () {
         |   byte a
@@ -73,7 +74,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Variable shifting") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)("""
         | word output0 @$c000
         | word output2 @$c002
         | byte output4 @$c004
