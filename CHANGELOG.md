@@ -1,5 +1,7 @@
 # Change log
 
+## Current version
+
 ## 0.3.0
 
 * Finally faster than C. 
