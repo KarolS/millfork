@@ -1,6 +1,7 @@
 package millfork.node
 
 import millfork.assembly.mos.{AddrMode, Opcode}
+import millfork.assembly.z80.{ZOpcode, ZRegisters}
 import millfork.env.{Constant, ParamPassingConvention}
 
 case class Position(filename: String, line: Int, column: Int, cursor: Int)
@@ -20,24 +21,34 @@ object Node {
 
 sealed trait Expression extends Node {
   def replaceVariable(variable: String, actualParam: Expression): Expression
+  def containsVariable(variable: String): Boolean
+  def isPure: Boolean
 }
 
 case class ConstantArrayElementExpression(constant: Constant) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def containsVariable(variable: String): Boolean = false
+  override def isPure: Boolean = true
 }
 
 case class LiteralExpression(value: Long, requiredSize: Int) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def containsVariable(variable: String): Boolean = false
+  override def isPure: Boolean = true
 }
 
 case class BooleanLiteralExpression(value: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def containsVariable(variable: String): Boolean = false
+  override def isPure: Boolean = true
 }
 
 sealed trait LhsExpression extends Expression
 
 case object BlackHoleExpression extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): LhsExpression = this
+  override def containsVariable(variable: String): Boolean = false
+  override def isPure: Boolean = true
 }
 
 case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsExpression {
@@ -45,11 +56,15 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
     SeparateBytesExpression(
       hi.replaceVariable(variable, actualParam),
       lo.replaceVariable(variable, actualParam))
+  override def containsVariable(variable: String): Boolean = hi.containsVariable(variable) || lo.containsVariable(variable)
+  override def isPure: Boolean = hi.isPure && lo.isPure
 }
 
 case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     SumExpression(expressions.map { case (n, e) => n -> e.replaceVariable(variable, actualParam) }, decimal)
+  override def containsVariable(variable: String): Boolean = expressions.exists(_._2.containsVariable(variable))
+  override def isPure: Boolean = expressions.forall(_._2.isPure)
 }
 
 case class FunctionCallExpression(functionName: String, expressions: List[Expression]) extends Expression {
@@ -57,11 +72,15 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
     FunctionCallExpression(functionName, expressions.map {
       _.replaceVariable(variable, actualParam)
     })
+  override def containsVariable(variable: String): Boolean = expressions.exists(_.containsVariable(variable))
+  override def isPure: Boolean = false // TODO
 }
 
 case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte)
+  override def containsVariable(variable: String): Boolean = expression.containsVariable(variable)
+  override def isPure: Boolean = expression.isPure
 }
 
 sealed class NiceFunctionProperty(override val toString: String)
@@ -111,6 +130,8 @@ object ZRegister extends Enumeration {
 case class VariableExpression(name: String) extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     if (name == variable) actualParam else this
+  override def containsVariable(variable: String): Boolean = name == variable
+  override def isPure: Boolean = true
 }
 
 case class IndexedExpression(name: String, index: Expression) extends LhsExpression {
@@ -121,6 +142,8 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
         case _ => ??? // TODO
       }
     } else IndexedExpression(name, index.replaceVariable(variable, actualParam))
+  override def containsVariable(variable: String): Boolean = name == variable || index.containsVariable(variable)
+  override def isPure: Boolean = index.isPure
 }
 
 sealed trait Statement extends Node {
@@ -268,6 +291,10 @@ case class Assignment(destination: LhsExpression, source: Expression) extends Ex
 }
 
 case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, expression: Expression, elidable: Boolean) extends ExecutableStatement {
+  override def getAllExpressions: List[Expression] = List(expression)
+}
+
+case class Z80AssemblyStatement(opcode: ZOpcode.Value, registers: ZRegisters, expression: Expression, elidable: Boolean) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
 }
 

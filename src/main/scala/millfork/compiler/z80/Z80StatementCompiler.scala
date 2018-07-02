@@ -1,9 +1,9 @@
 package millfork.compiler.z80
 
 import millfork.assembly.BranchingOpcodeMapping
-import millfork.assembly.z80.ZLine
+import millfork.assembly.z80._
 import millfork.compiler.{AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
-import millfork.env.{BooleanType, ConstantBooleanType, Label, MacroFunction}
+import millfork.env._
 import millfork.node._
 import millfork.assembly.z80.ZOpcode._
 import millfork.error.ErrorReporting
@@ -74,11 +74,60 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         compileWhileStatement(ctx, s)
       case s: DoWhileStatement =>
         compileDoWhileStatement(ctx, s)
-      case f:ForStatement =>
-        compileForStatement(ctx,f)
-      case s:BreakStatement =>
+
+      case f@ForStatement(_, _, _, _, List(Assignment(target: IndexedExpression, source: IndexedExpression))) =>
+        Z80BulkMemoryOperations.compileMemcpy(ctx, target, source, f)
+
+      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if !source.containsVariable(variable) =>
+        Z80BulkMemoryOperations.compileMemset(ctx, target, source, f)
+
+      case f@ForStatement(variable, _, _, _, List(ExpressionStatement(FunctionCallExpression(
+      operator@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
+      List(target: IndexedExpression, source: Expression)
+      )))) =>
+        Z80BulkMemoryOperations.compileMemtransform(ctx, target, operator, source, f)
+
+      case f@ForStatement(variable, _, _, _, List(
+      ExpressionStatement(FunctionCallExpression(
+      operator1@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
+      List(target1: IndexedExpression, source1: Expression)
+      )),
+      ExpressionStatement(FunctionCallExpression(
+      operator2@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
+      List(target2: IndexedExpression, source2: Expression)
+      ))
+      )) =>
+        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, operator1, source1, target2, operator2, source2, f)
+
+      case f@ForStatement(variable, _, _, _, List(
+      Assignment(target1: IndexedExpression, source1: Expression),
+      ExpressionStatement(FunctionCallExpression(
+      operator2@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
+      List(target2: IndexedExpression, source2: Expression)
+      ))
+      )) =>
+        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, "=", source1, target2, operator2, source2, f)
+
+      case f@ForStatement(variable, _, _, _, List(
+      ExpressionStatement(FunctionCallExpression(
+      operator1@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
+      List(target1: IndexedExpression, source1: Expression)
+      )),
+      Assignment(target2: IndexedExpression, source2: Expression)
+      )) =>
+        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, operator1, source1, target2, "=", source2, f)
+
+      case f@ForStatement(variable, _, _, _, List(
+      Assignment(target1: IndexedExpression, source1: Expression),
+      Assignment(target2: IndexedExpression, source2: Expression)
+      )) =>
+        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, "=", source1, target2, "=", source2, f)
+
+      case f: ForStatement =>
+        compileForStatement(ctx, f)
+      case s: BreakStatement =>
         compileBreakStatement(ctx, s)
-      case s:ContinueStatement =>
+      case s: ContinueStatement =>
         compileContinueStatement(ctx, s)
       case ExpressionStatement(e@FunctionCallExpression(name, params)) =>
         ctx.env.lookupFunction(name, params.map(p => Z80ExpressionCompiler.getExpressionType(ctx, p) -> p)) match {
@@ -90,14 +139,22 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         }
       case ExpressionStatement(e) =>
         Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING)
+      case Z80AssemblyStatement(op, reg, expression, elidable) =>
+        val param = ctx.env.evalForAsm(expression) match {
+          case Some(v) => v
+          case None =>
+            ErrorReporting.error("Inlining failed due to non-constant things", expression.position)
+            Constant.Zero
+        }
+        List(ZLine(op, reg, param, elidable))
     }
   }
 
   def labelChunk(labelName: String) = List(ZLine.label(Label(labelName)))
 
-  def jmpChunk(label: Label) =  List(ZLine.jump(label))
+  def jmpChunk(label: Label) = List(ZLine.jump(label))
 
-  def branchChunk(opcode: BranchingOpcodeMapping, labelName: String) =  List(ZLine.jump(Label(labelName), opcode.z80Flags))
+  def branchChunk(opcode: BranchingOpcodeMapping, labelName: String) = List(ZLine.jump(Label(labelName), opcode.z80Flags))
 
   def areBlocksLarge(blocks: List[ZLine]*): Boolean = false
 

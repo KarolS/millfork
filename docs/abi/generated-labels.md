@@ -40,6 +40,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `lj` – extra labels generated when converting invalid short jumps to long jumps
 
+* `me` – start of a `for` loop doing bulk memory operations
+
 * `no` – nonet to word extension caused by the `nonet` operator
 
 * `od` – end of  a `do-while` statement

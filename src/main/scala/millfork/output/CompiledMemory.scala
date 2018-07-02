@@ -1,5 +1,7 @@
 package millfork.output
 
+import millfork.error.ErrorReporting
+
 import scala.collection.mutable
 
 /**
@@ -27,4 +29,8 @@ class MemoryBank {
   val writeable = Array.fill(1 << 16)(false)
   var start: Int = 0
   var end: Int = 0
+
+  def dump(startAddr: Int, count: Int)(dumper: String => Any): Unit = {
+    (0 until count).map(i => output(i + startAddr)).grouped(16).zipWithIndex.map { case (c, i) => f"$i%04X: " + c.map(i => f"$i%02x").mkString(" ") }.foreach(dumper)
+  }
 }

@@ -41,6 +41,9 @@ object EmuI80BenchmarkRun {
 
 object EmuCrossPlatformBenchmarkRun {
   def apply(platforms: CpuFamily.Value*)(source: String)(verifier: MemoryBank => Unit): Unit = {
+    if (platforms.isEmpty) {
+      throw new RuntimeException("Dude, test at least one platform")
+    }
     if (platforms.contains(CpuFamily.M6502)) {
       EmuBenchmarkRun.apply(source)(verifier)
     }

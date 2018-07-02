@@ -108,7 +108,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
             cpu.resetTStates()
             while (!cpu.getHalt) {
               cpu.executeOneInstruction()
-              dump(cpu)
+//              dump(cpu)
               cpu.getTStates should be < TooManyCycles
             }
             val tStates = cpu.getTStates
