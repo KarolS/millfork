@@ -1,5 +1,5 @@
 package millfork.test
-import millfork.CpuFamily
+import millfork.Cpu
 import millfork.test.emu._
 import org.scalatest.{FunSuite, Matchers}
 
@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ShiftSuite extends FunSuite with Matchers {
 
   test("In-place shifting") {
-    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
         | array output [3] @$c000
         | void main () {
         |   output[0] = 1
@@ -20,7 +20,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Byte shifting") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | byte output @$c000
         | void main () {
         |   byte a
@@ -31,7 +31,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Word shifting") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |   byte a
@@ -63,7 +63,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Word shifting via pseudoregister") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |   output = identity(three() << 7)
@@ -74,7 +74,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Variable shifting") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output0 @$c000
         | word output2 @$c002
         | byte output4 @$c004

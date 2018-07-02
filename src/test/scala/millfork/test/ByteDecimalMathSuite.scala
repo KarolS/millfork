@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
+import millfork.Cpu
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ByteDecimalMathSuite extends FunSuite with Matchers {
 
   test("Decimal byte addition") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | byte a
@@ -21,7 +22,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal byte addition 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | byte a
@@ -33,7 +34,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place decimal byte addition") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output[3] @$c000
         | byte a
@@ -47,7 +48,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place decimal byte addition 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output[3] @$c000
         | void main () {
@@ -67,7 +68,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Flag switching test") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -78,7 +79,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Flag switching test 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -89,7 +90,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Flag switching test 3") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {

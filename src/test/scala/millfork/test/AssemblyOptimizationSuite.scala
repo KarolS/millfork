@@ -2,7 +2,7 @@ package millfork.test
 
 import millfork.{Cpu, OptimizationPresets}
 import millfork.assembly.mos.opt.{AlwaysGoodOptimizations, LaterOptimizations, VariableToRegisterOptimization}
-import millfork.test.emu.{EmuBenchmarkRun, EmuRun, EmuSuperOptimizedRun, EmuUltraBenchmarkRun}
+import millfork.test.emu._
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -11,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 class AssemblyOptimizationSuite extends FunSuite with Matchers {
 
   test("Duplicate RTS") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | void main () {
         |   if 1 == 1 {
@@ -22,7 +22,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Inlining variable") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output [5] @$C000
         | void main () {
@@ -37,7 +37,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Inlining variable 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output [100] @$C000
         | void main () {
@@ -52,7 +52,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Loading modified variables") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$C000
         | void main () {
@@ -68,7 +68,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Bit ops") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$C000
         | void main () {
@@ -82,7 +82,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Inlining after a while") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output [2]@$C000
         | void main () {
@@ -99,7 +99,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Tail call") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$C000
         | void main () {
@@ -304,7 +304,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Adding a nonet") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$C000
         | byte source @$C002
@@ -323,7 +323,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Common indexing subexpression elimination") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output [55] @$C000
         | array input = [0,1,2,3,4,5,6,7,8,9,10]
@@ -342,7 +342,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Effectively const variable") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         |byte output @$c000
         |void main() {
@@ -410,7 +410,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Constant pointers") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         |byte output0 @$c000
         |byte output1 @$c001
@@ -430,7 +430,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Low bit") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main() {
@@ -449,7 +449,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Low bit 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main() {
@@ -468,7 +468,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Low bit 3") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main() {
@@ -490,7 +490,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Low bit 4") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main() {
@@ -546,7 +546,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
     }
 
   test("Add one bit") {
-      EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
         """
           | byte output @$c000
           | void main() {

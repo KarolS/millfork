@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.EmuCmosBenchmarkRun
+import millfork.Cpu
+import millfork.test.emu.EmuCrossPlatformBenchmarkRun
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class CmosSuite extends FunSuite with Matchers {
 
   test("Zero store 1") {
-    EmuCmosBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |  output = 1
@@ -18,7 +19,7 @@ class CmosSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(0))
   }
   test("Zero store 2") {
-    EmuCmosBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80)("""
         | byte output @$c000
         | void main () {
         |  output = 1

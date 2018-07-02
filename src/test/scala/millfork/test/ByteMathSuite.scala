@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.CpuFamily
+import millfork.Cpu
 import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUltraBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
@@ -81,7 +81,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   test("Parameter order") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | array arr[6]

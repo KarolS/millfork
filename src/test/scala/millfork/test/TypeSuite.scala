@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.CpuFamily
+import millfork.Cpu
 import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class TypeSuite extends FunSuite with Matchers {
 
   test("Word to word") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |  output = word(0x203)

@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun}
+import millfork.Cpu
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BreakContinueSuite extends FunSuite with Matchers {
 
   test("Break from one-iteration loop 1") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -23,7 +24,7 @@ class BreakContinueSuite extends FunSuite with Matchers {
   }
 
   test("Break from one-iteration loop 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -38,7 +39,7 @@ class BreakContinueSuite extends FunSuite with Matchers {
   }
 
   test("Break from infinite loop 1") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -53,7 +54,7 @@ class BreakContinueSuite extends FunSuite with Matchers {
   }
 
   test("Break and continue from infinite loop 1") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -69,7 +70,7 @@ class BreakContinueSuite extends FunSuite with Matchers {
   }
 
   test("Nested break") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -86,7 +87,7 @@ class BreakContinueSuite extends FunSuite with Matchers {
   }
 
   test("Continue in for loop 1") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | byte counter @$c001

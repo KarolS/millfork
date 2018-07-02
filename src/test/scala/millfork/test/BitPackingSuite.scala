@@ -1,6 +1,8 @@
 package millfork.test
 
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.Cpu
+import millfork.error.ErrorReporting
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BitPackingSuite extends FunSuite with Matchers {
 
   test("Unpack bits from a byte") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | array output[8]
         | word output_addr @$c000
         | void main () {
@@ -38,7 +40,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Unpack bits from a word") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | array output[16]
         | word output_addr @$c000
         | void main () {
@@ -75,7 +77,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Pack bits into byte") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | byte output @$C000
         | array input = [$F0, 1, 0, $41, $10, 1, $61, 0]
         | void main () {
@@ -92,7 +94,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Pack bits into word") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$C000
         | array input = [$F0, 1, 0, $41, $10, 1, $61, 0,
         |                1, 1, 0, 0, 0, 0, 1, 1]
@@ -110,7 +112,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Pack bits into byte using plus") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | byte output @$C000
         | array input = [$F0, 1, 0, $41, $10, 1, $61, 0]
         | void main () {
@@ -127,7 +129,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Reverse byte") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output_addr @$C000
         | void main () {
         |   byte i
@@ -149,7 +151,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Reverse byte 2") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | byte output_real @$C000
         | void main () {
         |   byte i
@@ -170,7 +172,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Reverse word") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output_addr @$C000
         | void main () {
         |   byte i

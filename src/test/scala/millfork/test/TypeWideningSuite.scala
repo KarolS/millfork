@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.Cpu
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class TypeWideningSuite extends FunSuite with Matchers {
 
   test("Word after simple ops") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |  output = random()

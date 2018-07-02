@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.CpuFamily
+import millfork.Cpu
 import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class MacroSuite extends FunSuite with Matchers {
 
   test("Most basic test") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | macro void run(byte x) {
         |    output = x

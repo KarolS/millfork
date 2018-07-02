@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.CpuFamily
+import millfork.Cpu
 import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuSuperOptimizedRun, EmuUltraBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ComparisonSuite extends FunSuite with Matchers {
 
   test("Equality and inequality") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -28,7 +28,7 @@ class ComparisonSuite extends FunSuite with Matchers {
   }
 
   test("Less") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -41,7 +41,7 @@ class ComparisonSuite extends FunSuite with Matchers {
   }
 
   test("Compare to zero") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {

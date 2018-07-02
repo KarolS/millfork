@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.CpuFamily
+import millfork.Cpu
 import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
   */
 class BasicSymonTest extends FunSuite with Matchers {
   test("Empty test") {
-    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | void main () {
         |
@@ -84,7 +84,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Byte assignment") {
-    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -111,7 +111,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Preallocated variables 2") {
-    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | word number = 344
@@ -141,7 +141,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Segment syntax") {
-    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | segment(default)byte output @$c000
         | segment(default)array x[3]

@@ -1,8 +1,8 @@
 package millfork.test
 
-import millfork.CpuFamily
+import millfork.Cpu
 import millfork.error.ErrorReporting
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -11,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ForLoopSuite extends FunSuite with Matchers {
 
   test("For-to") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | void main () {
@@ -25,7 +25,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-to 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | byte five
@@ -44,7 +44,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-downto") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | void main () {
@@ -58,7 +58,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-downto 2") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output [55] @$c000
         | void main () {
@@ -78,7 +78,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-until") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | void main () {
@@ -91,7 +91,7 @@ class ForLoopSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc000) should equal(15))
   }
   test("For-parallelto") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | void main () {
@@ -104,7 +104,7 @@ class ForLoopSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc000) should equal(15))
   }
   test("For-paralleluntil") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | void main () {
@@ -118,7 +118,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Various loops") {
-    EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | void init() {
         |     zero = 0
@@ -151,11 +151,13 @@ class ForLoopSuite extends FunSuite with Matchers {
         |     flag = 9
         | }
         | void _panic(){while(true){}}
-      """.stripMargin)
+      """.stripMargin){ m=>
+
+    }
   }
 
   test("Memcpy") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output[5]@$c001
         | array input = [0,1,4,9,16,25,36,49]
@@ -173,7 +175,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Various bulk operations") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output0[5]@$c000
         | array output1[5]@$c010

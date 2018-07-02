@@ -25,7 +25,7 @@ object EmuBenchmarkRun {
   }
 }
 
-object EmuI80BenchmarkRun {
+object EmuZ80BenchmarkRun {
   def apply(source: String)(verifier: MemoryBank => Unit) = {
     val (Timings(t0, _), m0) = EmuUnoptimizedZ80Run.apply2(source)
     val (Timings(t1, _), m1) = EmuOptimizedZ80Run.apply2(source)
@@ -40,15 +40,18 @@ object EmuI80BenchmarkRun {
 }
 
 object EmuCrossPlatformBenchmarkRun {
-  def apply(platforms: CpuFamily.Value*)(source: String)(verifier: MemoryBank => Unit): Unit = {
+  def apply(platforms: millfork.Cpu.Value*)(source: String)(verifier: MemoryBank => Unit): Unit = {
     if (platforms.isEmpty) {
       throw new RuntimeException("Dude, test at least one platform")
     }
-    if (platforms.contains(CpuFamily.M6502)) {
+    if (platforms.contains(millfork.Cpu.Mos)) {
       EmuBenchmarkRun.apply(source)(verifier)
     }
-    if (platforms.contains(CpuFamily.I80)) {
-      EmuI80BenchmarkRun.apply(source)(verifier)
+    if (platforms.contains(millfork.Cpu.Cmos)) {
+      EmuCmosBenchmarkRun.apply(source)(verifier)
+    }
+    if (platforms.contains(millfork.Cpu.Z80)) {
+      EmuZ80BenchmarkRun.apply(source)(verifier)
     }
   }
 }

@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.CpuFamily
+import millfork.Cpu
 import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class SignExtensionSuite extends FunSuite with Matchers {
 
   test("Sbyte to Word") {
-    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |   sbyte b

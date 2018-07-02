@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.Cpu
+import millfork.test.emu.EmuCrossPlatformBenchmarkRun
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ErasthotenesSuite extends FunSuite with Matchers {
 
   test("Erasthotenes") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | const pointer sieve = $C000
         | const byte sqrt = 128

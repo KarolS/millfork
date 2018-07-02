@@ -100,7 +100,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array simple read") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | array a[7]
@@ -114,7 +114,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array simple read 2") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | array a[7]
@@ -132,7 +132,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Pointers") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output
         |   pointer a
@@ -157,7 +157,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Pointer indexing test") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output [4] @$c000
         |   pointer a
@@ -174,7 +174,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Syntax") {
-    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | array a = [1, 2, 3]
         | array b = "text" ascii
@@ -186,7 +186,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Negative subindex") {
-    EmuUnoptimizedCrossPlatformRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         |
         | array output [$fff] @$c000
@@ -224,7 +224,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Word subindex 2") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         |
         | array output [$fff] @$c000
@@ -246,7 +246,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array filters") {
-    EmuCrossPlatformBenchmarkRun(CpuFamily.M6502, CpuFamily.I80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array x = @word [$1144]
         | byte output @$c000
