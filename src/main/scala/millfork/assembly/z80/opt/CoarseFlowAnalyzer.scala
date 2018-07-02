@@ -1,6 +1,5 @@
 package millfork.assembly.z80.opt
 
-import millfork.assembly.mos.{AssemblyLine, OpcodeClasses}
 import millfork.assembly.opt.{AnyStatus, SingleStatus}
 import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine, ZOpcodeClasses}
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConstant}
@@ -35,6 +34,7 @@ object CoarseFlowAnalyzer {
           case ZLine(LABEL, _, MemoryAddressConstant(Label(l)), _) =>
             val L = l
             currentStatus = codeArray.indices.flatMap(j => codeArray(j) match {
+              case ZLine(DJNZ, _, MemoryAddressConstant(Label(L)), _) => Some(flagArray(j).copy(b = AnyStatus))
               case ZLine(_, _, MemoryAddressConstant(Label(L)), _) => Some(flagArray(j))
               case _ => None
             }).fold(currentStatus)(_ ~ _)

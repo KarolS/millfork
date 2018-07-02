@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.assembly.AssemblyOptimization
-import millfork.assembly.z80.{TwoRegisters, ZLine, ZOpcode}
+import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine, ZOpcode}
 import millfork.assembly.z80.ZOpcode._
 import millfork.env.{Constant, NumericConstant}
 import millfork.node.ZRegister
@@ -69,6 +69,18 @@ object AlwaysGoodZ80Optimizations {
         (Linear & Not(Changes(register))).* ~
         (Elidable & Is16BitLoad(register, ZRegister.IMM_16) & MatchImmediate(0)) ~~> (_.init)
     ),
+
+    (Elidable & Is8BitLoadTo(ZRegister.MEM_HL)) ~
+      (Linear & Not(ConcernsMemory) & Not(Changes(ZRegister.HL))).* ~
+      Is8BitLoadTo(ZRegister.MEM_HL) ~~> (_.tail),
+
+    (Elidable & Is8BitLoadTo(ZRegister.MEM_DE)) ~
+      (Linear & Not(ConcernsMemory) & Not(Changes(ZRegister.DE))).* ~
+      Is8BitLoadTo(ZRegister.MEM_DE) ~~> (_.tail),
+
+    (Elidable & Is8BitLoadTo(ZRegister.MEM_BC)) ~
+      (Linear & Not(ConcernsMemory) & Not(Changes(ZRegister.BC))).* ~
+      Is8BitLoadTo(ZRegister.MEM_BC) ~~> (_.tail),
   )
 
   private def simplifiable16BitAddWithSplitTarget(targetH: ZRegister.Value, targetL: ZRegister.Value, target: ZRegister.Value, source: ZRegister.Value) = MultipleAssemblyRules(List(
@@ -147,6 +159,23 @@ object AlwaysGoodZ80Optimizations {
         code.head.copy(opcode = LD, registers = TwoRegisters(ZRegister.A, ZRegister.MEM_ABS_8)),
         code(1).copy(registers = TwoRegisters(code(1).registers.asInstanceOf[TwoRegisters].target, ZRegister.A)),
       )),
+    (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.IMM_16)) ~
+      (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code.head.copy(registers = TwoRegisters(ZRegister.DE, ZRegister.IMM_16))
+      )),
+    (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.IMM_16)) ~
+      (Elidable & Is8BitLoad(ZRegister.B, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.C, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code.head.copy(registers = TwoRegisters(ZRegister.BC, ZRegister.IMM_16))
+      )),
+  )
+
+  val UnusedLabelRemoval = new RuleBasedAssemblyOptimization("Unused label removal",
+    needsFlowInfo = FlowInfoRequirement.JustLabels,
+    (Elidable & HasOpcode(LABEL) & HasCallerCount(0)) ~~> (_ => Nil)
   )
 
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
@@ -155,6 +184,7 @@ object AlwaysGoodZ80Optimizations {
     PointlessLoad,
     ReloadingKnownValueFromMemory,
     SimplifiableMaths,
+    UnusedLabelRemoval,
   )
 }
 

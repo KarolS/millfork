@@ -456,6 +456,11 @@ case class MatchParameter(i: Int) extends AssemblyLinePattern {
     }
 }
 
+case class MatchOpcode(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    ctx.addObject(i, line.opcode)
+}
+
 case class HasRegister(register: ZRegister.Value, value: Int) extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertForward(needsFlowInfo)
@@ -615,7 +620,7 @@ case class Is16BitLoad(target:ZRegister.Value, source: ZRegister.Value) extends 
 case class IsRegular8BitLoadFrom(source: ZRegister.Value) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean =
     line.opcode == ZOpcode.LD && line.registers.asInstanceOf[TwoRegisters].source == source && (line.registers.asInstanceOf[TwoRegisters].target match {
-      case ZRegister.I | ZRegister.MEM_ABS_8 | ZRegister.R => false
+      case ZRegister.I | ZRegister.MEM_ABS_8 | ZRegister.R | ZRegister.MEM_DE | ZRegister.MEM_BC => false
       case _ => true
     })
 
