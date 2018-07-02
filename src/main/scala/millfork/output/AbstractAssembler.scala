@@ -153,7 +153,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     var result = 0L
     var multiplier = 1L
     while (x > 0) {
-      result += multiplier * (a % 16L)
+      result += multiplier * (x % 16L)
       x /= 16L
       multiplier *= 10L
     }
@@ -166,7 +166,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     var result = 0L
     var multiplier = 1L
     while (x > 0) {
-      result += multiplier * (a % 10L)
+      result += multiplier * (x % 10L)
       x /= 10L
       multiplier *= 16L
     }
