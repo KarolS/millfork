@@ -216,14 +216,12 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butWritesRegister(ZRegister.A)
           case ZLine(OR | AND, OneRegister(ZRegister.A), _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A)
-          case ZLine(AND | ADD | SUB | OR | XOR, OneRegister(s), _, _) =>
+          case ZLine(AND | ADD | SUB | OR | XOR | CP, OneRegister(s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s)
           case ZLine(ADC | SBC, OneRegister(s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s).butReadsFlag(ZFlag.C)
           case ZLine(DAA, _, _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsFlag(ZFlag.H)
-          case ZLine(CP, OneRegister(s), _, _) =>
-            currentImportance = currentImportance.butReadsRegister(s)
           case ZLine(INC | DEC | INC_16 | DEC_16, OneRegister(s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(s)
           case _ =>
