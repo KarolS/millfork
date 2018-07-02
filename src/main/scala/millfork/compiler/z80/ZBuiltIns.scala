@@ -1,6 +1,6 @@
 package millfork.compiler.z80
 
-import millfork.assembly.z80.{ZLine, ZOpcode}
+import millfork.assembly.z80.{TwoRegisters, ZLine, ZOpcode}
 import millfork.compiler.CompilationContext
 import millfork.node._
 import ZOpcode._
@@ -47,7 +47,7 @@ object ZBuiltIns {
 
   def compile16BitOperation(ctx: CompilationContext, op: ZOpcode.Value, params: List[Expression]): List[ZLine] = {
     var const = op match {
-      case AND => NumericConstant(0xffff, 1)
+      case AND => NumericConstant(0xffff, 2)
       case OR | XOR => Constant.Zero
     }
     var hasConst = false
@@ -157,7 +157,7 @@ object ZBuiltIns {
   }
 
   def compile16BitSum(ctx: CompilationContext, params: List[(Boolean, Expression)], decimal: Boolean): List[ZLine] = {
-    var const = Constant.Zero
+    var const: Constant = NumericConstant(0, 2)
     var hasConst = false
     var result = mutable.ListBuffer[ZLine]()
     if (decimal) {
@@ -239,8 +239,7 @@ object ZBuiltIns {
     }
     if (hasConst) {
       result ++= List(
-        ZLine.ldImm8(ZRegister.D, const.hiByte),
-        ZLine.ldImm8(ZRegister.E, const.loByte),
+        ZLine.ldImm16(ZRegister.DE, const),
         ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE)
       )
     }
@@ -322,7 +321,7 @@ object ZBuiltIns {
               ZLine.register(XOR, ZRegister.MEM_HL),
               ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
         }
-      case XOR =>
+      case OR =>
         constantRight match {
           case Some(NumericConstant(0, _)) =>
             calculateAddress
@@ -330,7 +329,7 @@ object ZBuiltIns {
             calculateAddress :+ ZLine.ldImm8(ZRegister.MEM_HL, 0xff)
           case _ =>
             setup ++ List(
-              ZLine.register(XOR, ZRegister.MEM_HL),
+              ZLine.register(OR, ZRegister.MEM_HL),
               ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
         }
       case AND =>
@@ -347,4 +346,34 @@ object ZBuiltIns {
     }
   }
 
+
+  def performLongInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcodeFirst: ZOpcode.Value, opcodeLater: ZOpcode.Value, size: Int, decimal: Boolean = false): List[ZLine] = {
+    if (size == 2 && !decimal) {
+      if (opcodeFirst == ZOpcode.ADD) {
+        val loadRight = Z80ExpressionCompiler.compileToHL(ctx, rhs) ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L))
+        val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, lhs))
+        val calculateAndStore = ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE) :: Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
+        return loadRight ++ loadLeft ++ calculateAndStore
+      }
+      if (opcodeFirst == ZOpcode.SUB && ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+        val loadRight = Z80ExpressionCompiler.compileToHL(ctx, rhs) ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L))
+        val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, lhs))
+        // OR A clears carry before SBC
+        val calculateAndStore = List(
+          ZLine.register(OR, ZRegister.A),
+          ZLine.registers(SBC_16, ZRegister.HL, ZRegister.DE)) ++
+          Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
+        return  loadRight ++ loadLeft ++ calculateAndStore
+      }
+    }
+    val store = Z80ExpressionCompiler.compileByteStores(ctx, lhs, size)
+    val loadLeft = Z80ExpressionCompiler.compileByteReads(ctx, lhs, size)
+    val loadRight = Z80ExpressionCompiler.compileByteReads(ctx, rhs, size)
+    List.tabulate(size) {i =>
+      // TODO: stash things correctly?
+      val firstPhase = loadRight(i) ++ List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++ (loadLeft(i) :+ ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.E))
+      val secondPhase = if (decimal) firstPhase :+ ZLine.implied(ZOpcode.DAA) else firstPhase
+      secondPhase ++ store(i)
+    }.flatten
+  }
 }

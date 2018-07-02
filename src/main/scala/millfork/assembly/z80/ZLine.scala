@@ -102,6 +102,10 @@ object ZLine {
   def ldAbs8(target: Constant, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegisters(MEM_ABS_8, source), target)
 
   def ldAbs16(target: Constant, source: ZRegister.Value): ZLine = ZLine(LD_16, TwoRegisters(MEM_ABS_16, source), target)
+
+  def ldViaIx(target: ZRegister.Value, sourceOffset: Int): ZLine = ZLine(LD, TwoRegisters(target, ZRegister.MEM_IX_D), NumericConstant(sourceOffset, 1))
+
+  def ldViaIx(targetOffset: Int, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegisters(ZRegister.MEM_IX_D, source), NumericConstant(targetOffset, 1))
 }
 
 case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Constant, elidable: Boolean = true) extends AbstractCode {
