@@ -29,7 +29,7 @@ object Z80Shifting {
       if (extendedOps) {
         if (left) ZOpcode.SLA else ZOpcode.SRL
       } else {
-        if (left) ZOpcode.RLC else ZOpcode.RRC
+        if (left) ZOpcode.RL else ZOpcode.RR
       }
     val l = Z80ExpressionCompiler.compileToA(ctx, lhs)
     env.eval(rhs) match {
@@ -57,7 +57,7 @@ object Z80Shifting {
       if (extendedOps) {
         if (left) ZOpcode.SLA else ZOpcode.SRL
       } else {
-        if (left) ZOpcode.RLC else ZOpcode.RRC
+        if (left) ZOpcode.RL else ZOpcode.RR
       }
     env.eval(rhs) match {
       case Some(NumericConstant(i, _)) =>
@@ -123,23 +123,23 @@ object Z80Shifting {
             if (extendedOps) {
               l ++ (0L until i).flatMap(_ => List(
                 ZLine.register(ZOpcode.SRL, ZRegister.H),
-                ZLine.register(ZOpcode.RRC, ZRegister.L)
+                ZLine.register(ZOpcode.RR, ZRegister.L)
               ))
             } else {
               l ++ (1L until i).flatMap(_ => List(
                 ZLine.ld8(ZRegister.A, ZRegister.H),
-                ZLine.register(ZOpcode.RRC, ZRegister.A),
+                ZLine.register(ZOpcode.RR, ZRegister.A),
                 ZLine.ld8(ZRegister.H, ZRegister.A),
                 ZLine.ld8(ZRegister.A, ZRegister.L),
-                ZLine.register(ZOpcode.RRC, ZRegister.A),
+                ZLine.register(ZOpcode.RR, ZRegister.A),
                 ZLine.ld8(ZRegister.L, ZRegister.A)
               )) ++ List(
                 ZLine.ld8(ZRegister.A, ZRegister.H),
-                ZLine.register(ZOpcode.RRC, ZRegister.A),
+                ZLine.register(ZOpcode.RR, ZRegister.A),
                 ZLine.imm8(ZOpcode.AND, (0xff >> i) & 0xff),
                 ZLine.ld8(ZRegister.H, ZRegister.A),
                 ZLine.ld8(ZRegister.A, ZRegister.L),
-                ZLine.register(ZOpcode.RRC, ZRegister.A),
+                ZLine.register(ZOpcode.RR, ZRegister.A),
                 //                ZLine.imm8(ZOpcode.AND, (0xff << (i - 8)) & 0xff), // TODO: properly mask the low byte!!!
                 ZLine.ld8(ZRegister.L, ZRegister.A)
               )
@@ -153,30 +153,30 @@ object Z80Shifting {
             if (left) {
               List(
                 ZLine.register(ZOpcode.SLA, ZRegister.L),
-                ZLine.register(ZOpcode.RLC, ZRegister.H))
+                ZLine.register(ZOpcode.RL, ZRegister.H))
             } else {
               List(
                 ZLine.register(ZOpcode.SRL, ZRegister.H),
-                ZLine.register(ZOpcode.RRC, ZRegister.L))
+                ZLine.register(ZOpcode.RR, ZRegister.L))
             }
           } else {
             if (left) {
               List(
                 ZLine.ld8(ZRegister.A, ZRegister.L),
-                ZLine.register(ZOpcode.RLC, ZRegister.A),
+                ZLine.register(ZOpcode.RL, ZRegister.A),
                 ZLine.imm8(ZOpcode.AND, 0xfe),
                 ZLine.ld8(ZRegister.L, ZRegister.A),
                 ZLine.ld8(ZRegister.A, ZRegister.H),
-                ZLine.register(ZOpcode.RLC, ZRegister.A),
+                ZLine.register(ZOpcode.RL, ZRegister.A),
                 ZLine.ld8(ZRegister.H, ZRegister.A))
             } else {
               List(
                 ZLine.ld8(ZRegister.A, ZRegister.H),
-                ZLine.register(ZOpcode.RRC, ZRegister.A),
+                ZLine.register(ZOpcode.RR, ZRegister.A),
                 ZLine.imm8(ZOpcode.AND, 0x7f),
                 ZLine.ld8(ZRegister.H, ZRegister.A),
                 ZLine.ld8(ZRegister.A, ZRegister.L),
-                ZLine.register(ZOpcode.RRC, ZRegister.A),
+                ZLine.register(ZOpcode.RR, ZRegister.A),
                 ZLine.ld8(ZRegister.L, ZRegister.A))
             }
           }

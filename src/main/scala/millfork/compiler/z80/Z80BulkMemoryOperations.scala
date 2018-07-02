@@ -223,8 +223,8 @@ object Z80BulkMemoryOperations {
         case "|=" => (ZOpcode.OR, false, None)
         case "&=" => (ZOpcode.AND, false, None)
         case "^=" => (ZOpcode.XOR, false, None)
-        case "<<=" => (ZOpcode.SLA, false, Some(RLC, 0xfe))
-        case ">>=" => (ZOpcode.SRL, false, Some(RRC, 0x7f))
+        case "<<=" => (ZOpcode.SLA, false, Some(RL, 0xfe))
+        case ">>=" => (ZOpcode.SRL, false, Some(RR, 0x7f))
         case _ => return None
       }
       shift match {

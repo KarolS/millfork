@@ -73,6 +73,10 @@ class Z80Assembler(program: Program,
       case ZLine(ADD_16, TwoRegisters(ZRegister.HL, source), param, _) =>
         writeByte(bank, index, 9 + 16 * internalRegisterIndex(source))
         index + 1
+      case ZLine(SBC_16, TwoRegisters(ZRegister.HL, reg), _, _) =>
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x42 + 0x10 * internalRegisterIndex(reg))
+        index + 2
       case ZLine(LD_16, TwoRegisters(target, ZRegister.IMM_16), param, _) =>
         writeByte(bank, index, 1 + 16 * internalRegisterIndex(target))
         writeWord(bank, index + 1, param)
@@ -390,10 +394,10 @@ object Z80Assembler {
     oneRegister(POP) = One(0xc1, 0x10)
     oneRegister(PUSH) = One(0xc5, 0x10)
 
-    cbOneRegister(RL) = One(0x10, 1)
     cbOneRegister(RLC) = One(0, 1)
-    cbOneRegister(RR) = One(8, 1)
-    cbOneRegister(RRC) = One(0x18, 1)
+    cbOneRegister(RRC) = One(8, 1)
+    cbOneRegister(RL) = One(0x10, 1)
+    cbOneRegister(RR) = One(0x18, 1)
     cbOneRegister(SLA) = One(0x20, 1)
     cbOneRegister(SRA) = One(0x28, 1)
     cbOneRegister(SLL) = One(0x30, 1)
