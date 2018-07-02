@@ -30,6 +30,8 @@ class Platform(
                 val defaultCodeBank: String,
                 val outputStyle: OutputStyle.Value
               ) {
+  def hasZeroPage: Boolean = cpuFamily == CpuFamily.M6502
+
   def cpuFamily: CpuFamily.Value = CpuFamily.forType(this.cpu)
 }
 

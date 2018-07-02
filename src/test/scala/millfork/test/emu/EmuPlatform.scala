@@ -1,7 +1,7 @@
 package millfork.test.emu
 
 import millfork.output.{AfterCodeByteAllocator, CurrentBankFragmentOutput, UpwardByteAllocator, VariableAllocator}
-import millfork.{Cpu, OutputStyle, Platform}
+import millfork.{Cpu, CpuFamily, OutputStyle, Platform}
 
 /**
   * @author Karol Stasiak
@@ -15,7 +15,9 @@ object EmuPlatform {
     Nil,
     CurrentBankFragmentOutput(0, 0xffff),
     Map("default" -> new UpwardByteAllocator(0x200, 0xb000)),
-    Map("default" -> new VariableAllocator(pointers, new AfterCodeByteAllocator(0xff00))),
+    Map("default" -> new VariableAllocator(
+      if (CpuFamily.forType(cpu) == CpuFamily.M6502) pointers else Nil,
+      new AfterCodeByteAllocator(0xff00))),
     pointers,
     ".bin",
     false,

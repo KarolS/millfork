@@ -118,28 +118,36 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
   }
 
   def allocateBytes(mem: MemoryBank, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value): Int = {
-    val addr = location match {
-      case AllocationLocation.Zeropage =>
-        val a = zeropage.findFreeBytes(mem, count, options)
-        if (a < 0) {
-          ErrorReporting.fatal("Out of zeropage memory")
-        }
-        a
-      case AllocationLocation.High =>
-        val a = bytes.findFreeBytes(mem, count, options)
-        if (a < 0) {
-          ErrorReporting.fatal("Out of high memory")
-        }
-        a
-      case AllocationLocation.Either =>
-        var a = zeropage.findFreeBytes(mem, count, options)
-        if (a < 0) {
-          a = bytes.findFreeBytes(mem, count, options)
+    val addr = if (options.platform.hasZeroPage) {
+      location match {
+        case AllocationLocation.Zeropage =>
+          val a = zeropage.findFreeBytes(mem, count, options)
+          if (a < 0) {
+            ErrorReporting.fatal("Out of zeropage memory")
+          }
+          a
+        case AllocationLocation.High =>
+          val a = bytes.findFreeBytes(mem, count, options)
           if (a < 0) {
             ErrorReporting.fatal("Out of high memory")
           }
-        }
-        a
+          a
+        case AllocationLocation.Either =>
+          var a = zeropage.findFreeBytes(mem, count, options)
+          if (a < 0) {
+            a = bytes.findFreeBytes(mem, count, options)
+            if (a < 0) {
+              ErrorReporting.fatal("Out of high memory")
+            }
+          }
+          a
+      }
+    } else {
+      val a = bytes.findFreeBytes(mem, count, options)
+      if (a < 0) {
+        ErrorReporting.fatal("Out of high memory")
+      }
+      a
     }
     markBytes(mem, addr, count, initialized, writeable)
     addr
