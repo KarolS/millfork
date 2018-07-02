@@ -345,7 +345,7 @@ object Z80BulkMemoryOperations {
       calculateByteCount ++
         Z80ExpressionCompiler.stashBCIfChanged(calculateTargetAddress) ++
         Z80ExpressionCompiler.stashBCIfChanged(Z80ExpressionCompiler.stashHLIfChanged(extraInitializationPair._1)) ++
-        Z80ExpressionCompiler.stashHLIfChanged(extraInitializationPair._1)
+        Z80ExpressionCompiler.stashHLIfChanged(extraInitializationPair._2)
     }
 
     val label = Z80Compiler.nextLabel("me")
