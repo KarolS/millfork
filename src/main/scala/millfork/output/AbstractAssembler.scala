@@ -177,6 +177,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     storeDecimalValueInNormalRespresentation(f(parseNormalToDecimalValue(a), parseNormalToDecimalValue(b)))
 
   def assemble(callGraph: CallGraph, optimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions): AssemblerOutput = {
+    mem.programName = options.outputFileName.getOrElse("MILLFORK")
     val platform = options.platform
     val variableAllocators = platform.variableAllocators
     val zpOccupied = mem.banks("default").occupied

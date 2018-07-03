@@ -73,7 +73,7 @@ object Main {
       ErrorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     })
-    val options = CompilationOptions(platform, c.flags)
+    val options = CompilationOptions(platform, c.flags, c.outputFileName)
     ErrorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => ErrorReporting.debug(f"    $f%-30s : $b%s")

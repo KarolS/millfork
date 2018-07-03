@@ -1,5 +1,7 @@
 package millfork.output
 
+import java.nio.charset.StandardCharsets
+
 import scala.collection.mutable
 
 /**
@@ -24,7 +26,7 @@ object D88Output extends OutputPackager {
   override def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     val start = b.start
-    val header = new D88Header
+    val header = new D88Header(mem.programName.take(16))
     val trackList = new D88TrackList
     val sectors = mutable.ListBuffer[D88Sector]()
     var trackOffset = 688
@@ -67,13 +69,15 @@ sealed trait D88Part {
   def toArray: Array[Byte]
 }
 
-class D88Header extends D88Part {
+class D88Header(programName: String) extends D88Part {
   var totalSize: Long = 0
 
+  def isAlphanum(c: Char): Boolean = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+
   def toArray: Array[Byte] = {
-    Array(
-      'M', 'I', 'L', 'L', 'F', 'O', 'R', 'K',
-      0, 0, 0, 0, 0, 0, 0, 0,
+    programName.map(c =>
+      if (c == 0 || isAlphanum(c)) c.toByte else '_'.toByte
+    ).padTo(16, 0.toByte).toArray ++ Array(
       0, // NUL
       0, 0, 0, 0, 0, 0, 0, 0, 0, // reserved
       0, // not write protected

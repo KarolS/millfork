@@ -1,13 +1,12 @@
 package millfork.output
 
-import millfork.error.ErrorReporting
-
 import scala.collection.mutable
 
 /**
   * @author Karol Stasiak
   */
 class CompiledMemory(bankNames: List[String]) {
+  var programName = "MILLFORK"
   val banks = mutable.Map(bankNames.map(_ -> new MemoryBank): _*)
 }
 

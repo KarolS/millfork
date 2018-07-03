@@ -5,7 +5,7 @@ import millfork.error.ErrorReporting
 /**
   * @author Karol Stasiak
   */
-case class CompilationOptions(platform: Platform, commandLineFlags: Map[CompilationFlag.Value, Boolean]) {
+case class CompilationOptions(platform: Platform, commandLineFlags: Map[CompilationFlag.Value, Boolean], outputFileName: Option[String]) {
 
   import CompilationFlag._
   import Cpu._
