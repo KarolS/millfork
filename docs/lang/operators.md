@@ -12,6 +12,8 @@ Certain expressions require the commandline flag `-fzp-register` (`.ini` equival
 They will be marked with (zpreg) next to them. 
 The flag is enabled by default, but you can disable it if you need to.
 
+Certain expressions may not work on non-6502 targets yet. This should improve in the future.
+
 ## Precedence
 
 Millfork has different operator precedence compared to most other languages. From highest to lowest it goes:

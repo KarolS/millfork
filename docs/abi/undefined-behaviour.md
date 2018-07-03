@@ -16,6 +16,8 @@ even up to hardware damage.
 
 * reading variables used by return dispatch statements but not assigned a value: will return undefined values
 
+* reading a loop variable after the loop without initializing it again: will return undefined values
+
 * returning a value from a function by return dispatch to a function of different return type: will return undefined values
 
 * passing an index out of range for a return dispatch statement

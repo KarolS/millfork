@@ -91,5 +91,5 @@ The parameters for `file` are: file path, optional start offset, optional length
 (start offset and length have to be either both present or both absent).
 
 The `for`-style expression has a variable, a starting index, a direction, a final index, 
-and a parametrizable array initializer.
+and a parameterizable array initializer.
 The initializer is repeated for every value of the variable in the given range.

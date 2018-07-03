@@ -32,6 +32,8 @@
 
 * [Variable storage](abi/variable-storage.md)
 
+* [Calling convention](abi/calling-convention.md)
+
 * [Undefined behaviour](abi/undefined-behaviour.md)
 
 * [Undocumented instruction support](abi/undocumented.md)

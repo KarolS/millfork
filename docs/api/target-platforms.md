@@ -6,7 +6,7 @@ Currently, Millfork supports creating disk- or tape-based programs for Commodore
 and cartridge-based programs for Famicom/NES and Atari 2600,
 but it may be expanded to support other 6502-based and Z80-based platforms in the future.
 
-To add a custom platform yourself, see [the custom platform adding guide](./custom-plaftorm.md).
+To add a custom platform yourself, see [the custom platform adding guide](./custom-platform.md).
 
 ## Supported platforms
 

@@ -12,11 +12,21 @@
 
 ## I/O options
 
-*  `-o <file>` – Output filename, without extension. Extension will be added automatically, `.prg` for Commodore, `.a2` for Apple and `.xex` for Atari.
+*  `-o <file>` – Output filename, without extension.
+Extension will be added automatically,
+`.prg` for Commodore (including LUnix/LNG),
+`.a2` for Apple,
+`.xex` for Atari computers,
+`.bin` for Atari VCS,
+`.nes` for NES,
+no extension for BBC micro program file,
+`.inf` for BBC Micro metadata,
+`.d88` for PC-88 disk images,
+`.tap` for ZX-Spectrum tape images.
 
 * `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file and the extension is `.asm`.
 
-* `-g` – Generate also the label file. The label file contains labels with their addresses, with duplicates removed. It can be loaded into the monitor of the Vice emulator for debugging purposes. The file has the same nam as the output file and the extension is `.lbl`.
+* `-g` – Generate also the label file. The label file contains labels with their addresses, with duplicates removed. It can be loaded into the monitor of the Vice emulator for debugging purposes. The file has the same name as the output file and the extension is `.lbl`.
 
 * `-I  <dir>;<dir>` – The include directories. The current working directory is also an include directory. Those directories are searched for modules and platform definitions.
  

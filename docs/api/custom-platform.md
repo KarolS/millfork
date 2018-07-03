@@ -41,12 +41,19 @@ Every platform is defined in an `.ini` file with an appropriate name.
     * `ro_arrays` – whether the compiler should warn upon array writes, default is `false`
     
     * `prevent_jmp_indirect_bug` – whether the compiler should try to avoid the indirect JMP bug, 
-    default is `false` on 65C02-compatible processors and `true` elsewhere
+    default is `false` on 65C02-compatible or non-6502 processors and `true` elsewhere
     
     * `compact_dispatch_params` – whether parameter values in return dispatch statements may overlap other objects, default is `true`  
     This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.
     
     * `lunix` – generate relocatable code for LUnix/LNG, default is `false`
+    
+    * `zeropage_register` – reserve 2 bytes of zero page as a pseudoregister to increase language features.
+    Default: `true` if targeting a 6502-based architecture, `false` otherwise.
+    
+    * `inline` - inline functions automatically by default, default is `false`.
+    
+    * `ipo` - enable interprocedural optimization, default is `false`.
 
 
 #### `[allocation]` section
@@ -106,6 +113,8 @@ Default: `after_code`.
     * `<segment>:<addr>:<addr>` - inclusive range of bytes in a given segment
     
     * `d88` - a D88 floppy disk image for PC-88
+    
+    * `tap` - a tape disk image for ZX Spectrum
     
 * `extension` – target file extension, with or without the dot
 
