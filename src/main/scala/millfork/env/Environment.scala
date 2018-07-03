@@ -97,6 +97,9 @@ class Environment(val parent: Option[Environment], val prefix: String) {
                         onEachVariable: (String, Int) => Unit,
                         pass: Int,
                         forZpOnly: Boolean): Unit = {
+    if (forZpOnly && !options.platform.hasZeroPage) {
+      return
+    }
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
     val params = nf.fold(List[String]()) { f =>
@@ -109,11 +112,11 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           Nil
       }
     }.toSet
-    def passForAlloc(m: VariableAllocationMethod.Value) = m match {
-      case VariableAllocationMethod.Zeropage => 1
+    def passForAlloc(m: VariableAllocationMethod.Value): Int = if (options.platform.hasZeroPage) m match {
+      case VariableAllocationMethod.Zeropage =>  1
       case VariableAllocationMethod.Register => 2
       case _ => 3
-    }
+    } else 3
     val toAdd = things.values.flatMap {
       case m: UninitializedMemory if passForAlloc(m.alloc) == pass && nf.isDefined == isLocalVariableName(m.name) && !m.name.endsWith(".addr") && maybeGet[Thing](m.name + ".array").isEmpty =>
         val vertex = if (options.flag(CompilationFlag.VariableOverlap)) {
@@ -132,7 +135,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
           case VariableAllocationMethod.None =>
             Nil
           case VariableAllocationMethod.Zeropage =>
-            if (forZpOnly) {
+            if (forZpOnly || !options.platform.hasZeroPage) {
               val addr =
                 allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Zeropage)
               onEachVariable(m.name, addr)
