@@ -50,16 +50,9 @@ interrupt void on_nmi() {
     nmi()
 }
 
-array nmi_vector @$FFFA = [
-    on_nmi.addr.lo,
-    on_nmi.addr.hi
-]
-array reset_vector @$FFFC = [
-    on_reset.addr.lo,
-    on_reset.addr.hi
-]
-array irq_vector @$FFFE = [
-    on_irq.addr.lo,
-    on_irq.addr.hi
-]
+array nmi_vector @$FFFA = @word [on_nmi.addr]
+
+array reset_vector @$FFFC = @word [on_reset.addr]
+
+array irq_vector @$FFFE = @word [on_irq.addr]
 
