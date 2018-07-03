@@ -158,6 +158,7 @@ object Platform {
       case "pagecount" => PageCountOutput
       case "allocated" => AllocatedDataOutput
       case "d88" => D88Output
+      case "tap" => TapOutput
       case n => n.split(":").filter(_.nonEmpty) match {
         case Array(b, s, e) => BankFragmentOutput(b, parseNumber(s), parseNumber(e))
         case Array(s, e) => CurrentBankFragmentOutput(parseNumber(s), parseNumber(e))

@@ -56,6 +56,8 @@ Read [the Apple 2 programming guide](./apple2-programming-guide.md) for more inf
 
 * `pc88` – NEC PC-88 (very incomplete and not usable for anything yet)
 
+* `zxspectrum` – Sinclair ZX Spectrum 48k (very incomplete and not usable for anything yet)
+
 The primary and most tested platform is Commodore 64.
 
 Currently, targets that assume that the program will be loaded from disk or tape are better tested.
