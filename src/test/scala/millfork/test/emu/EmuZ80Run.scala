@@ -30,7 +30,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     Console.err.flush()
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap)
+    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap, None)
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
     var effectiveSource = source

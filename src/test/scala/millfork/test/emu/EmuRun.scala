@@ -112,7 +112,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
-    ))
+    ), None)
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
     var effectiveSource = source
