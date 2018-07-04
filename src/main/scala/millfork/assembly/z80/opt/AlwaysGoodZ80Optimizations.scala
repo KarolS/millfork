@@ -20,7 +20,7 @@ object AlwaysGoodZ80Optimizations {
   def for6Registers(f: ZRegister.Value => AssemblyRuleSet) = MultipleAssemblyRules(
     List(ZRegister.B, ZRegister.C, ZRegister.D, ZRegister.E, ZRegister.H, ZRegister.L).map(f))
 
-  val LoadingKnownValueFromAnotherRegister = new RuleBasedAssemblyOptimization("Loading known value from another register",
+  val UsingKnownValueFromAnotherRegister = new RuleBasedAssemblyOptimization("Using known value from another register",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
     for7Registers(register =>
       (Elidable & IsRegular8BitLoadFrom(register) & MatchRegister(register, 0)) ~~> ((code, ctx) =>
@@ -28,7 +28,14 @@ object AlwaysGoodZ80Optimizations {
           parameter = NumericConstant(ctx.get[Int](0), 1),
           registers = x.registers.asInstanceOf[TwoRegisters].copy(source = ZRegister.IMM_8)
         )))
-    )
+    ),
+    for6Registers(register =>
+      (Elidable & HasRegisterParam(register) & HasOpcodeIn(Set(AND, ADD, ADC, SUB, SBC, XOR, OR, CP)) & MatchRegister(register, 0)) ~~> ((code, ctx) =>
+        code.map(x => x.copy(
+          parameter = NumericConstant(ctx.get[Int](0), 1),
+          registers = OneRegister(ZRegister.IMM_8)
+        )))
+    ),
   )
 
   val ReloadingKnownValueFromMemory = new RuleBasedAssemblyOptimization("Reloading known value from memory",
@@ -180,11 +187,11 @@ object AlwaysGoodZ80Optimizations {
 
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
     FreeHL,
-    LoadingKnownValueFromAnotherRegister,
     PointlessLoad,
     ReloadingKnownValueFromMemory,
     SimplifiableMaths,
     UnusedLabelRemoval,
+    UsingKnownValueFromAnotherRegister,
   )
 }
 

@@ -29,6 +29,8 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      hf: Status[Boolean] = UnknownStatus
                     ) {
   def setRegister(target: ZRegister.Value, value: Status[Int]): CpuStatus = target match {
+    case ZRegister.IMM_8 => this
+    case ZRegister.IMM_16 => this
     case ZRegister.A => this.copy(a = value)
     case ZRegister.B => this.copy(b = value)
     case ZRegister.C => this.copy(c = value)
