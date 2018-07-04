@@ -19,12 +19,6 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   def asmOpcode: P[Opcode.Value] = (position() ~ letter.rep(exactly = 3).! ~ ("_W" | "_w").?.!).map { case (p, suffix, o) => Opcode.lookup(o + suffix, Some(p)) }
 
-  def asmExpression: P[Expression] = (position() ~ NoCut(
-    ("<" ~/ HWS ~ mfExpression(mathLevel)).map(e => HalfWordExpression(e, hiByte = false)) |
-      (">" ~/ HWS ~ mfExpression(mathLevel)).map(e => HalfWordExpression(e, hiByte = true)) |
-      mfExpression(mathLevel)
-  )).map { case (p, e) => e.pos(p) }
-
   private val commaX = HWS ~ "," ~ HWS ~ ("X" | "x") ~ HWS
   private val commaY = HWS ~ "," ~ HWS ~ ("Y" | "y") ~ HWS
   private val commaZ = HWS ~ "," ~ HWS ~ ("Z" | "z") ~ HWS
@@ -51,8 +45,6 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
         asmExpression.map(AddrMode.Absolute -> _)
       )).?.map(_.getOrElse(AddrMode.Implied -> LiteralExpression(0, 1)))
   }
-
-  def elidable: P[Boolean] = ("?".! ~/ HWS).?.map(_.isDefined)
 
   def asmInstruction: P[ExecutableStatement] = {
     val lineParser: P[(Boolean, Opcode.Value, (AddrMode.Value, Expression))] = !"}" ~ elidable ~/ asmOpcode ~/ asmParameter
@@ -83,13 +75,6 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
     case "a" => ByMosRegister(MosRegister.A)
     case "x" => ByMosRegister(MosRegister.X)
     case "y" => ByMosRegister(MosRegister.Y)
-    case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
-  }
-
-  val appcComplex: P[ParamPassingConvention] = P((("const" | "ref").! ~/ AWS).? ~ AWS ~ identifier) map {
-    case (None, name) => ByVariable(name)
-    case (Some("const"), name) => ByConstant(name)
-    case (Some("ref"), name) => ByReference(name)
     case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
   }
 

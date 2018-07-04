@@ -425,7 +425,14 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                       case _ => ()
                     }
                     val result = function.params match {
+                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.A, typ2), AssemblyParameterPassingBehaviour.Copy)))
+                        if typ1.size == 1 && typ2.size == 1 =>
+                        compileToA(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
+                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.HL, typ2), AssemblyParameterPassingBehaviour.Copy)))
+                        if typ1.size == 2 && typ2.size == 2 =>
+                        compileToHL(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
                       case AssemblyParamSignature(paramConvs) =>
+                        // TODO: stop being lazy and implement this
                         ???
                       case NormalParamSignature(paramVars) =>
                         params.zip(paramVars).flatMap {

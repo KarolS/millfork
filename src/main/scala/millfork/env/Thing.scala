@@ -127,6 +127,10 @@ case class RegisterVariable(register: MosRegister.Value, typ: Type) extends Vari
   def name: String = register.toString
 }
 
+case class ZRegisterVariable(register: ZRegister.Value, typ: Type) extends Variable {
+  def name: String = register.toString
+}
+
 case class Placeholder(name: String, typ: Type) extends Variable
 
 sealed trait UninitializedMemory extends ThingInMemory {

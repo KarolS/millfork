@@ -63,6 +63,13 @@ class Z80Assembler(program: Program,
         index
       case ZLine(LABEL | BYTE | DISCARD_F | DISCARD_HL | DISCARD_BCDEIX | DISCARD_A, _, _, _) =>
         ???
+      case ZLine(RST, NoRegisters, param, _) =>
+        val opcode = param.quickSimplify match {
+          case NumericConstant(n, _) if n >=0 && n <= 0x38 && n % 8 == 0 => 0xc7 + n.toInt
+          case _ => ErrorReporting.error("Invalid param for RST"); 0xc7
+        }
+        writeByte(bank, index, opcode)
+        index + 1
       case ZLine(op, NoRegisters, _, _) if implieds.contains(op) =>
         writeByte(bank, index, implieds(op))
         index + 1

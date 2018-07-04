@@ -191,6 +191,26 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
     ParameterDeclaration(typ, ByVariable(name)).pos(p)
   }
 
+  def asmExpression: P[Expression] = (position() ~ NoCut(
+    ("<" ~/ HWS ~ mfExpression(mathLevel)).map(e => HalfWordExpression(e, hiByte = false)) |
+      (">" ~/ HWS ~ mfExpression(mathLevel)).map(e => HalfWordExpression(e, hiByte = true)) |
+      mfExpression(mathLevel)
+  )).map { case (p, e) => e.pos(p) }
+
+  def asmExpressionWithParens: P[(Expression, Boolean)] = (position() ~ NoCut(
+    ("(" ~ HWS ~ asmExpression ~ HWS ~ ")").map(_ -> true) |
+      asmExpression.map(_ -> false)
+  )).map { case (p, e) => e._1.pos(p) -> e._2 }
+
+  def elidable: P[Boolean] = ("?".! ~/ HWS).?.map(_.isDefined)
+
+  val appcComplex: P[ParamPassingConvention] = P((("const" | "ref").! ~/ AWS).? ~ AWS ~ identifier) map {
+    case (None, name) => ByVariable(name)
+    case (Some("const"), name) => ByConstant(name)
+    case (Some("ref"), name) => ByReference(name)
+    case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
+  }
+
   def asmParamDefinition: P[ParameterDeclaration]
 
   def arrayListElement: P[ArrayContents] = arrayStringContents | arrayLoopContents | arrayFileContents | mfExpression(nonStatementLevel).map(e => LiteralContents(List(e)))
