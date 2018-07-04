@@ -31,6 +31,8 @@ examples/lunix/
 *.a2
 *.dsk
 *.inf
+*.tap
+*.d88
 HELLO
 
 

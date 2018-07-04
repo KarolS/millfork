@@ -1,0 +1,4 @@
+inline asm void putchar(byte a) {
+    rst $10
+    ? ret
+}

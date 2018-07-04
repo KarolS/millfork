@@ -50,16 +50,21 @@ class DataBlock(val inputData: Array[Byte]) extends TapBlock {
 
 object ZxSpectrumBasic {
 
+  import scala.language.implicitConversions
+
   class Snippet(val array: Array[Byte]) extends AnyVal
 
   implicit def _implicit_String_to_Snippet(s: String): Snippet = new Snippet(s.getBytes(StandardCharsets.US_ASCII))
 
   private def token(i: Int) = new Snippet(Array(i.toByte))
 
+  val PI: Snippet = token(167)
   val SCREEN$: Snippet = token(170)
+  val AT: Snippet = token(172)
   val CODE: Snippet = token(175)
   val VAL: Snippet = token(176)
   val USR: Snippet = token(192)
+  val NOT: Snippet = token(195)
   val INK: Snippet = token(217)
   val PAPER: Snippet = token(218)
   val BORDER: Snippet = token(231)
@@ -72,6 +77,8 @@ object ZxSpectrumBasic {
   val CLS: Snippet = token(251)
   val CLEAR: Snippet = token(253)
 
+  val colon: Snippet = token(':')
+
   def line(number: Int, tokens: Snippet*): Array[Byte] = {
     val content = tokens.flatMap(_.array).toArray
     Array[Byte](number.>>(8).toByte, number.toByte, (content.length + 1).toByte, (content.length + 1).>>(8).toByte) ++ content :+ 13.toByte
@@ -82,10 +89,10 @@ object ZxSpectrumBasic {
   def loader(filename: String, rem: String, loadAddress: Int): Array[Byte] = {
     Array(
       line(10, REM, rem),
-      line(20, BORDER, VAL, "\"0\":", INK, VAL, "\"0\":", PAPER, VAL, "\"7\":", CLS),
+      line(20, BORDER, VAL, quoted(7), colon, INK, NOT, PI, colon, PAPER, VAL, quoted(7), colon, CLS),
       line(30, CLEAR, VAL, quoted(loadAddress - 1)),
       line(40, LOAD, quoted(filename), CODE),
-      line(50, RANDOMIZE, USR, VAL, quoted(loadAddress))
+      line(50, CLS, colon, PRINT, AT, NOT, PI, ",", NOT, PI, colon, RANDOMIZE, USR, VAL, quoted(loadAddress))
     ).flatten
   }
 }
