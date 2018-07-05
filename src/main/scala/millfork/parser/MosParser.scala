@@ -12,12 +12,14 @@ import millfork.CompilationOptions
   */
 case class MosParser(filename: String, input: String, currentDirectory: String, options: CompilationOptions) extends MfParser[AssemblyLine](filename, input, currentDirectory, options) {
 
+  import MfParser._
+
   // TODO: label and instruction in one line
-  def asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => MosAssemblyStatement(Opcode.LABEL, AddrMode.DoesNotExist, VariableExpression(l), elidable = true))
+  val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => MosAssemblyStatement(Opcode.LABEL, AddrMode.DoesNotExist, VariableExpression(l), elidable = true))
 
   //  def zeropageAddrModeHint: P[Option[Boolean]] = Pass
 
-  def asmOpcode: P[Opcode.Value] = (position() ~ letter.rep(exactly = 3).! ~ ("_W" | "_w").?.!).map { case (p, suffix, o) => Opcode.lookup(o + suffix, Some(p)) }
+  val asmOpcode: P[Opcode.Value] = (position() ~ letter.rep(exactly = 3).! ~ ("_W" | "_w").?.!).map { case (p, suffix, o) => Opcode.lookup(o + suffix, Some(p)) }
 
   private val commaX = HWS ~ "," ~ HWS ~ ("X" | "x") ~ HWS
   private val commaY = HWS ~ "," ~ HWS ~ ("Y" | "y") ~ HWS
@@ -26,7 +28,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   val farKeyword: P[Unit] = P(("f" | "F") ~ ("a" | "A") ~ ("r" | "R"))
 
-  def asmParameter: P[(AddrMode.Value, Expression)] = {
+  val asmParameter: P[(AddrMode.Value, Expression)] = {
     (SWS ~ (
       ("##" ~ asmExpression).map(AddrMode.WordImmediate -> _) |
       ("#" ~ asmExpression).map(AddrMode.Immediate -> _) |
@@ -46,7 +48,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
       )).?.map(_.getOrElse(AddrMode.Implied -> LiteralExpression(0, 1)))
   }
 
-  def asmInstruction: P[ExecutableStatement] = {
+  val asmInstruction: P[ExecutableStatement] = {
     val lineParser: P[(Boolean, Opcode.Value, (AddrMode.Value, Expression))] = !"}" ~ elidable ~/ asmOpcode ~/ asmParameter
     lineParser.map { case (elid, op, param) =>
       (op, param._1) match {
@@ -60,9 +62,9 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
     }
   }
 
-  def asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall).map(ExpressionStatement)
+  val asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall).map(ExpressionStatement)
 
-  def asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
+  val asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
 
 
   val appcSimple: P[ParamPassingConvention] = P("xy" | "yx" | "ax" | "ay" | "xa" | "ya" | "stack" | "a" | "x" | "y").!.map {
@@ -78,7 +80,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
     case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
   }
 
-  val asmParamDefinition: P[ParameterDeclaration] = for {
+  override val asmParamDefinition: P[ParameterDeclaration] = for {
     p <- position()
     typ <- identifier ~ SWS
     appc <- appcSimple | appcComplex
@@ -86,7 +88,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
     statements match {
-      case Some(Nil) => ErrorReporting.warn("Assembly function `$name` is empty, did you mean RTS or RTI", options, Some(p))
+      case Some(Nil) => ErrorReporting.warn("Assembly function `$name` is empty, did you mean RTS, RTI or JMP", options, Some(p))
       case Some(xs) =>
         if (flags("interrupt")) {
           if (xs.exists {

@@ -15,6 +15,8 @@ import millfork.node._
   */
 case class Z80Parser(filename: String, input: String, currentDirectory: String, options: CompilationOptions) extends MfParser[ZLine](filename, input, currentDirectory, options) {
 
+  import MfParser._
+
   private val zero = LiteralExpression(0, 1)
 
   val appcSimple: P[ParamPassingConvention] = P("a" | "b" | "c" | "d" | "e" | "hl" | "bc" | "de").!.map {
@@ -29,16 +31,16 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
     case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
   }
 
-  override def asmParamDefinition: P[ParameterDeclaration] = for {
+  override val asmParamDefinition: P[ParameterDeclaration] = for {
     p <- position()
     typ <- identifier ~ SWS
     appc <- appcSimple | appcComplex
   } yield ParameterDeclaration(typ, appc).pos(p)
 
   // TODO: label and instruction in one line
-  def asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => Z80AssemblyStatement(ZOpcode.LABEL, NoRegisters, VariableExpression(l), elidable = true))
+  val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => Z80AssemblyStatement(ZOpcode.LABEL, NoRegisters, VariableExpression(l), elidable = true))
 
-  def asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall).map(ExpressionStatement)
+  val asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall).map(ExpressionStatement)
 
   private def normalOp8(op: ZOpcode.Value): P[(ZOpcode.Value, ZRegisters, Expression)] = asmExpressionWithParens.map {
     case (VariableExpression("A" | "a"), false) => (op, OneRegister(ZRegister.A), zero)
@@ -76,7 +78,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
 
   private val jumpConditionWithComma: P[ZRegisters] = (jumpCondition ~ "," ~/ HWS).?.map (_.getOrElse(NoRegisters))
 
-  def asmInstruction: P[ExecutableStatement] = {
+  val asmInstruction: P[ExecutableStatement] = {
     import ZOpcode._
     for {
       el <- elidable
@@ -109,9 +111,37 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
     (opcode, NoRegisters, zero)
   }
 
-  override def asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
+  override val asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
 
   override def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
-    // TODO
+    statements match {
+      case Some(Nil) => ErrorReporting.warn("Assembly function `$name` is empty, did you mean RET, RETI, RETN or JP", options, Some(p))
+      case Some(xs) =>
+        if (flags("interrupt")) {
+          if (xs.exists {
+            case Z80AssemblyStatement(ZOpcode.RET, _, _, _) => true
+            case _ => false
+          }) ErrorReporting.warn("Assembly interrupt function `$name` contains RET, did you mean RETI/RETN?", options, Some(p))
+        } else {
+          if (xs.exists {
+            case Z80AssemblyStatement(ZOpcode.RETI, _, _, _) => true
+            case Z80AssemblyStatement(ZOpcode.RETN, _, _, _) => true
+            case _ => false
+          }) ErrorReporting.warn("Assembly non-interrupt function `$name` contains RETI or RETN, did you mean RET?", options, Some(p))
+        }
+        if (!name.startsWith("__") && !flags("macro")) {
+          xs.last match {
+            case Z80AssemblyStatement(ZOpcode.RET, NoRegisters, _, _) => () // OK
+            case Z80AssemblyStatement(ZOpcode.RETN, NoRegisters, _, _) => () // OK
+            case Z80AssemblyStatement(ZOpcode.RETI, NoRegisters, _, _) => () // OK
+            case Z80AssemblyStatement(ZOpcode.JP, NoRegisters, _, _) => () // OK
+            case Z80AssemblyStatement(ZOpcode.JR, NoRegisters, _, _) => () // OK
+            case _ =>
+              val validReturn = if (flags("interrupt")) "RETI/RETN" else "RET"
+              ErrorReporting.warn(s"Non-macro assembly function `$name` should end in " + validReturn, options, Some(p))
+          }
+        }
+      case None => ()
+    }
   }
 }
