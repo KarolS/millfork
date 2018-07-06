@@ -37,32 +37,44 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     val m = ctx.function
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")
-    val plReg =
-      if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    val zpRegisterSize = ctx.options.zpRegisterSize
+    lazy val plReg =
+      if (zpRegisterSize > 0) {
         val reg = env.get[VariableInMemory]("__reg")
-        List(
-          AssemblyLine.implied(PLA),
-          AssemblyLine.zeropage(STA, reg, 1),
-          AssemblyLine.implied(PLA),
-          AssemblyLine.zeropage(STA, reg)
-        )
+        (zpRegisterSize.-(1) to 0 by (-1)).flatMap{ i=>
+          List(
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg,i))
+        }.toList
       } else Nil
     val someRegisterA = Some(b, RegisterVariable(MosRegister.A, b))
     val someRegisterAX = Some(w, RegisterVariable(MosRegister.AX, w))
     val someRegisterYA = Some(w, RegisterVariable(MosRegister.YA, w))
-    val returnInstructions = if (m.interrupt) {
+    lazy val returnInstructions = if (m.interrupt) {
       if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
-        if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
-          List(
-            AssemblyLine.immediate(REP, 0x30),
-            AssemblyLine.implied(PLA_W),
-            AssemblyLine.zeropage(STA_W, env.get[VariableInMemory]("__reg")),
-            AssemblyLine.implied(PLY),
-            AssemblyLine.implied(PLX),
-            AssemblyLine.implied(PLA),
-            AssemblyLine.implied(PLD),
-            AssemblyLine.implied(PLB),
-            AssemblyLine.implied(RTI))
+        if (zpRegisterSize > 0) {
+          val reg = env.get[VariableInMemory]("__reg")
+          val lastByte = if (zpRegisterSize % 2 != 0) {
+            List(
+              AssemblyLine.implied(PLA),
+              AssemblyLine.zeropage(STA, reg, zpRegisterSize - 1),
+              AssemblyLine.immediate(REP, 0x30))
+          } else {
+            List(AssemblyLine.immediate(REP, 0x30))
+          }
+          val remainingBytes = (zpRegisterSize.&(0xfe).-(2) to 0 by (-2)).flatMap { i =>
+            List(
+              AssemblyLine.implied(PLA_W),
+              AssemblyLine.zeropage(STA_W, reg, i))
+          }
+          lastByte ++ remainingBytes ++
+            List(
+              AssemblyLine.implied(PLY),
+              AssemblyLine.implied(PLX),
+              AssemblyLine.implied(PLA),
+              AssemblyLine.implied(PLD),
+              AssemblyLine.implied(PLB),
+              AssemblyLine.implied(RTI))
         } else {
           List(
             AssemblyLine.immediate(REP, 0x30),
@@ -105,13 +117,24 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           AssemblyLine.implied(RTI))
       }
     } else {
-      (if (m.kernalInterrupt && ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+      (if (m.kernalInterrupt && zpRegisterSize > 0) {
         if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
-          List(
-            AssemblyLine.accu16,
-            AssemblyLine.implied(PLA_W),
-            AssemblyLine.zeropage(STA_W, env.get[VariableInMemory]("__reg")),
-            AssemblyLine.accu8)
+          val reg = env.get[VariableInMemory]("__reg")
+          val lastByte = if (zpRegisterSize % 2 != 0) {
+            List(
+              AssemblyLine.implied(PLA),
+              AssemblyLine.zeropage(STA, reg, zpRegisterSize - 1),
+              AssemblyLine.accu16)
+          } else {
+            List(AssemblyLine.accu16)
+          }
+          val remainingBytes = (zpRegisterSize.&(0xfe).-(2) to 0 by (-2)).flatMap { i =>
+            List(
+              AssemblyLine.implied(PLA_W),
+              AssemblyLine.zeropage(STA_W, reg, i),
+              AssemblyLine.accu8)
+          }
+          lastByte ++ remainingBytes
         } else plReg
       } else Nil) ++ (if (m.isFar(ctx.options)) {
         List(AssemblyLine.implied(RTL))

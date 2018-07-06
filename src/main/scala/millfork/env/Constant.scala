@@ -98,7 +98,7 @@ case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant 
 case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   if (requiredSize == 1) {
     if (value < -128 || value > 255) {
-      throw new IllegalArgumentException("The constant is too big")
+      throw new IllegalArgumentException(s"The constant $value is too big")
     }
   }
   override def isProvablyZero: Boolean = value == 0

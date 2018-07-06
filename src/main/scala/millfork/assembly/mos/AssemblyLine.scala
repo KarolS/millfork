@@ -229,7 +229,7 @@ object OpcodeClasses {
   )
 
   val ConcernsStackAlways = ChangesStack ++ Set(TSX, TSY, TSC)
-  val ConcernsS = ChangesS ++ Set(TSX, TSY, TSC)
+  val ConcernsSAlways = ChangesS ++ Set(TSX, TSY, TSC)
 
   val ChangesNAndZ = Set(
     ADC, AND, ASL, BIT, CMP, CPX, CPY, DEC, DEX, DEY, EOR, INC, INX, INY, LDA,

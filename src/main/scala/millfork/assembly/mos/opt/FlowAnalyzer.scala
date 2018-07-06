@@ -1,6 +1,5 @@
 package millfork.assembly.mos.opt
 
-import millfork.CompilationOptions
 import millfork.assembly.OptimizationContext
 import millfork.assembly.mos.{AssemblyLine, Opcode, State}
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
@@ -12,6 +11,8 @@ import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 class FlowHolder(_statusBefore: () => List[CpuStatus], _importanceAfter: () => List[CpuImportance]) {
   lazy val statusBefore: List[CpuStatus] = _statusBefore()
   lazy val importanceAfter: List[CpuImportance] = _importanceAfter()
+
+  def toString(index: Int): String = statusBefore(index).toString ++ " -> " ++ importanceAfter(index).toString
 }
 
 case class FlowInfo(holder: FlowHolder, index: Int, _labelUseCountMap: () => Option[Map[String, Int]]) {
@@ -27,6 +28,8 @@ case class FlowInfo(holder: FlowHolder, index: Int, _labelUseCountMap: () => Opt
   def isUnimportant(state: State.Value): Boolean = importanceAfter.isUnimportant(state)
 
   def labelUseCount(label: String): Int = labelUseCountMap.map(_.getOrElse(label, 0)).getOrElse(-1)
+
+  override def toString: String = holder.toString(index)
 }
 
 object FlowAnalyzer {

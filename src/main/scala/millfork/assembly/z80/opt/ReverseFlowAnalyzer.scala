@@ -40,6 +40,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          ixl: Importance = UnknownImportance,
                          iyh: Importance = UnknownImportance,
                          iyl: Importance = UnknownImportance,
+                         memIx: Map[Int, Importance] = Map(),
                          zf: Importance = UnknownImportance,
                          nf: Importance = UnknownImportance,
                          cf: Importance = UnknownImportance,
@@ -47,7 +48,10 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          pf: Importance = UnknownImportance,
                          hf: Importance = UnknownImportance
                         ) {
-  override def toString: String = s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,Y=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf"
+  override def toString: String = {
+    val memRepr = if (memIx.isEmpty) "" else (0 to memIx.keys.max).map(i => memIx.getOrElse(i, UnknownImportance)).mkString("")
+    s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,Y=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf; M=" ++ memRepr.padTo(4, ' ')
+  }
 
   def ~(that: CpuImportance) = new CpuImportance(
     a = this.a ~ that.a,
@@ -61,6 +65,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     ixl = this.ixl ~ that.ixl,
     iyh = this.iyh ~ that.iyh,
     iyl = this.iyl ~ that.iyl,
+    memIx = (this.memIx.keySet | that.memIx.keySet).map(k => k -> (this.memIx.getOrElse(k, UnknownImportance) ~ that.memIx.getOrElse(k, UnknownImportance))).toMap,
     zf = this.zf ~ that.zf,
     nf = this.nf ~ that.nf,
     cf = this.cf ~ that.cf,
@@ -68,7 +73,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     hf = this.hf ~ that.hf,
   )
 
-  def getRegister(register: ZRegister.Value): Importance = register match {
+  def getRegister(register: ZRegister.Value, offset: Int = -1): Importance = register match {
     case ZRegister.A => a
     case ZRegister.B => b
     case ZRegister.C => c
@@ -80,6 +85,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.IXL => ixl
     case ZRegister.IYH => iyh
     case ZRegister.IYL => iyl
+    case ZRegister.MEM_IX_D => if (offset < 0) ??? else memIx.getOrElse(offset, UnknownImportance)
     case ZRegister.HL => h ~ l
     case ZRegister.BC => b ~ c
     case ZRegister.DE => d ~ e
@@ -96,7 +102,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZFlag.N => nf
   }
 
-  def butReadsRegister(r: ZRegister.Value) = r match {
+  def butReadsRegister(r: ZRegister.Value, offset: Int = -1): CpuImportance = r match {
     case ZRegister.A => this.copy(a = Important)
     case ZRegister.AF => this.copy(a = Important, zf = Important, pf = Important, hf = Important, cf = Important, sf = Important)
     case ZRegister.B => this.copy(b = Important)
@@ -112,12 +118,13 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.IXL => this.copy(ixl = Important)
     case ZRegister.IYH => this.copy(iyh = Important)
     case ZRegister.IYL => this.copy(iyl = Important)
-    case ZRegister.IX | ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important)
+    case ZRegister.IX => this.copy(ixh = Important, ixl = Important)
+    case ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important, memIx = if (offset < 0) memIx.mapValues(_ => Important) else memIx + (offset -> Important))
     case ZRegister.IY | ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important)
     case _ => this
   }
 
-  def butWritesRegister(r: ZRegister.Value): CpuImportance = r match {
+  def butWritesRegister(r: ZRegister.Value, offset: Int = -1): CpuImportance = r match {
     case ZRegister.A => this.copy(a = Unimportant)
     case ZRegister.AF => this.copy(a = Unimportant, zf = Unimportant, pf = Unimportant, hf = Unimportant, cf = Unimportant, sf = Unimportant, nf = Unimportant)
     case ZRegister.B => this.copy(b = Unimportant)
@@ -136,8 +143,8 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.IXL => this.copy(ixl = Unimportant)
     case ZRegister.IYH => this.copy(iyh = Unimportant)
     case ZRegister.IYL => this.copy(iyl = Unimportant)
-    case ZRegister.IX => this.copy(ixh = Unimportant, ixl = Unimportant)
-    case ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important)
+    case ZRegister.IX => this.copy(ixh = Unimportant, ixl = Unimportant, memIx = memIx.mapValues(_ => Unimportant))
+    case ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important, memIx = if (offset < 0) Map() else memIx + (offset -> Unimportant))
     case ZRegister.IY => this.copy(iyh = Important, iyl = Important)
     case ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important)
     case _ => this
@@ -208,22 +215,38 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.copy(a = Unimportant)
           case ZLine(DISCARD_F, _, _, _) =>
             currentImportance = currentImportance.copy(cf = Unimportant, zf= Unimportant, sf = Unimportant , pf = Unimportant, hf = Unimportant)
+          case ZLine(LD, TwoRegistersOffset(t, s, o), _, _) =>
+            currentImportance = currentImportance.butWritesRegister(t, o).butReadsRegister(s, o)
           case ZLine(LD | LD_16, TwoRegisters(t, s), _, _) =>
             currentImportance = currentImportance.butWritesRegister(t).butReadsRegister(s)
           case ZLine(ADD_16, TwoRegisters(t, s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(t).butReadsRegister(s)
+
           case ZLine(XOR, OneRegister(ZRegister.A), _, _) =>
             currentImportance = currentImportance.butWritesRegister(ZRegister.A)
           case ZLine(OR | AND, OneRegister(ZRegister.A), _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A)
+
           case ZLine(AND | ADD | SUB | OR | XOR | CP, OneRegister(s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s)
           case ZLine(ADC | SBC, OneRegister(s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s).butReadsFlag(ZFlag.C)
-          case ZLine(DAA, _, _, _) =>
-            currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsFlag(ZFlag.H)
+
+          case ZLine(AND | ADD | SUB | OR | XOR | CP, OneRegisterOffset(s, o), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s, o)
+          case ZLine(ADC | SBC, OneRegisterOffset(s, o), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s, o).butReadsFlag(ZFlag.C)
+
           case ZLine(INC | DEC | INC_16 | DEC_16, OneRegister(s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(s)
+          case ZLine(INC | DEC | INC_16 | DEC_16, OneRegisterOffset(s, o), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(s, o)
+          case ZLine(POP, OneRegister(r), _, _) =>
+            currentImportance = currentImportance.butWritesRegister(r)
+          case ZLine(PUSH, OneRegister(r), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(r)
+          case ZLine(CALL, NoRegisters, _, _) =>
+            currentImportance = finalImportance.copy(memIx = currentImportance.memIx)
           case _ =>
             currentImportance = finalImportance // TODO
         }

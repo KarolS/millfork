@@ -96,7 +96,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
 
   private val map = mutable.Map[Int, Any]()
 
-  override def toString: String = map.mkString(", ")
+  override def toString: String = if (map.isEmpty) "<empty context>" else map.mkString(", ")
 
   def addObject(i: Int, o: Any): Boolean = {
     if (map.contains(i)) {
@@ -772,6 +772,13 @@ case object ConcernsX extends TrivialAssemblyLinePattern {
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsXAlways(line.opcode) || XAddrModes(line.addrMode)
+}
+
+case object ConcernsS extends TrivialAssemblyLinePattern {
+  val SAddrModes = Set(AddrMode.Stack, AddrMode.IndexedSY)
+
+  override def apply(line: AssemblyLine): Boolean =
+    OpcodeClasses.ConcernsSAlways(line.opcode) || SAddrModes(line.addrMode)
 }
 
 case object ConcernsY extends TrivialAssemblyLinePattern {

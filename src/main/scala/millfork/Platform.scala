@@ -23,6 +23,7 @@ class Platform(
                 val outputPackager: OutputPackager,
                 val codeAllocators: Map[String, UpwardByteAllocator],
                 val variableAllocators: Map[String, VariableAllocator],
+                val zpRegisterSize: Int,
                 val freeZpPointers: List[Int],
                 val fileExtension: String,
                 val generateBbcMicroInfFile: Boolean,
@@ -87,6 +88,15 @@ object Platform {
       }
     }
     val startingModules = cs.get(classOf[String], "modules", "").split("[, ]+").filter(_.nonEmpty).toList
+    val zpRegisterSize = cs.get(classOf[String], "zeropage_register", "2").toLowerCase match {
+      case "" | null => if (CpuFamily.forType(cpu) == CpuFamily.M6502) 2 else 0
+      case "true" | "on" | "yes" => 2
+      case "false" | "off" | "no" | "0" => 0
+      case x => x.toInt
+    }
+    if (zpRegisterSize < 0 || zpRegisterSize > 128) {
+      ErrorReporting.error("Invalid zeropage register size: " + zpRegisterSize)
+    }
 
     val as = conf.getSection("allocation")
 
@@ -178,6 +188,7 @@ object Platform {
     new Platform(cpu, flagOverrides, startingModules, outputPackager,
       codeAllocators.toMap,
       variableAllocators.toMap,
+      zpRegisterSize,
       freePointers,
       if (fileExtension == "" || fileExtension.startsWith(".")) fileExtension else "." + fileExtension,
       generateBbcMicroInfFile,
@@ -188,7 +199,7 @@ object Platform {
 
   def parseNumberOrRange(s:String): Seq[Int] = {
     if (s.contains("-")) {
-      var segments = s.split("-")
+      val segments = s.split("-")
       if (segments.length != 2) {
         ErrorReporting.fatal(s"Invalid range: `$s`")
       }

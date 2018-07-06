@@ -31,6 +31,13 @@ object AlwaysGoodOptimizations {
     (HasOpcode(LDA) & HasImmediate(0) & Elidable) ~
       (HasOpcode(CLC) & Elidable) ~
       (HasOpcode(ADC) & Elidable & DoesntMatterWhatItDoesWith(State.C, State.Z, State.V, State.N)) ~~> (code => code(2).copy(opcode = LDA) :: code.drop(3)),
+    (HasOpcode(CLC) & Elidable) ~
+    (HasOpcode(ADC) & MatchImmediate(0) & Elidable) ~
+      (HasOpcode(CLC) & Elidable) ~
+      (HasOpcode(ADC) & MatchImmediate(1) & Elidable & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> ((code, ctx) => List(
+      AssemblyLine.implied(CLC),
+      AssemblyLine.immediate(ADC, (ctx.get[Constant](0) + ctx.get[Constant](1)).quickSimplify),
+    )),
   )
 
   val PointlessAccumulatorShifting = new RuleBasedAssemblyOptimization("Pointless accumulator shifting",
@@ -889,6 +896,91 @@ object AlwaysGoodOptimizations {
     },
   )
 
+  val LoadingOfJustWrittenValue = new RuleBasedAssemblyOptimization("Loading of just written value",
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+
+    (HasOpcode(STA) & XContainsStackPointer & HasAddrMode(AbsoluteX) & MatchAddrMode(0) & MatchParameter(1) & MatchA(2) & HasParameterWhere(_ match {
+      case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
+      case _ => false
+    })) ~
+      (HasOpcode(JSR) |
+        XContainsStackPointer & HasOpcodeIn(INC, DEC, ASL, LSR) & MatchAddrMode(0) & MatchParameter(1) |
+        Linear & XContainsStackPointer & HasAddrMode(AbsoluteX) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
+        Linear & HasAddrMode(AbsoluteX) & Not(MatchParameter(1) & XContainsStackPointer) & Not(ChangesMemory) |
+        Linear & Not(ChangesS) & DoesntChangeMemoryAt(0, 1) & Not(HasAddrMode(AbsoluteX))).* ~
+      (Elidable & XContainsStackPointer & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, ORA, EOR, AND, CMP) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      val oldA = ctx.get[Int](2)
+      val ADDR = ctx.get[Constant](1)
+      val value = code.foldLeft(oldA) { (prev, line) =>
+        line match {
+          case AssemblyLine(INC, AbsoluteX, ADDR, _) => (prev + 1) & 0xff
+          case AssemblyLine(DEC, AbsoluteX, ADDR, _) => (prev - 1) & 0xff
+          case AssemblyLine(ASL, AbsoluteX, ADDR, _) => (prev << 1) & 0xff
+          case AssemblyLine(LSR, AbsoluteX, ADDR, _) => (prev >> 1) & 0xff
+          case _ => prev
+        }
+      }
+      code.init :+ code.last.copy(addrMode = AddrMode.Immediate, parameter = NumericConstant(value, 1))
+    },
+
+    (HasOpcode(STA) & HasAddrMode(Stack) & MatchAddrMode(0) & MatchParameter(1) & MatchA(2)) ~
+      (HasOpcode(JSR) |
+        Linear & HasAddrMode(Stack) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
+        Linear & Not(ChangesS) & DoesntChangeMemoryAt(0, 1) & Not(HasAddrMode(Stack))).* ~
+      (Elidable & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, ORA, EOR, AND, CMP) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      code.init :+ code.last.copy(addrMode = AddrMode.Immediate, parameter = NumericConstant(ctx.get[Int](2), 1))
+    },
+
+    (HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & MatchA(2)) ~
+      (Linear & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, ORA, EOR, AND, CMP) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      code.init :+ code.last.copy(addrMode = AddrMode.Immediate, parameter = NumericConstant(ctx.get[Int](2), 1))
+    },
+
+  )
+
+  val PointlessStackStore = new RuleBasedAssemblyOptimization("Pointless stack store",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    // TODO: check if JSR is OK
+
+    (Elidable & HasOpcode(STA) & HasAddrMode(AbsoluteX) & XContainsStackPointer & HasParameterWhere(_ match {
+      case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
+      case _ => false
+    }) & MatchParameter(1)) ~
+      (HasOpcode(JSR) |
+        Not(ChangesS) & Not(HasOpcodeIn(RTS, RTI)) & Linear & Not(HasAddrMode(AbsoluteX)) |
+        HasAddrMode(AbsoluteX) & XContainsStackPointer & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory))).* ~
+      HasOpcodeIn(RTS, RTI) ~~> (_.tail),
+
+    (Elidable & HasOpcode(STA) & HasAddrMode(AbsoluteX) & HasParameterWhere(_ match {
+      case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
+      case _ => false
+    })) ~
+      (HasOpcode(JSR) | Not(HasOpcodeIn(RTS, RTI)) & Linear & Not(HasAddrMode(AbsoluteX))).* ~
+      HasOpcodeIn(RTS, RTI) ~~> (_.tail),
+
+    (Elidable & HasOpcodeIn(INC, DEC, ASL, LSR, ROR, ROL) & HasAddrMode(AbsoluteX) & HasParameterWhere(_ match {
+      case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
+      case _ => false
+    }) & DoesntMatterWhatItDoesWith(State.Z, State.N, State.C)) ~
+      (HasOpcode(JSR) | Not(HasOpcodeIn(RTS, RTI)) & Linear & Not(HasAddrMode(AbsoluteX))).* ~
+      HasOpcodeIn(RTS, RTI) ~~> (_.tail),
+
+    (Elidable & HasOpcodeIn(STA, STA_W) & HasAddrMode(Stack)) ~
+      (HasOpcode(JSR) | Linear & Not(HasAddrMode(Stack)) & Not(HasOpcodeIn(RTS, RTI))).* ~
+      HasOpcodeIn(RTS, RTI) ~~> (_.tail),
+
+    (HasOpcode(STA) & XContainsStackPointer & HasAddrMode(AbsoluteX) & MatchAddrMode(0) & MatchParameter(1) & HasParameterWhere(_ match {
+      case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
+      case _ => false
+    })) ~
+      (HasOpcode(JSR) |
+        Linear & XContainsStackPointer & HasAddrMode(AbsoluteX) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
+        Linear & Not(ChangesS) & Not(HasAddrMode(AbsoluteX)) & DoesNotConcernMemoryAt(0, 1)).* ~
+    (Elidable & XContainsStackPointer & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.tail),
+  )
+
   val IdempotentDuplicateRemoval = new RuleBasedAssemblyOptimization("Idempotent duplicate operation",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     HasOpcode(RTS) ~ NoopDiscardsFlags.* ~ (HasOpcode(RTS) ~ Elidable) ~~> (_.take(1)) ::
@@ -1252,6 +1344,17 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(INX)) ~
       (Elidable & HasOpcode(TXS)) ~
       (ConcernsA & Not(ConcernsStack) & Linear & DoesntMatterWhatItDoesWith(State.Z, State.N, State.A)) ~~> (code => List(code.last, AssemblyLine.implied(PLA))),
+
+    (Elidable & HasOpcodeIn(PHA, PHX, PHY)).*.captureLength(0) ~
+      (HasOpcode(TSX) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~
+      (Linear & Not(ConcernsS) & Not(ConcernsX) & Not(ChangesStack)).* ~
+      (Elidable & HasOpcode(INX)).*.captureLength(1) ~
+      Where(ctx => ctx.get[Int](0) >= ctx.get[Int](1)) ~
+      (HasOpcode(TXS) & DoesntMatterWhatItDoesWith(State.Z, State.N, State.X)) ~~> {(code, ctx) =>
+      val pushCount = ctx.get[Int](0)
+      val inxCount = ctx.get[Int](1)
+      code.take(pushCount - inxCount) ++ code.drop(pushCount + 1).dropRight(inxCount + 1)
+    },
   )
 
   val SimplifiableBitOpsSequence = new RuleBasedAssemblyOptimization("Simplifiable sequence of bit operations",

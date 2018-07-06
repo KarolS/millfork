@@ -90,7 +90,9 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
 //    case _ =>
 //  }
 
-  override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; A7=$a7,A0=$a0,NZ:$src"
+  override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; A7=$a7,A0=$a0,NZ:$src" +
+    (if (eqSX) "; S=X"
+    else /* */ "     ")
 
   def aw: Status[Int] = (ah, a) match {
     case (SingleStatus(h), SingleStatus(l)) => SingleStatus(h.&(0xff).<<(8).+(l&0xff))

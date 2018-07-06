@@ -19,13 +19,13 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
   }
 
   def callingContext(ctx: CompilationContext, v: MemoryVariable): CompilationContext = {
-    val result = new Environment(Some(ctx.env), "")
+    val result = new Environment(Some(ctx.env), "", ctx.options.platform.cpuFamily)
     result.registerVariable(VariableDeclarationStatement(v.name, v.typ.name, stack = false, global = false, constant = false, volatile = false, register = false, initialValue = None, address = None, bank = v.declaredBank), ctx.options)
     ctx.copy(env = result)
   }
 
   def getParamMaxSize(ctx: CompilationContext, params: List[Expression]): Int = {
-    params.map { case expr => getExpressionType(ctx, expr).size}.max
+    params.map(expr => getExpressionType(ctx, expr).size).max
   }
 
   def getSumSize(ctx: CompilationContext, params: List[(Boolean, Expression)]): Int = {

@@ -11,6 +11,8 @@ import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 class FlowHolder(_statusBefore: () => List[CpuStatus], _importanceAfter: () => List[CpuImportance]) {
   lazy val statusBefore: List[CpuStatus] = _statusBefore()
   lazy val importanceAfter: List[CpuImportance] = _importanceAfter()
+
+  def toString(index: Int): String = statusBefore(index).toString ++ " -> " ++ importanceAfter(index).toString
 }
 
 case class FlowInfo(holder: FlowHolder, index: Int, _labelUseCountMap: () => Option[Map[String, Int]]) {
@@ -20,6 +22,8 @@ case class FlowInfo(holder: FlowHolder, index: Int, _labelUseCountMap: () => Opt
   lazy val labelUseCountMap: Option[Map[String, Int]] = _labelUseCountMap()
 
   def labelUseCount(label: String): Int = labelUseCountMap.map(_.getOrElse(label, 0)).getOrElse(-1)
+
+  override def toString: String = holder.toString(index)
 }
 
 object FlowAnalyzer {

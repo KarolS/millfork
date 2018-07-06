@@ -1,7 +1,6 @@
 //noinspection RedundantNewCaseClass
 package millfork.assembly.z80.opt
 
-import millfork.assembly.mos.State
 import millfork.assembly.opt._
 import millfork.assembly.z80.ZFlag
 import millfork.node.ZRegister
@@ -21,6 +20,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      ixl: Status[Int] = UnknownStatus,
                      iyh: Status[Int] = UnknownStatus,
                      iyl: Status[Int] = UnknownStatus,
+                     memIx: Map[Int, Status[Int]] = Map(),
                      zf: Status[Boolean] = UnknownStatus,
                      nf: Status[Boolean] = UnknownStatus,
                      cf: Status[Boolean] = UnknownStatus,
@@ -28,7 +28,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      pf: Status[Boolean] = UnknownStatus,
                      hf: Status[Boolean] = UnknownStatus
                     ) {
-  def setRegister(target: ZRegister.Value, value: Status[Int]): CpuStatus = target match {
+  def setRegister(target: ZRegister.Value, value: Status[Int], offset: Int = -1): CpuStatus = target match {
     case ZRegister.IMM_8 => this
     case ZRegister.IMM_16 => this
     case ZRegister.A => this.copy(a = value)
@@ -42,7 +42,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case ZRegister.IXL => this.copy(ixl = value)
     case ZRegister.IYH => this.copy(iyh = value)
     case ZRegister.IYL => this.copy(iyl = value)
-    case ZRegister.MEM_IX_D => this
+    case ZRegister.MEM_IX_D => if (offset < 0) this.copy(memIx = Map()) else this.copy(memIx = this.memIx + (offset -> value))
     case ZRegister.MEM_IY_D => this
     case ZRegister.MEM_HL => this
     case ZRegister.MEM_BC => this
@@ -62,7 +62,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
 
   val mergeBytes: (Int, Int) => Int = (h, l) => (h & 0xff) * 256 + (l & 0xff)
 
-  def getRegister(register: ZRegister.Value): Status[Int] = register match {
+  def getRegister(register: ZRegister.Value, offset: Int = -1): Status[Int] = register match {
     case ZRegister.A => a
     case ZRegister.B => b
     case ZRegister.C => c
@@ -74,7 +74,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case ZRegister.IXL => ixl
     case ZRegister.IYH => iyh
     case ZRegister.IYL => iyl
-    case ZRegister.MEM_IX_D => AnyStatus
+    case ZRegister.MEM_IX_D => if (offset < 0) AnyStatus else memIx.getOrElse(offset, UnknownStatus)
     case ZRegister.MEM_IY_D => AnyStatus
     case ZRegister.MEM_HL => AnyStatus
     case ZRegister.MEM_BC => AnyStatus
@@ -114,6 +114,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     ixl = this.ixl ~ that.ixl,
     iyh = this.iyh ~ that.iyh,
     iyl = this.iyl ~ that.iyl,
+    memIx = (this.memIx.keySet | that.memIx.keySet).map(k => k -> (this.memIx.getOrElse(k, UnknownStatus) ~ that.memIx.getOrElse(k, UnknownStatus))).toMap,
     nf = this.nf ~ that.nf,
     sf = this.sf ~ that.sf,
     zf = this.zf ~ that.zf,
@@ -123,6 +124,9 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
   )
 
 
+  override def toString: String = {
+    val memRepr = if (memIx.isEmpty) "" else (0 to memIx.keys.max).map(i => memIx.getOrElse(i, UnknownStatus)).mkString("")
+    s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,Y=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf; M=" + memRepr.padTo(4, ' ')
+  }
 
-  override def toString: String = s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,Y=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf"
 }

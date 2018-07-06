@@ -10,6 +10,10 @@ import millfork.node._
   */
 object UnusedFunctions extends NodeOptimization {
 
+  private val operatorImplementations: List[(String, Int, String)] = List(
+    ("*", 2, "__mul_u8u8u8")
+  )
+
   override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
     val panicRequired = options.flags(CompilationFlag.CheckIndexOutOfBounds)
     val allNormalFunctions = nodes.flatMap {
@@ -18,8 +22,10 @@ object UnusedFunctions extends NodeOptimization {
     }.toSet
     val allCalledFunctions = getAllCalledFunctions(nodes).toSet
     var unusedFunctions = allNormalFunctions -- allCalledFunctions
-    if (allCalledFunctions.contains("*") && options.flag(CompilationFlag.ZeropagePseudoregister)) {
-      unusedFunctions -= "__mul_u8u8u8"
+    for((op, zp, fun) <- operatorImplementations) {
+      if (allCalledFunctions.contains(op) && options.zpRegisterSize >= zp) {
+        unusedFunctions -= fun
+      }
     }
     if (unusedFunctions.nonEmpty) {
       ErrorReporting.debug("Removing unused functions: " + unusedFunctions.mkString(", "))

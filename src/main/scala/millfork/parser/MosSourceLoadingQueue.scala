@@ -1,6 +1,6 @@
 package millfork.parser
 
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.CompilationOptions
 import millfork.assembly.mos.AssemblyLine
 
 /**
@@ -13,7 +13,7 @@ class MosSourceLoadingQueue(initialFilenames: List[String],
   override def createParser(filename: String, src: String, parentDir: String): MfParser[AssemblyLine] = MosParser(filename, src, parentDir, options)
 
   def enqueueStandardModules(): Unit = {
-    if (options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (options.zpRegisterSize > 0) {
       moduleQueue.enqueue(() => parseModule("zp_reg", includePath, Left(None)))
     }
   }

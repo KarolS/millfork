@@ -38,7 +38,7 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
     if (options.flag(CompilationFlag.Emit65CE02Opcodes)) {
       allOptimizers ++= CE02Optimizations.All
     }
-    if (options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (options.zpRegisterSize > 0) {
       allOptimizers ++= ZeropageRegisterOptimizations.All
     }
     allOptimizers ++= List(

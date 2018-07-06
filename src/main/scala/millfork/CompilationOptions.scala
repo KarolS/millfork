@@ -5,7 +5,7 @@ import millfork.error.ErrorReporting
 /**
   * @author Karol Stasiak
   */
-case class CompilationOptions(platform: Platform, commandLineFlags: Map[CompilationFlag.Value, Boolean], outputFileName: Option[String]) {
+case class CompilationOptions(platform: Platform, commandLineFlags: Map[CompilationFlag.Value, Boolean], outputFileName: Option[String], zpRegisterSize: Int) {
 
   import CompilationFlag._
   import Cpu._
@@ -21,7 +21,7 @@ case class CompilationOptions(platform: Platform, commandLineFlags: Map[Compilat
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.M6502) invalids ++= Set(
       EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
-      ZeropagePseudoregister, PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, LUnixRelocatableCode, RorWarning)
+      PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, LUnixRelocatableCode, RorWarning)
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, UseIxForStack)
 
@@ -29,6 +29,9 @@ case class CompilationOptions(platform: Platform, commandLineFlags: Map[Compilat
 
     if (invalids.nonEmpty) {
       ErrorReporting.error("Invalid flags enabled for the currect CPU family: " + invalids.mkString(", "))
+    }
+    if (CpuFamily.forType(platform.cpu) != CpuFamily.M6502 && zpRegisterSize > 0) {
+      ErrorReporting.error("Invalid flags enabled for the currect CPU family: zp_register" + invalids.mkString(", "))
     }
     CpuFamily.forType(platform.cpu) match {
       case CpuFamily.M6502 =>
@@ -133,7 +136,7 @@ object Cpu extends Enumeration {
   import CompilationFlag._
 
   private val mosAlwaysDefaultFlags = Set(
-    VariableOverlap, CompactReturnDispatchParams, ZeropagePseudoregister
+    VariableOverlap, CompactReturnDispatchParams
   )
 
   private val i8080AlwaysDefaultFlags = Set(
@@ -203,7 +206,7 @@ object CompilationFlag extends Enumeration {
   EmitIllegals, DecimalMode, ReadOnlyArrays,
   // compilation options for MOS:
   EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
-  ZeropagePseudoregister, PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator,
+  PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator,
   // compilation options for Z80
   EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, UseIxForStack,
   // optimization options:
@@ -236,7 +239,6 @@ object CompilationFlag extends Enumeration {
     "ipo" -> InterproceduralOptimization,
     "inline" -> InlineFunctions,
     "dangerous_optimizations" -> DangerousOptimizations,
-    "zeropage_register" -> ZeropagePseudoregister,
     "decimal_mode" -> DecimalMode,
     "ro_arrays" -> ReadOnlyArrays,
     "ror_warn" -> RorWarning,

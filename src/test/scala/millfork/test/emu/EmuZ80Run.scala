@@ -12,7 +12,7 @@ import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, MosAssembler, Z80Assembler}
 import millfork.parser.Z80Parser
-import millfork.CompilationOptions
+import millfork.{CompilationOptions, CpuFamily}
 import millfork.compiler.z80.Z80Compiler
 import org.scalatest.Matchers
 
@@ -21,8 +21,6 @@ import org.scalatest.Matchers
   */
 class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[ZLine]]) extends Matchers {
 
-  private val variableLength = Set(0x10, 0x30, 0x50, 0x70, 0x90, 0xb0, 0xd0, 0xf0)
-
   private val TooManyCycles: Long = 1000000
 
   def apply2(source: String): (Timings, MemoryBank) = {
@@ -30,7 +28,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     Console.err.flush()
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap, None)
+    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap, None, 0)
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
     var effectiveSource = source
@@ -44,7 +42,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         // prepare
         val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program)
-        val env = new Environment(None, "")
+        val env = new Environment(None, "", CpuFamily.I80)
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
@@ -64,7 +62,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
 
 
         // compile
-        val env2 = new Environment(None, "")
+        val env2 = new Environment(None, "", CpuFamily.I80)
         env2.collectDeclarations(program, options)
         val assembler = new Z80Assembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)

@@ -17,10 +17,13 @@ import scala.collection.mutable
   * @author Karol Stasiak
   */
 //noinspection NotImplementedCode
-class Environment(val parent: Option[Environment], val prefix: String) {
+class Environment(val parent: Option[Environment], val prefix: String, val cpuFamily: CpuFamily.Value) {
 
 
-  private var baseStackOffset = 0x101
+  private var baseStackOffset: Int = cpuFamily match {
+    case CpuFamily.M6502 => 0x101
+    case CpuFamily.I80 => 0
+  }
 
   def genRelativeVariable(constant: Constant, typ: Type, zeropage: Boolean): RelativeVariable = {
     val variable = RelativeVariable(".rv__" + Environment.relVarId.incrementAndGet().formatted("%06d"), constant, typ, zeropage = zeropage, declaredBank = None /*TODO*/)
@@ -37,7 +40,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         m.environment.getAllPrefixedThings
       case _ => Map[String, Thing]()
     }.fold(things.toMap)(_ ++ _)
-    val e = new Environment(None, "")
+    val e = new Environment(None, "", cpuFamily)
     e.things.clear()
     e.things ++= allThings
     e
@@ -588,7 +591,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
         ErrorReporting.error(s"Non-macro function `$name` cannot have inlinable parameters", stmt.position)
     }
 
-    val env = new Environment(Some(this), name + "$")
+    val env = new Environment(Some(this), name + "$", cpuFamily)
     stmt.params.foreach(p => env.registerParameter(p, options))
     val params = if (stmt.assembly) {
       AssemblyParamSignature(stmt.params.map {
@@ -963,7 +966,7 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
           val alloc =
-            if (typ.name == "pointer") VariableAllocationMethod.Zeropage
+            if (typ.name == "pointer" || typ.name == "__reg$type") VariableAllocationMethod.Zeropage
             else if (stmt.global) VariableAllocationMethod.Static
             else if (stmt.register) VariableAllocationMethod.Register
             else VariableAllocationMethod.Auto
@@ -1061,11 +1064,12 @@ class Environment(val parent: Option[Environment], val prefix: String) {
       case a: ArrayDeclarationStatement => registerArray(a, options)
       case i: ImportStatement => ()
     }
-    if (options.flag(CompilationFlag.ZeropagePseudoregister) && !things.contains("__reg")) {
+    if (options.zpRegisterSize > 0 && !things.contains("__reg")) {
+      addThing(BasicPlainType("__reg$type", options.zpRegisterSize), None)
       registerVariable(VariableDeclarationStatement(
         name = "__reg",
         bank = None,
-        typ = "pointer",
+        typ = "__reg$type",
         global = true,
         stack = false,
         constant = false,

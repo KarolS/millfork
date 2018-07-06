@@ -1,8 +1,8 @@
 package millfork.assembly.z80.opt
 
 import millfork.CompilationOptions
-import millfork.assembly.{z80, _}
-import millfork.assembly.opt.SingleStatus
+import millfork.assembly._
+import millfork.assembly.opt.{AnyStatus, SingleStatus}
 import millfork.assembly.z80._
 import millfork.env._
 import millfork.error.ErrorReporting
@@ -437,6 +437,30 @@ case class MatchRegister(register: ZRegister.Value, i: Int) extends AssemblyLine
     }
 }
 
+case class MatchValueAtIxOffset(offset: Int, i: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    flowInfo.statusBefore.memIx.getOrElse(offset, AnyStatus) match {
+      case SingleStatus(value) => ctx.addObject(i, value)
+      case _ => false
+    }
+}
+
+case class MatchValueAtMatchedIxOffset(oi: Int, vi: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
+    val offset = ctx.get[Int](oi)
+    flowInfo.statusBefore.memIx.getOrElse(offset, AnyStatus) match {
+      case SingleStatus(value) => ctx.addObject(vi, value)
+      case _ => false
+    }
+  }
+}
+
 case class MatchImmediate(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.registers match {
@@ -445,6 +469,37 @@ case class MatchImmediate(i: Int) extends AssemblyLinePattern {
     }
 }
 
+case class RegisterAndOffset(register: ZRegister.Value, offset: Int)
+
+case class MatchSourceRegisterAndOffset(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers match {
+      case TwoRegisters(_, s) => ctx.addObject(i, RegisterAndOffset(s, 0))
+      case TwoRegistersOffset(_, s, o) => ctx.addObject(i, RegisterAndOffset(s, o))
+      case _ => false
+    }
+}
+
+case class MatchTargetRegisterAndOffset(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers match {
+      case TwoRegisters(t, _) => ctx.addObject(i, RegisterAndOffset(t, 0))
+      case TwoRegistersOffset(t, _, o) => ctx.addObject(i, RegisterAndOffset(t, o))
+      case _ => false
+    }
+}
+
+case class DoesntChangeMatchedRegisterAndOffset(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
+    val ro = ctx.get[RegisterAndOffset](i)
+    import ZRegister._
+    ro.register match {
+      case AF | SP => false // ?
+      case MEM_ABS_8 | MEM_ABS_16 | MEM_HL | MEM_DE | MEM_BC => !line.changesMemory
+      case _ => !line.changesRegisterAndOffset(ro.register, ro.offset)
+    }
+  }
+}
 
 case class MatchParameter(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
@@ -619,27 +674,87 @@ case class Is16BitLoad(target:ZRegister.Value, source: ZRegister.Value) extends 
 
 case class IsRegular8BitLoadFrom(source: ZRegister.Value) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean =
-    line.opcode == ZOpcode.LD && line.registers.asInstanceOf[TwoRegisters].source == source && (line.registers.asInstanceOf[TwoRegisters].target match {
-      case ZRegister.I | ZRegister.MEM_ABS_8 | ZRegister.R | ZRegister.MEM_DE | ZRegister.MEM_BC => false
-      case _ => true
+    line.opcode == ZOpcode.LD && (line.registers match {
+      case TwoRegistersOffset(ZRegister.I | ZRegister.MEM_ABS_8 | ZRegister.R | ZRegister.MEM_DE | ZRegister.MEM_BC, _, _) => false
+      case TwoRegisters(ZRegister.I | ZRegister.MEM_ABS_8 | ZRegister.R | ZRegister.MEM_DE | ZRegister.MEM_BC, _) => false
+      case TwoRegistersOffset(t, s, _) => s == source
+      case TwoRegisters(t, s) => s == source
     })
 
   override def toString: String = "LD _," + source
 }
 
+object NoOffset extends TrivialAssemblyLinePattern {
+  override def apply(line: ZLine): Boolean =
+    line.registers match {
+      case _:TwoRegistersOffset => false
+      case _:OneRegisterOffset => false
+      case _ => true
+    }
+}
+
 case class Is8BitLoadTo(target: ZRegister.Value) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean =
-    line.opcode == ZOpcode.LD && line.registers.asInstanceOf[TwoRegisters].target == target && (line.registers.asInstanceOf[TwoRegisters].source match {
-      case ZRegister.I | ZRegister.MEM_ABS_8 | ZRegister.R => false
-      case _ => true
+    line.opcode == ZOpcode.LD && (line.registers match {
+      case TwoRegistersOffset(t, s, _) => target == t
+      case TwoRegisters(t, s) => target == t && (s match {
+        case ZRegister.I | ZRegister.MEM_ABS_8 | ZRegister.R => false
+        case _ => true
+      })
     })
 
   override def toString: String = s"LD $target,_"
 }
 
+case class MatchSourceIxOffsetOf8BitLoad(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
+    line.opcode == ZOpcode.LD && (line.registers match {
+      case TwoRegistersOffset(_, ZRegister.MEM_IX_D, offset) => ctx.addObject(i, offset)
+      case _ => false
+    })
+  }
+
+  override def toString: String = "LD (IX,!),_"
+}
+
+case class MatchIxOffset(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
+    line.registers match {
+      case OneRegisterOffset(ZRegister.MEM_IX_D, offset) => ctx.addObject(i, offset)
+      case _ => false
+    }
+  }
+
+  override def toString: String = "LD (IX,!),_"
+}
+
+case class MatchTargetIxOffsetOf8BitLoad(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
+    line.opcode == ZOpcode.LD && (line.registers match {
+      case TwoRegistersOffset(ZRegister.MEM_IX_D, _, offset) => ctx.addObject(i, offset)
+      case _ => false
+    })
+  }
+
+  override def toString: String = "LD (IX,!),_"
+}
+
+case class MatchUnimportantIxOffset(i: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertBackward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
+    val offset = ctx.get[Int](i)
+    flowInfo.importanceAfter.memIx.getOrElse(offset, Unimportant) == Unimportant
+  }
+}
+
 case class Is16BitLoadTo(target: ZRegister.Value) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean =
-    line.opcode == ZOpcode.LD_16 && line.registers.asInstanceOf[TwoRegisters].target == target
+    line.opcode == ZOpcode.LD_16 && (line.registers match {
+      case TwoRegistersOffset(t, s, _) => target == t
+      case TwoRegisters(t, s) => target == t
+    })
 
   override def toString: String = s"LD_16 $target,_"
 }

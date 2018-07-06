@@ -38,7 +38,7 @@ object PseudoregisterBuiltIns {
           }
       }
     }
-    if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (ctx.options.zpRegisterSize < 2) {
       ErrorReporting.error("Word addition or subtraction requires the zeropage pseudoregister", params.headOption.flatMap(_._2.position))
       return Nil
     }
@@ -57,7 +57,7 @@ object PseudoregisterBuiltIns {
   }
 
   def addToReg(ctx: CompilationContext, r: Expression, subtract: Boolean, decimal: Boolean): List[AssemblyLine] = {
-    if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (ctx.options.zpRegisterSize < 2) {
       ErrorReporting.error("Word addition or subtraction requires the zeropage pseudoregister", r.position)
       return Nil
     }
@@ -108,7 +108,7 @@ object PseudoregisterBuiltIns {
 
 
   def compileWordBitOpsToAX(ctx: CompilationContext, params: List[Expression], op: Opcode.Value): List[AssemblyLine] = {
-    if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (ctx.options.zpRegisterSize < 2) {
       ErrorReporting.error("Word bit operation requires the zeropage pseudoregister", params.headOption.flatMap(_.position))
       return Nil
     }
@@ -126,7 +126,7 @@ object PseudoregisterBuiltIns {
   }
 
   def bitOpReg(ctx: CompilationContext, r: Expression, op: Opcode.Value): List[AssemblyLine] = {
-    if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (ctx.options.zpRegisterSize < 2) {
       ErrorReporting.error("Word bit operation requires the zeropage pseudoregister", r.position)
       return Nil
     }
@@ -180,7 +180,7 @@ object PseudoregisterBuiltIns {
   }
 
   def compileWordShiftOps(left: Boolean, ctx: CompilationContext, l: Expression, r: Expression): List[AssemblyLine] = {
-    if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (ctx.options.zpRegisterSize < 2) {
       ErrorReporting.error("Word shifting requires the zeropage pseudoregister", l.position)
       return Nil
     }
@@ -246,7 +246,7 @@ object PseudoregisterBuiltIns {
   }
 
   def compileByteMultiplication(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean): List[AssemblyLine] = {
-    if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (ctx.options.zpRegisterSize < 2) {
       ErrorReporting.error("Variable byte multiplication requires the zeropage pseudoregister", param1OrRegister.flatMap(_.position))
       return Nil
     }

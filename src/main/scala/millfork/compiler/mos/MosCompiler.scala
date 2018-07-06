@@ -22,6 +22,7 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
   override def compile(ctx: CompilationContext): List[AssemblyLine] = {
     ctx.env.nameCheck(ctx.function.code)
     val chunk = MosStatementCompiler.compile(ctx, ctx.function.code)
+    val zpRegisterSize = ctx.options.zpRegisterSize
 
     val storeParamsFromRegisters = ctx.function.params match {
       case NormalParamSignature(List(param@MemoryVariable(_, typ, _))) if typ.size == 1 =>
@@ -29,31 +30,42 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
       case _ => Nil
     }
     val phReg =
-      if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+      if (zpRegisterSize > 0) {
         val reg = ctx.env.get[VariableInMemory]("__reg")
-        List(
-          AssemblyLine.zeropage(LDA, reg),
-          AssemblyLine.implied(PHA),
-          AssemblyLine.zeropage(LDA, reg, 1),
-          AssemblyLine.implied(PHA)
-        )
+        (0 until zpRegisterSize).flatMap { i =>
+          List(
+            AssemblyLine.zeropage(LDA, reg, i),
+            AssemblyLine.implied(PHA))
+        }.toList
       } else Nil
 
     val prefix = storeParamsFromRegisters ++ (if (ctx.function.interrupt) {
 
       if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
-        if (ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
-          List(
+        if (zpRegisterSize > 0) {
+          val physicalRegisters = List(
             AssemblyLine.implied(PHB),
             AssemblyLine.implied(PHD),
             AssemblyLine.immediate(REP, 0x30),
             AssemblyLine.implied(PHA_W),
             AssemblyLine.implied(PHX_W),
             AssemblyLine.implied(PHY_W),
-            AssemblyLine.implied(PHY_W),
-            AssemblyLine.zeropage(LDA_W, ctx.env.get[VariableInMemory]("__reg")),
-            AssemblyLine.implied(PHA_W),
-            AssemblyLine.immediate(SEP, 0x30))
+            AssemblyLine.implied(PHY_W))
+          val reg = ctx.env.get[VariableInMemory]("__reg")
+          val initialBytes = (0 to zpRegisterSize.&(0xfe).-(2) by 2).flatMap{ i=>
+            List(
+              AssemblyLine.zeropage(LDA_W, reg, i),
+              AssemblyLine.implied(PHA_W))
+          }
+          val lastByte = if (zpRegisterSize % 2 != 0){
+            List(
+              AssemblyLine.immediate(SEP, 0x30),
+              AssemblyLine.zeropage(LDA, reg, zpRegisterSize - 1),
+              AssemblyLine.implied(PHA))
+          } else {
+            List(AssemblyLine.immediate(SEP, 0x30))
+          }
+          physicalRegisters ++ initialBytes ++ lastByte
         } else {
           List(
             AssemblyLine.implied(PHB),
@@ -93,13 +105,22 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
           AssemblyLine.implied(PHA),
           AssemblyLine.implied(CLD)) ++ phReg
       }
-    } else if (ctx.function.kernalInterrupt && ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    } else if (ctx.function.kernalInterrupt && zpRegisterSize > 0) {
       if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
-        List(
-          AssemblyLine.accu16,
-          AssemblyLine.zeropage(LDA_W, ctx.env.get[VariableInMemory]("__reg")),
-          AssemblyLine.implied(PHA_W),
-          AssemblyLine.accu8)
+        val reg = ctx.env.get[VariableInMemory]("__reg")
+        val initialBytes = (0 to zpRegisterSize.&(0xfe).-(2) by 2).flatMap { i =>
+          List(
+            AssemblyLine.zeropage(LDA_W, reg, i),
+            AssemblyLine.implied(PHA_W))
+        }.toList
+        val lastByte = if (zpRegisterSize % 2 != 0) {
+          List(AssemblyLine.accu8,
+            AssemblyLine.zeropage(LDA_W, reg, zpRegisterSize - 1),
+            AssemblyLine.implied(PHA_W))
+        } else {
+          List(AssemblyLine.accu8)
+        }
+        AssemblyLine.accu16 :: (initialBytes ++ lastByte)
       } else phReg
     } else Nil) ++ stackPointerFixAtBeginning(ctx)
     val label = AssemblyLine.label(Label(ctx.function.name)).copy(elidable = false)

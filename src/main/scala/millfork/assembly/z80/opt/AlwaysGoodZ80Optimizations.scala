@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.assembly.AssemblyOptimization
-import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine, ZOpcode}
+import millfork.assembly.z80._
 import millfork.assembly.z80.ZOpcode._
 import millfork.env.{Constant, NumericConstant}
 import millfork.node.ZRegister
@@ -10,6 +10,13 @@ import millfork.node.ZRegister
   * @author Karol Stasiak
   */
 object AlwaysGoodZ80Optimizations {
+
+  def change8BitLoadTarget(line: ZLine, newTarget: ZRegister.Value): ZLine = {
+    line match {
+      case ZLine(LD, TwoRegistersOffset(_, s, o), p, _) => ZLine(LD, TwoRegistersOffset(newTarget, s, o), p)
+      case ZLine(LD, TwoRegisters(_, s), p, _) => ZLine(LD, TwoRegisters(newTarget, s), p)
+    }
+  }
 
   def for7Registers(f: ZRegister.Value => AssemblyRuleSet) = MultipleAssemblyRules(
     List(ZRegister.A, ZRegister.B, ZRegister.C, ZRegister.D, ZRegister.E, ZRegister.H, ZRegister.L).map(f))
@@ -26,9 +33,23 @@ object AlwaysGoodZ80Optimizations {
       (Elidable & IsRegular8BitLoadFrom(register) & MatchRegister(register, 0)) ~~> ((code, ctx) =>
         code.map(x => x.copy(
           parameter = NumericConstant(ctx.get[Int](0), 1),
-          registers = x.registers.asInstanceOf[TwoRegisters].copy(source = ZRegister.IMM_8)
+          registers = x.registers match {
+            case TwoRegisters(t, _) => TwoRegisters(t, ZRegister.IMM_8)
+            case TwoRegistersOffset(t@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), _, o) => TwoRegistersOffset(t, ZRegister.IMM_8, o)
+            case TwoRegistersOffset(t, ZRegister.MEM_IX_D | ZRegister.MEM_IY_D, _) => TwoRegisters(t, ZRegister.IMM_8)
+          }
         )))
     ),
+    (Elidable & MatchSourceIxOffsetOf8BitLoad(0) & MatchValueAtMatchedIxOffset(0, 1)) ~~> ((code, ctx) =>
+      code.map(x => x.copy(
+        parameter = NumericConstant(ctx.get[Int](1), 1),
+        registers = x.registers match {
+          case TwoRegisters(t, _) => TwoRegisters(t, ZRegister.IMM_8)
+          case TwoRegistersOffset(t@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), _, o) => TwoRegistersOffset(t, ZRegister.IMM_8, o)
+          case TwoRegistersOffset(t, ZRegister.MEM_IX_D | ZRegister.MEM_IY_D, _) => TwoRegisters(t, ZRegister.IMM_8)
+        }
+      ))
+      ),
     for6Registers(register =>
       (Elidable & HasRegisterParam(register) & HasOpcodeIn(Set(AND, ADD, ADC, SUB, SBC, XOR, OR, CP)) & MatchRegister(register, 0)) ~~> ((code, ctx) =>
         code.map(x => x.copy(
@@ -36,6 +57,12 @@ object AlwaysGoodZ80Optimizations {
           registers = OneRegister(ZRegister.IMM_8)
         )))
     ),
+    (Elidable & MatchIxOffset(0) & HasOpcodeIn(Set(AND, ADD, ADC, SUB, SBC, XOR, OR, CP)) & MatchValueAtMatchedIxOffset(0, 1)) ~~> ((code, ctx) =>
+      code.map(x => x.copy(
+        parameter = NumericConstant(ctx.get[Int](1), 1),
+        registers = OneRegister(ZRegister.IMM_8)
+      ))
+      ),
   )
 
   val ReloadingKnownValueFromMemory = new RuleBasedAssemblyOptimization("Reloading known value from memory",
@@ -88,6 +115,28 @@ object AlwaysGoodZ80Optimizations {
     (Elidable & Is8BitLoadTo(ZRegister.MEM_BC)) ~
       (Linear & Not(ConcernsMemory) & Not(Changes(ZRegister.BC))).* ~
       Is8BitLoadTo(ZRegister.MEM_BC) ~~> (_.tail),
+
+    (Elidable & MatchTargetIxOffsetOf8BitLoad(0) & MatchUnimportantIxOffset(0)) ~~> (_ => Nil),
+
+    for7Registers(register =>
+      (Elidable & Is8BitLoadTo(register) & NoOffset & MatchSourceRegisterAndOffset(1)) ~
+        (Linear & Not(Concerns(register)) & DoesntChangeMatchedRegisterAndOffset(1)).* ~
+        (Elidable & IsRegular8BitLoadFrom(register) & DoesntMatterWhatItDoesWith(register)) ~~> { code =>
+        val last = code.last
+        val head = code.head
+        code.tail.init :+ ZLine(LD, (last.registers, head.registers) match {
+          case (TwoRegisters(t, _), TwoRegisters(_, s)) => TwoRegisters(t, s)
+          case (TwoRegistersOffset(t, _, o), TwoRegisters(_, s)) => TwoRegistersOffset(t, s, o)
+          case (TwoRegisters(t, _), TwoRegistersOffset(_, s, o)) => TwoRegistersOffset(t, s, o)
+          case _ => ???
+        }, head.parameter)
+      }
+    ),
+
+    for7Registers(register =>
+      (Elidable & Is8BitLoad(register, register)) ~~> (_ => Nil)
+    ),
+
   )
 
   private def simplifiable16BitAddWithSplitTarget(targetH: ZRegister.Value, targetL: ZRegister.Value, target: ZRegister.Value, source: ZRegister.Value) = MultipleAssemblyRules(List(
@@ -137,7 +186,7 @@ object AlwaysGoodZ80Optimizations {
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     for6Registers(register =>
       (Elidable & HasOpcode(ADD) & MatchRegister(ZRegister.A, 0) & HasRegisterParam(register) & MatchRegister(register, 1) &
-        DoesntMatterWhatItDoesWithFlags) ~~> ((code, ctx) => List(ZLine.ldImm16(ZRegister.A, (ctx.get[Int](0) + ctx.get[Int](1)) & 0xff))),
+        DoesntMatterWhatItDoesWithFlags) ~~> ((code, ctx) => List(ZLine.ldImm8(ZRegister.A, (ctx.get[Int](0) + ctx.get[Int](1)) & 0xff))),
     ),
     simplifiable16BitAddWithSplitTarget(ZRegister.H, ZRegister.L, ZRegister.HL, ZRegister.BC),
     simplifiable16BitAddWithSplitTarget(ZRegister.H, ZRegister.L, ZRegister.HL, ZRegister.DE),
@@ -145,6 +194,29 @@ object AlwaysGoodZ80Optimizations {
     simplifiable16BitAddWithSplitTarget(ZRegister.IXH, ZRegister.IXL, ZRegister.IX, ZRegister.DE),
     simplifiable16BitAddWithSplitTarget(ZRegister.IYH, ZRegister.IYL, ZRegister.IY, ZRegister.BC),
     simplifiable16BitAddWithSplitTarget(ZRegister.IYH, ZRegister.IYL, ZRegister.IY, ZRegister.DE),
+
+    (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L)) ~
+      (Elidable & Is8BitLoadTo(ZRegister.L)) ~
+      (Elidable & Is8BitLoadTo(ZRegister.H)) ~
+      (HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.DE)) & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E)) ~~> { code =>
+      List(
+        change8BitLoadTarget(code(2), ZRegister.E),
+        change8BitLoadTarget(code(3), ZRegister.D),
+        code.last)
+    },
+    (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L)) ~
+      (Elidable & Is8BitLoadTo(ZRegister.H)) ~
+      (Elidable & Is8BitLoadTo(ZRegister.L)) ~
+      (HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.DE)) & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E)) ~~> { code =>
+      List(
+        change8BitLoadTarget(code(2), ZRegister.D),
+        change8BitLoadTarget(code(3), ZRegister.E),
+        code.last)
+    },
+
+    (Elidable & HasOpcodeIn(Set(ADD, OR, AND, XOR, SUB)) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",

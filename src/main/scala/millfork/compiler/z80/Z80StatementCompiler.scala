@@ -21,7 +21,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
     val options = ctx.options
     statement match {
       case ReturnStatement(None) =>
-        ctx.function.returnType match {
+        fixStackOnReturn(ctx) ++ (ctx.function.returnType match {
           case _: BooleanType =>
             List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
           case t => t.size match {
@@ -34,29 +34,31 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
               ErrorReporting.warn("Returning without a value", options, statement.position)
               List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
           }
-        }
+        })
       case ReturnStatement(Some(e)) =>
         ctx.function.returnType match {
           case t: BooleanType => t.size match {
             case 0 =>
               ErrorReporting.error("Cannot return anything from a void function", statement.position)
-              List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+              fixStackOnReturn(ctx) ++
+                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
             case 1 =>
-              Z80ExpressionCompiler.compileToA(ctx, e) ++
+              Z80ExpressionCompiler.compileToA(ctx, e) ++ fixStackOnReturn(ctx) ++
                 List(ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
             case 2 =>
-              Z80ExpressionCompiler.compileToHL(ctx, e) ++
+              Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
                 List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
           }
           case t => t.size match {
             case 0 =>
               ErrorReporting.error("Cannot return anything from a void function", statement.position)
-              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+              fixStackOnReturn(ctx) ++
+                List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
             case 1 =>
-              Z80ExpressionCompiler.compileToA(ctx, e) ++
+              Z80ExpressionCompiler.compileToA(ctx, e) ++ fixStackOnReturn(ctx) ++
                 List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
             case 2 =>
-              Z80ExpressionCompiler.compileToHL(ctx, e) ++
+              Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
                 List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
           }
         }
@@ -148,6 +150,26 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         }
         List(ZLine(op, reg, param, elidable))
     }
+  }
+
+  private def fixStackOnReturn(ctx: CompilationContext): List[ZLine] = {
+    if (ctx.function.stackVariablesSize > 0) {
+      import ZRegister._
+      val localVariableArea = ctx.function.stackVariablesSize.&(1).+(ctx.function.stackVariablesSize)
+      if (ctx.function.returnType.size == 2) {
+        List(
+          ZLine.ldImm16(IX, localVariableArea), 
+          ZLine.registers(ADD_16, IX, SP),
+          ZLine.ld16(SP, IX),
+          ZLine.register(POP, IX))
+      } else {
+        List(
+          ZLine.ldImm16(HL, localVariableArea),
+          ZLine.registers(ADD_16, HL, SP),
+          ZLine.ld16(SP, HL),
+          ZLine.register(POP, IX))
+      }
+    } else Nil
   }
 
   def labelChunk(labelName: String) = List(ZLine.label(Label(labelName)))

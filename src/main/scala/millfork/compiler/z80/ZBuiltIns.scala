@@ -1,6 +1,6 @@
 package millfork.compiler.z80
 
-import millfork.assembly.z80.{TwoRegisters, ZLine, ZOpcode}
+import millfork.assembly.z80._
 import millfork.compiler.CompilationContext
 import millfork.node._
 import ZOpcode._
@@ -247,13 +247,14 @@ object ZBuiltIns {
   }
 
   def perform8BitInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcode: ZOpcode.Value, decimal: Boolean = false): List[ZLine] = {
-    val calculateAddress = lhs match {
+    val (calculateAddress, lv):(List[ZLine], LocalVariableAddressOperand) = lhs match {
       case VariableExpression(name) =>
         ctx.env.get[Variable](name) match {
-          case v: VariableInMemory => List(ZLine.ldImm16(ZRegister.HL, v.toAddress))
+          case v: VariableInMemory => List(ZLine.ldImm16(ZRegister.HL, v.toAddress)) -> LocalVariableAddressViaHL
+          case v: StackVariable => Nil -> LocalVariableAddressViaIX(v.baseOffset)
           case _ => ???
         }
-      case i: IndexedExpression => Z80ExpressionCompiler.calculateAddressToHL(ctx, i)
+      case i: IndexedExpression => Z80ExpressionCompiler.calculateAddressToHL(ctx, i) -> LocalVariableAddressViaHL
     }
     val constantRight = ctx.env.eval(rhs)
     val calculateChange = Z80ExpressionCompiler.compileToA(ctx, rhs)
@@ -266,45 +267,45 @@ object ZBuiltIns {
     opcode match {
       case ADD if decimal =>
         setup ++ List(
-          ZLine.register(ADD, ZRegister.MEM_HL),
+          ZLine.register(ADD, lv),
           ZLine.implied(DAA),
-          ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+          ZLine.ld8(lv, ZRegister.A))
       case ADD if !decimal =>
         constantRight match {
           case Some(NumericConstant(1, _)) =>
-            calculateAddress :+ ZLine.register(INC, ZRegister.MEM_HL)
+            calculateAddress :+ ZLine.register(INC, lv)
           case Some(NumericConstant(0xff | -1, _)) =>
-            calculateAddress :+ ZLine.register(DEC, ZRegister.MEM_HL)
+            calculateAddress :+ ZLine.register(DEC, lv)
           case _ =>
             setup ++ List(
-              ZLine.register(ADD, ZRegister.MEM_HL),
-              ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+              ZLine.register(ADD, lv),
+              ZLine.ld8(lv, ZRegister.A))
         }
       case SUB if decimal =>
         setup ++ List(
           ZLine.ld8(ZRegister.E, ZRegister.A),
-          ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+          ZLine.ld8(ZRegister.A, lv),
           ZLine.register(SUB, ZRegister.E),
           ZLine.implied(DAA),
-          ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+          ZLine.ld8(lv, ZRegister.A))
       case SUB if !decimal=>
         constantRight match {
           case Some(NumericConstant(1, _)) =>
-            calculateAddress :+ ZLine.register(DEC, ZRegister.MEM_HL)
+            calculateAddress :+ ZLine.register(DEC, lv)
           case Some(NumericConstant(0xff | -1, _)) =>
-            calculateAddress :+ ZLine.register(INC, ZRegister.MEM_HL)
+            calculateAddress :+ ZLine.register(INC, lv)
           case _ =>
             if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
               setup ++ List(
                 ZLine.implied(NEG),
-                ZLine.register(ADD, ZRegister.MEM_HL),
-                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+                ZLine.register(ADD, lv),
+                ZLine.ld8(lv, ZRegister.A))
             } else {
               setup ++ List(
                 ZLine.implied(CPL),
                 ZLine.register(INC, ZRegister.A),
-                ZLine.register(SUB, ZRegister.MEM_HL),
-                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+                ZLine.register(SUB, lv),
+                ZLine.ld8(lv, ZRegister.A))
             }
         }
       case XOR =>
@@ -313,35 +314,35 @@ object ZBuiltIns {
             calculateAddress
           case Some(NumericConstant(0xff | -1, _)) =>
             calculateAddress ++ List(
-              ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+              ZLine.ld8(ZRegister.A, lv),
               ZLine.implied(CPL),
-              ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+              ZLine.ld8(lv, ZRegister.A))
           case _ =>
             setup ++ List(
-              ZLine.register(XOR, ZRegister.MEM_HL),
-              ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+              ZLine.register(XOR, lv),
+              ZLine.ld8(lv, ZRegister.A))
         }
       case OR =>
         constantRight match {
           case Some(NumericConstant(0, _)) =>
             calculateAddress
           case Some(NumericConstant(0xff | -1, _)) =>
-            calculateAddress :+ ZLine.ldImm8(ZRegister.MEM_HL, 0xff)
+            calculateAddress :+ ZLine.ldImm8(lv, 0xff)
           case _ =>
             setup ++ List(
-              ZLine.register(OR, ZRegister.MEM_HL),
-              ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+              ZLine.register(OR, lv),
+              ZLine.ld8(lv, ZRegister.A))
         }
       case AND =>
         constantRight match {
           case Some(NumericConstant(0, _)) =>
-            calculateAddress :+ ZLine.ldImm8(ZRegister.MEM_HL, 0)
+            calculateAddress :+ ZLine.ldImm8(lv, 0)
           case Some(NumericConstant(0xff | -1, _)) =>
             calculateAddress
           case _ =>
             setup ++ List(
-              ZLine.register(AND, ZRegister.MEM_HL),
-              ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+              ZLine.register(AND, lv),
+              ZLine.ld8(lv, ZRegister.A))
         }
     }
   }

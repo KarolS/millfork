@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.{EmuBenchmarkRun, EmuCmosBenchmarkRun}
+import millfork.Cpu
+import millfork.test.emu.{EmuCmosBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuZ80BenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StackVarSuite extends FunSuite with Matchers {
 
   test("Basic stack assignment") {
-    EmuCmosBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -23,7 +24,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack byte addition") {
-    EmuCmosBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -40,7 +41,7 @@ class StackVarSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(0x77))
   }
 
-  test("Complex expressions involving stack variables") {
+  test("Complex expressions involving stack variables (6502)") {
     EmuCmosBenchmarkRun("""
         | byte output @$c000
         | void main () {
@@ -50,6 +51,20 @@ class StackVarSuite extends FunSuite with Matchers {
         | }
         | asm byte f(byte a) {
         |   rts
+        | }
+      """.stripMargin)(_.readWord(0xc000) should equal(21))
+  }
+
+  test("Complex expressions involving stack variables (Z80)") {
+    EmuZ80BenchmarkRun("""
+        | byte output @$c000
+        | void main () {
+        |   stack byte a
+        |   a = 7
+        |   output = f(a) + f(a) + f(a)
+        | }
+        | asm byte f(byte a) {
+        |   ret
         | }
       """.stripMargin)(_.readWord(0xc000) should equal(21))
   }
@@ -74,7 +89,7 @@ class StackVarSuite extends FunSuite with Matchers {
 //  }
 
   test("Stack word addition") {
-    EmuCmosBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |   stack word a
@@ -92,7 +107,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion") {
-    EmuCmosBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
@@ -129,7 +144,7 @@ class StackVarSuite extends FunSuite with Matchers {
 
 
   test("Indexing") {
-    EmuCmosBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | array output [200] @$c000
         | void main () {
         |   stack byte a

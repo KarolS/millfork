@@ -1,10 +1,10 @@
 package millfork.assembly.z80.opt
 
 import millfork.assembly.opt.{AnyStatus, SingleStatus}
-import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine, ZOpcodeClasses}
+import millfork.assembly.z80._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConstant}
 import millfork.node.ZRegister
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.CompilationOptions
 
 /**
   * @author Karol Stasiak
@@ -12,8 +12,6 @@ import millfork.{CompilationFlag, CompilationOptions}
 object CoarseFlowAnalyzer {
 
   def analyze(f: NormalFunction, code: List[ZLine], compilationOptions: CompilationOptions): List[CpuStatus] = {
-    val ceFlag = compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
-    val cmosFlag = compilationOptions.flag(CompilationFlag.EmitCmosOpcodes)
     val initialStatus = CpuStatus()
     val functionStartStatus = CpuStatus()
     val emptyStatus = CpuStatus()
@@ -39,8 +37,11 @@ object CoarseFlowAnalyzer {
               case _ => None
             }).fold(currentStatus)(_ ~ _)
 
-          case ZLine(CALL | BYTE, _, _, _) =>
+          case ZLine(CALL, _, _, _) =>
+            currentStatus = initialStatus.copy(memIx = currentStatus.memIx)
+          case ZLine(BYTE, _, _, _) =>
             currentStatus = initialStatus
+
           case ZLine(ADD, OneRegister(s), _, _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m + n) & 0xff),
               cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
@@ -56,10 +57,34 @@ object CoarseFlowAnalyzer {
           case ZLine(XOR, OneRegister(s), _, _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m ^ n) & 0xff),
               cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+
+          case ZLine(ADD, OneRegisterOffset(s, o), _, _) =>
+            currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s, o)) ((m, n) => (m + n) & 0xff),
+              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+          case ZLine(SUB, OneRegisterOffset(s, o), _, _) =>
+            currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s, o)) ((m, n) => (m - n) & 0xff),
+              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+          case ZLine(AND, OneRegisterOffset(s, o), _, _) =>
+            currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s, o)) ((m, n) => (m & n) & 0xff),
+              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+          case ZLine(OR, OneRegisterOffset(s, o), _, _) =>
+            currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s, o)) ((m, n) => (m | n) & 0xff),
+              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+          case ZLine(XOR, OneRegisterOffset(s, o), _, _) =>
+            currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s, o)) ((m, n) => (m ^ n) & 0xff),
+              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+
+          case ZLine(CP, _, _, _) =>
+            currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+
           case ZLine(LD, TwoRegisters(t, ZRegister.IMM_8), NumericConstant(value, _), _) =>
             currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt))
+          case ZLine(LD, TwoRegistersOffset(t, ZRegister.IMM_8, o), NumericConstant(value, _), _) =>
+            currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt), o)
           case ZLine(LD | LD_16, TwoRegisters(t, s), _, _) =>
             currentStatus = currentStatus.setRegister(t, currentStatus.getRegister(s))
+          case ZLine(LD | LD_16, TwoRegistersOffset(t, s, o), _, _) =>
+            currentStatus = currentStatus.setRegister(t, currentStatus.getRegister(s, o), o)
           case ZLine(ADD_16, TwoRegisters(t, s), _, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
               .setRegister(t, (currentStatus.getRegister(t) <*> currentStatus.getRegister(s)) ((m, n) => (m + n) & 0xffff))
@@ -71,6 +96,8 @@ object CoarseFlowAnalyzer {
             registers match {
               case OneRegister(r) => currentStatus = currentStatus.setRegister(r, AnyStatus)
               case TwoRegisters(r1, r2) => currentStatus = currentStatus.setRegister(r1, AnyStatus).setRegister(r2, AnyStatus)
+              case OneRegisterOffset(r1, o) => currentStatus = currentStatus.setRegister(r1, AnyStatus, o)
+              case TwoRegistersOffset(r1, r2, o) => currentStatus = currentStatus.setRegister(r1, AnyStatus, o).setRegister(r2, AnyStatus, o)
               case _ => ()
             }
         }

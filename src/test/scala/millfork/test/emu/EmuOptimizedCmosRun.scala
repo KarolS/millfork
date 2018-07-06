@@ -11,6 +11,8 @@ object EmuOptimizedCmosRun extends EmuRun(
   OptimizationPresets.NodeOpt,
   OptimizationPresets.AssOpt ++
     ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
+    OptimizationPresets.Good ++
     CmosOptimizations.All ++ OptimizationPresets.Good ++
     CmosOptimizations.All ++ OptimizationPresets.Good ++
     ZeropageRegisterOptimizations.All ++

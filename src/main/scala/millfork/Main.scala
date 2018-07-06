@@ -24,6 +24,7 @@ case class Context(inputFileNames: List[String],
                    outputFileName: Option[String] = None,
                    runFileName: Option[String] = None,
                    optimizationLevel: Option[Int] = None,
+                   zpRegisterSize: Option[Int] = None,
                    platform: Option[String] = None,
                    outputAssembly: Boolean = false,
                    outputLabels: Boolean = false,
@@ -73,7 +74,7 @@ object Main {
       ErrorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     })
-    val options = CompilationOptions(platform, c.flags, c.outputFileName)
+    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize))
     ErrorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => ErrorReporting.debug(f"    $f%-30s : $b%s")
@@ -155,7 +156,7 @@ object Main {
     }
     val callGraph = new StandardCallGraph(program)
 
-    val env = new Environment(None, "")
+    val env = new Environment(None, "", platform.cpuFamily)
     env.collectDeclarations(program, options)
 
     val assemblyOptimizations = optLevel match {
@@ -166,7 +167,7 @@ object Main {
         val goodExtras = List(
           if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
           if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
-          if (options.flag(CompilationFlag.ZeropagePseudoregister)) ZeropageRegisterOptimizations.All else Nil,
+          if (options.zpRegisterSize > 0) ZeropageRegisterOptimizations.All else Nil
         ).flatten
         val extras = List(
           if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
@@ -206,7 +207,7 @@ object Main {
     }
     val callGraph = new StandardCallGraph(program)
 
-    val env = new Environment(None, "")
+    val env = new Environment(None, "", platform.cpuFamily)
     env.collectDeclarations(program, options)
 
     val assemblyOptimizations = optLevel match {
@@ -305,7 +306,7 @@ object Main {
       c.changeFlag(CompilationFlag.EmitIllegals, v)
     }.description("Whether should emit illegal (undocumented) NMOS opcodes. Requires -O2 or higher to have an effect.")
     boolean("-fzp-register", "-fno-zp-register").action { (c, v) =>
-      c.changeFlag(CompilationFlag.ZeropagePseudoregister, v)
+      c.copy(zpRegisterSize = Some(if (v) 2 else 0)) // TODO
     }.description("Whether should use 2 bytes of zeropage as a pseudoregister.")
     boolean("-fjmp-fix", "-fno-jmp-fix").action { (c, v) =>
       c.changeFlag(CompilationFlag.PreventJmpIndirectBug, v)

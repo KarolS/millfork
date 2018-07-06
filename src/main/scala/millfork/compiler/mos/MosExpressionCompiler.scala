@@ -136,7 +136,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
   def prepareWordIndexing(ctx: CompilationContext, pointy: Pointy, indexExpression: Expression): List[AssemblyLine] = {
     val w = ctx.env.get[Type]("word")
-    if (!ctx.options.flag(CompilationFlag.ZeropagePseudoregister)) {
+    if (ctx.options.zpRegisterSize < 2) {
       ErrorReporting.error("16-bit indexing requires a zeropage pseudoregister")
       return Nil
     }

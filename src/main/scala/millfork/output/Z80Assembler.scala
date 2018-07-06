@@ -35,18 +35,9 @@ class Z80Assembler(program: Program,
     case ZRegister.SP => 3
   }
 
-  private def internalArithmeticIndex(opcode: ZOpcode.Value): Int = {
-    import ZOpcode._
-    opcode match {
-      case ADD => 0x80
-      case ADC => 0x88
-      case SUB => 0x90
-      case SBC => 0x98
-      case AND => 0xa0
-      case XOR => 0xa8
-      case OR => 0xb0
-      case CP => 0xb8
-    }
+  private def prefixByte(reg: ZRegister.Value): Int = reg match {
+    case ZRegister.IX | ZRegister.MEM_IX_D => 0xdd
+    case ZRegister.IY | ZRegister.MEM_IY_D => 0xfd
   }
 
   override def emitInstruction(bank: String, options: CompilationOptions, index: Int, instr: ZLine): Int = {
@@ -77,17 +68,31 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0xed)
         writeByte(bank, index + 1, edImplieds(op))
         index + 2
-      case ZLine(ADD_16, TwoRegisters(ZRegister.HL, source), param, _) =>
+      case ZLine(ADD_16, TwoRegisters(ZRegister.HL, source), _, _) =>
         writeByte(bank, index, 9 + 16 * internalRegisterIndex(source))
         index + 1
+      case ZLine(ADD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), source), _, _) =>
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, 9 + 16 * internalRegisterIndex(source))
+        index + 2
       case ZLine(SBC_16, TwoRegisters(ZRegister.HL, reg), _, _) =>
         writeByte(bank, index, 0xed)
         writeByte(bank, index + 1, 0x42 + 0x10 * internalRegisterIndex(reg))
         index + 2
+      case ZLine(LD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), ZRegister.IMM_16), param, _) =>
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, 0x21)
+        writeWord(bank, index + 2, param)
+        index + 4
       case ZLine(LD_16, TwoRegisters(target, ZRegister.IMM_16), param, _) =>
         writeByte(bank, index, 1 + 16 * internalRegisterIndex(target))
         writeWord(bank, index + 1, param)
         index + 3
+      case ZLine(LD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), ZRegister.MEM_ABS_16), param, _) =>
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, 0x2a)
+        writeWord(bank, index + 2, param)
+        index + 4
       case ZLine(LD_16, TwoRegisters(ZRegister.HL, ZRegister.MEM_ABS_16), param, _) =>
         writeByte(bank, index, 0x2a)
         writeWord(bank, index + 1, param)
@@ -96,32 +101,27 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0x22)
         writeWord(bank, index + 1, param)
         index + 3
+      case ZLine(LD_16, TwoRegisters(ZRegister.SP, ZRegister.HL), _, _) =>
+        writeByte(bank, index, 0xF9)
+        index + 1
+      case ZLine(LD_16, TwoRegisters(ZRegister.SP, ix@(ZRegister.IX | ZRegister.IY)), _, _) =>
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, 0xF9)
+        index + 2
       case ZLine(op, OneRegister(ZRegister.IMM_8), param, _) if immediates.contains(op) =>
         val o = immediates(op)
         writeByte(bank, index, o)
         writeByte(bank, index + 1, param)
         index + 2
-      case ZLine(op, OneRegister(ZRegister.MEM_IX_D), _, _) if oneRegister.contains(op) =>
+      case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if oneRegister.contains(op) =>
         val o = oneRegister(op)
-        writeByte(bank, index, 0xdd)
+        writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ZRegister.MEM_HL) * o.multiplier)
-        writeByte(bank, index + 2, instr.parameter)
+        writeByte(bank, index + 2, offset)
         index + 3
-      case ZLine(op, OneRegister(ZRegister.MEM_IY_D), _, _) if oneRegister.contains(op) =>
+      case ZLine(op, OneRegister(ix@(ZRegister.IX | ZRegister.IY)), _, _) if oneRegister.contains(op) =>
         val o = oneRegister(op)
-        writeByte(bank, index, 0xfd)
-        writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ZRegister.MEM_HL) * o.multiplier)
-        writeByte(bank, index + 2, instr.parameter)
-        index + 3
-      case ZLine(op, OneRegister(ZRegister.IX), _, _) if oneRegister.contains(op) =>
-        val o = oneRegister(op)
-        writeByte(bank, index, 0xdd)
-        writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ZRegister.HL) * o.multiplier)
-        writeByte(bank, index + 2, instr.parameter)
-        index + 3
-      case ZLine(op, OneRegister(ZRegister.IY), _, _) if oneRegister.contains(op) =>
-        val o = oneRegister(op)
-        writeByte(bank, index, 0xfd)
+        writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ZRegister.HL) * o.multiplier)
         writeByte(bank, index + 2, instr.parameter)
         index + 3
@@ -140,6 +140,12 @@ class Z80Assembler(program: Program,
             writeByte(bank, index, 6 + 8 * internalRegisterIndex(reg))
             writeByte(bank, index + 1, instr.parameter)
             index + 2
+          case TwoRegistersOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), ZRegister.IMM_8, offset) =>
+            writeByte(bank, index, prefixByte(ix))
+            writeByte(bank, index + 1, 0x36)
+            writeByte(bank, index + 2, offset)
+            writeByte(bank, index + 3, instr.parameter)
+            index + 4
           case TwoRegisters(ZRegister.A, ZRegister.MEM_ABS_8) =>
             writeByte(bank, index, 0x3a)
             writeWord(bank, index + 1, instr.parameter)
@@ -160,25 +166,15 @@ class Z80Assembler(program: Program,
           case TwoRegisters(ZRegister.A, ZRegister.MEM_DE) =>
             writeByte(bank, index, 0x1a)
             index + 1
-          case TwoRegisters(ZRegister.MEM_IX_D, source) =>
-            writeByte(bank, index, 0xdd)
+          case TwoRegistersOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), source, offset) =>
+            writeByte(bank, index, prefixByte(ix))
             writeByte(bank, index + 1, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(ZRegister.MEM_HL) * 8)
-            writeByte(bank, index + 1, instr.parameter)
+            writeByte(bank, index + 2, offset)
             index + 3
-          case TwoRegisters(ZRegister.MEM_IY_D, source) =>
-            writeByte(bank, index, 0xfd)
-            writeByte(bank, index + 1, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(ZRegister.MEM_HL) * 8)
-            writeByte(bank, index + 1, instr.parameter)
-            index + 3
-          case TwoRegisters(target, ZRegister.MEM_IX_D) =>
-            writeByte(bank, index, 0xdd)
-            writeByte(bank, index, 0x40 + internalRegisterIndex(ZRegister.MEM_HL) + internalRegisterIndex(target) * 8)
-            writeByte(bank, index + 1, instr.parameter)
-            index + 3
-          case TwoRegisters(target, ZRegister.MEM_IY_D) =>
-            writeByte(bank, index, 0xfd)
-            writeByte(bank, index, 0x40 + internalRegisterIndex(ZRegister.MEM_HL) + internalRegisterIndex(target) * 8)
-            writeByte(bank, index + 1, instr.parameter)
+          case TwoRegistersOffset(target, ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset) =>
+            writeByte(bank, index, prefixByte(ix))
+            writeByte(bank, index + 1, 0x40 + internalRegisterIndex(ZRegister.MEM_HL) + internalRegisterIndex(target) * 8)
+            writeByte(bank, index + 2, offset)
             index + 3
           case TwoRegisters(target, source) =>
             writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
@@ -267,29 +263,29 @@ class Z80Assembler(program: Program,
         writeWord(bank, index + 1, param)
         index + 3
 
-      case ZLine(RET, IfFlagClear(ZFlag.Z), param, _) =>
+      case ZLine(RET, IfFlagClear(ZFlag.Z), _, _) =>
         writeByte(bank, index, 0xc0)
         index + 1
-      case ZLine(RET, IfFlagClear(ZFlag.C), param, _) =>
+      case ZLine(RET, IfFlagClear(ZFlag.C), _, _) =>
         writeByte(bank, index, 0xd0)
         index + 1
-      case ZLine(RET, IfFlagClear(ZFlag.P), param, _) =>
+      case ZLine(RET, IfFlagClear(ZFlag.P), _, _) =>
         writeByte(bank, index, 0xe0)
         index + 1
-      case ZLine(RET, IfFlagClear(ZFlag.S), param, _) =>
+      case ZLine(RET, IfFlagClear(ZFlag.S), _, _) =>
         writeByte(bank, index, 0xf0)
         index + 1
 
-      case ZLine(RET, IfFlagSet(ZFlag.Z), param, _) =>
+      case ZLine(RET, IfFlagSet(ZFlag.Z), _, _) =>
         writeByte(bank, index, 0xc8)
         index + 1
-      case ZLine(RET, IfFlagSet(ZFlag.C), param, _) =>
+      case ZLine(RET, IfFlagSet(ZFlag.C), _, _) =>
         writeByte(bank, index, 0xd8)
         index + 1
-      case ZLine(RET, IfFlagSet(ZFlag.P), param, _) =>
+      case ZLine(RET, IfFlagSet(ZFlag.P), _, _) =>
         writeByte(bank, index, 0xe8)
         index + 1
-      case ZLine(RET, IfFlagSet(ZFlag.S), param, _) =>
+      case ZLine(RET, IfFlagSet(ZFlag.S), _, _) =>
         writeByte(bank, index, 0xf8)
         index + 1
 

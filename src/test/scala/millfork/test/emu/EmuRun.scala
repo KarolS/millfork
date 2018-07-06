@@ -17,7 +17,7 @@ import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, MosAssembler}
 import millfork.parser.MosParser
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
 import org.scalatest.Matchers
 
 import scala.collection.JavaConverters._
@@ -104,7 +104,6 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.InterproceduralOptimization -> true,
       CompilationFlag.CompactReturnDispatchParams -> true,
-      CompilationFlag.ZeropagePseudoregister -> true,
       CompilationFlag.EmitCmosOpcodes -> millfork.Cpu.CmosCompatible.contains(platform.cpu),
       CompilationFlag.EmitEmulation65816Opcodes -> (platform.cpu == millfork.Cpu.Sixteen),
       CompilationFlag.Emit65CE02Opcodes -> (platform.cpu == millfork.Cpu.CE02),
@@ -112,12 +111,11 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
-    ), None)
+    ), None, 2)
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
-    if (!source.contains("__reg")) effectiveSource += "\n pointer __reg"
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
     val parserF = MosParser("", effectiveSource, "", options)
@@ -129,7 +127,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // prepare
         val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program)
-        val env = new Environment(None, "")
+        val env = new Environment(None, "", CpuFamily.M6502)
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
@@ -149,7 +147,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
 
         // compile
-        val env2 = new Environment(None, "")
+        val env2 = new Environment(None, "", CpuFamily.M6502)
         env2.collectDeclarations(program, options)
         val assembler = new MosAssembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)
