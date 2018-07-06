@@ -6,6 +6,8 @@
 
 * A very incomplete support for NEC PC-88.
 
+* Automatic selection of text encoding based on target platform.
+
 ## 0.3.0
 
 * Finally faster than C. 

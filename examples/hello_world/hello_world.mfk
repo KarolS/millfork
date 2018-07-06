@@ -3,7 +3,7 @@
 
 import stdio
 
-array hello_world = "hello world" petscii
+array hello_world = "hello world"
 
 void main(){
     putstr(hello_world, hello_world.length)

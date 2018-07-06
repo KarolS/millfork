@@ -100,6 +100,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     println(source)
     val platform = EmuPlatform.get(cpu)
     val options = CompilationOptions(platform, Map(
+      CompilationFlag.LenientTextEncoding -> true,
       CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.InterproceduralOptimization -> true,

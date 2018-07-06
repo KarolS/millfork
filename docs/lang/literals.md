@@ -16,9 +16,10 @@ Hexadecimal: `$D323`, `0x2a2`
 
 ## String literals
 
-String literals are surrounded with double quotes and followed by the name of the encoding:
+String literals are surrounded with double quotes and optionally followed by the name of the encoding:
 
     "this is a string" ascii
+    "this is also a string"
 
 Characters between the quotes are interpreted literally, 
 there are no ways to escape special characters or quotes.
@@ -28,11 +29,16 @@ for compatibility with multiple variants.
 
 Currently available encodings:
 
+* `default` – default console encoding (can be omitted)
+
+* `scr` – default screencodes
+(usually the same as `default`, a notable exception are the Commodore computers)
+
 * `ascii` – standard ASCII
 
 * `pet` or `petscii` – PETSCII (ASCII-like character set used by Commodore machines)
 
-* `scr` – Commodore screencodes
+* `cbmscr` or `petscr` – Commodore screencodes
 
 * `apple2` – Apple II charset ($A0–$FE)
 
@@ -46,15 +52,41 @@ Currently available encodings:
 
 When programming for Commodore,
 use `pet` for strings you're printing using standard I/O routines
-and `scr` for strings you're copying to screen memory directly.
+and `petscr` for strings you're copying to screen memory directly.
+
+If the characters in the literal cannot be encoded in particular encoding, an error is raised.
+However, if the command-line option `-flenient-encoding` is used,
+then literals using `default` and `scr` encodings replace unsupported characters with supported ones
+and a warning is issued.
+For example, if `-flenient-encoding` is enabled, then a literal `"£¥↑ž©ß"` is equivalent to:
+
+* `"£Y↑z(C)ss"` if the default encoding is `pet`
+
+* `"£Y↑z©ss"` if the default encoding is `bbc`
+
+* `"?Y^z(C)ss"` if the default encoding is `ascii`
+
+* `"?Y^ž(C)ss"` if the default encoding is `iso_yu`
+
+* `"?Y^z(C)ß"` if the default encoding is `iso_de`
+
+* `"?¥^z(C)ss"` if the default encoding is `jisx`
+
+Note that the final length of the string may vary.
 
 ## Character literals
 
-Character literals are surrounded by single quotes and followed by the name of the encoding: 
+Character literals are surrounded by single quotes and optionally followed by the name of the encoding: 
 
     'x' ascii
+    'W'
 
 From the type system point of view, they are constants of type byte.
+
+If the characters in the literal cannot be encoded in particular encoding, an error is raised.
+However, if the command-line option `-flenient-encoding` is used,
+then literals using `default` and `scr` encodings replace unsupported characters with supported ones.
+If the replacement is one characacter long, only a warning is issued, otherwise an error is raised.
 
 ## Array initialisers 
 

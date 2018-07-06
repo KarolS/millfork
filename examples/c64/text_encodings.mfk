@@ -1,8 +1,8 @@
 import stdio
 
 array p = [
-    "this is an example" petscii, 13,
-    "of multiline petscii text" petscii
+    "this is an example", 13,
+    "of multiline petscii text"
 ]
 
 array s = [

@@ -1,10 +1,10 @@
 import stdio
 import c64_basic
 
-array text1 = [ "enter first number:" petscii, 13, 0 ]
-array text2 = [ "enter second number:" petscii, 13, 0 ]
-array text3 = [ "the sum is:" petscii, 13, 0 ]
-array texte = [ "that wasn't a number, try again:" petscii, 13, 0 ]
+array text1 = [ "enter first number:", 13, 0 ]
+array text2 = [ "enter second number:", 13, 0 ]
+array text3 = [ "the sum is:", 13, 0 ]
+array texte = [ "that wasn't a number, try again:", 13, 0 ]
 
 void main() {
     word a

@@ -22,4 +22,18 @@ class TextCodecSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)
   }
+
+  test("Lenient encoding") {
+    val m = EmuUnoptimizedRun(
+      """
+        | void main() {
+        |   if 'å' != 'a'  { poke($bfff, 0) }
+        |   if '÷' != '/'  { poke($bffd, 0) }
+        |   if 'π' != '?'  { poke($bffc, 0) }
+        | }
+        | macro asm void poke(word const addr, byte a) {
+        |   STA addr
+        | }
+      """.stripMargin)
+  }
 }

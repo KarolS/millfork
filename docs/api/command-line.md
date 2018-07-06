@@ -81,13 +81,17 @@ Default: no if targeting Ricoh, yes otherwise.
 * `-fvariable-overlap`, `-fno-variable-overlap` – Whether variables should overlap if their scopes do not intersect.  
 Default: yes.
 
-* `-fbounds-checking`, `-fnobounds-checking` – Whether should insert bounds checking on array access.  
+* `-fbounds-checking`, `-fno-bounds-checking` – Whether should insert bounds checking on array access.  
 Default: no.
 
-* `-fcompact-dispatch-params`, `-fnocompact-dispatch-params` – 
+* `-fcompact-dispatch-params`, `-fno-compact-dispatch-params` – 
 Whether parameter values in return dispatch statements may overlap other objects. 
 This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.  
 `.ini` equivalent: `compact_dispatch_params`. Default: yes.
+
+* `-flenient-encoding`, `-fno-lenient-encoding` – 
+Whether the compiler should allow for invalid characters in string/character literals that use the default encodings and replace them with alternatives.
+.ini` equivalent: `lenient_encoding`. Default: no.
 
 ## Optimization options
 

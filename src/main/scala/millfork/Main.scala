@@ -323,6 +323,9 @@ object Main {
     boolean("-fbounds-checking", "-fno-bounds-checking").action { (c, v) =>
       c.changeFlag(CompilationFlag.VariableOverlap, v)
     }.description("Whether should insert bounds checking on array access.")
+    boolean("-flenient-encoding", "-fno-lenient-encoding").action { (c, v) =>
+      c.changeFlag(CompilationFlag.LenientTextEncoding, v)
+    }.description("Whether the compiler should replace invalid characters in string literals that use the default encodings.")
 
     fluff("", "Optimization options:", "")
 

@@ -26,6 +26,13 @@ Every platform is defined in an `.ini` file with an appropriate name.
     
     * `z80` (Zilog Z80; experimental and very incomplete)
 
+* `encoding` – default encoding for console I/O, one of 
+`ascii`, `pet`/`petscii`, `petscr`/`cbmscr`, `atascii`, `bbc`, `jis`/`jisx`, `apple2`,
+`iso_de`, `iso_no`/`iso_dk`, `iso_se`/`iso_fi`, `iso_yu`. Default: `ascii`
+
+* `screen_encoding` – default encoding for screencodes (literals with encoding specified as `scr`). 
+Default: the same as `encoding`.
+
 * `modules` – comma-separated list of modules that will be automatically imported
 
 * other compilation options (they can be overridden using commandline options):
@@ -54,6 +61,8 @@ Every platform is defined in an `.ini` file with an appropriate name.
     * `inline` - inline functions automatically by default, default is `false`.
     
     * `ipo` - enable interprocedural optimization, default is `false`.
+    
+    * `lenient_encoding` - allow for automatic substitution of invalid characters in string literals using the default encodings, default is `false`.
 
 
 #### `[allocation]` section

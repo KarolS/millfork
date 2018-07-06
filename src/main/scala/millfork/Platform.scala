@@ -6,6 +6,7 @@ import java.nio.file.{Files, Paths}
 
 import millfork.error.ErrorReporting
 import millfork.output._
+import millfork.parser.TextCodec
 import org.apache.commons.configuration2.INIConfiguration
 
 /**
@@ -20,6 +21,8 @@ class Platform(
                 val cpu: Cpu.Value,
                 val flagOverrides: Map[CompilationFlag.Value, Boolean],
                 val startingModules: List[String],
+                val defaultCodec: TextCodec,
+                val screenCodec: TextCodec,
                 val outputPackager: OutputPackager,
                 val codeAllocators: Map[String, UpwardByteAllocator],
                 val variableAllocators: Map[String, VariableAllocator],
@@ -97,6 +100,11 @@ object Platform {
     if (zpRegisterSize < 0 || zpRegisterSize > 128) {
       ErrorReporting.error("Invalid zeropage register size: " + zpRegisterSize)
     }
+
+    val codecName = cs.get(classOf[String], "encoding", "ascii")
+    val srcCodecName = cs.get(classOf[String], "screen_encoding", codecName)
+    val codec = TextCodec.forName(codecName, None)
+    val srcCodec = TextCodec.forName(srcCodecName, None)
 
     val as = conf.getSection("allocation")
 
@@ -185,7 +193,13 @@ object Platform {
       case x => ErrorReporting.fatal(s"Invalid output style: `$x`")
     }
 
-    new Platform(cpu, flagOverrides, startingModules, outputPackager,
+    new Platform(
+      cpu,
+      flagOverrides,
+      startingModules,
+      codec,
+      srcCodec,
+      outputPackager,
       codeAllocators.toMap,
       variableAllocators.toMap,
       zpRegisterSize,

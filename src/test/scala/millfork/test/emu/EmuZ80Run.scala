@@ -5,14 +5,13 @@ import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.z80.ZLine
 import millfork.compiler.CompilationContext
-import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
-import millfork.output.{MemoryBank, MosAssembler, Z80Assembler}
+import millfork.output.{MemoryBank, Z80Assembler}
 import millfork.parser.Z80Parser
-import millfork.{CompilationOptions, CpuFamily}
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
 import millfork.compiler.z80.Z80Compiler
 import org.scalatest.Matchers
 
@@ -28,7 +27,8 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     Console.err.flush()
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap, None, 0)
+    val extraFlags = Map(CompilationFlag.LenientTextEncoding -> true)
+    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0)
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
     var effectiveSource = source

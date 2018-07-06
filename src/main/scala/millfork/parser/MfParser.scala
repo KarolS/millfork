@@ -7,7 +7,7 @@ import fastparse.all._
 import millfork.env._
 import millfork.error.ErrorReporting
 import millfork.node._
-import millfork.{CompilationOptions, SeparatedList}
+import millfork.{CompilationFlag, CompilationOptions, SeparatedList}
 
 /**
   * @author Karol Stasiak
@@ -40,26 +40,10 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
     newPosition
   }
 
-  val codec: P[TextCodec] = P(position("text codec identifier") ~ identifier).map {
-    case (_, "ascii") => TextCodec.Ascii
-    case (_, "petscii") => TextCodec.Petscii
-    case (_, "pet") => TextCodec.Petscii
-    case (_, "scr") => TextCodec.CbmScreencodes
-    case (_, "atascii") => TextCodec.Atascii
-    case (_, "atari") => TextCodec.Atascii
-    case (_, "bbc") => TextCodec.Bbc
-    case (_, "apple2") => TextCodec.Apple2
-    case (_, "jis") => TextCodec.Jis
-    case (_, "jisx") => TextCodec.Jis
-    case (_, "iso_de") => TextCodec.IsoIec646De
-    case (_, "iso_no") => TextCodec.IsoIec646No
-    case (_, "iso_dk") => TextCodec.IsoIec646No
-    case (_, "iso_se") => TextCodec.IsoIec646Se
-    case (_, "iso_fi") => TextCodec.IsoIec646Se
-    case (_, "iso_yu") => TextCodec.IsoIec646Yu
-    case (p, x) =>
-      ErrorReporting.error(s"Unknown string encoding: `$x`", Some(p))
-      TextCodec.Ascii
+  val codec: P[(TextCodec, Boolean)] = P(position("text codec identifier") ~ identifier.?.map(_.getOrElse(""))).map {
+    case (_, "" | "default") => options.platform.defaultCodec -> options.flag(CompilationFlag.LenientTextEncoding)
+    case (_, "scr") => options.platform.screenCodec -> options.flag(CompilationFlag.LenientTextEncoding)
+    case (p, x) => TextCodec.forName(x, Some(p)) -> false
   }
 
   //  def operator: P[String] = P(CharsWhileIn("!-+*/><=~|&^", min=1).!) // TODO: only valid operators
@@ -67,9 +51,9 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
   val charAtom: P[LiteralExpression] = for {
     p <- position()
     c <- "'" ~/ CharPred(c => c >= ' ' && !invalidCharLiteralTypes(Character.getType(c))).! ~/ "'"
-    co <- HWS ~ codec
+    (co, lenient) <- HWS ~ codec
   } yield {
-    co.encode(Some(p), c.charAt(0)) match {
+    co.encode(options, Some(p), c.charAt(0), lenient = lenient) match {
       case List(value) =>
         LiteralExpression(value, 1)
       case _ =>
@@ -152,7 +136,7 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
   }
 
   def arrayStringContents: P[ArrayContents] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
-    case (p, s, co) => LiteralContents(s.flatMap(c => co.encode(None, c)).map(c => LiteralExpression(c, 1).pos(p)))
+    case (p, s, (co, lenient)) => LiteralContents(s.flatMap(c => co.encode(options, None, c, lenient = lenient)).map(c => LiteralExpression(c, 1).pos(p)))
   }
 
   def arrayLoopContents: P[ArrayContents] = for {

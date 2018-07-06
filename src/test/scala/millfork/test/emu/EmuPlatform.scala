@@ -1,6 +1,7 @@
 package millfork.test.emu
 
 import millfork.output.{AfterCodeByteAllocator, CurrentBankFragmentOutput, UpwardByteAllocator, VariableAllocator}
+import millfork.parser.TextCodec
 import millfork.{Cpu, CpuFamily, OutputStyle, Platform}
 
 /**
@@ -13,6 +14,8 @@ object EmuPlatform {
     cpu,
     Map(),
     Nil,
+    TextCodec.Ascii,
+    TextCodec.Ascii,
     CurrentBankFragmentOutput(0, 0xffff),
     Map("default" -> new UpwardByteAllocator(0x200, 0xb000)),
     Map("default" -> new VariableAllocator(
