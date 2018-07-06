@@ -92,7 +92,7 @@ object ZxSpectrumBasic {
       line(20, BORDER, VAL, quoted(7), colon, INK, NOT, PI, colon, PAPER, VAL, quoted(7), colon, CLS),
       line(30, CLEAR, VAL, quoted(loadAddress - 1)),
       line(40, LOAD, quoted(filename), CODE),
-      line(50, CLS, colon, PRINT, AT, NOT, PI, ",", NOT, PI, colon, RANDOMIZE, USR, VAL, quoted(loadAddress))
+      line(50, CLS, colon, PRINT, AT, NOT, PI, ",", NOT, PI, ";", colon, RANDOMIZE, USR, VAL, quoted(loadAddress))
     ).flatten
   }
 }
