@@ -4,9 +4,23 @@
 
 * A very incomplete support for the Z80 microprocessor.
 
-* A very incomplete support for NEC PC-88.
+* A very incomplete support for NEC PC-88 and ZX Spectrum.
+
+* Unified the syntax of commandline switches.
 
 * Automatic selection of text encoding based on target platform.
+
+* **Potentially breaking change!** `scr` now refers to the default screencodes as defined for the platform.
+Code that uses both a custom platform definition and the `scr` encoding needs attention
+(either change `scr` to `petscr` or add `screen_encoding=petscr` in the platform definition file).
+
+* Optimizations for stack variables.
+
+* Fixed emitting constant decimal expressions.
+
+* Parser performance improvement.
+
+* Other improvements.
 
 ## 0.3.0
 
