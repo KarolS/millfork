@@ -149,4 +149,23 @@ class BasicSymonTest extends FunSuite with Matchers {
         | }
       """.stripMargin){ m => () }
   }
+
+  test("Alias test") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos)(
+      """
+        | alias small = byte
+        | alias big = word
+        | byte crash @$bfff
+        | void main () {
+        |   big w
+        |   small b
+        |   b = 1
+        |   w = 1
+        |   b <<= 8
+        |   w <<= 8
+        |   if b != 0 { crash = 1 }
+        |   if w == 0 { crash = 2 }
+        | }
+      """.stripMargin){ m => () }
+  }
 }

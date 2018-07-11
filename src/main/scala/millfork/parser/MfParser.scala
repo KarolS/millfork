@@ -163,6 +163,12 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
 
   def arrayContentsForAsm: P[RawBytesStatement] = (arrayListContents | arrayStringContents).map(RawBytesStatement)
 
+  val aliasDefinition: P[Seq[AliasDefinitionStatement]] = for {
+    p <- position()
+    name <- "alias" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
+    target <- "=" ~/ HWS ~/ identifier ~/ HWS
+  } yield Seq(AliasDefinitionStatement(name, target).pos(p))
+
   val arrayDefinition: P[Seq[ArrayDeclarationStatement]] = for {
     p <- position()
     bank <- bankDeclaration
@@ -366,7 +372,7 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
 
   val program: Parser[Program] = for {
     _ <- Start ~/ AWS ~/ Pass
-    definitions <- (importStatement | arrayDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
+    definitions <- (importStatement | arrayDefinition | aliasDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
     _ <- AWS ~ End
   } yield Program(definitions.flatten.toList)
 

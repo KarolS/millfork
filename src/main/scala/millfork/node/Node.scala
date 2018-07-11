@@ -218,6 +218,10 @@ case class ProcessedContents(processor: String, values: ArrayContents) extends A
     ProcessedContents(processor, values.replaceVariable(variableToReplace, expression))
 }
 
+case class AliasDefinitionStatement(name: String, target: String) extends DeclarationStatement {
+  override def getAllExpressions: List[Expression] = Nil
+}
+
 case class ArrayDeclarationStatement(name: String,
                                      bank: Option[String],
                                      length: Option[Expression],

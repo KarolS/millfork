@@ -60,6 +60,28 @@ For every variable `x` larger than a byte, extra subvariables are defined:
 
 TODO
 
+### Alias definitions
+
+`alias <alias> = <name>`
+
+Sets an alias for a global name.
+Unless shadowed by a local name, the alias will point to the given global object:
+
+    byte x
+    alias a = x
+    
+    void f() {
+        a = 5 // writes to the global variable x
+    }
+    
+    void f() {
+        byte a
+        a = 5 // writes to the local variable a
+    }
+
+Aliases can be used for variables, arrays, constants, functions, and types,
+but not for text encodings, array formats or keywords.
+
 ### Array declarations
 
 An array is a continuous sequence of bytes in memory.

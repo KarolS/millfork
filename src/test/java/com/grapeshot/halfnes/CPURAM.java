@@ -74,7 +74,7 @@ public class CPURAM {
     public final void write(int addr, int data) {
         addr &= 0xffff;
         if (!mem.writeable()[addr]) {
-            throw new RuntimeException("Can't write to $" + Integer.toHexString(addr));
+            throw new RuntimeException("Can't write $" + Integer.toHexString(data & 0xff) + "to $" + Integer.toHexString(addr));
         }
         mem.output()[addr] = (byte) data;
     }

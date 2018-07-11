@@ -9,6 +9,8 @@ sealed trait Thing {
   def name: String
 }
 
+case class Alias(name: String, target: String) extends Thing
+
 sealed trait CallableThing extends Thing
 
 sealed trait VariableLikeThing extends Thing

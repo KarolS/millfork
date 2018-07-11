@@ -8,6 +8,8 @@
 
 * Unified the syntax of commandline switches.
 
+* Added aliases.
+
 * Automatic selection of text encoding based on target platform.
 
 * **Potentially breaking change!** `scr` now refers to the default screencodes as defined for the platform.

@@ -228,7 +228,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if ((t ne null) && clazz.isInstance(t)) {
         t.asInstanceOf[T]
       } else {
-        ErrorReporting.fatal(s"`$name` is not a ${clazz.getSimpleName}", position)
+        t match {
+          case Alias(_, target) => root.get[T](target)
+          case _ => ErrorReporting.fatal(s"`$name` is not a ${clazz.getSimpleName}", position)
+        }
       }
     } else parent.fold {
       ErrorReporting.fatal(s"${clazz.getSimpleName} `$name` is not defined", position)
@@ -236,6 +239,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       _.get[T](name, position)
     }
   }
+  
+  private def root: Environment = parent.fold(this)(_.root)  
 
   def maybeGet[T <: Thing : Manifest](name: String): Option[T] = {
     if (things.contains(name)) {
@@ -244,7 +249,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if ((t ne null) && clazz.isInstance(t)) {
         Some(t.asInstanceOf[T])
       } else {
-        None
+        t match {
+          case Alias(_, target) => root.maybeGet[T](target)
+          case _ => None
+        }
       }
     } else parent.flatMap {
       _.maybeGet[T](name)
@@ -566,6 +574,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         m <- om
       } yield CompoundConstant(op, c, m)
     }
+  }
+
+  def registerAlias(stmt: AliasDefinitionStatement): Unit = {
+    addThing(Alias(stmt.name, stmt.target), stmt.position)
   }
 
   def registerFunction(stmt: FunctionDeclarationStatement, options: CompilationOptions): Unit = {
@@ -1062,6 +1074,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case f: FunctionDeclarationStatement => registerFunction(f, options)
       case v: VariableDeclarationStatement => registerVariable(v, options)
       case a: ArrayDeclarationStatement => registerArray(a, options)
+      case a: AliasDefinitionStatement => registerAlias(a)
       case i: ImportStatement => ()
     }
     if (options.zpRegisterSize > 0 && !things.contains("__reg")) {
