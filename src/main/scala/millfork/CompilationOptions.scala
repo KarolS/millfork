@@ -116,7 +116,7 @@ case class CompilationOptions(platform: Platform, commandLineFlags: Map[Compilat
 }
 
 object CpuFamily extends Enumeration {
-  val M6502, I80, M6809, I8086, M65K, ARM = Value
+  val M6502, I80, M6809, I86, M68K, ARM = Value
 
   def forType(cpu: Cpu.Value): CpuFamily.Value = {
     import Cpu._

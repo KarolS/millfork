@@ -1,3 +1,7 @@
+#if not(CBM)
+#warn loader_0401 module should be only used on Commodore targets
+#endif
+
 array _basic_loader @$401 = [
     $0b,
     4,

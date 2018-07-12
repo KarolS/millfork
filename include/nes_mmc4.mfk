@@ -1,3 +1,7 @@
+#if not(NES)
+#warn nes_mmc4 module should be only used on NES/Famicom targets
+#endif
+
 asm inline void set_prg_bank(byte a) {
     STA $A000
     ? RTS

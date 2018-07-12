@@ -17,20 +17,23 @@ the function itself is located in ROM at $FFD2. A call like this:
 putchar(13)
 ```
 
-will be compiled to something like this:
+will be compiled to something like this on 6502:
 
 ```
 LDA #13
 JSR $FFD2
 ```
 
-For more details about how to pass parameters to `asm` functions,
-see [Using assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions).
+For more details about how to pass parameters to `asm` functions, see:
+
+* for 6502: [Using 6502 assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions).
+
+* for Z80: [Using Z80 assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions).
 
 ## Calling external functions at a dynamic address
 
 To call a function that has its address calculated dynamically, 
-you just need to do the same as what you would do in assembly:  
+you just need to do the same as what you would do in assembly; 6502 example:
 
 ```
 asm void call_function(byte a) {

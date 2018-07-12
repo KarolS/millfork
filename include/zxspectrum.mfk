@@ -1,4 +1,23 @@
+
+#if not(ZX_SPECTRUM)
+#warn zxspectrum module should be only used on ZX Spectrum-compatible targets
+#endif
+
 inline asm void putchar(byte a) {
     rst $10
     ? ret
 }
+
+inline asm void set_border(byte a) {
+    out (254),a
+    ? ret
+}
+
+const byte black = 0
+const byte blue = 1
+const byte red = 2
+const byte purple = 3
+const byte green  = 4
+const byte cyan = 5
+const byte yellow = 6
+const byte white = 7

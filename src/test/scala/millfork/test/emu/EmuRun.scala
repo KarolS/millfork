@@ -16,7 +16,7 @@ import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, MosAssembler}
-import millfork.parser.MosParser
+import millfork.parser.{MosParser, Preprocessor}
 import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
 import org.scalatest.Matchers
 
@@ -119,7 +119,8 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
-    val parserF = MosParser("", effectiveSource, "", options)
+    val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
+    val parserF = MosParser("", preprocessedSource, "", options, features)
     parserF.toAst match {
       case Success(unoptimized, _) =>
         ErrorReporting.assertNoErrors("Parse failed")

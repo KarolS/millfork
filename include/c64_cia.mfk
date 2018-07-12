@@ -1,5 +1,9 @@
 // Hardware addresses for C64
 
+#if not(CBM_64)
+#warn c64_cia module should be only used on C64-compatible targets
+#endif
+
 //   CIA1
 byte cia1_pra       @$DC00
 byte cia1_prb       @$DC01

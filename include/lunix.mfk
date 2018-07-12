@@ -1,3 +1,7 @@
+#if not(LUNIX)
+#warn lunix module should be only used on Lunix targets
+#endif
+
 const word lkf_jumptab = $200
 
 byte relocation_offset @$1001

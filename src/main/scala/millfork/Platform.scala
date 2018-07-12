@@ -23,6 +23,7 @@ class Platform(
                 val startingModules: List[String],
                 val defaultCodec: TextCodec,
                 val screenCodec: TextCodec,
+                val features: Map[String, Long],
                 val outputPackager: OutputPackager,
                 val codeAllocators: Map[String, UpwardByteAllocator],
                 val variableAllocators: Map[String, VariableAllocator],
@@ -41,18 +42,18 @@ class Platform(
 
 object Platform {
 
-  def lookupPlatformFile(includePath: List[String], platformName: String): Platform = {
+  def lookupPlatformFile(includePath: List[String], platformName: String, featureOverrides: Map[String, Long]): Platform = {
     includePath.foreach { dir =>
       val file = Paths.get(dir, platformName + ".ini").toFile
       ErrorReporting.debug("Checking " + file)
       if (file.exists()) {
-        return load(file)
+        return load(file, featureOverrides)
       }
     }
     ErrorReporting.fatal(s"Platfom definition `$platformName` not found", None)
   }
 
-  def load(file: File): Platform = {
+  def load(file: File, featureOverrides: Map[String, Long]): Platform = {
     val conf = new INIConfiguration()
     val bytes = Files.readAllBytes(file.toPath)
     conf.read(new StringReader(new String(bytes, StandardCharsets.UTF_8)))
@@ -193,12 +194,26 @@ object Platform {
       case x => ErrorReporting.fatal(s"Invalid output style: `$x`")
     }
 
+    val builtInFeatures = builtInCpuFeatures(cpu)
+
+    import scala.collection.JavaConverters._
+    val ds = conf.getSection("define")
+    val definedFeatures = ds.getKeys().asScala.toList.map { k =>
+      val value = ds.get(classOf[String], k).trim() match {
+        case "true" | "on" | "yes" => 1L
+        case "false" | "off" | "no" | "" => 0L
+        case x => x.toLong
+      }
+      k -> value
+    }.toMap
+
     new Platform(
       cpu,
       flagOverrides,
       startingModules,
       codec,
       srcCodec,
+      builtInFeatures ++ definedFeatures ++ featureOverrides,
       outputPackager,
       codeAllocators.toMap,
       variableAllocators.toMap,
@@ -209,6 +224,25 @@ object Platform {
       bankNumbers,
       defaultCodeBank,
       outputStyle)
+  }
+
+  @inline
+  private def toLong(b: Boolean): Long = if (b) 1L else 0L
+
+  def builtInCpuFeatures(cpu: Cpu.Value): Map[String, Long] = {
+    Map[String, Long](
+      "ARCH_6502" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6502),
+      "ARCH_Z80" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I80),
+      "ARCH_X86" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I86),
+      "ARCH_6509" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6809),
+      "ARCH_ARM" -> toLong(CpuFamily.forType(cpu) == CpuFamily.ARM),
+      "ARCH_68K" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M68K),
+      "HAS_HARDWARE_MULTIPLY" -> (CpuFamily.forType(cpu) match {
+        case CpuFamily.M6502 | CpuFamily.I80 | CpuFamily.M6809 => 0L
+        case CpuFamily.I86 | CpuFamily.ARM | CpuFamily.M68K => 1L
+      })
+      // TODO
+    )
   }
 
   def parseNumberOrRange(s:String): Seq[Int] = {

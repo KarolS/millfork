@@ -1,3 +1,7 @@
+#if not(NES)
+#warn nes_hardware module should be only used on NES/Famicom targets
+#endif
+
 byte ppu_ctrl   @$2000
 byte ppu_mask   @$2001
 byte ppu_status @$2002

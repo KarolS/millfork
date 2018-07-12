@@ -10,7 +10,7 @@ import millfork.error.ErrorReporting
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, Z80Assembler}
-import millfork.parser.Z80Parser
+import millfork.parser.{Preprocessor, Z80Parser}
 import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
 import millfork.compiler.z80.Z80Compiler
 import org.scalatest.Matchers
@@ -33,7 +33,8 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     ErrorReporting.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
-    val parserF = Z80Parser("", effectiveSource, "", options)
+    val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
+    val parserF = Z80Parser("", preprocessedSource, "", options, features)
     parserF.toAst match {
       case Success(unoptimized, _) =>
         ErrorReporting.assertNoErrors("Parse failed")

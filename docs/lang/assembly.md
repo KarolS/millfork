@@ -16,7 +16,7 @@ Indexing syntax is also the same. Only instructions available on the current CPU
 **Work in progress**: 
 Currently, `RMBx`/`SMBx`/`BBRx`/`BBSx` and some extra 65CE02/HuC6280/65816 instructions are not supported yet.
 
-Undocumented instructions are supported using various opcodes
+Undocumented instructions are supported using various opcodes.
 
 Labels have to be followed by a colon and they can optionally be on a separate line.
 Indentation is not important:
@@ -29,7 +29,7 @@ Indentation is not important:
 
 Label names have to start with a letter and can contain digits, underscores and letters.
 This means than they cannot start with a period like in many other assemblers.
-Similarly, anonymous labels designated with `+` or `-` are also not supported
+Similarly, anonymous labels designated with `+` or `-` are also not supported.
 
 Assembly can refer to variables and constants defined in Millfork,
 but you need to be careful with using absolute vs immediate addressing:
@@ -106,7 +106,7 @@ Macro assembly functions can have the following parameter types:
 
 For example, if you have:
 
-    inline asm void increase(byte ref v, byte const inc) {
+    macro asm void increase(byte ref v, byte const inc) {
         LDA v
         CLC
         ADC #inc

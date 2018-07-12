@@ -1,1 +1,6 @@
 
+#if not(BBC_MICRO)
+#warn bbc_hardware module should be used only on BBC Micro-compatible targets
+#endif
+
+

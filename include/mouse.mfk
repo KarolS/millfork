@@ -1,8 +1,16 @@
 // Generic module for mouse support
 // Resolutions up to 512x256 are supported
 
+import x_coord
 
 // Mouse X coordinate
-word mouse_x
+x_coord mouse_x
+
 // Mouse Y coordinate
 byte mouse_y
+
+// Left mouse button pressed
+byte mouse_lbm
+
+// Right mouse button pressed
+byte mouse_rbm

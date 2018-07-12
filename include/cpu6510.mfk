@@ -1,3 +1,6 @@
+#if not(MOS_6510) && not(CBM_64)
+#warn cpu6510 module should be only used on 6510-compatible targets
+#endif
 
 byte cpu6510_ddr  @0
 byte cpu6510_port @1

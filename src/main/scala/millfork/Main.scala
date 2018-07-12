@@ -30,6 +30,7 @@ case class Context(inputFileNames: List[String],
                    outputLabels: Boolean = false,
                    includePath: List[String] = Nil,
                    flags: Map[CompilationFlag.Value, Boolean] = Map(),
+                   features: Map[String, Long] = Map(),
                    verbosity: Option[Int] = None) {
   def changeFlag(f: CompilationFlag.Value, b: Boolean): Context = {
     if (flags.contains(f)) {
@@ -73,7 +74,7 @@ object Main {
     val platform = Platform.lookupPlatformFile(c.includePath, c.platform.getOrElse {
       ErrorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
-    })
+    }, c.features)
     val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize))
     ErrorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
@@ -257,6 +258,21 @@ object Main {
       assertNone(c.runFileName, "Run program already defined")
       c.copy(runFileName = Some(p))
     }.description("Program to run after successful compilation.")
+
+    parameter("-D", "--define").placeholder("<feature>=<value>").action { (p, c) =>
+      val tokens = p.split('=')
+      if (tokens.length == 2) {
+        assertNone(c.features.get(tokens(0)), "Feature already defined")
+        try {
+          c.copy(features = c.features + (tokens(0) -> tokens(1).toLong))
+        } catch {
+          case _:java.lang.NumberFormatException =>
+            ErrorReporting.fatal("Invalid syntax for -D option")
+        }
+      } else {
+        ErrorReporting.fatal("Invalid syntax for -D option")
+      }
+    }.description("Define a feature value for the preprocessor.")
 
     endOfFlags("--").description("Marks the end of options.")
 

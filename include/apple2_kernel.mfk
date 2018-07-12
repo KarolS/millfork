@@ -1,3 +1,8 @@
+
+#if not(APPLE_2)
+#warn apple2_kernel module should be used only on Apple II-compatible targets
+#endif
+
 array hires_page_1 [$2000] @$2000
 array hires_page_2 [$2000] @$4000
 

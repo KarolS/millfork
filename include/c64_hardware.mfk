@@ -1,3 +1,7 @@
+#if not(CBM_64)
+#warn c64_hardware module should be only used on C64-compatible targets
+#endif
+
 import c64_vic
 import c64_sid
 import c64_cia

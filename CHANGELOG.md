@@ -10,17 +10,24 @@
 
 * Added aliases.
 
+* Added preprocessor
+
 * Automatic selection of text encoding based on target platform.
 
 * **Potentially breaking change!** `scr` now refers to the default screencodes as defined for the platform.
 Code that uses both a custom platform definition and the `scr` encoding needs attention
 (either change `scr` to `petscr` or add `screen_encoding=petscr` in the platform definition file).
 
+* **Potentially breaking change!** Platform definitions now need appropriate feature definitions. 
+Code that uses a custom platform definitions will cause extra warnings until fixed.
+
 * Optimizations for stack variables.
 
 * Fixed emitting constant decimal expressions.
 
 * Parser performance improvement.
+
+* Standard libraries improvements.
 
 * Other improvements.
 

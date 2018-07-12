@@ -12,6 +12,7 @@ Certain expressions require the commandline flag `-fzp-register` (`.ini` equival
 They will be marked with (zpreg) next to them. 
 The flag is enabled by default, but you can disable it if you need to.
 
+**Work in progress**: 
 Certain expressions may not work on non-6502 targets yet. This should improve in the future.
 
 ## Precedence

@@ -1,3 +1,6 @@
+#if not(NES)
+#warn nes_routines module should be only used on NES/Famicom targets
+#endif
 
 
 asm void on_reset() {

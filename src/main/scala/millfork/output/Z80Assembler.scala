@@ -183,6 +183,23 @@ class Z80Assembler(program: Program,
             writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
             index + 1
         }
+      case ZLine(IN_IMM, OneRegister(ZRegister.A), param, _) =>
+        writeByte(bank, index, 0xdb)
+        writeByte(bank, index + 1, param)
+        index + 2
+      case ZLine(IN_C, OneRegister(reg), param, _) =>
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x40 + 8 * internalRegisterIndex(reg))
+        index + 2
+      case ZLine(OUT_IMM, OneRegister(ZRegister.A), param, _) =>
+        writeByte(bank, index, 0xd3)
+        writeByte(bank, index + 1, param)
+        index + 2
+      case ZLine(OUT_C, OneRegister(reg), param, _) =>
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x41 + 8 * internalRegisterIndex(reg))
+        index + 2
+
       case ZLine(CALL, NoRegisters, param, _) =>
         writeByte(bank, index, 0xcd)
         writeWord(bank, index + 1, param)

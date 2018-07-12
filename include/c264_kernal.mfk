@@ -1,4 +1,7 @@
 // Routines from C16 and Plus/4 KERNAL ROM
+#if not(CBM_264)
+#warn c264_kernal module should be only used on C264-compatible targets
+#endif
 
 // CHROUT. Write byte to default output. (If not screen, must call OPEN and CHKOUT beforehands.)
 // Input: A = Byte to write.

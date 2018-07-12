@@ -64,6 +64,10 @@ Default: the same as `encoding`.
     
     * `lenient_encoding` - allow for automatic substitution of invalid characters in string literals using the default encodings, default is `false`.
 
+#### `[define]` section
+
+This section defines values of features of the target.
+See the [preprocessor documentation](../lang/preprocessor.md) for more info.
 
 #### `[allocation]` section
 

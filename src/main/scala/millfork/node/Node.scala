@@ -298,7 +298,7 @@ case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, 
   override def getAllExpressions: List[Expression] = List(expression)
 }
 
-case class Z80AssemblyStatement(opcode: ZOpcode.Value, registers: ZRegisters, expression: Expression, elidable: Boolean) extends ExecutableStatement {
+case class Z80AssemblyStatement(opcode: ZOpcode.Value, registers: ZRegisters, offsetExpression: Option[Expression], expression: Expression, elidable: Boolean) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
 }
 

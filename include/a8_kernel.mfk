@@ -1,3 +1,8 @@
+
+#if not(ATARI_8)
+#warn a8_kernel module should be used only on Atari computer-compatible targets
+#endif
+
 asm void putchar(byte a) {
     tax
     lda $347

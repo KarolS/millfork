@@ -1,5 +1,9 @@
 // Routines from Commodore 128 KERNAL ROM
 
+#if not(CBM_128)
+#warn c128_kernal module should be only used on C128-compatible targets
+#endif
+
 // CHROUT. Write byte to default output. (If not screen, must call OPEN and CHKOUT beforehands.)
 // Input: A = Byte to write.
 asm void putchar(byte a) @$FFD2 extern

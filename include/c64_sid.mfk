@@ -1,5 +1,9 @@
 // Hardware addresses for C64
 
+#if not(CBM_64)
+#warn c64_sid module should be only used on C64-compatible targets
+#endif
+
 //   SID
 
 word sid_v1_freq  @$D400

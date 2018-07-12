@@ -1,1 +1,5 @@
+#if not(CBM_264)
+#warn c264_hardware module should be only used on C264-compatible targets
+#endif
+
 import c264_ted

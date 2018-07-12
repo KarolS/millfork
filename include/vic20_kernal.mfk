@@ -1,5 +1,9 @@
 // Routines from C16 and Plus/4 KERNAL ROM
 
+#if not(CBM_VIC)
+#warn vic20_kernal module should be only used on VIC-20 targets
+#endif
+
 // CHROUT. Write byte to default output. (If not screen, must call OPEN and CHKOUT beforehands.)
 // Input: A = Byte to write.
 asm void putchar(byte a) @$FFD2 extern

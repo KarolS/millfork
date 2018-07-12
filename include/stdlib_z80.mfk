@@ -1,0 +1,45 @@
+// target-independent things
+
+#if not(ARCH_Z80)
+#warn stdlib_z80 module should be only used on 6502-compatible targets
+#endif
+
+macro asm void poke(word const addr, byte a) {
+    LD (addr), A
+}
+
+macro asm byte peek(word const addr) {
+    LD A, (addr)
+}
+
+macro asm void disable_irq() {
+    DI
+}
+
+macro asm void enable_irq() {
+    EI
+}
+
+asm byte hi_nibble_to_hex(byte a) {
+    SRL A
+    SRL A
+    SRL A
+    SRL A
+    JP lo_nibble_to_hex
+}
+
+asm byte lo_nibble_to_hex(byte a) {
+    AND $F
+    ADD A,$30
+    CP $3A
+    JR C,_lo_nibble_to_hex_lbl
+    ADD A,$6 // carry is set
+_lo_nibble_to_hex_lbl:
+    RET
+}
+
+macro asm void panic() {
+    CALL _panic
+}
+
+array __constant8 = [8]

@@ -1,5 +1,10 @@
 // Hardware addresses for C64
 
+#if not(CBM_64)
+#warn c64_vic module should be only used on C64-compatible targets
+#endif
+
+
 //   VIC-II
 byte vic_spr0_x     @$D000
 byte vic_spr0_y     @$D001

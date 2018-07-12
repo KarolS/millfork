@@ -378,7 +378,7 @@ object Z80BulkMemoryOperations {
     }
     Z80StatementCompiler.compile(ctx, IfStatement(
       FunctionCallExpression(operator, List(f.start, f.end)),
-      List(Z80AssemblyStatement(ZOpcode.NOP, NoRegisters, LiteralExpression(0, 1), elidable = false)),
+      List(Z80AssemblyStatement(ZOpcode.NOP, NoRegisters, None, LiteralExpression(0, 1), elidable = false)),
       Nil))
   }
 

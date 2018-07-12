@@ -1,5 +1,6 @@
 package millfork.parser
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
 import fastparse.core.Parsed.{Failure, Success}
@@ -8,6 +9,7 @@ import millfork.error.ErrorReporting
 import millfork.node.{ImportStatement, Position, Program}
 
 import scala.collection.mutable
+import scala.collection.convert.ImplicitConversionsToScala._
 
 abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
                                              val includePath: List[String],
@@ -49,15 +51,15 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     ErrorReporting.fatal(s"Module `$moduleName` not found", position)
   }
 
-  def createParser(filename: String, src: String, parentDir: String) : MfParser[T]
+  def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long]) : MfParser[T]
 
   def parseModule(moduleName: String, includePath: List[String], why: Either[Option[Position], String]): Unit = {
     val filename: String = why.fold(p => lookupModuleFile(includePath, moduleName, p), s => s)
     ErrorReporting.debug(s"Parsing $filename")
     val path = Paths.get(filename)
     val parentDir = path.toFile.getAbsoluteFile.getParent
-    val src = new String(Files.readAllBytes(path))
-    val parser = createParser(filename, src, parentDir)
+    val (src, featureConstants) = Preprocessor(options, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
+    val parser = createParser(filename, src, parentDir, featureConstants)
     parser.toAst match {
       case Success(prog, _) =>
         parsedModules.synchronized {

@@ -1,3 +1,8 @@
+
+#if not(CBM_128)
+#warn c128_hardware module should be only used on C128-compatible targets
+#endif
+
 import c64_vic
 import c64_sid
 import c64_cia

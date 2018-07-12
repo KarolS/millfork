@@ -1,0 +1,31 @@
+
+#if not(ZX_SPECTRUM)
+#warn stdio_zxspectrum module should be only used on ZX Spectrum-compatible targets
+#endif
+
+import stdio
+
+void putstr(pointer str, byte len) {
+    asm {
+        ? LD HL,(str)
+        ? LD D, H
+        ? LD E, L
+        ? LD A,(len)
+        ? LD B, 0
+        ? LD C, A
+        CALL 8252
+    }
+}
+
+void putstrz(pointer str) {
+    word length = strzlen(str)
+    asm {
+        ? LD HL,(str)
+        ? LD D, H
+        ? LD E, L
+        ? LD HL,(length)
+        ? LD B, H
+        ? LD C, L
+        CALL 8252
+    }
+}

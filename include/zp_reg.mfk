@@ -1,4 +1,8 @@
 
+#if not(ARCH_6502)
+#warn zp_reg module should be used only on 6502-compatible targets
+#endif
+
 inline asm byte __mul_u8u8u8() {
     ? LDA #0
     ? JMP __mul_u8u8u8_start

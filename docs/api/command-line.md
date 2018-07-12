@@ -34,6 +34,7 @@ no extension for BBC micro program file,
 
 * `-r <program>` – Run given program after successful compilation. Useful for automatically launching emulators without any external scripting.
 
+* `-D <feature>=<value>` – Defines a feature value for the preprocessor.
 
 ## Verbosity options
 

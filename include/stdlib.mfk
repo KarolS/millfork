@@ -1,46 +1,9 @@
 // target-independent things
 
-word nmi_routine_addr   @$FFFA
-word reset_routine_addr @$FFFC
-word irq_routine_addr   @$FFFE
-
-macro asm void poke(word const addr, byte a) {
-    STA addr
-}
-
-macro asm byte peek(word const addr) {
-    ?LDA addr
-}
-
-macro asm void disable_irq() {
-    SEI
-}
-
-macro asm void enable_irq() {
-    CLI
-}
-
-asm byte hi_nibble_to_hex(byte a) {
-    LSR
-    LSR
-    LSR
-    LSR
-    JMP lo_nibble_to_hex
-}
-
-asm byte lo_nibble_to_hex(byte a) {
-    AND #$F
-    CLC
-    ADC #$30
-    CMP #$3A
-    BCC _lo_nibble_to_hex_lbl
-    ADC #$6 // carry is set
-_lo_nibble_to_hex_lbl:
-    RTS
-}
-
-macro asm void panic() {
-    JSR _panic
-}
-
-array __constant8 = [8]
+#if ARCH_6502
+import stdlib_6502
+#elseif ARCH_Z80
+import stdlib_z80
+#else
+#warn Unsupported architecture
+#endif

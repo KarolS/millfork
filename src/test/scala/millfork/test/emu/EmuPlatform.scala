@@ -16,6 +16,7 @@ object EmuPlatform {
     Nil,
     TextCodec.Ascii,
     TextCodec.Ascii,
+    Platform.builtInCpuFeatures(cpu),
     CurrentBankFragmentOutput(0, 0xffff),
     Map("default" -> new UpwardByteAllocator(0x200, 0xb000)),
     Map("default" -> new VariableAllocator(

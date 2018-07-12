@@ -15,6 +15,8 @@
 
 ## Language reference
 
+* [Preprocessor](lang/preprocessor.md)
+
 * [Syntax](lang/syntax.md)
 
 * [Types](lang/types.md)
@@ -25,8 +27,19 @@
 
 * [Inline 6502 assembly syntax](lang/assembly.md)
 
+* [Inline Z80 assembly syntax](lang/assemblyz80.md)
+
 * [Important guidelines regarding reentrancy](lang/reentrancy.md)
 
+## Library reference
+
+* [`stdlib` module](stdlib/stdlib.md)
+
+* [Other cross-platform modules](stdlib/other.md)
+
+* [C64-only modules](stdlib/c64.md)
+
+* [NES-only modules](stdlib/nes.md)
 
 ## Implementation details
 

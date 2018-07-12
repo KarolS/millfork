@@ -1,5 +1,6 @@
 package millfork.parser
 
+import java.lang.Long.parseLong
 import java.nio.file.{Files, Paths}
 import java.util
 
@@ -12,7 +13,7 @@ import millfork.{CompilationFlag, CompilationOptions, SeparatedList}
 /**
   * @author Karol Stasiak
   */
-abstract class MfParser[T](filename: String, input: String, currentDirectory: String, options: CompilationOptions) {
+abstract class MfParser[T](filename: String, input: String, currentDirectory: String, options: CompilationOptions, featureConstants: Map[String, Long]) {
 
   import MfParser._
 
@@ -62,6 +63,14 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
     }
   }
 
+  //noinspection NameBooleanParameters
+  val variableAtom: P[Expression] = identifier.map{ i =>
+    featureConstants.get(i) match {
+      case Some(value) => LiteralExpression(value, size(value, false ,false, false))
+      case None => VariableExpression(i)
+    }
+  }
+
   val literalAtom: P[LiteralExpression] = charAtom | binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom
 
   val atom: P[Expression] = P(position() ~ (literalAtom | variableAtom)).map{case (p,a) => a.pos(p)}
@@ -105,6 +114,12 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
 
   def asmExpressionWithParens: P[(Expression, Boolean)] = (position() ~ NoCut(
     ("(" ~ HWS ~ asmExpression ~ HWS ~ ")").map(_ -> true) |
+      asmExpression.map(_ -> false)
+  )).map { case (p, e) => e._1.pos(p) -> e._2 }
+
+  def asmExpressionWithParensOrApostrophe: P[(Expression, Boolean)] = (position() ~ NoCut(
+    ("(" ~ HWS ~ asmExpression ~ HWS ~ ")").map(_ -> true) |
+    (asmExpression ~ "'").map(_ -> true) |
       asmExpression.map(_ -> false)
   )).map { case (p, e) => e._1.pos(p) -> e._2 }
 
@@ -400,14 +415,14 @@ object MfParser {
 
   val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').! ~ "\"").map(_.toList)
 
-  def size(value: Int, wordLiteral: Boolean, farwordLiteral: Boolean, longLiteral: Boolean): Int = {
+  def size(value: Long, wordLiteral: Boolean, farwordLiteral: Boolean, longLiteral: Boolean): Int = {
     val w = value > 255 || value < -0x80 || wordLiteral
     val f = value > 0xffff || value < -0x8000 || farwordLiteral
     val l = value > 0xffffff || value < -0x800000 || longLiteral
     if (l) 4 else if (f) 3 else if (w) 2 else 1
   }
 
-  def sign(abs: Int, minus: Boolean): Int = if (minus) -abs else abs
+  def sign(abs: Long, minus: Boolean): Long = if (minus) -abs else abs
 
   val invalidCharLiteralTypes: Set[Int] = Set[Int](
     Character.LINE_SEPARATOR,
@@ -422,7 +437,7 @@ object MfParser {
       minus <- "-".!.?
       s <- CharsWhileIn("1234567890", min = 1).!.opaque("<decimal digits>") ~ !("x" | "b")
     } yield {
-      val abs = Integer.parseInt(s, 10)
+      val abs = parseLong(s, 10)
       val value = sign(abs, minus.isDefined)
       LiteralExpression(value, size(value, s.length > 3,  s.length > 5, s.length > 7))
     }
@@ -433,7 +448,7 @@ object MfParser {
       _ <- P("0b" | "%") ~/ Pass
       s <- CharsWhileIn("01", min = 1).!.opaque("<binary digits>")
     } yield {
-      val abs = Integer.parseInt(s, 2)
+      val abs = parseLong(s, 2)
       val value = sign(abs, minus.isDefined)
       LiteralExpression(value, size(value, s.length > 8, s.length > 16, s.length > 24))
     }
@@ -444,7 +459,7 @@ object MfParser {
       _ <- P("0x" | "0X" | "$") ~/ Pass
       s <- CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>")
     } yield {
-      val abs = Integer.parseInt(s, 16)
+      val abs = parseLong(s, 16)
       val value = sign(abs, minus.isDefined)
       LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6))
     }
@@ -455,7 +470,7 @@ object MfParser {
       _ <- P("0o" | "0O") ~/ Pass
       s <- CharsWhileIn("01234567", min = 1).!.opaque("<octal digits>")
     } yield {
-      val abs = Integer.parseInt(s, 8)
+      val abs = parseLong(s, 8)
       val value = sign(abs, minus.isDefined)
       LiteralExpression(value, size(value, s.length > 3, s.length > 6, s.length > 9))
     }
@@ -466,12 +481,10 @@ object MfParser {
       _ <- P("0q" | "0Q") ~/ Pass
       s <- CharsWhileIn("0123", min = 1).!.opaque("<quaternary digits>")
     } yield {
-      val abs = Integer.parseInt(s, 4)
+      val abs = parseLong(s, 4)
       val value = sign(abs, minus.isDefined)
       LiteralExpression(value, size(value, s.length > 4, s.length > 8, s.length > 12))
     }
-
-  val variableAtom: P[VariableExpression] = identifier.map(VariableExpression)
 
   val mfOperators = List(
     List("+=", "-=", "+'=", "-'=", "^=", "&=", "|=", "*=", "*'=", "<<=", ">>=", "<<'=", ">>'="),

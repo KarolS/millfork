@@ -1,3 +1,8 @@
+
+#if not(ATARI_2600)
+#warn vcs_hardware module should be only used on Atari 2600-compatible targets
+#endif
+
 byte VSYNC @$00
 byte VBLANK @$01
 byte WSYNC @$02

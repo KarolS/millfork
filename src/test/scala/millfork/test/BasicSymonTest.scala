@@ -168,4 +168,45 @@ class BasicSymonTest extends FunSuite with Matchers {
         | }
       """.stripMargin){ m => () }
   }
+
+  test("Preprocessor test") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output @$c000
+        |
+        | #use ARCH_6502
+        | #use ARCH_Z80
+        |
+        | #if 1
+        | asm void main () {
+        |   #if ARCH_6502
+        |     lda #ARCH_6502
+        |     sta output
+        |     rts
+        |   #elseif ARCH_Z80
+        |     ld a,ARCH_Z80
+        |     ld (output),a
+        |     ret
+        |   #else
+        |     #error unsupported architecture
+        |   #endif
+        | }
+        | #endif
+        |
+        | #if 1 + 1 == 2
+        |   #info 1
+        |   #if      1 == 3
+        |     #error 1 == 3
+        |   #elseif  1 == 5
+        |     #error 1 == 5
+        |   #else
+        |     #info 2
+        |   #endif
+        | #else
+        |   #error not( 1 + 1 == 2 )
+        | #endif
+      """.stripMargin){ m =>
+      m.readByte(0xc000) should equal(1)
+    }
+  }
 }

@@ -1,0 +1,6 @@
+
+#if WIDESCREEN
+alias x_coord = word
+#else
+alias x_coord = byte
+#endif

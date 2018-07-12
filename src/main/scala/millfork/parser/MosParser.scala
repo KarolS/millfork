@@ -10,7 +10,7 @@ import millfork.CompilationOptions
 /**
   * @author Karol Stasiak
   */
-case class MosParser(filename: String, input: String, currentDirectory: String, options: CompilationOptions) extends MfParser[AssemblyLine](filename, input, currentDirectory, options) {
+case class MosParser(filename: String, input: String, currentDirectory: String, options: CompilationOptions, featureConstants: Map[String, Long]) extends MfParser[AssemblyLine](filename, input, currentDirectory, options, featureConstants) {
 
   import MfParser._
 
@@ -67,7 +67,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
   val asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
 
 
-  val appcSimple: P[ParamPassingConvention] = P("xy" | "yx" | "ax" | "ay" | "xa" | "ya" | "stack" | "a" | "x" | "y").!.map {
+  val appcSimple: P[ParamPassingConvention] = P(("xy" | "yx" | "ax" | "ay" | "xa" | "ya" | "stack" | "a" | "x" | "y") ~ !letterOrDigit).!.map {
     case "xy" => ByMosRegister(MosRegister.XY)
     case "yx" => ByMosRegister(MosRegister.YX)
     case "ax" => ByMosRegister(MosRegister.AX)

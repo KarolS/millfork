@@ -1,7 +1,12 @@
 // mouse driver for Commodore 1531 mouse on Commodore 64
 
+#if not(CBM_64) || not(WIDESCREEN)
+#warn c1531 module should be only used on C64-compatible targets
+#endif
+
 import mouse
 import c64_hardware
+import stdlib
 
 sbyte _c1531_calculate_delta (byte old, byte new) {
     byte mouse_delta
@@ -53,8 +58,12 @@ byte _c1531_handle_y() {
 }
 
 void c1531_mouse () {
-
 	cia1_pra = ($3f & cia1_pra) | $40
     _c1531_handle_x()
     _c1531_handle_y()
+    byte value
+	poke($dc03, 0)
+	value = peek($dc01)
+	mouse_rbm = (value & 1) ^ 1
+	if value & 16 == 0 { mouse_lbm = 1 } else { mouse_lbm = 0}
 }

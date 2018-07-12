@@ -1,3 +1,6 @@
+#if not(CBM_264)
+#warn c264_ted module should be only used on C264-compatible targets
+#endif
 
 const byte black = 0
 const byte white = $71

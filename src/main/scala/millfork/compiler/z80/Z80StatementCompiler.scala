@@ -141,14 +141,35 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         }
       case ExpressionStatement(e) =>
         Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING)
-      case Z80AssemblyStatement(op, reg, expression, elidable) =>
+      case Z80AssemblyStatement(op, reg, offset, expression, elidable) =>
         val param = ctx.env.evalForAsm(expression) match {
           case Some(v) => v
           case None =>
             ErrorReporting.error("Inlining failed due to non-constant things", expression.position)
             Constant.Zero
         }
-        List(ZLine(op, reg, param, elidable))
+        val registers = (reg, offset) match {
+          case (OneRegister(r), Some(o)) => ctx.env.evalForAsm(expression) match {
+            case Some(NumericConstant(v, _)) => OneRegisterOffset(r, v.toInt)
+            case Some(_) =>
+              ErrorReporting.error("Non-numeric constant", o.position)
+              reg
+            case None =>
+              ErrorReporting.error("Inlining failed due to non-constant things", o.position)
+              reg
+          }
+          case (TwoRegisters(t, s), Some(o)) => ctx.env.evalForAsm(expression) match {
+            case Some(NumericConstant(v, _)) => TwoRegistersOffset(t, s, v.toInt)
+            case Some(_) =>
+              ErrorReporting.error("Non-numeric constant", o.position)
+              reg
+            case None =>
+              ErrorReporting.error("Inlining failed due to non-constant things", o.position)
+              reg
+          }
+          case _ => reg
+        }
+        List(ZLine(op, registers, param, elidable))
     }
   }
 
