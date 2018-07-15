@@ -119,8 +119,8 @@ object AlwaysGoodOptimizations {
     (Elidable &
       MatchA(0) & MatchParameter(1) &
       HasOpcode(ADC) & HasAddrMode(Immediate) &
-      HasClear(State.D) & HasClear(State.C) & DoesntMatterWhatItDoesWith(State.V)) ~
-      Where(ctx => (ctx.get[Constant](1) + ctx.get[Int](0)).quickSimplify match {
+      HasClear(State.D) & HasClear(State.C) & DoesntMatterWhatItDoesWith(State.V, State.C)) ~
+      Where(ctx => (ctx.get[Constant](1).loByte.quickSimplify + ctx.get[Int](0).&(0xff)).quickSimplify match {
         case NumericConstant(x, _) => x == (x & 0xff)
         case _ => false
       }) ~~> { (code, ctx) =>
