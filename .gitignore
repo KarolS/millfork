@@ -23,6 +23,8 @@ examples/lunix/
 *.seq
 *.asm
 *.lbl
+*.nl
+*.deb
 *.xex
 *.nes
 *.sfc
