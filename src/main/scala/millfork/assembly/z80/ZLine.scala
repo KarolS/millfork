@@ -89,6 +89,14 @@ object ZLine {
 
   def jump(label: Label, condition: ZRegisters): ZLine = ZLine(JP, condition, label.toAddress)
 
+  def jumpR(label: String): ZLine = ZLine(JR, NoRegisters, Label(label).toAddress)
+
+  def jumpR(label: Label): ZLine = ZLine(JR, NoRegisters, label.toAddress)
+
+  def jumpR(label: String, condition: ZRegisters): ZLine = ZLine(JR, condition, Label(label).toAddress)
+
+  def jumpR(label: Label, condition: ZRegisters): ZLine = ZLine(JR, condition, label.toAddress)
+
   def djnz(label: String): ZLine = ZLine(DJNZ, NoRegisters, Label(label).toAddress)
 
   def djnz(label: Label): ZLine = ZLine(DJNZ, NoRegisters, label.toAddress)
@@ -144,6 +152,10 @@ object ZLine {
   def ldViaIx(target: ZRegister.Value, sourceOffset: Int): ZLine = ZLine(LD, TwoRegistersOffset(target, ZRegister.MEM_IX_D, sourceOffset), Constant.Zero)
 
   def ldViaIx(targetOffset: Int, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegistersOffset(ZRegister.MEM_IX_D, source, targetOffset), Constant.Zero)
+
+  def ldViaIy(target: ZRegister.Value, sourceOffset: Int): ZLine = ZLine(LD, TwoRegistersOffset(target, ZRegister.MEM_IY_D, sourceOffset), Constant.Zero)
+
+  def ldViaIy(targetOffset: Int, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegistersOffset(ZRegister.MEM_IY_D, source, targetOffset), Constant.Zero)
 }
 
 case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Constant, elidable: Boolean = true) extends AbstractCode {
@@ -228,10 +240,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case JP | JR | DJNZ | CALL =>
         val ps = registers match {
           case NoRegisters => s" $parameter"
-          case IfFlagSet(ZFlag.P) => " PO,$parameter"
-          case IfFlagClear(ZFlag.P) => " PE,$parameter"
-          case IfFlagSet(ZFlag.S) => " M,$parameter"
-          case IfFlagClear(ZFlag.S) => " P,$parameter"
+          case IfFlagSet(ZFlag.P) => s" PO,$parameter"
+          case IfFlagClear(ZFlag.P) => s" PE,$parameter"
+          case IfFlagSet(ZFlag.S) => s" M,$parameter"
+          case IfFlagClear(ZFlag.S) => s" P,$parameter"
           case IfFlagSet(f) => s" $f,$parameter"
           case IfFlagClear(f) => s" N$f,$parameter"
           case OneRegister(r) => s" (${asAssemblyString(r)})"
@@ -277,6 +289,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case TwoRegisters(_, MEM_IY_D) => r == IYH || r == IYL
             case TwoRegisters(_, MEM_ABS_8 | MEM_ABS_16 | IMM_8 | IMM_16) => false
             case TwoRegisters(_, s) => r == s
+            case TwoRegistersOffset(_, s, _) => r == s
             case _ => false
           }) || (registers match {
             case TwoRegisters(MEM_HL, _) => r == H || r == L
@@ -294,6 +307,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case TwoRegisters(_, MEM_IX_D | IX) => r == IXH || r == IXL
             case TwoRegisters(_, MEM_IY_D | IY) => r == IYH || r == IYL
             case TwoRegisters(_, s) => r == s
+            case TwoRegistersOffset(_, s, _) => r == s
             case _ => false
           }
           case ADD | ADC | OR | XOR | CP | SUB | SBC => registers match {
@@ -304,6 +318,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegister(MEM_IY_D) => r == IYH || r == IYL || r == A
             case OneRegister(IMM_8 | IMM_16) => r == A
             case OneRegister(s) => r == s || r == A
+            case OneRegisterOffset(s, _) => r == s
             case _ => r == A
           }
           case INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL => registers match {
@@ -313,6 +328,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegister(MEM_IX_D) => r == IXH || r == IXL
             case OneRegister(MEM_IY_D) => r == IYH || r == IYL
             case OneRegister(s) => r == s
+            case OneRegisterOffset(s, _) => r == s
             case _ => false
           }
           case INC_16 | DEC_16 | PUSH => registers match {
@@ -322,13 +338,14 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegister(IX) => r == IXH || r == IXL
             case OneRegister(IY) => r == IYH || r == IYL
             case OneRegister(AF) => r == A
+            case OneRegisterOffset(s, _) => r == s
             case _ => false
           }
           case JP | JR | RET | RETI | RETN |
                POP |
                DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
           case DJNZ => r == B
-          case DAA => r == A
+          case DAA | NEG => r == A
           case _ => true // TODO
         }
     }
@@ -346,6 +363,14 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           }
           case INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL => registers match {
             case OneRegisterOffset(s, p) => r == s && o == p
+            case _ => false
+          }
+          case POP | INC_16 | DEC_16 => registers match {
+            case OneRegister(IX | IY) => true
+            case _ => false
+          }
+          case LD_16 | ADD_16 => registers match {
+            case TwoRegisters(IX | IY, _) => true
             case _ => false
           }
           case _ => false // TODO
@@ -370,6 +395,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
         opcode match {
           case LD => registers match {
             case TwoRegisters(s, _) => r == s
+            case TwoRegistersOffset(s, _, _) => r == s
             case _ => false
           }
           case LD_16 | ADD_16 | SBC_16 | ADC_16 => registers match {
@@ -379,10 +405,12 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case TwoRegisters(IX, _) => r == IXH || r == IXL
             case TwoRegisters(IY, _) => r == IYH || r == IYL
             case TwoRegisters(s, _) => r == s
+            case TwoRegistersOffset(s, _, _) => r == s
             case _ => false
           }
           case INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL => registers match {
             case OneRegister(s) => r == s
+            case OneRegisterOffset(s, _) => r == s
             case _ => false
           }
           case INC_16 | DEC_16 | POP => registers match {
@@ -392,12 +420,13 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegister(IX) => r == IXH || r == IXL
             case OneRegister(IY) => r == IYH || r == IYL
             case OneRegister(AF) => r == A
+            case OneRegisterOffset(s, _) => r == s
             case _ => false
           }
           case JP | JR | RET | RETI | RETN |
                POP |
                DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
-          case ADD | ADC | OR | XOR | SUB | SBC | DAA => r == A
+          case ADD | ADC | OR | XOR | SUB | SBC | DAA | NEG => r == A
           case CP => false
           case DJNZ => r == B
           case _ => true // TODO

@@ -36,6 +36,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          e: Importance = UnknownImportance,
                          h: Importance = UnknownImportance,
                          l: Importance = UnknownImportance,
+                         hlNumeric: Importance = UnknownImportance,
                          ixh: Importance = UnknownImportance,
                          ixl: Importance = UnknownImportance,
                          iyh: Importance = UnknownImportance,
@@ -50,17 +51,18 @@ case class CpuImportance(a: Importance = UnknownImportance,
                         ) {
   override def toString: String = {
     val memRepr = if (memIx.isEmpty) "" else (0 to memIx.keys.max).map(i => memIx.getOrElse(i, UnknownImportance)).mkString("")
-    s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,Y=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf; M=" ++ memRepr.padTo(4, ' ')
+    s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,Y=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf; HL=$hlNumeric; M=" ++ memRepr.padTo(4, ' ')
   }
 
   def ~(that: CpuImportance) = new CpuImportance(
     a = this.a ~ that.a,
-    b = this.a ~ that.a,
-    c = this.a ~ that.a,
-    d = this.a ~ that.a,
-    e = this.a ~ that.a,
-    h = this.a ~ that.a,
-    l = this.a ~ that.a,
+    b = this.b ~ that.b,
+    c = this.c ~ that.c,
+    d = this.d ~ that.d,
+    e = this.e ~ that.e,
+    h = this.h ~ that.h,
+    l = this.l ~ that.l,
+    hlNumeric = this.hlNumeric ~ that.hlNumeric,
     ixh = this.ixh ~ that.ixh,
     ixl = this.ixl ~ that.ixl,
     iyh = this.iyh ~ that.iyh,
@@ -111,9 +113,10 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.D => this.copy(d = Important)
     case ZRegister.E => this.copy(e = Important)
     case ZRegister.DE | ZRegister.MEM_DE => this.copy(d = Important, e = Important)
-    case ZRegister.H => this.copy(h = Important)
-    case ZRegister.L => this.copy(l = Important)
-    case ZRegister.HL | ZRegister.MEM_HL => this.copy(h = Important, l = Important)
+    case ZRegister.H => this.copy(h = Important, hlNumeric = Important)
+    case ZRegister.L => this.copy(l = Important, hlNumeric = Important)
+    case ZRegister.HL => this.copy(h = Important, l = Important, hlNumeric = Important)
+    case ZRegister.MEM_HL => this.copy(h = Important, l = Important)
     case ZRegister.IXH => this.copy(ixh = Important)
     case ZRegister.IXL => this.copy(ixl = Important)
     case ZRegister.IYH => this.copy(iyh = Important)
@@ -137,7 +140,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.MEM_DE => this.copy(d = Important, e = Important)
     case ZRegister.H => this.copy(h = Unimportant)
     case ZRegister.L => this.copy(l = Unimportant)
-    case ZRegister.HL => this.copy(h = Unimportant, l = Unimportant)
+    case ZRegister.HL => this.copy(h = Unimportant, l = Unimportant, hlNumeric = Unimportant)
     case ZRegister.MEM_HL => this.copy(h = Important, l = Important)
     case ZRegister.IXH => this.copy(ixh = Unimportant)
     case ZRegister.IXL => this.copy(ixl = Unimportant)
@@ -193,20 +196,16 @@ object ReverseFlowAnalyzer {
         }
         val currentLine = codeArray(i)
         currentLine match {
+          case ZLine(LABEL, _, _, _) => ()
           case ZLine(DJNZ, _, MemoryAddressConstant(Label(l)), _) =>
-            val L = l
-            val labelIndex = codeArray.indexWhere {
-              case ZLine(LABEL, _, MemoryAddressConstant(Label(L)), _) => true
-              case _ => false
-            }
+            val labelIndex = getLabelIndex(codeArray, l)
             currentImportance = if (labelIndex < 0) finalImportance else (importanceArray(labelIndex) ~ currentImportance).butReadsRegister(ZRegister.B).butReadsFlag(ZFlag.Z)
-          case ZLine(JP | JR, IfFlagSet(_) | IfFlagClear(_), MemoryAddressConstant(Label(l)), _) =>
-            val L = l
-            val labelIndex = codeArray.indexWhere {
-              case ZLine(LABEL, _, MemoryAddressConstant(Label(L)), _) => true
-              case _ => false
-            }
-            currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex) ~ currentImportance
+          case ZLine(JP | JR, IfFlagSet(flag), MemoryAddressConstant(Label(l)), _) =>
+            val labelIndex = getLabelIndex(codeArray, l)
+            currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex) ~ currentImportance.butReadsFlag(flag)
+          case ZLine(JP | JR, IfFlagClear(flag), MemoryAddressConstant(Label(l)), _) =>
+            val labelIndex = getLabelIndex(codeArray, l)
+            currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex) ~ currentImportance.butReadsFlag(flag)
           case ZLine(DISCARD_HL, _, _, _) =>
             currentImportance = currentImportance.copy(h =  Unimportant, l = Unimportant)
           case ZLine(DISCARD_BCDEIX, _, _, _) =>
@@ -227,15 +226,65 @@ object ReverseFlowAnalyzer {
           case ZLine(OR | AND, OneRegister(ZRegister.A), _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A)
 
-          case ZLine(AND | ADD | SUB | OR | XOR | CP, OneRegister(s), _, _) =>
-            currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s)
-          case ZLine(ADC | SBC, OneRegister(s), _, _) =>
-            currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s).butReadsFlag(ZFlag.C)
+          case ZLine(ADD | SUB | CP, OneRegister(s), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(s).copy(
+              a = Important,
+              cf = Unimportant,
+              zf = Unimportant,
+              sf = Unimportant,
+              hf = Unimportant,
+              pf = Unimportant,
+              nf = Unimportant
+            )
+          case ZLine(ADD | SUB | CP, OneRegisterOffset(s, o), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(s, o).copy(
+              a = Important,
+              cf = Unimportant,
+              zf = Unimportant,
+              sf = Unimportant,
+              hf = Unimportant,
+              pf = Unimportant,
+              nf = Unimportant
+            )
 
-          case ZLine(AND | ADD | SUB | OR | XOR | CP, OneRegisterOffset(s, o), _, _) =>
-            currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s, o)
+          case ZLine(AND | OR | XOR, OneRegister(s), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(s).copy(
+              a = Important,
+              cf = Unimportant,
+              zf = Unimportant,
+              pf = Unimportant,
+              sf = Unimportant
+            )
+
+          case ZLine(AND | OR | XOR, OneRegisterOffset(s, o), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(s, o).copy(
+              a = Important,
+              cf = Unimportant,
+              zf = Unimportant,
+              pf = Unimportant,
+              sf = Unimportant
+            )
+          case ZLine(ADC | SBC, OneRegister(s), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(s).copy(
+              a = Important,
+              cf = Important,
+              zf = Unimportant,
+              sf = Unimportant,
+              hf = Unimportant,
+              pf = Unimportant,
+              nf = Unimportant
+            )
           case ZLine(ADC | SBC, OneRegisterOffset(s, o), _, _) =>
-            currentImportance = currentImportance.butReadsRegister(ZRegister.A).butReadsRegister(s, o).butReadsFlag(ZFlag.C)
+            currentImportance = currentImportance.butReadsRegister(s, o).copy(
+              a = Important,
+              cf = Important,
+              zf = Unimportant,
+              sf = Unimportant,
+              hf = Unimportant,
+              pf = Unimportant,
+              nf = Unimportant
+            )
+
 
           case ZLine(INC | DEC | INC_16 | DEC_16, OneRegister(s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(s)
@@ -247,6 +296,11 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butReadsRegister(r)
           case ZLine(CALL, NoRegisters, _, _) =>
             currentImportance = finalImportance.copy(memIx = currentImportance.memIx)
+
+          case ZLine(SLA | SRL, OneRegister(r), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(r).butWritesFlag(ZFlag.C).butWritesFlag(ZFlag.Z)
+          case ZLine(RL | RR | RLC | RRC, OneRegister(r), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(r).butReadsFlag(ZFlag.C).butWritesFlag(ZFlag.Z)
           case _ =>
             currentImportance = finalImportance // TODO
         }
@@ -258,5 +312,12 @@ object ReverseFlowAnalyzer {
 //            println("---------------------")
 
     importanceArray.toList
+  }
+
+  private def getLabelIndex(codeArray: Array[ZLine], L: String) = {
+    codeArray.indexWhere {
+      case ZLine(ZOpcode.LABEL, _, MemoryAddressConstant(Label(L)), _) => true
+      case _ => false
+    }
   }
 }

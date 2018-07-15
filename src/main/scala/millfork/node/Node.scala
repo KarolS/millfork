@@ -101,6 +101,13 @@ object MosNiceFunctionProperty {
   case object DoesntChangeZpRegister extends NiceFunctionProperty("reg")
 }
 
+object Z80NiceFunctionProperty {
+  case object DoesntChangeBC extends NiceFunctionProperty("BC")
+  case object DoesntChangeDE extends NiceFunctionProperty("DE")
+  case object DoesntChangeHL extends NiceFunctionProperty("HL")
+  case object DoesntChangeIY extends NiceFunctionProperty("IY")
+}
+
 object MosRegister extends Enumeration {
   val A, X, Y, AX, AY, YA, XA, XY, YX, AW = Value
 }

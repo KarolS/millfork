@@ -3,7 +3,7 @@ package millfork.assembly.z80.opt
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.z80._
 import millfork.assembly.z80.ZOpcode._
-import millfork.env.{Constant, NumericConstant}
+import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
 import millfork.node.ZRegister
 
 /**
@@ -66,7 +66,7 @@ object AlwaysGoodZ80Optimizations {
   )
 
   val ReloadingKnownValueFromMemory = new RuleBasedAssemblyOptimization("Reloading known value from memory",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
     for7Registers(register =>
       Is8BitLoad(ZRegister.MEM_HL, register) ~
         (Linear & Not(Changes(ZRegister.H)) & Not(Changes(ZRegister.L)) & Not(ChangesMemory) & Not(Changes(register)) & Not(IsRegular8BitLoadFrom(ZRegister.MEM_HL))).* ~
@@ -82,42 +82,74 @@ object AlwaysGoodZ80Optimizations {
     ),
     (Is8BitLoad(ZRegister.MEM_ABS_8, ZRegister.A) & MatchParameter(0)).captureLine(1) ~
       (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
-      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)) ~~> { code => code.init }
+      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)) ~~> { code => code.init },
+
+    (Is8BitLoad(ZRegister.MEM_HL, ZRegister.A) & MatchConstantInHL(0)).captureLine(1) ~
+      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
+      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)) ~~> { code => code.init },
+
+    (Is8BitLoad(ZRegister.MEM_ABS_8, ZRegister.A) & MatchParameter(0)).captureLine(1) ~
+      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
+      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_HL) & MatchConstantInHL(0)) ~~> { code => code.init },
+
+    (Is8BitLoad(ZRegister.MEM_HL, ZRegister.A) & MatchConstantInHL(0)).captureLine(1) ~
+      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
+      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_HL) & MatchConstantInHL(0)) ~~> { code => code.init },
+
+    (Is16BitLoad(ZRegister.MEM_ABS_16, ZRegister.HL) & MatchParameter(0)).captureLine(1) ~
+      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.HL))).* ~
+      (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16) & MatchParameter(0)) ~~> { code => code.init },
+
+    (Is8BitLoad(ZRegister.MEM_ABS_8, ZRegister.A) & MatchParameter(0) & MatchRegister(ZRegister.A, 2)).captureLine(1) ~
+      (Linear & DoesntChangeMemoryAt(1) & Not(Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8))).* ~
+      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)) ~~> { (code, ctx) =>
+      code.init :+ ZLine.ldImm8(ZRegister.A, ctx.get[Int](2))
+    },
+
+    (Is16BitLoad(ZRegister.MEM_ABS_16, ZRegister.HL) & MatchParameter(0) & MatchConstantInHL(2)).captureLine(1) ~
+      (Linear & DoesntChangeMemoryAt(1) & Not(Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16))).* ~
+      (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16) & MatchParameter(0)) ~~> { (code, ctx) =>
+      code.init :+ ZLine.ldImm16(ZRegister.HL, ctx.get[Constant](2))
+    },
   )
 
   val PointlessLoad = new RuleBasedAssemblyOptimization("Pointless load",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    // 0-6
     for7Registers(register =>
       (Elidable & Is8BitLoadTo(register) & DoesntMatterWhatItDoesWith(register)) ~~> (_ => Nil)
     ),
+    // 7-11
     for5LargeRegisters(register =>
       (Elidable & Is16BitLoadTo(register) & DoesntMatterWhatItDoesWith(register)) ~~> (_ => Nil)
     ),
+    // 12-18
     for7Registers(register =>
       (Is8BitLoad(register, ZRegister.IMM_8) & MatchImmediate(0)) ~
         (Linear & Not(Changes(register))).* ~
         (Elidable & Is8BitLoad(register, ZRegister.IMM_8) & MatchImmediate(0)) ~~> (_.init)
     ),
+    // 19-23
     for5LargeRegisters(register =>
       (Is16BitLoad(register, ZRegister.IMM_16) & MatchImmediate(0)) ~
         (Linear & Not(Changes(register))).* ~
         (Elidable & Is16BitLoad(register, ZRegister.IMM_16) & MatchImmediate(0)) ~~> (_.init)
     ),
-
+    // 24
     (Elidable & Is8BitLoadTo(ZRegister.MEM_HL)) ~
       (Linear & Not(ConcernsMemory) & Not(Changes(ZRegister.HL))).* ~
       Is8BitLoadTo(ZRegister.MEM_HL) ~~> (_.tail),
-
+    // 25
     (Elidable & Is8BitLoadTo(ZRegister.MEM_DE)) ~
       (Linear & Not(ConcernsMemory) & Not(Changes(ZRegister.DE))).* ~
       Is8BitLoadTo(ZRegister.MEM_DE) ~~> (_.tail),
-
+    // 26
     (Elidable & Is8BitLoadTo(ZRegister.MEM_BC)) ~
       (Linear & Not(ConcernsMemory) & Not(Changes(ZRegister.BC))).* ~
       Is8BitLoadTo(ZRegister.MEM_BC) ~~> (_.tail),
-
+    // 27
     (Elidable & MatchTargetIxOffsetOf8BitLoad(0) & MatchUnimportantIxOffset(0)) ~~> (_ => Nil),
-
+    // 28-34
     for7Registers(register =>
       (Elidable & Is8BitLoadTo(register) & NoOffset & MatchSourceRegisterAndOffset(1)) ~
         (Linear & Not(Concerns(register)) & DoesntChangeMatchedRegisterAndOffset(1)).* ~
@@ -132,10 +164,29 @@ object AlwaysGoodZ80Optimizations {
         }, head.parameter)
       }
     ),
-
+    // 35-41
     for7Registers(register =>
       (Elidable & Is8BitLoad(register, register)) ~~> (_ => Nil)
     ),
+    // 42-48
+    for7Registers(register =>
+      (Elidable & Is8BitLoadTo(register) & MatchSourceRegisterAndOffset(0)) ~
+        (Linear & Not(Concerns(register)) & DoesntChangeMatchedRegisterAndOffset(0)).* ~
+        (Elidable & HasOpcodeIn(Set(ADD, ADC, XOR, OR, AND, CP, SUB, SBC)) & HasRegisters(OneRegister(register)) & DoesntMatterWhatItDoesWith(register)) ~~> ((code,ctx) =>
+          code.tail.init :+ code.last.copy(registers = ctx.get[RegisterAndOffset](0).toOneRegister)
+        )
+    ),
+
+  )
+
+  val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    // 0-4
+    for5LargeRegisters(register => {
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(register)) ~
+        (Linear & Not(HasOpcode(POP)) & Not(Changes(register))).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(register)) ~~> (_.tail.init)
+    }),
 
   )
 
@@ -195,6 +246,22 @@ object AlwaysGoodZ80Optimizations {
     simplifiable16BitAddWithSplitTarget(ZRegister.IYH, ZRegister.IYL, ZRegister.IY, ZRegister.BC),
     simplifiable16BitAddWithSplitTarget(ZRegister.IYH, ZRegister.IYL, ZRegister.IY, ZRegister.DE),
 
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.BC)) & MatchRegister(ZRegister.BC, 0) & MatchRegister(ZRegister.HL, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      List(ZLine.ldImm16(ZRegister.HL, ctx.get[Int](0) + ctx.get[Int](1)))
+    },
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.DE)) & MatchRegister(ZRegister.DE, 0) & MatchRegister(ZRegister.HL, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      List(ZLine.ldImm16(ZRegister.HL, ctx.get[Int](0) + ctx.get[Int](1)))
+    },
+
+
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.BC)) & MatchRegister(ZRegister.BC, 0) & MatchConstantInHL(1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      List(ZLine.ldImm16(ZRegister.HL, (ctx.get[Constant](1) + ctx.get[Int](0)).quickSimplify))
+    },
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.DE)) & MatchRegister(ZRegister.DE, 0) & MatchConstantInHL(1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      List(ZLine.ldImm16(ZRegister.HL, (ctx.get[Constant](1) + ctx.get[Int](0)).quickSimplify))
+    },
+
+
     (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
       (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L)) ~
       (Elidable & Is8BitLoadTo(ZRegister.L)) ~
@@ -216,7 +283,58 @@ object AlwaysGoodZ80Optimizations {
         code.last)
     },
 
-    (Elidable & HasOpcodeIn(Set(ADD, OR, AND, XOR, SUB)) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(ADD, OR, XOR, SUB)) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
+    (Elidable & HasOpcode(AND) & Has8BitImmediate(0xff) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
+    (Elidable & HasOpcode(AND) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => List(ZLine.ldImm8(ZRegister.A, 0))),
+    (Elidable & HasOpcode(AND) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => List(ZLine.ldImm8(ZRegister.A, 0))),
+
+
+    (Elidable & HasOpcode(OR) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0)) ~
+      (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.S)) & DoesntMatterWhatItDoesWithFlags) ~
+      Where(ctx => ctx.get[Constant](1).isInstanceOf[NumericConstant]) ~~> { (code, ctx) =>
+      val value = (ctx.get[Int](0) | ctx.get[NumericConstant](1).value).toInt & 0xff
+      if (value.&(0x80) == 0) List(ZLine.ldImm8(ZRegister.A, value))
+      else List(ZLine.ldImm8(ZRegister.A, value), code.last.copy(registers = NoRegisters))
+    },
+
+    (Elidable & HasOpcode(OR) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0)) ~
+      (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.S)) & DoesntMatterWhatItDoesWithFlags) ~
+      Where(ctx => ctx.get[Constant](1).isInstanceOf[NumericConstant]) ~~> { (code, ctx) =>
+      val value = (ctx.get[Int](0) | ctx.get[NumericConstant](1).value).toInt & 0xff
+      if (value.&(0x80) != 0) List(ZLine.ldImm8(ZRegister.A, value))
+      else List(ZLine.ldImm8(ZRegister.A, value), code.last.copy(registers = NoRegisters))
+    },
+
+    (Elidable & HasOpcode(ADD) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
+      List(ZLine.ldImm8(ZRegister.A, (ctx.get[Constant](1) + ctx.get[Int](0)).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(SUB) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
+      List(ZLine.ldImm8(ZRegister.A, (NumericConstant(ctx.get[Int](0) & 0xff, 1) - ctx.get[Constant](1)).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(OR) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
+      List(ZLine.ldImm8(ZRegister.A, CompoundConstant(MathOperator.Or, NumericConstant(ctx.get[Int](0) & 0xff, 1), ctx.get[Constant](1)).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(XOR) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
+      List(ZLine.ldImm8(ZRegister.A, CompoundConstant(MathOperator.Exor, NumericConstant(ctx.get[Int](0) & 0xff, 1), ctx.get[Constant](1)).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(AND) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
+      List(ZLine.ldImm8(ZRegister.A, CompoundConstant(MathOperator.And, NumericConstant(ctx.get[Int](0) & 0xff, 1), ctx.get[Constant](1)).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(ADD) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0)) ~
+      (Elidable & HasOpcode(DAA) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
+      List(ZLine.ldImm8(ZRegister.A, CompoundConstant(MathOperator.DecimalPlus, NumericConstant(ctx.get[Int](0) & 0xff, 1), ctx.get[Constant](1)).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(SUB) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0)) ~
+      (Elidable & HasOpcode(DAA) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
+      List(ZLine.ldImm8(ZRegister.A, CompoundConstant(MathOperator.DecimalMinus, NumericConstant(ctx.get[Int](0) & 0xff, 1), ctx.get[Constant](1)).quickSimplify))
+    },
+
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",
@@ -252,16 +370,32 @@ object AlwaysGoodZ80Optimizations {
       )),
   )
 
+  val UnusedCodeRemoval = new RuleBasedAssemblyOptimization("Unreachable code removal",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    (HasOpcodeIn(Set(JP, JR)) & HasRegisters(NoRegisters)) ~ (Not(HasOpcode(LABEL)) & Elidable).+ ~~> (c => c.head :: Nil)
+  )
+
   val UnusedLabelRemoval = new RuleBasedAssemblyOptimization("Unused label removal",
     needsFlowInfo = FlowInfoRequirement.JustLabels,
     (Elidable & HasOpcode(LABEL) & HasCallerCount(0)) ~~> (_ => Nil)
   )
 
+  val BranchInPlaceRemoval = new RuleBasedAssemblyOptimization("Branch in place",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    (HasOpcodeIn(Set(JP, JR)) & MatchJumpTarget(0) & Elidable) ~
+      HasOpcodeIn(ZOpcodeClasses.NoopDiscards).* ~
+      (HasOpcode(LABEL) & MatchJumpTarget(0)) ~~> (c => c.last :: Nil),
+  )
+
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
+    BranchInPlaceRemoval,
+    EmptyMemoryStoreRemoval,
     FreeHL,
     PointlessLoad,
+    PointlessStackStashing,
     ReloadingKnownValueFromMemory,
     SimplifiableMaths,
+    UnusedCodeRemoval,
     UnusedLabelRemoval,
     UsingKnownValueFromAnotherRegister,
   )

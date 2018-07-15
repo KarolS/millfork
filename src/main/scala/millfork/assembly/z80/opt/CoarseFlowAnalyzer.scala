@@ -77,6 +77,10 @@ object CoarseFlowAnalyzer {
           case ZLine(CP, _, _, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
 
+          case ZLine(LD_16, TwoRegisters(t, ZRegister.IMM_16), NumericConstant(value, _), _) =>
+            currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt))
+          case ZLine(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), xx, _) =>
+            currentStatus = currentStatus.setHL(SingleStatus(xx))
           case ZLine(LD, TwoRegisters(t, ZRegister.IMM_8), NumericConstant(value, _), _) =>
             currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt))
           case ZLine(LD, TwoRegistersOffset(t, ZRegister.IMM_8, o), NumericConstant(value, _), _) =>
@@ -88,6 +92,14 @@ object CoarseFlowAnalyzer {
           case ZLine(ADD_16, TwoRegisters(t, s), _, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
               .setRegister(t, (currentStatus.getRegister(t) <*> currentStatus.getRegister(s)) ((m, n) => (m + n) & 0xffff))
+
+          case ZLine(SLA, OneRegister(r), _, _) =>
+            currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+              .setRegister(r, currentStatus.getRegister(r).map(_.<<(1).&(0xff)))
+          case ZLine(SRL, OneRegister(r), _, _) =>
+            currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+              .setRegister(r, currentStatus.getRegister(r).map(_.>>(1).&(0x7f)))
+
           case ZLine(opcode, registers, _, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
             if (ZOpcodeClasses.ChangesAAlways(opcode)) currentStatus = currentStatus.copy(a = AnyStatus)

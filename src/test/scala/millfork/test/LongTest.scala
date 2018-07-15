@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.EmuBenchmarkRun
+import millfork.Cpu
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class LongTest extends FunSuite with Matchers {
 
   test("Long assignment") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output4 @$c000
         | long output2 @$c004
@@ -28,7 +29,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long assignment 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output4 @$c000
         | long output2 @$c004
@@ -51,7 +52,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long addition") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output @$c000
         | void main () {
@@ -71,7 +72,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long addition 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output @$c000
         | void main () {
@@ -85,7 +86,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long subtraction") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output @$c000
         | void main () {
@@ -105,7 +106,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long subtraction 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output @$c000
         | void main () {
@@ -119,7 +120,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long subtraction 3") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output @$c000
         | void main () {
@@ -139,7 +140,7 @@ class LongTest extends FunSuite with Matchers {
   }
 
   test("Long AND") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output @$c000
         | void main () {
@@ -159,7 +160,7 @@ class LongTest extends FunSuite with Matchers {
   }
 
   test("Long INC/DEC") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | long output0 @$c000
         | long output1 @$c004

@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class SignExtensionSuite extends FunSuite with Matchers {
 
   test("Sbyte to Word") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |   sbyte b
@@ -22,7 +22,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
     }
   }
   test("Sbyte to Word 2") {
-    EmuUnoptimizedRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | word output @$c000
         | void main () {
         |   output = b()
@@ -30,10 +30,10 @@ class SignExtensionSuite extends FunSuite with Matchers {
         | sbyte b() {
         |   return -1
         | }
-      """.stripMargin).readWord(0xc000) should equal(0xffff)
+      """.stripMargin){m => m.readWord(0xc000) should equal(0xffff)}
   }
   test("Sbyte to Long") {
-    EmuUnoptimizedRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | long output @$c000
         | void main () {
         |   output = 421
@@ -42,11 +42,11 @@ class SignExtensionSuite extends FunSuite with Matchers {
         | sbyte b() {
         |   return -1
         | }
-      """.stripMargin).readLong(0xc000) should equal(420)
+      """.stripMargin){m => m.readLong(0xc000) should equal(420)}
   }
 
   test("Optimize pointless sign extension") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
         | array output [10] @$c000
         | word w
         | void main () {

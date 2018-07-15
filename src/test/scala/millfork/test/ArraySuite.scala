@@ -67,7 +67,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array assignment through a pointer") {
-    val m = EmuUnoptimizedRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output [3] @$c000
         | pointer p
@@ -80,13 +80,14 @@ class ArraySuite extends FunSuite with Matchers {
         |   w = $105
         |   p[i]:ignored = w
         | }
-      """.stripMargin)
-    m.readByte(0xc001) should equal(1)
+      """.stripMargin) { m =>
+      m.readByte(0xc001) should equal(1)
+    }
 
   }
 
   test("Array in place math") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output [4] @$c000
         | void main () {

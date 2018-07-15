@@ -76,7 +76,7 @@ class ComparisonSuite extends FunSuite with Matchers {
   }
 
   test("Does it even work") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | void main () {
@@ -99,7 +99,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if 2222 == 3333 { output -= 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Word comparison == and !=") {
@@ -122,7 +122,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a != 0 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Word comparison <=") {
@@ -143,7 +143,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a <= c { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
   test("Word comparison <") {
     val src =
@@ -162,7 +162,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a < 257 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
 
@@ -183,7 +183,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if c > 0 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Word comparison >=") {
@@ -206,7 +206,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if a >= 0 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Signed comparison >=") {
@@ -265,7 +265,7 @@ class ComparisonSuite extends FunSuite with Matchers {
   }
 
   test("Multiple params for equality") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -281,7 +281,7 @@ class ComparisonSuite extends FunSuite with Matchers {
   }
 
   test("Multiple params for inequality") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -297,7 +297,7 @@ class ComparisonSuite extends FunSuite with Matchers {
   }
 
   test("Warnings") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -339,7 +339,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if c >  335444 { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Mixed type comparison") {
@@ -357,6 +357,6 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if x < z { output += 1 }
         | }
       """.stripMargin
-    EmuBenchmarkRun(src)(_.readByte(0xc000) should equal(1))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(1))
   }
 }

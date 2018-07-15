@@ -32,6 +32,15 @@ object ZOpcodeClasses {
   val CbInstructions = Set(SLA, SRA, SRL, SLL, BIT, RES, SET)
   val CbInstructionsUnlessA = Set(RLC, RRC, RL, RR)
 
+  val NoopDiscards = Set(DISCARD_F, DISCARD_A, DISCARD_HL, DISCARD_BCDEIX)
+
+  val ChangesAFAlways = Set( // TODO: !
+    DAA, ADD, ADC, SUB, SBC, XOR, OR, AND, INC, DEC,
+    SCF, CCF, NEG,
+    ADD_16, ADC_16, SBC_16, INC_16, DEC_16,
+    INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
+    LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,
+    EXX, CALL, JR, JP, LABEL, DJNZ)
   val ChangesBCAlways = Set(
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,

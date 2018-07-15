@@ -19,6 +19,7 @@ import org.scalatest.Matchers
   * @author Karol Stasiak
   */
 class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[ZLine]]) extends Matchers {
+  def inline: Boolean = false
 
   private val TooManyCycles: Long = 1000000
 
@@ -27,7 +28,9 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     Console.err.flush()
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val extraFlags = Map(CompilationFlag.LenientTextEncoding -> true)
+    val extraFlags = Map(
+      CompilationFlag.InlineFunctions -> this.inline,
+      CompilationFlag.LenientTextEncoding -> true)
     val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0)
     ErrorReporting.hasErrors = false
     ErrorReporting.verbosity = 999
@@ -68,7 +71,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         val assembler = new Z80Assembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)
         println(";;; compiled: -----------------")
-        output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
+        output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("////; DISCARD_")).foreach(println)
         println(";;; ---------------------------")
         assembler.labelMap.foreach { case (l, addr) => println(f"$l%-15s $$$addr%04x") }
 

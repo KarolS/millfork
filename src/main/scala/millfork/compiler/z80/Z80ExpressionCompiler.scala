@@ -12,7 +12,7 @@ import millfork.error.ErrorReporting
   * @author Karol Stasiak
   */
 object ZExpressionTarget extends Enumeration {
-  val A, HL, NOTHING = Value
+  val A, HL, BC, DE, NOTHING = Value
 }
 
 object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
@@ -20,6 +20,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
   def compileToA(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.A)
 
   def compileToHL(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.HL)
+
+  def compileToBC(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.BC)
+
+  def compileToDE(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.DE)
 
   def changesBC(line: ZLine): Boolean = {
     import ZRegister._
@@ -33,6 +37,25 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
       case _ => false
     }
     false
+  }
+
+  def changesAF(line: ZLine): Boolean = {
+    import ZRegister._
+    if (ZOpcodeClasses.ChangesAFAlways(line.opcode)) return true
+    if (ZOpcodeClasses.ChangesFirstRegister(line.opcode)) return line.registers match {
+      case TwoRegisters(A, _) => true
+      case _ => false
+    }
+    if (ZOpcodeClasses.ChangesOnlyRegister(line.opcode)) return line.registers match {
+      case OneRegister(A) => true
+      case _ => false
+    }
+    false
+  }
+
+  def changesF(line: ZLine): Boolean = {
+    // TODO
+    ZOpcodeClasses.ChangesAFAlways(line.opcode)
   }
 
   def changesDE(line: ZLine): Boolean = {
@@ -78,6 +101,12 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
   }
 
 
+  def stashAFIfChanged(lines: List[ZLine]): List[ZLine] = if (lines.exists(changesAF))
+    ZLine.register(PUSH, ZRegister.AF) :: (lines :+ ZLine.register(POP, ZRegister.AF)) else lines
+
+  def stashAFIfChangedF(lines: List[ZLine]): List[ZLine] = if (lines.exists(changesF))
+    ZLine.register(PUSH, ZRegister.AF) :: (lines :+ ZLine.register(POP, ZRegister.AF)) else lines
+
   def stashBCIfChanged(lines: List[ZLine]): List[ZLine] = if (lines.exists(changesBC))
     ZLine.register(PUSH, ZRegister.BC) :: (lines :+ ZLine.register(POP, ZRegister.BC)) else lines
 
@@ -87,27 +116,36 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
   def stashHLIfChanged(lines: List[ZLine]): List[ZLine] = if (lines.exists(changesHL))
     ZLine.register(PUSH, ZRegister.HL) :: (lines :+ ZLine.register(POP, ZRegister.HL)) else lines
 
-  def targetifyA(target: ZExpressionTarget.Value, lines: List[ZLine], isSigned: Boolean): List[ZLine] = target match {
-    case ZExpressionTarget.NOTHING | ZExpressionTarget.A => lines
-    case ZExpressionTarget.HL => lines ++ (if (isSigned) {
-      val label = Z80Compiler.nextLabel("sx")
-      List(
-        ZLine.ld8(ZRegister.L, ZRegister.A),
-        ZLine.ldImm8(ZRegister.H, 0xff),
-        ZLine.imm8(OR, 0x7f),
-        ZLine.jump(label, IfFlagSet(ZFlag.S)), // TODO: gameboy has no S flag
-        ZLine.ldImm8(ZRegister.H, 0),
-        ZLine.label(label))
-    } else {
-      List(
-        ZLine.ld8(ZRegister.L, ZRegister.A),
-        ZLine.ldImm8(ZRegister.H, 0))
-    })
+  def targetifyA(target: ZExpressionTarget.Value, lines: List[ZLine], isSigned: Boolean): List[ZLine] = {
+    def toWord(h:ZRegister.Value, l: ZRegister.Value) ={
+      lines ++ (if (isSigned) {
+              val label = Z80Compiler.nextLabel("sx")
+              List(
+                ZLine.ld8(l, ZRegister.A),
+                ZLine.ldImm8(h, 0xff),
+                ZLine.imm8(OR, 0x7f),
+                ZLine.jump(label, IfFlagSet(ZFlag.S)), // TODO: gameboy has no S flag
+                ZLine.ldImm8(h, 0),
+                ZLine.label(label))
+            } else {
+              List(
+                ZLine.ld8(l, ZRegister.A),
+                ZLine.ldImm8(h, 0))
+            })
+    }
+    target match {
+      case ZExpressionTarget.NOTHING | ZExpressionTarget.A => lines
+      case ZExpressionTarget.HL => toWord(ZRegister.H, ZRegister.L)
+      case ZExpressionTarget.BC => toWord(ZRegister.B, ZRegister.C)
+      case ZExpressionTarget.DE => toWord(ZRegister.D, ZRegister.E)
+    }
   }
 
   def targetifyHL(target: ZExpressionTarget.Value, lines: List[ZLine]): List[ZLine] = target match {
     case ZExpressionTarget.NOTHING | ZExpressionTarget.HL => lines
     case ZExpressionTarget.A => lines :+ ZLine.ld8(ZRegister.A, ZRegister.L)
+    case ZExpressionTarget.BC => lines ++ List(ZLine.ld8(ZRegister.C, ZRegister.L), ZLine.ld8(ZRegister.B, ZRegister.H))
+    case ZExpressionTarget.DE => lines ++ List(ZLine.ld8(ZRegister.E, ZRegister.L), ZLine.ld8(ZRegister.D, ZRegister.H))
   }
 
   def compile(ctx: CompilationContext, expression: Expression, target: ZExpressionTarget.Value, branches: BranchSpec = BranchSpec.None): List[ZLine] = {
@@ -121,6 +159,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             List(ZLine.ldImm8(ZRegister.A, const))
           case ZExpressionTarget.HL =>
             List(ZLine.ldImm16(ZRegister.HL, const))
+          case ZExpressionTarget.BC =>
+            List(ZLine.ldImm16(ZRegister.BC, const))
+          case ZExpressionTarget.DE =>
+            List(ZLine.ldImm16(ZRegister.DE, const))
           case ZExpressionTarget.NOTHING =>
             Nil // TODO
         }
@@ -135,8 +177,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 1 => loadByte(v.toAddress, target)
                   case 2 => target match {
                     case ZExpressionTarget.NOTHING => Nil
-                    case ZExpressionTarget.HL =>
-                      List(ZLine.ldAbs16(ZRegister.HL, v))
+                    case ZExpressionTarget.HL => List(ZLine.ldAbs16(ZRegister.HL, v))
+                    case ZExpressionTarget.BC => List(ZLine.ldAbs16(ZRegister.BC, v))
+                    case ZExpressionTarget.DE => List(ZLine.ldAbs16(ZRegister.DE, v))
                   }
                   case _ => ???
                 }
@@ -148,6 +191,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     case ZExpressionTarget.NOTHING => Nil
                     case ZExpressionTarget.HL =>
                       List(ZLine.ldViaIx(ZRegister.L, v.baseOffset), ZLine.ldViaIx(ZRegister.H, v.baseOffset + 1))
+                    case ZExpressionTarget.BC =>
+                      List(ZLine.ldViaIx(ZRegister.C, v.baseOffset), ZLine.ldViaIx(ZRegister.B, v.baseOffset + 1))
+                    case ZExpressionTarget.DE =>
+                      List(ZLine.ldViaIx(ZRegister.E, v.baseOffset), ZLine.ldViaIx(ZRegister.D, v.baseOffset + 1))
                   }
                   case _ => ???
                 }
@@ -176,6 +223,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     case ZExpressionTarget.NOTHING => Nil
                     case ZExpressionTarget.A=> List(ZLine.ld8(ZRegister.A, ZRegister.H))
                     case ZExpressionTarget.HL=> List(ZLine.ld8(ZRegister.L, ZRegister.H), ZLine.ldImm8(ZRegister.H, 0))
+                    case ZExpressionTarget.BC=> List(ZLine.ld8(ZRegister.C, ZRegister.H), ZLine.ldImm8(ZRegister.B, 0))
+                    case ZExpressionTarget.DE=> List(ZLine.ld8(ZRegister.E, ZRegister.H), ZLine.ldImm8(ZRegister.D, 0))
                   })
                 }
               case "lo" =>
@@ -187,6 +236,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     case ZExpressionTarget.NOTHING => Nil
                     case ZExpressionTarget.A => List(ZLine.ld8(ZRegister.A, ZRegister.L))
                     case ZExpressionTarget.HL => List(ZLine.ldImm8(ZRegister.H, 0))
+                    case ZExpressionTarget.BC => List(ZLine.ld8(ZRegister.C, ZRegister.L), ZLine.ldImm8(ZRegister.B, 0))
+                    case ZExpressionTarget.DE => List(ZLine.ld8(ZRegister.E, ZRegister.L), ZLine.ldImm8(ZRegister.D, 0))
                   })
                 }
               case "nonet" =>
@@ -203,6 +254,24 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                           ZLine.ld8(ZRegister.L, ZRegister.A),
                           ZLine.ldImm8(ZRegister.H, 0),
                           ZLine.register(RL, ZRegister.H))
+                      } else {
+                        ???
+                      }
+                    case ZExpressionTarget.BC =>
+                      if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+                        List(
+                          ZLine.ld8(ZRegister.C, ZRegister.A),
+                          ZLine.ldImm8(ZRegister.B, 0),
+                          ZLine.register(RL, ZRegister.B))
+                      } else {
+                        ???
+                      }
+                    case ZExpressionTarget.DE =>
+                      if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+                        List(
+                          ZLine.ld8(ZRegister.C, ZRegister.A),
+                          ZLine.ldImm8(ZRegister.B, 0),
+                          ZLine.register(RL, ZRegister.B))
                       } else {
                         ???
                       }
@@ -237,7 +306,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 1 => targetifyA(target, ZBuiltIns.compile8BitOperation(ctx, AND, params), isSigned = false)
                   case 2 => targetifyHL(target, ZBuiltIns.compile16BitOperation(ctx, AND, params))
                 }
-              case "*" => ???
+              case "*" =>
+                assertAllBytes("Long multiplication not supported", ctx, params)
+                targetifyA(target, Z80Multiply.compile8BitMultiply(ctx, params), isSigned = false)
               case "|" =>
                 getParamMaxSize(ctx, params) match {
                   case 1 => targetifyA(target, ZBuiltIns.compile8BitOperation(ctx, OR, params), isSigned = false)
@@ -278,7 +349,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 compileTransitiveRelation(ctx, "<", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
-                    case _ => ???
+                    case 2 => Z80Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
+                    case _ => Z80Comparisons.compileLongRelativeComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
                   }
                 }
               case ">=" =>
@@ -286,7 +358,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 compileTransitiveRelation(ctx, ">=", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
-                    case _ => ???
+                    case 2 => Z80Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
+                    case _ => Z80Comparisons.compileLongRelativeComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
                   }
                 }
               case ">" =>
@@ -294,7 +367,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 compileTransitiveRelation(ctx, ">", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
-                    case _ => ???
+                    case 2 => Z80Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
+                    case _ => Z80Comparisons.compileLongRelativeComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
                   }
                 }
               case "<=" =>
@@ -302,7 +376,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 compileTransitiveRelation(ctx, "<=", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
-                    case _ => ???
+                    case 2 => Z80Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
+                    case _ => Z80Comparisons.compileLongRelativeComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
                   }
                 }
               case "==" =>
@@ -310,7 +385,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 compileTransitiveRelation(ctx, "==", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, ComparisonType.Equal, l, r, branches)
-                    case _ => ???
+                    case 2 => Z80Comparisons.compile16BitComparison(ctx, ComparisonType.Equal, l, r, branches)
+                    case _ => Z80Comparisons.compileLongEqualityComparison(ctx, ComparisonType.Equal, l, r, branches)
                   }
                 }
               case "!=" =>
@@ -318,7 +394,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 compileTransitiveRelation(ctx, "!=", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
-                    case _ => ???
+                    case 2 => Z80Comparisons.compile16BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
+                    case _ => Z80Comparisons.compileLongEqualityComparison(ctx, ComparisonType.NotEqual, l, r, branches)
                   }
                 }
               case "+=" =>
@@ -369,7 +446,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case "*=" =>
                 assertAllBytes("Long multiplication not supported", ctx, params)
                 val (l, r, 1) = assertAssignmentLike(ctx, params)
-                ???
+                Z80Multiply.compile8BitInPlaceMultiply(ctx, l, r)
               case "*'=" =>
                 assertAllBytes("Long multiplication not supported", ctx, params)
                 val (l, r, 1) = assertAssignmentLike(ctx, params)
@@ -471,6 +548,24 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
+  def calculateLoadAndStoreForByte(ctx: CompilationContext, expr: LhsExpression): (List[ZLine], List[ZLine]) = {
+    Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, expr) match {
+      case Some((LocalVariableAddressViaHL, calculate)) =>
+        (calculate :+ ZLine.ld8(ZRegister.A, ZRegister.MEM_HL)) -> List(ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+      case Some((LocalVariableAddressViaIX(offset), calculate)) =>
+        (calculate :+ ZLine.ldViaIx(ZRegister.A, offset)) -> List(ZLine.ldViaIx(offset, ZRegister.A))
+      case Some((LocalVariableAddressViaIY(offset), calculate)) =>
+        (calculate :+ ZLine.ldViaIy(ZRegister.A, offset)) -> List(ZLine.ldViaIy(offset, ZRegister.A))
+      case None => expr match {
+        case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
+          val lo = calculateLoadAndStoreForByte(ctx, l)
+          val (_, hiStore) = calculateLoadAndStoreForByte(ctx, h)
+          lo._1 -> (lo._2 ++ List(ZLine.ldImm8(ZRegister.A, 0)) ++ hiStore)
+        case _ => ???
+      }
+    }
+  }
+
   def calculateAddressToAppropriatePointer(ctx: CompilationContext, expr: LhsExpression): Option[(LocalVariableAddressOperand, List[ZLine])] = {
     val env = ctx.env
     expr match {
@@ -515,6 +610,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
       case ZExpressionTarget.NOTHING => Nil
       case ZExpressionTarget.A => List(ZLine.ldAbs8(ZRegister.A, sourceAddr))
       case ZExpressionTarget.HL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0))
+      case ZExpressionTarget.BC => List(ZLine.ldAbs8(ZRegister.A, sourceAddr), ZLine.ld8(ZRegister.C, ZRegister.A), ZLine.ldImm8(ZRegister.B, 0))
+      case ZExpressionTarget.DE => List(ZLine.ldAbs8(ZRegister.A, sourceAddr), ZLine.ld8(ZRegister.E, ZRegister.A), ZLine.ldImm8(ZRegister.D, 0))
     }
   }
 
@@ -522,7 +619,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     target match {
       case ZExpressionTarget.NOTHING => Nil
       case ZExpressionTarget.A => List(ZLine.ldViaIx(ZRegister.A, offset))
-      case ZExpressionTarget.HL => List(ZLine.ldViaIx(ZRegister.A, offset), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0))
+      case ZExpressionTarget.HL => List(ZLine.ldViaIx(ZRegister.L, offset), ZLine.ldImm8(ZRegister.H, 0))
+      case ZExpressionTarget.BC => List(ZLine.ldViaIx(ZRegister.C, offset), ZLine.ldImm8(ZRegister.B, 0))
+      case ZExpressionTarget.DE => List(ZLine.ldViaIx(ZRegister.E, offset), ZLine.ldImm8(ZRegister.D, 0))
     }
   }
 
@@ -530,20 +629,16 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     target match {
       case ZExpressionTarget.NOTHING => Nil
       case ZExpressionTarget.A => List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL))
-      case ZExpressionTarget.HL => List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0))
+      case ZExpressionTarget.HL => List(ZLine.ld8(ZRegister.L, ZRegister.MEM_HL), ZLine.ldImm8(ZRegister.H, 0))
+      case ZExpressionTarget.BC => List(ZLine.ld8(ZRegister.C, ZRegister.MEM_HL), ZLine.ldImm8(ZRegister.B, 0))
+      case ZExpressionTarget.DE => List(ZLine.ld8(ZRegister.E, ZRegister.MEM_HL), ZLine.ldImm8(ZRegister.D, 0))
     }
   }
 
   def signExtend(targetAddr: Constant, hiRegister: ZRegister.Value, bytes: Int, signedSource: Boolean): List[ZLine] = {
     if (bytes == 0) return Nil
     val prepareA = if (signedSource) {
-      val prefix = if (hiRegister == ZRegister.A) Nil else List(ZLine.ld8(ZRegister.A, hiRegister))
-      val label = Z80Compiler.nextLabel("sx")
-      prefix ++ List(
-        ZLine.imm8(OR, 0x7f),
-        ZLine.jump(label, IfFlagSet(ZFlag.S)),
-        ZLine.ldImm8(ZRegister.A, 0),
-        ZLine.label(label))
+      signExtendHighestByte(hiRegister)
     } else {
       List(ZLine.ldImm8(ZRegister.A, 0))
     }
@@ -551,16 +646,20 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     prepareA ++ fillUpperBytes
   }
 
+  private def signExtendHighestByte(hiRegister: ZRegister.Value) = {
+    val prefix = if (hiRegister == ZRegister.A) Nil else List(ZLine.ld8(ZRegister.A, hiRegister))
+    val label = Z80Compiler.nextLabel("sx")
+    prefix ++ List(
+      ZLine.imm8(OR, 0x7f),
+      ZLine.jump(label, IfFlagSet(ZFlag.S)),
+      ZLine.ldImm8(ZRegister.A, 0),
+      ZLine.label(label))
+  }
+
   def signExtendViaIX(targetOffset: Int, hiRegister: ZRegister.Value, bytes: Int, signedSource: Boolean): List[ZLine] = {
     if (bytes == 0) return Nil
     val prepareA = if (signedSource) {
-      val prefix = if (hiRegister == ZRegister.A) Nil else List(ZLine.ld8(ZRegister.A, hiRegister))
-      val label = Z80Compiler.nextLabel("sx")
-      prefix ++ List(
-        ZLine.imm8(OR, 0x7f),
-        ZLine.jump(label, IfFlagSet(ZFlag.S)),
-        ZLine.ldImm8(ZRegister.A, 0),
-        ZLine.label(label))
+      signExtendHighestByte(hiRegister)
     } else {
       List(ZLine.ldImm8(ZRegister.A, 0))
     }
@@ -639,8 +738,25 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case (None, offset) => ZLine.ld8(ZRegister.A, ZRegister.L) :: storeA((p.value + offset).quickSimplify, 1, signedSource)
             }
         }
-      //TODO
-      case SeparateBytesExpression(hi, lo) => ???
+      case SeparateBytesExpression(hi: LhsExpression, lo: LhsExpression) =>
+        Z80ExpressionCompiler.stashHLIfChanged(ZLine.ld8(ZRegister.A, ZRegister.L) :: storeA(ctx, lo, signedSource)) ++
+          (ZLine.ld8(ZRegister.A, ZRegister.H) :: storeA(ctx, hi, signedSource))
+      case _: SeparateBytesExpression =>
+        ErrorReporting.error("Invalid `:`", target.position)
+        Nil
+    }
+  }
+
+  def storeLarge(ctx: CompilationContext, target: LhsExpression, source: Expression): List[ZLine] = {
+    val env = ctx.env
+    target match {
+      case VariableExpression(vname) =>
+        env.get[Variable](vname) match {
+          case v: Variable =>
+            val size = v.typ.size
+            compileByteReads(ctx, source, size, ZExpressionTarget.HL).zip(compileByteStores(ctx, target, size)).flatMap(t => t._1 ++ t._2)
+        }
+      case _ => ???
     }
   }
 
@@ -679,7 +795,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def compileByteReads(ctx: CompilationContext, rhs: Expression, size: Int): List[List[ZLine]] = {
+  def compileByteReads(ctx: CompilationContext, rhs: Expression, size: Int, temporaryTarget: ZExpressionTarget.Value): List[List[ZLine]] = {
     if (size == 1) throw new IllegalArgumentException
     val env = ctx.env
     env.eval(rhs) match {
@@ -691,20 +807,20 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             env.get[Variable](vname) match {
               case v: VariableInMemory =>
                 List.tabulate(size) { i =>
-                  if (i < size) {
+                  if (i < v.typ.size) {
                     List(ZLine.ldAbs8(ZRegister.A, v.toAddress + i))
                   } else if (v.typ.isSigned) {
-                    ???
+                    ZLine.ldAbs8(ZRegister.A, v.toAddress + v.typ.size - 1) :: signExtendHighestByte(ZRegister.A)
                   } else {
                     List(ZLine.ldImm8(ZRegister.A, 0))
                   }
                 }
               case v: StackVariable =>
                 List.tabulate(size) { i =>
-                  if (i < size) {
+                  if (i < v.typ.size) {
                     List(ZLine.ldViaIx(ZRegister.A, v.baseOffset + i))
                   } else if (v.typ.isSigned) {
-                    ???
+                    ZLine.ldViaIx(ZRegister.A, v.baseOffset + v.typ.size - 1) :: signExtendHighestByte(ZRegister.A)
                   } else {
                     List(ZLine.ldImm8(ZRegister.A, 0))
                   }
@@ -721,15 +837,42 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               }
             }
           case _ =>
-            List.tabulate(size) { i =>
-              if (i == 0) {
-                compileToHL(ctx, rhs) :+ ZLine.ld8(ZRegister.A, ZRegister.L)
-              } else if (i == 1) {
-                List(ZLine.ld8(ZRegister.A, ZRegister.H))
-              } else {
-                // TODO: signed words?
-                List(ZLine.ldImm8(ZRegister.A, 0))
-              }
+            val (h, l) = temporaryTarget match {
+              case ZExpressionTarget.HL => ZRegister.H -> ZRegister.L
+              case ZExpressionTarget.BC => ZRegister.B -> ZRegister.C
+              case ZExpressionTarget.DE => ZRegister.D -> ZRegister.E
+              case _ => throw new IllegalArgumentException("temporaryTarget")
+            }
+            val typ = getExpressionType(ctx, rhs)
+            typ.size match {
+              case 1 =>
+                List.tabulate(size) { i =>
+                  if (i == 0) {
+                    if (typ.isSigned) {
+                      (compileToA(ctx, rhs) :+ ZLine.ld8(l, ZRegister.A)) ++
+                        signExtendHighestByte(ZRegister.A) ++ List(ZLine.ld8(h, ZRegister.A), ZLine.ld8(ZRegister.A, l))
+                    } else {
+                      compileToA(ctx, rhs)
+                    }
+                  } else if (typ.isSigned) {
+                    List(ZLine.ld8(ZRegister.A, h))
+                  } else {
+                    // TODO: signed words?
+                    List(ZLine.ldImm8(ZRegister.A, 0))
+                  }
+                }
+              case 2 =>
+                List.tabulate(size) { i =>
+                  if (i == 0) {
+                    compile(ctx, rhs, temporaryTarget, BranchSpec.None) :+ ZLine.ld8(ZRegister.A, l)
+                  } else if (i == 1) {
+                    List(ZLine.ld8(ZRegister.A, h))
+                  } else {
+                    // TODO: signed words?
+                    List(ZLine.ldImm8(ZRegister.A, 0))
+                  }
+                }
+              case _ => ???
             }
         }
     }

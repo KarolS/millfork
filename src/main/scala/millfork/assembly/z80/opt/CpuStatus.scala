@@ -3,6 +3,7 @@ package millfork.assembly.z80.opt
 
 import millfork.assembly.opt._
 import millfork.assembly.z80.ZFlag
+import millfork.env.{Constant, NumericConstant}
 import millfork.node.ZRegister
 
 /**
@@ -16,6 +17,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      e: Status[Int] = UnknownStatus,
                      h: Status[Int] = UnknownStatus,
                      l: Status[Int] = UnknownStatus,
+                     hl: Status[Constant] = UnknownStatus,
                      ixh: Status[Int] = UnknownStatus,
                      ixl: Status[Int] = UnknownStatus,
                      iyh: Status[Int] = UnknownStatus,
@@ -36,8 +38,8 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case ZRegister.C => this.copy(c = value)
     case ZRegister.D => this.copy(d = value)
     case ZRegister.E => this.copy(e = value)
-    case ZRegister.H => this.copy(h = value)
-    case ZRegister.L => this.copy(l = value)
+    case ZRegister.H => this.copy(h = value, hl = AnyStatus)
+    case ZRegister.L => this.copy(l = value, hl = AnyStatus)
     case ZRegister.IXH => this.copy(ixh = value)
     case ZRegister.IXL => this.copy(ixl = value)
     case ZRegister.IYH => this.copy(iyh = value)
@@ -54,7 +56,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case ZRegister.SP => this
     case ZRegister.BC => this.copy(b = value.hi, c = value.lo)
     case ZRegister.DE => this.copy(d = value.hi, e = value.lo)
-    case ZRegister.HL => this.copy(h = value.hi, l = value.lo)
+    case ZRegister.HL => this.copy(h = value.hi, l = value.lo, hl = value.map(NumericConstant(_, 2)))
     case ZRegister.IX => this.copy(ixh = value.hi, ixl = value.lo)
     case ZRegister.IY => this.copy(iyh = value.hi, iyl = value.lo)
     case ZRegister.AF => this.copy(a = value.hi, cf = AnyStatus, zf = AnyStatus, hf = AnyStatus, pf = AnyStatus, sf = AnyStatus)
@@ -122,6 +124,13 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     pf = this.pf ~ that.pf,
     hf = this.hf ~ that.hf,
   )
+
+  def setHL(c: Status[Constant]): CpuStatus = c match {
+    case SingleStatus(NumericConstant(nn, _)) => this.copy(l = SingleStatus(nn.toInt.&(0xff)), h = SingleStatus(nn.toInt.&(0xff00).>>(8)), hl = c)
+    case SingleStatus(cc) => this.copy(l = AnyStatus, h = AnyStatus, hl = c)
+    case AnyStatus => this.copy(l = AnyStatus, h = AnyStatus, hl = AnyStatus)
+    case UnknownStatus => this.copy(l = UnknownStatus, h = UnknownStatus, hl = UnknownStatus)
+  }
 
 
   override def toString: String = {

@@ -114,7 +114,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
       if (i eq null) {
         ErrorReporting.fatal(s"Value at index $i is null")
       } else {
-        ErrorReporting.fatal(s"Value at index $i is a ${t.getClass.getSimpleName}, not a ${clazz.getSimpleName}")
+        throw new IllegalStateException(s"Value at index $i is a ${t.getClass.getSimpleName}, not a ${clazz.getSimpleName}")
       }
     }
   }
@@ -469,7 +469,14 @@ case class MatchImmediate(i: Int) extends AssemblyLinePattern {
     }
 }
 
-case class RegisterAndOffset(register: ZRegister.Value, offset: Int)
+case class RegisterAndOffset(register: ZRegister.Value, offset: Int) {
+  def toOneRegister: ZRegisters = register match {
+    case ZRegister.MEM_IX_D | ZRegister.MEM_IY_D => OneRegisterOffset(register, offset)
+    case _ =>
+      if (offset != 0) ???
+      OneRegister(register)
+  }
+}
 
 case class MatchSourceRegisterAndOffset(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
@@ -495,7 +502,10 @@ case class DoesntChangeMatchedRegisterAndOffset(i: Int) extends AssemblyLinePatt
     import ZRegister._
     ro.register match {
       case AF | SP => false // ?
-      case MEM_ABS_8 | MEM_ABS_16 | MEM_HL | MEM_DE | MEM_BC => !line.changesMemory
+      case MEM_ABS_8 | MEM_ABS_16 => !line.changesMemory
+      case MEM_HL => !line.changesMemory && !line.changesRegister(ZRegister.HL)
+      case MEM_BC => !line.changesMemory && !line.changesRegister(ZRegister.BC)
+      case MEM_DE => !line.changesMemory && !line.changesRegister(ZRegister.DE)
       case _ => !line.changesRegisterAndOffset(ro.register, ro.offset)
     }
   }
@@ -507,6 +517,24 @@ case class MatchParameter(i: Int) extends AssemblyLinePattern {
       case TwoRegisters(_, ZRegister.IMM_16 | ZRegister.IMM_8 | ZRegister.MEM_ABS_8 | ZRegister.MEM_ABS_16) |
            TwoRegisters(ZRegister.IMM_16 | ZRegister.IMM_8 | ZRegister.MEM_ABS_8 | ZRegister.MEM_ABS_16, _) |
            OneRegister(ZRegister.IMM_8 | ZRegister.IMM_16 | ZRegister.MEM_ABS_8 | ZRegister.MEM_ABS_16) => ctx.addObject(i, line.parameter.quickSimplify)
+      case _ => false
+    }
+}
+
+case class MatchJumpTarget(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers match {
+      case NoRegisters | IfFlagClear(_) | IfFlagSet(_) => ctx.addObject(i, line.parameter.quickSimplify)
+      case _ => false
+    }
+}
+
+case class MatchConstantInHL(i: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    flowInfo.statusBefore.hl match {
+      case SingleStatus(value) => ctx.addObject(i, value)
       case _ => false
     }
 }
@@ -827,6 +855,16 @@ case class Has8BitImmediate(i: Int) extends TrivialAssemblyLinePattern {
   })
 
   override def toString: String = "#" + i
+}
+
+
+case class Match8BitImmediate(i: Int) extends AssemblyLinePattern {
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = line.registers match {
+    case TwoRegisters(_, ZRegister.IMM_8) => ctx.addObject(i, line.parameter)
+    case OneRegister(ZRegister.IMM_8) => ctx.addObject(i, line.parameter)
+    case _ => false
+  }
 }
 
 case class HasImmediateWhere(predicate: Int => Boolean) extends TrivialAssemblyLinePattern {

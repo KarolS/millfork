@@ -368,11 +368,12 @@ object ZBuiltIns {
       }
     }
     val store = Z80ExpressionCompiler.compileByteStores(ctx, lhs, size)
-    val loadLeft = Z80ExpressionCompiler.compileByteReads(ctx, lhs, size)
-    val loadRight = Z80ExpressionCompiler.compileByteReads(ctx, rhs, size)
+    val loadLeft = Z80ExpressionCompiler.compileByteReads(ctx, lhs, size, ZExpressionTarget.HL)
+    val loadRight = Z80ExpressionCompiler.compileByteReads(ctx, rhs, size, ZExpressionTarget.BC)
     List.tabulate(size) {i =>
       // TODO: stash things correctly?
-      val firstPhase = loadRight(i) ++ List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++ (loadLeft(i) :+ ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.E))
+      val firstPhase = loadRight(i) ++ List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
+        (Z80ExpressionCompiler.stashBCIfChanged(loadLeft(i)) :+ ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.E))
       val secondPhase = if (decimal) firstPhase :+ ZLine.implied(ZOpcode.DAA) else firstPhase
       secondPhase ++ store(i)
     }.flatten

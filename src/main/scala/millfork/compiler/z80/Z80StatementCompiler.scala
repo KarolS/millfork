@@ -68,7 +68,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
           case 0 => ???
           case 1 => Z80ExpressionCompiler.compileToA(ctx, source) ++ Z80ExpressionCompiler.storeA(ctx, destination, sourceType.isSigned)
           case 2 => Z80ExpressionCompiler.compileToHL(ctx, source) ++ Z80ExpressionCompiler.storeHL(ctx, destination, sourceType.isSigned)
-          case _ => ??? // large object copy
+          case s => Z80ExpressionCompiler.storeLarge(ctx, destination, source)
         }
       case s: IfStatement =>
         compileIfStatement(ctx, s)

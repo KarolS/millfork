@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ByteMathSuite extends FunSuite with Matchers {
 
   test("Complex expression") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -23,7 +23,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   test("Byte addition") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | byte a
@@ -35,7 +35,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   test("Byte addition 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | byte a
@@ -47,7 +47,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place byte addition") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output[3] @$c000
         | byte a
@@ -101,7 +101,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place byte addition 2") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | array output[3] @$c000
         | void main () {
@@ -137,7 +137,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   private def multiplyCase1(x: Int, y: Int): Unit = {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       s"""
          | byte output @$$c000
          | void main () {
@@ -165,7 +165,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   private def multiplyCase2(x: Int, y: Int): Unit = {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       s"""
          | byte output @$$c000
          | void main () {
@@ -178,7 +178,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   test("Byte multiplication 2") {
-    EmuUltraBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | import zp_reg
         | byte output1 @$c001
@@ -212,8 +212,15 @@ class ByteMathSuite extends FunSuite with Matchers {
         | }
         |
         | noinline void crash_if_bad() {
+        | #if ARCH_6502
         |   if output1 != 20 { asm { lda $bfff }}
         |   if output2 != 27 { asm { lda $bfff }}
+        | #elseif ARCH_Z80
+        |   if output1 != 20 { asm { ld a,($bfff) }}
+        |   if output2 != 27 { asm { ld a,($bfff) }}
+        | #else
+        | #error unsupported architecture
+        | #endif
         | }
       """.stripMargin){m =>
       m.readByte(0xc002) should equal(27)
@@ -238,7 +245,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   private def multiplyCase3(x: Int, y: Int): Unit = {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       s"""
          | import zp_reg
          | byte output @$$c000
