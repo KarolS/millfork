@@ -23,6 +23,7 @@ import millfork.node.Position
 
 sealed trait Constant {
   def isProvablyZero: Boolean = false
+  def isProvably(value: Int): Boolean = false
 
   def asl(i: Constant): Constant = i match {
     case NumericConstant(sa, _) => asl(sa.toInt)
@@ -79,6 +80,7 @@ sealed trait Constant {
 
 case class AssertByte(c: Constant) extends Constant {
   override def isProvablyZero: Boolean = c.isProvablyZero
+  override def isProvably(i: Int): Boolean = c.isProvably(i)
 
   override def requiredSize: Int = 1
 
@@ -102,6 +104,7 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
     }
   }
   override def isProvablyZero: Boolean = value == 0
+  override def isProvably(i: Int): Boolean = value == i
 
   override def isLowestByteAlwaysEqual(i: Int) : Boolean = (value & 0xff) == (i&0xff)
 
@@ -217,6 +220,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Exor => lv ^ rv
           case MathOperator.Or => lv | rv
           case MathOperator.And => lv & rv
+          case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
+            asDecimal(lv, rv, _ + _) & 0xff
           case _ => return this
         }
         operator match {
@@ -267,6 +272,35 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case _ => CompoundConstant(operator, l, r)
     }
   }
+
+  private def parseNormalToDecimalValue(a: Long): Long = {
+    if (a < 0) -parseNormalToDecimalValue(-a)
+    var x = a
+    var result = 0L
+    var multiplier = 1L
+    while (x > 0) {
+      result += multiplier * (x % 16L)
+      x /= 16L
+      multiplier *= 10L
+    }
+    result
+  }
+
+  private def storeDecimalValueInNormalRespresentation(a: Long): Long = {
+    if (a < 0) -storeDecimalValueInNormalRespresentation(-a)
+    var x = a
+    var result = 0L
+    var multiplier = 1L
+    while (x > 0) {
+      result += multiplier * (x % 10L)
+      x /= 10L
+      multiplier *= 16L
+    }
+    result
+  }
+
+  private def asDecimal(a: Long, b: Long, f: (Long, Long) => Long): Long =
+    storeDecimalValueInNormalRespresentation(f(parseNormalToDecimalValue(a), parseNormalToDecimalValue(b)))
 
 
   import MathOperator._
