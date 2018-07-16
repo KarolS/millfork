@@ -240,7 +240,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
   
-  private def root: Environment = parent.fold(this)(_.root)  
+  def root: Environment = parent.fold(this)(_.root)
 
   def maybeGet[T <: Thing : Manifest](name: String): Option[T] = {
     if (things.contains(name)) {
@@ -1108,6 +1108,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def nameCheck(node: Node): Unit = node match {
     case _:MosAssemblyStatement => ()
+    case _:Z80AssemblyStatement => ()
     case _:DeclarationStatement => ()
     case s:ForStatement =>
       checkName[Variable]("Variable", s.variable, s.position)
