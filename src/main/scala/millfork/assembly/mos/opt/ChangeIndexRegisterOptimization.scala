@@ -1,8 +1,7 @@
 package millfork.assembly.mos.opt
 
-import millfork.CompilationOptions
 import millfork.assembly.mos.{AssemblyLine, OpcodeClasses}
-import millfork.assembly.AssemblyOptimization
+import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env.NormalFunction
 import millfork.error.ErrorReporting
 
@@ -33,7 +32,7 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
 
   override def name = "Changing index registers"
 
-  override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val usesX = code.exists(l =>
       OpcodeClasses.ReadsXAlways(l.opcode) ||
         OpcodeClasses.ReadsYAlways(l.opcode) ||

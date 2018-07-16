@@ -57,7 +57,7 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
     )
     val optionsForMeasurements = options.copy(commandLineFlags = options.commandLineFlags + (CompilationFlag.InternalCurrentlyOptimizingForMeasurement -> true))
     val optimizationContextForMeasurements = optimizationContext.copy(options = optionsForMeasurements)
-    val quicklyCleanedCode = quickScrub.foldLeft(code)((c, o) => o.optimize(m, c, optionsForMeasurements))
+    val quicklyCleanedCode = quickScrub.foldLeft(code)((c, o) => o.optimize(m, c, optimizationContextForMeasurements))
     seenSoFar += viewCode(quicklyCleanedCode)
     queue.enqueue(quickScrub.reverse -> quicklyCleanedCode)
 
@@ -91,7 +91,7 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
     ErrorReporting.debug(s"Visited ${leaves.size} leaves")
     ErrorReporting.debug(s"${code.map(_.sizeInBytes).sum} B -> ${result._2.map(_.sizeInBytes).sum} B:   ${result._1.reverse.map(_.name).mkString(" -> ")}")
     result._1.reverse.foldLeft(code){(c, opt) =>
-      val n = opt.optimize(m, c, options)
+      val n = opt.optimize(m, c, optimizationContext)
 //      println(c.mkString("","",""))
 //      println(n.mkString("","",""))
       n

@@ -1,9 +1,8 @@
 package millfork.assembly.mos.opt
 
-import millfork.CompilationOptions
 import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.AssemblyOptimization
+import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env._
 import millfork.error.ErrorReporting
 
@@ -12,7 +11,7 @@ import millfork.error.ErrorReporting
   */
 object UnusedLabelRemoval extends AssemblyOptimization[AssemblyLine] {
 
-  override def optimize(f: NormalFunction, code: List[AssemblyLine], options: CompilationOptions): List[AssemblyLine] = {
+  override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val usedLabels = code.flatMap {
       case AssemblyLine(LABEL, _, _, _) => None
       case AssemblyLine(_, _, MemoryAddressConstant(Label(l)), _) => Some(l)

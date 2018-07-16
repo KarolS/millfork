@@ -29,9 +29,15 @@ object FlowInfoRequirement extends Enumeration {
   }
 }
 
-class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInfoRequirement.Value, val rules: AssemblyRule*) extends AssemblyOptimization[AssemblyLine] {
+trait AssemblyRuleSet{
+  def flatten: Seq[AssemblyRule]
+}
 
-  rules.foreach(_.pattern.validate(needsFlowInfo))
+class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInfoRequirement.Value, val rules: AssemblyRuleSet*) extends AssemblyOptimization[AssemblyLine] {
+
+  private val actualRules = rules.flatMap(_.flatten)
+  actualRules.foreach(_.pattern.validate(needsFlowInfo))
+
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val effectiveCode = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
@@ -43,8 +49,8 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
     code match {
       case Nil => Nil
       case head :: tail =>
-        for ((rule, index) <- rules.zipWithIndex) {
-          val ctx = new AssemblyMatchingContext(optimizationContext.options, optimizationContext.labelMap, optimizationContext.niceFunctionProperties)
+        for ((rule, index) <- actualRules.zipWithIndex) {
+          val ctx = new AssemblyMatchingContext(optimizationContext.options, optimizationContext.labelMap, optimizationContext.zreg, optimizationContext.niceFunctionProperties)
           rule.pattern.matchTo(ctx, code) match {
             case Some(rest: List[(FlowInfo, AssemblyLine)]) =>
               val matchedChunkToOptimize: List[AssemblyLine] = code.take(code.length - rest.length).map(_._2)
@@ -74,6 +80,7 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 
 class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
                               val labelMap: Map[String, Int],
+                              val zeropageRegister: Option[ThingInMemory],
                               val niceFunctionProperties: Set[(NiceFunctionProperty, String)]) {
 
   def functionChangesA(name: String): Boolean = !niceFunctionProperties(MosNiceFunctionProperty.DoesntChangeA -> name)
@@ -189,10 +196,18 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
     jumps.isEmpty
   }
 
+  def zreg(i: Int): Constant = {
+    MemoryAddressConstant(zeropageRegister.get) + i
+  }
+
 }
 
-case class AssemblyRule(pattern: AssemblyPattern, result: (List[AssemblyLine], AssemblyMatchingContext) => List[AssemblyLine]) {
+case class AssemblyRule(pattern: AssemblyPattern, result: (List[AssemblyLine], AssemblyMatchingContext) => List[AssemblyLine]) extends AssemblyRuleSet {
+  override def flatten: Seq[AssemblyRule] = List(this)
+}
 
+case class MultipleAssemblyRules(list: Seq[AssemblyRuleSet]) extends AssemblyRuleSet {
+  override def flatten: Seq[AssemblyRule] = list.flatMap(_.flatten)
 }
 
 trait AssemblyPattern {

@@ -3,7 +3,7 @@ package millfork.assembly.mos.opt
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.AssemblyOptimization
-import millfork.assembly.mos.{AssemblyLine, State}
+import millfork.assembly.mos.{AssemblyLine, Opcode, State}
 import millfork.env.{CompoundConstant, Constant, MathOperator}
 
 /**
@@ -84,10 +84,30 @@ object ZeropageRegisterOptimizations {
 
   )
 
+  val StashInRegInsteadOfStack = new RuleBasedAssemblyOptimization("Stashing in zeropage register instead of stack",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    MultipleAssemblyRules((0 to 1).map{ zregIndex =>
+      (Elidable & HasOpcode(PHA) & DoesntMatterWhatItDoesWithReg(zregIndex)) ~
+        (Linear & Not(ConcernsS) & Not(RefersToOrUses("__reg", zregIndex))).*.capture(21) ~
+        (Elidable & HasOpcode(TSX)) ~
+        HasOpcodeIn(CLC, SED, CLD, SEC).*.capture(22) ~
+        (Elidable & MatchOpcode(1) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.isProvably(0x101))).* ~
+        (Elidable & HasOpcode(INX)) ~
+        (Elidable & HasOpcode(TXS) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> { (code, ctx) =>
+        AssemblyLine.zeropage(STA, ctx.zreg(zregIndex)) :: (
+          ctx.get[List[AssemblyLine]](21) ++
+            ctx.get[List[AssemblyLine]](22) ++ List(
+            AssemblyLine.zeropage(ctx.get[Opcode.Value](1), ctx.zreg(zregIndex)),
+            AssemblyLine.implied(TSX)))
+      }
+    })
+  )
+
   val All: List[AssemblyOptimization[AssemblyLine]] = List(
     ConstantMultiplication,
     DeadRegStore,
     DeadRegStoreFromFlow,
+    StashInRegInsteadOfStack,
   )
 
 }

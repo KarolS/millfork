@@ -2,6 +2,7 @@ package millfork.assembly.mos.opt
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import millfork.CompilationFlag
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.OpcodeClasses._
 import millfork.assembly.mos.{AddrMode, opt, _}
@@ -131,6 +132,12 @@ object AlwaysGoodOptimizations {
       HasOpcode(ADC) & HasAddrMode(Immediate) &
       HasClear(State.D) & HasSet(State.C) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
       AssemblyLine.immediate(LDA, (ctx.get[Constant](1) + (ctx.get[Int](0) + 1)).quickSimplify.loByte) :: Nil
+    },
+    (Elidable &
+      MatchA(0) & MatchParameter(1) &
+      HasOpcode(ADC) & HasAddrMode(Immediate) &
+      HasSet(State.D) & HasClear(State.C) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
+      AssemblyLine.immediate(LDA, CompoundConstant(MathOperator.DecimalPlus, ctx.get[Constant](1), NumericConstant(ctx.get[Int](0), 1)).quickSimplify.loByte) :: Nil
     },
     (Elidable &
       MatchA(0) & MatchParameter(1) &
@@ -2333,8 +2340,8 @@ object AlwaysGoodOptimizations {
         ctx.addObject(3, ZeroPage)
         true
       }) ~
-      (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
-      (HasOpcode(STA) & MatchA(1) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(5)) ~
+      (Linear & DoesNotConcernMemoryAt(3, 4) & DoesNotConcernMemoryAt(3, 5)).* ~
+      (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchA(1) & MatchParameter(5)) ~
       Where(ctx => {
         val lo = ctx.get[Int](0) & 0xff
         val hi = ctx.get[Int](1) & 0xff
@@ -2342,7 +2349,10 @@ object AlwaysGoodOptimizations {
         true
       }) ~
       (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
-      (Elidable & MatchParameter(6) & HasAddrModeIn(IndexedZ, IndexedY)) ~~> { (code, ctx) =>
+      (Elidable & MatchParameter(4) & HasAddrModeIn(IndexedZ, IndexedY) & MatchAddrMode(9)) ~
+      Where(ctx => {
+        ctx.get[AddrMode.Value](9) == IndexedY || !ctx.compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
+      }) ~~> { (code, ctx) =>
       val addr = ctx.get[Int](2)
       val last = code.last
       code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
@@ -2363,8 +2373,11 @@ object AlwaysGoodOptimizations {
         ctx.addObject(2, hi * 256 + lo)
         true
       }) ~
-      (Linear & DoesNotConcernMemoryAt(3,4) & DoesNotConcernMemoryAt(3,5)).* ~
-      (Elidable & MatchParameter(6) & HasAddrModeIn(IndexedZ, IndexedY)) ~~> { (code, ctx) =>
+      (Linear & DoesNotConcernMemoryAt(3, 4) & DoesNotConcernMemoryAt(3, 5)).* ~
+      (Elidable & MatchParameter(4) & HasAddrModeIn(IndexedZ, IndexedY) & MatchAddrMode(9)) ~
+      Where(ctx => {
+        ctx.get[AddrMode.Value](9) == IndexedY || !ctx.compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
+      }) ~~> { (code, ctx) =>
       val addr = ctx.get[Int](2)
       val last = code.last
       code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
