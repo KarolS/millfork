@@ -101,6 +101,16 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0x22)
         writeWord(bank, index + 1, param)
         index + 3
+      case ZLine(LD_16, TwoRegisters(reg@(ZRegister.BC | ZRegister.DE | ZRegister.SP), ZRegister.MEM_ABS_16), param, _) =>
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index+1, 0x4b + 0x10 * internalRegisterIndex(reg))
+        writeWord(bank, index + 2, param)
+        index + 4
+      case ZLine(LD_16, TwoRegisters(ZRegister.MEM_ABS_16, reg@(ZRegister.BC | ZRegister.DE | ZRegister.SP)), param, _) =>
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index+1, 0x43 + 0x10 * internalRegisterIndex(reg))
+        writeWord(bank, index + 2, param)
+        index + 4
       case ZLine(LD_16, TwoRegisters(ZRegister.SP, ZRegister.HL), _, _) =>
         writeByte(bank, index, 0xF9)
         index + 1
