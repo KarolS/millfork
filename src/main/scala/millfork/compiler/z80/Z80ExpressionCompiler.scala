@@ -517,6 +517,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                       case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.HL, typ2), AssemblyParameterPassingBehaviour.Copy)))
                         if typ1.size == 2 && typ2.size == 2 =>
                         compileToHL(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
+                      case AssemblyParamSignature(Nil) =>
+                        List(ZLine(CALL, NoRegisters, function.toAddress))
                       case AssemblyParamSignature(paramConvs) =>
                         // TODO: stop being lazy and implement this
                         ???
