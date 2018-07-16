@@ -474,7 +474,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         compiler))
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
-      opt.optimize(f, c, OptimizationContext(options, labelMap, niceFunctionProperties))
+      opt.optimize(f, c, OptimizationContext(options, labelMap, env.maybeGet[ThingInMemory]("__reg"), niceFunctionProperties))
     }
     performFinalOptimizationPass(f, optimizations.nonEmpty, options, code)
   }

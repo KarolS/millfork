@@ -21,7 +21,7 @@ class MosAssembler(program: Program,
 
 
   override def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[AssemblyLine]):List[AssemblyLine] = {
-    val optimizationContext = OptimizationContext(options, Map(), Set())
+    val optimizationContext = OptimizationContext(options, Map(), f.environment.maybeGet[ThingInMemory]("__reg"), Set())
     if (actuallyOptimize) {
       val finalCode = if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.removeLoadZero(f, code, optimizationContext) else code
       JumpShortening(f, JumpShortening(f, JumpFixing(f, finalCode, options), optimizationContext), optimizationContext)

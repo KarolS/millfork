@@ -30,7 +30,7 @@ object FlowInfoRequirement extends Enumeration {
 }
 
 trait AssemblyRuleSet{
-  def flatten: List[AssemblyRule]
+  def flatten: Seq[AssemblyRule]
 }
 
 class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInfoRequirement.Value, val rules: AssemblyRuleSet*) extends AssemblyOptimization[ZLine]{
@@ -38,18 +38,18 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
   private val actualRules = rules.flatMap(_.flatten)
   actualRules.foreach(_.pattern.validate(needsFlowInfo))
 
-  override def optimize(f: NormalFunction, code: List[ZLine], options: CompilationOptions): List[ZLine] = {
+  override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
     val effectiveCode = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
-    val taggedCode = FlowAnalyzer.analyze(f, effectiveCode, options, needsFlowInfo)
-    optimizeImpl(f, taggedCode, options)
+    val taggedCode = FlowAnalyzer.analyze(f, effectiveCode, optimizationContext.options, needsFlowInfo)
+    optimizeImpl(f, taggedCode, optimizationContext)
   }
 
-  def optimizeImpl(f: NormalFunction, code: List[(FlowInfo, ZLine)], options: CompilationOptions): List[ZLine] = {
+  def optimizeImpl(f: NormalFunction, code: List[(FlowInfo, ZLine)], optimizationContext: OptimizationContext): List[ZLine] = {
     code match {
       case Nil => Nil
       case head :: tail =>
         for ((rule, index) <- actualRules.zipWithIndex) {
-          val ctx = new AssemblyMatchingContext(options)
+          val ctx = new AssemblyMatchingContext(optimizationContext.options)
           rule.pattern.matchTo(ctx, code) match {
             case Some(rest: List[(FlowInfo, ZLine)]) =>
               val matchedChunkToOptimize: List[ZLine] = code.take(code.length - rest.length).map(_._2)
@@ -65,14 +65,14 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
               ErrorReporting.trace("     ↓")
               optimizedChunk.filter(_.isPrintable).foreach(l => ErrorReporting.trace(l.toString))
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
-                return optimizedChunk ++ optimizeImpl(f, rest, options)
+                return optimizedChunk ++ optimizeImpl(f, rest, optimizationContext)
               } else {
-                return optimize(f, optimizedChunk ++ rest.map(_._2), options)
+                return optimize(f, optimizedChunk ++ rest.map(_._2), optimizationContext)
               }
             case None => ()
           }
         }
-        head._2 :: optimizeImpl(f, tail, options)
+        head._2 :: optimizeImpl(f, tail, optimizationContext)
     }
   }
 }
@@ -216,11 +216,11 @@ object HelperCheckers {
   }
 }
 case class AssemblyRule(pattern: AssemblyPattern, result: (List[ZLine], AssemblyMatchingContext) => List[ZLine]) extends AssemblyRuleSet {
-  override def flatten: List[AssemblyRule] = List(this)
+  override def flatten: Seq[AssemblyRule] = List(this)
 }
 
-case class MultipleAssemblyRules(list: List[AssemblyRuleSet]) extends AssemblyRuleSet {
-  override def flatten: List[AssemblyRule] = list.flatMap(_.flatten)
+case class MultipleAssemblyRules(list: Seq[AssemblyRuleSet]) extends AssemblyRuleSet {
+  override def flatten: Seq[AssemblyRule] = list.flatMap(_.flatten)
 }
 
 trait AssemblyPattern {
