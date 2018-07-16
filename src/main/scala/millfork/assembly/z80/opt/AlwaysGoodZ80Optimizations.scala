@@ -169,24 +169,82 @@ object AlwaysGoodZ80Optimizations {
       (Elidable & Is8BitLoad(register, register)) ~~> (_ => Nil)
     ),
     // 42-48
-    for7Registers(register =>
-      (Elidable & Is8BitLoadTo(register) & MatchSourceRegisterAndOffset(0)) ~
+    for6Registers(register =>
+      (Elidable & Is8BitLoadTo(register) & MatchSourceRegisterAndOffset(0) & MatchParameterOrNothing(1)) ~
         (Linear & Not(Concerns(register)) & DoesntChangeMatchedRegisterAndOffset(0)).* ~
-        (Elidable & HasOpcodeIn(Set(ADD, ADC, XOR, OR, AND, CP, SUB, SBC)) & HasRegisters(OneRegister(register)) & DoesntMatterWhatItDoesWith(register)) ~~> ((code,ctx) =>
-          code.tail.init :+ code.last.copy(registers = ctx.get[RegisterAndOffset](0).toOneRegister)
-        )
+        (Elidable & HasOpcodeIn(Set(ADD, ADC, XOR, OR, AND, CP, SUB, SBC)) &
+          HasRegisters(OneRegister(register)) & DoesntMatterWhatItDoesWith(register)) ~~> { (code, ctx) =>
+        code.tail.init :+ code.last.copy(registers = ctx.get[RegisterAndOffset](0).toOneRegister, parameter = ctx.get[Constant](1))
+      }
     ),
+
+    // 49-54
+    MultipleAssemblyRules {
+      import ZRegister._
+      val regs = Seq((BC, B, C), (DE, D, E), (HL, H, L))
+      for {
+        (t, th, tl) <- regs
+        (s, sh, sl) <- regs
+        if t != HL
+        if t != s
+      } yield {
+        // TODO: make it a bit more universal
+        (Elidable & Is8BitLoad(th, sh)) ~
+          (Elidable & Is8BitLoad(tl, sl)) ~
+          (HasOpcode(OR) & HasRegisterParam(A)).?.capture(1) ~
+          (Elidable & HasOpcodeIn(Set(ADD_16, ADC_16, SBC_16)) & HasRegisters(TwoRegisters(HL, t)) & DoesntMatterWhatItDoesWith(t)) ~~> {
+          (code, ctx) =>
+            ctx.get[List[ZLine]](1) :+ code.last.copy(registers = TwoRegisters(HL, s))
+        }
+      }
+    },
 
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     // 0-4
     for5LargeRegisters(register => {
       (Elidable & HasOpcode(PUSH) & HasRegisterParam(register)) ~
         (Linear & Not(HasOpcode(POP)) & Not(Changes(register))).* ~
       (Elidable & HasOpcode(POP) & HasRegisterParam(register)) ~~> (_.tail.init)
     }),
+    // 5
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.D)) ~
+      (Linear & Not(HasOpcode(POP)) & Not(Changes(ZRegister.D))).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> {code =>
+      ZLine.ld8(ZRegister.D, ZRegister.E) :: (code.tail.init :+ ZLine.ld8(ZRegister.E, ZRegister.D))
+    },
+    // 6
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.E)) ~
+      (Linear & Not(HasOpcode(POP)) & Not(Changes(ZRegister.E))).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> { code =>
+      ZLine.ld8(ZRegister.E, ZRegister.D) :: (code.tail.init :+ ZLine.ld8(ZRegister.D, ZRegister.E))
+    },
+    // 7
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.B)) ~
+      (Linear & Not(HasOpcode(POP)) & Not(Changes(ZRegister.B))).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> (code =>
+      ZLine.ld8(ZRegister.B, ZRegister.C) :: (code.tail.init :+ ZLine.ld8(ZRegister.C, ZRegister.B))
+      ),
+    // 8
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.C)) ~
+      (Linear & Not(HasOpcode(POP)) & Not(Changes(ZRegister.C))).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> { code =>
+      ZLine.ld8(ZRegister.C, ZRegister.B) :: (code.tail.init :+ ZLine.ld8(ZRegister.B, ZRegister.C))
+    },
+    // 9
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.H)) ~
+      (Linear & Not(HasOpcode(POP)) & Not(Changes(ZRegister.H))).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> { code =>
+      ZLine.ld8(ZRegister.H, ZRegister.L) :: (code.tail.init :+ ZLine.ld8(ZRegister.L, ZRegister.H))
+    },
+    // 10
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.L)) ~
+      (Linear & Not(HasOpcode(POP)) & Not(Changes(ZRegister.L))).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> { code =>
+      ZLine.ld8(ZRegister.L, ZRegister.H) :: (code.tail.init :+ ZLine.ld8(ZRegister.H, ZRegister.L))
+    },
 
   )
 
@@ -251,6 +309,23 @@ object AlwaysGoodZ80Optimizations {
     },
     (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.DE)) & MatchRegister(ZRegister.DE, 0) & MatchRegister(ZRegister.HL, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
       List(ZLine.ldImm16(ZRegister.HL, ctx.get[Int](0) + ctx.get[Int](1)))
+    },
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.HL)) & MatchRegister(ZRegister.HL, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      List(ZLine.ldImm16(ZRegister.HL, 2 * ctx.get[Int](1) & 0xffff))
+    },
+
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.BC)) & HasRegister(ZRegister.BC, 0) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      Nil
+    },
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.DE)) & HasRegister(ZRegister.DE, 0) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      Nil
+    },
+
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.BC)) & HasRegister(ZRegister.BC, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      List(ZLine.register(ZOpcode.INC_16, ZRegister.HL))
+    },
+    (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.DE)) & HasRegister(ZRegister.DE, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      List(ZLine.register(ZOpcode.INC_16, ZRegister.HL))
     },
 
 
@@ -335,6 +410,13 @@ object AlwaysGoodZ80Optimizations {
       List(ZLine.ldImm8(ZRegister.A, CompoundConstant(MathOperator.DecimalMinus, NumericConstant(ctx.get[Int](0) & 0xff, 1), ctx.get[Constant](1)).quickSimplify))
     },
 
+    (Elidable & (Is8BitLoadTo(ZRegister.A) | HasOpcode(LD) & HasRegisters(TwoRegisters(ZRegister.A, ZRegister.MEM_ABS_8)))) ~
+      (Elidable & HasOpcode(SUB) & Has8BitImmediate(0)) ~
+      (Is8BitLoadTo(ZRegister.A) | HasOpcode(LD) & HasRegisters(TwoRegisters(ZRegister.A, ZRegister.MEM_ABS_8))) ~
+      (Elidable & HasOpcode(SBC)) ~~> { code =>
+      List(code(2), code(3).copy(opcode = SUB))
+    }
+
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",
@@ -356,6 +438,7 @@ object AlwaysGoodZ80Optimizations {
         code.head.copy(opcode = LD, registers = TwoRegisters(ZRegister.A, ZRegister.MEM_ABS_8)),
         code(1).copy(registers = TwoRegisters(code(1).registers.asInstanceOf[TwoRegisters].target, ZRegister.A)),
       )),
+
     (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.IMM_16)) ~
       (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
       (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
@@ -367,6 +450,77 @@ object AlwaysGoodZ80Optimizations {
       (Elidable & Is8BitLoad(ZRegister.C, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
       List(
         code.head.copy(registers = TwoRegisters(ZRegister.BC, ZRegister.IMM_16))
+      )),
+
+    (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16)) ~
+      (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code.head.copy(registers = TwoRegisters(ZRegister.DE, ZRegister.MEM_ABS_16))
+      )),
+    (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16)) ~
+      (Elidable & Is8BitLoad(ZRegister.B, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.C, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code.head.copy(registers = TwoRegisters(ZRegister.BC, ZRegister.MEM_ABS_16))
+      )),
+
+    MultipleAssemblyRules(Seq(ZRegister.BC, ZRegister.DE).map { registerPair =>
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(registerPair, ZRegister.IMM_16)) & MatchParameter(0)) ~
+        (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.MEM_ABS_16)) & MatchParameter(1)) ~
+        (Elidable & HasOpcode(OR) & HasRegisters(OneRegister(ZRegister.A))) ~
+        (Elidable & HasOpcode(SBC_16) & HasRegisters(TwoRegisters(ZRegister.HL, registerPair)) &
+          DoesntMatterWhatItDoesWith(ZRegister.A, ZRegister.HL, registerPair) &
+          DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (code, ctx) =>
+        import ZRegister._
+        val value = ctx.get[Constant](0)
+        val variable = ctx.get[Constant](1)
+        List(
+          ZLine.ldAbs8(A, variable),
+          ZLine.imm8(SUB, value.loByte),
+          ZLine.ldAbs8(A, variable + 1),
+          ZLine.imm8(SBC, value.hiByte))
+      }
+    }),
+
+    (Elidable & Is8BitLoad(ZRegister.H, ZRegister.B)) ~
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.C)) ~
+    (Elidable & HasOpcodeIn(Set(INC_16, DEC_16, PUSH, POP)) & HasRegisterParam(ZRegister.HL)) ~
+      (Elidable & Is8BitLoad(ZRegister.B, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.C, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code(2).copy(registers = OneRegister(ZRegister.BC))
+      )),
+
+    (Elidable & Is8BitLoad(ZRegister.H, ZRegister.D)) ~
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
+    (Elidable & HasOpcodeIn(Set(INC_16, DEC_16, PUSH, POP)) & HasRegisterParam(ZRegister.HL)) ~
+      (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code(2).copy(registers = OneRegister(ZRegister.DE))
+      )),
+
+    (Elidable & Is8BitLoad(ZRegister.H, ZRegister.D)) ~
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
+    (Elidable & HasOpcodeIn(Set(INC_16, DEC_16, PUSH, POP)) & HasRegisterParam(ZRegister.HL)) ~
+      (Elidable & Is8BitLoad(ZRegister.B, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.C, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        ZLine.ld8(ZRegister.B, ZRegister.D),
+        ZLine.ld8(ZRegister.C, ZRegister.E),
+        code(2).copy(registers = OneRegister(ZRegister.BC))
+      )),
+
+    (Elidable & Is8BitLoad(ZRegister.H, ZRegister.B)) ~
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.C)) ~
+    (Elidable & HasOpcodeIn(Set(INC_16, DEC_16, PUSH, POP)) & HasRegisterParam(ZRegister.HL)) ~
+      (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        ZLine.ld8(ZRegister.D, ZRegister.B),
+        ZLine.ld8(ZRegister.E, ZRegister.C),
+        code(2).copy(registers = OneRegister(ZRegister.DE))
       )),
   )
 
@@ -389,7 +543,6 @@ object AlwaysGoodZ80Optimizations {
 
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
     BranchInPlaceRemoval,
-    EmptyMemoryStoreRemoval,
     FreeHL,
     PointlessLoad,
     PointlessStackStashing,

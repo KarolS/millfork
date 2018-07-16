@@ -521,6 +521,11 @@ case class MatchParameter(i: Int) extends AssemblyLinePattern {
     }
 }
 
+case class MatchParameterOrNothing(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    ctx.addObject(i, line.parameter.quickSimplify)
+}
+
 case class MatchJumpTarget(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.registers match {
@@ -571,6 +576,17 @@ case object DoesntMatterWhatItDoesWithFlags extends AssemblyLinePattern {
     ZFlag.values.forall(r => flowInfo.importanceAfter.getFlag(r) != Important)
 
   override def toString: String = "[¯\\_(ツ)_/¯:F]"
+}
+
+case object DoesntMatterWhatItDoesWithFlagsExceptCarry extends AssemblyLinePattern {
+
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertBackward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    ZFlag.values.forall(r => r == ZFlag.C || flowInfo.importanceAfter.getFlag(r) != Important)
+
+  override def toString: String = "[¯\\_(ツ)_/¯:F\\C]"
 }
 
 case class HasSet(flag: ZFlag.Value) extends AssemblyLinePattern {
