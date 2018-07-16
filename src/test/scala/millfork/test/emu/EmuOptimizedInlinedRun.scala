@@ -15,7 +15,10 @@ object EmuOptimizedInlinedRun extends EmuRun(
     OptimizationPresets.Good ++
     OptimizationPresets.Good ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good) {
   override def inline: Boolean = true

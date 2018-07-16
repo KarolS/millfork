@@ -17,6 +17,7 @@ object EmuOptimizedRun extends EmuRun(
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
     OptimizationPresets.Good)
 
 
