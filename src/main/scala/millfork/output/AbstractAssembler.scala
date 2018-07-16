@@ -189,7 +189,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
     val assembly = mutable.ArrayBuffer[String]()
 
-    val inliningResult = MosInliningCalculator.calculate(
+    val inliningResult = inliningCalculator.calculate(
         program,
         options.flags(CompilationFlag.InlineFunctions) || options.flags(CompilationFlag.OptimizeForSonicSpeed),
         if (options.flags(CompilationFlag.OptimizeForSonicSpeed)) 4.0
