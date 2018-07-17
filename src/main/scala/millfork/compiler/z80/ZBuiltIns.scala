@@ -272,10 +272,22 @@ object ZBuiltIns {
           ZLine.ld8(lv, ZRegister.A))
       case ADD if !decimal =>
         constantRight match {
+            // n × INC (HL) = 11n cycles, n bytes
+            // n × INC (IX,d) = 23n cycles, 2n bytes
+            // LD A,n ; ADD (HL) ; LD (HL),A = 21 cycles, 4 bytes
+            // LD A,n ; ADD (IX,d) ; LD (IX,d),A = 45 cycles, 6 bytes
           case Some(NumericConstant(1, _)) =>
             calculateAddress :+ ZLine.register(INC, lv)
+          case Some(NumericConstant(2, _)) =>
+            calculateAddress :+ ZLine.register(INC, lv) :+ ZLine.register(INC, lv)
+          case Some(NumericConstant(3, _)) if ctx.options.flag(CompilationFlag.OptimizeForSpeed) =>
+            calculateAddress ++ List(ZLine.register(INC, lv), ZLine.register(INC, lv), ZLine.register(INC, lv))
           case Some(NumericConstant(0xff | -1, _)) =>
             calculateAddress :+ ZLine.register(DEC, lv)
+          case Some(NumericConstant(0xfe | -2, _)) =>
+            calculateAddress :+ ZLine.register(DEC, lv) :+ ZLine.register(DEC, lv)
+          case Some(NumericConstant(0xfd | -3, _)) if ctx.options.flag(CompilationFlag.OptimizeForSpeed) =>
+            calculateAddress ++ List(ZLine.register(DEC, lv), ZLine.register(DEC, lv), ZLine.register(DEC, lv))
           case _ =>
             setup ++ List(
               ZLine.register(ADD, lv),
@@ -292,8 +304,16 @@ object ZBuiltIns {
         constantRight match {
           case Some(NumericConstant(1, _)) =>
             calculateAddress :+ ZLine.register(DEC, lv)
+          case Some(NumericConstant(2, _)) =>
+            calculateAddress :+ ZLine.register(DEC, lv) :+ ZLine.register(INC, lv)
+          case Some(NumericConstant(3, _)) if ctx.options.flag(CompilationFlag.OptimizeForSpeed) =>
+            calculateAddress ++ List(ZLine.register(DEC, lv), ZLine.register(INC, lv), ZLine.register(INC, lv))
           case Some(NumericConstant(0xff | -1, _)) =>
             calculateAddress :+ ZLine.register(INC, lv)
+          case Some(NumericConstant(0xfe | -2, _)) =>
+            calculateAddress :+ ZLine.register(INC, lv) :+ ZLine.register(INC, lv)
+          case Some(NumericConstant(0xfd | -3, _)) if ctx.options.flag(CompilationFlag.OptimizeForSpeed) =>
+            calculateAddress ++ List(ZLine.register(INC, lv), ZLine.register(INC, lv), ZLine.register(INC, lv))
           case _ =>
             if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
               setup ++ List(
