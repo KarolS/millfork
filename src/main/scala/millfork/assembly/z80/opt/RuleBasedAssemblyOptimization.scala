@@ -496,6 +496,15 @@ case class MatchTargetRegisterAndOffset(i: Int) extends AssemblyLinePattern {
     }
 }
 
+case class MatchSoleRegisterAndOffset(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers match {
+      case OneRegister(t) => ctx.addObject(i, RegisterAndOffset(t, 0))
+      case OneRegisterOffset(t, o) => ctx.addObject(i, RegisterAndOffset(t, o))
+      case _ => false
+    }
+}
+
 case class DoesntChangeMatchedRegisterAndOffset(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
     val ro = ctx.get[RegisterAndOffset](i)
@@ -507,6 +516,22 @@ case class DoesntChangeMatchedRegisterAndOffset(i: Int) extends AssemblyLinePatt
       case MEM_BC => !line.changesMemory && !line.changesRegister(ZRegister.BC)
       case MEM_DE => !line.changesMemory && !line.changesRegister(ZRegister.DE)
       case _ => !line.changesRegisterAndOffset(ro.register, ro.offset)
+    }
+  }
+}
+
+
+case class DoesntConcernMatchedRegisterAndOffset(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
+    val ro = ctx.get[RegisterAndOffset](i)
+    import ZRegister._
+    ro.register match {
+      case AF | SP => false // ?
+      case MEM_ABS_8 | MEM_ABS_16 => !line.changesMemory && !line.readsMemory
+      case MEM_HL => !line.changesMemory && !line.readsMemory && !line.changesRegister(ZRegister.HL) && !line.readsRegister(ZRegister.HL)
+      case MEM_BC => !line.changesMemory && !line.readsMemory && !line.changesRegister(ZRegister.BC) && !line.readsRegister(ZRegister.BC)
+      case MEM_DE => !line.changesMemory && !line.readsMemory && !line.changesRegister(ZRegister.DE) && !line.readsRegister(ZRegister.DE)
+      case _ => !line.changesRegisterAndOffset(ro.register, ro.offset) && !line.readsRegisterAndOffset(ro.register, ro.offset)
     }
   }
 }

@@ -351,7 +351,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
                POP |
                DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
           case DJNZ => r == B
-          case DAA | NEG => r == A
+          case DAA | NEG | CPL => r == A
           case LABEL | DI | EI | NOP | HALT => false
           case _ => true // TODO
         }
@@ -376,13 +376,47 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegister(IX | IY) => true
             case _ => false
           }
-          case LD_16 | ADD_16 => registers match {
+          case LD_16 | ADD_16 | ADC_16 | SBC_16 => registers match {
             case TwoRegisters(IX | IY, _) => true
             case _ => false
           }
           case _ => false // TODO
         }
       case _ => changesRegister(r)
+    }
+  }
+
+  def readsRegisterAndOffset(r: ZRegister.Value, o: Int): Boolean = {
+    import ZOpcode._
+    import ZRegister._
+    r match {
+      case MEM_IX_D | MEM_IY_D =>
+        opcode match {
+          case LD => registers match {
+            case TwoRegistersOffset(_, s, p) => r == s && o == p
+            case _ => false
+          }
+          case ADD | ADC | OR | XOR | AND | SUB | SBC | CP |
+               INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL => registers match {
+            case OneRegisterOffset(s, p) => r == s && o == p
+            case _ => false
+          }
+          case PUSH | INC_16 | DEC_16 => registers match {
+            case OneRegister(IX | IY) => true
+            case _ => false
+          }
+          case LD_16 => registers match {
+            case TwoRegisters(_, IX | IY) => true
+            case _ => false
+          }
+          case ADD_16 | ADC_16 | SBC_16 => registers match {
+            case TwoRegisters(_, IX | IY) => true
+            case TwoRegisters(IX | IY, _) => true
+            case _ => false
+          }
+          case _ => false // TODO
+        }
+      case _ => readsRegister(r)
     }
   }
 
@@ -433,7 +467,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case JP | JR | RET | RETI | RETN |
                POP |
                DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
-          case ADD | ADC | OR | XOR | SUB | SBC | DAA | NEG => r == A
+          case ADD | ADC | AND | OR | XOR | SUB | SBC | DAA | NEG | CPL => r == A
           case CP => false
           case DJNZ => r == B
           case LABEL | DI | EI | NOP | HALT => false
