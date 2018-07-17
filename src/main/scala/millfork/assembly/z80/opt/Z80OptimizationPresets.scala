@@ -16,7 +16,7 @@ object Z80OptimizationPresets {
             EmptyParameterStoreRemoval,
             EmptyMemoryStoreRemoval)
       ).flatten ++
-        List(WordVariableToRegisterOptimization)
+        List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization)
     ).flatten
   }
 
