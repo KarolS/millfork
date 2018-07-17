@@ -119,7 +119,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         var done = false
         bestHLs.find(_._2.start == i).foreach {
           case (v, range, _) =>
-            ErrorReporting.debug(s"Inlining $v to register HL")
+            ErrorReporting.debug(s"Inlining $v to register pair HL")
             val oldCode = vs.codeWithFlow.slice(range.start, range.end)
             val newCode = inlineVars(v, "", "", oldCode.map(_._2))
             reportOptimizedBlock(oldCode, newCode)
@@ -133,7 +133,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         if (!done) {
           bestBCs.find(_._2.start == i).foreach {
             case (v, range, _) =>
-              ErrorReporting.debug(s"Inlining $v to register BC")
+              ErrorReporting.debug(s"Inlining $v to register pair BC")
               val oldCode = vs.codeWithFlow.slice(range.start, range.end)
               val newCode = inlineVars("", v, "", oldCode.map(_._2))
               reportOptimizedBlock(oldCode, newCode)
@@ -148,7 +148,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         if (!done) {
           bestDEs.find(_._2.start == i).foreach {
             case (v, range, _) =>
-              ErrorReporting.debug(s"Inlining $v to register DE")
+              ErrorReporting.debug(s"Inlining $v to register pair DE")
               val oldCode = vs.codeWithFlow.slice(range.start, range.end)
               val newCode = inlineVars("", "", v, oldCode.map(_._2))
               reportOptimizedBlock(oldCode, newCode)
@@ -190,6 +190,16 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     }
     code match {
 
+      case  (_, ZLine(LD_16, TwoRegisters(BC, IMM_16), _, true))::
+        (i, ZLine(ADD_16, TwoRegisters(HL, BC), _, true)) :: xs if target == BC =>
+        if (i.importanceAfter.getRegister(BC) == Important || i.importanceAfter.getRegister(DE) == Important) fail(22)
+        else canBeInlined(vname, synced = true, target, xs)
+
+      case  (_, ZLine(LD_16, TwoRegisters(DE, IMM_16), _, true))::
+        (i, ZLine(ADD_16, TwoRegisters(HL, DE), _, true)) :: xs if target == DE =>
+        if (i.importanceAfter.getRegister(BC) == Important || i.importanceAfter.getRegister(DE) == Important) fail(23)
+        else canBeInlined(vname, synced = true, target, xs)
+
       case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th1), true)) ::
         (_, ZLine(ADD_16, TwoRegisters(HL, BC | DE), _, _)) ::
         (i, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th2), true)) ::
@@ -222,13 +232,15 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), true)) ::
         (_, ZLine(LD_16, TwoRegisters(t, _), _, true)) ::
         (i, ZLine(ADD_16, TwoRegisters(HL, t2), _, _)) ::
-        xs if t != HL && t == t2 && i.importanceAfter.getRegister(t) == Unimportant =>
+        xs if th.name == vname && t != HL && t == t2 && i.importanceAfter.getRegister(t) == Unimportant =>
+        // LD (vv),HL ; LD QQ,__ ; ADD HL,QQ  (vv@QQ)→  LD QQ,HL ; LD HL,__, ADD HL,QQ
         canBeInlined(vname, synced = true, target, xs).map(add(target == t, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
 
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), true)) ::
         (_, ZLine(LD_16, TwoRegisters(t, _), _, true)) ::
         (i, ZLine(ADD_16, TwoRegisters(HL, t2), _, _)) ::
-        xs if t == target && t != HL && t == t2 && i.importanceAfter.getRegister(t) == Unimportant =>
+        xs if t == target && th.name == vname && t != HL && t == t2 && i.importanceAfter.getRegister(t) == Unimportant =>
+        // LD (vv),HL ; LD QQ,__ ; ADD HL,QQ  (vv@QQ)→  LD QQ,HL ; LD PP,__, ADD HL,PP
         canBeInlined(vname, synced = true, target, xs).map(add(CyclesAndBytes(16, 3)))
 
       case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
@@ -275,9 +287,23 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     if (code.nonEmpty) println(code.head)
     code match {
 
-      case ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), a1@MemoryAddressConstant(th1), true) ::
+      case (load@ZLine(LD_16, TwoRegisters(BC, IMM_16), _, _)) ::
+        ZLine(ADD_16, TwoRegisters(HL, BC), _, _) ::
+        xs if bc != "" =>
+        load.copy(registers = TwoRegisters(DE, IMM_16)) ::
+          ZLine.registers(ADD_16, HL, DE) ::
+          inlineVars(hl, bc, de, xs)
+
+      case (load@ZLine(LD_16, TwoRegisters(DE, IMM_16), _, _)) ::
+        ZLine(ADD_16, TwoRegisters(HL, DE), _, _) ::
+        xs if de != "" =>
+        load.copy(registers = TwoRegisters(BC, IMM_16)) ::
+          ZLine.registers(ADD_16, HL, BC) ::
+          inlineVars(hl, bc, de, xs)
+
+      case ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), a1@MemoryAddressConstant(th1), _) ::
         ZLine(ADD_16, TwoRegisters(HL, reg@(DE | BC)), _, _) ::
-        ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), a2@MemoryAddressConstant(th2), true) ::
+        ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), a2@MemoryAddressConstant(th2), _) ::
         xs if hl != "" && th1.name != hl && th2.name != hl =>
         // bytes before: 3 + 1 + 3 = 7
         // cycles before: 16 + 11 + 16 = 43
@@ -386,6 +412,13 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         ZLine.ld8(A, D) :: inlineVars(hl, bc, de, xs)
       case ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1,_)), _) :: xs if th.name == de =>
         ZLine.ld8(D, A) :: inlineVars(hl, bc, de, xs)
+
+      case x :: ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _) :: xs if x.changesRegister(HL) && th.name == hl =>
+        x :: inlineVars(hl, bc, de, xs)
+      case x :: ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _) :: xs if x.changesRegister(BC) && th.name == bc =>
+        x :: inlineVars(hl, bc, de, xs)
+      case x :: ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _) :: xs if x.changesRegister(DE) && th.name == de =>
+        x :: inlineVars(hl, bc, de, xs)
 
       case x :: _ if bc != "" && x.changesRegister(BC) => ???
       case x :: _ if de != "" && x.changesRegister(DE) => ???
