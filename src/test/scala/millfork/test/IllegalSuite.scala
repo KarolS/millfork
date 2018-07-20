@@ -122,7 +122,7 @@ class IllegalSuite extends FunSuite with Matchers {
         | byte main () {
         |   output = five()
         |   output <<= 1
-        |   return output
+        |   return output.b0
         | }
         | byte five () {
         |   return 5

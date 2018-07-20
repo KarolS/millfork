@@ -41,7 +41,7 @@ class LongTest extends FunSuite with Matchers {
         |   b = $55
         |   output4 = $11223344
         |   output2 = $11223344
-        |   output1 = $11223344
+        |   output1 = $3344
         |   output2 = w
         |   output1 = b
         | }

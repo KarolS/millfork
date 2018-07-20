@@ -354,6 +354,7 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
     bank <- bankDeclaration
     flags <- functionFlags ~ HWS
     returnType <- identifier ~ SWS
+    if !InvalidReturnTypes(returnType)
     name <- identifier ~ HWS
     params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1)).?.opaque("<address>") ~/ AWS
@@ -385,9 +386,25 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
 
   def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]])
 
+  val enumVariant: P[(String, Option[Expression])] = for {
+    name <- identifier ~/ HWS
+    value <- ("=" ~/ HWS ~/ mfExpression(1)).? ~ HWS
+  } yield name -> value
+
+  val enumVariants: P[List[(String, Option[Expression])]] =
+    ("{" ~/ AWS ~ enumVariant.rep(sep = NoCut(EOLOrComma) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
+
+  val enumDefinition: P[Seq[EnumDefinitionStatement]] = for {
+    p <- position()
+    _ <- "enum" ~ !letterOrDigit ~/ SWS ~ position("enum name")
+    name <- identifier ~/ HWS
+    _ <- position("enum defintion block")
+    variants <- enumVariants ~/ Pass
+  } yield Seq(EnumDefinitionStatement(name, variants).pos(p))
+
   val program: Parser[Program] = for {
     _ <- Start ~/ AWS ~/ Pass
-    definitions <- (importStatement | arrayDefinition | aliasDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
+    definitions <- (importStatement | arrayDefinition | aliasDefinition | enumDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
     _ <- AWS ~ End
   } yield Program(definitions.flatten.toList)
 
@@ -404,6 +421,8 @@ object MfParser {
   val AWS: P[Unit] = P((CharIn(" \t\n\r;") | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
 
   val EOL: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
+
+  val EOLOrComma: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | "," | comment).opaque("<first line break or comma>") ~ AWS).opaque("<line break or comma>")
 
   val letter: P[String] = P(CharIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_").!)
 
@@ -531,4 +550,6 @@ object MfParser {
   val variableFlags: P[Set[String]] = flags_("const", "static", "volatile", "stack", "register")
 
   val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt")
+
+  val InvalidReturnTypes = Set("enum", "alias", "array", "const", "stack", "register", "static", "volatile", "import")
 }

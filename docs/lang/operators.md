@@ -43,11 +43,13 @@ Note that you cannot mix `+'` and `-'` with `+` and `-`.
 
 In the descriptions below, arguments to the operators are explained as follows:
 
-* `byte` means any one-byte type
+* `enum` means any enumeration type
 
-* `word` means any two-byte type, or a byte expanded to a word
+* `byte` means any numeric one-byte type
 
-* `long` means any type longer than two bytes, or a shorter type expanded to such length to match the other argument
+* `word` means any numeric two-byte type, or a byte expanded to a word; `pointer` is considered to be numeric
+
+* `long` means any numeric type longer than two bytes, or a shorter type expanded to such length to match the other argument
 
 * `constant` means a compile-time constant
 
@@ -128,11 +130,13 @@ Note you cannot mix those operators, so `a <= b < c` is not valid.
 (the current implementation calls it twice, but do not rely on this behaviour). 
 
 * `==`: equality  
+`enum == enum`  
 `byte == byte`  
 `simple word == simple word`  
 `simple long == simple long`
 
 * `!=`: inequality  
+`enum != enum`  
 `byte != byte`  
 `simple word != simple word`  
 `simple long != simple long`
@@ -152,6 +156,7 @@ and fail to compile otherwise. This will be changed in the future.
 An expression of form `a[f()] += b` may call `f` an undefined number of times.
 
 * `=`: normal assignment    
+`mutable enum = enum`  
 `mutable byte = byte`  
 `mutable word = word`
 `mutable long = long`
@@ -189,13 +194,20 @@ While Millfork does not consider indexing an operator, this is a place as good a
 
 An expression of form `a[i]`, where `i` is an expression of type `byte`, is:
 
-* when `a` is an array: an access to the `i`-th element of the array `a`
+* when `a` is an array that has numeric index type: an access to the `i`-th element of the array `a`
 
 * when `a` is a pointer variable: an access to the byte in memory at address `a + i`
 
 Those expressions are of type `byte`. If `a` is any other kind of expression, `a[i]` is invalid.
 
-If the zeropage register is enabled, `i` can also be of type `word`. 
+If the zeropage register is enabled, `i` can also be of type `word`.
+
+An expression of form `a[i]`, where `i` is an expression of a enumeration type, is:
+
+* when `a` is an array that has index type equal to the type of `i`:
+an access to the element of the array `a` at the location assigned to the key `i`
+
+* otherwise: a compile error
 
 ## Built-in functions
 
@@ -212,6 +224,8 @@ Other kinds of expressions than the above (even `nonet(byte + byte + byte)`) wil
 * `hi`, `lo`: most/least significant byte of a word  
 `hi(word)`
 
+Furthermore, any type that can be assigned to a variable
+can be used to convert from one type to another of the same size.
 
 
 

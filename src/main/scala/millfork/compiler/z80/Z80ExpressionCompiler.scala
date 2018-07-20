@@ -205,7 +205,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case code => code ++ loadByteViaHL(target)
             }
           case SumExpression(params, decimal) =>
-            getParamMaxSize(ctx, params.map(_._2)) match {
+            getArithmeticParamMaxSize(ctx, params.map(_._2)) match {
               case 1 => targetifyA(target, ZBuiltIns.compile8BitSum(ctx, params, decimal), isSigned = false)
               case 2 => targetifyHL(target, ZBuiltIns.compile16BitSum(ctx, params, decimal))
             }
@@ -302,50 +302,50 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case "^^" => ???
 
               case "&" =>
-                getParamMaxSize(ctx, params) match {
+                getArithmeticParamMaxSize(ctx, params) match {
                   case 1 => targetifyA(target, ZBuiltIns.compile8BitOperation(ctx, AND, params), isSigned = false)
                   case 2 => targetifyHL(target, ZBuiltIns.compile16BitOperation(ctx, AND, params))
                 }
               case "*" =>
-                assertAllBytes("Long multiplication not supported", ctx, params)
+                assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
                 targetifyA(target, Z80Multiply.compile8BitMultiply(ctx, params), isSigned = false)
               case "|" =>
-                getParamMaxSize(ctx, params) match {
+                getArithmeticParamMaxSize(ctx, params) match {
                   case 1 => targetifyA(target, ZBuiltIns.compile8BitOperation(ctx, OR, params), isSigned = false)
                   case 2 => targetifyHL(target, ZBuiltIns.compile16BitOperation(ctx, OR, params))
                 }
               case "^" =>
-                getParamMaxSize(ctx, params) match {
+                getArithmeticParamMaxSize(ctx, params) match {
                   case 1 => targetifyA(target, ZBuiltIns.compile8BitOperation(ctx, XOR, params), isSigned = false)
                   case 2 => targetifyHL(target, ZBuiltIns.compile16BitOperation(ctx, XOR, params))
                 }
               case ">>>>" =>
-                val (l, r, 2) = assertBinary(ctx, params)
+                val (l, r, 2) = assertArithmeticBinary(ctx, params)
                 ???
               case "<<" =>
-                val (l, r, size) = assertBinary(ctx, params)
+                val (l, r, size) = assertArithmeticBinary(ctx, params)
                 size match {
                   case 1 => targetifyA(target, Z80Shifting.compile8BitShift(ctx, l, r, left = true), isSigned = false)
                   case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = true)
                   case _ => ???
                 }
               case ">>" =>
-                val (l, r, size) = assertBinary(ctx, params)
+                val (l, r, size) = assertArithmeticBinary(ctx, params)
                 size match {
                   case 1 => targetifyA(target, Z80Shifting.compile8BitShift(ctx, l, r, left = false), isSigned = false)
                   case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = false)
                   case _ => ???
                 }
               case "<<'" =>
-                assertAllBytes("Long shift ops not supported", ctx, params)
-                val (l, r, 1) = assertBinary(ctx, params)
+                assertAllArithmeticBytes("Long shift ops not supported", ctx, params)
+                val (l, r, 1) = assertArithmeticBinary(ctx, params)
                 ???
               case ">>'" =>
-                assertAllBytes("Long shift ops not supported", ctx, params)
-                val (l, r, 1) = assertBinary(ctx, params)
+                assertAllArithmeticBytes("Long shift ops not supported", ctx, params)
+                val (l, r, 1) = assertArithmeticBinary(ctx, params)
                 ???
               case "<" =>
-                val (size, signed) = assertComparison(ctx, params)
+                val (size, signed) = assertArithmeticComparison(ctx, params)
                 compileTransitiveRelation(ctx, "<", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
@@ -354,7 +354,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   }
                 }
               case ">=" =>
-                val (size, signed) = assertComparison(ctx, params)
+                val (size, signed) = assertArithmeticComparison(ctx, params)
                 compileTransitiveRelation(ctx, ">=", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
@@ -363,7 +363,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   }
                 }
               case ">" =>
-                val (size, signed) = assertComparison(ctx, params)
+                val (size, signed) = assertArithmeticComparison(ctx, params)
                 compileTransitiveRelation(ctx, ">", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
@@ -372,7 +372,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   }
                 }
               case "<=" =>
-                val (size, signed) = assertComparison(ctx, params)
+                val (size, signed) = assertArithmeticComparison(ctx, params)
                 compileTransitiveRelation(ctx, "<=", params, target, branches) { (l, r) =>
                   size match {
                     case 1 => Z80Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
@@ -399,72 +399,72 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   }
                 }
               case "+=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => ZBuiltIns.perform8BitInPlace(ctx, l, r, ADD)
                   case _ => ZBuiltIns.performLongInPlace(ctx, l, r, ADD, ADC, size)
                 }
               case "-=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => ZBuiltIns.perform8BitInPlace(ctx, l, r, SUB)
                   case _ => ZBuiltIns.performLongInPlace(ctx, l, r, SUB, SBC, size)
                 }
               case "+'=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => ZBuiltIns.perform8BitInPlace(ctx, l, r, ADD, decimal = true)
                   case _ => ZBuiltIns.performLongInPlace(ctx, l, r, ADD, ADC, size, decimal = true)
                 }
               case "-'=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => ZBuiltIns.perform8BitInPlace(ctx, l, r, SUB, decimal = true)
                   case _ => ZBuiltIns.performLongInPlace(ctx, l, r, SUB, SBC, size, decimal = true)
                 }
                 Nil
               case "<<=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => Z80Shifting.compile8BitShiftInPlace(ctx, l, r, left = true)
                   case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = true) ++ storeHL(ctx, l, signedSource = false)
                   case _ => ???
                 }
               case ">>=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => Z80Shifting.compile8BitShiftInPlace(ctx, l, r, left = false)
                   case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = false) ++ storeHL(ctx, l, signedSource = false)
                   case _ => ???
                 }
               case "<<'=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 ???
               case ">>'=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 ???
               case "*=" =>
-                assertAllBytes("Long multiplication not supported", ctx, params)
-                val (l, r, 1) = assertAssignmentLike(ctx, params)
+                assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
+                val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
                 Z80Multiply.compile8BitInPlaceMultiply(ctx, l, r)
               case "*'=" =>
-                assertAllBytes("Long multiplication not supported", ctx, params)
-                val (l, r, 1) = assertAssignmentLike(ctx, params)
+                assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
+                val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
                 ???
               case "&=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => ZBuiltIns.perform8BitInPlace(ctx, l, r, AND)
                   case _ => ZBuiltIns.performLongInPlace(ctx, l, r, AND, AND, size)
                 }
               case "^=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => ZBuiltIns.perform8BitInPlace(ctx, l, r, XOR)
                   case _ => ZBuiltIns.performLongInPlace(ctx, l, r, XOR, XOR, size)
                 }
               case "|=" =>
-                val (l, r, size) = assertAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => ZBuiltIns.perform8BitInPlace(ctx, l, r, OR)
                   case _ => ZBuiltIns.performLongInPlace(ctx, l, r, OR, OR, size)
@@ -584,8 +584,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
 
   def calculateAddressToHL(ctx: CompilationContext, i: IndexedExpression): List[ZLine] = {
     val env = ctx.env
-    env.getPointy(i.name) match {
-      case ConstantPointy(baseAddr, _) =>
+    val pointy = env.getPointy(i.name)
+    AbstractExpressionCompiler.checkIndexType(ctx, pointy, i.index)
+    pointy match {
+      case ConstantPointy(baseAddr, _, _, _, _) =>
         env.evalVariableAndConstantSubParts(i.index) match {
           case (None, offset) => List(ZLine.ldImm16(ZRegister.HL, (baseAddr + offset).quickSimplify))
           case (Some(index), offset) =>
@@ -593,7 +595,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               stashBCIfChanged(compileToHL(ctx, index)) ++
               List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
         }
-      case VariablePointy(varAddr) =>
+      case VariablePointy(varAddr, _, _) =>
         compileToHL(ctx, i.index) ++
           loadBCFromHL ++
           List(

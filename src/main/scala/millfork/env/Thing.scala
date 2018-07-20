@@ -30,7 +30,11 @@ sealed trait Type extends CallableThing {
   override def toString(): String = name
 
   def isAssignableTo(targetType: Type): Boolean = isCompatible(targetType)
+
+  def isArithmetic = false
 }
+
+sealed trait VariableType extends Type
 
 case object VoidType extends Type {
   def size = 0
@@ -40,13 +44,16 @@ case object VoidType extends Type {
   override def name = "void"
 }
 
-sealed trait PlainType extends Type {
+sealed trait PlainType extends VariableType {
   override def isCompatible(other: Type): Boolean = this == other || this.isSubtypeOf(other) || other.isSubtypeOf(this)
 
   override def isAssignableTo(targetType: Type): Boolean = isCompatible(targetType) || (targetType match {
     case BasicPlainType(_, size) => size > this.size // TODO
+    case DerivedPlainType(_, parent, size) => isAssignableTo(parent)
     case _ => false
   })
+
+  override def isArithmetic = true
 }
 
 case class BasicPlainType(name: String, size: Int) extends PlainType {
@@ -59,6 +66,12 @@ case class DerivedPlainType(name: String, parent: PlainType, isSigned: Boolean) 
   def size: Int = parent.size
 
   override def isSubtypeOf(other: Type): Boolean = parent == other || parent.isSubtypeOf(other)
+}
+
+case class EnumType(name: String, count: Option[Int]) extends VariableType {
+  override def size: Int = 1
+
+  override def isSigned: Boolean = false
 }
 
 sealed trait BooleanType extends Type {
@@ -175,9 +188,12 @@ case class InitializedMemoryVariable(name: String, address: Option[Constant], ty
   override def alloc: VariableAllocationMethod.Value = VariableAllocationMethod.Static
 }
 
-trait MfArray extends ThingInMemory with IndexableThing
+trait MfArray extends ThingInMemory with IndexableThing {
+  def indexType: VariableType
+  def elementType: VariableType
+}
 
-case class UninitializedArray(name: String, sizeInBytes: Int, declaredBank: Option[String]) extends MfArray with UninitializedMemory {
+case class UninitializedArray(name: String, sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType) extends MfArray with UninitializedMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 
   override def alloc = VariableAllocationMethod.Static
@@ -189,7 +205,7 @@ case class UninitializedArray(name: String, sizeInBytes: Int, declaredBank: Opti
   override def zeropage: Boolean = false
 }
 
-case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, declaredBank: Option[String]) extends MfArray {
+case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType) extends MfArray {
   override def toAddress: Constant = address
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
@@ -199,7 +215,7 @@ case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, decl
   override def zeropage: Boolean = false
 }
 
-case class InitializedArray(name: String, address: Option[Constant], contents: List[Expression], declaredBank: Option[String]) extends MfArray with PreallocableThing {
+case class InitializedArray(name: String, address: Option[Constant], contents: List[Expression], declaredBank: Option[String], indexType: VariableType, elementType: VariableType) extends MfArray with PreallocableThing {
   override def shouldGenerate = true
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)

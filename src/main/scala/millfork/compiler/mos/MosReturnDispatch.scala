@@ -121,19 +121,20 @@ object MosReturnDispatch {
       else actualMax
     }
 
+    val b = ctx.env.get[VariableType]("byte")
+
     while (env.parent.isDefined) env = env.parent.get
     val label = MosCompiler.nextLabel("di")
     val paramArrays = stmt.params.indices.map { ix =>
       val a = InitializedArray(label + "$" + ix + ".array", None, (paramMins(ix) to paramMaxes(ix)).map { key =>
         map(key)._2.lift(ix).getOrElse(LiteralExpression(0, 1))
       }.toList,
-        ctx.function.declaredBank)
+        ctx.function.declaredBank, b, b)
       env.registerUnnamedArray(a)
       a
     }
 
     val useJmpaix = ctx.options.flag(CompilationFlag.EmitCmosOpcodes) && !ctx.options.flag(CompilationFlag.LUnixRelocatableCode) && (actualMax - actualMin) <= 127
-    val b = ctx.env.get[Type]("byte")
 
     import AddrMode._
     import millfork.assembly.mos.Opcode._
@@ -147,7 +148,7 @@ object MosReturnDispatch {
     }
 
     if (useJmpaix) {
-      val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(lobyte0(map(i)._1), hibyte0(map(i)._1))).toList, ctx.function.declaredBank)
+      val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(lobyte0(map(i)._1), hibyte0(map(i)._1))).toList, ctx.function.declaredBank, b, b)
       env.registerUnnamedArray(jumpTable)
       if (copyParams.isEmpty) {
         val loadIndex = MosExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
@@ -162,8 +163,8 @@ object MosReturnDispatch {
       }
     } else {
       val loadIndex = MosExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(MosRegister.X, b)), BranchSpec.None)
-      val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte1(map(i)._1)).toList, ctx.function.declaredBank)
-      val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte1(map(i)._1)).toList, ctx.function.declaredBank)
+      val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte1(map(i)._1)).toList, ctx.function.declaredBank, b, b)
+      val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte1(map(i)._1)).toList, ctx.function.declaredBank, b, b)
       env.registerUnnamedArray(jumpTableLo)
       env.registerUnnamedArray(jumpTableHi)
       val actualJump = if (ctx.options.flag(CompilationFlag.LUnixRelocatableCode)) {

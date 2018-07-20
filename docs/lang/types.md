@@ -41,3 +41,33 @@ TODO
 ## Special types
 
 * `void` – a unit type containing no information, can be only used as a return type for a function.
+
+## Enumerations
+
+Enumeration is a 1-byte type that represents a set of values:
+
+    enum <name> { <variants, separated by commas or newlines> }
+    
+The first variant has value 0. Every next variant has a value increased by 1 compared to a previous one. 
+ 
+Alternatively, a variant can be given a custom constant value, which will change the sequence.
+
+If there is at least one variant and no variant is given a custom constant value,
+then the enumeration is considered _plain_. Plain enumeration types can be used as array keys.
+For plain enumerations, a constant `<name>.count` is defined,
+equal to the number of variants in the enumeration.
+
+Assigment between numeric types and enumerations is not possible without an explicit type cast:
+
+    enum E {}
+    byte b
+    E e
+    e = b       // won't compile
+    b = e       // won't compile
+    b = byte(e) // ok
+    e = E(b)    // ok
+    
+Plain enumerations have their variants equal to `byte(0)` to `byte(<name>.count - 1)`.
+    
+Tip: You can use an enumeration with no variants as a strongly checked alternative byte type,
+as there are no checks no values when converting bytes to enumeration values and vice versa.

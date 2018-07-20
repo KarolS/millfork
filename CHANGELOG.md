@@ -10,6 +10,8 @@
 
 * Added aliases.
 
+* Added enumeration types.
+
 * Added preprocessor
 
 * Automatic selection of text encoding based on target platform.

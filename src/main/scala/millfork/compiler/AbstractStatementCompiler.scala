@@ -102,15 +102,17 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
   def compileForStatement(ctx: CompilationContext, f: ForStatement): List[T] = {
     // TODO: check sizes
     // TODO: special faster cases
+    val p = f.position
     val vex = VariableExpression(f.variable)
-    val one = LiteralExpression(1, 1)
-    val increment = ExpressionStatement(FunctionCallExpression("+=", List(vex, one)))
-    val decrement = ExpressionStatement(FunctionCallExpression("-=", List(vex, one)))
+    val one = LiteralExpression(1, 1).pos(p)
+    val increment = ExpressionStatement(FunctionCallExpression("+=", List(vex, one)).pos(p)).pos(p)
+    val decrement = ExpressionStatement(FunctionCallExpression("-=", List(vex, one)).pos(p)).pos(p)
     val names = Set("", "for", f.variable)
 
     val startEvaluated = ctx.env.eval(f.start)
     val endEvaluated = ctx.env.eval(f.end)
-    ctx.env.maybeGet[Variable](f.variable).foreach{ v=>
+    val variable = ctx.env.maybeGet[Variable](f.variable)
+    variable.foreach{ v=>
       startEvaluated.foreach(value => if (!value.quickSimplify.fitsInto(v.typ)) {
         ErrorReporting.error(s"Variable `${f.variable}` is too small to hold the initial value in the for loop", f.position)
       })
@@ -129,45 +131,80 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
 
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e - 1 =>
         val end = nextLabel("of")
-        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start) :: f.body) ++ labelChunk(end)
+        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body) ++ labelChunk(end)
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s >= e =>
         Nil
 
       case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e =>
         val end = nextLabel("of")
-        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start) :: f.body) ++ labelChunk(end)
+        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body) ++ labelChunk(end)
       case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s > e =>
         Nil
 
-      case (ForDirection.ParallelUntil, Some(NumericConstant(0, ssize)), Some(NumericConstant(e, _))) if e > 0 =>
+      case (ForDirection.Until | ForDirection.ParallelUntil, Some(c), Some(NumericConstant(256, _)))
+        if variable.map(_.typ.size).contains(1) && c.requiredSize == 1 && c.isProvablyNonnegative =>
+        // LDX #s
+        // loop:
+        // stuff
+        // INX
+        // BNE loop
+        compile(ctx, List(
+          Assignment(vex, f.start).pos(p),
+          DoWhileStatement(f.body, List(increment), FunctionCallExpression("!=", List(vex, LiteralExpression(0, 1).pos(p))), names).pos(p)
+        ))
+
+      case (ForDirection.ParallelUntil, Some(NumericConstant(0, _)), Some(NumericConstant(e, _))) if e > 0 =>
         compile(ctx, List(
           Assignment(vex, f.end),
-          DoWhileStatement(Nil, decrement :: f.body, FunctionCallExpression("!=", List(vex, f.start)), names)
+          DoWhileStatement(Nil, decrement :: f.body, FunctionCallExpression("!=", List(vex, f.start)), names).pos(p)
         ))
 
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s == e =>
         val end = nextLabel("of")
-        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)) :: f.body) ++ labelChunk(end)
+        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)).pos(p) :: f.body) ++ labelChunk(end)
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s < e =>
         Nil
       case (ForDirection.DownTo, Some(NumericConstant(s, 1)), Some(NumericConstant(0, _))) if s > 0 =>
         compile(ctx, List(
-          Assignment(vex, FunctionCallExpression("lo", List(SumExpression(List(false -> f.start, false -> LiteralExpression(1, 2)), decimal = false)))),
-          DoWhileStatement(decrement :: f.body, Nil, FunctionCallExpression("!=", List(vex, f.end)), names)
+          Assignment(
+            vex,
+            FunctionCallExpression("lo", List(
+              SumExpression(List(
+                false -> f.start,
+                false -> LiteralExpression(1, 2).pos(p)),
+                decimal = false
+              ).pos(p)
+            )).pos(p)
+          ).pos(p),
+          DoWhileStatement(
+            decrement :: f.body,
+            Nil,
+            FunctionCallExpression("!=", List(vex, f.end)).pos(p), names).pos(p)
         ))
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(0, _))) if s > 0 =>
         compile(ctx, List(
-          Assignment(vex, SumExpression(List(false -> f.start, false -> LiteralExpression(1, 1)), decimal = false)),
-          DoWhileStatement(decrement :: f.body, Nil, FunctionCallExpression("!=", List(vex, f.end)), names)
+          Assignment(
+            vex,
+            SumExpression(
+              List(false -> f.start, false -> LiteralExpression(1, 1).pos(p)),
+              decimal = false
+            ).pos(p)
+          ).pos(p),
+          DoWhileStatement(
+            decrement :: f.body,
+            Nil,
+            FunctionCallExpression("!=", List(vex, f.end)).pos(p),
+            names
+          ).pos(p)
         ))
 
 
       case (ForDirection.Until | ForDirection.ParallelUntil, _, _) =>
         compile(ctx, List(
-          Assignment(vex, f.start),
+          Assignment(vex, f.start).pos(p),
           WhileStatement(
-            FunctionCallExpression("<", List(vex, f.end)),
-            f.body, List(increment), names),
+            FunctionCallExpression("<", List(vex, f.end)).pos(p),
+            f.body, List(increment), names).pos(p)
         ))
 //          case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(n, _))) if n > 0 && n < 255 =>
 //            compile(ctx, List(
@@ -178,28 +215,28 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
 //            ))
       case (ForDirection.To | ForDirection.ParallelTo, _, _) =>
         compile(ctx, List(
-          Assignment(vex, f.start),
+          Assignment(vex, f.start).pos(p),
           WhileStatement(
-            VariableExpression("true"),
+            VariableExpression("true").pos(p),
             f.body,
             List(IfStatement(
-              FunctionCallExpression("==", List(vex, f.end)),
-              List(BreakStatement(f.variable)),
+              FunctionCallExpression("==", List(vex, f.end)).pos(p),
+              List(BreakStatement(f.variable).pos(p)),
               List(increment)
             )),
-            names),
+            names)
         ))
       case (ForDirection.DownTo, _, _) =>
         compile(ctx, List(
-          Assignment(vex, f.start),
+          Assignment(vex, f.start).pos(p),
           IfStatement(
-            FunctionCallExpression(">=", List(vex, f.end)),
+            FunctionCallExpression(">=", List(vex, f.end)).pos(p),
             List(DoWhileStatement(
               f.body,
               List(decrement),
-              FunctionCallExpression("!=", List(vex, f.end)),
+              FunctionCallExpression("!=", List(vex, f.end)).pos(p),
               names
-            )),
+            ).pos(p)),
             Nil)
         ))
     }

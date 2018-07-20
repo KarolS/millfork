@@ -50,6 +50,7 @@ object BuiltIns {
           Nil -> AssemblyLine.variable(ctx, opcode, v)
         case IndexedExpression(arrayName, index) =>
           val pointy = env.getPointy(arrayName)
+          AbstractExpressionCompiler.checkIndexType(ctx, pointy, index)
           val (variablePart, constantPart) = env.evalVariableAndConstantSubParts(index)
           val indexerSize = variablePart.map(v => getIndexerSize(ctx, v)).getOrElse(1)
           val totalIndexSize = getIndexerSize(ctx, index)
@@ -57,11 +58,11 @@ object BuiltIns {
             case (p: ConstantPointy, _, _, _, None) =>
               Nil -> List(AssemblyLine.absolute(opcode, p.value + constantPart))
             case (p: ConstantPointy, _, 1, IndexChoice.RequireX | IndexChoice.PreferX, Some(v)) =>
-              MosExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(MosRegister.X, b)), NoBranching) -> List(AssemblyLine.absoluteX(opcode, p.value + constantPart))
+              MosExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(MosRegister.X, pointy.indexType)), NoBranching) -> List(AssemblyLine.absoluteX(opcode, p.value + constantPart))
             case (p: ConstantPointy, _, 1, IndexChoice.PreferY, Some(v)) =>
-              MosExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(MosRegister.Y, b)), NoBranching) -> List(AssemblyLine.absoluteY(opcode, p.value + constantPart))
+              MosExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(MosRegister.Y, pointy.indexType)), NoBranching) -> List(AssemblyLine.absoluteY(opcode, p.value + constantPart))
             case (p: VariablePointy, 0 | 1, _, IndexChoice.PreferX | IndexChoice.PreferY, _) =>
-              MosExpressionCompiler.compile(ctx, index, Some(b -> RegisterVariable(MosRegister.Y, b)), NoBranching) -> List(AssemblyLine.indexedY(opcode, p.addr))
+              MosExpressionCompiler.compile(ctx, index, Some(b -> RegisterVariable(MosRegister.Y, pointy.indexType)), NoBranching) -> List(AssemblyLine.indexedY(opcode, p.addr))
             case (p: ConstantPointy, _, 2, IndexChoice.PreferX | IndexChoice.PreferY, Some(v)) =>
               MosExpressionCompiler.prepareWordIndexing(ctx, p, index) -> List(AssemblyLine.indexedY(opcode, env.get[VariableInMemory]("__reg")))
             case (p: VariablePointy, 2, _, IndexChoice.PreferX | IndexChoice.PreferY, _) =>
@@ -157,6 +158,14 @@ object BuiltIns {
       case None => expr match {
         case VariableExpression(_) => 'V'
         case IndexedExpression(_, LiteralExpression(_, _)) => 'K'
+        case IndexedExpression(_, expr@VariableExpression(v)) =>
+          env.eval(expr) match {
+            case Some(_) => 'K'
+            case None => env.get[Variable](v).typ.size match {
+              case 1 => 'J'
+              case _ => 'I'
+            }
+          }
         case IndexedExpression(_, VariableExpression(v)) if env.get[Variable](v).typ.size == 1 => 'J'
         case IndexedExpression(_, _) => 'I'
         case _ => 'A'
@@ -760,8 +769,8 @@ object BuiltIns {
     }
   }
 
-  private def getIndexerSize(ctx: CompilationContext, indexExpr: Expression) = {
-    ctx.env.evalVariableAndConstantSubParts(indexExpr)._1.map(v => MosExpressionCompiler.getExpressionType(ctx, v)).size
+  private def getIndexerSize(ctx: CompilationContext, indexExpr: Expression): Int = {
+    ctx.env.evalVariableAndConstantSubParts(indexExpr)._1.map(v => MosExpressionCompiler.getExpressionType(ctx, v).size).sum
   }
 
   def compileInPlaceWordOrLongAddition(ctx: CompilationContext, lhs: LhsExpression, addend: Expression, subtract: Boolean, decimal: Boolean): List[AssemblyLine] = {

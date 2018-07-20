@@ -94,6 +94,12 @@ Syntax:
 then defaults to `default_code_segment` as defined for the platform if the array has initial values,
 or to `default` if it doesn't.
 
+* `<size>`: either a constant number, which then defines the size of the array,
+or a name of a plain enumeration type, in which case changes the type of the index to that enumeration
+and declares the array size to be equal to the number of variants in that enumeration.
+If the size is not specified here, then it's deduced from the `<initial_values>`.
+If the declared size and the size deduced from the `<initial_values>` don't match, then an error is raised.
+
 TODO
 
 ### Function declarations

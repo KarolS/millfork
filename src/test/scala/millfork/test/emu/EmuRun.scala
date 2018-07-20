@@ -119,6 +119,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
+    ErrorReporting.setSource(Some(effectiveSource.lines.toIndexedSeq))
     val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = MosParser("", preprocessedSource, "", options, features)
     parserF.toAst match {
@@ -167,7 +168,9 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
           println(f"Gain:              ${(100L * (unoptimizedSize - optimizedSize) / unoptimizedSize.toDouble).round}%5d%%")
         }
 
-        ErrorReporting.assertNoErrors("Code generation failed")
+        if (ErrorReporting.hasErrors) {
+          fail("Code generation failed")
+        }
 
         val memoryBank = assembler.mem.banks("default")
         if (source.contains("return [")) {
@@ -175,7 +178,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
             if (memoryBank.readable(i)) memoryBank.readable(i + 1) = true
           }
         }
-        platform.cpu match {
+        val timings = platform.cpu match {
           case millfork.Cpu.Cmos =>
             runViaSymon(memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.CMOS_6502)
           case millfork.Cpu.Ricoh =>
@@ -189,12 +192,14 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
             ErrorReporting.trace("No emulation support for " + platform.cpu)
             Timings(-1, -1) -> memoryBank
         }
+        ErrorReporting.clearErrors()
+        timings
       case f: Failure[_, _] =>
         println(f)
         println(f.extra.toString)
         println(f.lastParser.toString)
         ErrorReporting.error("Syntax error", Some(parserF.lastPosition))
-        ???
+        fail("syntax error")
     }
   }
 

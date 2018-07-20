@@ -73,7 +73,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def getAllFixedAddressObjects: List[(String, Int, Int)] = {
     things.values.flatMap {
-      case RelativeArray(_, NumericConstant(addr, _), size, declaredBank) =>
+      case RelativeArray(_, NumericConstant(addr, _), size, declaredBank, _, _) =>
         List((declaredBank.getOrElse("default"), addr.toInt, size))
       case RelativeVariable(_, NumericConstant(addr, _), typ, _, declaredBank) =>
         List((declaredBank.getOrElse("default"), addr.toInt, typ.size))
@@ -270,14 +270,24 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     InitializedMemoryVariable
     UninitializedMemoryVariable
     getArrayOrPointer(name) match {
-      case th@InitializedArray(_, _, cs, _) => ConstantPointy(th.toAddress, Some(cs.length))
-      case th@UninitializedArray(_, size, _) => ConstantPointy(th.toAddress, Some(size))
-      case th@RelativeArray(_, _, size, _) => ConstantPointy(th.toAddress, Some(size))
-      case ConstantThing(_, value, typ) if typ.size <= 2 => ConstantPointy(value, None)
-      case th:VariableInMemory => VariablePointy(th.toAddress)
+      case th@InitializedArray(_, _, cs, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e)
+      case th@UninitializedArray(_, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
+      case th@RelativeArray(_, _, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
+      case ConstantThing(_, value, typ) if typ.size <= 2 =>
+        val b = get[VariableType]("byte")
+        val w = get[VariableType]("word")
+        // TODO:
+        ConstantPointy(value, None, None, w, b)
+      case th:VariableInMemory =>
+        val b = get[VariableType]("byte")
+        val w = get[VariableType]("word")
+        // TODO:
+        VariablePointy(th.toAddress, w, b)
       case _ =>
         ErrorReporting.error(s"$name is not a valid pointer or array")
-        ConstantPointy(Constant.Zero, None)
+        val b = get[VariableType]("byte")
+        val w = get[VariableType]("word")
+        ConstantPointy(Constant.Zero, None, None, w, b)
     }
   }
 
@@ -506,6 +516,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case "||" | "|" =>
             constantOperation(MathOperator.Or, params)
           case _ =>
+            if (params.size == 1) {
+              return maybeGet[Type](name).flatMap(_ => eval(params.head))
+            }
             None
         }
     }
@@ -578,6 +591,26 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def registerAlias(stmt: AliasDefinitionStatement): Unit = {
     addThing(Alias(stmt.name, stmt.target), stmt.position)
+  }
+
+  def registerEnum(stmt: EnumDefinitionStatement): Unit = {
+    val count = if (stmt.variants.nonEmpty && stmt.variants.forall(_._2.isEmpty)) {
+      val size = stmt.variants.size
+      addThing(ConstantThing(stmt.name + ".count", NumericConstant(size, 1), get[Type]("byte")), stmt.position)
+      Some(size)
+    } else None
+    val t = EnumType(stmt.name, count)
+    addThing(t, stmt.position)
+    var value = Constant.Zero
+    for((name, optValue) <- stmt.variants) {
+      optValue match {
+        case Some(v) =>
+          value = eval(v).getOrElse(Constant.error(s"Enum constant `${stmt.name}.$name` is not a constant", stmt.position))
+        case _ =>
+      }
+      addThing(ConstantThing(name, value, t), stmt.position)
+      value += 1
+    }
   }
 
   def registerFunction(stmt: FunctionDeclarationStatement, options: CompilationOptions): Unit = {
@@ -799,23 +832,37 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def registerArray(stmt: ArrayDeclarationStatement, options: CompilationOptions): Unit = {
-    val b = get[Type]("byte")
+    val b = get[VariableType]("byte")
+    val w = get[VariableType]("word")
     val p = get[Type]("pointer")
     stmt.elements match {
       case None =>
         stmt.length match {
           case None => ErrorReporting.error(s"Array `${stmt.name}` without size nor contents", stmt.position)
           case Some(l) =>
+            // array arr[...]
             val address = stmt.address.map(a => eval(a).getOrElse(ErrorReporting.fatal(s"Array `${stmt.name}` has non-constant address", stmt.position)))
-            val lengthConst = eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+            val (indexType, lengthConst) = l match {
+              case VariableExpression(name) =>
+                maybeGet[Type](name) match {
+                  case Some(typ@EnumType(_, Some(count))) =>
+                    typ -> NumericConstant(count, 1)
+                  case Some(typ) =>
+                    ErrorReporting.error(s"Type $name cannot be used as an array index", l.position)
+                    w -> Constant.Zero
+                  case _ => w -> eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                }
+              case _ =>
+                w -> eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+            }
             lengthConst match {
               case NumericConstant(length, _) =>
                 if (length > 0xffff || length < 0) ErrorReporting.error(s"Array `${stmt.name}` has invalid length", stmt.position)
                 val array = address match {
                   case None => UninitializedArray(stmt.name + ".array", length.toInt,
-                              declaredBank = stmt.bank)
+                              declaredBank = stmt.bank, indexType, b)
                   case Some(aa) => RelativeArray(stmt.name + ".array", aa, length.toInt,
-                              declaredBank = stmt.bank)
+                              declaredBank = stmt.bank, indexType, b)
                 }
                 addThing(array, stmt.position)
                 registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank), stmt.position, options)
@@ -850,20 +897,40 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
       case Some(contents1) =>
         val contents = extractArrayContents(contents1)
-        stmt.length match {
-          case None =>
-          case Some(l) =>
-            val lengthConst = eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+        val indexType = stmt.length match {
+          case None => // array arr = [...]
+            w
+          case Some(l) => // array arr[...] = [...]
+            val (indexTyp, lengthConst) = l match {
+              case VariableExpression(name) =>
+                maybeGet[Type](name) match {
+                  case Some(typ@EnumType(_, Some(count))) =>
+                    if (count != contents.size)
+                      ErrorReporting.error(s"Array `${stmt.name}` has actual length different than the number of variants in the enum `${typ.name}`", stmt.position)
+                    typ -> NumericConstant(count, 1)
+                  case Some(typ@EnumType(_, None)) =>
+                    // using a non-enumerable enum for an array index is ok if the array is preïnitialized
+                    typ -> NumericConstant(contents.length, 1)
+                  case Some(_) =>
+                    ErrorReporting.error(s"Type $name cannot be used as an array index", l.position)
+                    w -> Constant.Zero
+                  case _ =>
+                    w -> eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                }
+              case _ =>
+                w -> eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+            }
             lengthConst match {
               case NumericConstant(ll, _) =>
                 if (ll != contents.length) ErrorReporting.error(s"Array `${stmt.name}` has different declared and actual length", stmt.position)
               case _ => ErrorReporting.error(s"Array `${stmt.name}` has weird length", stmt.position)
             }
+            indexTyp
         }
         val length = contents.length
         if (length > 0xffff || length < 0) ErrorReporting.error(s"Array `${stmt.name}` has invalid length", stmt.position)
         val address = stmt.address.map(a => eval(a).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant address", stmt.position)))
-        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank)
+        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, b)
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
                     declaredBank = stmt.bank), stmt.position, options)
@@ -905,7 +972,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     val b = get[Type]("byte")
     val w = get[Type]("word")
-    val typ = get[PlainType](stmt.typ)
+    val typ = get[VariableType](stmt.typ)
     if (stmt.typ == "pointer" || stmt.typ == "farpointer") {
       //      if (stmt.constant) {
       //        ErrorReporting.error(s"Pointer `${stmt.name}` cannot be constant")
@@ -1067,15 +1134,23 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
+    val b = get[VariableType]("byte")
     if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) {
-      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None), None)
+      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None, b, b), None)
+    }
+    program.declarations.foreach {
+      case a: AliasDefinitionStatement => registerAlias(a)
+      case _ =>
+    }
+    program.declarations.foreach {
+      case e: EnumDefinitionStatement => registerEnum(e)
+      case _ =>
     }
     program.declarations.foreach {
       case f: FunctionDeclarationStatement => registerFunction(f, options)
       case v: VariableDeclarationStatement => registerVariable(v, options)
       case a: ArrayDeclarationStatement => registerArray(a, options)
-      case a: AliasDefinitionStatement => registerAlias(a)
-      case i: ImportStatement => ()
+      case _ =>
     }
     if (options.zpRegisterSize > 0 && !things.contains("__reg")) {
       addThing(BasicPlainType("__reg$type", options.zpRegisterSize), None)
@@ -1093,7 +1168,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     if (CpuFamily.forType(options.platform.cpu) == CpuFamily.M6502) {
       if (!things.contains("__constant8")) {
-        things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None)
+        things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None, b, b)
       }
     }
   }

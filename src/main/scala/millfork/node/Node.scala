@@ -16,6 +16,12 @@ object Node {
       node.position = Some(position)
       node
     }
+    def pos(position: Option[Position]): N = {
+      if (position.isDefined) {
+        node.position = position
+      }
+      node
+    }
   }
 }
 
@@ -227,6 +233,10 @@ case class ProcessedContents(processor: String, values: ArrayContents) extends A
 
 case class AliasDefinitionStatement(name: String, target: String) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
+}
+
+case class EnumDefinitionStatement(name: String, variants: List[(String, Option[Expression])]) extends DeclarationStatement {
+  override def getAllExpressions: List[Expression] = variants.flatMap(_._2)
 }
 
 case class ArrayDeclarationStatement(name: String,

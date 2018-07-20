@@ -223,6 +223,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 MosExpressionCompiler.compile(ctx, e, someRegisterAX, NoBranching) ++ stackPointerFixBeforeReturn(ctx) ++ returnInstructions
             }
           case _ =>
+            AbstractExpressionCompiler.checkAssignmentType(ctx, e, m.returnType)
             m.returnType.size match {
               case 0 =>
                 ErrorReporting.error("Cannot return anything from a void function", statement.position)

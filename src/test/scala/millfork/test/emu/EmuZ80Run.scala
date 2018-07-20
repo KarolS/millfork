@@ -36,6 +36,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     ErrorReporting.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
+    ErrorReporting.setSource(Some(effectiveSource.lines.toIndexedSeq))
     val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = Z80Parser("", preprocessedSource, "", options, features)
     parserF.toAst match {
@@ -84,7 +85,9 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
           println(f"Gain:              ${(100L * (unoptimizedSize - optimizedSize) / unoptimizedSize.toDouble).round}%5d%%")
         }
 
-        ErrorReporting.assertNoErrors("Code generation failed")
+        if (ErrorReporting.hasErrors) {
+          fail("Code generation failed")
+        }
 
         val memoryBank = assembler.mem.banks("default")
         (0x1f0 until 0x200).foreach(i => memoryBank.readable(i) = true)
@@ -102,7 +105,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
 
         (0x200 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(ErrorReporting.debug(_))
 
-        platform.cpu match {
+        val timings = platform.cpu match {
           case millfork.Cpu.Z80 =>
             val cpu = new Z80Core(Z80Memory(memoryBank), DummyIO)
             cpu.reset()
@@ -118,6 +121,8 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
           case _ =>
             Timings(-1, -1) -> memoryBank
         }
+        ErrorReporting.clearErrors()
+        timings
       case f: Failure[_, _] =>
         println(f)
         println(f.extra.toString)

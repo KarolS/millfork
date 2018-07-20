@@ -2,7 +2,7 @@ package millfork.test
 
 import millfork.Cpu
 import millfork.error.ErrorReporting
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
+import millfork.test.emu._
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -209,5 +209,58 @@ class ForLoopSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Edge cases - positive") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
+        | void main() {
+        |     byte i
+        |     for i,0,until,256 { f() }
+        |     for i,0,paralleluntil,256 { f() }
+        |     for i,0,until,255 { f() }
+        |     for i,0,paralleluntil,255 { f() }
+        |     for i,0,to,255 { f() }
+        |     for i,0,parallelto,255 { f() }
+        |     for i,255,downto,0 { f() }
+        | }
+        | void f() { }
+      """.stripMargin){ m => }
+  }
+
+  test("Edge cases - negative") {
+    ShouldNotCompile("""
+        | void main() {
+        |     byte i
+        |     for i,0,until,257 { f() }
+        | }
+        | void f() { }
+      """.stripMargin)
+    ShouldNotCompile("""
+        | void main() {
+        |     byte i
+        |     for i,0,paralleluntil,257 { f() }
+        | }
+        | void f() { }
+      """.stripMargin)
+    ShouldNotCompile("""
+        | void main() {
+        |     byte i
+        |     for i,0,to,256 { f() }
+        | }
+        | void f() { }
+      """.stripMargin)
+    ShouldNotCompile("""
+        | void main() {
+        |     byte i
+        |     for i,0,parallelto,256 { f() }
+        | }
+        | void f() { }
+      """.stripMargin)
+    ShouldNotCompile("""
+        | void main() {
+        |     byte i
+        |     for i,256,downto,0 { f() }
+        | }
+        | void f() { }
+      """.stripMargin)
+  }
 
 }

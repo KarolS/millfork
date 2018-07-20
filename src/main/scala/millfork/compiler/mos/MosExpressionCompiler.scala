@@ -143,14 +143,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     val reg = ctx.env.get[VariableInMemory]("__reg")
     val compileIndex = compile(ctx, indexExpression, Some(MosExpressionCompiler.getExpressionType(ctx, indexExpression) -> RegisterVariable(MosRegister.YA, w)), BranchSpec.None)
     val prepareRegister = pointy match {
-      case ConstantPointy(addr, _) =>
+      case ConstantPointy(addr, _, _, _, _) =>
         List(
           AssemblyLine.implied(CLC),
           AssemblyLine.immediate(ADC, addr.hiByte),
           AssemblyLine.zeropage(STA, reg, 1),
           AssemblyLine.immediate(LDA, addr.loByte),
           AssemblyLine.zeropage(STA, reg))
-      case VariablePointy(addr) =>
+      case VariablePointy(addr, _, _) =>
         List(
           AssemblyLine.implied(CLC),
           AssemblyLine.zeropage(ADC, addr + 1),
@@ -257,7 +257,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           case (p: VariablePointy, _, _, 2) =>
             wrapWordIndexingStorage(prepareWordIndexing(ctx, p, indexExpr))
           case (p: ConstantPointy, Some(v), 2, _) =>
-            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, if (constIndex.isProvablyZero) p.size else None), v))
+            val w = env.get[VariableType]("word")
+            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, None, if (constIndex.isProvablyZero) p.size else None, w, p.elementType), v))
           case (p: ConstantPointy, Some(v), 1, _) =>
             storeToArrayAtUnknownIndex(v, p.value)
           //TODO: should there be a type check or a zeropage check?
@@ -499,6 +500,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         }
       case IndexedExpression(arrayName, indexExpr) =>
         val pointy = env.getPointy(arrayName)
+        AbstractExpressionCompiler.checkIndexType(ctx, pointy, indexExpr)
         // TODO: check
         val (variableIndex, constantIndex) = env.evalVariableAndConstantSubParts(indexExpr)
         val variableIndexSize = variableIndex.map(v => getExpressionType(ctx, v).size).getOrElse(0)
@@ -559,7 +561,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             case (a: ConstantPointy, Some(v), _, 1) =>
               loadFromArrayAtUnknownIndex(v, a.value)
             case (a: ConstantPointy, Some(v), _, 2) =>
-              prepareWordIndexing(ctx, ConstantPointy(a.value + constantIndex, if (constantIndex.isProvablyZero) a.size else None), v) ++ loadFromReg()
+              prepareWordIndexing(ctx, ConstantPointy(
+                a.value + constantIndex,
+                None,
+                if (constantIndex.isProvablyZero) a.size else None,
+                env.get[VariableType]("word"),
+                a.elementType), v) ++ loadFromReg()
             case (a: VariablePointy, _, 2, _) =>
               prepareWordIndexing(ctx, a, indexExpr) ++ loadFromReg()
             case (p:VariablePointy, None, 0 | 1, _) =>
@@ -592,6 +599,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           }
         }
       case SumExpression(params, decimal) =>
+        assertAllArithmetic(ctx, params.map(_._2))
         val a = params.map{case (n, p) => env.eval(p).map(n -> _)}
         if (a.forall(_.isDefined)) {
             val value = a.foldLeft(Constant.Zero){(c, pair) =>
@@ -693,7 +701,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               ErrorReporting.error("Invalid number of parameters", f.position)
               Nil
             } else {
-              assertAllBytes("Nonet argument has to be a byte", ctx, params)
+              assertAllArithmeticBytes("Nonet argument has to be a byte", ctx, params)
               params.head match {
                 case SumExpression(addends, _) =>
                   if (addends.exists(a => !a._1)) {
@@ -738,7 +746,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case "^^" => ???
           case "&" =>
-            getParamMaxSize(ctx, params) match {
+            getArithmeticParamMaxSize(ctx, params) match {
               case 1 =>
                 zeroExtend = true
                 BuiltIns.compileBitOps(AND, ctx, params)
@@ -746,31 +754,31 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case "*" =>
             zeroExtend = true
-            assertAllBytes("Long multiplication not supported", ctx, params)
+            assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
             BuiltIns.compileByteMultiplication(ctx, params)
           case "|" =>
-            getParamMaxSize(ctx, params) match {
+            getArithmeticParamMaxSize(ctx, params) match {
               case 1 =>
                 zeroExtend = true
                 BuiltIns.compileBitOps(ORA, ctx, params)
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, ORA)
             }
           case "^" =>
-            getParamMaxSize(ctx, params) match {
+            getArithmeticParamMaxSize(ctx, params) match {
               case 1 =>
                 zeroExtend = true
                 BuiltIns.compileBitOps(EOR, ctx, params)
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, EOR)
             }
           case ">>>>" =>
-            val (l, r, 2) = assertBinary(ctx, params)
+            val (l, r, 2) = assertArithmeticBinary(ctx, params)
             l match {
               case v: LhsExpression =>
                 zeroExtend = true
                 BuiltIns.compileNonetOps(ctx, v, r)
             }
           case "<<" =>
-            val (l, r, size) = assertBinary(ctx, params)
+            val (l, r, size) = assertArithmeticBinary(ctx, params)
             size match {
               case 1 =>
                 zeroExtend = true
@@ -782,7 +790,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 Nil
             }
           case ">>" =>
-            val (l, r, size) = assertBinary(ctx, params)
+            val (l, r, size) = assertArithmeticBinary(ctx, params)
             size match {
               case 1 =>
                 zeroExtend = true
@@ -795,17 +803,17 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case "<<'" =>
             zeroExtend = true
-            assertAllBytes("Long shift ops not supported", ctx, params)
-            val (l, r, 1) = assertBinary(ctx, params)
+            assertAllArithmeticBytes("Long shift ops not supported", ctx, params)
+            val (l, r, 1) = assertArithmeticBinary(ctx, params)
             DecimalBuiltIns.compileByteShiftLeft(ctx, l, r, rotate = false)
           case ">>'" =>
             zeroExtend = true
-            assertAllBytes("Long shift ops not supported", ctx, params)
-            val (l, r, 1) = assertBinary(ctx, params)
+            assertAllArithmeticBytes("Long shift ops not supported", ctx, params)
+            val (l, r, 1) = assertArithmeticBinary(ctx, params)
             DecimalBuiltIns.compileByteShiftRight(ctx, l, r, rotate = false)
           case "<" =>
             // TODO: signed
-            val (size, signed) = assertComparison(ctx, params)
+            val (size, signed) = assertArithmeticComparison(ctx, params)
             compileTransitiveRelation(ctx, "<", params, exprTypeAndVariable, branches) { (l, r) =>
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
@@ -815,7 +823,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case ">=" =>
             // TODO: signed
-            val (size, signed) = assertComparison(ctx, params)
+            val (size, signed) = assertArithmeticComparison(ctx, params)
             compileTransitiveRelation(ctx, ">=", params, exprTypeAndVariable, branches) { (l, r) =>
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
@@ -825,7 +833,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case ">" =>
             // TODO: signed
-            val (size, signed) = assertComparison(ctx, params)
+            val (size, signed) = assertArithmeticComparison(ctx, params)
             compileTransitiveRelation(ctx, ">", params, exprTypeAndVariable, branches) { (l, r) =>
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
@@ -835,7 +843,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case "<=" =>
             // TODO: signed
-            val (size, signed) = assertComparison(ctx, params)
+            val (size, signed) = assertArithmeticComparison(ctx, params)
             compileTransitiveRelation(ctx, "<=", params, exprTypeAndVariable, branches) { (l, r) =>
               size match {
                 case 1 => BuiltIns.compileByteComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
@@ -860,7 +868,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case _ => BuiltIns.compileLongComparison(ctx, ComparisonType.NotEqual, l, r, size, branches)
             }
           case "+=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteAddition(ctx, l, r, subtract = false, decimal = false)
@@ -876,7 +884,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "-=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteAddition(ctx, l, r, subtract = true, decimal = false)
@@ -892,7 +900,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "+'=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteAddition(ctx, l, r, subtract = false, decimal = true)
@@ -908,7 +916,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "-'=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteAddition(ctx, l, r, subtract = true, decimal = true)
@@ -924,7 +932,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "<<=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteShiftOps(ASL, ctx, l, r)
@@ -935,7 +943,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case ">>=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteShiftOps(LSR, ctx, l, r)
@@ -946,7 +954,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "<<'=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 DecimalBuiltIns.compileByteShiftLeft(ctx, l, r, rotate = false) ++ compileByteStorage(ctx, MosRegister.A, l)
@@ -957,7 +965,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case ">>'=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 DecimalBuiltIns.compileByteShiftRight(ctx, l, r, rotate = false) ++ compileByteStorage(ctx, MosRegister.A, l)
@@ -968,15 +976,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "*=" =>
-            assertAllBytes("Long multiplication not supported", ctx, params)
-            val (l, r, 1) = assertAssignmentLike(ctx, params)
+            assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
+            val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
             BuiltIns.compileInPlaceByteMultiplication(ctx, l, r)
           case "*'=" =>
-            assertAllBytes("Long multiplication not supported", ctx, params)
-            val (l, r, 1) = assertAssignmentLike(ctx, params)
+            assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
+            val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
             DecimalBuiltIns.compileInPlaceByteMultiplication(ctx, l, r)
           case "&=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteBitOp(ctx, l, r, AND)
@@ -987,7 +995,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "^=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteBitOp(ctx, l, r, EOR)
@@ -998,7 +1006,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "|=" =>
-            val (l, r, size) = assertAssignmentLike(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>
                 BuiltIns.compileInPlaceByteBitOp(ctx, l, r, ORA)
@@ -1241,13 +1249,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
   def compileAssignment(ctx: CompilationContext, source: Expression, target: LhsExpression): List[AssemblyLine] = {
     val env = ctx.env
+    val sourceType = AbstractExpressionCompiler.checkAssignmentTypeAndGetSourceType(ctx, source, target)
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")
     target match {
       case VariableExpression(name) =>
         val v = env.get[Variable](name, target.position)
         // TODO check v.typ
-        compile(ctx, source, Some((getExpressionType(ctx, source), v)), NoBranching)
+        compile(ctx, source, Some((sourceType, v)), NoBranching)
       case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
         compile(ctx, source, Some(w, RegisterVariable(MosRegister.AX, w)), NoBranching) ++
           compileByteStorage(ctx, MosRegister.A, l) ++ compileByteStorage(ctx, MosRegister.X, h)
@@ -1261,10 +1270,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
   def arrayBoundsCheck(ctx: CompilationContext, pointy: Pointy, register: MosRegister.Value, index: Expression): List[AssemblyLine] = {
     if (!ctx.options.flags(CompilationFlag.CheckIndexOutOfBounds)) return Nil
-    val arrayLength = pointy match {
+    val arrayLength:Int = pointy match {
       case _: VariablePointy => return Nil
-      case ConstantPointy(_, None) => return Nil
-      case ConstantPointy(_, Some(s)) => s
+      case p: ConstantPointy => p.size match {
+        case None => return Nil
+        case Some(s) => s
+      }
     }
     ctx.env.eval(index) match {
       case Some(NumericConstant(i, _)) =>

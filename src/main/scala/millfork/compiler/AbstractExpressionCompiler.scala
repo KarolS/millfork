@@ -12,6 +12,15 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 
   def getExpressionType(ctx: CompilationContext, expr: Expression): Type = AbstractExpressionCompiler.getExpressionType(ctx, expr)
 
+  def assertAllArithmetic(ctx: CompilationContext,expressions: List[Expression]) = {
+     for(e <- expressions) {
+       val typ = getExpressionType(ctx, e)
+       if (!typ.isArithmetic) {
+         ErrorReporting.error(s"Cannot perform arithmetic operations on type `$typ`", e.position)
+       }
+     }
+  }
+
   def lookupFunction(ctx: CompilationContext, f: FunctionCallExpression): MangledFunction = AbstractExpressionCompiler.lookupFunction(ctx, f)
 
   def assertCompatible(exprType: Type, variableType: Type): Unit = {
@@ -24,7 +33,8 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     ctx.copy(env = result)
   }
 
-  def getParamMaxSize(ctx: CompilationContext, params: List[Expression]): Int = {
+  def getArithmeticParamMaxSize(ctx: CompilationContext, params: List[Expression]): Int = {
+    assertAllArithmetic(ctx, params)
     params.map(expr => getExpressionType(ctx, expr).size).max
   }
 
@@ -32,10 +42,17 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     params.map { case (_, expr) => getExpressionType(ctx, expr).size}.max
   }
 
-  def assertAllBytes(msg: String, ctx: CompilationContext, params: List[Expression]): Unit = {
+  def assertAllArithmeticBytes(msg: String, ctx: CompilationContext, params: List[Expression]): Unit = {
+    assertAllArithmetic(ctx, params)
     if (params.exists { expr => getExpressionType(ctx, expr).size != 1 }) {
       ErrorReporting.fatal(msg, params.head.position)
     }
+  }
+
+  @inline
+  def assertArithmeticBinary(ctx: CompilationContext, params: List[Expression]): (Expression, Expression, Int) = {
+    assertAllArithmetic(ctx, params)
+    assertBinary(ctx, params)
   }
 
   def assertBinary(ctx: CompilationContext, params: List[Expression]): (Expression, Expression, Int) = {
@@ -54,6 +71,11 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
         val rt = getExpressionType(ctx, r)
         (lt.size max rt.size, lt.isSigned || rt.isSigned)
     }
+  }
+
+  def assertArithmeticComparison(ctx: CompilationContext, params: List[Expression]): (Int, Boolean) = {
+    assertAllArithmetic(ctx, params)
+    assertComparison(ctx, params)
   }
 
   def assertBool(ctx: CompilationContext, fname: String, params: List[Expression], expectedParamCount: Int): Unit = {
@@ -78,10 +100,11 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     }
   }
 
-  def assertAssignmentLike(ctx: CompilationContext, params: List[Expression]): (LhsExpression, Expression, Int) = {
+  def assertArithmeticAssignmentLike(ctx: CompilationContext, params: List[Expression]): (LhsExpression, Expression, Int) = {
     if (params.length != 2) {
       ErrorReporting.fatal("sfgdgfsd", None)
     }
+    assertAllArithmetic(ctx, params)
     (params.head, params(1)) match {
       case (l: LhsExpression, r: Expression) =>
         val lsize = getExpressionType(ctx, l).size
@@ -115,7 +138,8 @@ object AbstractExpressionCompiler {
       case HalfWordExpression(param, _) =>
         getExpressionType(ctx, param)
         b
-      case IndexedExpression(_, _) => b
+      case IndexedExpression(name, _) =>
+        env.getPointy(name).elementType
       case SeparateBytesExpression(hi, lo) =>
         if (getExpressionType(ctx, hi).size > 1) ErrorReporting.error("Hi byte too large", hi.position)
         if (getExpressionType(ctx, lo).size > 1) ErrorReporting.error("Lo byte too large", lo.position)
@@ -173,6 +197,29 @@ object AbstractExpressionCompiler {
           case None =>
             lookupFunction(ctx, f).returnType
         }
+    }
+  }
+
+  def checkIndexType(ctx: CompilationContext, pointy: Pointy, index: Expression): Unit = {
+    val indexerType = getExpressionType(ctx, index)
+    if (!indexerType.isAssignableTo(pointy.indexType)) {
+      ErrorReporting.error(s"Invalid type for index${pointy.name.fold("")(" for `" + _ + "`")}: expected `${pointy.indexType}`, got `$indexerType`", index.position)
+    }
+  }
+
+  def checkAssignmentTypeAndGetSourceType(ctx: CompilationContext, source: Expression, target: LhsExpression): Type = {
+    val sourceType = getExpressionType(ctx, source)
+    val targetType = getExpressionType(ctx, target)
+    if (!sourceType.isAssignableTo(targetType)) {
+      ErrorReporting.error(s"Cannot assign `$sourceType` to `$targetType`", target.position.orElse(source.position))
+    }
+    sourceType
+  }
+
+  def checkAssignmentType(ctx: CompilationContext, source: Expression, targetType: Type): Unit = {
+    val sourceType = getExpressionType(ctx, source)
+    if (!sourceType.isAssignableTo(targetType)) {
+      ErrorReporting.error(s"Cannot assign `$sourceType` to `$targetType`", source.position)
     }
   }
 

@@ -50,18 +50,20 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
               Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
                 List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
           }
-          case t => t.size match {
-            case 0 =>
-              ErrorReporting.error("Cannot return anything from a void function", statement.position)
-              fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
-            case 1 =>
-              Z80ExpressionCompiler.compileToA(ctx, e) ++ fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
-            case 2 =>
-              Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
-          }
+          case t =>
+            AbstractExpressionCompiler.checkAssignmentType(ctx, e, ctx.function.returnType)
+            t.size match {
+              case 0 =>
+                ErrorReporting.error("Cannot return anything from a void function", statement.position)
+                fixStackOnReturn(ctx) ++
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+              case 1 =>
+                Z80ExpressionCompiler.compileToA(ctx, e) ++ fixStackOnReturn(ctx) ++
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+              case 2 =>
+                Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+            }
         }
       case Assignment(destination, source) =>
         val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)

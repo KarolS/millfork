@@ -39,8 +39,8 @@ class FarwordTest extends FunSuite with Matchers {
         |   w = $7788
         |   b = $55
         |   output3 = $23344
-        |   output2 = $11223344
-        |   output1 = $11223344
+        |   output2 = $23344
+        |   output1 = $3344
         |   output2 = w
         |   output1 = b
         | }
