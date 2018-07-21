@@ -44,6 +44,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     PHX, PLX,
     SBX, SAX, LXA, XAA, AHX, SHX, SHY, LAS, TAS,
     HuSAX, SXY, TXY, TXY,
+    BYTE,
   )
 
   private val opcodesThatAlwaysPrecludeYAllocation = Set(
@@ -52,11 +53,13 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     PHY, PLY,
     AHX, SHX, SHY, LAS, TAS,
     SAY, SXY, TXY, TYX,
+    BYTE,
   )
 
   private val opcodesThatAlwaysPrecludeZAllocation = Set(
     JSR, STZ, TZA, INZ, DEZ, CPZ,
     PHZ, PLZ,
+    BYTE,
   )
 
   private val opcodesThatAlwaysPrecludeAAllocation = Set(
@@ -68,6 +71,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     AHX, SHX, SHY, LAS, TAS,
     HuSAX, SAY,
     TCD, TDC, TSC, TCS, XBA,
+    LABEL, BYTE,
   )
 
   // If any of these opcodes is used on a variable
