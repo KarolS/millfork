@@ -79,6 +79,7 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
           s.name.stripSuffix(".addr.lo"),
           s.name.stripSuffix(".addr.hi")).toList.map(_ -> true)
     case s: LiteralExpression => Nil
+    case s: GeneratedConstantExpression => Nil
     case HalfWordExpression(param, _) => getAllCalledFunctions(param :: Nil)
     case SumExpression(xs, _) => getAllCalledFunctions(xs.map(_._2))
     case FunctionCallExpression(name, xs) => (name -> false) :: getAllCalledFunctions(xs)

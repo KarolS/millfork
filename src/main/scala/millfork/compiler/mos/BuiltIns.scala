@@ -158,6 +158,7 @@ object BuiltIns {
       case None => expr match {
         case VariableExpression(_) => 'V'
         case IndexedExpression(_, LiteralExpression(_, _)) => 'K'
+        case IndexedExpression(_, GeneratedConstantExpression(_, _)) => 'K'
         case IndexedExpression(_, expr@VariableExpression(v)) =>
           env.eval(expr) match {
             case Some(_) => 'K'

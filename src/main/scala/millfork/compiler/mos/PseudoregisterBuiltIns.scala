@@ -294,6 +294,7 @@ object PseudoregisterBuiltIns {
       case None => expr match {
         case VariableExpression(_) => 'V'
         case IndexedExpression(_, LiteralExpression(_, _)) => 'K'
+        case IndexedExpression(_, GeneratedConstantExpression(_, _)) => 'K'
         case IndexedExpression(_, VariableExpression(_)) => 'J'
         case IndexedExpression(_, _) => 'I'
         case _ => 'A'

@@ -28,10 +28,6 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     MosExpressionCompiler.compile(ctx, expr, Some(b, RegisterVariable(MosRegister.A, b)), branching)
   }
 
-  def compile(ctx: CompilationContext, statements: List[ExecutableStatement]): List[AssemblyLine] = {
-    statements.flatMap(s => compile(ctx, s))
-  }
-
   def compile(ctx: CompilationContext, statement: ExecutableStatement): List[AssemblyLine] = {
     val env = ctx.env
     val m = ctx.function
@@ -143,6 +139,9 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       })
     }
     statement match {
+      case EmptyStatement(stmts) =>
+        stmts.foreach(s => compile(ctx, s))
+        Nil
       case MosAssemblyStatement(o, a, x, e) =>
         val c: Constant = x match {
           // TODO: hmmm
@@ -183,7 +182,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         }
       case ExpressionStatement(e) =>
         e match {
-          case VariableExpression(_) | LiteralExpression(_, _) =>
+          case VariableExpression(_) | LiteralExpression(_, _) | _:GeneratedConstantExpression =>
             ErrorReporting.warn("Pointless expression statement", ctx.options, statement.position)
           case _ =>
         }

@@ -2,7 +2,7 @@ package millfork.node
 
 import millfork.assembly.mos.{AddrMode, Opcode}
 import millfork.assembly.z80.{ZOpcode, ZRegisters}
-import millfork.env.{Constant, ParamPassingConvention}
+import millfork.env.{Constant, ParamPassingConvention, Type}
 
 case class Position(filename: String, line: Int, column: Int, cursor: Int)
 
@@ -29,24 +29,35 @@ sealed trait Expression extends Node {
   def replaceVariable(variable: String, actualParam: Expression): Expression
   def containsVariable(variable: String): Boolean
   def isPure: Boolean
+  def getAllIdentifiers: Set[String]
 }
 
 case class ConstantArrayElementExpression(constant: Constant) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def isPure: Boolean = true
+  override def getAllIdentifiers: Set[String] = Set.empty
 }
 
 case class LiteralExpression(value: Long, requiredSize: Int) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def isPure: Boolean = true
+  override def getAllIdentifiers: Set[String] = Set.empty
+}
+
+case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expression {
+  override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def containsVariable(variable: String): Boolean = false
+  override def isPure: Boolean = true
+  override def getAllIdentifiers: Set[String] = Set.empty
 }
 
 case class BooleanLiteralExpression(value: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def isPure: Boolean = true
+  override def getAllIdentifiers: Set[String] = Set.empty
 }
 
 sealed trait LhsExpression extends Expression
@@ -55,6 +66,7 @@ case object BlackHoleExpression extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): LhsExpression = this
   override def containsVariable(variable: String): Boolean = false
   override def isPure: Boolean = true
+  override def getAllIdentifiers: Set[String] = Set.empty
 }
 
 case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsExpression {
@@ -64,6 +76,7 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
       lo.replaceVariable(variable, actualParam))
   override def containsVariable(variable: String): Boolean = hi.containsVariable(variable) || lo.containsVariable(variable)
   override def isPure: Boolean = hi.isPure && lo.isPure
+  override def getAllIdentifiers: Set[String] = hi.getAllIdentifiers ++ lo.getAllIdentifiers
 }
 
 case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Boolean) extends Expression {
@@ -71,6 +84,7 @@ case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Bool
     SumExpression(expressions.map { case (n, e) => n -> e.replaceVariable(variable, actualParam) }, decimal)
   override def containsVariable(variable: String): Boolean = expressions.exists(_._2.containsVariable(variable))
   override def isPure: Boolean = expressions.forall(_._2.isPure)
+  override def getAllIdentifiers: Set[String] = expressions.map(_._2.getAllIdentifiers).fold(Set[String]())(_ ++ _)
 }
 
 case class FunctionCallExpression(functionName: String, expressions: List[Expression]) extends Expression {
@@ -80,6 +94,7 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
     })
   override def containsVariable(variable: String): Boolean = expressions.exists(_.containsVariable(variable))
   override def isPure: Boolean = false // TODO
+  override def getAllIdentifiers: Set[String] = expressions.map(_.getAllIdentifiers).fold(Set[String]())(_ ++ _) + functionName
 }
 
 case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends Expression {
@@ -87,6 +102,7 @@ case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends E
     HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte)
   override def containsVariable(variable: String): Boolean = expression.containsVariable(variable)
   override def isPure: Boolean = expression.isPure
+  override def getAllIdentifiers: Set[String] = expression.getAllIdentifiers
 }
 
 sealed class NiceFunctionProperty(override val toString: String)
@@ -145,6 +161,7 @@ case class VariableExpression(name: String) extends LhsExpression {
     if (name == variable) actualParam else this
   override def containsVariable(variable: String): Boolean = name == variable
   override def isPure: Boolean = true
+  override def getAllIdentifiers: Set[String] = Set(name)
 }
 
 case class IndexedExpression(name: String, index: Expression) extends LhsExpression {
@@ -157,6 +174,7 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
     } else IndexedExpression(name, index.replaceVariable(variable, actualParam))
   override def containsVariable(variable: String): Boolean = name == variable || index.containsVariable(variable)
   override def isPure: Boolean = index.isPure
+  override def getAllIdentifiers: Set[String] = index.getAllIdentifiers + name
 }
 
 sealed trait Statement extends Node {
@@ -285,6 +303,10 @@ case class ExpressionStatement(expression: Expression) extends ExecutableStateme
 
 case class ReturnStatement(value: Option[Expression]) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = value.toList
+}
+
+case class EmptyStatement(toTypecheck: List[ExecutableStatement]) extends ExecutableStatement {
+  override def getAllExpressions: List[Expression] = toTypecheck.flatMap(_.getAllExpressions)
 }
 
 trait ReturnDispatchLabel extends Node {

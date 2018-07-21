@@ -116,6 +116,17 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
       case (err: Expression, _) => ErrorReporting.fatal("Invalid left-hand-side expression", err.position)
     }
   }
+
+  def isUpToOneVar(params: List[(Boolean, Expression)]): Boolean = {
+    var count = 0
+    params.foreach {
+      case (false, VariableExpression(_)) => count += 1
+      case (_, _: LiteralExpression) =>
+      case (_, _: GeneratedConstantExpression) =>
+      case _ => return false
+    }
+    count <= 1
+  }
 }
 
 object AbstractExpressionCompiler {
@@ -133,6 +144,7 @@ object AbstractExpressionCompiler {
           case 3 => env.get[Type]("farword")
           case 4 => env.get[Type]("long")
         }
+      case GeneratedConstantExpression(c, t) => t
       case VariableExpression(name) =>
         env.get[TypedThing](name, expr.position).typ
       case HalfWordExpression(param, _) =>

@@ -13,14 +13,14 @@ import millfork.error.ErrorReporting
   */
 object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
 
-  def compile(ctx: CompilationContext, statements: List[ExecutableStatement]): List[ZLine] = {
-    statements.flatMap(s => compile(ctx, s))
-  }
 
   def compile(ctx: CompilationContext, statement: ExecutableStatement): List[ZLine] = {
     val options = ctx.options
     val env = ctx.env
     statement match {
+      case EmptyStatement(stmts) =>
+        stmts.foreach(s => compile(ctx, s))
+        Nil
       case ReturnStatement(None) =>
         fixStackOnReturn(ctx) ++ (ctx.function.returnType match {
           case _: BooleanType =>

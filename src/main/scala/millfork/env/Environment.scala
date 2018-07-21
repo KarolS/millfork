@@ -379,6 +379,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             else variable -> constant
           case Some(IndexedExpression(_, _)) => variable -> constant
           case Some(LiteralExpression(_, _)) => variable -> constant
+          case Some(GeneratedConstantExpression(_, _)) => variable -> constant
           case Some(SumExpression(List(negative@(true, _)), false)) =>
             Some(SumExpression(List(false -> LiteralExpression(0xff, 1), negative), decimal = false)) -> (constant - 255).quickSimplify
           case Some(FunctionCallExpression(
@@ -409,18 +410,26 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       }
     }
 
+  def eval(e: Expression, vars: Map[String, Constant]): Option[Constant] = evalImpl(e, Some(vars))
+
+  def eval(e: Expression): Option[Constant] = evalImpl(e, None)
+
   //noinspection ScalaUnnecessaryParentheses,ZeroIndexToHead
-  def eval(e: Expression): Option[Constant] = {
+  private def evalImpl(e: Expression, vv: Option[Map[String, Constant]]): Option[Constant] = {
     e match {
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
       case ConstantArrayElementExpression(c) => Some(c)
+      case GeneratedConstantExpression(c, t) => Some(c)
       case VariableExpression(name) =>
-        maybeGet[ConstantThing](name).map(_.value)
+        vv match {
+          case Some(m) if m.contains(name) => Some(m(name))
+          case _ => maybeGet[ConstantThing](name).map(_.value)
+        }
       case IndexedExpression(_, _) => None
-      case HalfWordExpression(param, hi) => eval(e).map(c => if (hi) c.hiByte else c.loByte)
+      case HalfWordExpression(param, hi) => evalImpl(e, vv).map(c => if (hi) c.hiByte else c.loByte)
       case SumExpression(params, decimal) =>
         params.map {
-          case (minus, param) => (minus, eval(param))
+          case (minus, param) => (minus, evalImpl(param, vv))
         }.foldLeft(Some(Constant.Zero).asInstanceOf[Option[Constant]]) { (oc, pair) =>
           oc.flatMap { c =>
             pair match {
@@ -436,8 +445,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
         }
       case SeparateBytesExpression(h, l) => for {
-        lc <- eval(l)
-        hc <- eval(h)
+        lc <- evalImpl(l, vv)
+        hc <- evalImpl(h, vv)
       } yield hc.asl(8) + lc
       case FunctionCallExpression(name, params) =>
         name match {
@@ -1204,6 +1213,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     case BlackHoleExpression => ()
     case _:BooleanLiteralExpression => ()
     case _:LiteralExpression => ()
+    case _:GeneratedConstantExpression => ()
     case VariableExpression(name) =>
       checkName[VariableLikeThing]("Variable or constant", name, node.position)
     case IndexedExpression(name, index) =>

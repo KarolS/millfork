@@ -169,6 +169,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
       case None =>
         expression match {
           case LiteralExpression(value, _) => ???
+          case GeneratedConstantExpression(_, _) => ???
           case VariableExpression(name) =>
             env.get[Variable](name) match {
               case v: VariableInMemory =>
@@ -778,16 +779,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
           if (ctx.env.eval(e).isEmpty) e match {
             case VariableExpression(_) =>
             case LiteralExpression(_, _) =>
+            case GeneratedConstantExpression(_, _) =>
             case IndexedExpression(_, VariableExpression(_)) =>
             case IndexedExpression(_, LiteralExpression(_, _)) =>
-            case IndexedExpression(_, SumExpression(List(
-            (_, LiteralExpression(_, _)),
-            (false, VariableExpression(_))
-            ), false)) =>
-            case IndexedExpression(_, SumExpression(List(
-            (false, VariableExpression(_)),
-            (_, LiteralExpression(_, _))
-            ), false)) =>
+            case IndexedExpression(_, GeneratedConstantExpression(_, _)) =>
+            case IndexedExpression(_, SumExpression(params, false)) if isUpToOneVar(params) =>
             case _ =>
               ErrorReporting.warn("A complex expression may be evaluated multiple times", ctx.options, e.position)
           }
