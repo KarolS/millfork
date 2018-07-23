@@ -297,4 +297,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
   }
 
   override def nextLabel(prefix: String): String = MosCompiler.nextLabel(prefix)
+
+  override def getStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]): AbstractStatementPreprocessor =
+    new MosStatementPreprocessor(ctx, statements)
 }

@@ -174,6 +174,24 @@ class ForLoopSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Screen fill") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | array output[$400]@$c000
+        | void main () {
+        |   pointer p
+        |   for p,$c000,paralleluntil,$c400{
+        |     p[0] = 34
+        |   }
+        | }
+        | void _panic(){while(true){}}
+      """.stripMargin){ m=>
+      for(i <- 0xc000 to 0xc3ff) {
+        m.readByte(i) should equal (34)
+      }
+    }
+  }
+
   test("Various bulk operations") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """

@@ -2,7 +2,7 @@ package millfork.compiler.z80
 
 import millfork.assembly.BranchingOpcodeMapping
 import millfork.assembly.z80._
-import millfork.compiler.{AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
+import millfork.compiler._
 import millfork.env._
 import millfork.node._
 import millfork.assembly.z80.ZOpcode._
@@ -215,4 +215,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
 
   override def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[ZLine] =
     Z80ExpressionCompiler.compile(ctx, expr, ZExpressionTarget.NOTHING, branching)
+
+  override def getStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]): AbstractStatementPreprocessor =
+    new Z80StatementPreprocessor(ctx, statements)
 }

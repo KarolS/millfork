@@ -12,13 +12,13 @@ import scala.collection.mutable.ListBuffer
 /**
   * @author Karol Stasiak
   */
-class AbstractStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]) {
+abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]) {
   type VV = Map[String, Constant]
-  private val optimize = true // TODO
-  private val env: Environment = ctx.env
-  private val localPrefix = ctx.function.name + "$"
-  private val usedIdentifiers = if (optimize) statements.flatMap(_.getAllExpressions).flatMap(_.getAllIdentifiers) else Set()
-  private val trackableVars: Set[String] = if (optimize) {
+  protected val optimize = true // TODO
+  protected val env: Environment = ctx.env
+  protected val localPrefix = ctx.function.name + "$"
+  protected val usedIdentifiers = if (optimize) statements.flatMap(_.getAllExpressions).flatMap(_.getAllIdentifiers) else Set()
+  protected val trackableVars: Set[String] = if (optimize) {
     env.getAllLocalVariables.map(_.name.stripPrefix(localPrefix))
       .filterNot(_.contains("."))
       .filterNot(_.contains("$"))
@@ -30,12 +30,12 @@ class AbstractStatementPreprocessor(ctx: CompilationContext, statements: List[Ex
   if (ErrorReporting.traceEnabled && trackableVars.nonEmpty) {
     ErrorReporting.trace("Tracking local variables: " + trackableVars.mkString(", "))
   }
-  private val reentrantVars: Set[String] = trackableVars.filter(v => env.get[Variable](v) match {
+  protected val reentrantVars: Set[String] = trackableVars.filter(v => env.get[Variable](v) match {
     case _: StackVariable => true
     case UninitializedMemoryVariable(_, _, VariableAllocationMethod.Auto, _) => ctx.options.flag(CompilationFlag.DangerousOptimizations)
     case _ => false
   })
-  private val nonreentrantVars: Set[String] = trackableVars -- reentrantVars
+  protected val nonreentrantVars: Set[String] = trackableVars -- reentrantVars
 
 
   def apply(): List[ExecutableStatement] = {
@@ -52,6 +52,8 @@ class AbstractStatementPreprocessor(ctx: CompilationContext, statements: List[Ex
     }
     result.toList -> cv
   }
+
+  def maybeOptimizeForStatement(f: ForStatement): Option[(ExecutableStatement, VV)]
 
   def optimizeStmt(stmt: ExecutableStatement, currentVarValues: VV): (ExecutableStatement, VV) = {
     var cv = currentVarValues
@@ -95,11 +97,15 @@ class AbstractStatementPreprocessor(ctx: CompilationContext, statements: List[Ex
         val (b, _) = optimizeStmts(body, Map())
         val (i, _) = optimizeStmts(inc, Map())
         DoWhileStatement(b, i, c, labels).pos(pos) -> Map()
-      case ForStatement(v, st, en, dir, body) =>
-        val s = optimizeExpr(st, Map())
-        val e = optimizeExpr(en, Map())
-        val (b, _) = optimizeStmts(body, Map())
-        ForStatement(v, s, e, dir, b).pos(pos) -> Map()
+      case f@ForStatement(v, st, en, dir, body) =>
+        maybeOptimizeForStatement(f) match {
+          case Some(x) => x
+          case None =>
+            val s = optimizeExpr(st, Map())
+            val e = optimizeExpr(en, Map())
+            val (b, _) = optimizeStmts(body, Map())
+            ForStatement(v, s, e, dir, b).pos(pos) -> Map()
+        }
       case _ => stmt -> Map()
     }
   }

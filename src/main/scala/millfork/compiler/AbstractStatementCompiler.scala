@@ -15,8 +15,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
     getStatementPreprocessor(ctx, statements)().flatMap(s => compile(ctx, s))
   }
 
-  def getStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]) =
-    new AbstractStatementPreprocessor(ctx, statements)
+  def getStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]): AbstractStatementPreprocessor
 
   def compile(ctx: CompilationContext, statement: ExecutableStatement): List[T]
 
