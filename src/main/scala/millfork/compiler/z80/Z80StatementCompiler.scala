@@ -79,6 +79,8 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         compileWhileStatement(ctx, s)
       case s: DoWhileStatement =>
         compileDoWhileStatement(ctx, s)
+      case s: ReturnDispatchStatement =>
+        Z80ReturnDispatch.compile(ctx, s)
 
       case f@ForStatement(_, _, _, _, List(Assignment(target: IndexedExpression, source: IndexedExpression))) =>
         Z80BulkMemoryOperations.compileMemcpy(ctx, target, source, f)

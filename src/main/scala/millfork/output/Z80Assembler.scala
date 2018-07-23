@@ -42,6 +42,7 @@ class Z80Assembler(program: Program,
 
   override def emitInstruction(bank: String, options: CompilationOptions, index: Int, instr: ZLine): Int = {
     import millfork.assembly.z80.ZOpcode._
+    import ZRegister._
     import Z80Assembler._
     instr match {
       case ZLine(LABEL, NoRegisters, MemoryAddressConstant(Label(labelName)), _) =>
@@ -289,6 +290,17 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0xfa)
         writeWord(bank, index + 1, param)
         index + 3
+      case ZLine(JP, OneRegister(HL), _, _) =>
+        writeByte(bank, index, 0xe9)
+        index + 1
+      case ZLine(JP, OneRegister(IX), _, _) =>
+        writeByte(bank, index, 0xdd)
+        writeByte(bank, index, 0xe9)
+        index + 2
+      case ZLine(JP, OneRegister(IY), _, _) =>
+        writeByte(bank, index, 0xfd)
+        writeByte(bank, index, 0xe9)
+        index + 2
 
       case ZLine(RET, IfFlagClear(ZFlag.Z), _, _) =>
         writeByte(bank, index, 0xc0)

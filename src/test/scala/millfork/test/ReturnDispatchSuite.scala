@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.{EmuBenchmarkRun, EmuCmosBenchmarkRun, EmuUnoptimizedRun}
+import millfork.Cpu
+import millfork.test.emu.EmuCrossPlatformBenchmarkRun
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ReturnDispatchSuite extends FunSuite with Matchers {
 
   test("Trivial test") {
-    EmuCmosBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -27,7 +28,7 @@ class ReturnDispatchSuite extends FunSuite with Matchers {
     }
   }
   test("Parameter test") {
-    EmuCmosBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80)(
       """
         | array output [200] @$c000
         | sbyte param

@@ -227,6 +227,10 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
         } else {
           CompoundConstant(MathOperator.Plus, a, rr - ll).quickSimplify
         }
+      case (_, CompoundConstant(MathOperator.Minus, a, b)) if operator == MathOperator.Minus =>
+        ((l + b) - a).quickSimplify
+      case (_, CompoundConstant(MathOperator.Plus, a, b)) if operator == MathOperator.Minus =>
+        ((l - a) - b).quickSimplify
       case (CompoundConstant(MathOperator.Shl, SubbyteConstant(c1, 1), NumericConstant(8, _)), SubbyteConstant(c2, 0)) if operator == MathOperator.Or && c1 == c2 => c1
       case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
         var size = ls max rs

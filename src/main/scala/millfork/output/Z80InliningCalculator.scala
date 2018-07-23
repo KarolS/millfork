@@ -31,6 +31,7 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
       case ZLine(op, _, MemoryAddressConstant(Label(l)), _) if jumpingRelatedOpcodes(op) =>
         !l.startsWith(".")
       case ZLine(CALL, _, MemoryAddressConstant(th: ExternFunction), _) => false
+      case ZLine(JP, OneRegister(_), _, _) => false
       case ZLine(CALL, _, MemoryAddressConstant(th: NormalFunction), _) =>
         !functionsAlreadyKnownToBeNonInlineable(th.name)
       case ZLine(op, _, _, _) if jumpingRelatedOpcodes(op) || badOpcodes(op) => true
