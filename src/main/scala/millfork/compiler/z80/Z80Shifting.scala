@@ -4,6 +4,7 @@ import millfork.CompilationFlag
 import millfork.assembly.z80.{NoRegisters, ZLine, ZOpcode}
 import millfork.compiler.CompilationContext
 import millfork.env.NumericConstant
+import millfork.error.ErrorReporting
 import millfork.node.{Expression, LhsExpression, ZRegister}
 
 import scala.collection.GenTraversableOnce
@@ -182,6 +183,30 @@ object Z80Shifting {
           }
         val label = Z80Compiler.nextLabel("sh")
         calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody :+ ZLine.djnz(label)
+    }
+  }
+
+  def compileNonetShiftRight(ctx: CompilationContext, rhs: Expression): List[ZLine] = {
+    import ZOpcode._
+    import ZRegister._
+    ctx.env.eval(rhs) match {
+      case Some(NumericConstant(0, _)) =>
+        List(ZLine.ld8(A, L))
+      case Some(NumericConstant(n, _)) if n < 0 =>
+        ErrorReporting.error("Negative shift amount", rhs.position) // TODO
+        Nil
+      case Some(NumericConstant(n, _)) if n >= 9 =>
+        List(ZLine.ldImm8(A, 0))
+      case Some(NumericConstant(1, _)) =>
+        List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.register(RR, A))
+      case Some(NumericConstant(2, _)) =>
+        List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.register(RR, A), ZLine.register(SRL, A))
+      case Some(NumericConstant(n, _)) =>
+        List(ZLine.register(SRL, H), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.register(RR, A)) :+ ZLine.imm8(AND, 0x1ff >> n))
+
+      case _ =>
+        ErrorReporting.error("Non-constant shift amount", rhs.position) // TODO
+        Nil
     }
   }
 

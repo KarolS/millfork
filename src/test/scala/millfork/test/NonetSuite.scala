@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -10,22 +10,23 @@ import org.scalatest.{FunSuite, Matchers}
 class NonetSuite extends FunSuite with Matchers {
 
   test("Nonet operations") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
-        | array output [3] @$c000
-        | array input = [5,6,7]
+        | array output [5] @$c000
         | void main () {
         |   word a
         |   a = $110
         |   output[1] = a >>>> 1
         |   output[2] = a >>>> 2
+        |   output[3] = a >>>> 3
+        |   output[4] = a >>>> 4
         | }
-        | void copyEntry(byte index) {
-        |   output[index] = input[index]
-        | }
-      """.stripMargin)
+      """.stripMargin) { m =>
       m.readByte(0xc001) should equal(0x88)
       m.readByte(0xc002) should equal(0x44)
+      m.readByte(0xc003) should equal(0x22)
+      m.readByte(0xc004) should equal(0x11)
+    }
   }
 
   test("Nonet left shift") {

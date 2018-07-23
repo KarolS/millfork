@@ -322,7 +322,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 }
               case ">>>>" =>
                 val (l, r, 2) = assertArithmeticBinary(ctx, params)
-                ???
+                targetifyA(target, compileToHL(ctx, l) ++ Z80Shifting.compileNonetShiftRight(ctx, r), isSigned = false)
               case "<<" =>
                 val (l, r, size) = assertArithmeticBinary(ctx, params)
                 size match {

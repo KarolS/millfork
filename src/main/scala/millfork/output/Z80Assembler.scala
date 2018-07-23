@@ -140,6 +140,9 @@ class Z80Assembler(program: Program,
         val o = oneRegister(op)
         writeByte(bank, index, o.opcode + internalRegisterIndex(reg) * o.multiplier)
         index + 1
+      case ZLine(op@(RR|RRC|RL|RLC), OneRegister(A), _, _) =>
+        writeByte(bank, index, cbOneRegister(op).opcode + 7)
+        index + 1
       case ZLine(op, OneRegister(reg), _, _) if cbOneRegister.contains(op) =>
         val o = cbOneRegister(op)
         writeByte(bank, index, 0xcb)
