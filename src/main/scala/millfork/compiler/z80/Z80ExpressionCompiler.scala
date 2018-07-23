@@ -340,7 +340,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case "<<'" =>
                 assertAllArithmeticBytes("Long shift ops not supported", ctx, params)
                 val (l, r, 1) = assertArithmeticBinary(ctx, params)
-                ???
+                targetifyA(target, compileToA(ctx, l) ++ Z80DecimalBuiltIns.compileByteShiftLeft(ctx, r), isSigned = false)
               case ">>'" =>
                 assertAllArithmeticBytes("Long shift ops not supported", ctx, params)
                 val (l, r, 1) = assertArithmeticBinary(ctx, params)
@@ -440,7 +440,21 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 }
               case "<<'=" =>
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
-                ???
+                size match {
+                  case 1 =>
+                    calculateAddressToAppropriatePointer(ctx, l) match {
+                      case Some((lvo, code)) =>
+                        code ++
+                          (ZLine.ld8(ZRegister.A, lvo) ::
+                            (Z80DecimalBuiltIns.compileByteShiftLeft(ctx, r) :+ ZLine.ld8(lvo, ZRegister.A)))
+                      case None =>
+                        ErrorReporting.error("Invalid left-hand side", l.position)
+                        Nil
+                    }
+                  case 2 =>
+                    compileToHL(ctx, l) ++ Z80DecimalBuiltIns.compileWordShiftLeft(ctx, r) ++ storeHL(ctx, l, signedSource = false)
+                  case _ => Z80DecimalBuiltIns.compileInPlaceShiftLeft(ctx, l, r, size)
+                }
               case ">>'=" =>
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 ???
@@ -451,7 +465,15 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case "*'=" =>
                 assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
                 val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
-                ???
+                calculateAddressToAppropriatePointer(ctx, l) match {
+                  case Some((lvo, code)) =>
+                    code ++
+                      (ZLine.ld8(ZRegister.A, lvo) ::
+                        (Z80DecimalBuiltIns.compileInPlaceByteMultiplication(ctx, r) :+ ZLine.ld8(lvo, ZRegister.A)))
+                  case None =>
+                    ErrorReporting.error("Invalid left-hand side", l.position)
+                    Nil
+                }
               case "&=" =>
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {

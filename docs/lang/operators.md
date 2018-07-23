@@ -172,9 +172,9 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 `mutable long <<= byte`
 
 * `<<'=`, `>>'=`: decimal shift in place  
-`mutable byte <<= constant byte`  
-`mutable word <<= constant byte`  
-`mutable long <<= constant byte`
+`mutable byte <<'= constant byte`  
+`mutable word <<'= constant byte`  
+`mutable long <<'= constant byte`
 
 * `-=`, `-'=`: subtraction in place  
 `mutable byte -= byte`  

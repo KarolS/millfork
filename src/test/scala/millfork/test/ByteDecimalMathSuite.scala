@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -101,7 +101,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal left shift test") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -110,12 +110,13 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         |   output = n <<' 2
         | }
         | byte nine() { return 9 }
-      """.stripMargin)
-    m.readByte(0xc000) should equal(0x36)
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(0x36)
+    }
   }
 
   test("Decimal left shift test 2") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {
@@ -123,12 +124,13 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         |   output <<'= 2
         | }
         | byte nine() { return 9 }
-      """.stripMargin)
-    m.readByte(0xc000) should equal(0x36)
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(0x36)
+    }
   }
 
   test("Decimal left shift test 3") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
         | word output @$c000
         | void main () {
@@ -136,8 +138,23 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         |   output <<'= 2
         | }
         | byte nine() { return $91 }
-      """.stripMargin)
-    m.readWord(0xc000) should equal(0x364)
+      """.stripMargin) { m =>
+      m.readWord(0xc000) should equal(0x364)
+    }
+  }
+
+  test("Decimal left shift test 4") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | long output @$c000
+        | void main () {
+        |   output = nine()
+        |   output <<'= 2
+        | }
+        | byte nine() { return $91 }
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(0x364)
+    }
   }
 
   test("Decimal right shift test") {
@@ -180,7 +197,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
     m.readWord(0xc000) should equal(0x91)
   }
 
-  def toDecimal(v: Int) = {
+  private def toDecimal(v: Int): Int = {
     if (v.&(0xf000) > 0x9000 || v.&(0xf00) > 0x900 || v.&(0xf0) > 0x90 || v.&(0xf) > 9)
       fail("Invalid decimal value: " + v.toHexString)
     v.&(0xf000).>>(12) * 1000 + v.&(0xf00).>>(8) * 100 + v.&(0xf0).>>(4) * 10 + v.&(0xf)
@@ -215,8 +232,9 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal byte multiplication comprehensive suite") {
-    for (i <- List(1, 2, 3, 6, 8, 10, 11, 12, 14, 15, 16, 40, 99) ; j <- 0 to 99) {
-      val m = EmuUnoptimizedRun(
+    val numbers = List(0, 1, 2, 3, 6, 8, 10, 11, 12, 14, 15, 16, 20, 40, 73, 81, 82, 98, 99)
+    for (i <- numbers; j <- numbers) {
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
         """
           | byte output @$c000
           | void main () {
@@ -225,15 +243,16 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
           | }
           | void init() { output = $#i }
           | void run () { output *'= $#j }
-        """.stripMargin.replace("#i", i.toString).replace("#j", j.toString))
-      toDecimal(m.readWord(0xc000)) should equal((i * j) % 100)
+        """.stripMargin.replace("#i", i.toString).replace("#j", j.toString)) { m =>
+        toDecimal(m.readByte(0xc000)) should equal((i * j) % 100)
+      }
     }
   }
 
   test("Decimal comparison") {
     // CMP#0 shouldn't be elided after a decimal operation.
     // Currently no emulator used for testing can catch that.
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | void main () {

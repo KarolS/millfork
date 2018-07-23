@@ -249,6 +249,13 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case OneRegister(r) => s" (${asAssemblyString(r)})"
         }
         s"    $opcode$ps"
+      case op@(ADD | SBC | ADC) =>
+        val os = op.toString
+        val ps = (registers match {
+          case OneRegister(r) => s" ${asAssemblyString(r)}"
+          case OneRegisterOffset(r, o) => s" ${asAssemblyString(r, o)}"
+        }).stripPrefix(" ")
+        s"    $op A,$ps"
       case op =>
         val os = op.toString//.stripSuffix("_16")
         val ps = registers match {
