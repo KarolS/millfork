@@ -3,28 +3,32 @@ package millfork.error
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.node.Position
 
+import scala.collection.mutable
+
 object ErrorReporting {
 
   var verbosity = 0
 
   var hasErrors = false
 
-  private var sourceLines: Option[IndexedSeq[String]] = None
+  private var sourceLines: mutable.Map[String, IndexedSeq[String]] = mutable.Map()
 
-  private def printErrorContext(pos: Option[Position]): Unit = {
-    if (sourceLines.isDefined && pos.isDefined) {
-      val line = sourceLines.get.apply(pos.get.line - 1)
-      val column = pos.get.column - 1
-      val margin = "       "
-      print(margin)
-      println(line)
-      print(margin)
-      print(" " * column)
-      println("^")
+  private def printErrorContext(pos: Option[Position]): Unit = synchronized {
+    pos.foreach { position =>
+        sourceLines.get(position.moduleName).foreach { lines =>
+          val line = lines.apply(pos.get.line - 1)
+          val column = pos.get.column - 1
+          val margin = "       "
+          print(margin)
+          println(line)
+          print(margin)
+          print(" " * column)
+          println("^")
+        }
     }
   }
 
-  def f(position: Option[Position]): String = position.fold("")(p => s"(${p.line}:${p.column}) ")
+  def f(position: Option[Position]): String = position.fold("")(p => s"(${p.moduleName}:${p.line}:${p.column}) ")
 
   def info(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 0) return
@@ -94,13 +98,18 @@ object ErrorReporting {
     }
   }
 
-  def clearErrors(): Unit = {
+  def clearErrors(): Unit = synchronized {
     hasErrors = false
-    sourceLines = None
+    sourceLines.clear()
   }
 
-  def setSource(source: Option[IndexedSeq[String]]): Unit = {
-    sourceLines = source
+  def setSource(source: Option[IndexedSeq[String]]): Unit = synchronized {
+    sourceLines.clear()
+    source.foreach(sourceLines("") = _)
+  }
+
+  def addSource(filename: String, lines: IndexedSeq[String]): Unit = synchronized {
+    sourceLines(filename) = lines
   }
 
 }

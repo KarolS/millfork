@@ -198,11 +198,15 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
             case 1 =>
-              ErrorReporting.warn("Returning without a value", ctx.options, statement.position)
+              if (statement.position.isDefined){
+                ErrorReporting.warn("Returning without a value", ctx.options, statement.position)
+              }
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
             case 2 =>
-              ErrorReporting.warn("Returning without a value", ctx.options, statement.position)
+              if (statement.position.isDefined){
+                ErrorReporting.warn("Returning without a value", ctx.options, statement.position)
+              }
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardYF()) ++ returnInstructions
           }

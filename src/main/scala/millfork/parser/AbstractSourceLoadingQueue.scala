@@ -59,7 +59,9 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     val path = Paths.get(filename)
     val parentDir = path.toFile.getAbsoluteFile.getParent
     val (src, featureConstants) = Preprocessor(options, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
-    val parser = createParser(filename, src, parentDir, featureConstants)
+    val shortFileName = path.getFileName.toString
+    val parser = createParser(shortFileName, src, parentDir, featureConstants)
+    ErrorReporting.addSource(shortFileName, src.lines.toIndexedSeq)
     parser.toAst match {
       case Success(prog, _) =>
         parsedModules.synchronized {

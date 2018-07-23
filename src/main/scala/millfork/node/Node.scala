@@ -4,7 +4,7 @@ import millfork.assembly.mos.{AddrMode, Opcode}
 import millfork.assembly.z80.{ZOpcode, ZRegisters}
 import millfork.env.{Constant, ParamPassingConvention, Type}
 
-case class Position(filename: String, line: Int, column: Int, cursor: Int)
+case class Position(moduleName: String, line: Int, column: Int, cursor: Int)
 
 sealed trait Node {
   var position: Option[Position] = None

@@ -13,11 +13,11 @@ import millfork.{CompilationFlag, CompilationOptions, SeparatedList}
 /**
   * @author Karol Stasiak
   */
-abstract class MfParser[T](filename: String, input: String, currentDirectory: String, options: CompilationOptions, featureConstants: Map[String, Long]) {
+abstract class MfParser[T](fileId: String, input: String, currentDirectory: String, options: CompilationOptions, featureConstants: Map[String, Long]) {
 
   import MfParser._
 
-  var lastPosition = Position(filename, 1, 1, 0)
+  var lastPosition = Position(fileId, 1, 1, 0)
   var lastLabel = ""
 
   def toAst: Parsed[Program] = program.parse(input + "\n\n\n")
@@ -33,7 +33,7 @@ abstract class MfParser[T](filename: String, input: String, currentDirectory: St
     }
     val columnNumber = i - lineStarts(lineNumber)
     lineNumber += 1
-    val newPosition = Position(filename, lineNumber, columnNumber, i)
+    val newPosition = Position(fileId, lineNumber, columnNumber, i)
     if (newPosition.cursor > lastPosition.cursor) {
       lastPosition = newPosition
       lastLabel = label
