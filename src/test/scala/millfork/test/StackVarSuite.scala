@@ -142,6 +142,55 @@ class StackVarSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Recursion 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+        | array output [6] @$c000
+        | byte fails @$c010
+        | void main () {
+        |   word w
+        |   byte i
+        |   for i,0,until,output.length {
+        |     w = fib(i)
+        |     if w.hi != 0 { fails += 1 }
+        |     output[i] = w.lo
+        |   }
+        | }
+        | word fib(byte i) {
+        |   stack byte j
+        |   j = i
+        |   if j < 2 {
+        |     return 1
+        |   }
+        |   return fib(j-1) + fib(j-2)
+        | }
+      """.stripMargin){ m =>
+      m.readByte(0xc010) should equal(0)
+      m.readByte(0xc000) should equal(1)
+      m.readByte(0xc001) should equal(1)
+      m.readByte(0xc002) should equal(2)
+      m.readByte(0xc003) should equal(3)
+      m.readByte(0xc004) should equal(5)
+      m.readByte(0xc005) should equal(8)
+    }
+  }
+
+  test("Complex stack-related stuff") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+        | byte output @$c000
+        | array id = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        | void main() {
+        |   stack byte i
+        |   i = b($4)
+        |   output = b(id[b($2)]|id[b(i)])
+        | }
+        | noinline byte b(byte a) {
+        |   return a
+        | }
+      """.stripMargin){ m =>
+      m.readByte(0xc000) should equal(6)
+    }
+  }
+
 
   test("Indexing") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""

@@ -95,7 +95,7 @@ object PseudoregisterBuiltIns {
           AssemblyLine.zeropage(LDA, reg, 1),
           AssemblyLine.implied(PHA),
           AssemblyLine.zeropage(LDA, reg),
-          AssemblyLine.implied(PHA)) ++ compileRight ++ List(
+          AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.fixTsx(MosExpressionCompiler.fixTsx(compileRight)) ++ List(
           prepareCarry,
           AssemblyLine.implied(PLA),
           AssemblyLine.zeropage(op, reg),

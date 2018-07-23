@@ -100,7 +100,7 @@ object BuiltIns {
     val preparations = parts._1
     val finalRead = wrapInSedCldIfNeeded(decimal, parts._2)
     if (preserveA && AssemblyLine.treatment(preparations, State.A) != Treatment.Unchanged) {
-      AssemblyLine.implied(PHA) :: (preparations ++ (AssemblyLine.implied(PLA) :: finalRead))
+      AssemblyLine.implied(PHA) :: (MosExpressionCompiler.fixTsx(preparations) ++ (AssemblyLine.implied(PLA) :: finalRead))
     } else {
       preparations ++ finalRead
     }
