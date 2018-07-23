@@ -38,7 +38,11 @@
 
 #### Parameters:
 
-* all parameters are passed via static locations
+* if the function has one parameter of size one byte, it is passed via the A register
+
+* if the function has one parameter of size two bytes, it is passed via the HL register pair
+
+* otherwise, all parameters are passed via static locations
 
 #### Return values:
 

@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicLong
 import millfork.CompilationFlag
 import millfork.assembly.z80.ZLine
 import millfork.compiler.{AbstractCompiler, CompilationContext}
-import millfork.env.Label
+import millfork.env.{Label, NormalParamSignature}
 import millfork.error.ErrorReporting
 import millfork.node.ZRegister
 
@@ -22,8 +22,14 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
     ctx.env.nameCheck(ctx.function.code)
     val chunk = Z80StatementCompiler.compile(ctx, ctx.function.code)
     val label = ZLine.label(Label(ctx.function.name)).copy(elidable = false)
-    val prefix = Nil // TODO
-    label :: (prefix ++ stackPointerFixAtBeginning(ctx) ++ chunk)
+    val storeParamsFromRegisters = ctx.function.params match {
+      case NormalParamSignature(List(param)) if param.typ.size == 1 =>
+        List(ZLine.ldAbs8(param.toAddress, ZRegister.A))
+      case NormalParamSignature(List(param)) if param.typ.size == 2 =>
+        List(ZLine.ldAbs16(param.toAddress, ZRegister.HL))
+      case _ => Nil
+    }
+    label :: (storeParamsFromRegisters ++ stackPointerFixAtBeginning(ctx) ++ chunk)
   }
 
   def stackPointerFixAtBeginning(ctx: CompilationContext): List[ZLine] = {

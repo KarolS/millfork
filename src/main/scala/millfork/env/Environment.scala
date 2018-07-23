@@ -109,6 +109,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       f.params match {
         case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 && options.platform.cpuFamily == CpuFamily.M6502 =>
           Nil
+        case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 && options.platform.cpuFamily == CpuFamily.I80 =>
+          Nil
+        case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 2 && options.platform.cpuFamily == CpuFamily.I80 =>
+          Nil
         case NormalParamSignature(ps) =>
           ps.map(p => p.name)
         case _ =>

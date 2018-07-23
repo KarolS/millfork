@@ -24,8 +24,10 @@ object VariableStatus {
     val flow = FlowAnalyzer.analyze(f, code, optimizationContext.options, FlowInfoRequirement.BothFlows)
     import millfork.node.ZRegister._
     val paramVariables = f.params match {
-      //      case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
-      //        Set[String]()
+      case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
+        Set[String]()
+      case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 2 =>
+        Set[String]()
       case NormalParamSignature(ps) =>
         ps.map(_.name).toSet
       case _ =>

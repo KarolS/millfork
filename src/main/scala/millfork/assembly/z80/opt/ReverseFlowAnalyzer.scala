@@ -322,15 +322,53 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butWritesRegister(r)
           case ZLine(PUSH, OneRegister(r), _, _) =>
             currentImportance = currentImportance.butReadsRegister(r)
-          case ZLine(CALL, NoRegisters, MemoryAddressConstant(fun: FunctionInMemory), _) =>
+          case ZLine(CALL | JP, NoRegisters, MemoryAddressConstant(fun: FunctionInMemory), _) =>
             fun.params match {
-              case NormalParamSignature(_) | AssemblyParamSignature(Nil) =>
-                currentImportance.copy(
+              case NormalParamSignature(List(v)) if v.typ.size == 1 =>
+                currentImportance = currentImportance.copy(
+                  a = Important,
+                  b = Unimportant,
+                  c = Unimportant,
+                  d = Unimportant,
+                  e = Unimportant,
+                  h = Unimportant,
+                  l = Unimportant,
+                  hlNumeric = Unimportant,
+                  iyh = Unimportant,
+                  iyl = Unimportant,
+                  zf = Unimportant,
+                  cf = Unimportant,
+                  nf = Unimportant,
+                  sf = Unimportant,
+                  hf = Unimportant
+                )
+              case NormalParamSignature(List(v)) if v.typ.size == 2 =>
+                currentImportance = currentImportance.copy(
                   a = Unimportant,
                   b = Unimportant,
                   c = Unimportant,
                   d = Unimportant,
                   e = Unimportant,
+                  h = Important,
+                  l = Important,
+                  hlNumeric = Unimportant,
+                  iyh = Unimportant,
+                  iyl = Unimportant,
+                  zf = Unimportant,
+                  cf = Unimportant,
+                  nf = Unimportant,
+                  sf = Unimportant,
+                  hf = Unimportant
+                )
+              case NormalParamSignature(_) | AssemblyParamSignature(Nil) =>
+                currentImportance = currentImportance.copy(
+                  a = Unimportant,
+                  b = Unimportant,
+                  c = Unimportant,
+                  d = Unimportant,
+                  e = Unimportant,
+                  h = Unimportant,
+                  l = Unimportant,
                   hlNumeric = Unimportant,
                   iyh = Unimportant,
                   iyl = Unimportant,

@@ -545,6 +545,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                       case AssemblyParamSignature(paramConvs) =>
                         // TODO: stop being lazy and implement this
                         ???
+                      case NormalParamSignature(List(param)) if param.typ.size == 1 =>
+                        compileToA(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
+                      case NormalParamSignature(List(param)) if param.typ.size == 2 =>
+                        compileToHL(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
                       case NormalParamSignature(paramVars) =>
                         params.zip(paramVars).flatMap {
                           case (paramExpr, paramVar) =>
