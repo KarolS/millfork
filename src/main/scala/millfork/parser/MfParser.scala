@@ -222,7 +222,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
           case List("+") | List("-") | List("+", "-") | List("-", "+") =>
             SumExpression(xs.toPairList("+").map { case (op, value) => (op == "-", p(value, level + 1)) }, decimal = false)
           case List("+'") | List("-'") | List("+'", "-'") | List("-'", "+'") =>
-            SumExpression(xs.toPairList("+").map { case (op, value) => (op == "-", p(value, level + 1)) }, decimal = true)
+            SumExpression(xs.toPairList("+").map { case (op, value) => (op == "-'", p(value, level + 1)) }, decimal = true)
           case List(":") =>
             if (xs.size != 2) {
               ErrorReporting.error("The `:` operator can have only two arguments", xs.head.head.position)

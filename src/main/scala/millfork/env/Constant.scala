@@ -232,6 +232,9 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case (_, CompoundConstant(MathOperator.Plus, a, b)) if operator == MathOperator.Minus =>
         ((l - a) - b).quickSimplify
       case (CompoundConstant(MathOperator.Shl, SubbyteConstant(c1, 1), NumericConstant(8, _)), SubbyteConstant(c2, 0)) if operator == MathOperator.Or && c1 == c2 => c1
+
+      case (_, CompoundConstant(MathOperator.DecimalMinus, a, b)) if operator == MathOperator.DecimalPlus =>
+        CompoundConstant(MathOperator.DecimalMinus, CompoundConstant(MathOperator.DecimalPlus, l, a), b).quickSimplify
       case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
         var size = ls max rs
         val value = operator match {
@@ -247,7 +250,9 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Or => lv | rv
           case MathOperator.And => lv & rv
           case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
-            asDecimal(lv, rv, _ + _) & 0xff
+            asDecimal(lv & 0xff, rv & 0xff, _ + _) & 0xff
+          case MathOperator.DecimalMinus if ls == 1 && rs == 1 && lv.&(0xff) >= rv.&(0xff) =>
+            asDecimal(lv & 0xff, rv & 0xff, _ - _) & 0xff
           case _ => return this
         }
         operator match {
@@ -285,6 +290,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.DecimalPlus => c
           case MathOperator.DecimalPlus9 => c
           case MathOperator.Minus => c
+          case MathOperator.DecimalMinus => c
           case MathOperator.Times => Constant.Zero
           case MathOperator.Shl => c
           case MathOperator.Shr => c

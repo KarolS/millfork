@@ -825,6 +825,7 @@ object BuiltIns {
               if (l.+(1).quickSimplify == h) {
                 return List(AssemblyLine.zeropage(INC_W, l))
               }
+            case _ =>
           }
         }
         if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
@@ -1016,7 +1017,7 @@ object BuiltIns {
           ???
         }
         buffer ++= staTo(LDA, targetBytes(i))
-        buffer ++= ldTo(SBC, addendByteRead(i))
+        buffer ++= wrapInSedCldIfNeeded(decimal, ldTo(SBC, addendByteRead(i)))
         buffer ++= targetBytes(i)
       } else {
         if (i >= addendSize) {
