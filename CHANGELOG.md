@@ -2,7 +2,7 @@
 
 ## Current version
 
-* A very incomplete support for the Z80 microprocessor.
+* Almost complete support for the Z80 microprocessor.
 
 * A very incomplete support for NEC PC-88 and ZX Spectrum.
 
@@ -26,6 +26,8 @@ Code that uses a custom platform definitions will cause extra warnings until fix
 * Optimizations for stack variables.
 
 * Fixed emitting constant decimal expressions.
+
+* Fixed decimal subtraction.
 
 * Parser performance improvement.
 

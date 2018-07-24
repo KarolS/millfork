@@ -1,8 +1,6 @@
 [< back to index](../index.md)
 
-# Using Z80 assembly within Millfork programs
-
-The compiler supports Z80 assembly only partially. This will be remedied in the future.
+# Using Intel8080/Z80 assembly within Millfork programs
 
 There are two ways to include raw assembly code in your Millfork programs:
 
@@ -12,12 +10,11 @@ There are two ways to include raw assembly code in your Millfork programs:
 
 ## Assembly syntax
 
-Millfork inline assembly uses the same three-letter opcodes as most other 6502 assemblers.
-Indexing syntax is also the same. Only instructions available on the current CPU architecture are available.
+Millfork uses Zilog syntax for Intel 8080 and Z80 assembly. Intel syntax is not supported.
 
-**Work in progress**: 
-Currently, `RES/SET/BIT` and some few more instructions are not supported yet.
-
+Indexing via the IX/IY register uses the following syntax: `IX(1)` 
+ 
+Only instructions available on the current CPU architecture are available.
 Undocumented instructions are not supported, except for `SLL`.
 
 Labels have to be followed by a colon and they can optionally be on a separate line.
@@ -137,6 +134,9 @@ In order to make assembly cooperate with the rest of the Millfork code,
 it should abide to the following rules:
 
 * don't change the IX register
+
+* don't change the IY register if the target platform doesn't allow it
+(for example: ZX Spectrum in interrupt mode 1) 
 
 * don't jump between functions if either of functions has stack variables
 

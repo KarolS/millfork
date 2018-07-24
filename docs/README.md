@@ -11,7 +11,11 @@
 
 * [Target platform reference](api/target-platforms.md)
 
+* [Defining a custom platform](api/custom-platform.md)
+
 ## Language reference
+
+* [Preprocessor](lang/preprocessor.md)
 
 * [Syntax](lang/syntax.md)
 
@@ -21,14 +25,27 @@
 
 * [Functions](lang/functions.md)
 
-* [Inline assembly syntax](lang/assembly.md)
+* [Inline 6502 assembly syntax](lang/assembly.md)
+
+* [Inline Z80 assembly syntax](lang/assemblyz80.md)
 
 * [Important guidelines regarding reentrancy](lang/reentrancy.md)
 
+## Library reference
+
+* [`stdlib` module](stdlib/stdlib.md)
+
+* [Other cross-platform modules](stdlib/other.md)
+
+* [C64-only modules](stdlib/c64.md)
+
+* [NES-only modules](stdlib/nes.md)
 
 ## Implementation details
 
 * [Variable storage](abi/variable-storage.md)
+
+* [Calling convention](abi/calling-convention.md)
 
 * [Undefined behaviour](abi/undefined-behaviour.md)
 

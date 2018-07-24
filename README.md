@@ -2,9 +2,10 @@
 
 # Millfork
 
-A middle-level programming language targeting 6502-based microcomputers. 
+A middle-level programming language targeting 6502-based and Z80-based microcomputers. 
 
-For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0.3.0)
+For binary releases, see: https://github.com/KarolS/millfork/releases
+(latest: 0.3.0, doesn't support Z80 yet)
 
 ## Features
 
@@ -33,6 +34,10 @@ For binary releases, see: https://github.com/KarolS/millfork/releases (latest: 0
     * BBC Micro
     
     * Apple II+/IIe/Enhanced IIe
+    
+    * ZX Spectrum 48k
+    
+    * NEC PC-88
 
 * inline assembly
 
@@ -59,8 +64,12 @@ Therefore, no attribution is needed if you are developing and distributing Millf
 
 ## Planned features
 
-* Z80 support, targetting PC-88, ZX Spectrum, later also maybe Armstrad CPC, MSX, TI-83 (this is already work-in-progress)
+* stdlib improvements
 
 * more 6502 targets: Oric computers, PC-Engine/Turbografx-16, Atari Lynx
+
+* more Z80 targets: Armstrad CPC, MSX, TI-83, Sega Master System
  
-* support for 65816, SuperFamicom/SNES and Apple IIgs 
+* support for 65816, Intel 8080, Sharp LR35902 and eZ80
+
+* support for CP/M, Gameboy, SuperFamicom/SNES and Apple IIgs

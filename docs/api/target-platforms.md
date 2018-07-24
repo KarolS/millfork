@@ -2,7 +2,8 @@
                                                       
 # Target platforms
 
-Currently, Millfork supports creating disk- or tape-based programs for Commodore, Apple, BBC and Atari 8-bit computers
+Currently, Millfork supports creating disk- or tape-based programs
+for Commodore, Apple, BBC and Atari 8-bit computers, NEC PC-88, ZX Spectrum 48k,
 and cartridge-based programs for Famicom/NES and Atari 2600,
 but it may be expanded to support other 6502-based and Z80-based platforms in the future.
 
@@ -54,9 +55,9 @@ Read [the BBC Micro programming guide](./bbcmicro-programming-guide.md) for more
 The compiler only emits raw binaries, not disk images.
 Read [the Apple 2 programming guide](./apple2-programming-guide.md) for more info.
 
-* `pc88` – NEC PC-88 (very incomplete and not usable for anything yet)
+* `pc88` – NEC PC-88 (no ROM routines are mapped yet)
 
-* `zxspectrum` – Sinclair ZX Spectrum 48k (very incomplete and not usable for anything yet)
+* `zxspectrum` – Sinclair ZX Spectrum 48k
 
 The primary and most tested platform is Commodore 64.
 
