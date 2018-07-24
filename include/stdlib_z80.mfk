@@ -33,7 +33,7 @@ asm byte lo_nibble_to_hex(byte a) {
     ADD A,$30
     CP $3A
     JR C,_lo_nibble_to_hex_lbl
-    ADD A,$6 // carry is set
+    ADD A,$7
 _lo_nibble_to_hex_lbl:
     RET
 }
