@@ -348,6 +348,8 @@ object ZBuiltIns {
             calculateAddress
           case Some(NumericConstant(0xff | -1, _)) =>
             calculateAddress :+ ZLine.ldImm8(lv, 0xff)
+          case Some(NumericConstant(n, _)) if n.&(n - 1) == 0 && ctx.options.flag(CompilationFlag.EmitExtended80Opcodes) =>
+            calculateAddress :+ ZLine.register(ZOpcodeClasses.SET_seq(Integer.numberOfTrailingZeros(n.toInt)), lv)
           case _ =>
             setup ++ List(
               ZLine.register(OR, lv),
@@ -359,6 +361,8 @@ object ZBuiltIns {
             calculateAddress :+ ZLine.ldImm8(lv, 0)
           case Some(NumericConstant(0xff | -1, _)) =>
             calculateAddress
+          case Some(NumericConstant(n, _)) if n.^(0xff).&(n.^(0xff) - 1) == 0 && ctx.options.flag(CompilationFlag.EmitExtended80Opcodes) =>
+            calculateAddress :+ ZLine.register(ZOpcodeClasses.RES_seq(Integer.numberOfTrailingZeros(n.^(0xff).toInt)), lv)
           case _ =>
             setup ++ List(
               ZLine.register(AND, lv),

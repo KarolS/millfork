@@ -318,6 +318,10 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butReadsRegister(s)
           case ZLine(INC | DEC | INC_16 | DEC_16, OneRegisterOffset(s, o), _, _) =>
             currentImportance = currentImportance.butReadsRegister(s, o)
+          case ZLine(op, OneRegister(s), _, _) if ZOpcodeClasses.AllSingleBit(op)=>
+            currentImportance = currentImportance.butReadsRegister(s)
+          case ZLine(op, OneRegisterOffset(s, o), _, _) if ZOpcodeClasses.AllSingleBit(op)=>
+            currentImportance = currentImportance.butReadsRegister(s, o)
           case ZLine(POP, OneRegister(r), _, _) =>
             currentImportance = currentImportance.butWritesRegister(r)
           case ZLine(PUSH, OneRegister(r), _, _) =>

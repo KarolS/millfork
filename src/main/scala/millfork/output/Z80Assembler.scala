@@ -62,6 +62,20 @@ class Z80Assembler(program: Program,
         }
         writeByte(bank, index, opcode)
         index + 1
+      case ZLine(IM, NoRegisters, param, _) =>
+        val opcode = param.quickSimplify match {
+          case NumericConstant(0, _) => 0x46
+          case NumericConstant(1, _) => 0x56
+          case NumericConstant(2, _) => 0x5e
+          case _ => ErrorReporting.error("Invalid param for IM"); 0xc7
+        }
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, opcode)
+        index + 2
+      case ZLine(op, OneRegister(reg), _, _) if ZOpcodeClasses.AllSingleBit(op) =>
+        writeByte(bank, index, 0xcb)
+        writeByte(bank, index + 1, ZOpcodeClasses.singleBitOpcode(op) + internalRegisterIndex(reg))
+        index + 2
       case ZLine(op, NoRegisters, _, _) if implieds.contains(op) =>
         writeByte(bank, index, implieds(op))
         index + 1
@@ -124,6 +138,12 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, o)
         writeByte(bank, index + 1, param)
         index + 2
+      case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if ZOpcodeClasses.AllSingleBit(op) =>
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, 0xcb)
+        writeByte(bank, index + 2, ZOpcodeClasses.singleBitOpcode(op) + internalRegisterIndex(ZRegister.MEM_HL))
+        writeByte(bank, index + 3, offset)
+        index + 4
       case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if oneRegister.contains(op) =>
         val o = oneRegister(op)
         writeByte(bank, index, prefixByte(ix))
@@ -406,6 +426,8 @@ object Z80Assembler {
     edImplieds(NEG) = 0x44
     edImplieds(RETI) = 0x4d
     edImplieds(RETN) = 0x45
+    edImplieds(RRD) = 0x67
+    edImplieds(RLD) = 0x6f
     edImplieds(LDI) = 0xa0
     edImplieds(LDIR) = 0xb0
     edImplieds(CPI) = 0xa1

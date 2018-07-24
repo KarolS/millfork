@@ -233,6 +233,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case BYTE => "    !byte " + parameter.toString // TODO: format?
       case LABEL => parameter.toString + ":"
       case RST => s"    RST $parameter"
+      case IM => s"    IM $parameter"
       case EX_AF_AF => "    EX AF,AF'"
       case EX_SP => registers match {
         case OneRegister(r) => s"    EX (SP),${asAssemblyString(r)})"
@@ -257,6 +258,24 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case OneRegisterOffset(r, o) => s" ${asAssemblyString(r, o)}"
         }).stripPrefix(" ")
         s"    $op A,$ps"
+      case op if ZOpcodeClasses.BIT(op) =>
+        val ps = registers match {
+          case OneRegister(r) => s" ${asAssemblyString(r)}"
+          case OneRegisterOffset(r, o) => s" ${asAssemblyString(r, o)}"
+        }
+        s"    BIT ${ZOpcodeClasses.BIT_seq.indexOf(op)},$ps"
+      case op if ZOpcodeClasses.SET(op) =>
+        val ps = registers match {
+          case OneRegister(r) => s" ${asAssemblyString(r)}"
+          case OneRegisterOffset(r, o) => s" ${asAssemblyString(r, o)}"
+        }
+        s"    SET ${ZOpcodeClasses.SET_seq.indexOf(op)},$ps"
+      case op if ZOpcodeClasses.RES(op) =>
+        val ps = registers match {
+          case OneRegister(r) => s" ${asAssemblyString(r)}"
+          case OneRegisterOffset(r, o) => s" ${asAssemblyString(r, o)}"
+        }
+        s"    RES ${ZOpcodeClasses.RES_seq.indexOf(op)},$ps"
       case op =>
         val os = op.toString//.stripSuffix("_16")
         val ps = registers match {
@@ -349,6 +368,14 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegisterOffset(s, _) => r == s
             case _ => false
           }
+          case op if ZOpcodeClasses.AllSingleBit(op) => registers match {
+            case OneRegister(MEM_HL) => r == H || r == L
+            case OneRegister(MEM_IX_D) => r == IXH || r == IXL
+            case OneRegister(MEM_IY_D) => r == IYH || r == IYL
+            case OneRegister(s) => r == s
+            case OneRegisterOffset(s, _) => r == s
+            case _ => false
+          }
           case INC_16 | DEC_16 | PUSH => registers match {
             case OneRegister(HL) => r == H || r == L
             case OneRegister(BC) => r == B || r == C
@@ -384,6 +411,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegisterOffset(s, p) => r == s && o == p
             case _ => false
           }
+          case op if ZOpcodeClasses.RES_or_SET(op) => registers match {
+            case OneRegisterOffset(s, p) => r == s && o == p
+            case _ => false
+          }
           case POP | INC_16 | DEC_16 => registers match {
             case OneRegister(IX | IY) => true
             case _ => false
@@ -410,6 +441,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           }
           case ADD | ADC | OR | XOR | AND | SUB | SBC | CP |
                INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL => registers match {
+            case OneRegisterOffset(s, p) => r == s && o == p
+            case _ => false
+          }
+          case op if ZOpcodeClasses.AllSingleBit(op) => registers match {
             case OneRegisterOffset(s, p) => r == s && o == p
             case _ => false
           }
@@ -462,6 +497,14 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case _ => false
           }
           case INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL => registers match {
+            case OneRegister(s) => r == s
+            case OneRegisterOffset(s, _) => r == s
+            case _ => false
+          }
+          case op if ZOpcodeClasses.RES_or_SET(op) => registers match {
+            case OneRegister(MEM_HL) => r == H || r == L
+            case OneRegister(MEM_IX_D) => r == IXH || r == IXL
+            case OneRegister(MEM_IY_D) => r == IYH || r == IYL
             case OneRegister(s) => r == s
             case OneRegisterOffset(s, _) => r == s
             case _ => false

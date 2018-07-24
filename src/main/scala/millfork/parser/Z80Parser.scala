@@ -195,6 +195,31 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         case "SRA" => one8Register(SRA)
         case "SRL" => one8Register(SRL)
 
+        case "BIT" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+          case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), (r2, e2))
+            if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
+            (ZOpcodeClasses.BIT_seq(n.toInt), OneRegister(r2), e2, zero)
+          case _ =>
+            ErrorReporting.error("Invalid parameters for BIT", Some(pos))
+            (NOP, NoRegisters, None, zero)
+        }
+        case "SET" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+          case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), (r2, e2))
+            if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
+            (ZOpcodeClasses.SET_seq(n.toInt), OneRegister(r2), e2, zero)
+          case _ =>
+            ErrorReporting.error("Invalid parameters for SET", Some(pos))
+            (NOP, NoRegisters, None, zero)
+        }
+        case "RES" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+          case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), (r2, e2))
+            if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
+            (ZOpcodeClasses.RES_seq(n.toInt), OneRegister(r2), e2, zero)
+          case _ =>
+            ErrorReporting.error("Invalid parameters for RES", Some(pos))
+            (NOP, NoRegisters, None, zero)
+        }
+
         case "SCF" => imm(SCF)
         case "CCF" => imm(CCF)
         case "CPL" => imm(CPL)

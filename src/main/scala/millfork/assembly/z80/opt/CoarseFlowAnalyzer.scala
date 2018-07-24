@@ -58,6 +58,19 @@ object CoarseFlowAnalyzer {
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m ^ n) & 0xff),
               cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
 
+          case ZLine(INC, OneRegister(r), _, _) =>
+            currentStatus = currentStatus.
+              copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus).
+              setRegister(r, currentStatus.getRegister(r).map(i => i.+(1).&(0xff)))
+          case ZLine(DEC, OneRegister(r), _, _) =>
+            currentStatus = currentStatus.
+              copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus).
+              setRegister(r, currentStatus.getRegister(r).map(i => i.-(1).&(0xff)))
+          case ZLine(op, OneRegister(r), _, _) if ZOpcodeClasses.SET(op) =>
+            currentStatus = currentStatus.setRegister(r, currentStatus.getRegister(r).map(i => i | 1.<<(ZOpcodeClasses.SET_seq.indexOf(op))))
+          case ZLine(op, OneRegister(r), _, _) if ZOpcodeClasses.RES(op) =>
+            currentStatus = currentStatus.setRegister(r, currentStatus.getRegister(r).map(i => i & ~1.<<(ZOpcodeClasses.RES_seq.indexOf(op))))
+
           case ZLine(ADD, OneRegisterOffset(s, o), _, _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s, o)) ((m, n) => (m + n) & 0xff),
               cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
