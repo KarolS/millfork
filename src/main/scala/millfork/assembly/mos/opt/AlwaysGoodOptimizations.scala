@@ -23,7 +23,9 @@ object AlwaysGoodOptimizations {
 
   def getNextLabel(prefix: String) = f".$prefix%s__${counter.getAndIncrement()}%05d"
 
-  val PointlessMath = new RuleBasedAssemblyOptimization("Pointless math",
+  private def jvmFix(r: => RuleBasedAssemblyOptimization): RuleBasedAssemblyOptimization = r
+
+  val PointlessMath = jvmFix(new RuleBasedAssemblyOptimization("Pointless math",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     (HasOpcode(CLC) & Elidable) ~
       (HasOpcode(ADC) & Elidable & MatchParameter(0)) ~
@@ -39,7 +41,7 @@ object AlwaysGoodOptimizations {
       AssemblyLine.implied(CLC),
       AssemblyLine.immediate(ADC, (ctx.get[Constant](0) + ctx.get[Constant](1)).quickSimplify),
     )),
-  )
+  ))
 
   val PointlessAccumulatorShifting = new RuleBasedAssemblyOptimization("Pointless accumulator shifting",
       needsFlowInfo = FlowInfoRequirement.BackwardFlow,
@@ -333,7 +335,7 @@ object AlwaysGoodOptimizations {
     },
   )
 
-  val PointlessStashingForLaterLoad = new RuleBasedAssemblyOptimization("Pointless stashing for later load",
+  val PointlessStashingForLaterLoad = jvmFix(new RuleBasedAssemblyOptimization("Pointless stashing for later load",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
     (Elidable & HasOpcode(STA) & MatchAddrMode(10) & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.A, State.Z, State.N)) ~
@@ -382,7 +384,7 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(TZA)) ~~> { code =>
       code.tail.init ++ List(code.head.copy(opcode = LDA), AssemblyLine.implied(TAZ))
     },
-  )
+  ))
 
   val PointlessLoadBeforeReturn = new RuleBasedAssemblyOptimization("Pointless load before return",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
@@ -441,8 +443,8 @@ object AlwaysGoodOptimizations {
     operationPairBuilder(PHZ, PLZ, Not(ChangesIZ) & Not(ConcernsStack), Some(DISCARD_YF)),
     operationPairBuilder(INX, DEX, Not(ConcernsX) & Not(ReadsNOrZ), None),
     operationPairBuilder(DEX, INX, Not(ConcernsX) & Not(ReadsNOrZ), None),
-    operationPairBuilder(INY, DEY, Not(ConcernsX) & Not(ReadsNOrZ), None),
-    operationPairBuilder(DEY, INY, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder(INY, DEY, Not(ConcernsY) & Not(ReadsNOrZ), None),
+    operationPairBuilder(DEY, INY, Not(ConcernsY) & Not(ReadsNOrZ), None),
   )
 
 
@@ -510,8 +512,8 @@ object AlwaysGoodOptimizations {
     operationPairBuilder3(PHB, Anything, PLB, Not(HasOpcodeIn(ChangesDataBankRegister)), None),
     operationPairBuilder3(INX, DoesntMatterWhatItDoesWith(State.N, State.Z), DEX, Not(ConcernsX) & Not(ReadsNOrZ), None),
     operationPairBuilder3(DEX, DoesntMatterWhatItDoesWith(State.N, State.Z), INX, Not(ConcernsX) & Not(ReadsNOrZ), None),
-    operationPairBuilder3(INY, DoesntMatterWhatItDoesWith(State.N, State.Z), DEY, Not(ConcernsX) & Not(ReadsNOrZ), None),
-    operationPairBuilder3(DEY, DoesntMatterWhatItDoesWith(State.N, State.Z), INY, Not(ConcernsX) & Not(ReadsNOrZ), None),
+    operationPairBuilder3(INY, DoesntMatterWhatItDoesWith(State.N, State.Z), DEY, Not(ConcernsY) & Not(ReadsNOrZ), None),
+    operationPairBuilder3(DEY, DoesntMatterWhatItDoesWith(State.N, State.Z), INY, Not(ConcernsY) & Not(ReadsNOrZ), None),
     operationPairBuilder4(
       LDA, DoesntMatterWhatItDoesWith(State.N, State.Z),
       Not(ConcernsA),
@@ -589,23 +591,47 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
       (Elidable & HasOpcode(ADC) & HasImmediate(1)) ~
-      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C)) ~~> { code =>
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(TAY), AssemblyLine.implied(INY))
     },
     (Elidable & HasOpcode(SEC) & HasClear(State.D)) ~
       (Elidable & HasOpcode(SBC) & HasImmediate(1)) ~
-      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C)) ~~> { code =>
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(TAY), AssemblyLine.implied(DEY))
     },
     (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
       (Elidable & HasOpcode(ADC) & HasImmediate(1)) ~
-      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C)) ~~> { code =>
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(TAX), AssemblyLine.implied(INX))
     },
     (Elidable & HasOpcode(SEC) & HasClear(State.D)) ~
       (Elidable & HasOpcode(SBC) & HasImmediate(1)) ~
-      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C)) ~~> { code =>
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(TAX), AssemblyLine.implied(DEX))
+    },
+    (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(INX), AssemblyLine.implied(TXA))
+    },
+    (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(2)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(INX), AssemblyLine.implied(INX), AssemblyLine.implied(TXA))
+    },
+    (Elidable & HasOpcode(TYA)) ~
+      (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(INY), AssemblyLine.implied(TYA))
+    },
+    (Elidable & HasOpcode(TYA)) ~
+      (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(2)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(INY), AssemblyLine.implied(INY), AssemblyLine.implied(TYA))
     },
   )
 
@@ -792,7 +818,7 @@ object AlwaysGoodOptimizations {
     }
   }
 
-  val ModificationOfJustWrittenValue = new RuleBasedAssemblyOptimization("Modification of just written value",
+  val ModificationOfJustWrittenValue = jvmFix(new RuleBasedAssemblyOptimization("Modification of just written value",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     modificationOfJustWrittenValue(STA, Absolute, MatchA(5), INC, Anything, atLeastTwo = false, Seq(), (c, i) => List(
       AssemblyLine.immediate(LDA, (c.get[Int](5) + i) & 0xff)
@@ -870,7 +896,7 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcode(DEC) & Not(HasAddrMode(Implied)) & MatchAddrMode(3) & MatchParameter(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
       (Linear & DoesNotConcernMemoryAt(3, 0) & DoesntChangeIndexingInAddrMode(3)).* ~
       (Elidable & HasOpcode(INC) & Not(HasAddrMode(Implied)) & MatchAddrMode(3) & MatchParameter(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init.tail),
-  )
+  ))
 
   val ConstantFlowAnalysis = new RuleBasedAssemblyOptimization("Constant flow analysis",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
@@ -903,8 +929,8 @@ object AlwaysGoodOptimizations {
     },
   )
 
-  val LoadingOfJustWrittenValue = new RuleBasedAssemblyOptimization("Loading of just written value",
-    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+  val LoadingOfJustWrittenValue = jvmFix(new RuleBasedAssemblyOptimization("Loading of just written value",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
 
     (HasOpcode(STA) & XContainsStackPointer & HasAddrMode(AbsoluteX) & MatchAddrMode(0) & MatchParameter(1) & MatchA(2) & HasParameterWhere(_ match {
       case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
@@ -944,7 +970,34 @@ object AlwaysGoodOptimizations {
       code.init :+ code.last.copy(addrMode = AddrMode.Immediate, parameter = NumericConstant(ctx.get[Int](2), 1))
     },
 
-  )
+    (HasOpcode(PHA)) ~
+      (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
+      (Elidable & XContainsStackPointer & HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.N, State.Z) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
+        case NumericConstant(n, _) => n == 0x101
+        case _ => false
+      })) ~~> (_.init),
+
+    (HasOpcode(PHA)) ~
+      (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
+      (Elidable & HasOpcode(LDA) & HasAddrMode(Stack) & DoesntMatterWhatItDoesWith(State.N, State.Z) & HasParameterWhere(p => p.quickSimplify match {
+        case NumericConstant(n, _) => n == 1
+        case _ => false
+      })) ~~> (_.init),
+
+    (HasOpcode(PHA)) ~
+      (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
+      (Elidable & XContainsStackPointer & HasOpcode(LDA) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
+        case NumericConstant(n, _) => n == 0x101
+        case _ => false
+      })) ~~> (code => code.init :+ AssemblyLine.immediate(ORA, 0)),
+
+    (HasOpcode(PHA)) ~
+      (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
+      (Elidable & HasOpcode(LDA) & HasAddrMode(Stack) & HasParameterWhere(p => p.quickSimplify match {
+        case NumericConstant(n, _) => n == 1
+        case _ => false
+      })) ~~> (code => code.init :+ AssemblyLine.immediate(ORA, 0))
+  ))
 
   val PointlessStackStore = new RuleBasedAssemblyOptimization("Pointless stack store",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
