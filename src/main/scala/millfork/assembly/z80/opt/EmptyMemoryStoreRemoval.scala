@@ -24,7 +24,7 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[ZLine] {
     val toRemove = mutable.Set[Int]()
     val badVariables = mutable.Set[String]()
 
-    for((v, lifetime) <- vs.variablesWithLifetimes) {
+    for((v, lifetime) <- vs.variablesWithLifetimes if lifetime.nonEmpty) {
       val lastaccess = lifetime.last
       if (lastaccess >= 0) {
         val lastVariableAccess = code(lastaccess)

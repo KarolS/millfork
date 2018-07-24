@@ -232,6 +232,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case DISCARD_BCDEIX => "    ; DISCARD_BCDEIX"
       case BYTE => "    !byte " + parameter.toString // TODO: format?
       case LABEL => parameter.toString + ":"
+      case RST => s"    RST $parameter"
       case EX_AF_AF => "    EX AF,AF'"
       case EX_SP => registers match {
         case OneRegister(r) => s"    EX (SP),${asAssemblyString(r)})"
@@ -292,6 +293,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case TwoRegisters(HL, HL) => r == H || r == L
             case TwoRegisters(HL, BC) => r == H || r == L || r == B || r == C
             case TwoRegisters(HL, DE) => r == H || r == L || r == D || r == E
+            case TwoRegisters(HL, SP) => r == H || r == L || r == SP
+            case TwoRegisters(IX, DE) => r == IXH || r == IXL || r == D || r == E
+            case TwoRegisters(IX, BC) => r == IXH || r == IXL || r == B || r == C
+            case TwoRegisters(IX, SP) => r == IXH || r == IXL || r == SP
             case _ => true
           }
           case LD => (registers match {
@@ -472,12 +477,13 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case _ => false
           }
           case JP | JR | RET | RETI | RETN |
-               POP |
+               PUSH |
                DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
           case ADD | ADC | AND | OR | XOR | SUB | SBC | DAA | NEG | CPL => r == A
           case CP => false
           case DJNZ => r == B
           case LABEL | DI | EI | NOP | HALT => false
+          case CALL => r != IXH && r != IXL && r != SP
           case _ => true // TODO
         }
     }

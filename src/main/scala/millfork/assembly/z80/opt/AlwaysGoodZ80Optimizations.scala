@@ -204,6 +204,10 @@ object AlwaysGoodZ80Optimizations {
         (Linear & Not(Changes(register)) & DoesntChangeMemoryAt(1)).* ~
         (Elidable & Is16BitLoad(register, ZRegister.MEM_ABS_16) & MatchParameter(0)) ~~> (_.init)
     ),
+    // 60
+    (HasOpcode(LD) & MatchSourceRegisterAndOffset(0) & MatchTargetRegisterAndOffset(1)) ~
+      Where(ctx => ctx.get[RegisterAndOffset](0).register != ZRegister.MEM_ABS_8 && ctx.get[RegisterAndOffset](1).register != ZRegister.MEM_ABS_8) ~
+      (Elidable & HasOpcode(LD) & MatchSourceRegisterAndOffset(1) & MatchTargetRegisterAndOffset(0)) ~~> (_.init)
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
@@ -604,6 +608,49 @@ object AlwaysGoodZ80Optimizations {
       (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
       (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
       List(ZLine.ld8(ZRegister.A, ZRegister.MEM_DE))
+    },
+
+
+    (Elidable & Is8BitLoad(ZRegister.H, ZRegister.D)) ~
+      (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
+      List(ZLine.register(PUSH, ZRegister.DE))
+    },
+    (Elidable & Is8BitLoad(ZRegister.H, ZRegister.B)) ~
+      (Elidable & Is8BitLoad(ZRegister.L, ZRegister.C)) ~
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
+      List(ZLine.register(PUSH, ZRegister.BC))
+    },
+    (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L)) ~
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~~> {_ =>
+      List(ZLine.register(PUSH, ZRegister.HL))
+    },
+    (Elidable & Is8BitLoad(ZRegister.B, ZRegister.H)) ~
+      (Elidable & Is8BitLoad(ZRegister.C, ZRegister.L)) ~
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.BC)) ~~> {_ =>
+      List(ZLine.register(PUSH, ZRegister.HL))
+    },
+
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
+      (Elidable & Is8BitLoad(ZRegister.H, ZRegister.D)) ~
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
+      List(ZLine.register(PUSH, ZRegister.DE))
+    },
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.C)) ~
+      (Elidable & Is8BitLoad(ZRegister.H, ZRegister.B)) ~
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
+      List(ZLine.register(PUSH, ZRegister.BC))
+    },
+    (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L)) ~
+      (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H)) ~
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~~> {_ =>
+      List(ZLine.register(PUSH, ZRegister.HL))
+    },
+    (Elidable & Is8BitLoad(ZRegister.C, ZRegister.L)) ~
+      (Elidable & Is8BitLoad(ZRegister.B, ZRegister.H)) ~
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.BC)) ~~> {_ =>
+      List(ZLine.register(PUSH, ZRegister.HL))
     },
 
 

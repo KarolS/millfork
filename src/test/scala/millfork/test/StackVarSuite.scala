@@ -204,4 +204,22 @@ class StackVarSuite extends FunSuite with Matchers {
         | }
       """.stripMargin){m => m.readWord(0xc055) should equal(0x66) }
   }
+
+    test("Double array with stack variables") {
+      EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+        """
+          | array output[5]@$c001
+          | array input = [0,1,4,9,16,25,36,49]
+          | void main () {
+          |   stack byte i
+          |   for i,0,until,output.length {
+          |     output[i] = input[i+1]<<1
+          |   }
+          | }
+          | void _panic(){while(true){}}
+        """.stripMargin){ m=>
+        m.readByte(0xc001) should equal (2)
+        m.readByte(0xc005) should equal (50)
+      }
+    }
 }

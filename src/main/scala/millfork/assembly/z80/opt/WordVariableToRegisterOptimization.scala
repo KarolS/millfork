@@ -274,6 +274,12 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case (_, ZLine(_, _, MemoryAddressConstant(th), _)) :: _ if th.name == vname => fail(4)
       case (_, ZLine(_, _, CompoundConstant(_, MemoryAddressConstant(th), _), _)) :: _ if th.name == vname => fail(5)
       case (_, ZLine(_, _, SubbyteConstant(MemoryAddressConstant(th), _), _)) :: _ if th.name == vname => fail(6)
+      case (_, ZLine(CALL, _, _, _)) :: xs => target match {
+          // TODO: check return type and allow HL sometimes
+        case BC | DE =>
+          canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(-21, -2)))
+        case _ => fail(3)
+      }
       case (_, x) :: xs if x.changesRegister(target) => fail(1)
       case (_, x) :: xs if x.readsRegister(target) && !synced => fail(2)
       case (_, ZLine(LABEL, _, _, _)) :: xs => canBeInlined(vname, synced = false, target, xs)
@@ -400,18 +406,28 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _) :: xs if th.name == de =>
         ZLine.ld8(E, A) :: inlineVars(hl, bc, de, xs)
 
-      case ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1,_)), _) :: xs if th.name == hl =>
+      case ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) :: xs if th.name == hl =>
         ZLine.ld8(A, H) :: inlineVars(hl, bc, de, xs)
-      case ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1,_)), _) :: xs if th.name == hl =>
+      case ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) :: xs if th.name == hl =>
         ZLine.ld8(H, A) :: inlineVars(hl, bc, de, xs)
-      case ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1,_)), _) :: xs if th.name == bc =>
+      case ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) :: xs if th.name == bc =>
         ZLine.ld8(A, B) :: inlineVars(hl, bc, de, xs)
-      case ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1,_)), _) :: xs if th.name == bc =>
+      case ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) :: xs if th.name == bc =>
         ZLine.ld8(B, A) :: inlineVars(hl, bc, de, xs)
-      case ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1,_)), _) :: xs if th.name == de =>
+      case ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) :: xs if th.name == de =>
         ZLine.ld8(A, D) :: inlineVars(hl, bc, de, xs)
-      case ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1,_)), _) :: xs if th.name == de =>
+      case ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) :: xs if th.name == de =>
         ZLine.ld8(D, A) :: inlineVars(hl, bc, de, xs)
+
+      case (x@ZLine(CALL, _, _, _)) :: xs =>
+        if (bc != "") {
+          ZLine.register(PUSH, BC) :: x :: ZLine.register(POP, BC) :: inlineVars(hl, bc, de, xs)
+        } else if (de != "") {
+          ZLine.register(PUSH, DE) :: x :: ZLine.register(POP, DE) :: inlineVars(hl, bc, de, xs)
+        } else {
+          throw new IllegalStateException()
+        }
+
 
       case x :: ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _) :: xs if x.changesRegister(HL) && th.name == hl =>
         x :: inlineVars(hl, bc, de, xs)
@@ -420,9 +436,9 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case x :: ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _) :: xs if x.changesRegister(DE) && th.name == de =>
         x :: inlineVars(hl, bc, de, xs)
 
-      case x :: _ if bc != "" && x.changesRegister(BC) => ???
-      case x :: _ if de != "" && x.changesRegister(DE) => ???
-      case x :: _ if hl != "" && x.changesRegister(HL) => ???
+      case x :: _ if bc != "" && x.changesRegister(BC) => throw new IllegalStateException()
+      case x :: _ if de != "" && x.changesRegister(DE) => throw new IllegalStateException()
+      case x :: _ if hl != "" && x.changesRegister(HL) => throw new IllegalStateException()
 
       case x :: xs => x :: inlineVars(hl, bc, de, xs)
       case Nil => Nil

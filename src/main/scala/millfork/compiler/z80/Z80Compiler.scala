@@ -29,7 +29,7 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
         List(ZLine.ldAbs16(param.toAddress, ZRegister.HL))
       case _ => Nil
     }
-    label :: (storeParamsFromRegisters ++ stackPointerFixAtBeginning(ctx) ++ chunk)
+    label :: (stackPointerFixAtBeginning(ctx) ++ storeParamsFromRegisters ++ chunk)
   }
 
   def stackPointerFixAtBeginning(ctx: CompilationContext): List[ZLine] = {

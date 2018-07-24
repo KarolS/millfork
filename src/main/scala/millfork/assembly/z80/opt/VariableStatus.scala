@@ -66,6 +66,7 @@ object VariableStatus {
     val localVariables = allLocalVariables.filter {
       case MemoryVariable(name, typ, VariableAllocationMethod.Auto | VariableAllocationMethod.Zeropage) =>
         typFilter(typ) && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name)
+      case StackVariable(name, typ, _) => typFilter(typ)
       case _ => false
     }
     val variablesWithRegisterHint = f.environment.getAllLocalVariables.filter {
@@ -73,11 +74,15 @@ object VariableStatus {
         typFilter(typ) && (typ.size == 1 || typ.size == 2) && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name)
       case _ => false
     }.map(_.name).toSet
-    val variablesWithLifetimes = localVariables.map(v =>
-      v -> VariableLifetime.apply(v.name, flow)
-    )
+    val variablesWithLifetimes = localVariables.map {
+      case v: MemoryVariable =>
+        v -> VariableLifetime.apply(v.name, flow)
+      case v: StackVariable =>
+        v -> StackVariableLifetime.apply(v.baseOffset, flow)
+    }
     val variablesWithLifetimesMap = variablesWithLifetimes.map {
-      case (v, lt) => v.name -> lt
+      case (v: MemoryVariable, lt) => v.name -> lt
+      case (v: StackVariable, lt) => ("IX+" + v.baseOffset) -> lt
     }.toMap
     Some(new VariableStatus(
       paramVariables,
