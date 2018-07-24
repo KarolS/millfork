@@ -61,13 +61,15 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
     "SP" -> ZRegister.SP, "sp" -> ZRegister.SP,
   )
   
-  private def param(allowAbsolute: Boolean): P[(ZRegister.Value, Option[Expression])] = asmExpressionWithParens.map {
+  private def param(allowAbsolute: Boolean, allowRI: Boolean = false): P[(ZRegister.Value, Option[Expression])] = asmExpressionWithParens.map {
+    case (VariableExpression("R" | "r"), false) if allowRI => (ZRegister.R, None)
+    case (VariableExpression("I" | "i"), false) if allowRI => (ZRegister.I, None)
     case (VariableExpression(r), false) if toRegister.contains(r)=> (toRegister(r), None)
     case (VariableExpression("HL" | "hl"), true) => (ZRegister.MEM_HL, None)
     case (VariableExpression("BC" | "bc"), true) => (ZRegister.MEM_BC, None)
     case (VariableExpression("DE" | "de"), true) => (ZRegister.MEM_DE, None)
-    case (FunctionCallExpression("IX" | "ix", List(o)), true) => (ZRegister.MEM_IX_D, Some(o))
-    case (FunctionCallExpression("IY" | "iy", List(o)), true) => (ZRegister.MEM_IY_D, Some(o))
+    case (FunctionCallExpression("IX" | "ix", List(o)), _) => (ZRegister.MEM_IX_D, Some(o))
+    case (FunctionCallExpression("IY" | "iy", List(o)), _) => (ZRegister.MEM_IY_D, Some(o))
     case (e, true) if allowAbsolute => (ZRegister.MEM_ABS_8, Some(e))
     case (e, _) => (ZRegister.IMM_8, Some(e))
   }
@@ -147,7 +149,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
     case (t, None, s, Some(v)) =>
       (op8, TwoRegisters(t, s), None, v)
     case (t, None, s, None) =>
-      (op8, TwoRegisters(t, s), None, zero)
+      (if (is16Bit(t)) op16 else op8, TwoRegisters(t, s), None, zero)
     case _ => ???
   }
 
@@ -162,6 +164,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
       opcode: String <- identifier ~/ HWS
       tuple4/*: (ZOpcode.Value, ZRegisters, Option[Expression], Expression)*/ <- opcode.toUpperCase(Locale.ROOT) match {
         case "RST" => asmExpression.map((RST, NoRegisters, None, _))
+        case "IM" => asmExpression.map((IM, NoRegisters, None, _))
         case "EI" => imm(EI)
         case "DI" => imm(DI)
         case "HALT" => imm(HALT)
@@ -169,9 +172,21 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         case "RETN" => imm(RETN)
         case "RETI" => imm(RETI)
         case "RET" => P(jumpConditionWithoutComma).map((RET, _, None, zero))
-        case "CALL" => (jumpConditionWithComma~asmExpression).map{case (reg, param) => (CALL, reg, None, param)}
-        case "JP" => (jumpConditionWithComma~asmExpression).map{case (reg, param) => (JP, reg, None, param)}
-        case "JR" => (jumpConditionWithComma~asmExpression).map{case (reg, param) => (JR, reg, None, param)}
+        case "CALL" => (jumpConditionWithComma ~ asmExpression).map { case (reg, param) => (CALL, reg, None, param) }
+        case "JP" => (jumpConditionWithComma ~ param(allowAbsolute = true)).map {
+          case (NoRegisters, (ZRegister.MEM_ABS_8, Some(VariableExpression("ix" | "IX")))) =>
+            (JP, OneRegister(ZRegister.IX), None, zero)
+          case (NoRegisters, (ZRegister.MEM_ABS_8, Some(VariableExpression("iy" | "IY")))) =>
+            (JP, OneRegister(ZRegister.IY), None, zero)
+          case (NoRegisters, (ZRegister.MEM_HL, _)) =>
+            (JP, OneRegister(ZRegister.HL), None, zero)
+          case (cond, (ZRegister.MEM_ABS_8 | ZRegister.IMM_8, Some(param))) =>
+            (JP, cond, None, param)
+          case _ =>
+            ErrorReporting.error("Invalid parameters for JP", Some(pos))
+            (NOP, NoRegisters, None, zero)
+        }
+        case "JR" => (jumpConditionWithComma ~ asmExpression).map{case (reg, param) => (JR, reg, None, param)}
         case "DJNZ" => asmExpression.map((DJNZ, NoRegisters, None, _))
 
         case "CP" => one8Register(CP)
@@ -226,9 +241,10 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         case "DAA" => imm(DAA)
         case "EXX" => imm(EXX)
         case "NOP" => imm(NOP)
+        case "NEG" => imm(NEG)
 
-        case "LDI" => imm(LDI)
-        case "LDD" => imm(LDD)
+        case "LDI" => imm(LDI) // TODO: Gameboy has a different LDI
+        case "LDD" => imm(LDD) // TODO: Gameboy has a different LDD
         case "LDIR" => imm(LDIR)
         case "LDDR" => imm(LDDR)
         case "CPI" => imm(CPI)
@@ -245,6 +261,8 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         case "OUTDR" => imm(OUTDR)
         case "OTIR" => imm(OUTIR)
         case "OTDR" => imm(OUTDR)
+        case "RLD" => imm(RLD)
+        case "RRD" => imm(RRD)
 
         case "PUSH" => one16Register(PUSH)
         case "POP" => one16Register(POP)
@@ -275,7 +293,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
               (NOP, NoRegisters, None, zero)
           }
         }
-        case "EX" => (asmExpressionWithParens ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpressionWithParens).map { p: (Expression, Boolean, (Expression, Boolean)) =>
+        case "EX" => (asmExpressionWithParens ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpressionWithParensOrApostrophe).map { p: (Expression, Boolean, (Expression, Boolean)) =>
           p match {
             case (VariableExpression("AF" | "af"), false, (VariableExpression("AF" | "af"), true)) =>
               (EX_AF_AF, NoRegisters, None, zero)
@@ -295,16 +313,16 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
           }
         }
 
-        case "LD" => (param(true) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(true)).map {
+        case "LD" => (param(allowAbsolute = true, allowRI = true) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = true, allowRI = true)).map {
           case (r1, e1, (r2, e2)) => merge(LD, LD_16, skipTargetA = false)((r1, e1, r2, e2))
         }
-        case "ADD" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+        case "ADD" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
           case (r1, e1, (r2, e2)) => merge(ADD, ADD_16, skipTargetA = true)((r1, e1, r2, e2))
         }
-        case "ADC" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+        case "ADC" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
           case (r1, e1, (r2, e2)) => merge(ADC, ADC_16, skipTargetA = true)((r1, e1, r2, e2))
         }
-        case "SBC" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+        case "SBC" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
           case (r1, e1, (r2, e2)) => merge(SBC, SBC_16, skipTargetA = true)((r1, e1, r2, e2))
         }
 

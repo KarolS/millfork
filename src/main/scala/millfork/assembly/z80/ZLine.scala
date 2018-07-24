@@ -21,12 +21,12 @@ case class IfFlagSet(flag: ZFlag.Value) extends ZRegisters
 case class IfFlagClear(flag: ZFlag.Value) extends ZRegisters
 
 case class OneRegister(register: ZRegister.Value) extends ZRegisters {
-  if (register == ZRegister.MEM_IY_D || register == ZRegister.MEM_IX_D) ???
+//  if (register == ZRegister.MEM_IY_D || register == ZRegister.MEM_IX_D) ???
 }
 
 case class TwoRegisters(target: ZRegister.Value, source: ZRegister.Value) extends ZRegisters {
-  if (target == ZRegister.MEM_IY_D || target == ZRegister.MEM_IX_D) ???
-  if (source == ZRegister.MEM_IY_D || source == ZRegister.MEM_IX_D) ???
+//  if (target == ZRegister.MEM_IY_D || target == ZRegister.MEM_IX_D) ???
+//  if (source == ZRegister.MEM_IY_D || source == ZRegister.MEM_IX_D) ???
 }
 
 case class OneRegisterOffset(register: ZRegister.Value, offset: Int) extends ZRegisters {
@@ -214,10 +214,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     case ZRegister.I => "I"
     case ZRegister.MEM_ABS_8 => s"($parameter)"
     case ZRegister.MEM_ABS_16 => s"($parameter)"
-    case ZRegister.IMM_8 => s"#$parameter"
-    case ZRegister.IMM_16 => s"#$parameter"
-    case ZRegister.MEM_IX_D => s"(IX,$offset)"
-    case ZRegister.MEM_IY_D => s"(IY,$offset)"
+    case ZRegister.IMM_8 => s"$parameter"
+    case ZRegister.IMM_16 => s"$parameter"
+    case ZRegister.MEM_IX_D => s"IX($offset)"
+    case ZRegister.MEM_IY_D => s"IY($offset)"
     case ZRegister.MEM_HL => "(HL)"
     case ZRegister.MEM_BC => "(BC)"
     case ZRegister.MEM_DE => "(DE)"
@@ -236,7 +236,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case IM => s"    IM $parameter"
       case EX_AF_AF => "    EX AF,AF'"
       case EX_SP => registers match {
-        case OneRegister(r) => s"    EX (SP),${asAssemblyString(r)})"
+        case OneRegister(r) => s"    EX (SP),${asAssemblyString(r)}"
         case _ => ???
       }
       case JP | JR | DJNZ | CALL =>
@@ -277,7 +277,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
         }
         s"    RES ${ZOpcodeClasses.RES_seq.indexOf(op)},$ps"
       case op =>
-        val os = op.toString//.stripSuffix("_16")
+        val os = op.toString.stripSuffix("_16")
         val ps = registers match {
           case NoRegisters => ""
           case IfFlagSet(ZFlag.P) => " PO"

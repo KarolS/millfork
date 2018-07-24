@@ -86,9 +86,22 @@ class Z80Assembler(program: Program,
       case ZLine(ADD_16, TwoRegisters(ZRegister.HL, source), _, _) =>
         writeByte(bank, index, 9 + 16 * internalRegisterIndex(source))
         index + 1
+      case ZLine(ADD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), source@(ZRegister.IX | ZRegister.IY)), _, _)=>
+        if (ix == source) {
+          writeByte(bank, index, prefixByte(ix))
+          writeByte(bank, index + 1, 9 + 16 * internalRegisterIndex(HL))
+          index + 2
+        } else {
+          ErrorReporting.fatal("Cannot assemble " + instr)
+          index
+        }
       case ZLine(ADD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), source), _, _) =>
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 9 + 16 * internalRegisterIndex(source))
+        index + 2
+      case ZLine(ADC_16, TwoRegisters(ZRegister.HL, reg), _, _) =>
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x4a + 0x10 * internalRegisterIndex(reg))
         index + 2
       case ZLine(SBC_16, TwoRegisters(ZRegister.HL, reg), _, _) =>
         writeByte(bank, index, 0xed)
@@ -106,6 +119,11 @@ class Z80Assembler(program: Program,
       case ZLine(LD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), ZRegister.MEM_ABS_16), param, _) =>
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0x2a)
+        writeWord(bank, index + 2, param)
+        index + 4
+      case ZLine(LD_16, TwoRegisters(ZRegister.MEM_ABS_16, ix@(ZRegister.IX | ZRegister.IY)), param, _) =>
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, 0x22)
         writeWord(bank, index + 2, param)
         index + 4
       case ZLine(LD_16, TwoRegisters(ZRegister.HL, ZRegister.MEM_ABS_16), param, _) =>
@@ -168,8 +186,33 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0xcb)
         writeByte(bank, index + 1, o.opcode + internalRegisterIndex(reg) * o.multiplier)
         index + 2
+      case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if cbOneRegister.contains(op) =>
+        val o = cbOneRegister(op)
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, 0xcb)
+        writeByte(bank, index + 2, offset)
+        index + 3
       case ZLine(LD, registers, _, _) =>
         registers match {
+          case TwoRegisters(I, A) =>
+            writeByte(bank, index, 0xed)
+            writeByte(bank, index + 1, 0x47)
+            index + 2
+          case TwoRegisters(A, I) =>
+            writeByte(bank, index, 0xed)
+            writeByte(bank, index + 1, 0x57)
+            index + 2
+          case TwoRegisters(R, A) =>
+            writeByte(bank, index, 0xed)
+            writeByte(bank, index + 1, 0x4f)
+            index + 2
+          case TwoRegisters(A, R) =>
+            writeByte(bank, index, 0xed)
+            writeByte(bank, index + 1, 0x5f)
+            index + 2
+          case TwoRegisters(I | R, _) | TwoRegisters(_, I | R) =>
+            ErrorReporting.fatal("Cannot assemble " + instr)
+            index
           case TwoRegisters(reg, ZRegister.IMM_8) =>
             writeByte(bank, index, 6 + 8 * internalRegisterIndex(reg))
             writeByte(bank, index + 1, instr.parameter)
@@ -377,6 +420,20 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0x10)
         writeByte(bank, index + 1, AssertByte(param - index - 2))
         index + 2
+      case ZLine(EX_SP, OneRegister(HL), _, _) =>
+        writeByte(bank, index, 0xe3)
+        index + 1
+      case ZLine(EX_SP, OneRegister(IX), _, _) =>
+        writeByte(bank, index, 0xdd)
+        writeByte(bank, index + 1, 0xe3)
+        index + 2
+      case ZLine(EX_SP, OneRegister(IY), _, _) =>
+        writeByte(bank, index, 0xfd)
+        writeByte(bank, index + 1, 0xe3)
+        index + 2
+      case ZLine(EX_DE_HL, _, _, _) =>
+        writeByte(bank, index, 0xeb)
+        index + 1
       case _ =>
         ErrorReporting.fatal("Cannot assemble " + instr)
         index

@@ -23,6 +23,10 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
 
   private val TooManyCycles: Long = 1000000
 
+  def apply(source: String): MemoryBank = {
+    apply2(source)._2
+  }
+
   def apply2(source: String): (Timings, MemoryBank) = {
     Console.out.flush()
     Console.err.flush()
