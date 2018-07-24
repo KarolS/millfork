@@ -159,8 +159,8 @@ class Z80Assembler(program: Program,
       case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if ZOpcodeClasses.AllSingleBit(op) =>
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0xcb)
-        writeByte(bank, index + 2, ZOpcodeClasses.singleBitOpcode(op) + internalRegisterIndex(ZRegister.MEM_HL))
-        writeByte(bank, index + 3, offset)
+        writeByte(bank, index + 2, offset)
+        writeByte(bank, index + 3, ZOpcodeClasses.singleBitOpcode(op) + internalRegisterIndex(ZRegister.MEM_HL))
         index + 4
       case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if oneRegister.contains(op) =>
         val o = oneRegister(op)
@@ -191,7 +191,8 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0xcb)
         writeByte(bank, index + 2, offset)
-        index + 3
+        writeByte(bank, index + 3, o.opcode + internalRegisterIndex(MEM_HL) * o.multiplier)
+        index + 4
       case ZLine(LD, registers, _, _) =>
         registers match {
           case TwoRegisters(I, A) =>
