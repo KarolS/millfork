@@ -13,7 +13,7 @@ object Z80Multiply {
   /**
     * Compiles A = A * D
     */
-  private def multiplication(): List[ZLine] = {
+  private def multiplication(ctx: CompilationContext): List[ZLine] = {
     import millfork.assembly.z80.ZOpcode._
     import ZRegister._
     import ZLine._
@@ -23,15 +23,15 @@ object Z80Multiply {
     List(
       ld8(E, A),
       ldImm8(A, 0),
-      jumpR(lblStart),
+      jumpR(ctx, lblStart),
       label(lblAdd),
       register(ADD, E),
       label(lblLoop),
       register(SLA, E),
       label(lblStart),
       register(SRL, D),
-      jumpR(lblAdd, IfFlagSet(ZFlag.C)),
-      jumpR(lblLoop, IfFlagClear(ZFlag.Z)))
+      jumpR(ctx, lblAdd, IfFlagSet(ZFlag.C)),
+      jumpR(ctx, lblLoop, IfFlagClear(ZFlag.Z)))
   }
 
   /**
@@ -81,7 +81,7 @@ object Z80Multiply {
         } else {
           rb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ lb
         }
-        load ++ multiplication()
+        load ++ multiplication(ctx)
     }
   }
 
@@ -95,7 +95,7 @@ object Z80Multiply {
         load ++ compile8BitMultiply(count.toInt) ++ store
       case Some(c) =>
         val (load, store) = Z80ExpressionCompiler.calculateLoadAndStoreForByte(ctx, l)
-        load ++ List(ZLine.ldImm8(ZRegister.D, c)) ++ multiplication() ++ store
+        load ++ List(ZLine.ldImm8(ZRegister.D, c)) ++ multiplication(ctx) ++ store
       case _ =>
         val (load, store) = Z80ExpressionCompiler.calculateLoadAndStoreForByte(ctx, l)
         val rb = Z80ExpressionCompiler.compileToA(ctx, r)
@@ -104,7 +104,7 @@ object Z80Multiply {
         } else {
           rb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ load
         }
-        loadRegisters ++ multiplication() ++ store
+        loadRegisters ++ multiplication(ctx) ++ store
     }
   }
 

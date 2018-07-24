@@ -118,7 +118,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Various loops") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | void init() {
         |     zero = 0
@@ -228,7 +228,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Edge cases - positive") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | void main() {
         |     byte i
         |     for i,0,until,256 { f() }

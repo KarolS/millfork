@@ -232,14 +232,18 @@ object Platform {
   def builtInCpuFeatures(cpu: Cpu.Value): Map[String, Long] = {
     Map[String, Long](
       "ARCH_6502" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6502),
-      "ARCH_Z80" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I80),
+      "ARCH_I80" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I80),
+      "ARCH_Z80" -> toLong(cpu == Cpu.Z80 || cpu == Cpu.EZ80),
       "ARCH_X86" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I86),
-      "ARCH_6509" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6809),
+      "ARCH_6500" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6800),
       "ARCH_ARM" -> toLong(CpuFamily.forType(cpu) == CpuFamily.ARM),
       "ARCH_68K" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M68K),
-      "HAS_HARDWARE_MULTIPLY" -> (CpuFamily.forType(cpu) match {
-        case CpuFamily.M6502 | CpuFamily.I80 | CpuFamily.M6809 => 0L
-        case CpuFamily.I86 | CpuFamily.ARM | CpuFamily.M68K => 1L
+      "HAS_HARDWARE_MULTIPLY" -> (cpu match {
+        case Cpu.EZ80 => 1L
+        case _ => CpuFamily.forType(cpu) match {
+          case CpuFamily.M6502 | CpuFamily.I80 | CpuFamily.M6800 => 0L
+          case CpuFamily.I86 | CpuFamily.ARM | CpuFamily.M68K => 1L
+        }
       })
       // TODO
     )

@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class CmosSuite extends FunSuite with Matchers {
 
   test("Zero store 1") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)("""
         | word output @$c000
         | void main () {
         |  output = 1
@@ -19,7 +19,7 @@ class CmosSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(0))
   }
   test("Zero store 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)("""
         | byte output @$c000
         | void main () {
         |  output = 1

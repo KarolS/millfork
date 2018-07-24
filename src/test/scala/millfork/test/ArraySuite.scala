@@ -175,7 +175,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Syntax") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | array a = [1, 2, 3]
         | array b = "text" ascii
@@ -187,7 +187,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Negative subindex") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         |
         | array output [$fff] @$c000
@@ -199,6 +199,7 @@ class ArraySuite extends FunSuite with Matchers {
         | }
         | noinline byte one() {return 1}
       """.stripMargin) { m =>
+      m.dump(0xbf00, 0x200)(println(_))
       m.readByte(0xc100) should equal(55)
       m.readByte(0xc000) should equal(5)
     }

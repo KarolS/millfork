@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ShiftSuite extends FunSuite with Matchers {
 
   test("In-place shifting") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | array output [3] @$c000
         | void main () {
         |   output[0] = 1
@@ -20,7 +20,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Byte shifting") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | byte output @$c000
         | void main () {
         |   byte a
@@ -31,7 +31,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Word shifting") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | word output @$c000
         | void main () {
         |   byte a
@@ -50,10 +50,17 @@ class ShiftSuite extends FunSuite with Matchers {
         |   output <<= 2
         | }
       """.stripMargin)(_.readLong(0xc000) should equal(0x4040C04))
+    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080)("""
+        | long output @$c000
+        | void main () {
+        |   output = $1010301
+        |   output <<= 2
+        | }
+      """.stripMargin)(_.readLong(0xc000) should equal(0x4040C04))
   }
 
   test("Long shifting right") {
-    EmuBenchmarkRun("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | long output @$c000
         | void main () {
         |   output = $4040C04
@@ -63,7 +70,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Word shifting via pseudoregister") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | word output @$c000
         | void main () {
         |   output = identity(three() << 7)
@@ -74,7 +81,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Variable shifting") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | word output0 @$c000
         | word output2 @$c002
         | byte output4 @$c004

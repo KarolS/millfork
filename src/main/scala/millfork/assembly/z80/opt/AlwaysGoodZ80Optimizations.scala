@@ -462,6 +462,12 @@ object AlwaysGoodZ80Optimizations {
       ZLine.registers(code.last.opcode, ZRegister.HL, ZRegister.DE) :: code.take(2)
     },
 
+    (Elidable & HasOpcode(INC) & HasRegisterParam(ZRegister.A)) ~
+      (Elidable & HasOpcode(ADD) & Has8BitImmediate(0xff) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
+
+    (Elidable & HasOpcode(NEG)) ~
+      (Elidable & HasOpcode(ADD) & Has8BitImmediate(0xff) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => List(ZLine.implied(CPL))),
+
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",

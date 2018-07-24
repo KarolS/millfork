@@ -210,6 +210,16 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case 1 => targetifyA(target, ZBuiltIns.compile8BitSum(ctx, params, decimal), isSigned = false)
               case 2 => targetifyHL(target, ZBuiltIns.compile16BitSum(ctx, params, decimal))
             }
+          case SeparateBytesExpression(h, l) =>
+            val hi = compileToA(ctx, h)
+            val lo = compileToA(ctx, l)
+            if (!lo.exists(x => x.changesRegister(ZRegister.H) || x.readsRegister(ZRegister.H))) {
+              hi ++ List(ZLine.ld8(ZRegister.H, ZRegister.A)) ++
+                lo ++ List(ZLine.ld8(ZRegister.L, ZRegister.A))
+            } else if (!hi.exists(x => x.changesRegister(ZRegister.L) || x.readsRegister(ZRegister.L))) {
+              lo ++ List(ZLine.ld8(ZRegister.L, ZRegister.A)) ++
+                hi ++ List(ZLine.ld8(ZRegister.H, ZRegister.A))
+            } else ???
           case f@FunctionCallExpression(name, params) =>
             name match {
               case "not" =>
@@ -423,20 +433,19 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 1 => ZBuiltIns.perform8BitInPlace(ctx, l, r, SUB, decimal = true)
                   case _ => ZBuiltIns.performLongInPlace(ctx, l, r, SUB, SBC, size, decimal = true)
                 }
-                Nil
               case "<<=" =>
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => Z80Shifting.compile8BitShiftInPlace(ctx, l, r, left = true)
                   case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = true) ++ storeHL(ctx, l, signedSource = false)
-                  case _ => ???
+                  case _ => Z80Shifting.compileLongShiftInPlace(ctx, l, r, size, left = true)
                 }
               case ">>=" =>
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 => Z80Shifting.compile8BitShiftInPlace(ctx, l, r, left = false)
                   case 2 => Z80Shifting.compile16BitShift(ctx, l, r, left = false) ++ storeHL(ctx, l, signedSource = false)
-                  case _ => ???
+                  case _ => Z80Shifting.compileLongShiftInPlace(ctx, l, r, size, left = false)
                 }
               case "<<'=" =>
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)

@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.EmuUnoptimizedZ80Run
+import millfork.test.emu.{EmuUnoptimizedIntel8080Run, EmuUnoptimizedZ80Run}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
 class Z80AssemblySuite extends FunSuite with Matchers {
 
   test("Common I80 instructions") {
-    EmuUnoptimizedZ80Run(
+    EmuUnoptimizedIntel8080Run(
       """
         | asm void main () {
         |   ret
@@ -37,7 +37,6 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   dec d
         |   ld d,$16
         |   rla
-        |   jr main
         |   add hl,de
         |   ld a,(de)
         |   dec de
@@ -46,14 +45,12 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   ld e,$1e
         |   rra
         |
-        |   jr nz,main
         |   ld hl,$2121
         |   inc hl
         |   inc h
         |   dec h
         |   ld h,$26
         |   daa
-        |   jr z,main
         |   add hl,hl
         |   dec hl
         |   inc l
@@ -61,7 +58,6 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   ld l,$2e
         |   cpl
         |
-        |   jr nc,main
         |   ld hl,$2121
         |   ld ($fffe),a
         |   inc sp
@@ -69,7 +65,6 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   dec (hl)
         |   ld h,$26
         |   scf
-        |   jr c,main
         |   add hl,sp
         |   ld a,($fffe)
         |   dec sp
@@ -280,16 +275,13 @@ class Z80AssemblySuite extends FunSuite with Matchers {
   }
 
   test("Intel 8080 instructions") {
-    EmuUnoptimizedZ80Run(
+    EmuUnoptimizedIntel8080Run(
       """
         | asm void main () {
         |   ret
-        |   ex af,af'
-        |   djnz main
         |   ld ($fffe),hl
         |   ld hl,($fffe)
         |   out (1),a
-        |   exx
         |   in a,(1)
         |   ret po
         |   jp po,main
@@ -317,6 +309,13 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   ret
         |
         |   reti
+        |
+        |   jr main
+        |   jr nz,main
+        |   jr z,main
+        |   jr nc,main
+        |   jr c,main
+        |   ld (34),sp
         |   
         |   rlc b
         |   rlc c
@@ -489,6 +488,10 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         | asm void main () {
         |   ret
         |
+        |   djnz main
+        |   ex af,af'
+        |   exx
+        |
         |   sll b
         |   sll c
         |   sll d
@@ -533,7 +536,6 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   adc hl,hl
         |   rld
         |   sbc hl,sp
-        |   ld (34),sp
         |   in a,(c)
         |   out (c),a
         |   adc hl,sp

@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ByteDecimalMathSuite extends FunSuite with Matchers {
 
   test("Decimal byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | byte a
@@ -22,7 +22,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal byte addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | byte a
@@ -33,8 +33,20 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc000) should equal(0x70))
   }
 
-  test("In-place decimal byte addition") {
+  test("Decimal byte subtraction") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output @$c000
+        | byte a
+        | void main () {
+        |  a = $50
+        |  output = a -' $35
+        | }
+      """.stripMargin)(_.readByte(0xc000) should equal(0x15))
+  }
+
+  test("In-place decimal byte addition") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | array output[3] @$c000
         | byte a
@@ -48,7 +60,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place decimal byte addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | array output[3] @$c000
         | void main () {
@@ -67,8 +79,34 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc001) should equal(0x40))
   }
 
-  test("Flag switching test") {
+  test("In-place decimal byte subtraction") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output @$c000
+        | byte a
+        | void main () {
+        |  output = $50
+        |  output -'= $35
+        | }
+      """.stripMargin)(_.readByte(0xc000) should equal(0x15))
+  }
+
+  test("In-place decimal word subtraction") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | word output @$c000
+        | word a
+        | void main () {
+        |  output = $1500
+        |  output -'= $455
+        |  a = $264
+        |  output -'= a
+        | }
+      """.stripMargin)(_.readWord(0xc000) should equal(0x781))
+  }
+
+  test("Flag switching test") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -79,7 +117,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Flag switching test 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -90,7 +128,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Flag switching test 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -101,7 +139,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal left shift test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -116,7 +154,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal left shift test 2") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -130,7 +168,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal left shift test 3") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | word output @$c000
         | void main () {
@@ -234,7 +272,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   test("Decimal byte multiplication comprehensive suite") {
     val numbers = List(0, 1, 2, 3, 6, 8, 10, 11, 12, 14, 15, 16, 20, 40, 73, 81, 82, 98, 99)
     for (i <- numbers; j <- numbers) {
-      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
         """
           | byte output @$c000
           | void main () {
@@ -252,7 +290,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   test("Decimal comparison") {
     // CMP#0 shouldn't be elided after a decimal operation.
     // Currently no emulator used for testing can catch that.
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {

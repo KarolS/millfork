@@ -22,6 +22,8 @@ object ZOpcode extends Enumeration {
   EXX, EX_DE_HL, EX_AF_AF, EX_SP,
   RST, IM, EI, DI,
   DJNZ, JP, JR, CALL, RET, RETN, RETI, HALT,
+  //sharp:
+  LD_AHLI, LD_AHLD, LD_HLIA, LD_HLDA, SWAP, LD_H,
   DISCARD_A, DISCARD_F, DISCARD_HL, DISCARD_BCDEIX,
   LABEL, BYTE = Value
 }

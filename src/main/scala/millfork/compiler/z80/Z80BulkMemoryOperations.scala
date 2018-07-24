@@ -353,10 +353,7 @@ object Z80BulkMemoryOperations {
       List(ZLine.implied(ldr.get))
     } else {
       ZLine.label(label) :: calculateSourceValue ++ (if (smallCount) {
-        List(
-          ZLine.register(next, if (useDEForTarget) ZRegister.DE else ZRegister.HL),
-          ZLine.djnz(label)
-        )
+          ZLine.register(next, if (useDEForTarget) ZRegister.DE else ZRegister.HL) :: ZLine.djnz(ctx, label)
       } else {
         List(
           ZLine.register(next, if (useDEForTarget) ZRegister.DE else ZRegister.HL),

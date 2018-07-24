@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StatementOptimizationSuite extends FunSuite with Matchers {
 
   test("Statement optimization  1") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080)(
       """
         | array output[10] @$c000
         | void main() {

@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
   */
 class BasicSymonTest extends FunSuite with Matchers {
   test("Empty test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | void main () {
         |
@@ -80,11 +80,13 @@ class BasicSymonTest extends FunSuite with Matchers {
    output += 1
  }
       """
-    EmuUnoptimizedRun(src).readByte(0xc000) should equal(src.count(_ == '+'))
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(src){m =>
+      m.readByte(0xc000) should equal(src.count(_ == '+'))
+    }
   }
 
   test("Byte assignment") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -96,7 +98,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Preallocated variables") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | array output [2] @$c000
         | byte number = 4
@@ -105,13 +107,14 @@ class BasicSymonTest extends FunSuite with Matchers {
         |  number += 1
         |  output[1] = number
         | }
-      """.stripMargin)
-    m.readByte(0xc000) should equal(4)
-    m.readByte(0xc001) should equal(5)
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(4)
+      m.readByte(0xc001) should equal(5)
+    }
   }
 
   test("Preallocated variables 2") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | word output @$c000
         | word number = 344
@@ -124,7 +127,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Else if") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -136,12 +139,13 @@ class BasicSymonTest extends FunSuite with Matchers {
         |    output = 65
         |  }
         | }
-      """.stripMargin)
+      """.stripMargin) { m =>
       m.readWord(0xc000) should equal(4)
+    }
   }
 
   test("Segment syntax") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | segment(default)byte output @$c000
         | segment(default)array x[3]
@@ -151,7 +155,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Alias test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | alias small = byte
         | alias big = word
@@ -170,12 +174,12 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Preprocessor test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         |
         | #use ARCH_6502
-        | #use ARCH_Z80
+        | #use ARCH_I80
         |
         | #if 1
         | asm void main () {
@@ -183,8 +187,8 @@ class BasicSymonTest extends FunSuite with Matchers {
         |     lda #ARCH_6502
         |     sta output
         |     rts
-        |   #elseif ARCH_Z80
-        |     ld a,ARCH_Z80
+        |   #elseif ARCH_I80
+        |     ld a,ARCH_I80
         |     ld (output),a
         |     ret
         |   #else

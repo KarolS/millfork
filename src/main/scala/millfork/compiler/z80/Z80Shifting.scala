@@ -30,7 +30,7 @@ object Z80Shifting {
       if (extendedOps) {
         if (left) ZOpcode.SLA else ZOpcode.SRL
       } else {
-        if (left) ZOpcode.RL else ZOpcode.RR
+        if (left) ZOpcode.RLC else ZOpcode.RRC
       }
     val l = Z80ExpressionCompiler.compileToA(ctx, lhs)
     env.eval(rhs) match {
@@ -47,7 +47,7 @@ object Z80Shifting {
         val l = Z80ExpressionCompiler.stashBCIfChanged(Z80ExpressionCompiler.compileToA(ctx, lhs))
         val loopBody = ZLine.register(op, ZRegister.A) :: fixAfterShiftIfNeeded(extendedOps, left, 1)
         val label = Z80Compiler.nextLabel("sh")
-        calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody :+ ZLine.djnz(label)
+        calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label)
     }
   }
 
@@ -58,7 +58,7 @@ object Z80Shifting {
       if (extendedOps) {
         if (left) ZOpcode.SLA else ZOpcode.SRL
       } else {
-        if (left) ZOpcode.RL else ZOpcode.RR
+        if (left) ZOpcode.RLC else ZOpcode.RRC
       }
     env.eval(rhs) match {
       case Some(NumericConstant(i, _)) =>
@@ -101,7 +101,7 @@ object Z80Shifting {
         val l = Z80ExpressionCompiler.stashBCIfChanged(Z80ExpressionCompiler.compileToA(ctx, lhs))
         val loopBody = ZLine.register(op, ZRegister.A) :: fixAfterShiftIfNeeded(extendedOps, left, 1)
         val label = Z80Compiler.nextLabel("sh")
-        calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ List(ZLine.djnz(label)) ++ Z80ExpressionCompiler.storeA(ctx, lhs, signedSource = false)
+        calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label) ++ Z80ExpressionCompiler.storeA(ctx, lhs, signedSource = false)
     }
   }
 
@@ -182,13 +182,14 @@ object Z80Shifting {
             }
           }
         val label = Z80Compiler.nextLabel("sh")
-        calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody :+ ZLine.djnz(label)
+        calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label)
     }
   }
 
   def compileNonetShiftRight(ctx: CompilationContext, rhs: Expression): List[ZLine] = {
     import ZOpcode._
     import ZRegister._
+    val extended = ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)
     ctx.env.eval(rhs) match {
       case Some(NumericConstant(0, _)) =>
         List(ZLine.ld8(A, L))
@@ -198,15 +199,62 @@ object Z80Shifting {
       case Some(NumericConstant(n, _)) if n >= 9 =>
         List(ZLine.ldImm8(A, 0))
       case Some(NumericConstant(1, _)) =>
-        List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.register(RR, A))
-      case Some(NumericConstant(2, _)) =>
-        List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.register(RR, A), ZLine.register(SRL, A))
+        if (extended)
+          List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.register(RR, A))
+        else
+          List(ZLine.ld8(A, H), ZLine.register(RR, A), ZLine.ld8(A, L), ZLine.register(RR, A))
+      case Some(NumericConstant(2, _)) if extended=>
+          List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.register(RR, A), ZLine.register(SRL, A))
       case Some(NumericConstant(n, _)) =>
-        List(ZLine.register(SRL, H), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.register(RR, A)) :+ ZLine.imm8(AND, 0x1ff >> n))
+        if (extended)
+          List(ZLine.register(SRL, H), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.register(RR, A)) :+ ZLine.imm8(AND, 0x1ff >> n))
+        else
+          List(ZLine.ld8(A, H), ZLine.register(RR, A), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.register(RR, A)) :+ ZLine.imm8(AND, 0x1ff >> n))
 
       case _ =>
         ErrorReporting.error("Non-constant shift amount", rhs.position) // TODO
         Nil
+    }
+  }
+
+  def compileLongShiftInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, size: Int, left: Boolean): List[ZLine] = {
+    val extended = ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)
+    val store = Z80ExpressionCompiler.compileByteStores(ctx, lhs, size)
+    val loadLeft = Z80ExpressionCompiler.compileByteReads(ctx, lhs, size, ZExpressionTarget.HL)
+    val shiftOne = if (left) {
+      loadLeft.zip(store).zipWithIndex.flatMap {
+        case ((ld, st), ix) =>
+          import ZOpcode._
+          import ZRegister._
+          val shiftByte = if (ix == 0) {
+            if (extended) List(ZLine.register(SLA, A))
+            else List(ZLine.register(RL, A), ZLine.imm8(AND, 0xfe))
+          } else List(ZLine.register(RL, A))
+          ld ++ shiftByte ++ st
+      }
+    } else {
+      loadLeft.reverse.zip(store.reverse).zipWithIndex.flatMap {
+        case ((ld, st), ix) =>
+          import ZOpcode._
+          import ZRegister._
+          val shiftByte = if (ix == 0) {
+            if (extended) List(ZLine.register(SRL, A))
+            else List(ZLine.register(RR, A), ZLine.imm8(AND, 0x7f))
+          } else List(ZLine.register(RR, A))
+          ld ++ shiftByte ++ st
+      }
+    }
+    ctx.env.eval(rhs) match {
+      case Some(NumericConstant(0, _)) => Nil
+      case Some(NumericConstant(n, _)) if n < 0 =>
+        ErrorReporting.error("Negative shift amount", rhs.position) // TODO
+        Nil
+      case Some(NumericConstant(n, _)) =>
+        List.fill(n.toInt)(shiftOne).flatten
+      case _ =>
+        val label = Z80Compiler.nextLabel("sh")
+        val calcCount = Z80ExpressionCompiler.compileToA(ctx, rhs) :+ ZLine.ld8(ZRegister.B, ZRegister.A)
+        calcCount ++ List(ZLine.label(label)) ++ shiftOne ++ ZLine.djnz(ctx, label)
     }
   }
 

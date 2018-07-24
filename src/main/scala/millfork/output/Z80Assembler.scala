@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.{CompilationOptions, Platform}
+import millfork.{CompilationFlag, CompilationOptions, Cpu, Platform}
 import millfork.assembly.z80._
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
@@ -44,6 +44,25 @@ class Z80Assembler(program: Program,
     import millfork.assembly.z80.ZOpcode._
     import ZRegister._
     import Z80Assembler._
+    import CompilationFlag._
+    def requireIntel8080(): Unit = if (!options.flag(EmitIntel8080Opcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+
+    def requireZ80(): Unit = if (!options.flag(EmitZ80Opcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+
+    def requireZ80Illegals(): Unit = if (!options.flag(EmitZ80Opcodes) || !options.flag(EmitIllegals)) ErrorReporting.error("Unsupported instruction: " + instr)
+
+    def requireExtended80(): Unit = if (!options.flag(EmitExtended80Opcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+
+    def requireSharp(): Unit = if (!options.flag(EmitSharpOpcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+
+    def requireEZ80(): Unit = if (!options.flag(EmitEZ80Opcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+
+    def useSharpOpcodes():Boolean = {
+      if (!options.flag(EmitSharpOpcodes) && !options.flag(EmitIntel8080Opcodes))
+        ErrorReporting.error("Cannot determine which variant to emit : " + instr)
+      options.flag(EmitSharpOpcodes)
+    }
+
     instr match {
       case ZLine(LABEL, NoRegisters, MemoryAddressConstant(Label(labelName)), _) =>
         labelMap(labelName) = index
@@ -63,6 +82,7 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, opcode)
         index + 1
       case ZLine(IM, NoRegisters, param, _) =>
+        requireZ80()
         val opcode = param.quickSimplify match {
           case NumericConstant(0, _) => 0x46
           case NumericConstant(1, _) => 0x56
@@ -73,13 +93,33 @@ class Z80Assembler(program: Program,
         writeByte(bank, index + 1, opcode)
         index + 2
       case ZLine(op, OneRegister(reg), _, _) if ZOpcodeClasses.AllSingleBit(op) =>
+        requireExtended80()
         writeByte(bank, index, 0xcb)
         writeByte(bank, index + 1, ZOpcodeClasses.singleBitOpcode(op) + internalRegisterIndex(reg))
         index + 2
       case ZLine(op, NoRegisters, _, _) if implieds.contains(op) =>
         writeByte(bank, index, implieds(op))
         index + 1
+      case ZLine(EXX, NoRegisters, _, _)=>
+        requireZ80()
+        writeByte(bank, index, 0xd9)
+        index + 1
+      case ZLine(EX_AF_AF, NoRegisters, _, _)=>
+        requireZ80()
+        writeByte(bank, index, 8)
+        index + 1
+      case ZLine(RETI, NoRegisters, _, _) =>
+        requireExtended80()
+        if (useSharpOpcodes()) {
+          writeByte(bank, index, 0xd9)
+          index + 1
+        } else {
+          writeByte(bank, index, 0xed)
+          writeByte(bank, index + 1, 0x4d)
+          index + 2
+        }
       case ZLine(op, NoRegisters, _, _) if edImplieds.contains(op) =>
+        requireZ80()
         writeByte(bank, index, 0xed)
         writeByte(bank, index + 1, edImplieds(op))
         index + 2
@@ -87,6 +127,7 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 9 + 16 * internalRegisterIndex(source))
         index + 1
       case ZLine(ADD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), source@(ZRegister.IX | ZRegister.IY)), _, _)=>
+        requireZ80()
         if (ix == source) {
           writeByte(bank, index, prefixByte(ix))
           writeByte(bank, index + 1, 9 + 16 * internalRegisterIndex(HL))
@@ -96,6 +137,7 @@ class Z80Assembler(program: Program,
           index
         }
       case ZLine(ADD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), source), _, _) =>
+        requireZ80()
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 9 + 16 * internalRegisterIndex(source))
         index + 2
@@ -108,6 +150,7 @@ class Z80Assembler(program: Program,
         writeByte(bank, index + 1, 0x42 + 0x10 * internalRegisterIndex(reg))
         index + 2
       case ZLine(LD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), ZRegister.IMM_16), param, _) =>
+        requireZ80()
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0x21)
         writeWord(bank, index + 2, param)
@@ -117,29 +160,47 @@ class Z80Assembler(program: Program,
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(LD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), ZRegister.MEM_ABS_16), param, _) =>
+        requireZ80()
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0x2a)
         writeWord(bank, index + 2, param)
         index + 4
       case ZLine(LD_16, TwoRegisters(ZRegister.MEM_ABS_16, ix@(ZRegister.IX | ZRegister.IY)), param, _) =>
+        requireZ80()
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0x22)
         writeWord(bank, index + 2, param)
         index + 4
       case ZLine(LD_16, TwoRegisters(ZRegister.HL, ZRegister.MEM_ABS_16), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0x2a)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(LD_16, TwoRegisters(ZRegister.MEM_ABS_16, ZRegister.HL), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0x22)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(LD_16, TwoRegisters(reg@(ZRegister.BC | ZRegister.DE | ZRegister.SP), ZRegister.MEM_ABS_16), param, _) =>
+        requireZ80()
         writeByte(bank, index, 0xed)
         writeByte(bank, index+1, 0x4b + 0x10 * internalRegisterIndex(reg))
         writeWord(bank, index + 2, param)
         index + 4
-      case ZLine(LD_16, TwoRegisters(ZRegister.MEM_ABS_16, reg@(ZRegister.BC | ZRegister.DE | ZRegister.SP)), param, _) =>
+      case ZLine(LD_16, TwoRegisters(ZRegister.MEM_ABS_16, ZRegister.SP), param, _) =>
+        requireExtended80()
+        if (useSharpOpcodes()) {
+          writeByte(bank, index, 8)
+          writeWord(bank, index + 1, param)
+          index + 3
+        } else {
+          writeByte(bank, index, 0xed)
+          writeByte(bank, index + 1, 0x43 + 0x10 * internalRegisterIndex(SP))
+          writeWord(bank, index + 2, param)
+          index + 4
+        }
+      case ZLine(LD_16, TwoRegisters(ZRegister.MEM_ABS_16, reg@(ZRegister.BC | ZRegister.DE)), param, _) =>
+        requireZ80()
         writeByte(bank, index, 0xed)
         writeByte(bank, index+1, 0x43 + 0x10 * internalRegisterIndex(reg))
         writeWord(bank, index + 2, param)
@@ -148,6 +209,7 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0xF9)
         index + 1
       case ZLine(LD_16, TwoRegisters(ZRegister.SP, ix@(ZRegister.IX | ZRegister.IY)), _, _) =>
+        requireZ80()
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0xF9)
         index + 2
@@ -157,18 +219,21 @@ class Z80Assembler(program: Program,
         writeByte(bank, index + 1, param)
         index + 2
       case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if ZOpcodeClasses.AllSingleBit(op) =>
+        requireZ80()
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0xcb)
         writeByte(bank, index + 2, offset)
         writeByte(bank, index + 3, ZOpcodeClasses.singleBitOpcode(op) + internalRegisterIndex(ZRegister.MEM_HL))
         index + 4
       case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if oneRegister.contains(op) =>
+        requireZ80()
         val o = oneRegister(op)
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ZRegister.MEM_HL) * o.multiplier)
         writeByte(bank, index + 2, offset)
         index + 3
       case ZLine(op, OneRegister(ix@(ZRegister.IX | ZRegister.IY)), _, _) if oneRegister.contains(op) =>
+        requireZ80()
         val o = oneRegister(op)
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ZRegister.HL) * o.multiplier)
@@ -181,12 +246,31 @@ class Z80Assembler(program: Program,
       case ZLine(op@(RR|RRC|RL|RLC), OneRegister(A), _, _) =>
         writeByte(bank, index, cbOneRegister(op).opcode + 7)
         index + 1
+      case ZLine(SLL, OneRegister(reg), _, _) =>
+        requireZ80Illegals()
+        writeByte(bank, index, 0xcb)
+        writeByte(bank, index + 1, 0x30 + internalRegisterIndex(reg))
+        index + 2
+      case ZLine(SWAP, OneRegister(reg), _, _) =>
+        requireSharp()
+        writeByte(bank, index, 0xcb)
+        writeByte(bank, index + 1, 0x30 + internalRegisterIndex(reg))
+        index + 2
+      case ZLine(SLL, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) =>
+        requireZ80Illegals()
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, 0xcb)
+        writeByte(bank, index + 2, offset)
+        writeByte(bank, index + 3, 0x30 + internalRegisterIndex(MEM_HL))
+        index + 4
       case ZLine(op, OneRegister(reg), _, _) if cbOneRegister.contains(op) =>
+        requireExtended80()
         val o = cbOneRegister(op)
         writeByte(bank, index, 0xcb)
         writeByte(bank, index + 1, o.opcode + internalRegisterIndex(reg) * o.multiplier)
         index + 2
       case ZLine(op, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _, _) if cbOneRegister.contains(op) =>
+        requireZ80()
         val o = cbOneRegister(op)
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0xcb)
@@ -196,18 +280,22 @@ class Z80Assembler(program: Program,
       case ZLine(LD, registers, _, _) =>
         registers match {
           case TwoRegisters(I, A) =>
+            requireZ80()
             writeByte(bank, index, 0xed)
             writeByte(bank, index + 1, 0x47)
             index + 2
           case TwoRegisters(A, I) =>
+            requireZ80()
             writeByte(bank, index, 0xed)
             writeByte(bank, index + 1, 0x57)
             index + 2
           case TwoRegisters(R, A) =>
+            requireZ80()
             writeByte(bank, index, 0xed)
             writeByte(bank, index + 1, 0x4f)
             index + 2
           case TwoRegisters(A, R) =>
+            requireZ80()
             writeByte(bank, index, 0xed)
             writeByte(bank, index + 1, 0x5f)
             index + 2
@@ -219,17 +307,26 @@ class Z80Assembler(program: Program,
             writeByte(bank, index + 1, instr.parameter)
             index + 2
           case TwoRegistersOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), ZRegister.IMM_8, offset) =>
+            requireZ80()
             writeByte(bank, index, prefixByte(ix))
             writeByte(bank, index + 1, 0x36)
             writeByte(bank, index + 2, offset)
             writeByte(bank, index + 3, instr.parameter)
             index + 4
           case TwoRegisters(ZRegister.A, ZRegister.MEM_ABS_8) =>
-            writeByte(bank, index, 0x3a)
+            if (useSharpOpcodes()) {
+              writeByte(bank, index, 0xfa)
+            } else {
+              writeByte(bank, index, 0x3a)
+            }
             writeWord(bank, index + 1, instr.parameter)
             index + 3
           case TwoRegisters(ZRegister.MEM_ABS_8, ZRegister.A) =>
-            writeByte(bank, index, 0x32)
+            if (useSharpOpcodes()) {
+              writeByte(bank, index, 0xea)
+            } else {
+              writeByte(bank, index, 0x32)
+            }
             writeWord(bank, index + 1, instr.parameter)
             index + 3
           case TwoRegisters(ZRegister.MEM_BC, ZRegister.A) =>
@@ -262,18 +359,22 @@ class Z80Assembler(program: Program,
             index + 1
         }
       case ZLine(IN_IMM, OneRegister(ZRegister.A), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xdb)
         writeByte(bank, index + 1, param)
         index + 2
       case ZLine(IN_C, OneRegister(reg), param, _) =>
+        requireZ80()
         writeByte(bank, index, 0xed)
         writeByte(bank, index + 1, 0x40 + 8 * internalRegisterIndex(reg))
         index + 2
       case ZLine(OUT_IMM, OneRegister(ZRegister.A), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xd3)
         writeByte(bank, index + 1, param)
         index + 2
       case ZLine(OUT_C, OneRegister(reg), param, _) =>
+        requireZ80()
         writeByte(bank, index, 0xed)
         writeByte(bank, index + 1, 0x41 + 8 * internalRegisterIndex(reg))
         index + 2
@@ -286,35 +387,43 @@ class Z80Assembler(program: Program,
 
 
       case ZLine(CALL, IfFlagClear(ZFlag.Z), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xc4)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(CALL, IfFlagClear(ZFlag.C), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xd4)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(CALL, IfFlagClear(ZFlag.P), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xe4)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(CALL, IfFlagClear(ZFlag.S), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xf4)
         writeWord(bank, index + 1, param)
         index + 3
 
       case ZLine(CALL, IfFlagSet(ZFlag.Z), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xcc)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(CALL, IfFlagSet(ZFlag.C), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xdc)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(CALL, IfFlagSet(ZFlag.P), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xec)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(CALL, IfFlagSet(ZFlag.S), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xfc)
         writeWord(bank, index + 1, param)
         index + 3
@@ -333,10 +442,12 @@ class Z80Assembler(program: Program,
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(JP, IfFlagClear(ZFlag.P), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xe2)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(JP, IfFlagClear(ZFlag.S), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xf2)
         writeWord(bank, index + 1, param)
         index + 3
@@ -350,10 +461,12 @@ class Z80Assembler(program: Program,
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(JP, IfFlagSet(ZFlag.P), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xea)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(JP, IfFlagSet(ZFlag.S), param, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xfa)
         writeWord(bank, index + 1, param)
         index + 3
@@ -361,78 +474,98 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0xe9)
         index + 1
       case ZLine(JP, OneRegister(IX), _, _) =>
+        requireZ80()
         writeByte(bank, index, 0xdd)
         writeByte(bank, index, 0xe9)
         index + 2
       case ZLine(JP, OneRegister(IY), _, _) =>
+        requireZ80()
         writeByte(bank, index, 0xfd)
         writeByte(bank, index, 0xe9)
         index + 2
 
       case ZLine(RET, IfFlagClear(ZFlag.Z), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xc0)
         index + 1
       case ZLine(RET, IfFlagClear(ZFlag.C), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xd0)
         index + 1
       case ZLine(RET, IfFlagClear(ZFlag.P), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xe0)
         index + 1
       case ZLine(RET, IfFlagClear(ZFlag.S), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xf0)
         index + 1
 
       case ZLine(RET, IfFlagSet(ZFlag.Z), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xc8)
         index + 1
       case ZLine(RET, IfFlagSet(ZFlag.C), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xd8)
         index + 1
       case ZLine(RET, IfFlagSet(ZFlag.P), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xe8)
         index + 1
       case ZLine(RET, IfFlagSet(ZFlag.S), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xf8)
         index + 1
 
       case ZLine(JR, IfFlagClear(ZFlag.Z), param, _) =>
+        requireExtended80()
         writeByte(bank, index, 0x20)
         writeByte(bank, index + 1, AssertByte(param - index - 2))
         index + 2
       case ZLine(JR, IfFlagClear(ZFlag.C), param, _) =>
+        requireExtended80()
         writeByte(bank, index, 0x30)
         writeByte(bank, index + 1, AssertByte(param - index - 2))
         index + 2
 
       case ZLine(JR, IfFlagSet(ZFlag.Z), param, _) =>
+        requireExtended80()
         writeByte(bank, index, 0x28)
         writeByte(bank, index + 1, AssertByte(param - index - 2))
         index + 2
       case ZLine(JR, IfFlagSet(ZFlag.C), param, _) =>
+        requireExtended80()
         writeByte(bank, index, 0x38)
         writeByte(bank, index + 1, AssertByte(param - index - 2))
         index + 2
 
       case ZLine(JR, NoRegisters, param, _) =>
+        requireExtended80()
         writeByte(bank, index, 0x18)
         writeByte(bank, index + 1, AssertByte(param - index - 2))
         index + 2
       case ZLine(DJNZ, NoRegisters, param, _) =>
+        requireZ80()
         writeByte(bank, index, 0x10)
         writeByte(bank, index + 1, AssertByte(param - index - 2))
         index + 2
       case ZLine(EX_SP, OneRegister(HL), _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xe3)
         index + 1
       case ZLine(EX_SP, OneRegister(IX), _, _) =>
+        requireZ80()
         writeByte(bank, index, 0xdd)
         writeByte(bank, index + 1, 0xe3)
         index + 2
       case ZLine(EX_SP, OneRegister(IY), _, _) =>
+        requireZ80()
         writeByte(bank, index, 0xfd)
         writeByte(bank, index + 1, 0xe3)
         index + 2
       case ZLine(EX_DE_HL, _, _, _) =>
+        requireIntel8080()
         writeByte(bank, index, 0xeb)
         index + 1
       case _ =>
@@ -463,11 +596,9 @@ object Z80Assembler {
     implieds(NOP) = 0
     implieds(DAA) = 0x27
     implieds(SCF) = 0x37
-    implieds(CPL) = 0x37
+    implieds(CPL) = 0x2f
     implieds(CCF) = 0x3f
-    implieds(EX_AF_AF) = 8
     implieds(RET) = 0xc9
-    implieds(EXX) = 0xd9
     implieds(EI) = 0xfb
     implieds(DI) = 0xf3
     implieds(HALT) = 0x76
@@ -525,7 +656,6 @@ object Z80Assembler {
     cbOneRegister(RR) = One(0x18, 1)
     cbOneRegister(SLA) = One(0x20, 1)
     cbOneRegister(SRA) = One(0x28, 1)
-    cbOneRegister(SLL) = One(0x30, 1)
     cbOneRegister(SRL) = One(0x38, 1)
   } while (false)
 

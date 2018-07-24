@@ -34,6 +34,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     val platform = EmuPlatform.get(cpu)
     val extraFlags = Map(
       CompilationFlag.InlineFunctions -> this.inline,
+      CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80),
       CompilationFlag.LenientTextEncoding -> true)
     val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0)
     ErrorReporting.hasErrors = false
@@ -110,7 +111,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         (0x200 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(ErrorReporting.debug(_))
 
         val timings = platform.cpu match {
-          case millfork.Cpu.Z80 =>
+          case millfork.Cpu.Z80 | millfork.Cpu.Intel8080 =>
             val cpu = new Z80Core(Z80Memory(memoryBank), DummyIO)
             cpu.reset()
             cpu.setProgramCounter(0x1f0)

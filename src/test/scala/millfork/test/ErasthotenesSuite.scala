@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ErasthotenesSuite extends FunSuite with Matchers {
 
   test("Erasthotenes") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | const pointer sieve = $C000
         | const byte sqrt = 128

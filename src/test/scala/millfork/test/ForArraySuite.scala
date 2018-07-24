@@ -11,8 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ForArraySuite extends FunSuite with Matchers {
 
   test("Basic for-array test") {
-    val m = EmuSuperOptimizedRun(
-      """
+      val src = """
         | byte output @$c000
         | array input = for i,0,until,8 [i + i]
         |
@@ -37,7 +36,11 @@ class ForArraySuite extends FunSuite with Matchers {
         |   output = useless0[0] + useless1[0] + useless2[0] + useless3[0] + useless4[0] + useless5[0] + useless6[0] + useless7[0]
         |   output = input.length + input[5]
         | }
-      """.stripMargin)
+      """.stripMargin
+    val m = EmuSuperOptimizedRun(src)
     m.readByte(0xc000) should equal(18)
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)(src) { m =>
+      m.readByte(0xc000) should equal(18)
+    }
   }
 }

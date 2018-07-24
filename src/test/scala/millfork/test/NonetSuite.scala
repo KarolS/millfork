@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class NonetSuite extends FunSuite with Matchers {
 
   test("Nonet operations") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | array output [5] @$c000
         | void main () {

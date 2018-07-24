@@ -178,7 +178,7 @@ class ByteMathSuite extends FunSuite with Matchers {
   }
 
   test("Byte multiplication 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | import zp_reg
         | byte output1 @$c001
@@ -215,7 +215,7 @@ class ByteMathSuite extends FunSuite with Matchers {
         | #if ARCH_6502
         |   if output1 != 20 { asm { lda $bfff }}
         |   if output2 != 27 { asm { lda $bfff }}
-        | #elseif ARCH_Z80
+        | #elseif ARCH_I80
         |   if output1 != 20 { asm { ld a,($bfff) }}
         |   if output2 != 27 { asm { ld a,($bfff) }}
         | #else

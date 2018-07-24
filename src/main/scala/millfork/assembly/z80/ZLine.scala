@@ -1,6 +1,8 @@
 package millfork.assembly.z80
 
+import millfork.CompilationFlag
 import millfork.assembly.AbstractCode
+import millfork.compiler.CompilationContext
 import millfork.env.{Constant, Label, NumericConstant, ThingInMemory}
 import millfork.node.ZRegister
 
@@ -89,17 +91,21 @@ object ZLine {
 
   def jump(label: Label, condition: ZRegisters): ZLine = ZLine(JP, condition, label.toAddress)
 
-  def jumpR(label: String): ZLine = ZLine(JR, NoRegisters, Label(label).toAddress)
+  def jumpR(ctx: CompilationContext, label: String): ZLine = ZLine(if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) JR else JP, NoRegisters, Label(label).toAddress)
 
-  def jumpR(label: Label): ZLine = ZLine(JR, NoRegisters, label.toAddress)
+  def jumpR(ctx: CompilationContext, label: Label): ZLine = ZLine(if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) JR else JP, NoRegisters, label.toAddress)
 
-  def jumpR(label: String, condition: ZRegisters): ZLine = ZLine(JR, condition, Label(label).toAddress)
+  def jumpR(ctx: CompilationContext, label: String, condition: ZRegisters): ZLine = ZLine(if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) JR else JP, condition, Label(label).toAddress)
 
-  def jumpR(label: Label, condition: ZRegisters): ZLine = ZLine(JR, condition, label.toAddress)
+  def jumpR(ctx: CompilationContext, label: Label, condition: ZRegisters): ZLine = ZLine(if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) JR else JP, condition, label.toAddress)
 
-  def djnz(label: String): ZLine = ZLine(DJNZ, NoRegisters, Label(label).toAddress)
+  def djnz(ctx: CompilationContext, label: String): List[ZLine] =
+    if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) List(ZLine(DJNZ, NoRegisters, Label(label).toAddress))
+    else List(ZLine.register(DEC, ZRegister.B), ZLine.jumpR(ctx, label, IfFlagClear(ZFlag.Z)))
 
-  def djnz(label: Label): ZLine = ZLine(DJNZ, NoRegisters, label.toAddress)
+  def djnz(ctx: CompilationContext, label: Label): List[ZLine] =
+      if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) List(ZLine(DJNZ, NoRegisters, label.toAddress))
+      else List(ZLine.register(DEC, ZRegister.B), ZLine.jumpR(ctx, label, IfFlagClear(ZFlag.Z)))
 
   def implied(opcode: ZOpcode.Value): ZLine = ZLine(opcode, NoRegisters, Constant.Zero)
 

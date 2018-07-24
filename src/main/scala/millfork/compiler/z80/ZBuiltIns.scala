@@ -120,6 +120,7 @@ object ZBuiltIns {
         ctx.env.eval(expr) match {
           case None =>
             if (result.isEmpty) {
+              if (decimal) ???
               result ++= Z80ExpressionCompiler.compileToA(ctx, expr)
               if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
                 result += ZLine.implied(NEG)
@@ -148,9 +149,19 @@ object ZBuiltIns {
         }
     }
     if (hasConst) {
-      result += ZLine.imm8(ADD, const.loByte)
-      if (decimal) {
-        result += ZLine.implied(DAA)
+      const match {
+        case CompoundConstant(MathOperator.DecimalMinus | MathOperator.Minus, NumericConstant(0, _), c) =>
+          result += ZLine.imm8(SUB, c.loByte)
+          if (decimal) {
+            result += ZLine.implied(DAA)
+          }
+        case NumericConstant(n, _) if n < 0 && !decimal =>
+          result += ZLine.imm8(SUB, (-n.toInt) & 0xff)
+        case _ =>
+          result += ZLine.imm8(ADD, const.loByte)
+          if (decimal) {
+            result += ZLine.implied(DAA)
+          }
       }
     }
     result.toList

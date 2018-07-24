@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class AlgorithmSuite extends FunSuite with Matchers {
 
   test("RLE decoding") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
       """
         | array output [4000] @$c000
         | array input = [

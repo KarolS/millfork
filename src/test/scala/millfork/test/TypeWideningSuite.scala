@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class TypeWideningSuite extends FunSuite with Matchers {
 
   test("Word after simple ops") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | word output @$c000
         | void main () {
         |  output = random()

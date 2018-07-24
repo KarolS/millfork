@@ -1,8 +1,7 @@
 package millfork.test
 
-import millfork.assembly.mos.opt.{AlwaysGoodOptimizations, LaterOptimizations, VariableToRegisterOptimization}
-import millfork.test.emu.{EmuBenchmarkRun, EmuRun, EmuUltraBenchmarkRun}
-import millfork.{Cpu, OptimizationPresets}
+import millfork.Cpu
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -11,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
 
   test("Add-shift-add") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -24,7 +23,7 @@ class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("And-shift-and") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | void main () {
@@ -37,7 +36,7 @@ class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Add with limit") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)(
       """
         | byte output @$c000
         | const byte start = 5
