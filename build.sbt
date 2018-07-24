@@ -14,14 +14,17 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.4" % "test"
 
 libraryDependencies += "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test"
 
-// these two are not in Maven Central or any other public repo
+// these three are not in Maven Central or any other public repo
 // get them from the following links or just build millfork without tests:
 // https://github.com/sethm/symon/tree/71905fdb1998ee4f142260879504bc46cf27648f
 // https://github.com/andrew-hoffman/halfnes/tree/061
+// https://github.com/trekawek/coffee-gb/tree/coffee-gb-1.0.0
 
 libraryDependencies += "com.loomcom.symon" % "symon" % "1.3.0-SNAPSHOT" % "test"
 
 libraryDependencies += "com.grapeshot" % "halfnes" % "061" % "test"
+
+libraryDependencies += "eu.rekawek.coffeegb" % "coffee-gb" % "1.0.0" % "test"
 
 mainClass in Compile := Some("millfork.Main")
 

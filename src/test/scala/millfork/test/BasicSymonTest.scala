@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
   */
 class BasicSymonTest extends FunSuite with Matchers {
   test("Empty test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | void main () {
         |
@@ -80,13 +80,13 @@ class BasicSymonTest extends FunSuite with Matchers {
    output += 1
  }
       """
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(src){m =>
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(src){m =>
       m.readByte(0xc000) should equal(src.count(_ == '+'))
     }
   }
 
   test("Byte assignment") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | void main () {
@@ -98,7 +98,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Preallocated variables") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | array output [2] @$c000
         | byte number = 4
@@ -127,7 +127,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Else if") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | void main () {
@@ -145,7 +145,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Segment syntax") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | segment(default)byte output @$c000
         | segment(default)array x[3]
@@ -174,7 +174,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Preprocessor test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         |

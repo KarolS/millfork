@@ -1,6 +1,9 @@
 package millfork.test.emu
 
 import com.codingrodent.microprocessor.Z80.{CPUConstants, Z80Core}
+import eu.rekawek.coffeegb.AddressSpace
+import eu.rekawek.coffeegb.cpu.{Cpu, InterruptManager, SpeedMode}
+import eu.rekawek.coffeegb.gpu.Gpu
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.z80.ZLine
@@ -123,6 +126,16 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
             }
             val tStates = cpu.getTStates
             Timings(tStates, tStates) -> memoryBank
+          case millfork.Cpu.Sharp =>
+            var ticks = 0L
+            val cpu = GameboyStubs(memoryBank).cpu
+            cpu.getRegisters.setPC(0x1f0)
+            while (cpu.getState != Cpu.State.HALTED) {
+              cpu.tick()
+              ticks += 4
+              ticks should be < TooManyCycles
+            }
+            Timings(ticks, ticks) -> memoryBank
           case _ =>
             Timings(-1, -1) -> memoryBank
         }

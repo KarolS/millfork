@@ -11,6 +11,7 @@ object EmuUnoptimizedCrossPlatformRun {
     val (_, mm) = if (platforms.contains(Cpu.Mos)) EmuUnoptimizedRun.apply2(source) else Timings(-1, -1) -> null
     val (_, mz) = if (platforms.contains(Cpu.Z80)) EmuUnoptimizedZ80Run.apply2(source) else Timings(-1, -1) -> null
     val (_, mi) = if (platforms.contains(Cpu.Intel8080)) EmuUnoptimizedIntel8080Run.apply2(source) else Timings(-1, -1) -> null
+    val (_, ms) = if (platforms.contains(Cpu.Sharp)) EmuUnoptimizedSharpRun.apply2(source) else Timings(-1, -1) -> null
     if (platforms.contains(Cpu.Mos)) {
       println(f"Running MOS")
       verifier(mm)
@@ -22,6 +23,10 @@ object EmuUnoptimizedCrossPlatformRun {
     if (platforms.contains(Cpu.Intel8080)) {
       println(f"Running 8080")
       verifier(mi)
+    }
+    if (platforms.contains(Cpu.Sharp)) {
+      println(f"Running LR35902")
+      verifier(ms)
     }
   }
 }
