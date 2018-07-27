@@ -25,6 +25,10 @@ Every platform is defined in an `.ini` file with an appropriate name.
     * `65816` (WDC 65816/65802; experimental; currently only programs that use only 16-bit addressing are supported)
     
     * `z80` (Zilog Z80; experimental and slightly incomplete)
+    
+    * `i8080` (Intel 8080; experimental, buggy and very incomplete)
+    
+    * `gameboy` (Sharp LR35902; experimental, buggy and very incomplete)
 
 * `encoding` – default encoding for console I/O, one of 
 `ascii`, `pet`/`petscii`, `petscr`/`cbmscr`, `atascii`, `bbc`, `jis`/`jisx`, `apple2`,

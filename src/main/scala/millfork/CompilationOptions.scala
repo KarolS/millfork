@@ -210,13 +210,13 @@ object Cpu extends Enumeration {
     case "z80" => Z80
       // disabled for now:
 //    case "ez80" => EZ80
-//    case "gameboy"  => Sharp
-//    case "gb"  => Sharp
-//    case "sharp"  => Sharp
-//    case "lr35902"  => Sharp
-//    case "8080" => Intel8080
-//    case "i8080" => Intel8080
-//    case "intel8080" => Intel8080
+    case "gameboy"  => Sharp
+    case "gb"  => Sharp
+    case "sharp"  => Sharp
+    case "lr35902"  => Sharp
+    case "8080" => Intel8080
+    case "i8080" => Intel8080
+    case "intel8080" => Intel8080
     case _ => ErrorReporting.fatal("Unknown CPU achitecture: " + name)
   }
 }
