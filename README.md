@@ -70,6 +70,6 @@ Therefore, no attribution is needed if you are developing and distributing Millf
 
 * more Z80 targets: Armstrad CPC, MSX, TI-83, Sega Master System
  
-* support for 65816, Intel 8080, Sharp LR35902 and eZ80
+* better support for 65816, Intel 8080, Sharp LR35902 and eZ80
 
 * support for CP/M, Gameboy, SuperFamicom/SNES and Apple IIgs

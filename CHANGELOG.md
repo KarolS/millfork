@@ -2,7 +2,7 @@
 
 ## Current version
 
-* Almost complete support for the Z80 microprocessor.
+* Almost complete support for the Zilog Z80, Intel 8080 and Sharp LR35902 microprocessors.
 
 * A very incomplete support for NEC PC-88 and ZX Spectrum.
 
