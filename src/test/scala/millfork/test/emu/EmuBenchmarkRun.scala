@@ -47,8 +47,8 @@ object EmuZ80BenchmarkRun {
 object EmuIntel8080BenchmarkRun {
   def apply(source: String)(verifier: MemoryBank => Unit): Unit = {
     val (Timings(t0, _), m0) = EmuUnoptimizedIntel8080Run.apply2(source)
-//    val (Timings(t1, _), m1) = EmuOptimizedZ80Run.apply2(source)
-//    val (Timings(t2, _), m2) = EmuOptimizedInlinedZ80Run.apply2(source)
+//    val (Timings(t1, _), m1) = EmuOptimizedIntel8080Run.apply2(source)
+//    val (Timings(t2, _), m2) = EmuOptimizedInlinedIntel8080Run.apply2(source)
     println(f"Before optimization: $t0%7d")
 //    println(f"After optimization:  $t1%7d")
 //    println(f"After inlining:      $t2%7d")
@@ -66,8 +66,8 @@ object EmuIntel8080BenchmarkRun {
 object EmuSharpBenchmarkRun {
   def apply(source: String)(verifier: MemoryBank => Unit): Unit = {
     val (Timings(t0, _), m0) = EmuUnoptimizedSharpRun.apply2(source)
-//    val (Timings(t1, _), m1) = EmuOptimizedZ80Run.apply2(source)
-//    val (Timings(t2, _), m2) = EmuOptimizedInlinedZ80Run.apply2(source)
+//    val (Timings(t1, _), m1) = EmuOptimizedSharpRun.apply2(source)
+//    val (Timings(t2, _), m2) = EmuOptimizedInlinedSharpRun.apply2(source)
     println(f"Before optimization: $t0%7d")
 //    println(f"After optimization:  $t1%7d")
 //    println(f"After inlining:      $t2%7d")

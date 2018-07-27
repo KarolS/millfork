@@ -213,7 +213,12 @@ object Main {
 
     val assemblyOptimizations = optLevel match {
       case 0 => Nil
-      case _ => Z80OptimizationPresets.Good
+      case _ => platform.cpu match {
+        case Cpu.Z80 | Cpu.EZ80 => Z80OptimizationPresets.GoodForZ80
+        case Cpu.Intel8080 => Z80OptimizationPresets.GoodForIntel8080
+        case Cpu.Sharp => Z80OptimizationPresets.GoodForSharp
+        case _ => Nil
+      }
     }
 
     // compile

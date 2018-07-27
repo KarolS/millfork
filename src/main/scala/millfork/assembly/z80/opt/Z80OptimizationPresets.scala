@@ -8,7 +8,7 @@ import millfork.assembly.z80.ZLine
   */
 object Z80OptimizationPresets {
 
-  val Good: List[AssemblyOptimization[ZLine]] = {
+  val GoodForZ80: List[AssemblyOptimization[ZLine]] = {
     List.fill(5)(
       List.fill(5)(
         AlwaysGoodZ80Optimizations.All ++
@@ -19,5 +19,9 @@ object Z80OptimizationPresets {
         List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization, CompactStackFrame)
     ).flatten
   }
+
+  val GoodForIntel8080: List[AssemblyOptimization[ZLine]] = Nil // TODO
+
+  val GoodForSharp: List[AssemblyOptimization[ZLine]] = Nil // TODO
 
 }
