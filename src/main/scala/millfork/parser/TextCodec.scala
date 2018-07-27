@@ -9,7 +9,11 @@ import millfork.node.Position
 /**
   * @author Karol Stasiak
   */
-class TextCodec(val name: String, private val map: String, private val extra: Map[Char, Int], private val decompositions: Map[Char, String]) {
+class TextCodec(val name: String,
+                private val map: String,
+                private val extra: Map[Char, Int],
+                private val decompositions: Map[Char, String],
+                private val escapeSequences: Map[String, List[Int]]) {
 
   private def isPrintable(c: Char) = {
     c.getType match {
@@ -52,31 +56,60 @@ class TextCodec(val name: String, private val map: String, private val extra: Ma
     if (s.forall(isPrintable)) f"`$s%s` ($u%s)"
     else u
   }
-
-  private def encodeImpl(options: CompilationOptions, position: Option[Position], c: Char, lenient: Boolean): Option[List[Int]] = {
-    if (decompositions.contains(c)) {
-      Some(decompositions(c).toList.flatMap(x => encodeImpl(options, position, x, lenient).getOrElse(Nil)))
-    } else if (extra.contains(c)) Some(List(extra(c))) else {
-      val index = map.indexOf(c)
-      if (index >= 0) {
-        Some(List(index))
-      } else if (lenient) {
-        val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeImpl(options, position, alt, lenient = false).isDefined)).getOrElse("")
-        ErrorReporting.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", options, position)
-        Some(alternative.toList.flatMap(encodeImpl(options, position, _, lenient = false).get))
-      } else {
-        None
+  private def encodeChar(options: CompilationOptions, position: Option[Position], c: Char, lenient: Boolean): Option[List[Int]] = {
+      if (decompositions.contains(c)) {
+        Some(decompositions(c).toList.flatMap(x => encodeChar(options, position, x, lenient).getOrElse(Nil)))
+      } else if (extra.contains(c)) Some(List(extra(c))) else {
+        val index = map.indexOf(c)
+        if (index >= 0) {
+          Some(List(index))
+        } else if (lenient) {
+          val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeChar(options, position, alt, lenient = false).isDefined)).getOrElse("")
+          ErrorReporting.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", options, position)
+          Some(alternative.toList.flatMap(encodeChar(options, position, _, lenient = false).get))
+        } else {
+          None
+        }
       }
     }
+
+
+  def encode(options: CompilationOptions, position: Option[Position], s: List[Char], lenient: Boolean): List[Int] = s match {
+    case '{' :: tail =>
+      val (escSeq, closingBrace) = tail.span(_ != '}')
+      closingBrace match {
+        case '}' :: xs =>
+          encodeEscapeSequence(options, escSeq.mkString(""), position, lenient) ++ encode(options, position, xs, lenient)
+        case _ =>
+          ErrorReporting.error(f"Unclosed escape sequence", position)
+          Nil
+      }
+    case head :: tail =>
+      (encodeChar(options, position, head, lenient) match {
+        case Some(x) => x
+        case None =>
+          ErrorReporting.error(f"Invalid character ${format(head)} in string", position)
+          Nil
+      }) ++ encode(options, position, tail, lenient)
+    case Nil => Nil
   }
 
-  def encode(options: CompilationOptions, position: Option[Position], c: Char, lenient: Boolean): List[Int] = {
-    encodeImpl(options, position, c, lenient) match {
-      case Some(x) => x
-      case None =>
-        ErrorReporting.error(f"Invalid character ${format(c)} in string", position)
-        Nil
+  private def encodeEscapeSequence(options: CompilationOptions, escSeq: String, position: Option[Position], lenient: Boolean): List[Int] = {
+    if (escSeq.length == 3 && (escSeq(0) == 'X' || escSeq(0) == 'x')){
+      try {
+        return List(Integer.parseInt(escSeq.tail, 16))
+      } catch {
+        case _: NumberFormatException =>
+      }
     }
+    escapeSequences.getOrElse(escSeq, {
+      if (lenient) {
+        ErrorReporting.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", options, position)
+      } else {
+        ErrorReporting.error(s"Invalid escape sequence {$escSeq} for encoding `$name`", position)
+      }
+      Nil
+    })
   }
 
   def decode(by: Int): Char = {
@@ -87,41 +120,81 @@ class TextCodec(val name: String, private val map: String, private val extra: Ma
 
 object TextCodec {
 
-  def forName(name: String, position: Option[Position]): TextCodec = (position, name) match {
-    case (_, "ascii") => TextCodec.Ascii
-    case (_, "petscii") => TextCodec.Petscii
-    case (_, "pet") => TextCodec.Petscii
-    case (_, "cbmscr") => TextCodec.CbmScreencodes
-    case (_, "petscr") => TextCodec.CbmScreencodes
-    case (_, "atascii") => TextCodec.Atascii
-    case (_, "atari") => TextCodec.Atascii
-    case (_, "bbc") => TextCodec.Bbc
-    case (_, "apple2") => TextCodec.Apple2
-    case (_, "jis") => TextCodec.Jis
-    case (_, "jisx") => TextCodec.Jis
-    case (_, "iso_de") => TextCodec.IsoIec646De
-    case (_, "iso_no") => TextCodec.IsoIec646No
-    case (_, "iso_dk") => TextCodec.IsoIec646No
-    case (_, "iso_se") => TextCodec.IsoIec646Se
-    case (_, "iso_fi") => TextCodec.IsoIec646Se
-    case (_, "iso_yu") => TextCodec.IsoIec646Yu
-    case (p, x) =>
-      ErrorReporting.error(s"Unknown string encoding: `$x`", p)
-      TextCodec.Ascii
+  def forName(name: String, position: Option[Position]): (TextCodec, Boolean) = {
+    val zeroTerminated = name.endsWith("z")
+    val cleanName = name.stripSuffix("z")
+    val codec = (position, cleanName) match {
+      case (_, "ascii") => TextCodec.Ascii
+      case (_, "petscii") => TextCodec.Petscii
+      case (_, "pet") => TextCodec.Petscii
+      case (_, "cbmscr") => TextCodec.CbmScreencodes
+      case (_, "petscr") => TextCodec.CbmScreencodes
+      case (_, "atascii") => TextCodec.Atascii
+      case (_, "atari") => TextCodec.Atascii
+      case (_, "bbc") => TextCodec.Bbc
+      case (_, "sinclair") => TextCodec.Sinclair
+      case (_, "apple2") => TextCodec.Apple2
+      case (_, "jis") => TextCodec.Jis
+      case (_, "jisx") => TextCodec.Jis
+      case (_, "iso_de") => TextCodec.IsoIec646De
+      case (_, "iso_no") => TextCodec.IsoIec646No
+      case (_, "iso_dk") => TextCodec.IsoIec646No
+      case (_, "iso_se") => TextCodec.IsoIec646Se
+      case (_, "iso_fi") => TextCodec.IsoIec646Se
+      case (_, "iso_yu") => TextCodec.IsoIec646Yu
+      case (p, _) =>
+        ErrorReporting.error(s"Unknown string encoding: `$name`", p)
+        TextCodec.Ascii
+    }
+    codec -> zeroTerminated
   }
 
   val NotAChar = '\ufffd'
 
-  val Ascii = new TextCodec("ASCII", 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty)
+  private val DefaultOverrides: Map[Char, Int] = ('\u2400' to '\u2420').map(c => c->(c.toInt - 0x2400)).toMap + ('\u2421' -> 127)
 
-  val Apple2 = new TextCodec("APPLE-II", 0.until(255).map { i => if (i < 160) NotAChar else (i - 128).toChar }.mkString, Map.empty, Map.empty)
+  //noinspection ScalaUnusedSymbol
+  private val AsciiEscapeSequences: Map[String, List[Int]] = Map(
+    "n" -> List(13),
+    "t" -> List(9),
+    "b" -> List(8),
+    "q" -> List('\"'.toInt),
+    "apos" -> List('\''.toInt),
+    "lbrace" -> List('{'.toInt),
+    "rbrace" -> List('}'.toInt))
+
+  //noinspection ScalaUnusedSymbol
+  private val MinimalEscapeSequencesWithoutBraces: Map[String, List[Int]] = Map(
+    "n" -> List(13),
+    "apos" -> List('\''.toInt),
+    "q" -> List('\"'.toInt))
+
+  //noinspection ScalaUnusedSymbol
+  private val MinimalEscapeSequencesWithBraces: Map[String, List[Int]] = Map(
+    "n" -> List(13),
+    "apos" -> List('\''.toInt),
+    "q" -> List('\"'.toInt),
+    "lbrace" -> List('{'.toInt),
+    "rbrace" -> List('}'.toInt))
+
+  val Ascii = new TextCodec("ASCII", 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty, AsciiEscapeSequences)
+
+  val Apple2 = new TextCodec("APPLE-II", 0.until(255).map { i => if (i < 160) NotAChar else (i - 128).toChar }.mkString, Map.empty, Map.empty, MinimalEscapeSequencesWithBraces)
 
   val IsoIec646De = new TextCodec("ISO-IEC-646-DE",
     "\ufffd" * 32 +
       " !\"#$%^'()*+,-./0123456789:;<=>?" +
       "§ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ^_" +
       "`abcdefghijklmnopqrstuvwxyzäöüß",
-    Map.empty, Map.empty
+    DefaultOverrides, Map.empty, AsciiEscapeSequences ++ Map(
+      "UE" -> List('['.toInt),
+      "OE" -> List('\\'.toInt),
+      "AE" -> List(']'.toInt),
+      "ue" -> List('{'.toInt),
+      "oe" -> List('|'.toInt),
+      "ae" -> List('}'.toInt),
+      "ss" -> List('~'.toInt)
+    )
   )
 
   val IsoIec646Se = new TextCodec("ISO-IEC-646-SE",
@@ -136,7 +209,14 @@ object TextCodec {
       'Ü' -> '^'.toInt,
       'ü' -> '~'.toInt,
       '$' -> '¤'.toInt),
-    Map.empty
+    Map.empty, AsciiEscapeSequences ++ Map(
+      "AE" -> List('['.toInt),
+      "OE" -> List('\\'.toInt),
+      "AA" -> List(']'.toInt),
+      "ae" -> List('{'.toInt),
+      "oe" -> List('|'.toInt),
+      "aa" -> List('}'.toInt)
+    )
   )
 
   val IsoIec646No = new TextCodec("ISO-IEC-646-NO",
@@ -155,8 +235,16 @@ object TextCodec {
       '«' -> '"'.toInt,
       '»' -> '"'.toInt,
       '§' -> '#'.toInt),
-    Map.empty
+    Map.empty, AsciiEscapeSequences ++ Map(
+      "AE" -> List('['.toInt),
+      "OE" -> List('\\'.toInt),
+      "AA" -> List(']'.toInt),
+      "ae" -> List('{'.toInt),
+      "oe" -> List('|'.toInt),
+      "aa" -> List('}'.toInt)
+    )
   )
+
 
   val IsoIec646Yu = new TextCodec("ISO-IEC-646-YU",
     "\ufffd" * 32 +
@@ -164,14 +252,14 @@ object TextCodec {
       "ŽABCDEFGHIJKLMNOPQRSTUVWXYZŠĐĆČ_" +
       "žabcdefghijklmnopqrstuvwxyzšđćč",
     Map('Ë' -> '$'.toInt, 'ë' -> '_'.toInt),
-    Map.empty
-  )
+    Map.empty, AsciiEscapeSequences)
 
   val CbmScreencodes = new TextCodec("CBM-Screen",
     "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
       0x20.to(0x3f).map(_.toChar).mkString +
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ",
-    Map('^' -> 0x3E, '♥' -> 0x53, '♡' -> 0x53, '♠' -> 0x41, '♣' -> 0x58, '♢' -> 0x5A, '•' -> 0x51), Map.empty
+    Map('^' -> 0x3E, '♥' -> 0x53, '♡' -> 0x53, '♠' -> 0x41, '♣' -> 0x58, '♢' -> 0x5A, '•' -> 0x51),
+    Map.empty, MinimalEscapeSequencesWithoutBraces
   )
 
   val Petscii = new TextCodec("PETSCII",
@@ -179,7 +267,25 @@ object TextCodec {
       0x20.to(0x3f).map(_.toChar).mkString +
       "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ",
-    Map('^' -> 0x5E, '♥' -> 0x73, '♡' -> 0x73, '♠' -> 0x61, '♣' -> 0x78, '♢' -> 0x7A, '•' -> 0x71), Map.empty
+    Map('^' -> 0x5E, '♥' -> 0x73, '♡' -> 0x73, '♠' -> 0x61, '♣' -> 0x78, '♢' -> 0x7A, '•' -> 0x71), Map.empty, Map(
+      "n" -> List(13),
+      "q" -> List('\"'.toInt),
+      "apos" -> List('\''.toInt),
+      "up" -> List(0x91),
+      "down" -> List(0x11),
+      "left" -> List(0x9d),
+      "right" -> List(0x1d),
+      "white" -> List(5),
+      "black" -> List(0x90),
+      "red" -> List(0x1c),
+      "blue" -> List(0x1f),
+      "green" -> List(0x1e),
+      "cyan" -> List(0x9f),
+      "purple" -> List(0x9c),
+      "yellow" -> List(0x9e),
+      "reverse" -> List(0x12),
+      "reverseoff" -> List(0x92)
+    )
   )
 
   val Atascii = new TextCodec("ATASCII",
@@ -189,14 +295,49 @@ object TextCodec {
     "\ufffd" * 11 +
       0x20.to(0x5f).map(_.toChar).mkString +
       "♢abcdefghijklmnopqrstuvwxyz♠|",
-    Map('♥' -> 0, '·' -> 0x14), Map.empty
+    Map('♥' -> 0, '·' -> 0x14), Map.empty, MinimalEscapeSequencesWithBraces
   )
 
   val Bbc = new TextCodec("BBC",
     "\ufffd" * 32 +
       0x20.to(0x5f).map(_.toChar).mkString +
-    "£" + 0x61.to(0x7E).map(_.toChar).mkString + "©",
-    Map('↑' -> '^'.toInt), Map.empty
+      "£" + 0x61.to(0x7E).map(_.toChar).mkString + "©",
+    Map('↑' -> '^'.toInt), Map.empty, MinimalEscapeSequencesWithBraces
+  )
+
+  val Sinclair = new TextCodec("Sinclair",
+    "\ufffd" * 32 +
+      0x20.to(0x5f).map(_.toChar).mkString +
+      "£" + 0x61.to(0x7E).map(_.toChar).mkString + "©",
+    Map('↑' -> '^'.toInt), Map.empty, Map(
+      "n" -> List(13),
+      "q" -> List('\"'.toInt),
+      "apos" -> List('\''.toInt),
+      "lbrace" -> List('{'.toInt),
+      "rbrace" -> List('}'.toInt),
+      "up" -> List(11),
+      "down" -> List(10),
+      "left" -> List(8),
+      "right" -> List(9),
+      "white" -> List(0x10, 7),
+      "black" -> List(0x10, 0),
+      "red" -> List(0x10, 2),
+      "blue" -> List(0x10, 1),
+      "green" -> List(0x10, 4),
+      "cyan" -> List(0x10, 5),
+      "purple" -> List(0x10, 3),
+      "yellow" -> List(0x10, 6),
+      "bgwhite" -> List(0x11, 7),
+      "bgblack" -> List(0x11, 0),
+      "bgred" -> List(0x11, 2),
+      "bgblue" -> List(0x11, 1),
+      "bggreen" -> List(0x11, 4),
+      "bgcyan" -> List(0x11, 5),
+      "bgpurple" -> List(0x11, 3),
+      "bgyellow" -> List(0x11, 6),
+      "reverse" -> List(0x14, 1),
+      "reverseoff" -> List(0x14, 0)
+    )
   )
 
   private val jisHalfwidthKatakanaOrder: String =
@@ -222,7 +363,7 @@ object TextCodec {
       1.to(0x3F).map(i => (i + 0xff60).toChar -> (i + 0xA1)).toMap,
       (("カキクケコサシスセソタチツテトハヒフヘホ")).zip(
         "ガギグゲゴザジズゼゾダヂヅデドバビブベボ").map { case (u, v) => v -> (u + "゛") }.toMap ++
-      "ハヒフヘホ".zip("パピプペポ").map { case (h, p) => p -> (h + "゜") }.toMap
+      "ハヒフヘホ".zip("パピプペポ").map { case (h, p) => p -> (h + "゜") }.toMap, MinimalEscapeSequencesWithBraces
   )
 
   val lossyAlternatives: Map[Char, List[String]] = {

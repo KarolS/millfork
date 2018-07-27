@@ -241,6 +241,7 @@ object CompilationFlag extends Enumeration {
   // warning options
   ExtraComparisonWarnings,
   RorWarning,
+  NonZeroTerminatedLiteralWarning,
   FatalWarnings,
   // special options for internal compiler use
   InternalCurrentlyOptimizingForMeasurement = Value

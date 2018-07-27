@@ -154,6 +154,14 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
     }
   }
 
+  def genName(characters: List[Expression]): String = {
+    "textliteral$" ++ characters.flatMap{
+      case LiteralExpression(n, _) =>
+        f"$n%02x"
+      case _ => ???
+    }
+  }
+
   def optimizeExpr(expr: Expression, currentVarValues: VV): Expression = {
     val pos = expr.position
     expr match {
@@ -161,6 +169,12 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
         expr
       case FunctionCallExpression("->", List(handle, FunctionCallExpression(method, params))) =>
         expr
+      case TextLiteralExpression(characters) =>
+        val name = genName(characters)
+        if (ctx.env.maybeGet[Thing](name).isEmpty) {
+          ctx.env.root.registerArray(ArrayDeclarationStatement(name, None, None, None, Some(LiteralContents(characters))).pos(pos), ctx.options)
+        }
+        VariableExpression(name).pos(pos)
       case VariableExpression(v) if currentVarValues.contains(v) =>
         val constant = currentVarValues(v)
         ErrorReporting.debug(s"Using node flow to replace $v with $constant", pos)

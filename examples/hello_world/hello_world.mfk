@@ -7,5 +7,7 @@ array hello_world = "hello world"
 
 void main(){
     putstr(hello_world, hello_world.length)
+    putchar(13)
+    putstrz("hello world again"z)
     while(true){}
 }

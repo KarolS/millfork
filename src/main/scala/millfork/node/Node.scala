@@ -46,6 +46,13 @@ case class LiteralExpression(value: Long, requiredSize: Int) extends Expression 
   override def getAllIdentifiers: Set[String] = Set.empty
 }
 
+case class TextLiteralExpression(characters: List[Expression]) extends Expression {
+  override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def containsVariable(variable: String): Boolean = false
+  override def isPure: Boolean = true
+  override def getAllIdentifiers: Set[String] = Set.empty
+}
+
 case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false

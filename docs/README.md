@@ -21,6 +21,10 @@
 
 * [Types](lang/types.md)
 
+* [Literals](lang/literals.md)
+
+* [List of text encodings and escape sequences](lang/text.md)
+
 * [Operators reference](lang/operators.md)
 
 * [Functions](lang/functions.md)

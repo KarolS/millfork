@@ -145,6 +145,7 @@ object AbstractExpressionCompiler {
           case 4 => env.get[Type]("long")
         }
       case GeneratedConstantExpression(c, t) => t
+      case TextLiteralExpression(_) => env.get[Type]("pointer")
       case VariableExpression(name) =>
         env.get[TypedThing](name, expr.position).typ
       case HalfWordExpression(param, _) =>

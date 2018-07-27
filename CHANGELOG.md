@@ -16,6 +16,12 @@
 
 * Automatic selection of text encoding based on target platform.
 
+* Text literals can be now used as expressions of type `pointer`.
+
+* Extra `z` at the name of the encoding means that the string is zero-terminated.
+
+* **Potentially breaking change!** Curly braces in text literals are now used for escape sequences.
+
 * **Potentially breaking change!** `scr` now refers to the default screencodes as defined for the platform.
 Code that uses both a custom platform definition and the `scr` encoding needs attention
 (either change `scr` to `petscr` or add `screen_encoding=petscr` in the platform definition file).

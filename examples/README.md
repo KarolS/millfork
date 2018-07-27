@@ -4,6 +4,8 @@
 
 * [Hello world](hello_world/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro) – simple text output
 
+* [Text encodings](c64/text_encodings.mfk) (C64/ZX Spectrum)– examples of text encoding features
+
 ## Commodore 64 examples
 
 ### Console I/O examples
@@ -11,8 +13,6 @@
 * [Echo](c64/echo.mfk) – simple text input and output
 
 * [Calculator](c64/calculator.mfk) – simple numeric input and output
-
-* [Text encodings](c64/text_encodings.mfk) – examples of text encoding features
 
 * [Panic](c64/panic_test.mfk) – how panic works on C64, showing the address of where it happened
 

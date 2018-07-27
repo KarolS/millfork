@@ -2,7 +2,13 @@ import stdio
 
 array p = [
     "this is an example", 13,
-    "of multiline petscii text"
+    "of {red}multiline {yellow}{reverse}",
+#if CBM
+    "petscii",
+#else
+    "ASCII",
+#endif
+    "{reverseoff} {white}text"
 ]
 
 array s = [
@@ -15,9 +21,11 @@ array screen [1000] @$400
 void main(){
     byte i
     putstr(p, p.length)
+#if CBM_64
     for i,0,paralleluntil,s.length {
         screen[20 * 40 + i] = s[i]
         c64_color_ram[20 * 40 + i] = light_blue
     }
+#endif
     while(true){}
 }

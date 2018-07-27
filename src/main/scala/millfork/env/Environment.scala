@@ -1218,6 +1218,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     case _:BooleanLiteralExpression => ()
     case _:LiteralExpression => ()
     case _:GeneratedConstantExpression => ()
+    case _:TextLiteralExpression => ()
     case VariableExpression(name) =>
       checkName[VariableLikeThing]("Variable or constant", name, node.position)
     case IndexedExpression(name, index) =>

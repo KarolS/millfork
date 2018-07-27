@@ -104,8 +104,14 @@ object Platform {
 
     val codecName = cs.get(classOf[String], "encoding", "ascii")
     val srcCodecName = cs.get(classOf[String], "screen_encoding", codecName)
-    val codec = TextCodec.forName(codecName, None)
-    val srcCodec = TextCodec.forName(srcCodecName, None)
+    val (codec, czt) = TextCodec.forName(codecName, None)
+    if (czt) {
+      ErrorReporting.error("Default encoding cannot be zero-terminated")
+    }
+    val (srcCodec, szt) = TextCodec.forName(srcCodecName, None)
+    if (szt) {
+      ErrorReporting.error("Default screen encoding cannot be zero-terminated")
+    }
 
     val as = conf.getSection("allocation")
 

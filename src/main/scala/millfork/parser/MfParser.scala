@@ -41,9 +41,11 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     newPosition
   }
 
-  val codec: P[(TextCodec, Boolean)] = P(position("text codec identifier") ~ identifier.?.map(_.getOrElse(""))).map {
-    case (_, "" | "default") => options.platform.defaultCodec -> options.flag(CompilationFlag.LenientTextEncoding)
-    case (_, "scr") => options.platform.screenCodec -> options.flag(CompilationFlag.LenientTextEncoding)
+  val codec: P[((TextCodec, Boolean), Boolean)] = P(position("text codec identifier") ~ identifier.?.map(_.getOrElse(""))).map {
+    case (_, "" | "default") => (options.platform.defaultCodec -> false) -> options.flag(CompilationFlag.LenientTextEncoding)
+    case (_, "z" | "defaultz") => (options.platform.defaultCodec -> true) -> options.flag(CompilationFlag.LenientTextEncoding)
+    case (_, "scr") => (options.platform.screenCodec -> false) -> options.flag(CompilationFlag.LenientTextEncoding)
+    case (_, "scrz") => (options.platform.screenCodec -> true) -> options.flag(CompilationFlag.LenientTextEncoding)
     case (p, x) => TextCodec.forName(x, Some(p)) -> false
   }
 
@@ -52,9 +54,12 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val charAtom: P[LiteralExpression] = for {
     p <- position()
     c <- "'" ~/ CharPred(c => c >= ' ' && !invalidCharLiteralTypes(Character.getType(c))).! ~/ "'"
-    (co, lenient) <- HWS ~ codec
+    ((co, zt), lenient) <- HWS ~ codec
   } yield {
-    co.encode(options, Some(p), c.charAt(0), lenient = lenient) match {
+    if (zt) {
+      ErrorReporting.error("Zero-terminated encoding is not a valid encoding for a character literal", Some(p))
+    }
+    co.encode(options, Some(p), c.toList, lenient = lenient) match {
       case List(value) =>
         LiteralExpression(value, 1)
       case _ =>
@@ -71,9 +76,18 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     }
   }
 
+  val textLiteral: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
+      case (p, s, ((co, zt), lenient)) =>
+        val characters = co.encode(options, None, s.toList, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
+        if (zt) characters :+ LiteralExpression(0,1)
+        else characters
+    }
+
+  val textLiteralAtom: P[TextLiteralExpression] = textLiteral.map(TextLiteralExpression)
+
   val literalAtom: P[LiteralExpression] = charAtom | binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom
 
-  val atom: P[Expression] = P(position() ~ (literalAtom | variableAtom)).map{case (p,a) => a.pos(p)}
+  val atom: P[Expression] = P(position() ~ (literalAtom | variableAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
   val globalVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)
@@ -150,9 +164,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     LiteralContents(slice.map(c => LiteralExpression(c & 0xff, 1)).toList)
   }
 
-  def arrayStringContents: P[ArrayContents] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
-    case (p, s, (co, lenient)) => LiteralContents(s.flatMap(c => co.encode(options, None, c, lenient = lenient)).map(c => LiteralExpression(c, 1).pos(p)))
-  }
+  def arrayStringContents: P[ArrayContents] = textLiteral.map(LiteralContents(_))
 
   def arrayLoopContents: P[ArrayContents] = for {
       identifier <- "for" ~ SWS ~/ identifier ~/ HWS ~ "," ~/ HWS ~ Pass
