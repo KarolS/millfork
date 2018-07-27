@@ -24,7 +24,7 @@ import org.scalatest.Matchers
 class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[ZLine]]) extends Matchers {
   def inline: Boolean = false
 
-  private val TooManyCycles: Long = 1000000
+  private val TooManyCycles: Long = 1500000
 
   def apply(source: String): MemoryBank = {
     apply2(source)._2
@@ -132,6 +132,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
             cpu.getRegisters.setPC(0x1f0)
             while (cpu.getState != Cpu.State.HALTED) {
               cpu.tick()
+//              dump(cpu)
               ticks += 4
               ticks should be < TooManyCycles
             }
@@ -152,9 +153,18 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
 
   def dump(cpu: Z80Core): Unit = {
     val a = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
-    val bc = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
-    val de = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
-    val hl = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
+    val bc = cpu.getRegisterValue(CPUConstants.RegisterNames.BC)
+    val de = cpu.getRegisterValue(CPUConstants.RegisterNames.DE)
+    val hl = cpu.getRegisterValue(CPUConstants.RegisterNames.HL)
+    println(f"A=$a%02x,BC=$bc%04x,DE=$de%04x,HL=$hl%04x")
+  }
+
+  def dump(cpu: Cpu): Unit = {
+    val regs = cpu.getRegisters
+    val a = regs.getA
+    val bc = regs.getBC
+    val de = regs.getDE
+    val hl = regs.getHL
     println(f"A=$a%02x,BC=$bc%04x,DE=$de%04x,HL=$hl%04x")
   }
 

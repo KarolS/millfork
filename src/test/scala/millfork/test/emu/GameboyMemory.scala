@@ -11,6 +11,7 @@ case class GameboyMemory(memoryBank: MemoryBank) extends AddressSpace {
 
   override def setByte(address: Int, data: Int): Unit = {
     //    if (!memoryBank.writeable(address)) throw new RuntimeException("Can't write to $" + address.toHexString)
+//    println(s"Written: ${data.toHexString} to ${address.toHexString}")
         memoryBank.output(address) = data.toByte
   }
 
