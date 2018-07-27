@@ -63,7 +63,7 @@ class Z80Assembler(program: Program,
       options.flag(EmitSharpOpcodes)
     }
 
-    instr match {
+    try { instr match {
       case ZLine(LABEL, NoRegisters, MemoryAddressConstant(Label(labelName)), _) =>
         labelMap(labelName) = index
         index
@@ -142,10 +142,12 @@ class Z80Assembler(program: Program,
         writeByte(bank, index + 1, 9 + 16 * internalRegisterIndex(source))
         index + 2
       case ZLine(ADC_16, TwoRegisters(ZRegister.HL, reg), _, _) =>
+        requireZ80()
         writeByte(bank, index, 0xed)
         writeByte(bank, index + 1, 0x4a + 0x10 * internalRegisterIndex(reg))
         index + 2
       case ZLine(SBC_16, TwoRegisters(ZRegister.HL, reg), _, _) =>
+        requireZ80()
         writeByte(bank, index, 0xed)
         writeByte(bank, index + 1, 0x42 + 0x10 * internalRegisterIndex(reg))
         index + 2
@@ -342,11 +344,13 @@ class Z80Assembler(program: Program,
             writeByte(bank, index, 0x1a)
             index + 1
           case TwoRegistersOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), source, offset) =>
+            requireZ80()
             writeByte(bank, index, prefixByte(ix))
             writeByte(bank, index + 1, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(ZRegister.MEM_HL) * 8)
             writeByte(bank, index + 2, offset)
             index + 3
           case TwoRegistersOffset(target, ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset) =>
+            requireZ80()
             writeByte(bank, index, prefixByte(ix))
             writeByte(bank, index + 1, 0x40 + internalRegisterIndex(ZRegister.MEM_HL) + internalRegisterIndex(target) * 8)
             writeByte(bank, index + 2, offset)
@@ -568,7 +572,42 @@ class Z80Assembler(program: Program,
         requireIntel8080()
         writeByte(bank, index, 0xeb)
         index + 1
+
+      case ZLine(ADD_SP, _, param, _) =>
+        requireSharp()
+        writeByte(bank, index, 0xe8)
+        writeByte(bank, index + 1, param)
+        index + 2
+      case ZLine(LD_HLSP, _, param, _) =>
+        requireSharp()
+        writeByte(bank, index, 0xf8)
+        writeByte(bank, index + 1, param)
+        index + 2
+      case ZLine(LD_AHLI, _, _, _) =>
+        requireSharp()
+        writeByte(bank, index, 0x2a)
+        index + 1
+      case ZLine(LD_AHLD, _, _, _) =>
+        requireSharp()
+        writeByte(bank, index, 0x3a)
+        index + 1
+      case ZLine(LD_HLIA, _, _, _) =>
+        requireSharp()
+        writeByte(bank, index, 0x22)
+        index + 1
+      case ZLine(LD_HLDA, _, _, _) =>
+        requireSharp()
+        writeByte(bank, index, 0x32)
+        index + 1
+      case ZLine(STOP, _, _, _) =>
+        requireSharp()
+        writeByte(bank, index, 0x10)
+        index + 1
       case _ =>
+        ErrorReporting.fatal("Cannot assemble " + instr)
+        index
+    } } catch {
+      case _ : MatchError =>
         ErrorReporting.fatal("Cannot assemble " + instr)
         index
     }
@@ -613,7 +652,6 @@ object Z80Assembler {
     immediates(CP) = 0xfe
 
     edImplieds(NEG) = 0x44
-    edImplieds(RETI) = 0x4d
     edImplieds(RETN) = 0x45
     edImplieds(RRD) = 0x67
     edImplieds(RLD) = 0x6f

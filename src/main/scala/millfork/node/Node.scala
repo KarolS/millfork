@@ -138,17 +138,17 @@ object ZRegister extends Enumeration {
 
   val A, B, C, D, E, H, L, AF, BC, HL, DE, SP, IXH, IXL, IYH, IYL, IX, IY, R, I, MEM_HL, MEM_BC, MEM_DE, MEM_IX_D, MEM_IY_D, MEM_ABS_8, MEM_ABS_16, IMM_8, IMM_16 = Value
 
-  def size(reg: Value): Int = reg match {
+  def registerSize(reg: Value): Int = reg match {
     case AF | BC | DE | HL | IX | IY | IMM_16 => 2
     case A | B | C | D | E | H | L | IXH | IXL | IYH | IYL | R | I | IMM_8 => 1
   }
 
-  def matchingImm(target: ZRegister.Value): ZRegister.Value = size(target) match {
+  def matchingImm(target: ZRegister.Value): ZRegister.Value = registerSize(target) match {
     case 1 => IMM_8
     case 2 => IMM_16
   }
 
-  def matchingMemAbs(target: ZRegister.Value): ZRegister.Value = size(target) match {
+  def matchingMemAbs(target: ZRegister.Value): ZRegister.Value = registerSize(target) match {
     case 1 => MEM_ABS_8
     case 2 => MEM_ABS_16
   }

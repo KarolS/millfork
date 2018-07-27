@@ -28,7 +28,7 @@ even up to hardware damage.
 
 * on ROM-based platforms: using global variables with an initial value (they will not be initialized!)
 
-* violating the [safe assembly rules](../lang/assembly.md)
+* violating the safe assembly rules ([6502](../lang/assembly.md), [8080/LR35902/Z80](../lang/assemblyz80.md))
 
 * violating the [safe reentrancy rules](../lang/reentrancy.md)
 

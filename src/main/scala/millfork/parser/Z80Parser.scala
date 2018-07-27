@@ -4,7 +4,7 @@ import java.util.Locale
 
 import fastparse.all.{parserApi, _}
 import fastparse.core
-import millfork.CompilationOptions
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.z80.{ZOpcode, _}
 import millfork.env.{ByZRegister, Constant, ParamPassingConvention}
 import millfork.error.ErrorReporting
@@ -92,16 +92,16 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
   }
 
   private val jumpCondition: P[ZRegisters] = (HWS ~ (
-    "NZ" | "nz" | "nc" | "NC" |
+    "NZ" | "nz" | "nc" | "NC" | "NV" | "nv" |
       "PO" | "po" | "PE" | "pe" |
       "m" | "M" | "p" | "P" |
-      "c" | "C" | "Z" | "z").! ~ HWS).map {
+      "c" | "C" | "Z" | "z" | "V" | "v").! ~ HWS).map {
     case "Z" | "z" => IfFlagSet(ZFlag.Z)
-    case "PE" | "pe" => IfFlagSet(ZFlag.P)
+    case "PE" | "pe" | "v" | "V" => IfFlagSet(ZFlag.P)
     case "C" | "c" => IfFlagSet(ZFlag.C)
     case "M" | "m" => IfFlagSet(ZFlag.S)
     case "NZ" | "nz" => IfFlagClear(ZFlag.Z)
-    case "PO" | "po" => IfFlagClear(ZFlag.P)
+    case "PO" | "po" | "NV" | "nv" => IfFlagClear(ZFlag.P)
     case "NC" | "nc" => IfFlagClear(ZFlag.C)
     case "P" | "p" => IfFlagClear(ZFlag.S)
     case _ => NoRegisters // shouldn't happen
@@ -162,12 +162,13 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
       el <- elidable
       pos <- position()
       opcode: String <- identifier ~/ HWS
-      tuple4/*: (ZOpcode.Value, ZRegisters, Option[Expression], Expression)*/ <- opcode.toUpperCase(Locale.ROOT) match {
+      tuple4: (ZOpcode.Value, ZRegisters, Option[Expression], Expression) <- opcode.toUpperCase(Locale.ROOT) match {
         case "RST" => asmExpression.map((RST, NoRegisters, None, _))
         case "IM" => asmExpression.map((IM, NoRegisters, None, _))
         case "EI" => imm(EI)
         case "DI" => imm(DI)
         case "HALT" => imm(HALT)
+        case "STOP" => imm(STOP)
 
         case "RETN" => imm(RETN)
         case "RETI" => imm(RETI)
@@ -209,6 +210,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         case "SLL" => one8Register(SLL)
         case "SRA" => one8Register(SRA)
         case "SRL" => one8Register(SRL)
+        case "SWAP" => one8Register(SWAP)
 
         case "BIT" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
           case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), (r2, e2))
@@ -295,7 +297,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         }
         case "EX" => (asmExpressionWithParens ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpressionWithParensOrApostrophe).map { p: (Expression, Boolean, (Expression, Boolean)) =>
           p match {
-            case (VariableExpression("AF" | "af"), false, (VariableExpression("AF" | "af"), true)) =>
+            case (VariableExpression("AF" | "af"), false, (VariableExpression("AF" | "af"), _)) =>
               (EX_AF_AF, NoRegisters, None, zero)
             case (VariableExpression("DE" | "de"), false, (VariableExpression("HL" | "hl"), false)) =>
               (EX_DE_HL, NoRegisters, None, zero)
@@ -314,9 +316,31 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         }
 
         case "LD" => (param(allowAbsolute = true, allowRI = true) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = true, allowRI = true)).map {
+          case (ZRegister.HL, None, (ZRegister.IMM_8 | ZRegister.IMM_16, Some(SumExpression((false, VariableExpression("sp" | "SP")) :: offset, false))))
+            if options.flags(CompilationFlag.EmitSharpOpcodes) =>
+            (LD_HLSP, OneRegister(ZRegister.IMM_8), None, offset match {
+              case List((false, expr)) => expr
+              case (true, _) :: _ => SumExpression((false -> LiteralExpression(0, 1)) :: offset, decimal = false)
+              case _ => SumExpression(offset, decimal = false)
+            })
+          case (ZRegister.A, None, (ZRegister.MEM_ABS_8, Some(VariableExpression("HLI" | "hli"))))
+            if options.flags(CompilationFlag.EmitSharpOpcodes) =>
+            (LD_AHLI, NoRegisters, None, zero)
+          case (ZRegister.A, None, (ZRegister.MEM_ABS_8, Some(VariableExpression("HLD" | "hld"))))
+            if options.flags(CompilationFlag.EmitSharpOpcodes) =>
+            (LD_AHLD, NoRegisters, None, zero)
+          case (ZRegister.MEM_ABS_8, Some(VariableExpression("HLI" | "hli")), (ZRegister.A, None))
+            if options.flags(CompilationFlag.EmitSharpOpcodes) =>
+            (LD_HLIA, NoRegisters, None, zero)
+          case (ZRegister.MEM_ABS_8, Some(VariableExpression("HLD" | "hld")), (ZRegister.A, None))
+            if options.flags(CompilationFlag.EmitSharpOpcodes) =>
+            (LD_HLDA, NoRegisters, None, zero)
+
           case (r1, e1, (r2, e2)) => merge(LD, LD_16, skipTargetA = false)((r1, e1, r2, e2))
         }
         case "ADD" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
+          case (ZRegister.SP, None, (ZRegister.IMM_8, Some(expr))) if options.flags(CompilationFlag.EmitSharpOpcodes) =>
+            (ADD_SP, OneRegister(ZRegister.IMM_8), None, expr)
           case (r1, e1, (r2, e2)) => merge(ADD, ADD_16, skipTargetA = true)((r1, e1, r2, e2))
         }
         case "ADC" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {

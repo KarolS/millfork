@@ -28,7 +28,7 @@ For more details about how to pass parameters to `asm` functions, see:
 
 * for 6502: [Using 6502 assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions).
 
-* for Z80: [Using Z80 assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions).
+* for Z80: [Using Z80 assembly within Millfork programs#Assembly functions](./assemblyz80.md#assembly-functions).
 
 ## Calling external functions at a dynamic address
 

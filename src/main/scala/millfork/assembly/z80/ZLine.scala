@@ -241,6 +241,12 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case RST => s"    RST $parameter"
       case IM => s"    IM $parameter"
       case EX_AF_AF => "    EX AF,AF'"
+      case LD_AHLI => "    LD A,(HLI)"
+      case LD_AHLD => "    LD A,(HLD)"
+      case LD_HLIA => "    LD (HLI),A"
+      case LD_HLDA => "    LD (HLD),A"
+      case LD_HLSP => "    LD HL,SP+" + parameter
+      case ADD_SP => "    ADD SP," + parameter
       case EX_SP => registers match {
         case OneRegister(r) => s"    EX (SP),${asAssemblyString(r)}"
         case _ => ???

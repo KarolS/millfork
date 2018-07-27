@@ -27,7 +27,7 @@
 
 * [Inline 6502 assembly syntax](lang/assembly.md)
 
-* [Inline Z80 assembly syntax](lang/assemblyz80.md)
+* [Inline 8080/LR35902/Z80 assembly syntax](lang/assemblyz80.md)
 
 * [Important guidelines regarding reentrancy](lang/reentrancy.md)
 
