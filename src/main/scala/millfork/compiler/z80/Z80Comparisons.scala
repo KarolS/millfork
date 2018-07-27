@@ -1,5 +1,6 @@
 package millfork.compiler.z80
 
+import millfork.CompilationFlag
 import millfork.assembly.z80._
 import millfork.compiler.{ComparisonType, _}
 import millfork.env.NumericConstant
@@ -71,29 +72,67 @@ object Z80Comparisons {
     val calculateRight = Z80ExpressionCompiler.compileToHL(ctx, r)
     val (calculated, useBC) = if (calculateLeft.exists(Z80ExpressionCompiler.changesBC)) {
       if (calculateLeft.exists(Z80ExpressionCompiler.changesDE)) {
-        calculateRight ++ List(ZLine.register(ZOpcode.PUSH, ZRegister.HL)) ++ calculateLeft ++ List(ZLine.register(ZOpcode.POP, ZRegister.BC)) -> false
+        calculateRight ++ List(ZLine.register(ZOpcode.PUSH, ZRegister.HL)) ++ Z80ExpressionCompiler.fixTsx(calculateLeft) ++ List(ZLine.register(ZOpcode.POP, ZRegister.BC)) -> false
       } else {
         calculateRight ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L)) ++ calculateLeft -> false
       }
     } else {
       calculateRight ++ List(ZLine.ld8(ZRegister.B, ZRegister.H), ZLine.ld8(ZRegister.C, ZRegister.L)) ++ calculateLeft -> true
     }
-    val calculateFlags = calculated ++ List(
-      ZLine.register(ZOpcode.OR, ZRegister.A),
-      ZLine.registers(ZOpcode.SBC_16, ZRegister.HL, if (useBC) ZRegister.BC else ZRegister.DE))
-    if (branches == NoBranching) return calculateFlags
-    val jump = (compType, branches) match {
-      case (Equal, BranchIfTrue(label)) => ZLine.jump(label, IfFlagSet(ZFlag.Z))
-      case (Equal, BranchIfFalse(label)) => ZLine.jump(label, IfFlagClear(ZFlag.Z))
-      case (NotEqual, BranchIfTrue(label)) => ZLine.jump(label, IfFlagClear(ZFlag.Z))
-      case (NotEqual, BranchIfFalse(label)) => ZLine.jump(label, IfFlagSet(ZFlag.Z))
-      case (LessUnsigned, BranchIfTrue(label)) => ZLine.jump(label, IfFlagSet(ZFlag.C))
-      case (LessUnsigned, BranchIfFalse(label)) => ZLine.jump(label, IfFlagClear(ZFlag.C))
-      case (GreaterOrEqualUnsigned, BranchIfTrue(label)) => ZLine.jump(label, IfFlagClear(ZFlag.C))
-      case (GreaterOrEqualUnsigned, BranchIfFalse(label)) => ZLine.jump(label, IfFlagSet(ZFlag.C))
-      case _ => ???
+    if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+      val calculateFlags = calculated ++ List(
+        ZLine.register(ZOpcode.OR, ZRegister.A),
+        ZLine.registers(ZOpcode.SBC_16, ZRegister.HL, if (useBC) ZRegister.BC else ZRegister.DE))
+      if (branches == NoBranching) return calculateFlags
+      val jump = (compType, branches) match {
+        case (Equal, BranchIfTrue(label)) => ZLine.jump(label, IfFlagSet(ZFlag.Z))
+        case (Equal, BranchIfFalse(label)) => ZLine.jump(label, IfFlagClear(ZFlag.Z))
+        case (NotEqual, BranchIfTrue(label)) => ZLine.jump(label, IfFlagClear(ZFlag.Z))
+        case (NotEqual, BranchIfFalse(label)) => ZLine.jump(label, IfFlagSet(ZFlag.Z))
+        case (LessUnsigned, BranchIfTrue(label)) => ZLine.jump(label, IfFlagSet(ZFlag.C))
+        case (LessUnsigned, BranchIfFalse(label)) => ZLine.jump(label, IfFlagClear(ZFlag.C))
+        case (GreaterOrEqualUnsigned, BranchIfTrue(label)) => ZLine.jump(label, IfFlagClear(ZFlag.C))
+        case (GreaterOrEqualUnsigned, BranchIfFalse(label)) => ZLine.jump(label, IfFlagSet(ZFlag.C))
+        case _ => ???
+      }
+      calculateFlags :+ jump
+    } else if (compType == Equal || compType == NotEqual) {
+      import ZRegister._
+      import ZOpcode._
+      val calculateFlags = calculated ++ List(
+        ZLine.ld8(A, L),
+        ZLine.register(XOR, if (useBC) C else E),
+        ZLine.ld8(L, A),
+        ZLine.ld8(A, H),
+        ZLine.register(XOR, if (useBC) B else D),
+        ZLine.register(OR, L))
+      if (branches == NoBranching) return calculateFlags
+      val jump = (compType, branches) match {
+        case (Equal, BranchIfTrue(label)) => ZLine.jump(label, IfFlagSet(ZFlag.Z))
+        case (Equal, BranchIfFalse(label)) => ZLine.jump(label, IfFlagClear(ZFlag.Z))
+        case (NotEqual, BranchIfTrue(label)) => ZLine.jump(label, IfFlagClear(ZFlag.Z))
+        case (NotEqual, BranchIfFalse(label)) => ZLine.jump(label, IfFlagSet(ZFlag.Z))
+        case _ => throw new IllegalStateException()
+      }
+      calculateFlags :+ jump
+    } else {
+      import ZRegister._
+      import ZOpcode._
+      val calculateFlags = calculated ++ List(
+              ZLine.ld8(A, L),
+              ZLine.register(SUB, if (useBC) C else E),
+              ZLine.ld8(A, H),
+              ZLine.register(SBC, if (useBC) B else D))
+      if (branches == NoBranching) return calculateFlags
+      val jump = (compType, branches) match {
+        case (LessUnsigned, BranchIfTrue(label)) => ZLine.jump(label, IfFlagSet(ZFlag.C))
+        case (LessUnsigned, BranchIfFalse(label)) => ZLine.jump(label, IfFlagClear(ZFlag.C))
+        case (GreaterOrEqualUnsigned, BranchIfTrue(label)) => ZLine.jump(label, IfFlagClear(ZFlag.C))
+        case (GreaterOrEqualUnsigned, BranchIfFalse(label)) => ZLine.jump(label, IfFlagSet(ZFlag.C))
+        case _ => ???
+      }
+      calculateFlags :+ jump
     }
-    calculateFlags :+ jump
   }
 
   def compileLongRelativeComparison(ctx: CompilationContext, compType: ComparisonType.Value, l: Expression, r: Expression, branches: BranchSpec): List[ZLine] = {

@@ -15,6 +15,9 @@ import scala.collection.mutable
 object Z80BulkMemoryOperations {
   import Z80StatementCompiler.compileForStatement
 
+  /**
+    * Compiles loops like <code>for i,a,until,b { p[i] = q[i] }</code>
+    */
   def compileMemcpy(ctx: CompilationContext, target: IndexedExpression, source: IndexedExpression, f: ForStatement): List[ZLine] = {
     val sourceOffset = removeVariableOnce(f.variable, source.index).getOrElse(return compileForStatement(ctx, f))
     if (!sourceOffset.isPure) return compileForStatement(ctx, f)
@@ -26,13 +29,18 @@ object Z80BulkMemoryOperations {
       _ => calculateSource -> Nil,
       next => List(
         ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
-        ZLine.register(next, ZRegister.HL)
+        ZLine.register(next, ZRegister.HL),
+        ZLine.ld8(ZRegister.MEM_DE, ZRegister.A)
       ),
       decreasing => Some(if (decreasing) LDDR else LDIR)
     )
   }
 
 
+  /**
+    * Compiles loops like <code>for i,a,until,b { p[i] = a }</code>,
+    * where <code>a</code> is an arbitrary expression independent of <code>i</code>
+    */
   def compileMemset(ctx: CompilationContext, target: IndexedExpression, source: Expression, f: ForStatement): List[ZLine] = {
     val loadA = Z80ExpressionCompiler.stashHLIfChanged(Z80ExpressionCompiler.compileToA(ctx, source)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
     compileMemoryBulk(ctx, target, f,
@@ -44,6 +52,10 @@ object Z80BulkMemoryOperations {
     )
   }
 
+  /**
+    * Compiles loops like <code>for i,a,until,b { target[i] = z }</code>,
+    * where <code>z</code> is an expression depending on <code>source[i]</code>
+    */
   def compileMemtransform(ctx: CompilationContext, target: IndexedExpression, operator: String, source: Expression, f: ForStatement): List[ZLine] = {
     val c = determineExtraLoopRegister(ctx, f, source.containsVariable(f.variable))
     val load = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator, source, c.loopRegister).getOrElse(return compileForStatement(ctx, f))
@@ -60,6 +72,11 @@ object Z80BulkMemoryOperations {
     compileForStatement(ctx, f)
   }
 
+  /**
+    * Compiles loops like <code>for i,a,until,b { target1[i] = x1 ; target2[i] = x2 }</code>,
+    * where <code>x1</code> is an expression depending on <code>source1[i]</code>,
+    * and <code>x2</code> is an expression depending on <code>source2[i]</code>
+    */
   def compileMemtransform2(ctx: CompilationContext,
                            target1: IndexedExpression, operator1: String, source1: Expression,
                            target2: IndexedExpression, operator2: String, source2: Expression,
@@ -216,84 +233,111 @@ object Z80BulkMemoryOperations {
       }
     } else {
       val (operation, daa, shift) = operator match {
-        case "+=" => (ZOpcode.ADD, false, None)
-        case "+'=" => (ZOpcode.ADD, true, None)
-        case "-=" => (ZOpcode.SUB, false, None)
-        case "-'=" => (ZOpcode.SUB, true, None)
-        case "|=" => (ZOpcode.OR, false, None)
-        case "&=" => (ZOpcode.AND, false, None)
-        case "^=" => (ZOpcode.XOR, false, None)
-        case "<<=" => (ZOpcode.SLA, false, Some(RL, 0xfe))
-        case ">>=" => (ZOpcode.SRL, false, Some(RR, 0x7f))
+        case "+=" => (ZOpcode.ADD, false, false)
+        case "+'=" => (ZOpcode.ADD, true, false)
+        case "-=" => (ZOpcode.SUB, false, false)
+        case "-'=" => (ZOpcode.SUB, true, false)
+        case "|=" => (ZOpcode.OR, false, false)
+        case "&=" => (ZOpcode.AND, false, false)
+        case "^=" => (ZOpcode.XOR, false, false)
+        case ">>=" => (ZOpcode.SRL, false, true)
+        case "<<=" => (ZOpcode.SLA, false, true)
+        case "<<'=" => (ZOpcode.SLA, true, true)
         case _ => return None
       }
-      shift match {
-        case Some((nonZ80, mask)) =>
-          Some(env.eval(source) match {
-            case Some(NumericConstant(n, _)) =>
-              if (n <= 0) Nil else {
-                if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
-                  if (element == ZRegister.MEM_HL && n <= 2) {
-                    List.fill(n.toInt)(ZLine.register(operation, ZRegister.MEM_HL))
-                  } else {
-                    val builder = mutable.ListBuffer[ZLine]()
-                    builder += ZLine.ld8(ZRegister.A, element)
-                    for (_ <- 0 until n.toInt) {
-                      builder += ZLine.register(operation, ZRegister.A)
-                    }
-                    builder += ZLine.ld8(element, ZRegister.A)
-                    builder.toList
-                  }
-                } else {
+      if (shift) {
+        env.eval(source) match {
+          case Some(NumericConstant(n, _)) =>
+            if (n <= 0) Some(Nil) else {
+              operation match {
+                case SLA =>
                   val builder = mutable.ListBuffer[ZLine]()
                   builder += ZLine.ld8(ZRegister.A, element)
                   for (_ <- 0 until n.toInt) {
-                    builder += ZLine.register(nonZ80, ZRegister.A)
-                    builder += ZLine.imm8(AND, mask)
+                    builder += ZLine.register(ADD, ZRegister.A)
+                    if (daa) builder += ZLine.implied(DAA)
                   }
                   builder += ZLine.ld8(element, ZRegister.A)
-                  builder.toList
-                }
+                  Some(builder.toList)
+                case SRL =>
+                  if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+                    if (element == ZRegister.MEM_HL && n <= 2) {
+                      Some(List.fill(n.toInt)(ZLine.register(SRL, ZRegister.MEM_HL)))
+                    } else {
+                      val builder = mutable.ListBuffer[ZLine]()
+                      builder += ZLine.ld8(ZRegister.A, element)
+                      for (_ <- 0 until n.toInt) {
+                        builder += ZLine.register(SRL, ZRegister.A)
+                      }
+                      builder += ZLine.ld8(element, ZRegister.A)
+                      Some(builder.toList)
+                    }
+                  } else {
+                    val builder = mutable.ListBuffer[ZLine]()
+                    builder += ZLine.ld8(ZRegister.A, element)
+                    // TODO: tricks with AND?
+                    for (_ <- 0 until n.toInt) {
+                      builder += ZLine.register(OR, ZRegister.A)
+                      builder += ZLine.register(RR, ZRegister.A)
+                    }
+                    builder += ZLine.ld8(element, ZRegister.A)
+                    Some(builder.toList)
+                  }
+                case _ => throw new IllegalStateException()
+              }
+            }
+          case _ => return None
+        }
+      } else {
+        val mod = source match {
+          case VariableExpression(n) if n == loopVariable =>
+            List(ZLine.register(operation, loopRegister))
+          case _ => env.eval(source) match {
+            case Some(NumericConstant(1, _)) if operator == "+=" && element == ZRegister.MEM_HL =>
+              return Some(List(ZLine.register(INC, ZRegister.MEM_HL)))
+            case Some(NumericConstant(1, _)) if operator == "-=" && element == ZRegister.MEM_HL =>
+              return Some(List(ZLine.register(DEC, ZRegister.MEM_HL)))
+            case Some(NumericConstant(2, _)) if operator == "+=" && element == ZRegister.MEM_HL && ctx.options.flag(CompilationFlag.OptimizeForSize) =>
+              return Some(List(ZLine.register(INC, ZRegister.MEM_HL), ZLine.register(INC, ZRegister.MEM_HL)))
+            case Some(NumericConstant(2, _)) if operator == "-=" && element == ZRegister.MEM_HL && ctx.options.flag(CompilationFlag.OptimizeForSize) =>
+              return Some(List(ZLine.register(DEC, ZRegister.MEM_HL), ZLine.register(DEC, ZRegister.MEM_HL)))
+            case Some(c) =>
+              if (daa) {
+                List(ZLine.imm8(operation, c), ZLine.implied(DAA))
+              } else {
+                List(ZLine.imm8(operation, c))
               }
             case _ => return None
-          })
-        case None =>
-          val mod = source match {
-            case VariableExpression(n) if n == loopVariable =>
-              List(ZLine.register(operation, loopRegister))
-            case _ => env.eval(source) match {
-              case Some(NumericConstant(1, _)) if operator == "+=" && element == ZRegister.MEM_HL =>
-                return Some(List(ZLine.register(INC, ZRegister.MEM_HL)))
-              case Some(NumericConstant(1, _)) if operator == "-=" && element == ZRegister.MEM_HL =>
-                return Some(List(ZLine.register(DEC, ZRegister.MEM_HL)))
-              case Some(NumericConstant(2, _)) if operator == "+=" && element == ZRegister.MEM_HL && ctx.options.flag(CompilationFlag.OptimizeForSize) =>
-                return Some(List(ZLine.register(INC, ZRegister.MEM_HL), ZLine.register(INC, ZRegister.MEM_HL)))
-              case Some(NumericConstant(2, _)) if operator == "-=" && element == ZRegister.MEM_HL && ctx.options.flag(CompilationFlag.OptimizeForSize) =>
-                return Some(List(ZLine.register(DEC, ZRegister.MEM_HL), ZLine.register(DEC, ZRegister.MEM_HL)))
-              case Some(c) =>
-                if (daa) {
-                  List(ZLine.imm8(operation, c), ZLine.implied(DAA))
-                } else {
-                  List(ZLine.imm8(operation, c))
-                }
-              case _ => return None
-            }
           }
-          Some(
-            ZLine.ld8(ZRegister.A, element) :: (mod :+ ZLine.ld8(element, ZRegister.A))
-          )
+        }
+        Some(
+          ZLine.ld8(ZRegister.A, element) :: (mod :+ ZLine.ld8(element, ZRegister.A))
+        )
       }
     }
   }
 
   /**
+    * Compiles a tight memcpy-like loop.
+    * The result looks like this (assuming Intel 8080 and a small iteration count:
+    * <br> calculate byte count to BC
+    * <br> calculate target address to HL/DE
+    * <br> perform extraAddressCalculations._1 (protected from clobbering BC and DE, not HL)
+    * <br> perform extraAddressCalculations._2 (protected from clobbering HL and DE, not BC)
+    * <br> (here B or BC contains iteration count)
+    * <br> .me_label
+    * <br> loadA(INC/DEC) // do stuff, including modifying the target array!
+    * <br> INC/DEC HL/DE
+    * <br> DJNZ .me_label
+    *
+    * <p>The entire loop at the end may be replaced with a single instruction on Z80
     *
     * @param ctx                      compilation context
     * @param target                   target indexed expression
     * @param f                        original for statement
     * @param useDEForTarget           use DE instead of HL for target
     * @param extraAddressCalculations extra calculations to perform before the loop, before and after POP BC (parameter: is count small)
-    * @param loadA                    byte value calculation (parameter: INC_16 or DEC_16)
+    * @param loadA                    byte value calculation (parameter: INC_16 or DEC_16); if you need to store to the target array, do it here
     * @param z80Bulk                  Z80 opcode for faster operation (parameter: is decreasing)
     * @return
     */
@@ -357,7 +401,7 @@ object Z80BulkMemoryOperations {
       } else {
         List(
           ZLine.register(next, if (useDEForTarget) ZRegister.DE else ZRegister.HL),
-          ZLine.register(DEC_16, ZRegister.BC),
+          ZLine.register(DEC_16, ZRegister.BC), // <-- Z flag is set here?
           ZLine.ld8(ZRegister.A, ZRegister.C),
           ZLine.register(OR, ZRegister.B),
           ZLine.jump(label, IfFlagSet(ZFlag.Z))

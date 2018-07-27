@@ -122,7 +122,7 @@ object ZBuiltIns {
             if (result.isEmpty) {
               if (decimal) ???
               result ++= Z80ExpressionCompiler.compileToA(ctx, expr)
-              if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+              if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
                 result += ZLine.implied(NEG)
               } else {
                 result += ZLine.implied(CPL)
@@ -227,7 +227,7 @@ object ZBuiltIns {
               if (result.isEmpty) {
                 ???
               } else {
-                if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+                if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
                   // TODO: optimize
                   result += ZLine.ld8(ZRegister.D, ZRegister.H)
                   result += ZLine.ld8(ZRegister.E, ZRegister.L)
@@ -236,10 +236,19 @@ object ZBuiltIns {
                   result += ZLine.ld8(ZRegister.C, ZRegister.L)
                   result += ZLine.ld8(ZRegister.H, ZRegister.D)
                   result += ZLine.ld8(ZRegister.L, ZRegister.E)
-                  /// TODO: carry?
+                  result += ZLine.register(OR, ZRegister.A)
                   result += ZLine.registers(SBC_16, ZRegister.HL, ZRegister.BC)
                 } else {
-                  ???
+                  // TODO: optimize
+                  result += ZLine.ld8(ZRegister.D, ZRegister.H)
+                  result += ZLine.ld8(ZRegister.E, ZRegister.L)
+                  result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, expr))
+                  result += ZLine.ld8(ZRegister.A, ZRegister.E)
+                  result += ZLine.register(SUB, ZRegister.L)
+                  result += ZLine.ld8(ZRegister.L, ZRegister.A)
+                  result += ZLine.ld8(ZRegister.A, ZRegister.D)
+                  result += ZLine.register(SBC, ZRegister.H)
+                  result += ZLine.ld8(ZRegister.H, ZRegister.A)
                 }
               }
             case Some(c) =>
@@ -258,14 +267,9 @@ object ZBuiltIns {
   }
 
   def perform8BitInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcode: ZOpcode.Value, decimal: Boolean = false): List[ZLine] = {
-    val (calculateAddress, lv):(List[ZLine], LocalVariableAddressOperand) = lhs match {
-      case VariableExpression(name) =>
-        ctx.env.get[Variable](name) match {
-          case v: VariableInMemory => List(ZLine.ldImm16(ZRegister.HL, v.toAddress)) -> LocalVariableAddressViaHL
-          case v: StackVariable => Nil -> LocalVariableAddressViaIX(v.baseOffset)
-          case _ => ???
-        }
-      case i: IndexedExpression => Z80ExpressionCompiler.calculateAddressToHL(ctx, i) -> LocalVariableAddressViaHL
+    val (lv, calculateAddress):(LocalVariableAddressOperand, List[ZLine]) = Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, lhs).getOrElse{
+      ErrorReporting.error("Invalid left-hand-side expression", lhs.position)
+      LocalVariableAddressViaHL -> Nil
     }
     val constantRight = ctx.env.eval(rhs)
     val calculateChange = Z80ExpressionCompiler.compileToA(ctx, rhs)
@@ -273,7 +277,7 @@ object ZBuiltIns {
       case (false, false) => calculateChange ++ calculateAddress
       case (true, false) => calculateChange ++ calculateAddress
       case (false, true) => calculateAddress ++ calculateChange
-      case (true, true) => calculateAddress ++ List(ZLine.register(PUSH, ZRegister.HL)) ++ calculateChange ++ List(ZLine.register(POP, ZRegister.HL))
+      case (true, true) => calculateAddress ++ Z80ExpressionCompiler.stashHLIfChanged(calculateChange)
     }
     opcode match {
       case ADD if decimal =>
@@ -385,24 +389,64 @@ object ZBuiltIns {
 
   def performLongInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcodeFirst: ZOpcode.Value, opcodeLater: ZOpcode.Value, size: Int, decimal: Boolean = false): List[ZLine] = {
     if (size == 2 && !decimal) {
+      // n × INC HL
+      // 6n cycles, n bytes
+
+      // LD A,L ; ADD A,n ; LD L,A ; LD H,A ; ADC A,m ; LD H,A
+      // 30 cycles, 8 bytes
+
+      // LD A,L ; ADD A,n ; LD L,A ; JR NC,... ; INC H
+      // 27 bytes, 7 bytes
+
+      // LD DE,nn ; ADD HL,DE
+      // 21 cycles, 4 bytes
+      val maxForInc = 3
       if (opcodeFirst == ZOpcode.ADD) {
-        val loadRight = Z80ExpressionCompiler.compileToHL(ctx, rhs) ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L))
-        val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, lhs))
-        val calculateAndStore = ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE) :: Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
-        return loadRight ++ loadLeft ++ calculateAndStore
+        ctx.env.eval(rhs) match {
+          case Some(NumericConstant(0, _)) =>
+            return Z80ExpressionCompiler.compileToHL(ctx, lhs)
+          case Some(NumericConstant(n, _)) if n > 0 && n <= maxForInc =>
+            return Z80ExpressionCompiler.compileToHL(ctx, lhs) ++
+              List.fill(n.toInt)(ZLine.register(INC_16, ZRegister.HL)) ++
+              Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
+          case Some(NumericConstant(n, _)) if n < 0 && n >= -maxForInc =>
+            return Z80ExpressionCompiler.compileToHL(ctx, lhs) ++
+              List.fill(-n.toInt)(ZLine.register(DEC_16, ZRegister.HL)) ++
+              Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
+          case _ =>
+            val loadRight = Z80ExpressionCompiler.compileToDE(ctx, rhs)
+            val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, lhs))
+            val calculateAndStore = ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE) :: Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
+            return loadRight ++ loadLeft ++ calculateAndStore
+        }
       }
-      if (opcodeFirst == ZOpcode.SUB && ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
-        val loadRight = Z80ExpressionCompiler.compileToHL(ctx, rhs) ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L))
-        val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, lhs))
-        // OR A clears carry before SBC
-        val calculateAndStore = List(
-          ZLine.register(OR, ZRegister.A),
-          ZLine.registers(SBC_16, ZRegister.HL, ZRegister.DE)) ++
-          Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
-        return  loadRight ++ loadLeft ++ calculateAndStore
+      if (opcodeFirst == ZOpcode.SUB) {
+        ctx.env.eval(rhs) match {
+          case Some(NumericConstant(0, _)) =>
+            return Z80ExpressionCompiler.compileToHL(ctx, lhs)
+          case Some(NumericConstant(n, _)) if n > 0 && n <= maxForInc =>
+            return Z80ExpressionCompiler.compileToHL(ctx, lhs) ++
+              List.fill(n.toInt)(ZLine.register(DEC_16, ZRegister.HL)) ++
+              Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
+          case Some(NumericConstant(n, _)) if n < 0 && n >= -maxForInc =>
+            return Z80ExpressionCompiler.compileToHL(ctx, lhs) ++
+              List.fill(-n.toInt)(ZLine.register(INC_16, ZRegister.HL)) ++
+              Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
+          case _ =>
+            if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+              val loadRight = Z80ExpressionCompiler.compileToDE(ctx, rhs)
+              val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, lhs))
+              // OR A clears carry before SBC
+              val calculateAndStore = List(
+                ZLine.register(OR, ZRegister.A),
+                ZLine.registers(SBC_16, ZRegister.HL, ZRegister.DE)) ++
+                Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
+              return loadRight ++ loadLeft ++ calculateAndStore
+            }
+        }
       }
     }
-    val store = Z80ExpressionCompiler.compileByteStores(ctx, lhs, size)
+    val store = Z80ExpressionCompiler.compileByteStores(ctx, lhs, size, includeStep = false)
     val loadLeft = Z80ExpressionCompiler.compileByteReads(ctx, lhs, size, ZExpressionTarget.HL)
     val loadRight = Z80ExpressionCompiler.compileByteReads(ctx, rhs, size, ZExpressionTarget.BC)
     List.tabulate(size) {i =>

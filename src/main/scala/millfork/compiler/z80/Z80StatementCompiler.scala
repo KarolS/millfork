@@ -1,5 +1,6 @@
 package millfork.compiler.z80
 
+import millfork.CompilationFlag
 import millfork.assembly.BranchingOpcodeMapping
 import millfork.assembly.z80._
 import millfork.compiler._
@@ -187,18 +188,44 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
     if (ctx.function.stackVariablesSize > 0) {
       import ZRegister._
       val localVariableArea = ctx.function.stackVariablesSize.&(1).+(ctx.function.stackVariablesSize)
-      if (ctx.function.returnType.size == 2) {
-        List(
-          ZLine.ldImm16(IX, localVariableArea), 
-          ZLine.registers(ADD_16, IX, SP),
-          ZLine.ld16(SP, IX),
-          ZLine.register(POP, IX))
+      if (ctx.options.flags(CompilationFlag.UseIxForStack)) {
+        if (ctx.function.returnType.size == 2) {
+          List(
+            ZLine.ldImm16(IX, localVariableArea),
+            ZLine.registers(ADD_16, IX, SP),
+            ZLine.ld16(SP, IX),
+            ZLine.register(POP, IX))
+        } else {
+          List(
+            ZLine.ldImm16(HL, localVariableArea),
+            ZLine.registers(ADD_16, HL, SP),
+            ZLine.ld16(SP, HL),
+            ZLine.register(POP, IX))
+        }
       } else {
-        List(
-          ZLine.ldImm16(HL, localVariableArea),
-          ZLine.registers(ADD_16, HL, SP),
-          ZLine.ld16(SP, HL),
-          ZLine.register(POP, IX))
+        if (ctx.function.returnType.size == 2) {
+          if (ctx.options.flags(CompilationFlag.EmitSharpOpcodes)) {
+            List(ZLine.imm8(ADD_SP, localVariableArea))
+          } else if (localVariableArea == 2) {
+            List(ZLine.register(INC_16, SP), ZLine.register(INC_16, SP))
+          } else if (ctx.options.flags(CompilationFlag.EmitIntel8080Opcodes)) {
+            List(
+              ZLine.implied(EX_DE_HL),
+              ZLine.ldImm16(HL, localVariableArea),
+              ZLine.registers(ADD_16, HL, SP),
+              ZLine.ld16(SP, HL),
+              ZLine.implied(EX_DE_HL))
+          } else {
+            ???
+          }
+        } else if (localVariableArea == 2) {
+          List(ZLine.register(POP, HL))
+        } else {
+          List(
+            ZLine.ldImm16(HL, localVariableArea),
+            ZLine.registers(ADD_16, HL, SP),
+            ZLine.ld16(SP, HL))
+        }
       }
     } else Nil
   }

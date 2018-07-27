@@ -1,5 +1,6 @@
 package millfork.compiler.z80
 
+import millfork.CompilationFlag
 import millfork.assembly.z80._
 import millfork.compiler.{BranchSpec, CompilationContext}
 import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
@@ -17,21 +18,48 @@ object Z80Multiply {
     import millfork.assembly.z80.ZOpcode._
     import ZRegister._
     import ZLine._
-    val lblAdd = Z80Compiler.nextLabel("mu")
-    val lblLoop = Z80Compiler.nextLabel("mu")
-    val lblStart = Z80Compiler.nextLabel("mu")
-    List(
-      ld8(E, A),
-      ldImm8(A, 0),
-      jumpR(ctx, lblStart),
-      label(lblAdd),
-      register(ADD, E),
-      label(lblLoop),
-      register(SLA, E),
-      label(lblStart),
-      register(SRL, D),
-      jumpR(ctx, lblAdd, IfFlagSet(ZFlag.C)),
-      jumpR(ctx, lblLoop, IfFlagClear(ZFlag.Z)))
+    if(ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+      val lblAdd = Z80Compiler.nextLabel("mu")
+      val lblLoop = Z80Compiler.nextLabel("mu")
+      val lblStart = Z80Compiler.nextLabel("mu")
+      List(
+        ld8(E, A),
+        ldImm8(A, 0),
+        jumpR(ctx, lblStart),
+        label(lblAdd),
+        register(ADD, E),
+        label(lblLoop),
+        register(SLA, E),
+        label(lblStart),
+        register(SRL, D),
+        jumpR(ctx, lblAdd, IfFlagSet(ZFlag.C)),
+        jumpR(ctx, lblLoop, IfFlagClear(ZFlag.Z)))
+    } else {
+      // TODO: optimize
+      val lblAdd = Z80Compiler.nextLabel("mu")
+      val lblLoop = Z80Compiler.nextLabel("mu")
+      val lblStart = Z80Compiler.nextLabel("mu")
+      List(
+        ld8(E, A),
+        ldImm8(C, 0),
+        jumpR(ctx, lblStart),
+        label(lblAdd),
+        ld8(A, C),
+        register(ADD, E),
+        ld8(C, A),
+        label(lblLoop),
+        ld8(A, E),
+        register(ADD, A),
+        ld8(E, A),
+        label(lblStart),
+        register(OR, A),
+        ld8(A, D),
+        register(RR, A),
+        ld8(D, A),
+        jumpR(ctx, lblAdd, IfFlagSet(ZFlag.C)),
+        jumpR(ctx, lblLoop, IfFlagClear(ZFlag.Z)),
+        ld8(A, C))
+    }
   }
 
   /**
@@ -117,11 +145,11 @@ object Z80Multiply {
     count match {
       case 0 => List(ZLine.ldImm8(A, 0))
       case 1 => Nil
-      case n if n > 0 && n.-(1).&(n).==(0) => List.fill(Integer.numberOfTrailingZeros(n))(ZLine.register(SLA, A))
+      case n if n > 0 && n.-(1).&(n).==(0) => List.fill(Integer.numberOfTrailingZeros(n))(ZLine.register(ADD, A))
       case _ =>
         ZLine.ld8(E,A) :: Integer.toString(count & 0xff, 2).tail.flatMap{
-          case '0' => List(ZLine.register(SLA, A))
-          case '1' => List(ZLine.register(SLA, A), ZLine.register(ADD, E))
+          case '0' => List(ZLine.register(ADD, A))
+          case '1' => List(ZLine.register(ADD, A), ZLine.register(ADD, E))
         }.toList
     }
   }
