@@ -11,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ArraySuite extends FunSuite with Matchers {
 
   test("Array assignment") {
-    val m = EmuSuperOptimizedRun(
+    val src =
       """
         | array output [3] @$c000
         | array input = [5,6,7]
@@ -23,14 +23,20 @@ class ArraySuite extends FunSuite with Matchers {
         | void copyEntry(byte index) {
         |   output[index] = input[index]
         | }
-      """.stripMargin)
+      """.stripMargin
+    val m = EmuSuperOptimizedRun(src)
     m.readByte(0xc000) should equal(5)
     m.readByte(0xc001) should equal(6)
     m.readByte(0xc002) should equal(7)
+    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(src) { m =>
+      m.readByte(0xc000) should equal(5)
+      m.readByte(0xc001) should equal(6)
+      m.readByte(0xc002) should equal(7)
+    }
 
   }
   test("Array assignment with offset") {
-    EmuUltraBenchmarkRun(
+    val src =
       """
         | array output [8] @$c000
         | void main () {
@@ -42,7 +48,12 @@ class ArraySuite extends FunSuite with Matchers {
         |     i += 1
         |   }
         | }
-      """.stripMargin) { m =>
+      """.stripMargin
+    EmuUltraBenchmarkRun(src) { m =>
+      m.readByte(0xc002) should equal(1)
+      m.readByte(0xc007) should equal(6)
+    }
+    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(src) { m =>
       m.readByte(0xc002) should equal(1)
       m.readByte(0xc007) should equal(6)
     }
@@ -67,7 +78,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array assignment through a pointer") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | array output [3] @$c000
         | pointer p
@@ -87,7 +98,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array in place math") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | array output [4] @$c000
         | void main () {
@@ -101,7 +112,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array simple read") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | array a[7]
@@ -115,7 +126,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array simple read 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | word output @$c000
         | array a[7]
@@ -133,7 +144,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Pointers") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output
         |   pointer a
@@ -158,7 +169,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Pointer indexing test") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | array output [4] @$c000
         |   pointer a
@@ -175,7 +186,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Syntax") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | array a = [1, 2, 3]
         | array b = "text" ascii
@@ -187,7 +198,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Negative subindex") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         |
         | array output [$fff] @$c000
@@ -226,7 +237,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Word subindex 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         |
         | array output [$fff] @$c000
@@ -248,7 +259,7 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array filters") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | array x = @word [$1144]
         | byte output @$c000

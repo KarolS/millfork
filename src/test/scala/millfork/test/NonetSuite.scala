@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class NonetSuite extends FunSuite with Matchers {
 
   test("Nonet operations") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | array output [5] @$c000
         | void main () {
@@ -30,7 +30,7 @@ class NonetSuite extends FunSuite with Matchers {
   }
 
   test("Nonet left shift") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | word output0 @$c000
         | word output1 @$c002

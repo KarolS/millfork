@@ -114,7 +114,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Preallocated variables 2") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | word output @$c000
         | word number = 344
@@ -155,7 +155,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Alias test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | alias small = byte
         | alias big = word

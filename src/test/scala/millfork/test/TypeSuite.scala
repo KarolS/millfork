@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class TypeSuite extends FunSuite with Matchers {
 
   test("Word to word") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |  output = word(0x203)

@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BooleanSuite extends FunSuite with Matchers {
 
   test("Not") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | array input = [5,6,7]
@@ -26,7 +26,7 @@ class BooleanSuite extends FunSuite with Matchers {
 
 
   test("And") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | array input = [5,6,7]
@@ -45,7 +45,7 @@ class BooleanSuite extends FunSuite with Matchers {
 
 
   test("Or") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | array input = [5,6,7]

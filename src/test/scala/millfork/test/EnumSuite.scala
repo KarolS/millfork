@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class EnumSuite extends FunSuite with Matchers {
 
   test("Enum basic test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | enum ugly {
         |   a
@@ -40,7 +40,7 @@ class EnumSuite extends FunSuite with Matchers {
   }
 
   test("Enum arrays") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | enum ugly {
         |   a
@@ -67,81 +67,81 @@ class EnumSuite extends FunSuite with Matchers {
   }
 
   test("Enum-byte incompatibility test") {
-//    ShouldNotCompile(
-//      """
-//        | enum ugly { a }
-//        | void main() {
-//        |     byte b
-//        |     ugly u
-//        |     b = u
-//        | }
-//      """.stripMargin)
-//
-//    ShouldNotCompile(
-//      """
-//        | enum ugly { a }
-//        | void main() {
-//        |     byte b
-//        |     ugly u
-//        |     u = b
-//        | }
-//      """.stripMargin)
-//
-//    ShouldNotCompile(
-//      """
-//        | enum ugly { a }
-//        | byte main() {
-//        |     byte b
-//        |     ugly u
-//        |     return u
-//        | }
-//      """.stripMargin)
-//
-//    ShouldNotCompile(
-//      """
-//        | enum ugly { a }
-//        | ugly main() {
-//        |     byte b
-//        |     ugly u
-//        |     return b
-//        | }
-//      """.stripMargin)
-//
-//    ShouldNotCompile(
-//      """
-//        | enum ugly { a }
-//        | byte main() {
-//        |     byte b
-//        |     ugly u
-//        |     return b + u
-//        | }
-//      """.stripMargin)
-//
-//    ShouldNotCompile(
-//      """
-//        | enum ugly { a }
-//        | void main() {
-//        |     byte b
-//        |     ugly u
-//        |     if b > u {}
-//        | }
-//      """.stripMargin)
-//
-//    ShouldNotCompile(
-//      """
-//        | enum ugly { a }
-//        | array arr[ugly] = []
-//        | void main() {
-//        | }
-//      """.stripMargin)
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | void main() {
+        |     byte b
+        |     ugly u
+        |     b = u
+        | }
+      """.stripMargin)
 
-//    ShouldNotCompile(
-//      """
-//        | enum ugly { a }
-//        | array arr[ugly] = [1,2,3]
-//        | void main() {
-//        | }
-//      """.stripMargin)
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | void main() {
+        |     byte b
+        |     ugly u
+        |     u = b
+        | }
+      """.stripMargin)
+
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | byte main() {
+        |     byte b
+        |     ugly u
+        |     return u
+        | }
+      """.stripMargin)
+
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | ugly main() {
+        |     byte b
+        |     ugly u
+        |     return b
+        | }
+      """.stripMargin)
+
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | byte main() {
+        |     byte b
+        |     ugly u
+        |     return b + u
+        | }
+      """.stripMargin)
+
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | void main() {
+        |     byte b
+        |     ugly u
+        |     if b > u {}
+        | }
+      """.stripMargin)
+
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | array arr[ugly] = []
+        | void main() {
+        | }
+      """.stripMargin)
+
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | array arr[ugly] = [1,2,3]
+        | void main() {
+        | }
+      """.stripMargin)
 
     ShouldNotCompile(
       """

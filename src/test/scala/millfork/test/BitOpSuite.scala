@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BitOpSuite extends FunSuite with Matchers {
 
   test("Word AND") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   byte b
@@ -21,7 +21,7 @@ class BitOpSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(0x44))
   }
   test("Long AND and EOR") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | long output @$c000
         | void main () {
         |   byte b
@@ -36,7 +36,7 @@ class BitOpSuite extends FunSuite with Matchers {
   }
 
   test("Smart bit set/reset") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
         | void main () {
         |   output = 5
@@ -50,7 +50,7 @@ class BitOpSuite extends FunSuite with Matchers {
   }
 
   test("Smart bit set/reset 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
         | void main () {
         |   output = 5

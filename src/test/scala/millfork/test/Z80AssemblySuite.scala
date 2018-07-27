@@ -1,6 +1,6 @@
 package millfork.test
 
-import millfork.test.emu.{EmuUnoptimizedIntel8080Run, EmuUnoptimizedZ80Run}
+import millfork.test.emu.{EmuUnoptimizedIntel8080Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80Run}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -557,6 +557,30 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   cpdr
         |   indr
         |   otdr
+        |
+        |   ret
+        | }
+      """.stripMargin)
+  }
+
+  test("Gameboy instructions") {
+    EmuUnoptimizedSharpRun(
+      """
+        | asm void main () {
+        |   ret
+        |   ld (8),sp
+        |   stop
+        |   ld (hli),a
+        |   ld (hld),a
+        |   ld a,(hli)
+        |   ld a,(hld)
+        |   reti
+        |   add sp,3
+        |   ld hl,sp+3
+        |   swap a
+        |   swap b
+        |   swap c
+        |   swap(hl)
         |
         |   ret
         | }

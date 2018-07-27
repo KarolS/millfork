@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
 
   test("Add-shift-add") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | void main () {
@@ -23,7 +23,7 @@ class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("And-shift-and") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | void main () {
@@ -36,7 +36,7 @@ class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Add with limit") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | const byte start = 5

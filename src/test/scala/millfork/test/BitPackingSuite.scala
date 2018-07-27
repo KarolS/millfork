@@ -11,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BitPackingSuite extends FunSuite with Matchers {
 
   test("Unpack bits from a byte") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | array output[8]
         | word output_addr @$c000
         | void main () {
@@ -40,7 +40,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Unpack bits from a word") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | array output[16]
         | word output_addr @$c000
         | void main () {
@@ -77,7 +77,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Pack bits into byte") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$C000
         | array input = [$F0, 1, 0, $41, $10, 1, $61, 0]
         | void main () {
@@ -94,7 +94,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Pack bits into word") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$C000
         | array input = [$F0, 1, 0, $41, $10, 1, $61, 0,
         |                1, 1, 0, 0, 0, 0, 1, 1]
@@ -112,7 +112,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Pack bits into byte using plus") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$C000
         | array input = [$F0, 1, 0, $41, $10, 1, $61, 0]
         | void main () {
@@ -129,7 +129,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Reverse byte") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output_addr @$C000
         | void main () {
         |   byte i
@@ -151,7 +151,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Reverse byte 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output_real @$C000
         | void main () {
         |   byte i
@@ -172,7 +172,7 @@ class BitPackingSuite extends FunSuite with Matchers {
   }
 
   test("Reverse word") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output_addr @$C000
         | void main () {
         |   byte i
