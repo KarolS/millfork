@@ -685,19 +685,19 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (Elidable & HasOpcode(JMP) & HasAddrMode(Absolute) & MatchParameter(0)) ~
       (Elidable & LinearOrBranch).* ~
-      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (code => List(code.last)),
     (Elidable & HasOpcode(BRA) & MatchParameter(0)) ~
       (Elidable & LinearOrBranch).* ~
-      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_ => Nil),
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> (code => List(code.last)),
     (Elidable & HasOpcode(JMP) & HasAddrMode(Absolute) & MatchParameter(0)) ~
       (Not(HasOpcode(LABEL)) & Not(MatchParameter(0))).* ~
-      (HasOpcode(LABEL) & MatchParameter(0)) ~
+      ((HasOpcode(LABEL) & MatchParameter(0)) ~
       (HasOpcode(LABEL) | NoopDiscardsFlags).* ~
-      HasOpcode(RTS) ~~> (code => AssemblyLine.implied(RTS) :: code.tail),
+      HasOpcode(RTS)).capture(1) ~~> ((code, ctx) => ctx.get[List[AssemblyLine]](1) ++ code.tail),
     (Elidable & ShortBranching & MatchParameter(0)) ~
       (NoopDiscardsFlags.* ~
-        (Elidable & HasOpcode(RTS))).capture(1) ~
-      (HasOpcode(LABEL) & MatchParameter(0)) ~
+        (Elidable & HasOpcode(RTS)) ~
+      (HasOpcode(LABEL) & MatchParameter(0))).capture(1) ~
       NoopDiscardsFlags.* ~
       (Elidable & HasOpcode(RTS)) ~~> ((code, ctx) => ctx.get[List[AssemblyLine]](1)),
   )

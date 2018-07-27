@@ -19,7 +19,9 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
   protected val localPrefix = ctx.function.name + "$"
   protected val usedIdentifiers = if (optimize) statements.flatMap(_.getAllExpressions).flatMap(_.getAllIdentifiers) else Set()
   protected val trackableVars: Set[String] = if (optimize) {
-    env.getAllLocalVariables.map(_.name.stripPrefix(localPrefix))
+    env.getAllLocalVariables
+      .filterNot(_.typ.isSigned) // sadly, tracking loses signedness
+      .map(_.name.stripPrefix(localPrefix))
       .filterNot(_.contains("."))
       .filterNot(_.contains("$"))
       .filterNot { vname =>
@@ -61,22 +63,25 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
     stmt match {
       case Assignment(ve@VariableExpression(v), arg) if trackableVars(v) =>
         cv = search(arg, cv)
-
         Assignment(ve, optimizeExpr(arg, cv)).pos(pos) -> (env.eval(arg, currentVarValues) match {
           case Some(c) => cv + (v -> c)
           case None => cv - v
         })
+      case Assignment(ve, arg) =>
+        cv = search(arg, cv)
+        cv = search(ve, cv)
+        Assignment(ve, optimizeExpr(arg, cv)).pos(pos) -> cv
       case ExpressionStatement(expr@FunctionCallExpression("+=", List(VariableExpression(v), arg)))
         if currentVarValues.contains(v) =>
         cv = search(arg, cv)
-        ExpressionStatement(optimizeExpr(expr, cv)).pos(pos) -> (env.eval(expr, currentVarValues) match {
+        ExpressionStatement(optimizeExpr(expr, cv - v)).pos(pos) -> (env.eval(expr, currentVarValues) match {
           case Some(c) => if (cv.contains(v)) cv + (v -> (cv(v) + c)) else cv
           case None => cv - v
         })
       case ExpressionStatement(expr@FunctionCallExpression(op, List(VariableExpression(v), arg)))
         if op.endsWith("=") && op != ">=" && op != "<=" && op != ":=" =>
         cv = search(arg, cv)
-        ExpressionStatement(optimizeExpr(expr, cv)).pos(pos) -> (cv - v)
+        ExpressionStatement(optimizeExpr(expr, cv - v)).pos(pos) -> (cv - v)
       case ExpressionStatement(expr) =>
         cv = search(expr, cv)
         ExpressionStatement(optimizeExpr(expr, cv)).pos(pos) -> cv
@@ -88,7 +93,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
         IfStatement(c, t, e).pos(pos) -> commonVV(vt, ve)
       case WhileStatement(cond, body, inc, labels) =>
         cv = search(cond, cv)
-        val c = optimizeExpr(cond, cv)
+        val c = optimizeExpr(cond, Map())
         val (b, _) = optimizeStmts(body, Map())
         val (i, _) = optimizeStmts(inc, Map())
         WhileStatement(c, b, i, labels).pos(pos) -> Map()
@@ -161,13 +166,18 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
         ErrorReporting.debug(s"Using node flow to replace $v with $constant", pos)
         GeneratedConstantExpression(constant, getExpressionType(ctx, expr)).pos(pos)
       case FunctionCallExpression(t1, List(FunctionCallExpression(t2, List(arg))))
-        if optimize && pointlessDoubleCast(t1, t2, expr) =>
+        if optimize && pointlessDoubleCast(t1, t2, arg) =>
         ErrorReporting.debug(s"Pointless double cast $t1($t2(...))", pos)
         optimizeExpr(FunctionCallExpression(t1, List(arg)), currentVarValues)
       case FunctionCallExpression(t1, List(arg))
-        if optimize && pointlessCast(t1, expr) =>
+        if optimize && pointlessCast(t1, arg) =>
         ErrorReporting.debug(s"Pointless cast $t1(...)", pos)
         optimizeExpr(arg, currentVarValues)
+      case FunctionCallExpression("nonet", args) =>
+        // Eliminating variables may eliminate carry
+        FunctionCallExpression("nonet", args.map(arg => optimizeExpr(arg, Map()))).pos(pos)
+      case FunctionCallExpression(name, args) =>
+        FunctionCallExpression(name, args.map(arg => optimizeExpr(arg, currentVarValues))).pos(pos)
       case _ => expr // TODO
     }
   }

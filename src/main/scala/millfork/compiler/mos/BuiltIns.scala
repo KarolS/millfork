@@ -214,17 +214,21 @@ object BuiltIns {
     }
   }
 
-  def compileNonetOps(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression): List[AssemblyLine] = {
+  def compileNonetOps(ctx: CompilationContext, lhs: Expression, rhs: Expression): List[AssemblyLine] = {
     val env = ctx.env
     val b = env.get[Type]("byte")
-    val (ldaHi, ldaLo) = lhs match {
-      case v: VariableExpression =>
-        val variable = env.get[Variable](v.name)
-        AssemblyLine.variable(ctx, LDA, variable, 1) -> AssemblyLine.variable(ctx, LDA, variable, 0)
-      case SeparateBytesExpression(h: VariableExpression, l: VariableExpression) =>
-        AssemblyLine.variable(ctx, LDA, env.get[Variable](h.name), 0) -> AssemblyLine.variable(ctx, LDA, env.get[Variable](l.name), 0)
-      case _ =>
-        ???
+    val (ldaHi, ldaLo) = env.eval(lhs) match {
+      case Some(c) =>
+        List(AssemblyLine.immediate(LDA, c.hiByte)) -> List(AssemblyLine.immediate(LDA, c.loByte))
+      case _ => lhs match {
+        case v: VariableExpression =>
+          val variable = env.get[Variable](v.name)
+          AssemblyLine.variable(ctx, LDA, variable, 1) -> AssemblyLine.variable(ctx, LDA, variable, 0)
+        case SeparateBytesExpression(h: VariableExpression, l: VariableExpression) =>
+          AssemblyLine.variable(ctx, LDA, env.get[Variable](h.name), 0) -> AssemblyLine.variable(ctx, LDA, env.get[Variable](l.name), 0)
+        case _ =>
+          ???
+      }
     }
     env.eval(rhs) match {
       case Some(NumericConstant(0, _)) =>
@@ -393,6 +397,33 @@ object BuiltIns {
       case NoBranching => return Nil
       case BranchIfTrue(l) => compType -> l
       case BranchIfFalse(l) => ComparisonType.negate(compType) -> l
+    }
+    (env.eval(lhs), env.eval(rhs)) match {
+      case (Some(NumericConstant(lc, _)),  Some(NumericConstant(rc, _))) =>
+        return if (effectiveComparisonType match {
+          // TODO: those masks are probably wrong
+          case ComparisonType.Equal =>
+            (lc & 0xff) == (rc & 0xff)
+          case ComparisonType.NotEqual =>
+            (lc & 0xff) != (rc & 0xff)
+          case ComparisonType.LessOrEqualUnsigned =>
+            (lc & 0xff) <= (rc & 0xff)
+          case ComparisonType.GreaterOrEqualUnsigned =>
+            (lc & 0xff) >= (rc & 0xff)
+          case ComparisonType.GreaterUnsigned =>
+            (lc & 0xff) > (rc & 0xff)
+          case ComparisonType.LessUnsigned =>
+            (lc & 0xff) < (rc & 0xff)
+          case ComparisonType.LessOrEqualSigned =>
+            lc.toByte <= rc.toByte
+          case ComparisonType.GreaterOrEqualSigned =>
+            lc.toByte >= rc.toByte
+          case ComparisonType.GreaterSigned =>
+            lc.toByte > rc.toByte
+          case ComparisonType.LessSigned =>
+            lc.toByte < rc.toByte
+        }) List(AssemblyLine.absolute(JMP, Label(label))) else Nil
+      case _ =>
     }
     val branchingCompiled = effectiveComparisonType match {
       case ComparisonType.Equal =>

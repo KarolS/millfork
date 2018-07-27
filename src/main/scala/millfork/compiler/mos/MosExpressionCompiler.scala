@@ -777,11 +777,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case ">>>>" =>
             val (l, r, 2) = assertArithmeticBinary(ctx, params)
-            l match {
-              case v: LhsExpression =>
-                zeroExtend = true
-                BuiltIns.compileNonetOps(ctx, v, r)
-            }
+            zeroExtend = true
+            BuiltIns.compileNonetOps(ctx, l, r)
           case "<<" =>
             val (l, r, size) = assertArithmeticBinary(ctx, params)
             size match {
