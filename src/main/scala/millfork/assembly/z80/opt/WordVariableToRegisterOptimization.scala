@@ -290,7 +290,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
   }
 
   def inlineVars(hl: String, bc: String, de: String, code: List[ZLine]): List[ZLine] = {
-    if (code.nonEmpty) println(code.head)
+//    if (code.nonEmpty) println(code.head)
     code match {
 
       case (load@ZLine(LD_16, TwoRegisters(BC, IMM_16), _, _)) ::
