@@ -2,7 +2,7 @@ package millfork.output
 
 import millfork.assembly.z80._
 import millfork.compiler.AbstractCompiler
-import millfork.env.{ExternFunction, Label, MemoryAddressConstant, NormalFunction}
+import millfork.env._
 
 import scala.collection.GenTraversableOnce
 
@@ -31,6 +31,7 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
       case ZLine(op, _, MemoryAddressConstant(Label(l)), _) if jumpingRelatedOpcodes(op) =>
         !l.startsWith(".")
       case ZLine(CALL, _, MemoryAddressConstant(th: ExternFunction), _) => false
+      case ZLine(CALL, _, NumericConstant(_, _), _) => false
       case ZLine(JP, OneRegister(_), _, _) => false
       case ZLine(CALL, _, MemoryAddressConstant(th: NormalFunction), _) =>
         !functionsAlreadyKnownToBeNonInlineable(th.name)
