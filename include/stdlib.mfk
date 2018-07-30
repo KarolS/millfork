@@ -2,8 +2,8 @@
 
 #if ARCH_6502
 import stdlib_6502
-#elseif ARCH_Z80
-import stdlib_z80
+#elseif ARCH_I80
+import stdlib_i80
 #else
 #warn Unsupported architecture
 #endif

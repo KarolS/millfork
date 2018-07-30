@@ -30,9 +30,19 @@ You can also define feature values using the `-D` command line option.
 
 ### Built-in features
 
-* `ARCH_6502` – 1 if compiling for 6502, 0 otherwise 
+* `ARCH_6502` – 1 if compiling for 6502, 0 otherwise
 
-* `ARCH_Z80` – 1 if compiling for Z80, 0 otherwise 
+* `CPUFEATURE_65C02` – 1 if compiling for 65C02-compatible processor, 0 otherwise
+
+* `CPUFEATURE_65CE02` – 1 if compiling for 65CE02-compatible processor, 0 otherwise
+
+* `ARCH_I80` – 1 if compiling for Intel 8080-like processor, 0 otherwise
+
+* `CPUFEATURE_8080` – 1 if compiling for Intel 8080-compatible processor, 0 otherwise
+
+* `CPUFEATURE_GAMEBOY` – 1 if compiling for Sharp LR35902-compatible processor, 0 otherwise
+
+* `CPUFEATURE_Z80` – 1 if compiling for Z80-compatible processor, 0 otherwise
 
 ### Commonly used features
 

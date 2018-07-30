@@ -238,10 +238,14 @@ object Platform {
   def builtInCpuFeatures(cpu: Cpu.Value): Map[String, Long] = {
     Map[String, Long](
       "ARCH_6502" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6502),
+      "CPUFEATURE_65C02" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.EmitCmosOpcodes)),
+      "CPUFEATURE_65CE02" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.Emit65CE02Opcodes)),
       "ARCH_I80" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I80),
-      "ARCH_Z80" -> toLong(cpu == Cpu.Z80 || cpu == Cpu.EZ80),
+      "CPUFEATURE_Z80" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.EmitZ80Opcodes)),
+      "CPUFEATURE_8080" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.EmitIntel8080Opcodes)),
+      "CPUFEATURE_GAMEBOY" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.EmitSharpOpcodes)),
       "ARCH_X86" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I86),
-      "ARCH_6500" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6800),
+      "ARCH_6800" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6800),
       "ARCH_ARM" -> toLong(CpuFamily.forType(cpu) == CpuFamily.ARM),
       "ARCH_68K" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M68K),
       "HAS_HARDWARE_MULTIPLY" -> (cpu match {
