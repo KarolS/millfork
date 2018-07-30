@@ -25,11 +25,11 @@ object EmuCmosBenchmarkRun {
     println(f"Gain unopt->NMOS:        ${(100L*(t0-t1)/t0.toDouble).round}%7d%%")
     println(f"Gain unopt->CMOS:        ${(100L*(t0-t2)/t0.toDouble).round}%7d%%")
     println(f"Gain NMOS->CMOS:         ${(100L*(t1-t2)/t1.toDouble).round}%7d%%")
-    println(f"Running unoptimized")
+    println(f"Running 6502 unoptimized")
     verifier(m0)
-    println(f"Running NMOS-optimized")
+    println(f"Running 6502 optimized")
     verifier(m1)
-    println(f"Running CMOS-optimized")
+    println(f"Running 65C02 optimized")
     verifier(m2)
   }
 }

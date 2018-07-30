@@ -16,11 +16,11 @@ object EmuBenchmarkRun {
     println(f"After inlining:      $t2%7d")
     println(f"Gain:               ${(100L * (t0 - t1) / t0.toDouble).round}%7d%%")
     println(f"Gain with inlining: ${(100L * (t0 - t2) / t0.toDouble).round}%7d%%")
-    println(f"Running unoptimized")
+    println(f"Running 6502 unoptimized")
     verifier(m0)
-    println(f"Running optimized")
+    println(f"Running 6502 optimized")
     verifier(m1)
-    println(f"Running optimized inlined")
+    println(f"Running 6502 optimized inlined")
     verifier(m2)
   }
 }
