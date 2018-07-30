@@ -19,7 +19,7 @@ Syntax:
     see [Macros_and inlining#Macros](../abi/inlining.md#macros)
     
     * `inline` – the function should preferably be inlined
-    see [Macros_and inlining#Inlining](../abi/inlining.md#automatic_inlining.md)
+    see [Macros_and inlining#Inlining](../abi/inlining.md#automatic-inlining)
     
     * `noinline` – the function should never be inlined
     
