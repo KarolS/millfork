@@ -38,6 +38,8 @@ For binary releases, see: https://github.com/KarolS/millfork/releases
     * ZX Spectrum 48k
     
     * NEC PC-88
+    
+    * CP/M
 
 * inline assembly
 

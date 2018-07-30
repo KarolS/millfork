@@ -35,6 +35,7 @@ examples/lunix/
 *.inf
 *.tap
 *.d88
+*.com
 HELLO
 
 

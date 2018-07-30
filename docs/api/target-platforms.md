@@ -61,6 +61,10 @@ Read [the Apple 2 programming guide](./apple2-programming-guide.md) for more inf
 
 * `zxspectrum_8080` – Sinclair ZX Spectrum 48k, using only Intel 8080 instructions
 
+* `cpm` – CP/M on Intel 8080
+
+* `cpm_z80` – CP/M on Z80
+
 The primary and most tested platform is Commodore 64.
 
 Currently, targets that assume that the program will be loaded from disk or tape are better tested.

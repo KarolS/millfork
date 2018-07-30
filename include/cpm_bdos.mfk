@@ -1,0 +1,62 @@
+
+inline asm void exit() {
+	? ld c, 0
+	call 5
+	? ret
+}
+inline asm void putchar (byte e) {
+	? ld c, 2
+	call 5	
+	? ret
+}
+
+inline asm byte getchar() {
+	? ld c, 1
+	call 5	
+	? ret
+}
+
+#if 0
+inline asm void putstr_cpm(pointer de) {
+	? ld c, 9
+	call 5	
+	? ret
+}
+#endif
+
+inline asm byte readychar() {
+	? ld c, 11
+	call 5
+	? ret
+}
+
+inline asm word cpm_version() {
+	? ld c, 12
+	call 5
+	? ret
+}
+inline asm void reset_disk_system() {
+	? ld c, 13
+	call 5
+	? ret
+}
+inline asm byte current_disk() {
+	? ld c,25
+	call 5
+	? ret
+}
+
+#if 0
+inline asm word console_mode(word de) {
+	? ld c, 109
+	call 5	
+	? ret
+}
+inline word get_console_mode() {
+	return console_mode($ffff)
+}
+inline asm void set_console_mode(word de) {
+	console_mode(mode)
+}
+#endif
+
