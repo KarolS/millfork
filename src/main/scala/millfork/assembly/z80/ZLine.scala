@@ -175,7 +175,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case BYTE => 1
       case d if ZOpcodeClasses.NoopDiscards(d) => 0
       case JP => registers match {
-        case OneRegister(HL | IX | IY) => 0
+        case OneRegister(HL | IX | IY) => 1
         case _ => 2
       }
       case JR => 2
@@ -185,11 +185,14 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     }
     val fromParams = registers match {
       case OneRegister(IX | IXL | IXH | IY | IYH | IYL | IMM_8) => 1
-      case OneRegister(MEM_IX_D | MEM_IY_D | IMM_16 | MEM_ABS_8 | MEM_ABS_16) => 2
+      case OneRegister(IMM_16 | MEM_ABS_8 | MEM_ABS_16) => 2
+      case OneRegisterOffset(MEM_IX_D | MEM_IY_D, _) => 2
       case TwoRegisters(_, IX | IXL | IXH | IY | IYH | IYL | IMM_8) => 1
       case TwoRegisters(_, MEM_IX_D | MEM_IY_D | IMM_16 | MEM_ABS_8 | MEM_ABS_16) => 2
+      case TwoRegistersOffset(_, MEM_IX_D | MEM_IY_D, _) => 2
       case TwoRegisters(IX | IXL | IXH | IY | IYH | IYL | IMM_8, _) => 1
-      case TwoRegisters(MEM_IX_D | MEM_IY_D | IMM_16 | MEM_ABS_8 | MEM_ABS_16, _) => 2
+      case TwoRegisters(IMM_16 | MEM_ABS_8 | MEM_ABS_16, _) => 2
+      case TwoRegistersOffset(MEM_IX_D | MEM_IY_D, _, _) => 2
       case _ => 0
     }
     inherent + fromParams
