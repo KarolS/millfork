@@ -48,7 +48,8 @@ object Z80MacroExpander extends MacroExpander[ZLine] {
           hadRegisterParam = true
           paramPreparation = (register, typ.size) match {
             case (ZRegister.A, 1) => Z80ExpressionCompiler.compileToA(ctx, actualParam)
-            case (r@(ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E | ZRegister.H | ZRegister.L), 1) => Z80ExpressionCompiler.compileToA(ctx, actualParam) :+ ZLine.ld8(r, ZRegister.A)
+            case (r@(ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E | ZRegister.H | ZRegister.L), 1) =>
+              Z80ExpressionCompiler.compile8BitTo(ctx, actualParam, r)
             case (ZRegister.HL, 2) => Z80ExpressionCompiler.compileToHL(ctx, actualParam)
             case (ZRegister.BC, 2) => Z80ExpressionCompiler.compileToBC(ctx, actualParam)
             case (ZRegister.DE, 2) => Z80ExpressionCompiler.compileToDE(ctx, actualParam)

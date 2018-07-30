@@ -19,6 +19,26 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
 
   def compileToA(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.A)
 
+  def compile8BitTo(ctx: CompilationContext, expression: Expression, register: ZRegister.Value): List[ZLine] = {
+    if (ZRegister.A == register) compileToA(ctx, expression) else {
+      val toA = compileToA(ctx, expression)
+      if (toA.isEmpty) Nil else {
+        toA.last match {
+          case ZLine(ZOpcode.LD, TwoRegisters(ZRegister.A, source), _, _) if source == register =>
+            toA.init
+          case ZLine(ZOpcode.LD, TwoRegisters(ZRegister.A, source@(ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E | ZRegister.MEM_HL)), _, _) =>
+            toA.init :+ ZLine.ld8(register, source)
+          case ZLine(ZOpcode.LD, TwoRegistersOffset(ZRegister.A, ZRegister.MEM_IX_D, offset), _, _) =>
+            toA.init :+ ZLine.ldViaIx(register, offset)
+          case ZLine(ZOpcode.LD, TwoRegistersOffset(ZRegister.A, ZRegister.MEM_IY_D, offset), _, _) =>
+            toA.init :+ ZLine.ldViaIy(register, offset)
+          case _ =>
+            toA :+ ZLine.ld8(register, ZRegister.A)
+        }
+      }
+    }
+  }
+
   def compileToHL(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.HL)
 
   def compileToEHL(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.EHL)
@@ -786,9 +806,20 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                       case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.A, typ2), AssemblyParameterPassingBehaviour.Copy)))
                         if typ1.size == 1 && typ2.size == 1 =>
                         compileToA(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
+                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(
+                      register@(ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E | ZRegister.H | ZRegister.L),
+                      typ2), AssemblyParameterPassingBehaviour.Copy)))
+                        if typ1.size == 1 && typ2.size == 1 =>
+                        compile8BitTo(ctx, params.head, register) :+ ZLine(CALL, NoRegisters, function.toAddress)
                       case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.HL, typ2), AssemblyParameterPassingBehaviour.Copy)))
                         if typ1.size == 2 && typ2.size == 2 =>
                         compileToHL(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
+                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.DE, typ2), AssemblyParameterPassingBehaviour.Copy)))
+                        if typ1.size == 2 && typ2.size == 2 =>
+                        compileToDE(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
+                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.BC, typ2), AssemblyParameterPassingBehaviour.Copy)))
+                        if typ1.size == 2 && typ2.size == 2 =>
+                        compileToBC(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
                       case AssemblyParamSignature(Nil) =>
                         List(ZLine(CALL, NoRegisters, function.toAddress))
                       case AssemblyParamSignature(paramConvs) =>

@@ -159,11 +159,11 @@ object Z80BulkMemoryOperations {
     val loopRegister = if (useC) ZRegister.C else ZRegister.B
     val countDown = f.direction == ForDirection.ParallelTo || f.direction == ForDirection.ParallelUntil || f.direction == ForDirection.DownTo
     val countDownDespiteSyntax = f.direction == ForDirection.ParallelTo || f.direction == ForDirection.ParallelUntil
-    val initC = if (useC) Z80ExpressionCompiler.compileToA(ctx, f.direction match {
+    val initC = if (useC) Z80ExpressionCompiler.compile8BitTo(ctx, f.direction match {
       case ForDirection.ParallelTo => f.end
       case ForDirection.ParallelUntil => SumExpression(List(false -> f.end, true -> LiteralExpression(1, 1)), decimal = false)
       case _ => f.start
-    }) :+ ZLine.ld8(ZRegister.C, ZRegister.A) else Nil
+    }, ZRegister.C) else Nil
     val nextC = if (useC) List(ZLine.register(if (countDown) DEC else INC, ZRegister.C)) else Nil
     ExtraLoopRegister(loopRegister, initC, nextC, countDownDespiteSyntax)
   }
@@ -369,8 +369,7 @@ object Z80BulkMemoryOperations {
     val ldr = z80Bulk(decreasing)
     val smallCount = indexVariableSize == 1 && (ldr.isEmpty || !ctx.options.flag(CompilationFlag.EmitZ80Opcodes))
     val calculateByteCount = if (smallCount) {
-      Z80ExpressionCompiler.compileToA(ctx, byteCountExpression) ++
-        List(ZLine.ld8(ZRegister.B, ZRegister.A))
+      Z80ExpressionCompiler.compile8BitTo(ctx, byteCountExpression, ZRegister.B)
     } else {
       Z80ExpressionCompiler.compileToHL(ctx, byteCountExpression) ++
         List(ZLine.ld8(ZRegister.B, ZRegister.H), ZLine.ld8(ZRegister.C, ZRegister.L))

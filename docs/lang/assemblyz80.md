@@ -126,8 +126,15 @@ Non-macro functions can only have their parameters passed via registers:
 * `word hl`, `word bc`, `word de`: a 2-byte word byte passed via given 16-bit register
 
 **Work in progress**: 
-Currently, only 3 parameter signatures are supported for non-macro assembly functions:
-`()`, `(byte a)` and `(word hl)`. More parameters or parameters passed via other registers do not work yet.
+Currently, only few parameter signatures are supported for non-macro assembly functions:
+
+* `()`
+
+* `(byte a)`, `(byte b)`, `(byte c)`, `(byte d)`, `(byte e)`, `(byte h)`, `(byte l)` ("byte" may be any other 2-byte type)
+
+* `(word hl)`, `(word bc)`, `(word de)` ("word" may be any other 2-byte type)
+
+More parameters or parameters passed via other registers do not work yet.
 
 Macro assembly functions cannot have any parameter passed via registers.
 
