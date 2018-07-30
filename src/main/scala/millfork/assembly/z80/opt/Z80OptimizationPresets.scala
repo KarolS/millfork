@@ -11,17 +11,42 @@ object Z80OptimizationPresets {
   val GoodForZ80: List[AssemblyOptimization[ZLine]] = {
     List.fill(5)(
       List.fill(5)(
-        AlwaysGoodZ80Optimizations.All ++
+        AlwaysGoodI80Optimizations.All ++
+          AlwaysGoodZ80Optimizations.All ++
           List(
             EmptyParameterStoreRemoval,
             EmptyMemoryStoreRemoval)
       ).flatten ++
-        List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization, CompactStackFrame)
+        List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization, CompactStackFrame) ++
+        LaterIntel8080Optimizations.All
     ).flatten
   }
 
-  val GoodForIntel8080: List[AssemblyOptimization[ZLine]] = Nil // TODO
+  val GoodForIntel8080: List[AssemblyOptimization[ZLine]] = {
+    List.fill(5)(
+      List.fill(5)(
+        AlwaysGoodI80Optimizations.All ++
+          List(
+            EmptyParameterStoreRemoval,
+            EmptyMemoryStoreRemoval,
+          )
+      ).flatten ++
+        List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization) ++
+        LaterIntel8080Optimizations.All
+    ).flatten
+  }
 
-  val GoodForSharp: List[AssemblyOptimization[ZLine]] = Nil // TODO
+  val GoodForSharp: List[AssemblyOptimization[ZLine]] = {
+    List.fill(5)(
+      List.fill(5)(
+        AlwaysGoodI80Optimizations.All ++
+          List(
+            EmptyParameterStoreRemoval,
+            EmptyMemoryStoreRemoval)
+      ).flatten ++
+        List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization) ++
+        LaterSharpOptimizations.All
+    ).flatten
+  }
 
 }

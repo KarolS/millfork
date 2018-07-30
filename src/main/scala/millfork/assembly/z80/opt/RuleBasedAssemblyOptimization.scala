@@ -610,6 +610,17 @@ case object DoesntMatterWhatItDoesWithFlags extends AssemblyLinePattern {
   override def toString: String = "[¯\\_(ツ)_/¯:F]"
 }
 
+case object DoesntMatterWhatItDoesWithFlagsOtherThanSZ extends AssemblyLinePattern {
+
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertBackward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    ZFlag.AllButSZ.forall(r => flowInfo.importanceAfter.getFlag(r) != Important)
+
+  override def toString: String = "[¯\\_(ツ)_/¯:NPVH]"
+}
+
 case object DoesntMatterWhatItDoesWithFlagsExceptCarry extends AssemblyLinePattern {
 
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
@@ -699,6 +710,27 @@ case object LinearOrLabel extends TrivialAssemblyLinePattern {
 
 case class Reads(register: ZRegister.Value) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = line.readsRegister(register)
+}
+
+case object ReadsStackPointer extends TrivialAssemblyLinePattern {
+  override def apply(line: ZLine): Boolean = {
+    import ZOpcode._
+    line.opcode match {
+      case LD_16 | ADD_16 | ADC_16 | SBC_16 =>
+        line.registers match {
+          case TwoRegisters(_, ZRegister.SP) => true
+          case _ => false
+        }
+      case EX_SP => true
+      case INC_16 | DEC_16 =>
+        line.registers match {
+          case OneRegister(ZRegister.SP) => true
+          case _ => false
+        }
+      case LD_HLSP | PUSH | POP => true
+      case _ => false
+    }
+  }
 }
 
 case class Changes(register: ZRegister.Value) extends TrivialAssemblyLinePattern {
