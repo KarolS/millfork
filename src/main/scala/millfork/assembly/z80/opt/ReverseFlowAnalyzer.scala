@@ -227,6 +227,8 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butWritesRegister(t, o).butReadsRegister(s, o)
           case ZLine(LD | LD_16, TwoRegisters(t, s), _, _) =>
             currentImportance = currentImportance.butWritesRegister(t).butReadsRegister(s)
+          case ZLine(EX_DE_HL, TwoRegisters(t, s), _, _) =>
+            currentImportance = currentImportance.copy(d = currentImportance.h, e = currentImportance.l, h = currentImportance.d, l = currentImportance.e)
           case ZLine(ADD_16, TwoRegisters(t, s), _, _) =>
             currentImportance = currentImportance.butReadsRegister(t).butReadsRegister(s)
           case ZLine(ADC_16 | SBC_16, TwoRegisters(t, s), _, _) =>
@@ -243,7 +245,7 @@ object ReverseFlowAnalyzer {
             )
           case ZLine(OR | AND, OneRegister(ZRegister.A), _, _) =>
             currentImportance = currentImportance.copy(
-              a = currentImportance.zf ~ currentImportance.sf ~ currentImportance.pf,
+              a = currentImportance.zf ~ currentImportance.sf ~ currentImportance.pf ~ currentImportance.a,
               cf = Unimportant,
               zf = Unimportant,
               sf = Unimportant,
@@ -429,9 +431,13 @@ object ReverseFlowAnalyzer {
             }
 
           case ZLine(SLA | SRL, OneRegister(r), _, _) =>
-            currentImportance = currentImportance.butReadsRegister(r).butWritesFlag(ZFlag.C).butWritesFlag(ZFlag.Z)
+            currentImportance = currentImportance.butReadsRegister(r).copy(cf = Unimportant, zf = Unimportant, hf = Unimportant, nf = Unimportant, pf = Unimportant)
           case ZLine(RL | RR | RLC | RRC, OneRegister(r), _, _) =>
-            currentImportance = currentImportance.butReadsRegister(r).butReadsFlag(ZFlag.C).butWritesFlag(ZFlag.Z)
+            currentImportance = currentImportance.butReadsRegister(r).copy(cf = Important, zf = Unimportant, hf = Unimportant, nf = Unimportant, pf = Unimportant)
+          case ZLine(SWAP, OneRegister(r), _, _) =>
+            currentImportance = currentImportance.butReadsRegister(r).copy(cf = Unimportant, zf = Unimportant, hf = Unimportant, nf = Unimportant, pf = Unimportant)
+          case ZLine(RLA | RRA | RLCA | RRCA, _, _, _) =>
+            currentImportance = currentImportance.butReadsRegister(ZRegister.A).copy(cf = Important, hf = Unimportant, nf = Unimportant)
           case _ =>
             currentImportance = finalImportance // TODO
         }

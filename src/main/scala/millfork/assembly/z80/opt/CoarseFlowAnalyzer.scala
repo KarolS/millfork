@@ -1,10 +1,10 @@
 package millfork.assembly.z80.opt
 
-import millfork.assembly.opt.{AnyStatus, SingleStatus}
+import millfork.assembly.opt.{AnyStatus, SingleStatus, Status}
 import millfork.assembly.z80._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConstant}
 import millfork.node.ZRegister
-import millfork.CompilationOptions
+import millfork.{CompilationOptions, Cpu}
 
 /**
   * @author Karol Stasiak
@@ -102,6 +102,8 @@ object CoarseFlowAnalyzer {
             currentStatus = currentStatus.setRegister(t, currentStatus.getRegister(s))
           case ZLine(LD | LD_16, TwoRegistersOffset(t, s, o), _, _) =>
             currentStatus = currentStatus.setRegister(t, currentStatus.getRegister(s, o), o)
+          case ZLine(EX_DE_HL, _, _, _) =>
+            currentStatus = currentStatus.copy(d = currentStatus.h, e = currentStatus.l, h = currentStatus.d, l = currentStatus.e)
           case ZLine(ADD_16, TwoRegisters(t, s), _, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
               .setRegister(t, (currentStatus.getRegister(t) <*> currentStatus.getRegister(s)) ((m, n) => (m + n) & 0xffff))
@@ -112,6 +114,13 @@ object CoarseFlowAnalyzer {
           case ZLine(SRL, OneRegister(r), _, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
               .setRegister(r, currentStatus.getRegister(r).map(_.>>(1).&(0x7f)))
+
+
+          case ZLine(RLA | RRA | RLCA | RRCA, _, _, _) =>
+            currentStatus = currentStatus.copy(
+              a = AnyStatus, cf = AnyStatus,
+              zf = AnyStatus,
+              pf = AnyStatus, hf = Status.SingleFalse)
 
           case ZLine(opcode, registers, _, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)

@@ -19,6 +19,7 @@ object ZOpcode extends Enumeration {
   POP, PUSH,
   NOP,
   RLC, RRC, RL, RR, SLA, SRA, SRL, SLL, RLD, RRD,
+  RLCA, RLA, RRA, RRCA,
   EXX, EX_DE_HL, EX_AF_AF, EX_SP,
   RST, IM, EI, DI,
   DJNZ, JP, JR, CALL, RET, RETN, RETI, HALT,
@@ -46,8 +47,7 @@ object ZOpcodeClasses {
   val AllSingleBit: Set[ZOpcode.Value] = RES ++ SET ++ BIT
   val RES_or_SET: Set[ZOpcode.Value] = RES ++ SET
 
-  val CbInstructions: Set[ZOpcode.Value] = Set(SLA, SRA, SRL, SLL) ++ BIT ++ RES ++ SET
-  val CbInstructionsUnlessA = Set(RLC, RRC, RL, RR)
+  val CbInstructions: Set[ZOpcode.Value] = Set(SLA, SRA, SRL, SLL, RLC, RRC, RL, RR) ++ BIT ++ RES ++ SET
   val EdInstructions: Set[ZOpcode.Value] = Set(NEG, RETN, RETI, IM, RRD, RLD,
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR) ++ BIT ++ RES ++ SET

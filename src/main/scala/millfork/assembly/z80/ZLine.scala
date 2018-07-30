@@ -12,6 +12,8 @@ import millfork.node.ZRegister
 
 object ZFlag extends Enumeration {
   val Z, P, C, S, H, N = Value
+
+  val AllButSZ: Seq[Value] = Seq(P, C, H, N)
 }
 
 sealed trait ZRegisters
@@ -179,7 +181,6 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case JR => 2
       case o if ZOpcodeClasses.EdInstructions(o) => 2
       case o if ZOpcodeClasses.CbInstructions(o) => 2
-      case o if ZOpcodeClasses.CbInstructionsUnlessA(o) => if (registers == OneRegister(ZRegister.A)) 1 else 2
       case _ => 1 // TODO!!!
     }
     val fromParams = registers match {
@@ -244,6 +245,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case RST => s"    RST $parameter"
       case IM => s"    IM $parameter"
       case EX_AF_AF => "    EX AF,AF'"
+      case EX_DE_HL => "    EX DE,HL"
       case LD_AHLI => "    LD A,(HLI)"
       case LD_AHLD => "    LD A,(HLD)"
       case LD_HLIA => "    LD (HLI),A"
@@ -373,7 +375,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegisterOffset(s, _) => r == s
             case _ => r == A
           }
-          case INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL => registers match {
+          case INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL | SWAP => registers match {
             case OneRegister(MEM_HL) => r == H || r == L
             case OneRegister(MEM_BC) => r == B || r == C
             case OneRegister(MEM_DE) => r == D || r == E
@@ -401,11 +403,12 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegisterOffset(s, _) => r == s
             case _ => false
           }
+          case EX_DE_HL => r == D || r == E || r == H || r == L
           case JP | JR | RET | RETI | RETN |
                POP |
                DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
           case DJNZ => r == B
-          case DAA | NEG | CPL => r == A
+          case DAA | NEG | CPL | RLA | RRA | RLCA | RRCA => r == A
           case LABEL | DI | EI | NOP | HALT => false
           case _ => true // TODO
         }
@@ -511,7 +514,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case TwoRegistersOffset(s, _, _) => r == s
             case _ => false
           }
-          case INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL => registers match {
+          case INC | DEC | RL | RLC | RR | RRC | SLA | SLL | SRA | SRL | SWAP => registers match {
             case OneRegister(s) => r == s
             case OneRegisterOffset(s, _) => r == s
             case _ => false
@@ -534,10 +537,11 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case OneRegisterOffset(s, _) => r == s
             case _ => false
           }
+          case EX_DE_HL => r == D || r == E || r == H || r == L
           case JP | JR | RET | RETI | RETN |
                PUSH |
                DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
-          case ADD | ADC | AND | OR | XOR | SUB | SBC | DAA | NEG | CPL => r == A
+          case ADD | ADC | AND | OR | XOR | SUB | SBC | DAA | NEG | CPL | RLA | RRA | RLCA | RRCA => r == A
           case CP => false
           case DJNZ => r == B
           case LABEL | DI | EI | NOP | HALT => false
@@ -568,6 +572,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case JP | JR | RET | RETI | RETN |
            PUSH | DJNZ | DAA |
            DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
+      case EX_DE_HL | NEG => false
       case LABEL | DI | EI | NOP => false
       case _ => true // TODO
     }
@@ -589,6 +594,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case JP | JR | RET | RETI | RETN |
            PUSH | DJNZ | DAA |
            DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
+      case EX_DE_HL | NEG => false
       case LABEL | DI | EI | NOP | HALT => false
       case _ => true // TODO
     }

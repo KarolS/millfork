@@ -497,7 +497,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(
                           ZLine.ld8(ZRegister.L, ZRegister.A),
                           ZLine.ldImm8(ZRegister.A, 0),
-                          ZLine.register(RL, ZRegister.A),
+                          ZLine.implied(RLA),
                           ZLine.ld8(ZRegister.H, ZRegister.A))
                       }
                     case ZExpressionTarget.BC =>
@@ -510,7 +510,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(
                           ZLine.ld8(ZRegister.C, ZRegister.A),
                           ZLine.ldImm8(ZRegister.A, 0),
-                          ZLine.register(RL, ZRegister.A),
+                          ZLine.implied(RLA),
                           ZLine.ld8(ZRegister.B, ZRegister.A))
                       }
                     case ZExpressionTarget.DE =>
@@ -523,7 +523,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(
                           ZLine.ld8(ZRegister.E, ZRegister.A),
                           ZLine.ldImm8(ZRegister.A, 0),
-                          ZLine.register(RL, ZRegister.A),
+                          ZLine.implied(RLA),
                           ZLine.ld8(ZRegister.D, ZRegister.A))
                       }
                   })

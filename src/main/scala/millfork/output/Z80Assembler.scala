@@ -245,9 +245,6 @@ class Z80Assembler(program: Program,
         val o = oneRegister(op)
         writeByte(bank, index, o.opcode + internalRegisterIndex(reg) * o.multiplier)
         index + 1
-      case ZLine(op@(RR|RRC|RL|RLC), OneRegister(A), _, _) =>
-        writeByte(bank, index, cbOneRegister(op).opcode + 7)
-        index + 1
       case ZLine(SLL, OneRegister(reg), _, _) =>
         requireZ80Illegals()
         writeByte(bank, index, 0xcb)
@@ -641,6 +638,10 @@ object Z80Assembler {
     implieds(EI) = 0xfb
     implieds(DI) = 0xf3
     implieds(HALT) = 0x76
+    implieds(RLCA) = 7
+    implieds(RRCA) = 0xf
+    implieds(RLA) = 0x17
+    implieds(RRA) = 0x1f
 
     immediates(ADD) = 0xc6
     immediates(ADC) = 0xce

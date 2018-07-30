@@ -26,9 +26,9 @@ object Z80Shifting {
     val extendedOps = ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)
     val op =
       if (extendedOps) {
-        if (left) ZOpcode.ADD else ZOpcode.SRL
+        if (left) ZLine.register(ZOpcode.ADD, ZRegister.A) else ZLine.register(ZOpcode.SRL, ZRegister.A)
       } else {
-        if (left) ZOpcode.ADD else ZOpcode.RRC
+        if (left) ZLine.register(ZOpcode.ADD, ZRegister.A) else ZLine.implied(ZOpcode.RRCA)
       }
     val l = Z80ExpressionCompiler.compileToA(ctx, lhs)
     env.eval(rhs) match {
@@ -38,12 +38,12 @@ object Z80Shifting {
         } else if (i >= 8) {
           l :+ ZLine.ldImm8(ZRegister.A, 0)
         } else {
-          l ++ List.tabulate(i.toInt)(_ => ZLine.register(op, ZRegister.A)) ++ fixAfterShiftIfNeeded(extendedOps, left, i)
+          l ++ List.tabulate(i.toInt)(_ => op) ++ fixAfterShiftIfNeeded(extendedOps, left, i)
         }
       case _ =>
         val calcCount = Z80ExpressionCompiler.compileToA(ctx, rhs) :+ ZLine.ld8(ZRegister.B, ZRegister.A)
         val l = Z80ExpressionCompiler.stashBCIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, lhs))
-        val loopBody = ZLine.register(op, ZRegister.A) :: fixAfterShiftIfNeeded(extendedOps, left, 1)
+        val loopBody = op :: fixAfterShiftIfNeeded(extendedOps, left, 1)
         val label = Z80Compiler.nextLabel("sh")
         calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label)
     }
@@ -52,11 +52,11 @@ object Z80Shifting {
   def compile8BitShiftInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, left: Boolean): List[ZLine] = {
     val env = ctx.env
     val extendedOps = ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)
-    val op =
+    val (op, opLine) =
       if (extendedOps) {
-        if (left) ZOpcode.ADD else ZOpcode.SRL
+        if (left) ZOpcode.ADD -> ZLine.register(ZOpcode.ADD, ZRegister.A) else ZOpcode.SRL -> ZLine.register(ZOpcode.SRL, ZRegister.A)
       } else {
-        if (left) ZOpcode.ADD else ZOpcode.RRC
+        if (left) ZOpcode.ADD -> ZLine.register(ZOpcode.ADD, ZRegister.A) else ZOpcode.LABEL -> ZLine.implied(ZOpcode.RRCA)
       }
     env.eval(rhs) match {
       case Some(NumericConstant(i, _)) =>
@@ -110,7 +110,7 @@ object Z80Shifting {
                 l ++ List.tabulate(i.toInt)(_ => ZLine.register(ZOpcode.SLA, register))
               } else {
                 l ++ List(ZLine.ld8(ZRegister.A, register)) ++
-                  List.tabulate(i.toInt)(_ => ZLine.register(op, ZRegister.A)) ++
+                  List.tabulate(i.toInt)(_ => opLine) ++
                   fixAfterShiftIfNeeded(extendedOps, left, i) ++
                   List(ZLine.ld8(register, ZRegister.A))
               }
@@ -150,18 +150,18 @@ object Z80Shifting {
               l ++ (1L until i).flatMap(_ => List(
                 ZLine.ld8(ZRegister.A, ZRegister.H),
                 ZLine.register(ZOpcode.OR, ZRegister.A),
-                ZLine.register(ZOpcode.RR, ZRegister.A),
+                ZLine.implied(ZOpcode.RRA),
                 ZLine.ld8(ZRegister.H, ZRegister.A),
                 ZLine.ld8(ZRegister.A, ZRegister.L),
-                ZLine.register(ZOpcode.RR, ZRegister.A),
+                ZLine.implied(ZOpcode.RRA),
                 ZLine.ld8(ZRegister.L, ZRegister.A)
               )) ++ List(
                 ZLine.ld8(ZRegister.A, ZRegister.H),
                 ZLine.register(ZOpcode.OR, ZRegister.A),
-                ZLine.register(ZOpcode.RR, ZRegister.A),
+                ZLine.implied(ZOpcode.RRA),
                 ZLine.ld8(ZRegister.H, ZRegister.A),
                 ZLine.ld8(ZRegister.A, ZRegister.L),
-                ZLine.register(ZOpcode.RR, ZRegister.A),
+                ZLine.implied(ZOpcode.RRA),
                 ZLine.ld8(ZRegister.L, ZRegister.A)
               )
             }
@@ -187,16 +187,16 @@ object Z80Shifting {
                 ZLine.register(ZOpcode.ADD, ZRegister.A),
                 ZLine.ld8(ZRegister.L, ZRegister.A),
                 ZLine.ld8(ZRegister.A, ZRegister.H),
-                ZLine.register(ZOpcode.RL, ZRegister.A),
+                ZLine.implied(ZOpcode.RLA),
                 ZLine.ld8(ZRegister.H, ZRegister.A))
             } else {
               List(
                 ZLine.ld8(ZRegister.A, ZRegister.H),
                 ZLine.register(ZOpcode.OR, ZRegister.A),
-                ZLine.register(ZOpcode.RR, ZRegister.A),
+                ZLine.implied(ZOpcode.RRA),
                 ZLine.ld8(ZRegister.H, ZRegister.A),
                 ZLine.ld8(ZRegister.A, ZRegister.L),
-                ZLine.register(ZOpcode.RR, ZRegister.A),
+                ZLine.implied(ZOpcode.RRA),
                 ZLine.ld8(ZRegister.L, ZRegister.A))
             }
           }
@@ -221,14 +221,14 @@ object Z80Shifting {
         if (extended)
           List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.register(RR, A))
         else
-          List(ZLine.ld8(A, H), ZLine.register(RR, A), ZLine.ld8(A, L), ZLine.register(RR, A))
+          List(ZLine.ld8(A, H), ZLine.implied(RRA), ZLine.ld8(A, L), ZLine.implied(RRA))
       case Some(NumericConstant(2, _)) if extended=>
-          List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.register(RR, A), ZLine.register(SRL, A))
+          List(ZLine.register(SRL, H), ZLine.ld8(A, L), ZLine.implied(RRA), ZLine.register(SRL, A))
       case Some(NumericConstant(n, _)) =>
         if (extended)
-          List(ZLine.register(SRL, H), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.register(RR, A)) :+ ZLine.imm8(AND, 0x1ff >> n))
+          List(ZLine.register(SRL, H), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.implied(RRA)) :+ ZLine.imm8(AND, 0x1ff >> n))
         else
-          List(ZLine.ld8(A, H), ZLine.register(RR, A), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.register(RR, A)) :+ ZLine.imm8(AND, 0x1ff >> n))
+          List(ZLine.ld8(A, H), ZLine.implied(RRA), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.implied(RRA)) :+ ZLine.imm8(AND, 0x1ff >> n))
 
       case _ =>
         ctx.log.error("Non-constant shift amount", rhs.position) // TODO
@@ -247,7 +247,7 @@ object Z80Shifting {
           import ZRegister._
           val shiftByte =
             if (ix == 0) List(ZLine.register(ADD, A))
-            else List(ZLine.register(RL, A))
+            else List(ZLine.implied(RLA))
           ld ++ shiftByte ++ st
       }
     } else {
@@ -257,8 +257,8 @@ object Z80Shifting {
           import ZRegister._
           val shiftByte = if (ix == 0) {
             if (extended) List(ZLine.register(SRL, A))
-            else List(ZLine.register(OR, A), ZLine.register(RR, A))
-          } else List(ZLine.register(RR, A))
+            else List(ZLine.register(OR, A), ZLine.implied(RRA))
+          } else List(ZLine.implied(RRA))
           ld ++ shiftByte ++ st
       }
     }

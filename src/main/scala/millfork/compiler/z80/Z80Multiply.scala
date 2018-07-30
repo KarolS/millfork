@@ -54,9 +54,10 @@ object Z80Multiply {
         label(lblStart),
         register(OR, A),
         ld8(A, D),
-        register(RR, A),
+        implied(RRA),
         ld8(D, A),
         jumpR(ctx, lblAdd, IfFlagSet(ZFlag.C)),
+        register(OR, A),
         jumpR(ctx, lblLoop, IfFlagClear(ZFlag.Z)),
         ld8(A, C))
     }

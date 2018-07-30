@@ -278,7 +278,7 @@ object Z80BulkMemoryOperations {
                     // TODO: tricks with AND?
                     for (_ <- 0 until n.toInt) {
                       builder += ZLine.register(OR, ZRegister.A)
-                      builder += ZLine.register(RR, ZRegister.A)
+                      builder += ZLine.implied(RRA)
                     }
                     builder += ZLine.ld8(element, ZRegister.A)
                     Some(builder.toList)

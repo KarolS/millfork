@@ -89,7 +89,7 @@ object Z80DecimalBuiltIns {
       case 1 => Nil
       case x =>
         val add1 = List(ZLine.register(ADD, D), ZLine.implied(DAA), ZLine.ld8(E, A))
-        val times10 = List(ZLine.register(RL, A), ZLine.register(RL, A), ZLine.register(RL, A), ZLine.register(RL, A), ZLine.imm8(AND, 0xf0))
+        val times10 = List(ZLine.implied(RLA), ZLine.implied(RLA), ZLine.implied(RLA), ZLine.implied(RLA), ZLine.imm8(AND, 0xf0))
         // TODO: rethink this:
         val ways = if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) waysOptimizedForCycles else waysOptimizedForBytes
         ZLine.ld8(D, A) :: ZLine.ld8(E, A) :: ways(x).flatMap {
