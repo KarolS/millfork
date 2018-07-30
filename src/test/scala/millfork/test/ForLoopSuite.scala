@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.test.emu._
 import org.scalatest.{FunSuite, Matchers}
 
@@ -218,9 +218,9 @@ class ForLoopSuite extends FunSuite with Matchers {
         |   }
         | }
       """.stripMargin){ m=>
-      m.dump(0xc000, 5)(ErrorReporting.debug(_))
-      m.dump(0xc010, 5)(ErrorReporting.debug(_))
-      m.dump(0xc020, 5)(ErrorReporting.debug(_))
+      m.dump(0xc000, 5)(TestErrorReporting.log.debug(_))
+      m.dump(0xc010, 5)(TestErrorReporting.log.debug(_))
+      m.dump(0xc020, 5)(TestErrorReporting.log.debug(_))
       m.readByte(0xc001) should equal (4)
       m.readByte(0xc023) should equal (6)
       m.readByte(0xc013) should equal (7)

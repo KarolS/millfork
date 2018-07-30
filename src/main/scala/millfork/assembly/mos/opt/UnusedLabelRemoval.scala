@@ -4,7 +4,7 @@ import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 
 /**
   * @author Karol Stasiak
@@ -23,7 +23,7 @@ object UnusedLabelRemoval extends AssemblyOptimization[AssemblyLine] {
     }.toSet
     val toRemove = definedLabels -- usedLabels
     if (toRemove.nonEmpty) {
-      ErrorReporting.debug("Removing labels: " + toRemove.mkString(", "))
+      optimizationContext.log.debug("Removing labels: " + toRemove.mkString(", "))
       code.filterNot {
         case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(l)), _) => toRemove(l)
         case _ => false

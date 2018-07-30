@@ -2,6 +2,7 @@ package millfork.assembly
 
 import millfork.CompilationOptions
 import millfork.env.{NormalFunction, ThingInMemory}
+import millfork.error.Logger
 import millfork.node.NiceFunctionProperty
 
 /**
@@ -10,7 +11,9 @@ import millfork.node.NiceFunctionProperty
 case class OptimizationContext(options: CompilationOptions,
                                labelMap: Map[String, Int],
                                zreg: Option[ThingInMemory],
-                               niceFunctionProperties: Set[(NiceFunctionProperty, String)])
+                               niceFunctionProperties: Set[(NiceFunctionProperty, String)]) {
+  def log: Logger = options.log
+}
 
 trait AssemblyOptimization[T <: AbstractCode] {
   def name: String

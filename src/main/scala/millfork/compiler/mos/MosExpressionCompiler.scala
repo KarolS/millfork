@@ -6,7 +6,7 @@ import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
 import millfork.compiler._
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{MosRegister, _}
 /**
   * @author Karol Stasiak
@@ -137,7 +137,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
   def prepareWordIndexing(ctx: CompilationContext, pointy: Pointy, indexExpression: Expression): List[AssemblyLine] = {
     val w = ctx.env.get[Type]("word")
     if (ctx.options.zpRegisterSize < 2) {
-      ErrorReporting.error("16-bit indexing requires a zeropage pseudoregister")
+      ctx.log.error("16-bit indexing requires a zeropage pseudoregister")
       return Nil
     }
     val reg = ctx.env.get[VariableInMemory]("__reg")
@@ -271,7 +271,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case MosRegister.X =>
                 List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, pointerVariable.addr))
               case _ =>
-                ErrorReporting.error("Cannot store a word in an array", target.position)
+                ctx.log.error("Cannot store a word in an array", target.position)
                 Nil
             }
           case (pointerVariable:VariablePointy, Some(_), _, 0 | 1) =>
@@ -286,11 +286,11 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   AssemblyLine.indexedY(STA, pointerVariable.addr), AssemblyLine.implied(TAY)
                 )
               case _ =>
-                ErrorReporting.error("Cannot store a word in an array", target.position)
+                ctx.log.error("Cannot store a word in an array", target.position)
                 Nil
             }
           case _ =>
-            ErrorReporting.error("Invalid index for writing", indexExpr.position)
+            ctx.log.error("Invalid index for writing", indexExpr.position)
             Nil
         }
     }
@@ -380,7 +380,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     }
                   case target: VariableInMemory =>
                     if (exprType.size > target.typ.size) {
-                      ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
+                      ctx.log.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
                       val copyFromLo  = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) ++ AssemblyLine.variable(ctx, STA, target, i))
@@ -395,7 +395,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     }
                   case target: StackVariable =>
                     if (exprType.size > target.typ.size) {
-                      ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
+                      ctx.log.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
                       val copy = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) :+ AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i))
@@ -470,7 +470,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     }
                   case target: VariableInMemory =>
                     if (exprType.size > target.typ.size) {
-                      ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
+                      ctx.log.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
                       val copy = List.tabulate(exprType.size)(i => AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i) :: AssemblyLine.variable(ctx, STA, target, i))
@@ -484,7 +484,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     }
                   case target: StackVariable =>
                     if (exprType.size > target.typ.size) {
-                      ErrorReporting.error(s"Variable `$target.name` is too small", expr.position)
+                      ctx.log.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
                       val copyFromLo = List.tabulate(exprType.size)(i => List(AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i), AssemblyLine.absoluteX(STA, target.baseOffset + i)))
@@ -594,7 +594,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   calculatingIndex ++ List(AssemblyLine.indexedY(LDA, p.addr), AssemblyLine.implied(TAY))
               }
             case _ =>
-              ErrorReporting.error("Invalid index for reading", indexExpr.position)
+              ctx.log.error("Invalid index for reading", indexExpr.position)
               Nil
           }
           register match {
@@ -656,7 +656,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             case target: VariableInMemory =>
               target.typ.size match {
                 case 1 =>
-                  ErrorReporting.error(s"Variable `$target.name` cannot hold a word", expr.position)
+                  ctx.log.error(s"Variable `$target.name` cannot hold a word", expr.position)
                   Nil
                 case 2 =>
                   compile(ctx, l, Some(b -> env.genRelativeVariable(target.toAddress, b, zeropage = target.zeropage)), branches) ++
@@ -665,7 +665,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             case target: StackVariable =>
               target.typ.size match {
                 case 1 =>
-                  ErrorReporting.error(s"Variable `$target.name` cannot hold a word", expr.position)
+                  ctx.log.error(s"Variable `$target.name` cannot hold a word", expr.position)
                   Nil
                 case 2 =>
                   compile(ctx, l, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset)), branches) ++
@@ -685,13 +685,13 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             zeroExtend = true
             val hi = name == "hi"
             if (params.length != 1) {
-              ErrorReporting.error("Too many parameters for hi/lo", f.position)
+              ctx.log.error("Too many parameters for hi/lo", f.position)
               Nil
             } else {
               val param = params.head
               val typ = getExpressionType(ctx, param)
               if (typ.size < 1 || typ.size > 2) {
-                ErrorReporting.error("Invalid parameter type for hi/lo", param.position)
+                ctx.log.error("Invalid parameter type for hi/lo", param.position)
                 compile(ctx, param, None, BranchSpec.None)
               } else {
                 val compilation = compile(ctx, param, Some(MosExpressionCompiler.getExpressionType(ctx, param) -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
@@ -704,21 +704,21 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case "nonet" =>
             if (params.length != 1) {
-              ErrorReporting.error("Invalid number of parameters", f.position)
+              ctx.log.error("Invalid number of parameters", f.position)
               Nil
             } else {
               assertAllArithmeticBytes("Nonet argument has to be a byte", ctx, params)
               params.head match {
                 case SumExpression(addends, _) =>
                   if (addends.exists(a => !a._1)) {
-                    ErrorReporting.warn("Nonet subtraction may not work as expected", ctx.options, expr.position)
+                    ctx.log.warn("Nonet subtraction may not work as expected", expr.position)
                   }
                   if (addends.size > 2) {
-                    ErrorReporting.warn("Nonet addition works correctly only for two operands", ctx.options, expr.position)
+                    ctx.log.warn("Nonet addition works correctly only for two operands", expr.position)
                   }
                 case FunctionCallExpression("+" | "+'" | "<<" | "<<'" | "nonet", _) => // ok
                 case _ =>
-                  ErrorReporting.warn("Unspecified nonet operation, results might be unpredictable", ctx.options, expr.position)
+                  ctx.log.warn("Unspecified nonet operation, results might be unpredictable", expr.position)
               }
               val label = MosCompiler.nextLabel("no")
               compile(ctx, params.head, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None) ++ List(
@@ -789,7 +789,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case 2 =>
                 PseudoregisterBuiltIns.compileWordShiftOps(left = true, ctx, l, r)
               case _ =>
-                ErrorReporting.error("Long shift ops not supported", l.position)
+                ctx.log.error("Long shift ops not supported", l.position)
                 Nil
             }
           case ">>" =>
@@ -801,7 +801,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case 2 =>
                 PseudoregisterBuiltIns.compileWordShiftOps(left = false, ctx, l, r)
               case _ =>
-                ErrorReporting.error("Long shift ops not supported", l.position)
+                ctx.log.error("Long shift ops not supported", l.position)
                 Nil
             }
           case "<<'" =>
@@ -1024,16 +1024,16 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case Some(typ) =>
                 var failed = false
                 if (typ.name == "pointer") {
-                  ErrorReporting.error("Cannot cast into pointer")
+                  ctx.log.error("Cannot cast into pointer")
                   failed = true
                 }
                 if (params.length != 1) {
-                  ErrorReporting.error("Type casting should have exactly one argument")
+                  ctx.log.error("Type casting should have exactly one argument")
                   failed = true
                 }
                 val sourceType = getExpressionType(ctx, params.head)
                 if (typ.size != sourceType.size){
-                  ErrorReporting.error("Cannot cast a type to a type of different size")
+                  ctx.log.error("Cannot cast a type to a type of different size")
                   failed = true
                 }
                 val newExprTypeAndVariable = exprTypeAndVariable.map(i => sourceType -> i._2)
@@ -1047,7 +1047,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 paramPreparation ++ statements.map {
                   case MosAssemblyStatement(opcode, addrMode, expression, elidable) =>
                     val param = env.evalForAsm(expression).getOrElse {
-                      ErrorReporting.error("Inlining failed due to non-constant things", expression.position)
+                      ctx.log.error("Inlining failed due to non-constant things", expression.position)
                       Constant.Zero
                     }
                     AssemblyLine(opcode, addrMode, param, elidable)
@@ -1061,7 +1061,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 function match {
                   case nf: NormalFunction =>
                     if (nf.interrupt) {
-                      ErrorReporting.error(s"Calling an interrupt function `${f.functionName}`", expr.position)
+                      ctx.log.error(s"Calling an interrupt function `${f.functionName}`", expr.position)
                     }
                   case _ => ()
                 }
@@ -1114,7 +1114,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     params match {
       case List(l, r) => binary(l, r)
       case List(_) | Nil =>
-        ErrorReporting.fatal("")
+        ctx.log.fatal("")
       case _ =>
         params.tail.init.foreach { e =>
           if (ctx.env.eval(e).isEmpty) e match {
@@ -1124,9 +1124,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             case IndexedExpression(_, VariableExpression(_)) =>
             case IndexedExpression(_, LiteralExpression(_, _)) =>
             case IndexedExpression(_, GeneratedConstantExpression(_, _)) =>
-            case IndexedExpression(_, SumExpression(params, false)) if isUpToOneVar(params) =>
+            case IndexedExpression(_, SumExpression(ps, false)) if isUpToOneVar(ps) =>
             case _ =>
-              ErrorReporting.warn("A complex expression may be evaluated multiple times", ctx.options, e.position)
+              ctx.log.warn("A complex expression may be evaluated multiple times", e.position)
           }
         }
         val conjunction = params.init.zip(params.tail).map {
@@ -1138,7 +1138,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
   def expressionStorageFromAX(ctx: CompilationContext, exprTypeAndVariable: Option[(Type, Variable)], position: Option[Position]): List[AssemblyLine] = {
     exprTypeAndVariable.fold(noop) {
-      case (VoidType, _) => ErrorReporting.fatal("Cannot assign word to void", position)
+      case (VoidType, _) => ctx.log.fatal("Cannot assign word to void", position)
       case (_, RegisterVariable(MosRegister.A, _)) => noop
       case (_, RegisterVariable(MosRegister.AW, _)) => List(AssemblyLine.implied(XBA), AssemblyLine.implied(TXA), AssemblyLine.implied(XBA))
       case (_, RegisterVariable(MosRegister.X, _)) => List(AssemblyLine.implied(TAX))
@@ -1197,7 +1197,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         }
         case 2 => v.typ.size match {
           case 1 =>
-            ErrorReporting.error(s"Variable `${v.name}` cannot hold a word", position)
+            ctx.log.error(s"Variable `${v.name}` cannot hold a word", position)
             Nil
           case 2 =>
             AssemblyLine.variable(ctx, STA, v) ++ AssemblyLine.variable(ctx, STX, v, 1)
@@ -1236,7 +1236,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         }
         case 2 => v.typ.size match {
           case 1 =>
-            ErrorReporting.error(s"Variable `${v.name}` cannot hold a word", position)
+            ctx.log.error(s"Variable `${v.name}` cannot hold a word", position)
             Nil
           case 2 =>
             List(
@@ -1266,7 +1266,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         compile(ctx, source, Some(w, RegisterVariable(MosRegister.AX, w)), NoBranching) ++
           compileByteStorage(ctx, MosRegister.A, l) ++ compileByteStorage(ctx, MosRegister.X, h)
       case SeparateBytesExpression(_, _) =>
-        ErrorReporting.error("Invalid left-hand-side use of `:`")
+        ctx.log.error("Invalid left-hand-side use of `:`")
         Nil
       case _ =>
         compile(ctx, source, Some(b, RegisterVariable(MosRegister.A, b)), NoBranching) ++ compileByteStorage(ctx, MosRegister.A, target)

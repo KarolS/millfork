@@ -5,7 +5,7 @@ import millfork.assembly.z80.ZOpcode._
 import millfork.assembly.z80.{TwoRegisters, ZLine}
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 
 /**
   * @author Karol Stasiak
@@ -65,7 +65,7 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[ZLine] {
       return code
     }
 
-    ErrorReporting.debug(s"Removing pointless store(s) to foreign variables ${unusedForeignVariables.mkString(", ")}")
+    optimizationContext.log.debug(s"Removing pointless store(s) to foreign variables ${unusedForeignVariables.mkString(", ")}")
     code.filterNot {
       case ZLine(LD | LD_16, TwoRegisters(MEM_ABS_8 | MEM_ABS_16, _), MemoryAddressConstant(th), _) =>
         unusedForeignVariables(th.name)

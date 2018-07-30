@@ -7,7 +7,7 @@ import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
 import millfork.compiler._
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{MosRegister, _}
 
 /**
@@ -152,7 +152,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
               env.evalForAsm(x).getOrElse(env.get[ThingInMemory](name, x.position).toAddress)
             }
           case _ =>
-            env.evalForAsm(x).getOrElse(Constant.error(s"`$x` is not a constant", x.position))
+            env.evalForAsm(x).getOrElse(env.errorConstant(s"`$x` is not a constant", x.position))
         }
         val actualAddrMode = a match {
           case Absolute if OpcodeClasses.ShortBranching(o) => Relative
@@ -166,7 +166,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           env.eval(expr) match {
             case Some(c) => AssemblyLine(BYTE, RawByte, c, elidable = false)
             case None =>
-              ErrorReporting.error("Non-constant raw byte", position = statement.position)
+              ctx.log.error("Non-constant raw byte", position = statement.position)
               AssemblyLine(BYTE, RawByte, Constant.Zero, elidable = false)
           }
         }
@@ -183,7 +183,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       case ExpressionStatement(e) =>
         e match {
           case VariableExpression(_) | LiteralExpression(_, _) | _:GeneratedConstantExpression =>
-            ErrorReporting.warn("Pointless expression statement", ctx.options, statement.position)
+            ctx.log.warn("Pointless expression statement", statement.position)
           case _ =>
         }
         MosExpressionCompiler.compile(ctx, e, None, NoBranching)
@@ -199,19 +199,19 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
             case 1 =>
               if (statement.position.isDefined){
-                ErrorReporting.warn("Returning without a value", ctx.options, statement.position)
+                ctx.log.warn("Returning without a value", statement.position)
               }
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
             case 2 =>
               if (statement.position.isDefined){
-                ErrorReporting.warn("Returning without a value", ctx.options, statement.position)
+                ctx.log.warn("Returning without a value", statement.position)
               }
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardYF()) ++ returnInstructions
             case _ =>
               if (statement.position.isDefined){
-                ErrorReporting.warn("Returning without a value", ctx.options, statement.position)
+                ctx.log.warn("Returning without a value", statement.position)
               }
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
@@ -224,7 +224,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           case _: BooleanType =>
             m.returnType.size match {
               case 0 =>
-                ErrorReporting.error("Cannot return anything from a void function", statement.position)
+                ctx.log.error("Cannot return anything from a void function", statement.position)
                 stackPointerFixBeforeReturn(ctx) ++ returnInstructions
               case 1 =>
                 MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx) ++ returnInstructions
@@ -238,7 +238,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
             AbstractExpressionCompiler.checkAssignmentType(ctx, e, m.returnType)
             m.returnType.size match {
               case 0 =>
-                ErrorReporting.error("Cannot return anything from a void function", statement.position)
+                ctx.log.error("Cannot return anything from a void function", statement.position)
                 stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
               case 1 =>
                 MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions

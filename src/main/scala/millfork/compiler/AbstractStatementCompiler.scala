@@ -3,7 +3,7 @@ package millfork.compiler
 import millfork.CpuFamily
 import millfork.assembly.{AbstractCode, BranchingOpcodeMapping}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 /**
@@ -65,7 +65,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           //              List(labelChunk(start), conditionBlock, bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
         }
       case _ =>
-        ErrorReporting.error(s"Illegal type for a condition: `$condType`", s.condition.position)
+        ctx.log.error(s"Illegal type for a condition: `$condType`", s.condition.position)
         Nil
     }
   }
@@ -100,7 +100,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, conditionBlock, labelChunk(end)).flatten
         }
       case _ =>
-        ErrorReporting.error(s"Illegal type for a condition: `$condType`", s.condition.position)
+        ctx.log.error(s"Illegal type for a condition: `$condType`", s.condition.position)
         Nil
     }
   }
@@ -120,7 +120,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
     val variable = ctx.env.maybeGet[Variable](f.variable)
     variable.foreach{ v=>
       startEvaluated.foreach(value => if (!value.quickSimplify.fitsInto(v.typ)) {
-        ErrorReporting.error(s"Variable `${f.variable}` is too small to hold the initial value in the for loop", f.position)
+        ctx.log.error(s"Variable `${f.variable}` is too small to hold the initial value in the for loop", f.position)
       })
       endEvaluated.foreach { value =>
         val max = f.direction match {
@@ -129,7 +129,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           case _ => Constant.Zero
         }
         if (!max.quickSimplify.fitsInto(v.typ)) {
-          ErrorReporting.error(s"Variable `${f.variable}` is too small to hold the final value in the for loop", f.position)
+          ctx.log.error(s"Variable `${f.variable}` is too small to hold the final value in the for loop", f.position)
         }
       }
     }
@@ -251,8 +251,8 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
   def compileBreakStatement(ctx: CompilationContext, s: BreakStatement) :List[T] = {
     ctx.breakLabels.get(s.label) match {
       case None =>
-        if (s.label == "") ErrorReporting.error("`break` outside a loop", s.position)
-        else ErrorReporting.error("Invalid label: " + s.label, s.position)
+        if (s.label == "") ctx.log.error("`break` outside a loop", s.position)
+        else ctx.log.error("Invalid label: " + s.label, s.position)
         Nil
       case Some(label) =>
         jmpChunk(label)
@@ -262,8 +262,8 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
   def compileContinueStatement(ctx: CompilationContext, s: ContinueStatement) :List[T] = {
     ctx.continueLabels.get(s.label) match {
       case None =>
-        if (s.label == "") ErrorReporting.error("`continue` outside a loop", s.position)
-        else ErrorReporting.error("Invalid label: " + s.label, s.position)
+        if (s.label == "") ctx.log.error("`continue` outside a loop", s.position)
+        else ctx.log.error("Invalid label: " + s.label, s.position)
         Nil
       case Some(label) =>
         jmpChunk(label)
@@ -372,7 +372,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
             }
         }
       case _ =>
-        ErrorReporting.error(s"Illegal type for a condition: `$condType`", s.condition.position)
+        ctx.log.error(s"Illegal type for a condition: `$condType`", s.condition.position)
         Nil
     }
 

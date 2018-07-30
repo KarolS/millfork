@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.assembly.mos.Opcode._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.CompilationOptions
 
 /**
@@ -62,10 +62,12 @@ object JumpFixing {
                   AssemblyLine.label(label)
                 )
             }
-            ErrorReporting.debug("Changing branch from short to long")
-            ErrorReporting.trace(line.toString)
-            ErrorReporting.trace("     ↓")
-            long.foreach(l => ErrorReporting.trace(l.toString))
+            options.log.debug("Changing branch from short to long")
+            if (options.log.traceEnabled) {
+              options.log.trace(line.toString)
+              options.log.trace("     ↓")
+              long.foreach(l => options.log.trace(l.toString))
+            }
             long
           } else List(line)
         }

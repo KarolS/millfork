@@ -105,7 +105,7 @@ object Z80Multiply {
         val lb = Z80ExpressionCompiler.compileToA(ctx, l)
         val rb = Z80ExpressionCompiler.compileToA(ctx, r)
         val load = if (lb.exists(Z80ExpressionCompiler.changesDE)) {
-          lb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(rb)
+          lb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, rb)
         } else {
           rb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ lb
         }
@@ -128,7 +128,7 @@ object Z80Multiply {
         val (load, store) = Z80ExpressionCompiler.calculateLoadAndStoreForByte(ctx, l)
         val rb = Z80ExpressionCompiler.compileToA(ctx, r)
         val loadRegisters = if (load.exists(Z80ExpressionCompiler.changesDE)) {
-          load ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(rb)
+          load ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, rb)
         } else {
           rb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ load
         }

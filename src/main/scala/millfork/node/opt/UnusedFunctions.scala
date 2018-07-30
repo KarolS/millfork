@@ -2,7 +2,7 @@ package millfork.node.opt
 
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 /**
@@ -28,7 +28,7 @@ object UnusedFunctions extends NodeOptimization {
       }
     }
     if (unusedFunctions.nonEmpty) {
-      ErrorReporting.debug("Removing unused functions: " + unusedFunctions.mkString(", "))
+      options.log.debug("Removing unused functions: " + unusedFunctions.mkString(", "))
       optimize(removeFunctionsFromProgram(nodes, unusedFunctions), options)
     } else {
       nodes

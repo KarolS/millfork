@@ -3,7 +3,7 @@ package millfork.compiler.z80
 import millfork.assembly.z80.{ZLine, ZOpcode}
 import millfork.compiler.{AbstractReturnDispatch, CompilationContext}
 import millfork.env.{Constant, InitializedArray, ThingInMemory, VariableType}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{Expression, ReturnDispatchStatement, ZRegister}
 
 import scala.collection.mutable
@@ -33,12 +33,12 @@ object Z80ReturnDispatch extends AbstractReturnDispatch[ZLine] {
       (p1, p2) match {
         case ((offset, reversedResult), (paramVar, paramIndex)) =>
           val storeParam =
-            Z80ExpressionCompiler.stashBCIfChanged(
-              Z80ExpressionCompiler.stashHLIfChanged(
+            Z80ExpressionCompiler.stashBCIfChanged(ctx,
+              Z80ExpressionCompiler.stashHLIfChanged(ctx,
                 Z80ExpressionCompiler.storeA(ctxForStoringParams, paramVar, signedSource = false)))
           if (storeParam.exists(l => l.changesRegister(A))) {
-            ErrorReporting.error("Invalid/too complex target parameter variable", paramVar.position)
-            storeParam.foreach(l => ErrorReporting.debug(l.toString))
+            ctx.log.error("Invalid/too complex target parameter variable", paramVar.position)
+            storeParam.foreach(l => ctx.log.debug(l.toString))
           }
           val nextArray = (paramArrays(paramIndex).toAddress - paramMins(paramIndex)).quickSimplify
           nextArray -> ((

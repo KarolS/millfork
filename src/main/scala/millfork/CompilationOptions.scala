@@ -1,11 +1,11 @@
 package millfork
 
-import millfork.error.ErrorReporting
+import millfork.error.{Logger, ConsoleLogger}
 
 /**
   * @author Karol Stasiak
   */
-case class CompilationOptions(platform: Platform, commandLineFlags: Map[CompilationFlag.Value, Boolean], outputFileName: Option[String], zpRegisterSize: Int) {
+case class CompilationOptions(platform: Platform, commandLineFlags: Map[CompilationFlag.Value, Boolean], outputFileName: Option[String], zpRegisterSize: Int, log: Logger) {
 
   import CompilationFlag._
   import Cpu._
@@ -17,6 +17,8 @@ case class CompilationOptions(platform: Platform, commandLineFlags: Map[Compilat
   def flag(f: CompilationFlag.Value) = flags(f)
 
   {
+    log.setFatalWarnings(flags(CompilationFlag.FatalWarnings))
+
     var invalids = Set[CompilationFlag.Value]()
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.M6502) invalids ++= Set(
@@ -28,97 +30,97 @@ case class CompilationOptions(platform: Platform, commandLineFlags: Map[Compilat
     invalids = invalids.filter(flags)
 
     if (invalids.nonEmpty) {
-      ErrorReporting.error("Invalid flags enabled for the current CPU family: " + invalids.mkString(", "))
+      log.error("Invalid flags enabled for the current CPU family: " + invalids.mkString(", "))
     }
     if (CpuFamily.forType(platform.cpu) != CpuFamily.M6502 && zpRegisterSize > 0) {
-      ErrorReporting.error("Invalid flags enabled for the current CPU family: zp_register" + invalids.mkString(", "))
+      log.error("Invalid flags enabled for the current CPU family: zp_register" + invalids.mkString(", "))
     }
     CpuFamily.forType(platform.cpu) match {
       case CpuFamily.M6502 =>
         if (flags(DecimalMode)) {
           if (platform.cpu == Ricoh || platform.cpu == StrictRicoh) {
-            ErrorReporting.warn("Decimal mode enabled for Ricoh architecture", this)
+            log.warn("Decimal mode enabled for Ricoh architecture")
           }
         }
         if (platform.cpu == Sixteen) {
           if (flags(LargeCode)) {
-            ErrorReporting.warn("Large code model doesn't work correctly yet", this)
+            log.warn("Large code model doesn't work correctly yet")
           }
         }
         if (platform.cpu != Sixteen) {
           if (flags(LargeCode)) {
-            ErrorReporting.error("Cannot use large code model on architectures other than 65816")
+            log.error("Cannot use large code model on architectures other than 65816")
           }
           if (flags(ReturnWordsViaAccumulator)) {
-            ErrorReporting.error("Cannot return words via accumulator on non-65816 architecture")
+            log.error("Cannot return words via accumulator on non-65816 architecture")
           }
           if (flags(EmitNative65816Opcodes) || flags(EmitEmulation65816Opcodes)) {
-            ErrorReporting.error("65816 opcodes enabled for non-65816 architecture")
+            log.error("65816 opcodes enabled for non-65816 architecture")
           }
         }
         if (platform.cpu != CE02) {
           if (flags(Emit65CE02Opcodes)) {
-            ErrorReporting.error("65CE02 opcodes enabled for non-65CE02 architecture")
+            log.error("65CE02 opcodes enabled for non-65CE02 architecture")
           }
         }
         if (flags(Emit65CE02Opcodes)) {
-          ErrorReporting.warn("65CE02 opcodes are highly experimental", this)
+          log.warn("65CE02 opcodes are highly experimental")
         }
         if (platform.cpu != HuC6280) {
           if (flags(EmitHudsonOpcodes)) {
-            ErrorReporting.error("HuC6280 opcodes enabled for non-HuC6280 architecture")
+            log.error("HuC6280 opcodes enabled for non-HuC6280 architecture")
           }
         }
         if (!CmosCompatible(platform.cpu)) {
           if (!flags(PreventJmpIndirectBug)) {
-            ErrorReporting.warn("JMP bug prevention should be enabled for non-CMOS architecture", this)
+            log.warn("JMP bug prevention should be enabled for non-CMOS architecture")
           }
           if (flags(EmitCmosOpcodes)) {
-            ErrorReporting.error("CMOS opcodes enabled for non-CMOS architecture")
+            log.error("CMOS opcodes enabled for non-CMOS architecture")
           }
         }
         if (flags(EmitIllegals)) {
           if (CmosCompatible(platform.cpu)) {
-            ErrorReporting.error("Illegal opcodes enabled for architecture that doesn't support them")
+            log.error("Illegal opcodes enabled for architecture that doesn't support them")
           }
           if (platform.cpu == StrictRicoh || platform.cpu == StrictMos) {
-            ErrorReporting.warn("Illegal opcodes enabled for strict architecture", this)
+            log.warn("Illegal opcodes enabled for strict architecture")
           }
         }
       case CpuFamily.I80 =>
         if (flags(EmitIllegals)) {
           if (platform.cpu != Z80) {
-            ErrorReporting.error("Illegal opcodes enabled for architecture that doesn't support them")
+            log.error("Illegal opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(UseIxForStack)) {
           if (platform.cpu != Z80) {
-            ErrorReporting.error("IX register enabled for architecture that doesn't support it")
+            log.error("IX register enabled for architecture that doesn't support it")
           }
         }
         if (flags(EmitZ80Opcodes)) {
           if (platform.cpu != Z80 && platform.cpu != EZ80) {
-            ErrorReporting.error("Z80 opcodes enabled for architecture that doesn't support them")
+            log.error("Z80 opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(EmitEZ80Opcodes)) {
           if (platform.cpu != Z80 && platform.cpu != EZ80) {
-            ErrorReporting.error("eZ80 opcodes enabled for architecture that doesn't support them")
+            log.error("eZ80 opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(EmitSharpOpcodes)) {
           if (platform.cpu != Sharp) {
-            ErrorReporting.error("Sharp LR35902 opcodes enabled for architecture that doesn't support them")
+            log.error("Sharp LR35902 opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(EmitExtended80Opcodes)) {
           if (platform.cpu != Sharp && platform.cpu != Z80 && platform.cpu != EZ80) {
-            ErrorReporting.error("Extended 8080-like opcodes enabled for architecture that doesn't support them")
+            log.error("Extended 8080-like opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(EmitIntel8080Opcodes)) {
           if (platform.cpu != Intel8080 && platform.cpu != Z80 && platform.cpu != EZ80) {
-            ErrorReporting.error("Intel 8080 opcodes enabled for architecture that doesn't support them")
+            log.error("Intel 8080 opcodes enabled for architecture that doesn't support them")
           }
         }
     }
@@ -180,7 +182,7 @@ object Cpu extends Enumeration {
       i80AlwaysDefaultFlags ++ Set(EmitExtended80Opcodes, EmitSharpOpcodes)
   }
 
-  def fromString(name: String): Cpu.Value = name match {
+  def fromString(name: String)(implicit log: Logger): Cpu.Value = name match {
     case "nmos" => Mos
     case "6502" => Mos
     case "6510" => Mos
@@ -217,7 +219,7 @@ object Cpu extends Enumeration {
     case "8080" => Intel8080
     case "i8080" => Intel8080
     case "intel8080" => Intel8080
-    case _ => ErrorReporting.fatal("Unknown CPU achitecture: " + name)
+    case _ => log.fatal("Unknown CPU achitecture: " + name)
   }
 
   def getMaxSizeReturnableViaRegisters(cpu: Cpu.Value, compilationOptions: CompilationOptions): Int =

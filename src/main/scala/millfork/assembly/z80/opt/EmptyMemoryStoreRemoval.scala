@@ -3,7 +3,7 @@ package millfork.assembly.z80.opt
 import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine}
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 
 import scala.collection.mutable
@@ -48,7 +48,7 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[ZLine] {
     if (toRemove.isEmpty) {
       code
     } else {
-      ErrorReporting.debug(s"Removing pointless store(s) to ${badVariables.mkString(", ")}")
+      optimizationContext.log.debug(s"Removing pointless store(s) to ${badVariables.mkString(", ")}")
       code.zipWithIndex.filter(x => !toRemove(x._2)).map(_._1)
     }
   }

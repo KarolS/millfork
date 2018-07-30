@@ -4,7 +4,7 @@ import millfork.{CompilationFlag, CompilationOptions, Cpu, Platform}
 import millfork.assembly.z80._
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{NiceFunctionProperty, Program, ZRegister}
 
 import scala.collection.mutable
@@ -45,21 +45,21 @@ class Z80Assembler(program: Program,
     import ZRegister._
     import Z80Assembler._
     import CompilationFlag._
-    def requireIntel8080(): Unit = if (!options.flag(EmitIntel8080Opcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+    def requireIntel8080(): Unit = if (!options.flag(EmitIntel8080Opcodes)) log.error("Unsupported instruction: " + instr)
 
-    def requireZ80(): Unit = if (!options.flag(EmitZ80Opcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+    def requireZ80(): Unit = if (!options.flag(EmitZ80Opcodes)) log.error("Unsupported instruction: " + instr)
 
-    def requireZ80Illegals(): Unit = if (!options.flag(EmitZ80Opcodes) || !options.flag(EmitIllegals)) ErrorReporting.error("Unsupported instruction: " + instr)
+    def requireZ80Illegals(): Unit = if (!options.flag(EmitZ80Opcodes) || !options.flag(EmitIllegals)) log.error("Unsupported instruction: " + instr)
 
-    def requireExtended80(): Unit = if (!options.flag(EmitExtended80Opcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+    def requireExtended80(): Unit = if (!options.flag(EmitExtended80Opcodes)) log.error("Unsupported instruction: " + instr)
 
-    def requireSharp(): Unit = if (!options.flag(EmitSharpOpcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+    def requireSharp(): Unit = if (!options.flag(EmitSharpOpcodes)) log.error("Unsupported instruction: " + instr)
 
-    def requireEZ80(): Unit = if (!options.flag(EmitEZ80Opcodes)) ErrorReporting.error("Unsupported instruction: " + instr)
+    def requireEZ80(): Unit = if (!options.flag(EmitEZ80Opcodes)) log.error("Unsupported instruction: " + instr)
 
     def useSharpOpcodes():Boolean = {
       if (!options.flag(EmitSharpOpcodes) && !options.flag(EmitIntel8080Opcodes))
-        ErrorReporting.error("Cannot determine which variant to emit : " + instr)
+        log.error("Cannot determine which variant to emit : " + instr)
       options.flag(EmitSharpOpcodes)
     }
 
@@ -77,7 +77,7 @@ class Z80Assembler(program: Program,
       case ZLine(RST, NoRegisters, param, _) =>
         val opcode = param.quickSimplify match {
           case NumericConstant(n, _) if n >=0 && n <= 0x38 && n % 8 == 0 => 0xc7 + n.toInt
-          case _ => ErrorReporting.error("Invalid param for RST"); 0xc7
+          case _ => log.error("Invalid param for RST"); 0xc7
         }
         writeByte(bank, index, opcode)
         index + 1
@@ -87,7 +87,7 @@ class Z80Assembler(program: Program,
           case NumericConstant(0, _) => 0x46
           case NumericConstant(1, _) => 0x56
           case NumericConstant(2, _) => 0x5e
-          case _ => ErrorReporting.error("Invalid param for IM"); 0xc7
+          case _ => log.error("Invalid param for IM"); 0xc7
         }
         writeByte(bank, index, 0xED)
         writeByte(bank, index + 1, opcode)
@@ -133,7 +133,7 @@ class Z80Assembler(program: Program,
           writeByte(bank, index + 1, 9 + 16 * internalRegisterIndex(HL))
           index + 2
         } else {
-          ErrorReporting.fatal("Cannot assemble " + instr)
+          log.fatal("Cannot assemble " + instr)
           index
         }
       case ZLine(ADD_16, TwoRegisters(ix@(ZRegister.IX | ZRegister.IY), source), _, _) =>
@@ -302,7 +302,7 @@ class Z80Assembler(program: Program,
             writeByte(bank, index + 1, 0x5f)
             index + 2
           case TwoRegisters(I | R, _) | TwoRegisters(_, I | R) =>
-            ErrorReporting.fatal("Cannot assemble " + instr)
+            log.fatal("Cannot assemble " + instr)
             index
           case TwoRegisters(reg, ZRegister.IMM_8) =>
             writeByte(bank, index, 6 + 8 * internalRegisterIndex(reg))
@@ -604,11 +604,11 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0x10)
         index + 1
       case _ =>
-        ErrorReporting.fatal("Cannot assemble " + instr)
+        log.fatal("Cannot assemble " + instr)
         index
     } } catch {
       case _ : MatchError =>
-        ErrorReporting.fatal("Cannot assemble " + instr)
+        log.fatal("Cannot assemble " + instr)
         index
     }
   }

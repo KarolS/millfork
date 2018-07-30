@@ -2,7 +2,7 @@ package millfork.node.opt
 
 import millfork.CompilationOptions
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node._
 
 /**
@@ -12,7 +12,7 @@ object UnusedLocalVariables extends NodeOptimization {
 
   override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = nodes match {
     case (x: FunctionDeclarationStatement) :: xs =>
-      x.copy(statements = x.statements.map(optimizeVariables)) :: optimize(xs, options)
+      x.copy(statements = x.statements.map(stmt => optimizeVariables(options.log, stmt))) :: optimize(xs, options)
     case x :: xs =>
       x :: optimize(xs, options)
     case Nil =>
@@ -58,7 +58,7 @@ object UnusedLocalVariables extends NodeOptimization {
   }
 
 
-  def optimizeVariables(statements: List[Statement]): List[Statement] = {
+  def optimizeVariables(log: Logger, statements: List[Statement]): List[Statement] = {
     val allLocals = getAllLocalVariables(statements)
     val allRead = getAllReadVariables(statements.flatMap {
       case Assignment(VariableExpression(_), expression) => List(expression)
@@ -67,7 +67,7 @@ object UnusedLocalVariables extends NodeOptimization {
     }).toSet
     val localsToRemove = allLocals.filterNot(allRead).toSet
     if (localsToRemove.nonEmpty) {
-      ErrorReporting.debug("Removing unused local variables: " + localsToRemove.mkString(", "))
+      log.debug("Removing unused local variables: " + localsToRemove.mkString(", "))
     }
     removeVariables(statements, localsToRemove)
   }

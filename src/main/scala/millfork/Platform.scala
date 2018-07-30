@@ -4,7 +4,7 @@ import java.io.{File, StringReader}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
-import millfork.error.ErrorReporting
+import millfork.error.Logger
 import millfork.output._
 import millfork.parser.TextCodec
 import org.apache.commons.configuration2.INIConfiguration
@@ -42,18 +42,18 @@ class Platform(
 
 object Platform {
 
-  def lookupPlatformFile(includePath: List[String], platformName: String, featureOverrides: Map[String, Long]): Platform = {
+  def lookupPlatformFile(includePath: List[String], platformName: String, featureOverrides: Map[String, Long])(implicit log: Logger): Platform = {
     includePath.foreach { dir =>
       val file = Paths.get(dir, platformName + ".ini").toFile
-      ErrorReporting.debug("Checking " + file)
+      log.debug("Checking " + file)
       if (file.exists()) {
         return load(file, featureOverrides)
       }
     }
-    ErrorReporting.fatal(s"Platfom definition `$platformName` not found", None)
+    log.fatal(s"Platfom definition `$platformName` not found", None)
   }
 
-  def load(file: File, featureOverrides: Map[String, Long]): Platform = {
+  def load(file: File, featureOverrides: Map[String, Long])(implicit log: Logger): Platform = {
     val conf = new INIConfiguration()
     val bytes = Files.readAllBytes(file.toPath)
     conf.read(new StringReader(new String(bytes, StandardCharsets.UTF_8)))
@@ -78,7 +78,7 @@ object Platform {
           CompilationFlag.EmitEmulation65816Opcodes -> true,
           CompilationFlag.EmitNative65816Opcodes -> true)
       case _ =>
-        ErrorReporting.error(s"Unsupported `emit_65816` value: $value65816")
+        log.error(s"Unsupported `emit_65816` value: $value65816")
         Nil
     }).toMap ++ CompilationFlag.fromString.flatMap { case (k, f) =>
       val value = cs.get(classOf[String], k, "")
@@ -87,7 +87,7 @@ object Platform {
         case "false" | "off" | "no" | "0" => Some(f -> false)
         case "true" | "on" | "yes" | "1" => Some(f -> true)
         case _ =>
-          ErrorReporting.error(s"Unsupported `$k` value: $value")
+          log.error(s"Unsupported `$k` value: $value")
           None
       }
     }
@@ -99,37 +99,37 @@ object Platform {
       case x => x.toInt
     }
     if (zpRegisterSize < 0 || zpRegisterSize > 128) {
-      ErrorReporting.error("Invalid zeropage register size: " + zpRegisterSize)
+      log.error("Invalid zeropage register size: " + zpRegisterSize)
     }
 
     val codecName = cs.get(classOf[String], "encoding", "ascii")
     val srcCodecName = cs.get(classOf[String], "screen_encoding", codecName)
-    val (codec, czt) = TextCodec.forName(codecName, None)
+    val (codec, czt) = TextCodec.forName(codecName, None, log)
     if (czt) {
-      ErrorReporting.error("Default encoding cannot be zero-terminated")
+      log.error("Default encoding cannot be zero-terminated")
     }
-    val (srcCodec, szt) = TextCodec.forName(srcCodecName, None)
+    val (srcCodec, szt) = TextCodec.forName(srcCodecName, None, log)
     if (szt) {
-      ErrorReporting.error("Default screen encoding cannot be zero-terminated")
+      log.error("Default screen encoding cannot be zero-terminated")
     }
 
     val as = conf.getSection("allocation")
 
     val banks = as.get(classOf[String], "segments", "default").split("[, ]+").filter(_.nonEmpty).toList
     if (!banks.contains("default")) {
-      ErrorReporting.error("A segment named `default` is required")
+      log.error("A segment named `default` is required")
     }
     if (banks.toSet.size != banks.length) {
-      ErrorReporting.error("Duplicate segment name")
+      log.error("Duplicate segment name")
     }
     val BankRegex = """\A[A-Za-z0-9_]+\z""".r
     banks.foreach {
       case BankRegex(_*) => // ok
-      case b => ErrorReporting.error(s"Invalid segment name: `$b`")
+      case b => log.error(s"Invalid segment name: `$b`")
     }
 
     val bankStarts = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_start") match {
-      case "" | null => ErrorReporting.error(s"Undefined segment_${b}_start"); 0
+      case "" | null => log.error(s"Undefined segment_${b}_start"); 0
       case x => parseNumber(x)
     })).toMap
     val bankDataStarts = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_datastart", "after_code") match {
@@ -137,7 +137,7 @@ object Platform {
       case x => Some(parseNumber(x))
     })).toMap
     val bankEnds = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_end") match {
-      case "" | null => ErrorReporting.error(s"Undefined segment_${b}_end"); 0xffff
+      case "" | null => log.error(s"Undefined segment_${b}_end"); 0xffff
       case x => parseNumber(x)
     })).toMap
     val bankCodeEnds = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_codeend", "") match {
@@ -156,11 +156,11 @@ object Platform {
 
     // TODO: validate stuff
     banks.foreach(b => {
-      if (bankNumbers(b) < 0 || bankNumbers(b) > 255) ErrorReporting.error(s"Segment $b has invalid bank")
-      if (bankStarts(b) >= bankCodeEnds(b)) ErrorReporting.error(s"Segment $b has invalid range")
-      if (bankCodeEnds(b) > bankEnds(b)) ErrorReporting.error(s"Segment $b has invalid range")
-      if (bankStarts(b) >= bankEnds(b)) ErrorReporting.error(s"Segment $b has invalid range")
-      bankDataStarts(b).foreach(dataStarts => if (dataStarts >= bankEnds(b)) ErrorReporting.error(s"Segment $b has invalid range"))
+      if (bankNumbers(b) < 0 || bankNumbers(b) > 255) log.error(s"Segment $b has invalid bank")
+      if (bankStarts(b) >= bankCodeEnds(b)) log.error(s"Segment $b has invalid range")
+      if (bankCodeEnds(b) > bankEnds(b)) log.error(s"Segment $b has invalid range")
+      if (bankStarts(b) >= bankEnds(b)) log.error(s"Segment $b has invalid range")
+      bankDataStarts(b).foreach(dataStarts => if (dataStarts >= bankEnds(b)) log.error(s"Segment $b has invalid range"))
     })
 
     val freePointers = as.get(classOf[String], "zp_pointers", "all") match {
@@ -188,7 +188,7 @@ object Platform {
         case Array(b, s, e) => BankFragmentOutput(b, parseNumber(s), parseNumber(e))
         case Array(s, e) => CurrentBankFragmentOutput(parseNumber(s), parseNumber(e))
         case Array(b) => ConstOutput(parseNumber(b).toByte)
-        case x => ErrorReporting.fatal(s"Invalid output format: `$x`")
+        case x => log.fatal(s"Invalid output format: `$x`")
       }
     }.toList)
     val fileExtension = os.get(classOf[String], "extension", ".bin")
@@ -197,7 +197,7 @@ object Platform {
       case "" | "single" => OutputStyle.Single
       case "per_bank" | "per_segment" => OutputStyle.PerBank
       case "lunix" => OutputStyle.LUnix
-      case x => ErrorReporting.fatal(s"Invalid output style: `$x`")
+      case x => log.fatal(s"Invalid output style: `$x`")
     }
 
     val builtInFeatures = builtInCpuFeatures(cpu)
@@ -255,11 +255,11 @@ object Platform {
     )
   }
 
-  def parseNumberOrRange(s:String): Seq[Int] = {
+  def parseNumberOrRange(s:String)(implicit log: Logger): Seq[Int] = {
     if (s.contains("-")) {
       val segments = s.split("-")
       if (segments.length != 2) {
-        ErrorReporting.fatal(s"Invalid range: `$s`")
+        log.fatal(s"Invalid range: `$s`")
       }
       Range(parseNumber(segments(0)), parseNumber(segments(1)), 2)
     } else {

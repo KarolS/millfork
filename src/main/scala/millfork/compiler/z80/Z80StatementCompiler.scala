@@ -7,7 +7,7 @@ import millfork.compiler._
 import millfork.env._
 import millfork.node._
 import millfork.assembly.z80.ZOpcode._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 
 /**
   * @author Karol Stasiak
@@ -30,7 +30,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
             case 0 =>
               List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
             case _ =>
-              ErrorReporting.warn("Returning without a value", options, statement.position)
+              ctx.log.warn("Returning without a value", statement.position)
               List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
           }
         })
@@ -38,7 +38,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         ctx.function.returnType match {
           case t: BooleanType => t.size match {
             case 0 =>
-              ErrorReporting.error("Cannot return anything from a void function", statement.position)
+              ctx.log.error("Cannot return anything from a void function", statement.position)
               fixStackOnReturn(ctx) ++
                 List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
             case 1 =>
@@ -52,7 +52,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
             AbstractExpressionCompiler.checkAssignmentType(ctx, e, ctx.function.returnType)
             t.size match {
               case 0 =>
-                ErrorReporting.error("Cannot return anything from a void function", statement.position)
+                ctx.log.error("Cannot return anything from a void function", statement.position)
                 fixStackOnReturn(ctx) ++
                   List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
               case 1 =>
@@ -164,25 +164,25 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
               env.evalForAsm(expression).getOrElse(env.get[ThingInMemory](name, expression.position).toAddress)
             }
           case _ =>
-            env.evalForAsm(expression).getOrElse(Constant.error(s"`$expression` is not a constant", expression.position))
+            env.evalForAsm(expression).getOrElse(env.errorConstant(s"`$expression` is not a constant", expression.position))
         }
         val registers = (reg, offset) match {
           case (OneRegister(r), Some(o)) => env.evalForAsm(expression) match {
             case Some(NumericConstant(v, _)) => OneRegisterOffset(r, v.toInt)
             case Some(_) =>
-              ErrorReporting.error("Non-numeric constant", o.position)
+              ctx.log.error("Non-numeric constant", o.position)
               reg
             case None =>
-              ErrorReporting.error("Inlining failed due to non-constant things", o.position)
+              ctx.log.error("Inlining failed due to non-constant things", o.position)
               reg
           }
           case (TwoRegisters(t, s), Some(o)) => env.evalForAsm(expression) match {
             case Some(NumericConstant(v, _)) => TwoRegistersOffset(t, s, v.toInt)
             case Some(_) =>
-              ErrorReporting.error("Non-numeric constant", o.position)
+              ctx.log.error("Non-numeric constant", o.position)
               reg
             case None =>
-              ErrorReporting.error("Inlining failed due to non-constant things", o.position)
+              ctx.log.error("Inlining failed due to non-constant things", o.position)
               reg
           }
           case _ => reg

@@ -3,7 +3,7 @@ package millfork.compiler.mos
 import millfork.assembly.mos.AssemblyLine
 import millfork.compiler.{BranchSpec, CompilationContext, MacroExpander}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 /**
@@ -25,7 +25,7 @@ object MosMacroExpander extends MacroExpander[AssemblyLine] {
             // TODO: ??
             MosExpressionCompiler.compileByteStorage(ctx, MosRegister.A, l)
           case _ =>
-            ErrorReporting.error("A non-assignable expression was passed to an inlineable function as a `ref` parameter", actualParam.position)
+            ctx.log.error("A non-assignable expression was passed to an inlineable function as a `ref` parameter", actualParam.position)
         }
         actualCode = actualCode.map {
           case a@MosAssemblyStatement(_, _, expr, _) =>
@@ -33,7 +33,7 @@ object MosMacroExpander extends MacroExpander[AssemblyLine] {
           case x => x
         }
       case (AssemblyParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByConstant), actualParam) =>
-        ctx.env.eval(actualParam).getOrElse(Constant.error("Non-constant expression was passed to an inlineable function as a `const` parameter", actualParam.position))
+        ctx.env.eval(actualParam).getOrElse(ctx.env.errorConstant("Non-constant expression was passed to an inlineable function as a `const` parameter", actualParam.position))
         actualCode = actualCode.map {
           case a@MosAssemblyStatement(_, _, expr, _) =>
             a.copy(expression = expr.replaceVariable(ph, actualParam))
@@ -41,7 +41,7 @@ object MosMacroExpander extends MacroExpander[AssemblyLine] {
         }
       case (AssemblyParam(typ, v@RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy), actualParam) =>
         if (hadRegisterParam) {
-          ErrorReporting.error("Only one macro assembly function parameter can be passed via a register", actualParam.position)
+          ctx.log.error("Only one macro assembly function parameter can be passed via a register", actualParam.position)
         }
         hadRegisterParam = true
         paramPreparation = MosExpressionCompiler.compile(ctx, actualParam, Some(typ, v), BranchSpec.None)

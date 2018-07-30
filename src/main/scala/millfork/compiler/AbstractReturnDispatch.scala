@@ -3,7 +3,7 @@ package millfork.compiler
 import millfork.CompilationFlag
 import millfork.assembly.AbstractCode
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 import scala.collection.mutable
@@ -15,13 +15,13 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
 
   def compile(ctx: CompilationContext, stmt: ReturnDispatchStatement): List[T] = {
     if (stmt.branches.isEmpty) {
-      ErrorReporting.error("At least one branch is required", stmt.position)
+      ctx.log.error("At least one branch is required", stmt.position)
       return Nil
     }
 
     def toConstant(e: Expression) = {
       ctx.env.eval(e).getOrElse {
-        ErrorReporting.error("Non-constant parameter for dispatch branch", e.position)
+        ctx.log.error("Non-constant parameter for dispatch branch", e.position)
         Constant.Zero
       }
     }
@@ -29,25 +29,25 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
     def toInt(e: Expression): Int = {
       ctx.env.eval(e) match {
         case Some(NumericConstant(i, _)) =>
-          if (i < 0 || i > 255) ErrorReporting.error("Branch labels have to be in the 0-255 range", e.position)
+          if (i < 0 || i > 255) ctx.log.error("Branch labels have to be in the 0-255 range", e.position)
           i.toInt & 0xff
         case _ =>
-          ErrorReporting.error("Branch labels have to early resolvable constants", e.position)
+          ctx.log.error("Branch labels have to early resolvable constants", e.position)
           0
       }
     }
 
     val indexerType = AbstractExpressionCompiler.getExpressionType(ctx, stmt.indexer)
     if (indexerType.size != 1) {
-      ErrorReporting.error("Return dispatch index expression type has to be a byte", stmt.indexer.position)
+      ctx.log.error("Return dispatch index expression type has to be a byte", stmt.indexer.position)
     }
     if (indexerType.isSigned) {
-      ErrorReporting.warn("Return dispatch index expression type will be automatically casted to unsigned", ctx.options, stmt.indexer.position)
+      ctx.log.warn("Return dispatch index expression type will be automatically casted to unsigned", stmt.indexer.position)
     }
     stmt.params.foreach {
       case e@VariableExpression(name) =>
         if (ctx.env.get[Variable](name).typ.size != 1) {
-          ErrorReporting.error("Dispatch parameters should be bytes", e.position)
+          ctx.log.error("Dispatch parameters should be bytes", e.position)
         }
       case _ => ()
     }
@@ -61,22 +61,22 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
       val function: String = ctx.env.evalForAsm(branch.function) match {
         case Some(MemoryAddressConstant(f: FunctionInMemory)) =>
           if (f.returnType.name != returnType.name) {
-            ErrorReporting.warn(s"Dispatching to a function of different return type: dispatcher return type: ${returnType.name}, dispatchee return type: ${f.returnType.name}", ctx.options, branch.function.position)
+            ctx.log.warn(s"Dispatching to a function of different return type: dispatcher return type: ${returnType.name}, dispatchee return type: ${f.returnType.name}", branch.function.position)
           }
           f.name
         case _ =>
-          ErrorReporting.error("Undefined function or Non-constant function address for dispatch branch", branch.function.position)
+          ctx.log.error("Undefined function or Non-constant function address for dispatch branch", branch.function.position)
           ""
       }
       branch.params.foreach(toConstant)
       val params = branch.params
       if (params.length > stmt.params.length) {
-        ErrorReporting.error("Too many parameters for dispatch branch", branch.params.head.position)
+        ctx.log.error("Too many parameters for dispatch branch", branch.params.head.position)
       }
       branch.label match {
         case DefaultReturnDispatchLabel(start, end) =>
           if (default.isDefined) {
-            ErrorReporting.error(s"Duplicate default dispatch label", branch.position)
+            ctx.log.error(s"Duplicate default dispatch label", branch.position)
           }
           min = start.map(toInt)
           max = end.map(toInt)
@@ -85,7 +85,7 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
           labels.foreach { label =>
             val i = toInt(label)
             if (map.contains(i)) {
-              ErrorReporting.error(s"Duplicate dispatch label: $label = $i", label.position)
+              ctx.log.error(s"Duplicate dispatch label: $label = $i", label.position)
             }
             map(i) = Some(ctx.env.get[FunctionInMemory](function)) -> params
           }
@@ -95,7 +95,7 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
     val nonDefaultMax = map.keys.reduceOption(_ max _)
     val defaultMin = min.orElse(nonDefaultMin).getOrElse(0)
     val defaultMax = max.orElse(nonDefaultMax).getOrElse {
-      ErrorReporting.error("Undefined maximum label for dispatch", stmt.position)
+      ctx.log.error("Undefined maximum label for dispatch", stmt.position)
       defaultMin
     }
     val actualMin = defaultMin min nonDefaultMin.getOrElse(defaultMin)

@@ -44,13 +44,13 @@ object StackVariableLifetime {
       }
     }
 
-//    ErrorReporting.trace("Lifetime for IX+" + variableOffset)
+//    log.trace("Lifetime for IX+" + variableOffset)
 //    codeWithFlow.zipWithIndex.foreach {
 //      case ((_, line), index) =>
 //        if (index >= min && index < max) {
-//          ErrorReporting.trace(f"$line%-30s  <")
+//          log.trace(f"$line%-30s  <")
 //        } else {
-//          ErrorReporting.trace(line.toString)
+//          log.trace(line.toString)
 //        }
 //    }
 

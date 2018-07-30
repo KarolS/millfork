@@ -6,7 +6,7 @@ import millfork.node._
 import ZOpcode._
 import millfork.CompilationFlag
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 
 import scala.collection.mutable
 
@@ -28,7 +28,7 @@ object ZBuiltIns {
           result ++= Z80ExpressionCompiler.compileToA(ctx, expr)
         } else {
           result += ZLine.ld8(ZRegister.E, ZRegister.A)
-          result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToA(ctx, expr))
+          result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, expr))
           result += ZLine.register(op, ZRegister.E)
         }
       case Some(c) =>
@@ -59,7 +59,7 @@ object ZBuiltIns {
         } else {
           result += ZLine.ld8(ZRegister.E, ZRegister.L)
           result += ZLine.ld8(ZRegister.D, ZRegister.H)
-          result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, expr))
+          result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
           result ++= List(
             ZLine.ld8(ZRegister.A, ZRegister.L),
             ZLine.register(op, ZRegister.E),
@@ -102,7 +102,7 @@ object ZBuiltIns {
               result ++= Z80ExpressionCompiler.compileToA(ctx, expr)
             } else {
               result += ZLine.ld8(ZRegister.E, ZRegister.A)
-              result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToA(ctx, expr))
+              result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, expr))
               result += ZLine.register(ADD, ZRegister.E)
               if (decimal) {
                 result += ZLine.implied(DAA)
@@ -131,7 +131,7 @@ object ZBuiltIns {
             } else {
               // TODO: optimize
               result += ZLine.ld8(ZRegister.D, ZRegister.A)
-              result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToA(ctx, expr))
+              result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, expr))
               result += ZLine.ld8(ZRegister.E, ZRegister.A)
               result += ZLine.ld8(ZRegister.A, ZRegister.D)
               result += ZLine.register(SUB, ZRegister.E)
@@ -181,7 +181,7 @@ object ZBuiltIns {
               } else {
                 result += ZLine.ld8(ZRegister.E, ZRegister.L)
                 result += ZLine.ld8(ZRegister.D, ZRegister.H)
-                result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, expr))
+                result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
                 result += ZLine.ld8(ZRegister.A, ZRegister.L)
                 result += ZLine.registers(ADD, ZRegister.A, ZRegister.E)
                 result += ZLine.implied(DAA)
@@ -198,7 +198,7 @@ object ZBuiltIns {
         case (true, expr) =>
           ctx.env.eval(expr) match {
             case None =>
-              ErrorReporting.error("Decimal subtraction not supported on Intel 8080-like CPUs.", expr.position)
+              ctx.log.error("Decimal subtraction not supported on Intel 8080-like CPUs.", expr.position)
             case Some(c) =>
               hasConst = true
               const = CompoundConstant(MathOperator.DecimalMinus, const, c).quickSimplify
@@ -214,7 +214,7 @@ object ZBuiltIns {
               } else {
                 result += ZLine.ld8(ZRegister.E, ZRegister.L)
                 result += ZLine.ld8(ZRegister.D, ZRegister.H)
-                result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, expr))
+                result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
                 result += ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE)
               }
             case Some(c) =>
@@ -231,7 +231,7 @@ object ZBuiltIns {
                   // TODO: optimize
                   result += ZLine.ld8(ZRegister.D, ZRegister.H)
                   result += ZLine.ld8(ZRegister.E, ZRegister.L)
-                  result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, expr))
+                  result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
                   result += ZLine.ld8(ZRegister.B, ZRegister.H)
                   result += ZLine.ld8(ZRegister.C, ZRegister.L)
                   result += ZLine.ld8(ZRegister.H, ZRegister.D)
@@ -242,7 +242,7 @@ object ZBuiltIns {
                   // TODO: optimize
                   result += ZLine.ld8(ZRegister.D, ZRegister.H)
                   result += ZLine.ld8(ZRegister.E, ZRegister.L)
-                  result ++= Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, expr))
+                  result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
                   result += ZLine.ld8(ZRegister.A, ZRegister.E)
                   result += ZLine.register(SUB, ZRegister.L)
                   result += ZLine.ld8(ZRegister.L, ZRegister.A)
@@ -268,7 +268,7 @@ object ZBuiltIns {
 
   def perform8BitInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcode: ZOpcode.Value, decimal: Boolean = false): List[ZLine] = {
     val (lv, calculateAddress):(LocalVariableAddressOperand, List[ZLine]) = Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, lhs).getOrElse{
-      ErrorReporting.error("Invalid left-hand-side expression", lhs.position)
+      ctx.log.error("Invalid left-hand-side expression", lhs.position)
       LocalVariableAddressViaHL -> Nil
     }
     val constantRight = ctx.env.eval(rhs)
@@ -277,7 +277,7 @@ object ZBuiltIns {
       case (false, false) => calculateChange ++ calculateAddress
       case (true, false) => calculateChange ++ calculateAddress
       case (false, true) => calculateAddress ++ calculateChange
-      case (true, true) => calculateAddress ++ Z80ExpressionCompiler.stashHLIfChanged(calculateChange)
+      case (true, true) => calculateAddress ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, calculateChange)
     }
     opcode match {
       case ADD if decimal =>
@@ -415,7 +415,7 @@ object ZBuiltIns {
               Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
           case _ =>
             val loadRight = Z80ExpressionCompiler.compileToDE(ctx, rhs)
-            val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, lhs))
+            val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, lhs))
             val calculateAndStore = ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE) :: Z80ExpressionCompiler.storeHL(ctx, lhs, signedSource = false)
             return loadRight ++ loadLeft ++ calculateAndStore
         }
@@ -435,7 +435,7 @@ object ZBuiltIns {
           case _ =>
             if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
               val loadRight = Z80ExpressionCompiler.compileToDE(ctx, rhs)
-              val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToHL(ctx, lhs))
+              val loadLeft = Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, lhs))
               // OR A clears carry before SBC
               val calculateAndStore = List(
                 ZLine.register(OR, ZRegister.A),
@@ -452,7 +452,7 @@ object ZBuiltIns {
     List.tabulate(size) {i =>
       // TODO: stash things correctly?
       val firstPhase = loadRight(i) ++ List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
-        (Z80ExpressionCompiler.stashBCIfChanged(loadLeft(i)) :+ ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.E))
+        (Z80ExpressionCompiler.stashBCIfChanged(ctx, loadLeft(i)) :+ ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.E))
       val secondPhase = if (decimal) firstPhase :+ ZLine.implied(ZOpcode.DAA) else firstPhase
       secondPhase ++ store(i)
     }.flatten

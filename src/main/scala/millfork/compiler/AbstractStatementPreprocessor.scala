@@ -2,7 +2,7 @@ package millfork.compiler
 
 import millfork.CompilationFlag
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 import AbstractExpressionCompiler.getExpressionType
 import millfork.compiler.AbstractStatementPreprocessor.hiddenEffectFreeFunctions
@@ -29,8 +29,8 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
         usedIdentifiers.exists(_.startsWith(prefix))
       }.toSet
   } else Set() // TODO
-  if (ErrorReporting.traceEnabled && trackableVars.nonEmpty) {
-    ErrorReporting.trace("Tracking local variables: " + trackableVars.mkString(", "))
+  if (ctx.log.traceEnabled && trackableVars.nonEmpty) {
+    ctx.log.trace("Tracking local variables: " + trackableVars.mkString(", "))
   }
   protected val reentrantVars: Set[String] = trackableVars.filter(v => env.get[Variable](v) match {
     case _: StackVariable => true
@@ -177,15 +177,15 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
         VariableExpression(name).pos(pos)
       case VariableExpression(v) if currentVarValues.contains(v) =>
         val constant = currentVarValues(v)
-        ErrorReporting.debug(s"Using node flow to replace $v with $constant", pos)
+        ctx.log.debug(s"Using node flow to replace $v with $constant", pos)
         GeneratedConstantExpression(constant, getExpressionType(ctx, expr)).pos(pos)
       case FunctionCallExpression(t1, List(FunctionCallExpression(t2, List(arg))))
         if optimize && pointlessDoubleCast(t1, t2, arg) =>
-        ErrorReporting.debug(s"Pointless double cast $t1($t2(...))", pos)
+        ctx.log.debug(s"Pointless double cast $t1($t2(...))", pos)
         optimizeExpr(FunctionCallExpression(t1, List(arg)), currentVarValues)
       case FunctionCallExpression(t1, List(arg))
         if optimize && pointlessCast(t1, arg) =>
-        ErrorReporting.debug(s"Pointless cast $t1(...)", pos)
+        ctx.log.debug(s"Pointless cast $t1(...)", pos)
         optimizeExpr(arg, currentVarValues)
       case FunctionCallExpression("nonet", args) =>
         // Eliminating variables may eliminate carry

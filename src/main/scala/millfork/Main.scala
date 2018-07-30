@@ -11,7 +11,7 @@ import millfork.buildinfo.BuildInfo
 import millfork.cli.{CliParser, CliStatus}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.Environment
-import millfork.error.ErrorReporting
+import millfork.error.{Logger, ConsoleLogger}
 import millfork.node.StandardCallGraph
 import millfork.output._
 import millfork.parser.{MosSourceLoadingQueue, ZSourceLoadingQueue}
@@ -20,7 +20,8 @@ import millfork.parser.{MosSourceLoadingQueue, ZSourceLoadingQueue}
   * @author Karol Stasiak
   */
 
-case class Context(inputFileNames: List[String],
+case class Context(errorReporting: Logger,
+                   inputFileNames: List[String],
                    outputFileName: Option[String] = None,
                    runFileName: Option[String] = None,
                    optimizationLevel: Option[Int] = None,
@@ -35,7 +36,7 @@ case class Context(inputFileNames: List[String],
   def changeFlag(f: CompilationFlag.Value, b: Boolean): Context = {
     if (flags.contains(f)) {
       if (flags(f) != b) {
-        ErrorReporting.error("Conflicting flags")
+        errorReporting.error("Conflicting flags")
       }
       this
     } else {
@@ -48,37 +49,41 @@ object Main {
 
 
   def main(args: Array[String]): Unit = {
+    val errorReporting = new ConsoleLogger
+    implicit val __implicitLogger: Logger = errorReporting
+
     if (args.isEmpty) {
-      ErrorReporting.info("For help, use --help")
+      errorReporting.info("For help, use --help")
     }
+
     val startTime = System.nanoTime()
-    val (status, c) = parser.parse(Context(Nil), args.toList)
+    val (status, c) = parser(errorReporting).parse(Context(errorReporting, Nil), args.toList)
     status match {
       case CliStatus.Quit => return
       case CliStatus.Failed =>
-        ErrorReporting.fatalQuit("Invalid command line")
+        errorReporting.fatalQuit("Invalid command line")
       case CliStatus.Ok => ()
     }
-    ErrorReporting.assertNoErrors("Invalid command line")
+    errorReporting.assertNoErrors("Invalid command line")
     if (c.inputFileNames.isEmpty) {
-      ErrorReporting.fatalQuit("No input files")
+      errorReporting.fatalQuit("No input files")
     }
-    ErrorReporting.verbosity = c.verbosity.getOrElse(0)
+    errorReporting.verbosity = c.verbosity.getOrElse(0)
 
-    ErrorReporting.debug("millfork version " + BuildInfo.version)
-    ErrorReporting.trace(s"Copyright (C) $copyrightYears  Karol Stasiak")
-    ErrorReporting.trace("This program comes with ABSOLUTELY NO WARRANTY.")
-    ErrorReporting.trace("This is free software, and you are welcome to redistribute it under certain conditions")
-    ErrorReporting.trace("You should have received a copy of the GNU General Public License along with this program. If not, see https://www.gnu.org/licenses/")
+    errorReporting.debug("millfork version " + BuildInfo.version)
+    errorReporting.trace(s"Copyright (C) $copyrightYears  Karol Stasiak")
+    errorReporting.trace("This program comes with ABSOLUTELY NO WARRANTY.")
+    errorReporting.trace("This is free software, and you are welcome to redistribute it under certain conditions")
+    errorReporting.trace("You should have received a copy of the GNU General Public License along with this program. If not, see https://www.gnu.org/licenses/")
 
     val platform = Platform.lookupPlatformFile(c.includePath, c.platform.getOrElse {
-      ErrorReporting.info("No platform selected, defaulting to `c64`")
+      errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     }, c.features)
-    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize))
-    ErrorReporting.debug("Effective flags: ")
+    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), errorReporting)
+    errorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
-      case (f, b) => ErrorReporting.debug(f"    $f%-30s : $b%s")
+      case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")
     }
 
     val output = c.outputFileName.getOrElse("a")
@@ -102,12 +107,12 @@ object Main {
 
     if (c.outputAssembly) {
       val path = Paths.get(assOutput)
-      ErrorReporting.debug("Writing assembly to " + path.toAbsolutePath)
+      errorReporting.debug("Writing assembly to " + path.toAbsolutePath)
       Files.write(path, result.asm.mkString("\n").getBytes(StandardCharsets.UTF_8))
     }
     if (c.outputLabels) {
       val path = Paths.get(labelOutput)
-      ErrorReporting.debug("Writing labels to " + path.toAbsolutePath)
+      errorReporting.debug("Writing labels to " + path.toAbsolutePath)
       Files.write(path, result.labels.sortWith { (a, b) =>
         val aLocal = a._1.head == '.'
         val bLocal = b._1.head == '.'
@@ -127,11 +132,11 @@ object Main {
           s"${output.stripSuffix(platform.fileExtension)}.$bankName${platform.fileExtension}"
         }
         val path = Paths.get(prgOutput)
-        ErrorReporting.debug("Writing output to " + path.toAbsolutePath)
-        ErrorReporting.debug(s"Total output size: ${code.length} bytes")
+        errorReporting.debug("Writing output to " + path.toAbsolutePath)
+        errorReporting.debug(s"Total output size: ${code.length} bytes")
         Files.write(path, code)
     }
-    ErrorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
+    errorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
     c.runFileName.foreach(program =>
       new ProcessBuilder(program, Paths.get(defaultPrgOutput).toAbsolutePath.toString).start()
     )
@@ -155,9 +160,9 @@ object Main {
     } else {
       unoptimized
     }
-    val callGraph = new StandardCallGraph(program)
+    val callGraph = new StandardCallGraph(program, options.log)
 
-    val env = new Environment(None, "", platform.cpuFamily)
+    val env = new Environment(None, "", platform.cpuFamily, options.log)
     env.collectDeclarations(program, options)
 
     val assemblyOptimizations = optLevel match {
@@ -177,7 +182,7 @@ object Main {
           if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.All else Nil,
           if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
           if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
-          if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil,
+          if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil
         ).flatten
         val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good ++ goodExtras).flatten
         goodCycle ++ OptimizationPresets.AssOpt ++ extras ++ goodCycle
@@ -186,11 +191,11 @@ object Main {
     // compile
     val assembler = new MosAssembler(program, env, platform)
     val result = assembler.assemble(callGraph, assemblyOptimizations, options)
-    ErrorReporting.assertNoErrors("Codegen failed")
-    ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
-    ErrorReporting.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
-    ErrorReporting.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
-    ErrorReporting.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
+    options.log.assertNoErrors("Codegen failed")
+    options.log.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
+    options.log.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
+    options.log.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
+    options.log.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
     result
   }
 
@@ -206,9 +211,9 @@ object Main {
     } else {
       unoptimized
     }
-    val callGraph = new StandardCallGraph(program)
+    val callGraph = new StandardCallGraph(program, options.log)
 
-    val env = new Environment(None, "", platform.cpuFamily)
+    val env = new Environment(None, "", platform.cpuFamily, options.log)
     env.collectDeclarations(program, options)
 
     val assemblyOptimizations = optLevel match {
@@ -224,22 +229,22 @@ object Main {
     // compile
     val assembler = new Z80Assembler(program, env, platform)
     val result = assembler.assemble(callGraph, assemblyOptimizations, options)
-    ErrorReporting.assertNoErrors("Codegen failed")
-    ErrorReporting.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
-    ErrorReporting.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
-    ErrorReporting.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
-    ErrorReporting.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
+    options.log.assertNoErrors("Codegen failed")
+    options.log.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
+    options.log.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
+    options.log.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
+    options.log.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
     result
   }
 
-  private def parser = new CliParser[Context] {
+  private def parser(errorReporting: Logger): CliParser[Context] = new CliParser[Context] {
 
     fluff("Main options:", "")
 
     parameter("-o", "--out").required().placeholder("<file>").action { (p, c) =>
       assertNone(c.outputFileName, "Output already defined")
       c.copy(outputFileName = Some(p))
-    }.description("The output file name, without extension.").onWrongNumber(_ => ErrorReporting.fatalQuit("No output file specified"))
+    }.description("The output file name, without extension.").onWrongNumber(_ => errorReporting.fatalQuit("No output file specified"))
 
     flag("-s").action { c =>
       c.copy(outputAssembly = true)
@@ -272,10 +277,10 @@ object Main {
           c.copy(features = c.features + (tokens(0) -> tokens(1).toLong))
         } catch {
           case _:java.lang.NumberFormatException =>
-            ErrorReporting.fatal("Invalid syntax for -D option")
+            errorReporting.fatal("Invalid syntax for -D option")
         }
       } else {
-        ErrorReporting.fatal("Invalid syntax for -D option")
+        errorReporting.fatal("Invalid syntax for -D option")
       }
     }.description("Define a feature value for the preprocessor.")
 
@@ -289,7 +294,7 @@ object Main {
     }.description("Supress all messages except for errors.")
 
     private val verbose = flag("-v", "--verbose").maxCount(3).action { c =>
-      if (c.verbosity.exists(_ < 0)) ErrorReporting.error("Cannot use -v and -q together", None)
+      if (c.verbosity.exists(_ < 0)) errorReporting.error("Cannot use -v and -q together", None)
       c.copy(verbosity = Some(1 + c.verbosity.getOrElse(0)))
     }.description("Increase verbosity.")
     flag("-vv").repeatable().action(c => verbose.encounter(verbose.encounter(verbose.encounter(c)))).description("Increase verbosity even more.")
@@ -442,7 +447,7 @@ object Main {
 
     default.action { (p, c) =>
       if (p.startsWith("-")) {
-        ErrorReporting.error(s"Invalid option `$p`", None)
+        errorReporting.error(s"Invalid option `$p`", None)
         c
       } else {
         c.copy(inputFileNames = c.inputFileNames :+ p)
@@ -451,7 +456,7 @@ object Main {
 
     def assertNone[T](value: Option[T], msg: String): Unit = {
       if (value.isDefined) {
-        ErrorReporting.error(msg, None)
+        errorReporting.error(msg, None)
       }
     }
   }

@@ -4,7 +4,7 @@ import millfork.{CompilationFlag, CompilationOptions, OptimizationPresets}
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.env.NormalFunction
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, ErrorsOnlyLogger}
 
 import scala.collection.mutable
 
@@ -15,8 +15,7 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
 
   override def optimize(m: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val options = optimizationContext.options
-    val oldVerbosity = ErrorReporting.verbosity
-    ErrorReporting.verbosity = -1
+    val log = optimizationContext.log
     var allOptimizers = OptimizationPresets.Good ++ LaterOptimizations.All
     if (options.flag(CompilationFlag.EmitIllegals)) {
       allOptimizers ++= UndocumentedOptimizations.All
@@ -55,7 +54,10 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
       AlwaysGoodOptimizations.PointlessLoadBeforeReturn,
       AlwaysGoodOptimizations.UnusedCodeRemoval
     )
-    val optionsForMeasurements = options.copy(commandLineFlags = options.commandLineFlags + (CompilationFlag.InternalCurrentlyOptimizingForMeasurement -> true))
+    val optionsForMeasurements = options.copy(
+      commandLineFlags = options.commandLineFlags + (CompilationFlag.InternalCurrentlyOptimizingForMeasurement -> true),
+      log = new ErrorsOnlyLogger(options.log)
+    )
     val optimizationContextForMeasurements = optimizationContext.copy(options = optionsForMeasurements)
     val quicklyCleanedCode = quickScrub.foldLeft(code)((c, o) => o.optimize(m, c, optimizationContextForMeasurements))
     seenSoFar += viewCode(quicklyCleanedCode)
@@ -85,11 +87,8 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
     }
 
     val result = leaves.minBy(_._2.map(_.cost).sum)
-    if (oldVerbosity != 0) {
-      ErrorReporting.verbosity = oldVerbosity
-    }
-    ErrorReporting.debug(s"Visited ${leaves.size} leaves")
-    ErrorReporting.debug(s"${code.map(_.sizeInBytes).sum} B -> ${result._2.map(_.sizeInBytes).sum} B:   ${result._1.reverse.map(_.name).mkString(" -> ")}")
+    log.debug(s"Visited ${leaves.size} leaves")
+    log.debug(s"${code.map(_.sizeInBytes).sum} B -> ${result._2.map(_.sizeInBytes).sum} B:   ${result._1.reverse.map(_.name).mkString(" -> ")}")
     result._1.reverse.foldLeft(code){(c, opt) =>
       val n = opt.optimize(m, c, optimizationContext)
 //      println(c.mkString("","",""))

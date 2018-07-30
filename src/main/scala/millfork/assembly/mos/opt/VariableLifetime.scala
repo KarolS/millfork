@@ -2,7 +2,7 @@ package millfork.assembly.mos.opt
 
 import millfork.assembly.mos.AssemblyLine
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 
 /**
   * @author Karol Stasiak
@@ -41,13 +41,13 @@ object VariableLifetime {
       }
     }
 
-//    ErrorReporting.trace("Lifetime for " + variableName)
+//    log.trace("Lifetime for " + variableName)
 //    code.zipWithIndex.foreach {
 //      case (line, index) =>
 //        if (index >= min && index < max) {
-//          ErrorReporting.trace(f"$line%-30s  <")
+//          log.trace(f"$line%-30s  <")
 //        } else {
-//          ErrorReporting.trace(line.toString)
+//          log.trace(line.toString)
 //        }
 //    }
 

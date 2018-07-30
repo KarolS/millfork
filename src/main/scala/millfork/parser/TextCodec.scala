@@ -3,7 +3,7 @@ package millfork.parser
 import java.util.Locale
 
 import millfork.CompilationOptions
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.Position
 
 /**
@@ -65,7 +65,7 @@ class TextCodec(val name: String,
           Some(List(index))
         } else if (lenient) {
           val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeChar(options, position, alt, lenient = false).isDefined)).getOrElse("")
-          ErrorReporting.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", options, position)
+          options.log.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", position)
           Some(alternative.toList.flatMap(encodeChar(options, position, _, lenient = false).get))
         } else {
           None
@@ -81,14 +81,14 @@ class TextCodec(val name: String,
         case '}' :: xs =>
           encodeEscapeSequence(options, escSeq.mkString(""), position, lenient) ++ encode(options, position, xs, lenient)
         case _ =>
-          ErrorReporting.error(f"Unclosed escape sequence", position)
+          options.log.error(f"Unclosed escape sequence", position)
           Nil
       }
     case head :: tail =>
       (encodeChar(options, position, head, lenient) match {
         case Some(x) => x
         case None =>
-          ErrorReporting.error(f"Invalid character ${format(head)} in string", position)
+          options.log.error(f"Invalid character ${format(head)} in string", position)
           Nil
       }) ++ encode(options, position, tail, lenient)
     case Nil => Nil
@@ -104,9 +104,9 @@ class TextCodec(val name: String,
     }
     escapeSequences.getOrElse(escSeq, {
       if (lenient) {
-        ErrorReporting.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", options, position)
+        options.log.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", position)
       } else {
-        ErrorReporting.error(s"Invalid escape sequence {$escSeq} for encoding `$name`", position)
+        options.log.error(s"Invalid escape sequence {$escSeq} for encoding `$name`", position)
       }
       Nil
     })
@@ -120,7 +120,7 @@ class TextCodec(val name: String,
 
 object TextCodec {
 
-  def forName(name: String, position: Option[Position]): (TextCodec, Boolean) = {
+  def forName(name: String, position: Option[Position], log: Logger): (TextCodec, Boolean) = {
     val zeroTerminated = name.endsWith("z")
     val cleanName = name.stripSuffix("z")
     val codec = (position, cleanName) match {
@@ -143,7 +143,7 @@ object TextCodec {
       case (_, "iso_fi") => TextCodec.IsoIec646Se
       case (_, "iso_yu") => TextCodec.IsoIec646Yu
       case (p, _) =>
-        ErrorReporting.error(s"Unknown string encoding: `$name`", p)
+        log.error(s"Unknown string encoding: `$name`", p)
         TextCodec.Ascii
     }
     codec -> zeroTerminated

@@ -1,6 +1,6 @@
 package millfork.env
 
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.Position
 
 object Constant {
@@ -9,16 +9,11 @@ object Constant {
 
   def apply(i: Long): Constant = NumericConstant(i, minimumSize(i))
 
-  def error(msg: String, position: Option[Position] = None): Constant = {
-    ErrorReporting.error(msg, position)
-    Zero
-  }
-
   def minimumSize(value: Long): Int = if (value < -128 || value > 255) 2 else 1 // TODO !!!
 }
 
 import millfork.env.Constant.minimumSize
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.Position
 
 sealed trait Constant {

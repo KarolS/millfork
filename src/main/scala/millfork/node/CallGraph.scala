@@ -1,7 +1,7 @@
 package millfork.node
 
 import millfork.Tarjan
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 
 import scala.collection.mutable
 
@@ -21,7 +21,7 @@ case object GlobalVertex extends VariableVertex {
   override def function = ""
 }
 
-abstract class CallGraph(program: Program) {
+abstract class CallGraph(program: Program, log: Logger) {
 
   def canOverlap(a: VariableVertex, b: VariableVertex): Boolean
 
@@ -101,20 +101,22 @@ abstract class CallGraph(program: Program) {
     callEdges.filter(e => entryPoints.contains(e._1)).foreach(e => everCalledFunctions += e._2)
     multiaccessibleFunctions ++= callEdges.filter(e => entryPoints.contains(e._1)).map(_._2).groupBy(identity).filter(p => p._2.size > 1).keys
 
-    ErrorReporting.trace("Call edges:")
-    callEdges.toList.sorted.foreach(s => ErrorReporting.trace(s.toString))
+    if (log.traceEnabled) {
+      log.trace("Call edges:")
+      callEdges.toList.sorted.foreach(s => log.trace(s.toString))
 
-    ErrorReporting.trace("Param edges:")
-    paramEdges.toList.sorted.foreach(s => ErrorReporting.trace(s.toString))
+      log.trace("Param edges:")
+      paramEdges.toList.sorted.foreach(s => log.trace(s.toString))
 
-    ErrorReporting.trace("Entry points:")
-    entryPoints.toList.sorted.foreach(ErrorReporting.trace(_))
+      log.trace("Entry points:")
+      entryPoints.toList.sorted.foreach(log.trace(_))
 
-    ErrorReporting.trace("Multiaccessible functions:")
-    multiaccessibleFunctions.toList.sorted.foreach(ErrorReporting.trace(_))
+      log.trace("Multiaccessible functions:")
+      multiaccessibleFunctions.toList.sorted.foreach(log.trace(_))
 
-    ErrorReporting.trace("Ever called functions:")
-    everCalledFunctions.toList.sorted.foreach(ErrorReporting.trace(_))
+      log.trace("Ever called functions:")
+      everCalledFunctions.toList.sorted.foreach(log.trace(_))
+    }
   }
 
   def isEverCalled(function: String): Boolean = {
@@ -124,12 +126,12 @@ abstract class CallGraph(program: Program) {
   def recommendedCompilationOrder: List[String] = Tarjan.sort(allFunctions, callEdges)
 }
 
-class RestrictiveCallGraph(program: Program) extends CallGraph(program) {
+class RestrictiveCallGraph(program: Program, log: Logger) extends CallGraph(program, log) {
 
   def canOverlap(a: VariableVertex, b: VariableVertex): Boolean = false
 }
 
-class StandardCallGraph(program: Program) extends CallGraph(program) {
+class StandardCallGraph(program: Program, log: Logger) extends CallGraph(program, log) {
 
   def canOverlap(a: VariableVertex, b: VariableVertex): Boolean = {
     if (a.function == b.function) {
@@ -154,7 +156,7 @@ class StandardCallGraph(program: Program) extends CallGraph(program) {
         if (paramEdges(bf -> a.function)) return false
       case _ =>
     }
-    ErrorReporting.trace(s"$a and $b can overlap")
+    log.trace(s"$a and $b can overlap")
     true
   }
 

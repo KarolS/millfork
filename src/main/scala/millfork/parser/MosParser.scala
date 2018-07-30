@@ -3,7 +3,7 @@ package millfork.parser
 import fastparse.all._
 import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 import millfork.CompilationOptions
 
@@ -19,7 +19,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   //  def zeropageAddrModeHint: P[Option[Boolean]] = Pass
 
-  val asmOpcode: P[Opcode.Value] = (position() ~ letter.rep(exactly = 3).! ~ ("_W" | "_w").?.!).map { case (p, suffix, o) => Opcode.lookup(o + suffix, Some(p)) }
+  val asmOpcode: P[Opcode.Value] = (position() ~ letter.rep(exactly = 3).! ~ ("_W" | "_w").?.!).map { case (p, suffix, o) => Opcode.lookup(o + suffix, Some(p), log) }
 
   private val commaX = HWS ~ "," ~ HWS ~ ("X" | "x") ~ HWS
   private val commaY = HWS ~ "," ~ HWS ~ ("Y" | "y") ~ HWS
@@ -77,7 +77,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
     case "a" => ByMosRegister(MosRegister.A)
     case "x" => ByMosRegister(MosRegister.X)
     case "y" => ByMosRegister(MosRegister.Y)
-    case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
+    case x => log.fatal(s"Unknown assembly parameter passing convention: `$x`")
   }
 
   override val asmParamDefinition: P[ParameterDeclaration] = for {
@@ -88,18 +88,18 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
     statements match {
-      case Some(Nil) => ErrorReporting.warn("Assembly function `$name` is empty, did you mean RTS, RTI or JMP", options, Some(p))
+      case Some(Nil) => log.warn("Assembly function `$name` is empty, did you mean RTS, RTI or JMP", Some(p))
       case Some(xs) =>
         if (flags("interrupt")) {
           if (xs.exists {
             case MosAssemblyStatement(Opcode.RTS, _, _, _) => true
             case _ => false
-          }) ErrorReporting.warn("Assembly interrupt function `$name` contains RTS, did you mean RTI?", options, Some(p))
+          }) log.warn("Assembly interrupt function `$name` contains RTS, did you mean RTI?", Some(p))
         } else {
           if (xs.exists {
             case MosAssemblyStatement(Opcode.RTI, _, _, _) => true
             case _ => false
-          }) ErrorReporting.warn("Assembly non-interrupt function `$name` contains RTI, did you mean RTS?", options, Some(p))
+          }) log.warn("Assembly non-interrupt function `$name` contains RTI, did you mean RTS?", Some(p))
         }
         if (!name.startsWith("__") && !flags("macro")) {
           xs.last match {
@@ -108,7 +108,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
             case MosAssemblyStatement(Opcode.JMP, _, _, _) => () // OK
             case _ =>
               val validReturn = if (flags("interrupt")) "RTI" else "RTS"
-              ErrorReporting.warn(s"Non-macro assembly function `$name` should end in " + validReturn, options, Some(p))
+              log.warn(s"Non-macro assembly function `$name` should end in " + validReturn, Some(p))
           }
         }
       case None => ()

@@ -2,7 +2,7 @@ package millfork.node.opt
 
 import millfork.CompilationOptions
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 /**
@@ -21,7 +21,7 @@ object UnusedGlobalVariables extends NodeOptimization {
     val allReadVariables = getAllReadVariables(nodes).toSet
     val unusedVariables = allNonvolatileGlobalVariables -- allReadVariables
     if (unusedVariables.nonEmpty) {
-      ErrorReporting.debug("Removing unused global variables: " + unusedVariables.mkString(", "))
+      options.log.debug("Removing unused global variables: " + unusedVariables.mkString(", "))
     }
     removeVariablesFromProgram(nodes, unusedVariables.flatMap(v => Set(v, v + ".hi", v + ".lo")))
   }

@@ -7,7 +7,7 @@ import fastparse.core
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.z80.{ZOpcode, _}
 import millfork.env.{ByZRegister, Constant, ParamPassingConvention}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 /**
@@ -30,7 +30,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
     case "hl" => ByZRegister(ZRegister.HL)
     case "bc" => ByZRegister(ZRegister.BC)
     case "de" => ByZRegister(ZRegister.DE)
-    case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
+    case x => log.fatal(s"Unknown assembly parameter passing convention: `$x`")
   }
 
   override val asmParamDefinition: P[ParameterDeclaration] = for {
@@ -184,7 +184,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
           case (cond, (ZRegister.MEM_ABS_8 | ZRegister.IMM_8, Some(param))) =>
             (JP, cond, None, param)
           case _ =>
-            ErrorReporting.error("Invalid parameters for JP", Some(pos))
+            log.error("Invalid parameters for JP", Some(pos))
             (NOP, NoRegisters, None, zero)
         }
         case "JR" => (jumpConditionWithComma ~ asmExpression).map{case (reg, param) => (JR, reg, None, param)}
@@ -217,7 +217,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
             if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
             (ZOpcodeClasses.BIT_seq(n.toInt), OneRegister(r2), e2, zero)
           case _ =>
-            ErrorReporting.error("Invalid parameters for BIT", Some(pos))
+            log.error("Invalid parameters for BIT", Some(pos))
             (NOP, NoRegisters, None, zero)
         }
         case "SET" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
@@ -225,7 +225,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
             if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
             (ZOpcodeClasses.SET_seq(n.toInt), OneRegister(r2), e2, zero)
           case _ =>
-            ErrorReporting.error("Invalid parameters for SET", Some(pos))
+            log.error("Invalid parameters for SET", Some(pos))
             (NOP, NoRegisters, None, zero)
         }
         case "RES" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
@@ -233,7 +233,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
             if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
             (ZOpcodeClasses.RES_seq(n.toInt), OneRegister(r2), e2, zero)
           case _ =>
-            ErrorReporting.error("Invalid parameters for RES", Some(pos))
+            log.error("Invalid parameters for RES", Some(pos))
             (NOP, NoRegisters, None, zero)
         }
 
@@ -278,7 +278,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
               if toRegister.contains(r) =>
               (IN_IMM, OneRegister(toRegister(r)), None, port)
             case _ =>
-              ErrorReporting.error("Invalid parameters for IN", Some(pos))
+              log.error("Invalid parameters for IN", Some(pos))
               (NOP, NoRegisters, None, zero)
           }
         }
@@ -291,7 +291,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
               if toRegister.contains(r) =>
               (OUT_IMM, OneRegister(toRegister(r)), None, port)
             case _ =>
-              ErrorReporting.error("Invalid parameters for OUT", Some(pos))
+              log.error("Invalid parameters for OUT", Some(pos))
               (NOP, NoRegisters, None, zero)
           }
         }
@@ -310,7 +310,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
               if toRegister.contains(r) =>
               (EX_SP, OneRegister(toRegister(r)), None, zero)
             case _ =>
-              ErrorReporting.error("Invalid parameters for EX", Some(pos))
+              log.error("Invalid parameters for EX", Some(pos))
               (NOP, NoRegisters, None, zero)
           }
         }
@@ -351,7 +351,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         }
 
         case _ =>
-          ErrorReporting.error("Unsupported opcode " + opcode, Some(pos))
+          log.error("Unsupported opcode " + opcode, Some(pos))
           imm(NOP)
       }
     } yield {
@@ -370,19 +370,19 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
 
   override def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
     statements match {
-      case Some(Nil) => ErrorReporting.warn("Assembly function `$name` is empty, did you mean RET, RETI, RETN or JP", options, Some(p))
+      case Some(Nil) => log.warn("Assembly function `$name` is empty, did you mean RET, RETI, RETN or JP", Some(p))
       case Some(xs) =>
         if (flags("interrupt")) {
           if (xs.exists {
             case Z80AssemblyStatement(ZOpcode.RET, _, _, _, _) => true
             case _ => false
-          }) ErrorReporting.warn("Assembly interrupt function `$name` contains RET, did you mean RETI/RETN?", options, Some(p))
+          }) log.warn("Assembly interrupt function `$name` contains RET, did you mean RETI/RETN?", Some(p))
         } else {
           if (xs.exists {
             case Z80AssemblyStatement(ZOpcode.RETI, _, _, _, _) => true
             case Z80AssemblyStatement(ZOpcode.RETN, _, _, _, _) => true
             case _ => false
-          }) ErrorReporting.warn("Assembly non-interrupt function `$name` contains RETI or RETN, did you mean RET?", options, Some(p))
+          }) log.warn("Assembly non-interrupt function `$name` contains RETI or RETN, did you mean RET?", Some(p))
         }
         if (!name.startsWith("__") && !flags("macro")) {
           xs.last match {
@@ -393,7 +393,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
             case Z80AssemblyStatement(ZOpcode.JR, NoRegisters, _, _, _) => () // OK
             case _ =>
               val validReturn = if (flags("interrupt")) "RETI/RETN" else "RET"
-              ErrorReporting.warn(s"Non-macro assembly function `$name` should end in " + validReturn, options, Some(p))
+              log.warn(s"Non-macro assembly function `$name` should end in " + validReturn, Some(p))
           }
         }
       case None => ()

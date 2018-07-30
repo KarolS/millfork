@@ -2,7 +2,7 @@ package millfork.assembly.mos
 
 import java.util.Locale
 
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.Position
 
 object State extends Enumeration {
@@ -155,7 +155,7 @@ object Opcode extends Enumeration {
     case _ => None
   }
 
-  def lookup(opcode: String, position: Option[Position]): Opcode.Value = opcode.toUpperCase(Locale.ROOT) match {
+  def lookup(opcode: String, position: Option[Position], log: Logger): Opcode.Value = opcode.toUpperCase(Locale.ROOT) match {
     case "ADC" => ADC
     case "AHX" => AHX
     case "ALR" => ALR
@@ -295,7 +295,7 @@ object Opcode extends Enumeration {
 
       // TODO: add all of those
     case _ =>
-      ErrorReporting.error(s"Invalid opcode `$opcode`", position)
+      log.error(s"Invalid opcode `$opcode`", position)
       LABEL
   }
 

@@ -5,7 +5,7 @@ import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.{AddrMode, _}
 import millfork.compiler.{AbstractReturnDispatch, BranchSpec, CompilationContext}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 import scala.collection.mutable
@@ -35,7 +35,7 @@ object MosReturnDispatch extends AbstractReturnDispatch[AssemblyLine] {
     val copyParams = stmt.params.zipWithIndex.flatMap { case (paramVar, paramIndex) =>
       val storeParam = MosExpressionCompiler.compileByteStorage(ctxForStoringParams, MosRegister.A, paramVar)
       if (storeParam.exists(l => OpcodeClasses.ChangesX(l.opcode)))
-        ErrorReporting.error("Invalid/too complex target parameter variable", paramVar.position)
+        ctx.log.error("Invalid/too complex target parameter variable", paramVar.position)
       AssemblyLine.absoluteX(LDA, paramArrays(paramIndex), -paramMins(paramIndex)) :: storeParam
     }
 

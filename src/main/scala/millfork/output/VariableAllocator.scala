@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.{CallGraph, VariableVertex}
 import millfork.{CompilationFlag, CompilationOptions}
 
@@ -85,6 +85,8 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
 
   private val variableMap = mutable.Map[Int, mutable.Map[Int, Set[VariableVertex]]]()
 
+  var heapStart: Int = bytes.startAt
+
   def allocateBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value): Int = {
     if (!variableMap.contains(count)) {
       variableMap(count) = mutable.Map()
@@ -112,7 +114,7 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
     }
     val addr = zeropage.findFreeBytes(mem, count, options)
     if (addr < 0) None else {
-      markBytes(mem, addr, count, initialized = false, writeable = true)
+      markBytes(options.log, mem, addr, count, initialized = false, writeable = true)
       Some(addr)
     }
   }
@@ -123,13 +125,13 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
         case AllocationLocation.Zeropage =>
           val a = zeropage.findFreeBytes(mem, count, options)
           if (a < 0) {
-            ErrorReporting.fatal("Out of zeropage memory")
+            options.log.fatal("Out of zeropage memory")
           }
           a
         case AllocationLocation.High =>
           val a = bytes.findFreeBytes(mem, count, options)
           if (a < 0) {
-            ErrorReporting.fatal("Out of high memory")
+            options.log.fatal("Out of high memory")
           }
           a
         case AllocationLocation.Either =>
@@ -137,7 +139,7 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
           if (a < 0) {
             a = bytes.findFreeBytes(mem, count, options)
             if (a < 0) {
-              ErrorReporting.fatal("Out of high memory")
+              options.log.fatal("Out of high memory")
             }
           }
           a
@@ -145,18 +147,19 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
     } else {
       val a = bytes.findFreeBytes(mem, count, options)
       if (a < 0) {
-        ErrorReporting.fatal("Out of high memory")
+        options.log.fatal("Out of high memory")
       }
       a
     }
-    markBytes(mem, addr, count, initialized, writeable)
+    markBytes(options.log, mem, addr, count, initialized, writeable)
+    heapStart = heapStart max (addr + count)
     addr
   }
 
-  private def markBytes(mem: MemoryBank, addr: Int, count: Int, initialized: Boolean, writeable: Boolean): Unit = {
-    ErrorReporting.trace(s"allocating $count bytes at $$${addr.toHexString}")
+  private def markBytes(log: Logger, mem: MemoryBank, addr: Int, count: Int, initialized: Boolean, writeable: Boolean): Unit = {
+    log.trace(s"allocating $count bytes at $$${addr.toHexString}")
     (addr until (addr + count)).foreach { i =>
-      if (mem.occupied(i)) ErrorReporting.fatal("Overlapping objects")
+      if (mem.occupied(i)) log.fatal("Overlapping objects")
       mem.readable(i) = true
       mem.occupied(i) = true
       mem.initialized(i) = initialized

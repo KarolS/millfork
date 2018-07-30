@@ -4,7 +4,7 @@ import millfork.CompilationOptions
 import millfork.assembly._
 import millfork.assembly.mos._
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.MosRegister
 
 import scala.collection.immutable

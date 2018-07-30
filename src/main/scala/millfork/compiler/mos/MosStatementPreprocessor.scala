@@ -2,7 +2,7 @@ package millfork.compiler.mos
 
 import millfork.compiler.{AbstractStatementPreprocessor, CompilationContext}
 import millfork.env.{NumericConstant, Variable}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 /**
@@ -17,7 +17,7 @@ class MosStatementPreprocessor(ctx: CompilationContext, statements: List[Executa
           f.direction match {
             case ForDirection.Until | ForDirection.ParallelUntil =>
               if (s.&(0xff) == 0 && e.&(0xff) == 0) {
-                ErrorReporting.debug(s"Loop across whole memory pages", f.position)
+                ctx.log.debug(s"Loop across whole memory pages", f.position)
                 Some(ForStatement(
                   f.variable + ".hi",
                   FunctionCallExpression("hi", List(f.start)).pos(f.start.position),
@@ -35,7 +35,7 @@ class MosStatementPreprocessor(ctx: CompilationContext, statements: List[Executa
               } else None
             case ForDirection.To | ForDirection.ParallelTo =>
               if (s.&(0xff) == 0 && e.&(0xff) == 0xff) {
-                ErrorReporting.debug(s"Loop across whole memory pages", f.position)
+                ctx.log.debug(s"Loop across whole memory pages", f.position)
                 Some(ForStatement(
                   f.variable + ".hi",
                   FunctionCallExpression("hi", List(f.start)).pos(f.start.position),
@@ -53,7 +53,7 @@ class MosStatementPreprocessor(ctx: CompilationContext, statements: List[Executa
               } else None
             case ForDirection.DownTo | ForDirection.ParallelTo =>
               if (s.&(0xff) == 0xff && e.&(0xff) == 0) {
-                ErrorReporting.debug(s"Loop across whole memory pages", f.position)
+                ctx.log.debug(s"Loop across whole memory pages", f.position)
                 Some(ForStatement(
                   f.variable + ".hi",
                   FunctionCallExpression("hi", List(f.start)).pos(f.start.position),

@@ -5,7 +5,7 @@ import millfork.assembly._
 import millfork.assembly.mos._
 import millfork.assembly.opt.SingleStatus
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.{FatalErrorReporting, Logger}
 import millfork.node.{MosNiceFunctionProperty, NiceFunctionProperty}
 
 import scala.collection.mutable
@@ -20,12 +20,12 @@ object FlowInfoRequirement extends Enumeration {
 
   def assertForward(x: FlowInfoRequirement.Value): Unit = x match {
     case BothFlows | ForwardFlow => ()
-    case NoRequirement | JustLabels | BackwardFlow => ErrorReporting.fatal("Forward flow info required")
+    case NoRequirement | JustLabels | BackwardFlow => FatalErrorReporting.reportFlyingPig("Forward flow info required")
   }
 
   def assertBackward(x: FlowInfoRequirement.Value): Unit = x match {
     case BothFlows | BackwardFlow => ()
-    case NoRequirement | JustLabels | ForwardFlow => ErrorReporting.fatal("Backward flow info required")
+    case NoRequirement | JustLabels | ForwardFlow => FatalErrorReporting.reportFlyingPig("Backward flow info required")
   }
 }
 
@@ -46,6 +46,7 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
   }
 
   def optimizeImpl(f: NormalFunction, code: List[(FlowInfo, AssemblyLine)], optimizationContext: OptimizationContext): List[AssemblyLine] = {
+    val log = optimizationContext.log
     code match {
       case Nil => Nil
       case head :: tail =>
@@ -55,16 +56,18 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
             case Some(rest: List[(FlowInfo, AssemblyLine)]) =>
               val matchedChunkToOptimize: List[AssemblyLine] = code.take(code.length - rest.length).map(_._2)
               val optimizedChunk: List[AssemblyLine] = rule.result(matchedChunkToOptimize, ctx)
-              ErrorReporting.debug(s"Applied $name ($index)")
+              log.debug(s"Applied $name ($index)")
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
                 val before = code.head._1.statusBefore
                 val after = code(matchedChunkToOptimize.length - 1)._1.importanceAfter
-                ErrorReporting.trace(s"Before: $before")
-                ErrorReporting.trace(s"After:  $after")
+                log.trace(s"Before: $before")
+                log.trace(s"After:  $after")
               }
-              matchedChunkToOptimize.filter(_.isPrintable).foreach(l => ErrorReporting.trace(l.toString))
-              ErrorReporting.trace("     ↓")
-              optimizedChunk.filter(_.isPrintable).foreach(l => ErrorReporting.trace(l.toString))
+              if (log.traceEnabled) {
+                matchedChunkToOptimize.filter(_.isPrintable).foreach(l => log.trace(l.toString))
+                log.trace("     ↓")
+                optimizedChunk.filter(_.isPrintable).foreach(l => log.trace(l.toString))
+              }
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
                 return optimizedChunk ++ optimizeImpl(f, rest, optimizationContext)
               } else {
@@ -82,6 +85,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
                               val labelMap: Map[String, Int],
                               val zeropageRegister: Option[ThingInMemory],
                               val niceFunctionProperties: Set[(NiceFunctionProperty, String)]) {
+  def log: Logger = compilationOptions.log
 
   def functionChangesA(name: String): Boolean = !niceFunctionProperties(MosNiceFunctionProperty.DoesntChangeA -> name)
 
@@ -145,9 +149,9 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
       t.asInstanceOf[AnyRef]
     } else {
       if (i eq null) {
-        ErrorReporting.fatal(s"Value at index $i is null")
+        log.fatal(s"Value at index $i is null")
       } else {
-        ErrorReporting.fatal(s"Value at index $i is a ${t.getClass.getSimpleName}, not a ${clazz.getSimpleName}")
+        log.fatal(s"Value at index $i is a ${t.getClass.getSimpleName}, not a ${clazz.getSimpleName}")
       }
     }
   }
@@ -155,7 +159,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
   def get[T: Manifest](i: Int): T = {
     val v = getImpl[T](i)
     if (v eq null) {
-      ErrorReporting.fatal(s"Value at index $i is null")
+      log.fatal(s"Value at index $i is null")
     }
     v.asInstanceOf[T]
   }

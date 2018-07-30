@@ -6,7 +6,7 @@ import millfork.CompilationFlag
 import millfork.assembly.z80.ZLine
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env.{Label, NormalParamSignature}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 
 /**
@@ -75,11 +75,11 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
     val m = ctx.function
     if (m.stackVariablesSize == 0) return Nil
 //    if (!ctx.options.flags(CompilationFlag.EmitZ80Opcodes)) {
-//      ErrorReporting.error(s"Target CPU does not support stack variables", m.position)
+//      ctx.log.error(s"Target CPU does not support stack variables", m.position)
 //      return Nil
 //    }
     if (m.stackVariablesSize > 127) {
-      ErrorReporting.error(s"Function ${m.name} has too many local stack variables", m.position)
+      ctx.log.error(s"Function ${m.name} has too many local stack variables", m.position)
       return Nil
     }
     import millfork.assembly.z80.ZOpcode._

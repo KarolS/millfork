@@ -7,7 +7,7 @@ import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.{AssemblyLine, OpcodeClasses}
 import millfork.assembly.opt.SingleStatus
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 
 /**
   * @author Karol Stasiak
@@ -39,8 +39,8 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
     val statuses = CoarseFlowAnalyzer.analyze(f, code, optimizationContext)
     val (optimized, result) = optimizeImpl(code.zip(statuses), eligibleVariables, Map())
     if (optimized) {
-      ErrorReporting.debug("Optimized local variable reads")
-      reportOptimizedBlock(code, result)
+      optimizationContext.log.debug("Optimized local variable reads")
+      reportOptimizedBlock(optimizationContext.log, code, result)
       result
     } else {
       code
@@ -128,9 +128,11 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
     case Nil => (false, Nil)
   }
 
-  def reportOptimizedBlock(oldCode: List[AssemblyLine], newCode: List[AssemblyLine]): Unit = {
-    oldCode.foreach(l => ErrorReporting.trace(l.toString))
-    ErrorReporting.trace("     ↓")
-    newCode.foreach(l => ErrorReporting.trace(l.toString))
+  def reportOptimizedBlock(log: Logger, oldCode: List[AssemblyLine], newCode: List[AssemblyLine]): Unit = {
+    if (log.traceEnabled) {
+      oldCode.foreach(l => log.trace(l.toString))
+      log.trace("     ↓")
+      newCode.foreach(l => log.trace(l.toString))
+    }
   }
 }

@@ -42,7 +42,7 @@ object Z80BulkMemoryOperations {
     * where <code>a</code> is an arbitrary expression independent of <code>i</code>
     */
   def compileMemset(ctx: CompilationContext, target: IndexedExpression, source: Expression, f: ForStatement): List[ZLine] = {
-    val loadA = Z80ExpressionCompiler.stashHLIfChanged(Z80ExpressionCompiler.compileToA(ctx, source)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+    val loadA = Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, source)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
     compileMemoryBulk(ctx, target, f,
       useDEForTarget = false,
       preferDecreasing = false,
@@ -382,14 +382,14 @@ object Z80BulkMemoryOperations {
     // TODO: figure the optimal compilation order
     val loading = if (useDEForTarget) {
       calculateByteCount ++
-        Z80ExpressionCompiler.stashBCIfChanged(calculateTargetAddress ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L))) ++
-        Z80ExpressionCompiler.stashBCIfChanged(Z80ExpressionCompiler.stashDEIfChanged(extraInitializationPair._1)) ++
-        Z80ExpressionCompiler.stashHLIfChanged(Z80ExpressionCompiler.stashDEIfChanged(extraInitializationPair._2))
+        Z80ExpressionCompiler.stashBCIfChanged(ctx, calculateTargetAddress ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L))) ++
+        Z80ExpressionCompiler.stashBCIfChanged(ctx, Z80ExpressionCompiler.stashDEIfChanged(ctx, extraInitializationPair._1)) ++
+        Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.stashDEIfChanged(ctx, extraInitializationPair._2))
     } else {
       calculateByteCount ++
-        Z80ExpressionCompiler.stashBCIfChanged(calculateTargetAddress) ++
-        Z80ExpressionCompiler.stashBCIfChanged(Z80ExpressionCompiler.stashHLIfChanged(extraInitializationPair._1)) ++
-        Z80ExpressionCompiler.stashHLIfChanged(extraInitializationPair._2)
+        Z80ExpressionCompiler.stashBCIfChanged(ctx, calculateTargetAddress) ++
+        Z80ExpressionCompiler.stashBCIfChanged(ctx, Z80ExpressionCompiler.stashHLIfChanged(ctx, extraInitializationPair._1)) ++
+        Z80ExpressionCompiler.stashHLIfChanged(ctx, extraInitializationPair._2)
     }
 
     val label = Z80Compiler.nextLabel("me")

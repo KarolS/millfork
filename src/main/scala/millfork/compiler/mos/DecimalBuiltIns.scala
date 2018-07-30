@@ -7,7 +7,7 @@ import millfork.assembly.mos._
 import millfork.assembly._
 import millfork.compiler.{BranchSpec, CompilationContext}
 import millfork.env.{NumericConstant, RegisterVariable, Type, _}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{Expression, MosRegister, _}
 
 /**
@@ -22,7 +22,7 @@ object DecimalBuiltIns {
         val addition = BuiltIns.compileAddition(ctx, List.fill(1 << v)(false -> l), decimal = true)
         if (rotate) addition.filterNot(_.opcode == CLC) else addition
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount", r.position)
+        ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
     }
   }
@@ -37,7 +37,7 @@ object DecimalBuiltIns {
           shiftOrRotateAccumulatorRight(ctx, rotate, preserveCarry = false)
         }.flatten
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount", r.position)
+        ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
     })
   }
@@ -94,7 +94,7 @@ object DecimalBuiltIns {
       case Some(NumericConstant(v, _)) =>
         List.fill(v.toInt)(BuiltIns.compileInPlaceWordOrLongAddition(ctx, l, l, decimal = true, subtract = false)).flatten
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount", r.position)
+        ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
     }
   }
@@ -122,7 +122,7 @@ object DecimalBuiltIns {
           }.flatten
         }.flatten
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount", r.position)
+        ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
     }
   }
@@ -131,10 +131,10 @@ object DecimalBuiltIns {
     val multiplier = ctx.env.eval(r) match {
       case Some(NumericConstant(v, _)) =>
         if (v.&(0xf0) > 0x90 || v.&(0xf) > 9)
-          ErrorReporting.error("Invalid decimal constant", r.position)
+          ctx.log.error("Invalid decimal constant", r.position)
         (v.&(0xf0).>>(4) * 10 + v.&(0xf)).toInt
       case _ =>
-        ErrorReporting.error("Cannot multiply by a non-constant amount", r.position)
+        ctx.log.error("Cannot multiply by a non-constant amount", r.position)
         return Nil
     }
     val fullStorage = MosExpressionCompiler.compileByteStorage(ctx, MosRegister.A, l)

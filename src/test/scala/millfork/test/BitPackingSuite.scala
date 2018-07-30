@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun}
 import org.scalatest.{FunSuite, Matchers}
 

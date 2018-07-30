@@ -3,7 +3,7 @@ package millfork.assembly.z80.opt
 import millfork.assembly.z80._
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 import millfork.{CompilationFlag, NonOverlappingIntervals}
 
@@ -29,6 +29,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
     val vs = VariableStatus(f, code, optimizationContext, _.size == 1).getOrElse(return code)
     val options = optimizationContext.options
+    val log = options.log
     val removeVariablesForReal = !options.flag(CompilationFlag.InternalCurrentlyOptimizingForMeasurement)
     val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
     lazy val savingsForRemovingOneStackVariable = {
@@ -114,9 +115,11 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     val (_, bestBs, bestCs, bestDs, bestEs, bestHs, bestLs) = variants.maxBy(_._1)
 
     def reportOptimizedBlock[T](oldCode: List[(T, ZLine)], newCode: List[ZLine]): Unit = {
-      oldCode.foreach(l => ErrorReporting.trace(l._2.toString))
-      ErrorReporting.trace("     ↓")
-      newCode.foreach(l => ErrorReporting.trace(l.toString))
+      if (log.traceEnabled) {
+        oldCode.foreach(l => log.trace(l._2.toString))
+        log.trace("     ↓")
+        newCode.foreach(l => log.trace(l.toString))
+      }
     }
 
     if (bestBs.nonEmpty || bestCs.nonEmpty || bestDs.nonEmpty || bestEs.nonEmpty || bestHs.nonEmpty || bestLs.nonEmpty) {
@@ -126,7 +129,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       def tryInline(bests: Set[(String, Range, CyclesAndBytes)], register: ZRegister.Value): Boolean = {
         bests.find(_._2.start == i).exists {
           case (v, range, _) =>
-            ErrorReporting.debug(s"Inlining $v to single register $register")
+            log.debug(s"Inlining $v to single register $register")
             val oldCode = vs.codeWithFlow.slice(range.start, range.end)
             val newCode = inlineVars(v, register, addressInHl = false, addressInBc = false, addressInDe = false, oldCode.map(_._2))
             reportOptimizedBlock(oldCode, newCode)

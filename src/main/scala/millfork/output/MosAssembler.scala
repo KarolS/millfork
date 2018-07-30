@@ -3,7 +3,7 @@ package millfork.output
 import millfork.assembly.mos.opt.{HudsonOptimizations, JumpFixing, JumpShortening}
 import millfork.assembly._
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, FatalErrorReporting}
 import millfork.node.{MosNiceFunctionProperty, NiceFunctionProperty, Program}
 import millfork._
 import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode, OpcodeClasses}
@@ -36,8 +36,8 @@ class MosAssembler(program: Program,
       case AssemblyLine(BYTE, RawByte, c, _) =>
         writeByte(bank, index, c)
         index + 1
-      case AssemblyLine(BYTE, _, _, _) => ErrorReporting.fatal("BYTE opcode failure")
-      case AssemblyLine(_, RawByte, _, _) => ErrorReporting.fatal("BYTE opcode failure")
+      case AssemblyLine(BYTE, _, _, _) => log.fatal("BYTE opcode failure")
+      case AssemblyLine(_, RawByte, _, _) => log.fatal("BYTE opcode failure")
       case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(labelName)), _) =>
         labelMap(labelName) = index
         index
@@ -187,47 +187,47 @@ object MosAssembler {
     if (options.flag(CompilationFlag.EmitHudsonOpcodes))  hudsonOpcodes.get(key).foreach(return _)
     if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) emulation65816Opcodes.get(key).foreach(return _)
     if (options.flag(CompilationFlag.EmitNative65816Opcodes)) native65816Opcodes.get(key).foreach(return _)
-    ErrorReporting.fatal("Cannot assemble an unknown opcode " + key)
+    options.log.fatal("Cannot assemble an unknown opcode " + key)
   }
 
   private def op(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     opcodes(op -> am) = x.toByte
     if (am == AddrMode.Relative) opcodes(op -> AddrMode.Immediate) = x.toByte
   }
 
   private def cm(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     cmosOpcodes(op -> am) = x.toByte
   }
 
   private def cn(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     cmosNopOpcodes(op -> am) = x.toByte
   }
 
   private def il(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     illegalOpcodes(op -> am) = x.toByte
   }
 
   private def hu(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     hudsonOpcodes(op -> am) = x.toByte
   }
 
   private def ce(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     ce02Opcodes(op -> am) = x.toByte
   }
 
   private def em(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     emulation65816Opcodes(op -> am) = x.toByte
   }
 
   private def na(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
-    if (x < 0 || x > 0xff) ErrorReporting.fatal("Invalid code for" + (op -> am))
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     native65816Opcodes(op -> am) = x.toByte
   }
 

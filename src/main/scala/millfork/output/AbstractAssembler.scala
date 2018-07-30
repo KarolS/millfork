@@ -3,7 +3,7 @@ package millfork.output
 import millfork.assembly._
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.{CallGraph, NiceFunctionProperty, Program}
 import millfork._
 
@@ -25,6 +25,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   var unoptimizedCodeSize: Int = 0
   var optimizedCodeSize: Int = 0
   var initializedVariablesSize: Int = 0
+  protected val log: Logger = rootEnv.log
 
   val mem = new CompiledMemory(platform.bankNumbers.keys.toList)
   val labelMap: mutable.Map[String, Int] = mutable.Map()
@@ -52,7 +53,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     mem.banks(bank).readable(addr) = true
     value match {
       case NumericConstant(x, _) =>
-        if (x > 0xff) ErrorReporting.error("Byte overflow")
+        if (x > 0xff) log.error("Byte overflow")
         mem.banks(bank).output(addr) = x.toByte
       case _ =>
         bytesToWriteLater += ((bank, addr, value))
@@ -68,7 +69,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     mem.banks(bank).readable(addr + 1) = true
     value match {
       case NumericConstant(x, _) =>
-        if (x > 0xffff) ErrorReporting.error("Word overflow")
+        if (x > 0xffff) log.error("Word overflow")
         mem.banks(bank).output(addr) = x.toByte
         mem.banks(bank).output(addr + 1) = (x >> 8).toByte
       case _ =>
@@ -82,7 +83,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case AssertByte(inner) =>
         val value = deepConstResolve(inner)
         if (value.toByte == value) value else {
-          ErrorReporting.error("Invalid relative jump: " + c)
+          log.error("Invalid relative jump: " + c)
           -2 // spin
         }
       case MemoryAddressConstant(th) =>
@@ -106,7 +107,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           }
         } catch {
           case _: StackOverflowError =>
-            ErrorReporting.fatal("Stack overflow " + c)
+            log.fatal("Stack overflow " + c)
         }
       case UnexpandedConstant(name, _) =>
         if (labelMap.contains(name)) labelMap(name)
@@ -143,7 +144,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case MemoryAddressConstant(th) => th.bank(options).toByte
       case CompoundConstant(MathOperator.Plus, a, b) => (extractBank(a, options) + extractBank(b, options)).toByte
       case CompoundConstant(MathOperator.Minus, a, b) => (extractBank(a, options) - extractBank(b, options)).toByte
-      case _ => ErrorReporting.fatal("Failed to extract bank number from constant " + c)
+      case _ => log.fatal("Failed to extract bank number from constant " + c)
     }
   }
 
@@ -220,7 +221,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         } yield s
         strippedCodeForInlining match {
           case Some(c) =>
-            ErrorReporting.debug("Inlining " + f, function.position)
+            log.debug("Inlining " + f, function.position)
             inlinedFunctions += f -> c
             compiledFunctions(f) = Nil
           case None =>
@@ -234,9 +235,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         function.environment.removedThings.foreach(env.removeVariable)
       }
     }
-    if (ErrorReporting.traceEnabled) {
+    if (log.traceEnabled) {
       niceFunctionProperties.toList.groupBy(_._2).mapValues(_.map(_._1).sortBy(_.toString)).toList.sortBy(_._1).foreach{ case (fname, properties) =>
-          ErrorReporting.trace(fname.padTo(30, ' ') + properties.mkString(" "))
+          log.trace(fname.padTo(30, ' ') + properties.mkString(" "))
       }
     }
 
@@ -256,7 +257,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         for (item <- items) {
           env.eval(item) match {
             case Some(c) => writeByte(bank, index, c)
-            case None => ErrorReporting.error(s"Non-constant contents of array `$name`")
+            case None => log.error(s"Non-constant contents of array `$name`")
           }
           bank0.occupied(index) = true
           bank0.initialized(index) = true
@@ -364,7 +365,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         for (item <- items) {
           env.eval(item) match {
             case Some(c) => writeByte(bank, index, c)
-            case None => ErrorReporting.error(s"Non-constant contents of array `$name`")
+            case None => log.error(s"Non-constant contents of array `$name`")
           }
           index += 1
         }
@@ -393,7 +394,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               index += 1
             }
           case None =>
-            ErrorReporting.error(s"Non-constant initial value for variable `$name`")
+            log.error(s"Non-constant initial value for variable `$name`")
             index += typ.size
         }
         initializedVariablesSize += typ.size
@@ -422,6 +423,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       labelMap += "__zeropage_last" -> 2
       labelMap += "__zeropage_end" -> 3
     }
+    labelMap += "__heap_start" -> variableAllocators("default").heapStart
 
     env = rootEnv.allThings
 
@@ -466,7 +468,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
                               inlinedFunctions: Map[String, List[T]],
                               labelMap: Map[String, Int],
                               niceFunctionProperties: Set[(NiceFunctionProperty, String)]): List[T] = {
-    ErrorReporting.debug("Compiling: " + f.name, f.position)
+    log.debug("Compiling: " + f.name, f.position)
     val unoptimized: List[T] =
       injectLabels(labelMap, inliningCalculator.inline(
         compiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options, niceFunctionProperties = niceFunctionProperties)),

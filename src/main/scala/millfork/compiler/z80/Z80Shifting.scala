@@ -4,7 +4,7 @@ import millfork.CompilationFlag
 import millfork.assembly.z80.{NoRegisters, ZLine, ZOpcode}
 import millfork.compiler.CompilationContext
 import millfork.env.NumericConstant
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{Expression, LhsExpression, ZRegister}
 
 import scala.collection.GenTraversableOnce
@@ -42,7 +42,7 @@ object Z80Shifting {
         }
       case _ =>
         val calcCount = Z80ExpressionCompiler.compileToA(ctx, rhs) :+ ZLine.ld8(ZRegister.B, ZRegister.A)
-        val l = Z80ExpressionCompiler.stashBCIfChanged(Z80ExpressionCompiler.compileToA(ctx, lhs))
+        val l = Z80ExpressionCompiler.stashBCIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, lhs))
         val loopBody = ZLine.register(op, ZRegister.A) :: fixAfterShiftIfNeeded(extendedOps, left, 1)
         val label = Z80Compiler.nextLabel("sh")
         calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label)
@@ -118,7 +118,7 @@ object Z80Shifting {
         }
       case _ =>
         val calcCount = Z80ExpressionCompiler.compileToA(ctx, rhs) :+ ZLine.ld8(ZRegister.B, ZRegister.A)
-        val l = Z80ExpressionCompiler.stashBCIfChanged(Z80ExpressionCompiler.compileToA(ctx, lhs))
+        val l = Z80ExpressionCompiler.stashBCIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, lhs))
         val loopBody = ZLine.register(op, ZRegister.A) :: fixAfterShiftIfNeeded(extendedOps, left, 1)
         val label = Z80Compiler.nextLabel("sh")
         calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label) ++ Z80ExpressionCompiler.storeA(ctx, lhs, signedSource = false)
@@ -213,7 +213,7 @@ object Z80Shifting {
       case Some(NumericConstant(0, _)) =>
         List(ZLine.ld8(A, L))
       case Some(NumericConstant(n, _)) if n < 0 =>
-        ErrorReporting.error("Negative shift amount", rhs.position) // TODO
+        ctx.log.error("Negative shift amount", rhs.position) // TODO
         Nil
       case Some(NumericConstant(n, _)) if n >= 9 =>
         List(ZLine.ldImm8(A, 0))
@@ -231,7 +231,7 @@ object Z80Shifting {
           List(ZLine.ld8(A, H), ZLine.register(RR, A), ZLine.ld8(A, L)) ++ (List.fill(n.toInt)(ZLine.register(RR, A)) :+ ZLine.imm8(AND, 0x1ff >> n))
 
       case _ =>
-        ErrorReporting.error("Non-constant shift amount", rhs.position) // TODO
+        ctx.log.error("Non-constant shift amount", rhs.position) // TODO
         Nil
     }
   }
@@ -265,7 +265,7 @@ object Z80Shifting {
     ctx.env.eval(rhs) match {
       case Some(NumericConstant(0, _)) => Nil
       case Some(NumericConstant(n, _)) if n < 0 =>
-        ErrorReporting.error("Negative shift amount", rhs.position) // TODO
+        ctx.log.error("Negative shift amount", rhs.position) // TODO
         Nil
       case Some(NumericConstant(n, _)) =>
         List.fill(n.toInt)(shiftOne).flatten

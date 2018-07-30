@@ -7,7 +7,7 @@ import fastparse.core.Parsed.{Failure, Success}
 import millfork.compiler.CompilationContext
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, FatalErrorReporting}
 import millfork.node.StandardCallGraph
 import millfork.parser.{MosParser, Preprocessor}
 import millfork.{CompilationFlag, CompilationOptions, Cpu, CpuFamily}
@@ -26,26 +26,27 @@ object ShouldNotCompile extends Matchers {
   private def checkCase(cpu: Cpu.Value, source: String) {
     Console.out.flush()
     Console.err.flush()
+    val log = TestErrorReporting.log
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val options = CompilationOptions(platform, Map(CompilationFlag.LenientTextEncoding -> true), None, platform.zpRegisterSize)
-    ErrorReporting.hasErrors = false
-    ErrorReporting.verbosity = 999
+    val options = CompilationOptions(platform, Map(CompilationFlag.LenientTextEncoding -> true), None, platform.zpRegisterSize, log)
+    log.hasErrors = false
+    log.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
-    ErrorReporting.setSource(Some(effectiveSource.lines.toIndexedSeq))
+    log.setSource(Some(effectiveSource.lines.toIndexedSeq))
     val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = MosParser("", preprocessedSource, "", options, features)
     parserF.toAst match {
       case Success(program, _) =>
-        ErrorReporting.assertNoErrors("Parse failed")
+        log.assertNoErrors("Parse failed")
 
         // prepare
-        val callGraph = new StandardCallGraph(program)
+        val callGraph = new StandardCallGraph(program, log)
         val cpuFamily = CpuFamily.forType(cpu)
-        val env = new Environment(None, "", cpuFamily)
+        val env = new Environment(None, "", cpuFamily, log)
         env.collectDeclarations(program, options)
 
         var unoptimizedSize = 0L
@@ -60,7 +61,7 @@ object ShouldNotCompile extends Matchers {
             unoptimizedSize += d.typ.size
         }
 
-        if (!ErrorReporting.hasErrors) {
+        if (!log.hasErrors) {
           val familyName = cpuFamily match {
             case CpuFamily.M6502 => "6502"
             case CpuFamily.I80 => "Z80"
@@ -68,12 +69,12 @@ object ShouldNotCompile extends Matchers {
           }
           fail("Failed: Compilation succeeded for " + familyName)
         }
-        ErrorReporting.clearErrors()
+        log.clearErrors()
 
       case f: Failure[_, _] =>
         println(f.extra.toString)
         println(f.lastParser.toString)
-        ErrorReporting.error("Syntax error: " + parserF.lastLabel, Some(parserF.lastPosition))
+        log.error("Syntax error: " + parserF.lastLabel, Some(parserF.lastPosition))
         fail("syntax error")
     }
   }

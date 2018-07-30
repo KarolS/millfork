@@ -5,7 +5,7 @@ import millfork.assembly.mos.{AddrMode, AssemblyLine}
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.Opcode._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 
 /**
   * @author Karol Stasiak
@@ -38,10 +38,12 @@ object JumpShortening {
             val thisOffset = offsets(ix)
             if (validShortJump(thisOffset, labelOffset)) {
               val result = line.copy(opcode = BRA, addrMode = AddrMode.Relative)
-              ErrorReporting.debug("Changing branch from long to short")
-              ErrorReporting.trace(line.toString)
-              ErrorReporting.trace("     ↓")
-              ErrorReporting.trace(result.toString)
+              options.log.debug("Changing branch from long to short")
+              if (options.log.traceEnabled) {
+                options.log.trace(line.toString)
+                options.log.trace("     ↓")
+                options.log.trace(result.toString)
+              }
               result
             } else line
           }
@@ -65,11 +67,13 @@ object JumpShortening {
                 else JMP
               if (bra != JMP) {
                 val result = line.copy(opcode = bra, addrMode = AddrMode.Relative)
-                ErrorReporting.debug("Changing branch from long to short")
-                ErrorReporting.trace(info.statusBefore.toString)
-                ErrorReporting.trace(line.toString)
-                ErrorReporting.trace("     ↓")
-                ErrorReporting.trace(result.toString)
+                options.log.debug("Changing branch from long to short")
+                if (options.log.traceEnabled) {
+                  options.log.trace(info.statusBefore.toString)
+                  options.log.trace(line.toString)
+                  options.log.trace("     ↓")
+                  options.log.trace(result.toString)
+                }
                 result
               } else line
             } else line

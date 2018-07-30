@@ -6,7 +6,7 @@ import millfork.assembly.mos.AssemblyLine
 import millfork.env._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 
 import scala.collection.{immutable, mutable}
 
@@ -102,7 +102,7 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[AssemblyLine] {
     if (toRemove.isEmpty) {
       code
     } else {
-      ErrorReporting.debug(s"Removing pointless store(s) to ${badVariables.mkString(", ")}")
+      optimizationContext.log.debug(s"Removing pointless store(s) to ${badVariables.mkString(", ")}")
       code.zipWithIndex.filter(x => !toRemove(x._2)).map(_._1)
     }
   }

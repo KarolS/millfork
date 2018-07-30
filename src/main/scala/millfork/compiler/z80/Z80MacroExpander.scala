@@ -5,7 +5,7 @@ import java.util.Locale
 import millfork.assembly.z80.ZLine
 import millfork.compiler.{CompilationContext, MacroExpander}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 /**
@@ -27,7 +27,7 @@ object Z80MacroExpander extends MacroExpander[ZLine] {
               // TODO: ??
               Z80ExpressionCompiler.compileToA(ctx, l)
             case _ =>
-              ErrorReporting.error("A non-assignable expression was passed to an inlineable function as a `ref` parameter", actualParam.position)
+              ctx.log.error("A non-assignable expression was passed to an inlineable function as a `ref` parameter", actualParam.position)
           }
           actualCode = actualCode.map {
             case a@MosAssemblyStatement(_, _, expr, _) =>
@@ -35,7 +35,7 @@ object Z80MacroExpander extends MacroExpander[ZLine] {
             case x => x
           }
         case (AssemblyParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByConstant), actualParam) =>
-          ctx.env.eval(actualParam).getOrElse(Constant.error("Non-constant expression was passed to an inlineable function as a `const` parameter", actualParam.position))
+          ctx.env.eval(actualParam).getOrElse(ctx.env.errorConstant("Non-constant expression was passed to an inlineable function as a `const` parameter", actualParam.position))
           actualCode = actualCode.map {
             case a@Z80AssemblyStatement(_, _, _, expr, _) =>
               a.copy(expression = expr.replaceVariable(ph, actualParam))
@@ -43,7 +43,7 @@ object Z80MacroExpander extends MacroExpander[ZLine] {
           }
         case (AssemblyParam(typ, v@ZRegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy), actualParam) =>
           if (hadRegisterParam) {
-            ErrorReporting.error("Only one macro assembly function parameter can be passed via a register", actualParam.position)
+            ctx.log.error("Only one macro assembly function parameter can be passed via a register", actualParam.position)
           }
           hadRegisterParam = true
           paramPreparation = (register, typ.size) match {
@@ -53,7 +53,7 @@ object Z80MacroExpander extends MacroExpander[ZLine] {
             case (ZRegister.BC, 2) => Z80ExpressionCompiler.compileToBC(ctx, actualParam)
             case (ZRegister.DE, 2) => Z80ExpressionCompiler.compileToDE(ctx, actualParam)
             case _ =>
-              ErrorReporting.error(s"Invalid parameter for macro: ${typ.name} ${register.toString.toLowerCase(Locale.ROOT)}", actualParam.position)
+              ctx.log.error(s"Invalid parameter for macro: ${typ.name} ${register.toString.toLowerCase(Locale.ROOT)}", actualParam.position)
               Nil
           }
         case (AssemblyParam(_, _, AssemblyParameterPassingBehaviour.Copy), actualParam) =>

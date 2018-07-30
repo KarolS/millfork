@@ -6,7 +6,7 @@ import millfork.assembly.BranchingOpcodeMapping
 import millfork.{CompilationFlag, CompilationOptions, Cpu, CpuFamily}
 import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
-import millfork.error.ErrorReporting
+import millfork.error.Logger
 import millfork.node._
 import millfork.output.{AllocationLocation, CompiledMemory, VariableAllocator}
 
@@ -17,12 +17,17 @@ import scala.collection.mutable
   * @author Karol Stasiak
   */
 //noinspection NotImplementedCode
-class Environment(val parent: Option[Environment], val prefix: String, val cpuFamily: CpuFamily.Value) {
+class Environment(val parent: Option[Environment], val prefix: String, val cpuFamily: CpuFamily.Value, val log: Logger) {
 
 
   private var baseStackOffset: Int = cpuFamily match {
     case CpuFamily.M6502 => 0x101
     case CpuFamily.I80 => 0
+  }
+
+  def errorConstant(msg: String, position: Option[Position] = None): Constant = {
+    log.error(msg, position)
+    Constant.Zero
   }
 
   def genRelativeVariable(constant: Constant, typ: Type, zeropage: Boolean): RelativeVariable = {
@@ -40,7 +45,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         m.environment.getAllPrefixedThings
       case _ => Map[String, Thing]()
     }.fold(things.toMap)(_ ++ _)
-    val e = new Environment(None, "", cpuFamily)
+    val e = new Environment(None, "", cpuFamily, log)
     e.things.clear()
     e.things ++= allThings
     e
@@ -156,7 +161,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             } else Nil
           case VariableAllocationMethod.Auto | VariableAllocationMethod.Register | VariableAllocationMethod.Static =>
             if (m.alloc == VariableAllocationMethod.Register) {
-              ErrorReporting.warn(s"Failed to inline variable `${m.name}` into a register", options, None)
+              log.warn(s"Failed to inline variable `${m.name}` into a register", None)
             }
             if (m.sizeInBytes == 0) Nil else {
               val graveName = m.name.stripPrefix(prefix) + "`"
@@ -200,7 +205,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def removeVariable(str: String): Unit = {
-    ErrorReporting.trace("Removing variable: " + str)
+    log.trace("Removing variable: " + str)
     removeVariableImpl(str)
   }
 
@@ -239,14 +244,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         t match {
           case Alias(_, target, deprectated) =>
             if (deprectated) {
-              ErrorReporting.info(s"Alias `$name` is deprecated, use `$target` instead", position)
+              log.warn(s"Alias `$name` is deprecated, use `$target` instead", position)
             }
             root.get[T](target)
-          case _ => ErrorReporting.fatal(s"`$name` is not a ${clazz.getSimpleName}", position)
+          case _ => log.fatal(s"`$name` is not a ${clazz.getSimpleName}", position)
         }
       }
     } else parent.fold {
-      ErrorReporting.fatal(s"${clazz.getSimpleName} `$name` is not defined", position)
+      log.fatal(s"${clazz.getSimpleName} `$name` is not defined", position)
     } {
       _.get[T](name, position)
     }
@@ -264,7 +269,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         t match {
           case Alias(_, target, deprectated) =>
             if (deprectated) {
-              ErrorReporting.info(s"Alias `$name` is deprecated, use `$target` instead")
+              log.warn(s"Alias `$name` is deprecated, use `$target` instead")
             }
             root.maybeGet[T](target)
           case _ => None
@@ -279,7 +284,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     maybeGet[ThingInMemory](arrayName).
       orElse(maybeGet[ThingInMemory](arrayName + ".array")).
       orElse(maybeGet[ConstantThing](arrayName)).
-      getOrElse(ErrorReporting.fatal(s"`$arrayName` is not an array or a pointer"))
+      getOrElse(log.fatal(s"`$arrayName` is not an array or a pointer"))
   }
 
   def getPointy(name: String): Pointy = {
@@ -300,7 +305,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         // TODO:
         VariablePointy(th.toAddress, w, b)
       case _ =>
-        ErrorReporting.error(s"$name is not a valid pointer or array")
+        log.error(s"$name is not a valid pointer or array")
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
         ConstantPointy(Constant.Zero, None, None, w, b)
@@ -382,7 +387,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def assertNotDefined(name: String, position: Option[Position]): Unit = {
     if (things.contains(name) || parent.exists(_.things.contains(name)))
-      ErrorReporting.fatal(s"`$name` is already defined", position)
+      log.fatal(s"`$name` is already defined", position)
   }
 
   def registerType(stmt: TypeDefinitionStatement): Unit = {
@@ -489,14 +494,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             if (params.size == 1) {
               eval(params.head).map(_.hiByte.quickSimplify)
             } else {
-              ErrorReporting.error("Invalid number of parameters for `hi`", e.position)
+              log.error("Invalid number of parameters for `hi`", e.position)
               None
             }
           case "lo" =>
             if (params.size == 1) {
               eval(params.head).map(_.loByte.quickSimplify)
             } else {
-              ErrorReporting.error("Invalid number of parameters for `lo`", e.position)
+              log.error("Invalid number of parameters for `lo`", e.position)
               None
             }
           case "sin" =>
@@ -508,7 +513,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 case _ => None
               }
             } else {
-              ErrorReporting.error("Invalid number of parameters for `sin`", e.position)
+              log.error("Invalid number of parameters for `sin`", e.position)
               None
             }
           case "cos" =>
@@ -520,7 +525,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 case _ => None
               }
             } else {
-              ErrorReporting.error("Invalid number of parameters for `cos`", e.position)
+              log.error("Invalid number of parameters for `cos`", e.position)
               None
             }
           case "nonet" =>
@@ -536,7 +541,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               case List(_) =>
                 None
               case _ =>
-                ErrorReporting.error("Invalid number of parameters for `nonet`", e.position)
+                log.error("Invalid number of parameters for `nonet`", e.position)
                 None
             }
           case ">>'" =>
@@ -649,7 +654,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     for((name, optValue) <- stmt.variants) {
       optValue match {
         case Some(v) =>
-          value = eval(v).getOrElse(Constant.error(s"Enum constant `${stmt.name}.$name` is not a constant", stmt.position))
+          value = eval(v).getOrElse(errorConstant(s"Enum constant `${stmt.name}.$name` is not a constant", stmt.position))
         case _ =>
       }
       addThing(ConstantThing(name, value, t), stmt.position)
@@ -662,25 +667,25 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val name = stmt.name
     val resultType = get[Type](stmt.resultType)
 
-    if (stmt.reentrant && stmt.interrupt) ErrorReporting.error(s"Reentrant function `$name` cannot be an interrupt handler", stmt.position)
-    if (stmt.reentrant && stmt.params.nonEmpty) ErrorReporting.error(s"Reentrant function `$name` cannot have parameters", stmt.position)
-    if (stmt.interrupt && stmt.params.nonEmpty) ErrorReporting.error(s"Interrupt function `$name` cannot have parameters", stmt.position)
+    if (stmt.reentrant && stmt.interrupt) log.error(s"Reentrant function `$name` cannot be an interrupt handler", stmt.position)
+    if (stmt.reentrant && stmt.params.nonEmpty) log.error(s"Reentrant function `$name` cannot have parameters", stmt.position)
+    if (stmt.interrupt && stmt.params.nonEmpty) log.error(s"Interrupt function `$name` cannot have parameters", stmt.position)
     if (stmt.isMacro) {
       if (!stmt.assembly) {
-        if (resultType != VoidType) ErrorReporting.error(s"Macro non-assembly function `$name` must return void", stmt.position)
+        if (resultType != VoidType) log.error(s"Macro non-assembly function `$name` must return void", stmt.position)
       }
       if (stmt.assembly && stmt.params.exists(_.assemblyParamPassingConvention.inNonInlinedOnly))
-        ErrorReporting.error(s"Macro function `$name` cannot have by-variable parameters", stmt.position)
+        log.error(s"Macro function `$name` cannot have by-variable parameters", stmt.position)
     } else {
       if (!stmt.assembly) {
         if (stmt.params.exists(!_.assemblyParamPassingConvention.isInstanceOf[ByVariable]))
-          ErrorReporting.error(s"Non-assembly function `$name` cannot have non-variable parameters", stmt.position)
+          log.error(s"Non-assembly function `$name` cannot have non-variable parameters", stmt.position)
       }
       if (stmt.params.exists(_.assemblyParamPassingConvention.inInlinedOnly))
-        ErrorReporting.error(s"Non-macro function `$name` cannot have inlinable parameters", stmt.position)
+        log.error(s"Non-macro function `$name` cannot have inlinable parameters", stmt.position)
     }
 
-    val env = new Environment(Some(this), name + "$", cpuFamily)
+    val env = new Environment(Some(this), name + "$", cpuFamily, log)
     stmt.params.foreach(p => env.registerParameter(p, options))
     val params = if (stmt.assembly) {
       AssemblyParamSignature(stmt.params.map {
@@ -711,9 +716,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case None =>
         stmt.address match {
           case None =>
-            ErrorReporting.error(s"Extern function `${stmt.name}`needs an address", stmt.position)
+            log.error(s"Extern function `${stmt.name}`needs an address", stmt.position)
           case Some(a) =>
-            val addr = eval(a).getOrElse(Constant.error(s"Address of `${stmt.name}` is not a constant", stmt.position))
+            val addr = eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant", stmt.position))
             val mangled = ExternFunction(
               name,
               resultType,
@@ -739,7 +744,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         val needsExtraRTS = !stmt.isMacro && !stmt.assembly && (statements.isEmpty || !statements.last.isInstanceOf[ReturnStatement])
         if (stmt.isMacro) {
           if (stmt.bank.isDefined) {
-            ErrorReporting.error("Macro functions cannot be in a defined segment", stmt.position)
+            log.error("Macro functions cannot be in a defined segment", stmt.position)
           }
           val mangled = MacroFunction(
             name,
@@ -760,7 +765,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             params,
             env,
             stackVariablesSize,
-            stmt.address.map(a => this.eval(a).getOrElse(Constant.error(s"Address of `${stmt.name}` is not a constant"))),
+            stmt.address.map(a => this.eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant"))),
             executableStatements ++ (if (needsExtraRTS) List(ReturnStatement(None)) else Nil),
             interrupt = stmt.interrupt,
             kernalInterrupt = stmt.kernalInterrupt,
@@ -853,10 +858,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }).toList
           range.flatMap(i => extractArrayContents(body).map(_.replaceVariable(v, LiteralExpression(i, size))))
         case (Some(_), Some(_)) =>
-          ErrorReporting.error("Array range bounds cannot be evaluated")
+          log.error("Array range bounds cannot be evaluated")
           Nil
         case _ =>
-          ErrorReporting.error("Non-constant array range bounds")
+          log.error("Non-constant array range bounds")
           Nil
 
       }
@@ -869,26 +874,26 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     stmt.elements match {
       case None =>
         stmt.length match {
-          case None => ErrorReporting.error(s"Array `${stmt.name}` without size nor contents", stmt.position)
+          case None => log.error(s"Array `${stmt.name}` without size nor contents", stmt.position)
           case Some(l) =>
             // array arr[...]
-            val address = stmt.address.map(a => eval(a).getOrElse(ErrorReporting.fatal(s"Array `${stmt.name}` has non-constant address", stmt.position)))
+            val address = stmt.address.map(a => eval(a).getOrElse(log.fatal(s"Array `${stmt.name}` has non-constant address", stmt.position)))
             val (indexType, lengthConst) = l match {
               case VariableExpression(name) =>
                 maybeGet[Type](name) match {
                   case Some(typ@EnumType(_, Some(count))) =>
                     typ -> NumericConstant(count, 1)
                   case Some(typ) =>
-                    ErrorReporting.error(s"Type $name cannot be used as an array index", l.position)
+                    log.error(s"Type $name cannot be used as an array index", l.position)
                     w -> Constant.Zero
-                  case _ => w -> eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                  case _ => w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
                 }
               case _ =>
-                w -> eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
             }
             lengthConst match {
               case NumericConstant(length, _) =>
-                if (length > 0xffff || length < 0) ErrorReporting.error(s"Array `${stmt.name}` has invalid length", stmt.position)
+                if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
                 val array = address match {
                   case None => UninitializedArray(stmt.name + ".array", length.toInt,
                               declaredBank = stmt.bank, indexType, b)
@@ -923,7 +928,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 if (length < 256) {
                   addThing(ConstantThing(stmt.name + ".length", lengthConst, b), stmt.position)
                 }
-              case _ => ErrorReporting.error(s"Array `${stmt.name}` has weird length", stmt.position)
+              case _ => log.error(s"Array `${stmt.name}` has weird length", stmt.position)
             }
         }
       case Some(contents1) =>
@@ -937,30 +942,30 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 maybeGet[Type](name) match {
                   case Some(typ@EnumType(_, Some(count))) =>
                     if (count != contents.size)
-                      ErrorReporting.error(s"Array `${stmt.name}` has actual length different than the number of variants in the enum `${typ.name}`", stmt.position)
+                      log.error(s"Array `${stmt.name}` has actual length different than the number of variants in the enum `${typ.name}`", stmt.position)
                     typ -> NumericConstant(count, 1)
                   case Some(typ@EnumType(_, None)) =>
                     // using a non-enumerable enum for an array index is ok if the array is preïnitialized
                     typ -> NumericConstant(contents.length, 1)
                   case Some(_) =>
-                    ErrorReporting.error(s"Type $name cannot be used as an array index", l.position)
+                    log.error(s"Type $name cannot be used as an array index", l.position)
                     w -> Constant.Zero
                   case _ =>
-                    w -> eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                    w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
                 }
               case _ =>
-                w -> eval(l).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
             }
             lengthConst match {
               case NumericConstant(ll, _) =>
-                if (ll != contents.length) ErrorReporting.error(s"Array `${stmt.name}` has different declared and actual length", stmt.position)
-              case _ => ErrorReporting.error(s"Array `${stmt.name}` has weird length", stmt.position)
+                if (ll != contents.length) log.error(s"Array `${stmt.name}` has different declared and actual length", stmt.position)
+              case _ => log.error(s"Array `${stmt.name}` has weird length", stmt.position)
             }
             indexTyp
         }
         val length = contents.length
-        if (length > 0xffff || length < 0) ErrorReporting.error(s"Array `${stmt.name}` has invalid length", stmt.position)
-        val address = stmt.address.map(a => eval(a).getOrElse(Constant.error(s"Array `${stmt.name}` has non-constant address", stmt.position)))
+        if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
+        val address = stmt.address.map(a => eval(a).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant address", stmt.position)))
         val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, b)
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
@@ -994,46 +999,46 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def registerVariable(stmt: VariableDeclarationStatement, options: CompilationOptions): Unit = {
     if (stmt.volatile) {
-      ErrorReporting.warn("`volatile` not yet supported", options)
+      log.warn("`volatile` not yet supported", stmt.position)
     }
     val name = stmt.name
     val position = stmt.position
     if (stmt.stack && parent.isEmpty) {
-      if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
+      if (stmt.stack && stmt.global) log.error(s"`$name` is static or global and cannot be on stack", position)
     }
     val b = get[Type]("byte")
     val w = get[Type]("word")
     val typ = get[VariableType](stmt.typ)
     if (stmt.typ == "pointer" || stmt.typ == "farpointer") {
       //      if (stmt.constant) {
-      //        ErrorReporting.error(s"Pointer `${stmt.name}` cannot be constant")
+      //        log.error(s"Pointer `${stmt.name}` cannot be constant")
       //      }
       stmt.address.flatMap(eval) match {
         case Some(NumericConstant(a, _)) =>
           if ((a & 0xff00) != 0)
-            ErrorReporting.error(s"Pointer `${stmt.name}` cannot be located outside the zero page")
+            log.error(s"Pointer `${stmt.name}` cannot be located outside the zero page")
         case _ => ()
       }
     }
     if (stmt.constant) {
-      if (stmt.stack) ErrorReporting.error(s"`$name` is a constant and cannot be on stack", position)
-      if (stmt.register) ErrorReporting.error(s"`$name` is a constant and cannot be in a register", position)
-      if (stmt.address.isDefined) ErrorReporting.error(s"`$name` is a constant and cannot have an address", position)
-      if (stmt.initialValue.isEmpty) ErrorReporting.error(s"`$name` is a constant and requires a value", position)
-      val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(Constant.error(s"`$name` has a non-constant value", position))
-      if (constantValue.requiredSize > typ.size) ErrorReporting.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
+      if (stmt.stack) log.error(s"`$name` is a constant and cannot be on stack", position)
+      if (stmt.register) log.error(s"`$name` is a constant and cannot be in a register", position)
+      if (stmt.address.isDefined) log.error(s"`$name` is a constant and cannot have an address", position)
+      if (stmt.initialValue.isEmpty) log.error(s"`$name` is a constant and requires a value", position)
+      val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", position))
+      if (constantValue.requiredSize > typ.size) log.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
       for((suffix, offset, t) <- getSubvariables(typ)) {
         addThing(ConstantThing(prefix + name + suffix, constantValue.subconstant(offset, t.size), t), stmt.position)
       }
     } else {
-      if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
-      if (stmt.register && typ.size != 1) ErrorReporting.error(s"A register variable `$name` is too large", position)
-      if (stmt.register && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be in a register", position)
-      if (stmt.register && stmt.stack) ErrorReporting.error(s"`$name` cannot be simultaneously on stack and in a register", position)
-      if (stmt.initialValue.isDefined && parent.isDefined) ErrorReporting.error(s"`$name` is local and not a constant and therefore cannot have a value", position)
-      if (stmt.initialValue.isDefined && stmt.address.isDefined) ErrorReporting.warn(s"`$name` has both address and initial value - this may not work as expected!", options, position)
-      if (stmt.register && stmt.address.isDefined) ErrorReporting.error(s"`$name` cannot by simultaneously at an address and in a register", position)
+      if (stmt.stack && stmt.global) log.error(s"`$name` is static or global and cannot be on stack", position)
+      if (stmt.register && typ.size != 1) log.error(s"A register variable `$name` is too large", position)
+      if (stmt.register && stmt.global) log.error(s"`$name` is static or global and cannot be in a register", position)
+      if (stmt.register && stmt.stack) log.error(s"`$name` cannot be simultaneously on stack and in a register", position)
+      if (stmt.initialValue.isDefined && parent.isDefined) log.error(s"`$name` is local and not a constant and therefore cannot have a value", position)
+      if (stmt.initialValue.isDefined && stmt.address.isDefined) log.warn(s"`$name` has both address and initial value - this may not work as expected!", position)
+      if (stmt.register && stmt.address.isDefined) log.error(s"`$name` cannot by simultaneously at an address and in a register", position)
       if (stmt.stack) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
         baseStackOffset += typ.size
@@ -1049,19 +1054,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             else if (stmt.register) VariableAllocationMethod.Register
             else VariableAllocationMethod.Auto
           if (alloc != VariableAllocationMethod.Static && stmt.initialValue.isDefined) {
-            ErrorReporting.error(s"`$name` cannot be preinitialized`", position)
+            log.error(s"`$name` cannot be preinitialized`", position)
           }
           val v = stmt.initialValue.fold[MemoryVariable](UninitializedMemoryVariable(prefix + name, typ, alloc,
                       declaredBank = stmt.bank)){ive =>
             if (options.flags(CompilationFlag.ReadOnlyArrays)) {
-              ErrorReporting.warn("Initialized variable in read-only segment", options, position)
+              log.warn("Initialized variable in read-only segment", position)
             }
             InitializedMemoryVariable(name, None, typ, ive, declaredBank = stmt.bank)
           }
           registerAddressConstant(v, stmt.position, options)
           (v, v.toAddress)
         })(a => {
-          val addr = eval(a).getOrElse(Constant.error(s"Address of `$name` has a non-constant value", position))
+          val addr = eval(a).getOrElse(errorConstant(s"Address of `$name` has a non-constant value", position))
           val zp = addr match {
             case NumericConstant(n, _) => n < 0x100
             case _ => false
@@ -1122,19 +1127,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (things.contains(name)) {
       val function = get[MangledFunction](name)
       if (function.params.length != actualParams.length) {
-        ErrorReporting.error(s"Invalid number of parameters for function `$name`", actualParams.headOption.flatMap(_._2.position))
+        log.error(s"Invalid number of parameters for function `$name`", actualParams.headOption.flatMap(_._2.position))
       }
       function.params match {
         case NormalParamSignature(params) =>
           function.params.types.zip(actualParams).zip(params).foreach { case ((required, (actual, expr)), m) =>
             if (!actual.isAssignableTo(required)) {
-              ErrorReporting.error(s"Invalid value for parameter `${m.name}` of function `$name`", expr.position)
+              log.error(s"Invalid value for parameter `${m.name}` of function `$name`", expr.position)
             }
           }
         case AssemblyParamSignature(params) =>
           function.params.types.zip(actualParams).zipWithIndex.foreach { case ((required, (actual, expr)), ix) =>
             if (!actual.isAssignableTo(required)) {
-              ErrorReporting.error(s"Invalid value for parameter ${ix + 1} of function `$name`", expr.position)
+              log.error(s"Invalid value for parameter ${ix + 1} of function `$name`", expr.position)
             }
           }
       }
@@ -1186,7 +1191,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   private def checkName[T <: Thing : Manifest](objType: String, name: String, pos: Option[Position]): Unit = {
     if (maybeGet[T](name).isEmpty) {
-      ErrorReporting.error(s"$objType `$name` is not defined", pos)
+      log.error(s"$objType `$name` is not defined", pos)
     }
   }
 

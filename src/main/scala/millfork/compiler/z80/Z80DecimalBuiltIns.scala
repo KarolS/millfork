@@ -4,7 +4,7 @@ import millfork.CompilationFlag
 import millfork.assembly.z80.ZLine
 import millfork.compiler.CompilationContext
 import millfork.env.NumericConstant
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{Expression, LhsExpression, ZRegister}
 
 /**
@@ -18,12 +18,12 @@ object Z80DecimalBuiltIns {
       case Some(NumericConstant(0, _)) =>
         Nil
       case Some(NumericConstant(v, _)) if v < 0 =>
-        ErrorReporting.error("Cannot shift by a negative amount", r.position)
+        ctx.log.error("Cannot shift by a negative amount", r.position)
         Nil
       case Some(NumericConstant(v, _)) =>
         List.fill(v.toInt)(List(ZLine.register(ADD, ZRegister.A), ZLine.implied(DAA))).flatten
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount", r.position)
+        ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
     }
   }
@@ -35,7 +35,7 @@ object Z80DecimalBuiltIns {
       case Some(NumericConstant(0, _)) =>
         Nil
       case Some(NumericConstant(v, _)) if v < 0 =>
-        ErrorReporting.error("Cannot shift by a negative amount", r.position)
+        ctx.log.error("Cannot shift by a negative amount", r.position)
         Nil
       case Some(NumericConstant(v, _)) =>
         List.fill(v.toInt)(List(
@@ -49,7 +49,7 @@ object Z80DecimalBuiltIns {
           ZLine.ld8(H, A)
         )).flatten
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount", r.position)
+        ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
     }
   }
@@ -60,12 +60,12 @@ object Z80DecimalBuiltIns {
       case Some(NumericConstant(0, _)) =>
         Nil
       case Some(NumericConstant(v, _)) if v < 0 =>
-        ErrorReporting.error("Cannot shift by a negative amount", r.position)
+        ctx.log.error("Cannot shift by a negative amount", r.position)
         Nil
       case Some(NumericConstant(v, _)) =>
         List.fill(v.toInt)(ZBuiltIns.performLongInPlace(ctx, l, l, ADD, ADC, size, decimal = true)).flatten
       case _ =>
-        ErrorReporting.error("Cannot shift by a non-constant amount", r.position)
+        ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
     }
   }
@@ -75,10 +75,10 @@ object Z80DecimalBuiltIns {
     val multiplier = ctx.env.eval(r) match {
       case Some(NumericConstant(v, _)) =>
         if (v.&(0xf0) > 0x90 || v.&(0xf) > 9)
-          ErrorReporting.error("Invalid decimal constant", r.position)
+          ctx.log.error("Invalid decimal constant", r.position)
         (v.&(0xf0).>>(4) * 10 + v.&(0xf)).toInt
       case _ =>
-        ErrorReporting.error("Cannot multiply by a non-constant amount", r.position)
+        ctx.log.error("Cannot multiply by a non-constant amount", r.position)
         return Nil
     }
     import millfork.assembly.z80.ZOpcode._

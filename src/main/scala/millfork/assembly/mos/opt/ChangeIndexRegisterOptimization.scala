@@ -3,7 +3,7 @@ package millfork.assembly.mos.opt
 import millfork.assembly.mos.{AssemblyLine, OpcodeClasses}
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env.NormalFunction
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 
 /**
   * @author Karol Stasiak
@@ -52,18 +52,19 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     }
     val canX2Y = f.returnType.size <= 1 && canOptimize(code, X2Y, None)
     val canY2X = canOptimize(code, Y2X, None)
+    implicit val log: Logger = optimizationContext.log
     (canX2Y, canY2X) match {
       case (false, false) => code
       case (true, false) =>
         if (!usesX) code else {
-          ErrorReporting.debug("Changing index register from X to Y")
+          log.debug("Changing index register from X to Y")
           val changed = switchX2Y(code)
           traceDiff(code, changed)
           changed
         }
       case (false, true) =>
         if (!usesY) code else {
-          ErrorReporting.debug("Changing index register from Y to X")
+          log.debug("Changing index register from Y to X")
           val changed = switchY2X(code)
           traceDiff(code, changed)
           changed
@@ -71,14 +72,14 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
       case (true, true) =>
         if (preferX2Y) {
           if (!usesX) code else {
-            ErrorReporting.debug("Changing index register from X to Y (arbitrarily)")
+            log.debug("Changing index register from X to Y (arbitrarily)")
             val changed = switchX2Y(code)
             traceDiff(code, changed)
             changed
           }
         } else {
           if (!usesY) code else {
-            ErrorReporting.debug("Changing index register from Y to X (arbitrarily)")
+            log.debug("Changing index register from Y to X (arbitrarily)")
             val changed = switchY2X(code)
             traceDiff(code, changed)
             changed
@@ -87,12 +88,12 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     }
   }
 
-  private def traceDiff(original: List[AssemblyLine], changed: List[AssemblyLine]): Unit = {
-    if (ErrorReporting.traceEnabled) {
+  private def traceDiff(original: List[AssemblyLine], changed: List[AssemblyLine])(implicit log: Logger): Unit = {
+    if (log.traceEnabled) {
       original.zip(changed).foreach{
         case (o, n) =>
-          if (o.addrMode == n.addrMode && o.opcode == n.opcode) ErrorReporting.trace(n.toString)
-          else ErrorReporting.trace(f"$o%-30s →  $n%s")
+          if (o.addrMode == n.addrMode && o.opcode == n.opcode) log.trace(n.toString)
+          else log.trace(f"$o%-30s →  $n%s")
       }
     }
   }
@@ -156,7 +157,7 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case Nil => true
   }
 
-  private def switchX2Y(code: List[AssemblyLine]): List[AssemblyLine] = code match {
+  private def switchX2Y(code: List[AssemblyLine])(implicit log: Logger): List[AssemblyLine] = code match {
     case (a@AssemblyLine(LDX | TAX, _, _, _))
       :: (b@AssemblyLine(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _, _))
       :: xs => a :: b :: switchX2Y(xs)
@@ -183,22 +184,22 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case (x@AssemblyLine(PLX, _, _, _)) :: xs => x.copy(opcode = PLY) :: switchX2Y(xs)
     case (x@AssemblyLine(HuSAX, _, _, _)) :: xs => x.copy(opcode = SAY) :: switchX2Y(xs)
 
-    case AssemblyLine(LAX, _, _, _) :: xs => ErrorReporting.fatal("Unexpected LAX")
-    case AssemblyLine(TXS, _, _, _) :: xs => ErrorReporting.fatal("Unexpected TXS")
-    case AssemblyLine(TSX, _, _, _) :: xs => ErrorReporting.fatal("Unexpected TSX")
-    case AssemblyLine(SBX, _, _, _) :: xs => ErrorReporting.fatal("Unexpected SBX")
-    case AssemblyLine(SAX, _, _, _) :: xs => ErrorReporting.fatal("Unexpected SAX")
-    case AssemblyLine(SXY, _, _, _) :: xs => ErrorReporting.fatal("Unexpected SXY")
+    case AssemblyLine(LAX, _, _, _) :: xs => log.fatal("Unexpected LAX")
+    case AssemblyLine(TXS, _, _, _) :: xs => log.fatal("Unexpected TXS")
+    case AssemblyLine(TSX, _, _, _) :: xs => log.fatal("Unexpected TSX")
+    case AssemblyLine(SBX, _, _, _) :: xs => log.fatal("Unexpected SBX")
+    case AssemblyLine(SAX, _, _, _) :: xs => log.fatal("Unexpected SAX")
+    case AssemblyLine(SXY, _, _, _) :: xs => log.fatal("Unexpected SXY")
 
     case (x@AssemblyLine(_, AbsoluteX, _, _)) :: xs => x.copy(addrMode = AbsoluteY) :: switchX2Y(xs)
     case (x@AssemblyLine(_, ZeroPageX, _, _)) :: xs => x.copy(addrMode = ZeroPageY) :: switchX2Y(xs)
-    case (x@AssemblyLine(_, IndexedX, _, _)) :: xs => ErrorReporting.fatal("Unexpected IndexedX")
+    case (x@AssemblyLine(_, IndexedX, _, _)) :: xs => log.fatal("Unexpected IndexedX")
 
     case x::xs => x :: switchX2Y(xs)
     case Nil => Nil
   }
 
-  private def switchY2X(code: List[AssemblyLine]): List[AssemblyLine] = code match {
+  private def switchY2X(code: List[AssemblyLine])(implicit log: Logger): List[AssemblyLine] = code match {
     case AssemblyLine(LDY | TAY, _, _, _)
       :: AssemblyLine(_, IndexedY, _, _)
       :: xs => code.take(2) ++ switchY2X(xs)
@@ -217,11 +218,11 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case (x@AssemblyLine(PHY, _, _, _)) :: xs => x.copy(opcode = PHX) :: switchY2X(xs)
     case (x@AssemblyLine(PLY, _, _, _)) :: xs => x.copy(opcode = PLX) :: switchY2X(xs)
     case (x@AssemblyLine(SAY, _, _, _)) :: xs => x.copy(opcode = HuSAX) :: switchY2X(xs)
-    case AssemblyLine(SXY, _, _, _) :: xs => ErrorReporting.fatal("Unexpected SXY")
+    case AssemblyLine(SXY, _, _, _) :: xs => log.fatal("Unexpected SXY")
 
     case (x@AssemblyLine(_, AbsoluteY, _, _)) :: xs => x.copy(addrMode = AbsoluteX) :: switchY2X(xs)
     case (x@AssemblyLine(_, ZeroPageY, _, _)) :: xs => x.copy(addrMode = ZeroPageX) :: switchY2X(xs)
-    case AssemblyLine(_, IndexedY, _, _) :: xs => ErrorReporting.fatal("Unexpected IndexedY")
+    case AssemblyLine(_, IndexedY, _, _) :: xs => log.fatal("Unexpected IndexedY")
 
     case x::xs => x :: switchY2X(xs)
     case Nil => Nil

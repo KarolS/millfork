@@ -4,7 +4,7 @@ import millfork.{CompilationFlag, NonOverlappingIntervals}
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.assembly.z80.{TwoRegisters, ZFlag, ZLine}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 
 import scala.collection.mutable.ListBuffer
@@ -27,6 +27,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
     val vs = VariableStatus(f, code, optimizationContext, _.size == 2).getOrElse(return code)
     val options = optimizationContext.options
+    val log = options.log
     val removeVariablesForReal = !options.flag(CompilationFlag.InternalCurrentlyOptimizingForMeasurement)
     val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
 
@@ -107,9 +108,11 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     val (_, bestHLs, bestBCs, bestDEs) = variants.maxBy(_._1)
 
     def reportOptimizedBlock[T](oldCode: List[(T, ZLine)], newCode: List[ZLine]): Unit = {
-      oldCode.foreach(l => ErrorReporting.trace(l._2.toString))
-      ErrorReporting.trace("     ↓")
-      newCode.foreach(l => ErrorReporting.trace(l.toString))
+      if (log.traceEnabled) {
+        oldCode.foreach(l => log.trace(l._2.toString))
+        log.trace("     ↓")
+        newCode.foreach(l => log.trace(l.toString))
+      }
     }
 
     if (bestHLs.nonEmpty || bestBCs.nonEmpty || bestDEs.nonEmpty) {
@@ -119,7 +122,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         var done = false
         bestHLs.find(_._2.start == i).foreach {
           case (v, range, _) =>
-            ErrorReporting.debug(s"Inlining $v to register pair HL")
+            log.debug(s"Inlining $v to register pair HL")
             val oldCode = vs.codeWithFlow.slice(range.start, range.end)
             val newCode = inlineVars(v, "", "", oldCode.map(_._2))
             reportOptimizedBlock(oldCode, newCode)
@@ -133,7 +136,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         if (!done) {
           bestBCs.find(_._2.start == i).foreach {
             case (v, range, _) =>
-              ErrorReporting.debug(s"Inlining $v to register pair BC")
+              log.debug(s"Inlining $v to register pair BC")
               val oldCode = vs.codeWithFlow.slice(range.start, range.end)
               val newCode = inlineVars("", v, "", oldCode.map(_._2))
               reportOptimizedBlock(oldCode, newCode)
@@ -148,7 +151,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         if (!done) {
           bestDEs.find(_._2.start == i).foreach {
             case (v, range, _) =>
-              ErrorReporting.debug(s"Inlining $v to register pair DE")
+              log.debug(s"Inlining $v to register pair DE")
               val oldCode = vs.codeWithFlow.slice(range.start, range.end)
               val newCode = inlineVars("", "", v, oldCode.map(_._2))
               reportOptimizedBlock(oldCode, newCode)

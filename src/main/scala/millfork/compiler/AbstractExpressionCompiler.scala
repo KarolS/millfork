@@ -2,7 +2,7 @@ package millfork.compiler
 
 import millfork.env._
 import millfork.node._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.assembly.AbstractCode
 
 /**
@@ -16,7 +16,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
      for(e <- expressions) {
        val typ = getExpressionType(ctx, e)
        if (!typ.isArithmetic) {
-         ErrorReporting.error(s"Cannot perform arithmetic operations on type `$typ`", e.position)
+         ctx.log.error(s"Cannot perform arithmetic operations on type `$typ`", e.position)
        }
      }
   }
@@ -28,7 +28,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
   }
 
   def callingContext(ctx: CompilationContext, v: MemoryVariable): CompilationContext = {
-    val result = new Environment(Some(ctx.env), "", ctx.options.platform.cpuFamily)
+    val result = new Environment(Some(ctx.env), "", ctx.options.platform.cpuFamily, ctx.log)
     result.registerVariable(VariableDeclarationStatement(v.name, v.typ.name, stack = false, global = false, constant = false, volatile = false, register = false, initialValue = None, address = None, bank = v.declaredBank), ctx.options)
     ctx.copy(env = result)
   }
@@ -45,7 +45,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
   def assertAllArithmeticBytes(msg: String, ctx: CompilationContext, params: List[Expression]): Unit = {
     assertAllArithmetic(ctx, params)
     if (params.exists { expr => getExpressionType(ctx, expr).size != 1 }) {
-      ErrorReporting.fatal(msg, params.head.position)
+      ctx.log.fatal(msg, params.head.position)
     }
   }
 
@@ -57,7 +57,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 
   def assertBinary(ctx: CompilationContext, params: List[Expression]): (Expression, Expression, Int) = {
     if (params.length != 2) {
-      ErrorReporting.fatal("sfgdgfsd", None)
+      ctx.log.fatal("sfgdgfsd", None)
     }
     (params.head, params(1)) match {
       case (l: Expression, r: Expression) => (l, r, getExpressionType(ctx, l).size max getExpressionType(ctx, r).size)
@@ -80,29 +80,29 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 
   def assertBool(ctx: CompilationContext, fname: String, params: List[Expression], expectedParamCount: Int): Unit = {
     if (params.length != expectedParamCount) {
-      ErrorReporting.error("Invalid number of parameters for " + fname, params.headOption.flatMap(_.position))
+      ctx.log.error("Invalid number of parameters for " + fname, params.headOption.flatMap(_.position))
       return
     }
     params.foreach { param =>
       if (!getExpressionType(ctx, param).isInstanceOf[BooleanType])
-        ErrorReporting.fatal("Parameter should be boolean", param.position)
+        ctx.log.fatal("Parameter should be boolean", param.position)
     }
   }
 
   def assertBool(ctx: CompilationContext, fname: String, params: List[Expression]): Unit = {
     if (params.length < 2) {
-      ErrorReporting.error("Invalid number of parameters for " + fname, params.headOption.flatMap(_.position))
+      ctx.log.error("Invalid number of parameters for " + fname, params.headOption.flatMap(_.position))
       return
     }
     params.foreach { param =>
       if (!getExpressionType(ctx, param).isInstanceOf[BooleanType])
-        ErrorReporting.fatal("Parameter should be boolean", param.position)
+        ctx.log.fatal("Parameter should be boolean", param.position)
     }
   }
 
   def assertArithmeticAssignmentLike(ctx: CompilationContext, params: List[Expression]): (LhsExpression, Expression, Int) = {
     if (params.length != 2) {
-      ErrorReporting.fatal("sfgdgfsd", None)
+      ctx.log.fatal("sfgdgfsd", None)
     }
     assertAllArithmetic(ctx, params)
     (params.head, params(1)) match {
@@ -110,10 +110,10 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
         val lsize = getExpressionType(ctx, l).size
         val rsize = getExpressionType(ctx, r).size
         if (lsize < rsize) {
-          ErrorReporting.error("Left-hand-side expression is of smaller type than the right-hand-side expression", l.position)
+          ctx.log.error("Left-hand-side expression is of smaller type than the right-hand-side expression", l.position)
         }
         (l, r, lsize)
-      case (err: Expression, _) => ErrorReporting.fatal("Invalid left-hand-side expression", err.position)
+      case (err: Expression, _) => ctx.log.fatal("Invalid left-hand-side expression", err.position)
     }
   }
 
@@ -154,13 +154,13 @@ object AbstractExpressionCompiler {
       case IndexedExpression(name, _) =>
         env.getPointy(name).elementType
       case SeparateBytesExpression(hi, lo) =>
-        if (getExpressionType(ctx, hi).size > 1) ErrorReporting.error("Hi byte too large", hi.position)
-        if (getExpressionType(ctx, lo).size > 1) ErrorReporting.error("Lo byte too large", lo.position)
+        if (getExpressionType(ctx, hi).size > 1) ctx.log.error("Hi byte too large", hi.position)
+        if (getExpressionType(ctx, lo).size > 1) ctx.log.error("Lo byte too large", lo.position)
         w
       case SumExpression(params, _) => params.map { case (_, e) => getExpressionType(ctx, e).size }.max match {
         case 1 => b
         case 2 => w
-        case _ => ErrorReporting.error("Adding values bigger than words", expr.position); w
+        case _ => ctx.log.error("Adding values bigger than words", expr.position); w
       }
       case FunctionCallExpression("nonet", params) => w
       case FunctionCallExpression("not", params) => bool
@@ -170,13 +170,13 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression("|" | "&" | "^", params) => params.map { e => getExpressionType(ctx, e).size }.max match {
         case 1 => b
         case 2 => w
-        case _ => ErrorReporting.error("Adding values bigger than words", expr.position); w
+        case _ => ctx.log.error("Adding values bigger than words", expr.position); w
       }
       case FunctionCallExpression("<<", List(a1, a2)) =>
-        if (getExpressionType(ctx, a2).size > 1) ErrorReporting.error("Shift amount too large", a2.position)
+        if (getExpressionType(ctx, a2).size > 1) ctx.log.error("Shift amount too large", a2.position)
         getExpressionType(ctx, a1)
       case FunctionCallExpression(">>", List(a1, a2)) =>
-        if (getExpressionType(ctx, a2).size > 1) ErrorReporting.error("Shift amount too large", a2.position)
+        if (getExpressionType(ctx, a2).size > 1) ctx.log.error("Shift amount too large", a2.position)
         getExpressionType(ctx, a1)
       case FunctionCallExpression("<<'", params) => b
       case FunctionCallExpression(">>'", params) => b
@@ -216,7 +216,7 @@ object AbstractExpressionCompiler {
   def checkIndexType(ctx: CompilationContext, pointy: Pointy, index: Expression): Unit = {
     val indexerType = getExpressionType(ctx, index)
     if (!indexerType.isAssignableTo(pointy.indexType)) {
-      ErrorReporting.error(s"Invalid type for index${pointy.name.fold("")(" for `" + _ + "`")}: expected `${pointy.indexType}`, got `$indexerType`", index.position)
+      ctx.log.error(s"Invalid type for index${pointy.name.fold("")(" for `" + _ + "`")}: expected `${pointy.indexType}`, got `$indexerType`", index.position)
     }
   }
 
@@ -224,7 +224,7 @@ object AbstractExpressionCompiler {
     val sourceType = getExpressionType(ctx, source)
     val targetType = getExpressionType(ctx, target)
     if (!sourceType.isAssignableTo(targetType)) {
-      ErrorReporting.error(s"Cannot assign `$sourceType` to `$targetType`", target.position.orElse(source.position))
+      ctx.log.error(s"Cannot assign `$sourceType` to `$targetType`", target.position.orElse(source.position))
     }
     sourceType
   }
@@ -232,13 +232,13 @@ object AbstractExpressionCompiler {
   def checkAssignmentType(ctx: CompilationContext, source: Expression, targetType: Type): Unit = {
     val sourceType = getExpressionType(ctx, source)
     if (!sourceType.isAssignableTo(targetType)) {
-      ErrorReporting.error(s"Cannot assign `$sourceType` to `$targetType`", source.position)
+      ctx.log.error(s"Cannot assign `$sourceType` to `$targetType`", source.position)
     }
   }
 
   def lookupFunction(ctx: CompilationContext, f: FunctionCallExpression): MangledFunction = {
     val paramsWithTypes = f.expressions.map(x => getExpressionType(ctx, x) -> x)
     ctx.env.lookupFunction(f.functionName, paramsWithTypes).getOrElse(
-      ErrorReporting.fatal(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position))
+      ctx.log.fatal(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position))
   }
 }

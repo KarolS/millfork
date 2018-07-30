@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{ImportStatement, Position, Program}
 
 import scala.collection.mutable
@@ -36,32 +36,32 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
         moduleQueue.dequeueAll(_ => true).par.foreach(_())
       }
     }
-    ErrorReporting.assertNoErrors("Parse failed")
+    options.log.assertNoErrors("Parse failed")
     parsedModules.values.reduce(_ + _)
   }
 
   def lookupModuleFile(includePath: List[String], moduleName: String, position: Option[Position]): String = {
     includePath.foreach { dir =>
       val file = Paths.get(dir, moduleName + extension).toFile
-      ErrorReporting.debug("Checking " + file)
+      options.log.debug("Checking " + file)
       if (file.exists()) {
         return file.getAbsolutePath
       }
     }
-    ErrorReporting.fatal(s"Module `$moduleName` not found", position)
+    options.log.fatal(s"Module `$moduleName` not found", position)
   }
 
   def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long]) : MfParser[T]
 
   def parseModule(moduleName: String, includePath: List[String], why: Either[Option[Position], String]): Unit = {
     val filename: String = why.fold(p => lookupModuleFile(includePath, moduleName, p), s => s)
-    ErrorReporting.debug(s"Parsing $filename")
+    options.log.debug(s"Parsing $filename")
     val path = Paths.get(filename)
     val parentDir = path.toFile.getAbsoluteFile.getParent
     val (src, featureConstants) = Preprocessor(options, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
     val shortFileName = path.getFileName.toString
     val parser = createParser(shortFileName, src, parentDir, featureConstants)
-    ErrorReporting.addSource(shortFileName, src.lines.toIndexedSeq)
+    options.log.addSource(shortFileName, src.lines.toIndexedSeq)
     parser.toAst match {
       case Success(prog, _) =>
         parsedModules.synchronized {
@@ -75,11 +75,11 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
           }
         }
       case f@Failure(a, b, d) =>
-        ErrorReporting.error(s"Failed to parse the module `$moduleName` in $filename", Some(parser.indexToPosition(f.index, parser.lastLabel)))
+        options.log.error(s"Failed to parse the module `$moduleName` in $filename", Some(parser.indexToPosition(f.index, parser.lastLabel)))
         if (parser.lastLabel != "") {
-          ErrorReporting.error(s"Syntax error: ${parser.lastLabel} expected", Some(parser.lastPosition))
+          options.log.error(s"Syntax error: ${parser.lastLabel} expected", Some(parser.lastPosition))
         } else {
-          ErrorReporting.error("Syntax error", Some(parser.lastPosition))
+          options.log.error("Syntax error", Some(parser.lastPosition))
         }
     }
   }

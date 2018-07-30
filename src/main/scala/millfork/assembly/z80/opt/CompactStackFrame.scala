@@ -3,7 +3,7 @@ package millfork.assembly.z80.opt
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.assembly.z80._
 import millfork.env.{MemoryAddressConstant, NormalFunction, NumericConstant}
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 
 /**
@@ -15,7 +15,7 @@ object CompactStackFrame extends AssemblyOptimization[ZLine] {
   override def optimize(f: NormalFunction, code: List[ZLine], context: OptimizationContext): List[ZLine] = {
     optimizeStart(code) match {
       case Some((optimized, before, after)) =>
-        ErrorReporting.debug(s"Optimized stack frame from $before to $after bytes")
+        context.log.debug(s"Optimized stack frame from $before to $after bytes")
         optimized
       case None => code
     }

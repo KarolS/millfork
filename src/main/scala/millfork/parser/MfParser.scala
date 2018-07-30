@@ -6,7 +6,7 @@ import java.util
 
 import fastparse.all._
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node._
 import millfork.{CompilationFlag, CompilationOptions, SeparatedList}
 
@@ -19,6 +19,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   var lastPosition = Position(fileId, 1, 1, 0)
   var lastLabel = ""
+  protected val log: Logger = options.log
 
   def toAst: Parsed[Program] = program.parse(input + "\n\n\n")
 
@@ -46,7 +47,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     case (_, "z" | "defaultz") => (options.platform.defaultCodec -> true) -> options.flag(CompilationFlag.LenientTextEncoding)
     case (_, "scr") => (options.platform.screenCodec -> false) -> options.flag(CompilationFlag.LenientTextEncoding)
     case (_, "scrz") => (options.platform.screenCodec -> true) -> options.flag(CompilationFlag.LenientTextEncoding)
-    case (p, x) => TextCodec.forName(x, Some(p)) -> false
+    case (p, x) => TextCodec.forName(x, Some(p), log) -> false
   }
 
   //  def operator: P[String] = P(CharsWhileIn("!-+*/><=~|&^", min=1).!) // TODO: only valid operators
@@ -57,13 +58,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     ((co, zt), lenient) <- HWS ~ codec
   } yield {
     if (zt) {
-      ErrorReporting.error("Zero-terminated encoding is not a valid encoding for a character literal", Some(p))
+      log.error("Zero-terminated encoding is not a valid encoding for a character literal", Some(p))
     }
     co.encode(options, Some(p), c.toList, lenient = lenient) match {
       case List(value) =>
         LiteralExpression(value, 1)
       case _ =>
-        ErrorReporting.error(s"Character `$c` cannot be encoded as one byte", Some(p))
+        log.error(s"Character `$c` cannot be encoded as one byte", Some(p))
         LiteralExpression(0, 1)
     }
   }
@@ -137,6 +138,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       asmExpression.map(_ -> false)
   )).map { case (p, e) => e._1.pos(p) -> e._2 }
 
+  val appcComplex: P[ParamPassingConvention] = P((("const" | "ref").! ~/ AWS).? ~ AWS ~ identifier) map {
+    case (None, name) => ByVariable(name)
+    case (Some("const"), name) => ByConstant(name)
+    case (Some("ref"), name) => ByReference(name)
+    case x => log.fatal(s"Unknown assembly parameter passing convention: `$x`")
+  }
+
   def asmParamDefinition: P[ParameterDeclaration]
 
   def arrayListElement: P[ArrayContents] = arrayStringContents | arrayLoopContents | arrayFileContents | mfExpression(nonStatementLevel).map(e => LiteralContents(List(e)))
@@ -176,10 +184,10 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     } yield {
     val fixedDirection = direction match {
       case ForDirection.ParallelUntil =>
-        ErrorReporting.warn("`paralleluntil` is not allowed in array definitions, assuming `until`", options, Some(pos))
+        log.warn("`paralleluntil` is not allowed in array definitions, assuming `until`", Some(pos))
         ForDirection.Until
       case ForDirection.ParallelTo =>
-        ErrorReporting.warn("`parallelto` is not allowed in array definitions, assuming `to`", options, Some(pos))
+        log.warn("`parallelto` is not allowed in array definitions, assuming `to`", Some(pos))
         ForDirection.To
       case x => x
     }
@@ -229,7 +237,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         xs.separators.distinct match {
           case Nil =>
             if (xs.tail.nonEmpty)
-              ErrorReporting.error("Too many different operators")
+              log.error("Too many different operators")
             p(xs.head, level + 1)
           case List("+") | List("-") | List("+", "-") | List("-", "+") =>
             SumExpression(xs.toPairList("+").map { case (op, value) => (op == "-", p(value, level + 1)) }, decimal = false)
@@ -237,7 +245,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
             SumExpression(xs.toPairList("+").map { case (op, value) => (op == "-'", p(value, level + 1)) }, decimal = true)
           case List(":") =>
             if (xs.size != 2) {
-              ErrorReporting.error("The `:` operator can have only two arguments", xs.head.head.position)
+              log.error("The `:` operator can have only two arguments", xs.head.head.position)
               LiteralExpression(0, 1)
             } else {
               SeparateBytesExpression(p(xs.head, level + 1), p(xs.tail.head._2, level + 1))
@@ -245,7 +253,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
           case List(op) =>
             FunctionCallExpression(op, xs.items.map(value => p(value, level + 1)))
           case _ =>
-            ErrorReporting.error("Too many different operators")
+            log.error("Too many different operators")
             LiteralExpression(0, 1)
         }
       }
@@ -312,7 +320,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       case Some((_, Seq(e))) => DefaultReturnDispatchLabel(None, Some(e))
       case Some((_, Seq(s, e))) => DefaultReturnDispatchLabel(Some(s), Some(e))
       case Some((pos, _)) =>
-        ErrorReporting.error("Invalid default branch declaration", Some(pos))
+        log.error("Invalid default branch declaration", Some(pos))
         DefaultReturnDispatchLabel(None, None)
     } | mfExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS).map(exprs => StandardReturnDispatchLabel(exprs.toList))
 
@@ -372,17 +380,17 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     addr <- ("@" ~/ HWS ~/ mfExpression(1)).?.opaque("<address>") ~/ AWS
     statements <- (externFunctionBody | (if (flags("asm")) asmStatements else statements).map(l => Some(l))) ~/ Pass
   } yield {
-    if (flags("interrupt") && flags("macro")) ErrorReporting.error(s"Interrupt function `$name` cannot be macros", Some(p))
-    if (flags("kernal_interrupt") && flags("macro")) ErrorReporting.error(s"Kernal interrupt function `$name` cannot be macros", Some(p))
-    if (flags("interrupt") && flags("reentrant")) ErrorReporting.error("Interrupt function `$name` cannot be reentrant", Some(p))
-    if (flags("interrupt") && flags("kernal_interrupt")) ErrorReporting.error("Interrupt function `$name` cannot be a Kernal interrupt", Some(p))
-    if (flags("macro") && flags("reentrant")) ErrorReporting.error("Reentrant and macro exclude each other", Some(p))
-    if (flags("inline") && flags("noinline")) ErrorReporting.error("Noinline and inline exclude each other", Some(p))
-    if (flags("macro") && flags("noinline")) ErrorReporting.error("Noinline and macro exclude each other", Some(p))
-    if (flags("inline") && flags("macro")) ErrorReporting.error("Macro and inline exclude each other", Some(p))
-    if (flags("interrupt") && returnType != "void") ErrorReporting.error("Interrupt function `$name` has to return void", Some(p))
-    if (addr.isEmpty && statements.isEmpty) ErrorReporting.error("Extern function `$name` must have an address", Some(p))
-    if (statements.isEmpty && !flags("asm") && params.nonEmpty) ErrorReporting.error("Extern non-asm function `$name` cannot have parameters", Some(p))
+    if (flags("interrupt") && flags("macro")) log.error(s"Interrupt function `$name` cannot be macros", Some(p))
+    if (flags("kernal_interrupt") && flags("macro")) log.error(s"Kernal interrupt function `$name` cannot be macros", Some(p))
+    if (flags("interrupt") && flags("reentrant")) log.error("Interrupt function `$name` cannot be reentrant", Some(p))
+    if (flags("interrupt") && flags("kernal_interrupt")) log.error("Interrupt function `$name` cannot be a Kernal interrupt", Some(p))
+    if (flags("macro") && flags("reentrant")) log.error("Reentrant and macro exclude each other", Some(p))
+    if (flags("inline") && flags("noinline")) log.error("Noinline and inline exclude each other", Some(p))
+    if (flags("macro") && flags("noinline")) log.error("Noinline and macro exclude each other", Some(p))
+    if (flags("inline") && flags("macro")) log.error("Macro and inline exclude each other", Some(p))
+    if (flags("interrupt") && returnType != "void") log.error("Interrupt function `$name` has to return void", Some(p))
+    if (addr.isEmpty && statements.isEmpty) log.error("Extern function `$name` must have an address", Some(p))
+    if (statements.isEmpty && !flags("asm") && params.nonEmpty) log.error("Extern non-asm function `$name` cannot have parameters", Some(p))
     if (flags("asm")) validateAsmFunctionBody(p, flags, name, statements)
     Seq(FunctionDeclarationStatement(name, returnType, params.toList,
       bank,
@@ -532,13 +540,6 @@ object MfParser {
   val mathLevel = 4 // the `:` operator
 
   val elidable: P[Boolean] = ("?".! ~/ HWS).?.map(_.isDefined)
-
-  val appcComplex: P[ParamPassingConvention] = P((("const" | "ref").! ~/ AWS).? ~ AWS ~ identifier) map {
-    case (None, name) => ByVariable(name)
-    case (Some("const"), name) => ByConstant(name)
-    case (Some("ref"), name) => ByReference(name)
-    case x => ErrorReporting.fatal(s"Unknown assembly parameter passing convention: `$x`")
-  }
 
   val externFunctionBody: P[Option[List[Statement]]] = P("extern" ~/ PassWith(None))
 

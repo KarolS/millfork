@@ -2,7 +2,7 @@ package millfork.parser
 
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.{CompilationOptions, Platform, SeparatedList}
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.Position
 
 import scala.collection.mutable
@@ -22,9 +22,10 @@ object Preprocessor {
 
   def apply(options: CompilationOptions, lines: Seq[String]): (String, Map[String, Long]) = {
     val platform = options.platform
-//    if (ErrorReporting.traceEnabled) {
+    val log = options.log
+//    if (log.traceEnabled) {
 //      platform.features.foreach{
-//        case (k, v) => ErrorReporting.trace(f"#define $k%15s $v%d")
+//        case (k, v) => log.trace(f"#define $k%15s $v%d")
 //      }
 //    }
     val result = mutable.ListBuffer[String]()
@@ -34,13 +35,13 @@ object Preprocessor {
     var lineNo = 0
 
     def evalParam(param: String, pos: Some[Position]): Long = {
-      PreprocessorParser.expression.parse(param) match {
+      new PreprocessorParser(options).expression.parse(param) match {
         case Success(q, _) =>
           val value = q.apply(platform.features).getOrElse(0L)
-//          ErrorReporting.trace(param + " ===> " + value)
+//          log.trace(param + " ===> " + value)
           value
         case Failure(_, _, _) =>
-          ErrorReporting.error("Failed to parse expression", pos)
+          log.error("Failed to parse expression", pos)
           0L
       }
     }
@@ -53,16 +54,16 @@ object Preprocessor {
           val pos = Some(Position("", lineNo, 0, 0))
           keyword match {
             case "use" => if (enabled) {
-              if (param == "") ErrorReporting.error("#use should have a parameter", pos)
+              if (param == "") log.error("#use should have a parameter", pos)
               featureConstants += param -> platform.features.getOrElse(param, {
-                ErrorReporting.warn(s"Undefined parameter $param, assuming 0", options, pos)
+                log.warn(s"Undefined parameter $param, assuming 0", pos)
                 0L
               })
             }
-            case "fatal" => if (enabled) ErrorReporting.fatal(param, pos)
-            case "error" => if (enabled) ErrorReporting.error(param, pos)
-            case "warn" => if (enabled) ErrorReporting.warn(param, options, pos)
-            case "info" => if (enabled) ErrorReporting.info(param, pos)
+            case "fatal" => if (enabled) log.fatal(param, pos)
+            case "error" => if (enabled) log.error(param, pos)
+            case "warn" => if (enabled) log.warn(param, pos)
+            case "info" => if (enabled) log.info(param, pos)
             case "if" =>
               if (enabled) {
                 val value = evalParam(param, pos)
@@ -72,17 +73,17 @@ object Preprocessor {
                 ifStack.push(IfContext(false, false, false))
               }
             case "endif" =>
-              if (param != "") ErrorReporting.error("#endif shouldn't have a parameter", pos)
-              if (ifStack.isEmpty)  ErrorReporting.error("Unmatched #endif", pos)
+              if (param != "") log.error("#endif shouldn't have a parameter", pos)
+              if (ifStack.isEmpty)  log.error("Unmatched #endif", pos)
               else {
                 enabled = ifStack.pop().enabledBefore
               }
             case "elseif" =>
               val skippingDepth = ifStack.top
-              if (ifStack.isEmpty)  ErrorReporting.error("Unmatched #elseif", pos)
+              if (ifStack.isEmpty)  log.error("Unmatched #elseif", pos)
               else {
                 val i = ifStack.top
-                if (i.hadElse) ErrorReporting.error("#elseif after #else", pos)
+                if (i.hadElse) log.error("#elseif after #else", pos)
                 if (i.hadEnabled) {
                   enabled = false
                 } else {
@@ -92,11 +93,11 @@ object Preprocessor {
                 }
               }
             case "else" =>
-              if (param != "") ErrorReporting.error("#else shouldn't have a parameter", pos)
-              if (ifStack.isEmpty)  ErrorReporting.error("Unmatched #else", pos)
+              if (param != "") log.error("#else shouldn't have a parameter", pos)
+              if (ifStack.isEmpty)  log.error("Unmatched #else", pos)
               else {
                 val i = ifStack.top
-                if (i.hadElse) ErrorReporting.error("Duplicate #else", pos)
+                if (i.hadElse) log.error("Duplicate #else", pos)
                 if (i.hadEnabled) {
                   enabled = false
                 } else {
@@ -105,7 +106,7 @@ object Preprocessor {
                 ifStack.push(ifStack.pop().copy(hadEnabled = true, hadElse = true))
               }
             case _ =>
-              ErrorReporting.error("Invalid preprocessor directive: #" + keyword, pos)
+              log.error("Invalid preprocessor directive: #" + keyword, pos)
 
           }
         case _ => if (enabled) resulting = line
@@ -113,11 +114,11 @@ object Preprocessor {
       result += resulting
     }
     if (ifStack.nonEmpty) {
-      ErrorReporting.error("Unclosed #if")
+      log.error("Unclosed #if")
     }
-//    if (ErrorReporting.traceEnabled) {
+//    if (log.traceEnabled) {
 //      result.zipWithIndex.foreach {
-//        case (line, i) => ErrorReporting.trace(f"${i + 1}%-4d $line%s")
+//        case (line, i) => log.trace(f"${i + 1}%-4d $line%s")
 //      }
 //    }
     (result.mkString("\n"), featureConstants.toMap)
@@ -126,7 +127,7 @@ object Preprocessor {
 
 }
 
-object PreprocessorParser {
+class PreprocessorParser(options: CompilationOptions) {
 
   import fastparse.all._
   import MfParser.{HWS, identifier, nonStatementLevel, mfOperators}
@@ -134,6 +135,7 @@ object PreprocessorParser {
   type M = Map[String, Long]
   type Q = M => Option[Long]
   val alwaysNone: M => Option[Long] = (_: M) => None
+  val log = options.log
 
   val literalAtom: P[Q] = (MfParser.binaryAtom | MfParser.hexAtom | MfParser.octalAtom | MfParser.quaternaryAtom | MfParser.decimalAtom).map(l => _ => Some(l.value))
 
@@ -152,10 +154,10 @@ object PreprocessorParser {
     case ("lo", List(p)) => {m:M => Some(p(m).getOrElse(0L) & 0xff)}
     case ("hi", List(p)) => {m:M => Some(p(m).getOrElse(0L).>>(8).&(0xff))}
     case ("defined" | "lo" | "hi" | "not", ps) =>
-      ErrorReporting.error(s"Invalid number of parameters to $name: ${ps.length}")
+      log.error(s"Invalid number of parameters to $name: ${ps.length}")
       alwaysNone
     case _ =>
-      ErrorReporting.error("Invalid preprocessor function " + name)
+      log.error("Invalid preprocessor function " + name)
       alwaysNone
   }
 
@@ -204,7 +206,7 @@ object PreprocessorParser {
         xs.separators.distinct match {
           case Nil =>
             if (xs.tail.nonEmpty)
-              ErrorReporting.error("Too many different operators")
+              log.error("Too many different operators")
             p(xs.head, level + 1)
           case List("+") | List("-") | List("+", "-") | List("-", "+") =>
             val tuples = xs.toPairList("+")
@@ -230,10 +232,10 @@ object PreprocessorParser {
           case List("<=") => compOp(xs, level, _ <= _)
           case List(">=") => compOp(xs, level, _ >= _)
           case List(x) =>
-            ErrorReporting.error("Unsupported operator " + x)
+            log.error("Unsupported operator " + x)
             alwaysNone
           case _ =>
-            ErrorReporting.error("Too many different operators")
+            log.error("Too many different operators")
             alwaysNone
         }
       }

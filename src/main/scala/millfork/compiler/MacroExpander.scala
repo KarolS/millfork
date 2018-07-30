@@ -4,7 +4,7 @@ import millfork.assembly.AbstractCode
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.{MosRegister, _}
 
 /**
@@ -58,7 +58,7 @@ abstract class MacroExpander[T <: AbstractCode] {
         actualCode = pair._2
       case NormalParamSignature(normalParams) =>
         if (params.length != normalParams.length) {
-          ErrorReporting.error(s"Invalid number of params for macro function ${i.name}", position)
+          ctx.log.error(s"Invalid number of params for macro function ${i.name}", position)
         } else {
           params.zip(normalParams).foreach {
             case (v@VariableExpression(_), MemoryVariable(paramName, paramType, _)) =>
@@ -66,7 +66,7 @@ abstract class MacroExpander[T <: AbstractCode] {
             case (v@IndexedExpression(_, _), MemoryVariable(paramName, paramType, _)) =>
               actualCode = actualCode.map(stmt => replaceVariable(stmt, paramName.stripPrefix(i.environment.prefix), v).asInstanceOf[ExecutableStatement])
             case _ =>
-              ErrorReporting.error(s"Parameters to macro functions have to be variables", position)
+              ctx.log.error(s"Parameters to macro functions have to be variables", position)
           }
         }
 

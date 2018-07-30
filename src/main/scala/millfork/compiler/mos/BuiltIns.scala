@@ -6,7 +6,7 @@ import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
 import millfork.compiler._
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node._
 
 import scala.collection.mutable
@@ -44,7 +44,7 @@ object BuiltIns {
         case VariableExpression(name) =>
           val v = env.get[Variable](name)
           if (v.typ.size > 1) {
-            ErrorReporting.error(s"Variable `$name` is too big for a built-in operation", source.position)
+            ctx.log.error(s"Variable `$name` is too big for a built-in operation", source.position)
             return Nil
           }
           Nil -> AssemblyLine.variable(ctx, opcode, v)
@@ -68,7 +68,7 @@ object BuiltIns {
             case (p: VariablePointy, 2, _, IndexChoice.PreferX | IndexChoice.PreferY, _) =>
               MosExpressionCompiler.prepareWordIndexing(ctx, p, index) -> List(AssemblyLine.indexedY(opcode, env.get[VariableInMemory]("__reg")))
             case _ =>
-              ErrorReporting.error("Invalid index for simple operation argument", index.position)
+              ctx.log.error("Invalid index for simple operation argument", index.position)
               Nil -> Nil
           }
         case FunctionCallExpression(name, List(param)) if env.maybeGet[Type](name).isDefined =>
@@ -87,13 +87,13 @@ object BuiltIns {
               AssemblyLine.implied(TXS))) // this TXS is fine, it won't appear in 65816 code
           }
         case _ =>
-          ErrorReporting.error("Right-hand-side expression is too complex", source.position)
+          ctx.log.error("Right-hand-side expression is too complex", source.position)
           return Nil
       }
     } {
       const =>
         if (const.requiredSize > 1) {
-          ErrorReporting.error("Constant too big for a built-in operation", source.position)
+          ctx.log.error("Constant too big for a built-in operation", source.position)
         }
         Nil -> List(AssemblyLine.immediate(opcode, const))
     }
@@ -119,7 +119,7 @@ object BuiltIns {
 
   def compileAddition(ctx: CompilationContext, params: List[(Boolean, Expression)], decimal: Boolean): List[AssemblyLine] = {
     if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
-      ErrorReporting.warn("Unsupported decimal operation", ctx.options, params.head._2.position)
+      ctx.log.warn("Unsupported decimal operation", params.head._2.position)
     }
     //    if (params.isEmpty) {
     //      return Nil
@@ -235,10 +235,10 @@ object BuiltIns {
         MosExpressionCompiler.compile(ctx, lhs, None, NoBranching)
       case Some(NumericConstant(shift, _)) if shift > 0 =>
         if (ctx.options.flag(CompilationFlag.RorWarning))
-          ErrorReporting.warn("ROR instruction generated", ctx.options, lhs.position)
+          ctx.log.warn("ROR instruction generated", lhs.position)
         ldaHi ++ List(AssemblyLine.implied(ROR)) ++ ldaLo ++ List(AssemblyLine.implied(ROR)) ++ List.fill(shift.toInt - 1)(AssemblyLine.implied(LSR))
       case _ =>
-        ErrorReporting.error("Non-constant shift amount", rhs.position) // TODO
+        ctx.log.error("Non-constant shift amount", rhs.position) // TODO
         Nil
     }
   }
@@ -282,7 +282,7 @@ object BuiltIns {
           staTo(ASL, lo) ++ targetBytes.tail.flatMap { b => staTo(ROL, b) }
         } else {
           if (ctx.options.flag(CompilationFlag.RorWarning))
-            ErrorReporting.warn("ROR instruction generated", ctx.options, lhs.position)
+            ctx.log.warn("ROR instruction generated", lhs.position)
           staTo(LSR, hi) ++ targetBytes.reverse.tail.flatMap { b => staTo(ROR, b) }
         }).flatten
       case _ =>
@@ -324,7 +324,7 @@ object BuiltIns {
           staTo(ASL, lo) ++ targetBytes.tail.flatMap { b => staTo(ROL, b) }
         } else {
           if (ctx.options.flag(CompilationFlag.RorWarning))
-            ErrorReporting.warn("ROR instruction generated", ctx.options, lhs.position)
+            ctx.log.warn("ROR instruction generated", lhs.position)
           staTo(LSR, hi) ++ targetBytes.reverse.tail.flatMap { b => staTo(ROR, b) }
         }) ++ List(
           AssemblyLine.implied(decrease),
@@ -345,24 +345,24 @@ object BuiltIns {
       case Some(NumericConstant(0, _)) =>
         compType match {
           case ComparisonType.LessUnsigned =>
-            ErrorReporting.warn("Unsigned < 0 is always false", ctx.options, lhs.position)
+            ctx.log.warn("Unsigned < 0 is always false", lhs.position)
           case ComparisonType.LessOrEqualUnsigned =>
             if (ctx.options.flag(CompilationFlag.ExtraComparisonWarnings))
-              ErrorReporting.warn("Unsigned <= 0 means the same as unsigned == 0", ctx.options, lhs.position)
+              ctx.log.warn("Unsigned <= 0 means the same as unsigned == 0", lhs.position)
           case ComparisonType.GreaterUnsigned =>
             if (ctx.options.flag(CompilationFlag.ExtraComparisonWarnings))
-              ErrorReporting.warn("Unsigned > 0 means the same as unsigned != 0", ctx.options, lhs.position)
+              ctx.log.warn("Unsigned > 0 means the same as unsigned != 0", lhs.position)
           case ComparisonType.GreaterOrEqualUnsigned =>
-            ErrorReporting.warn("Unsigned >= 0 is always true", ctx.options, lhs.position)
+            ctx.log.warn("Unsigned >= 0 is always true", lhs.position)
           case _ =>
         }
       case Some(NumericConstant(1, _)) =>
         if (ctx.options.flag(CompilationFlag.ExtraComparisonWarnings)) {
           compType match {
             case ComparisonType.LessUnsigned =>
-              ErrorReporting.warn("Unsigned < 1 means the same as unsigned == 0", ctx.options, lhs.position)
+              ctx.log.warn("Unsigned < 1 means the same as unsigned == 0", lhs.position)
             case ComparisonType.GreaterOrEqualUnsigned =>
-              ErrorReporting.warn("Unsigned >= 1 means the same as unsigned != 0", ctx.options, lhs.position)
+              ctx.log.warn("Unsigned >= 1 means the same as unsigned != 0", lhs.position)
             case _ =>
           }
         }
@@ -519,7 +519,7 @@ object BuiltIns {
           AssemblyLine.variable(ctx, CMP, rva, 0))
       case _ =>
         // TODO comparing expressions
-        ErrorReporting.error("Too complex expressions in comparison", lhs.position)
+        ctx.log.error("Too complex expressions in comparison", lhs.position)
         (Nil, Nil, Nil, Nil)
     }
     val lType = MosExpressionCompiler.getExpressionType(ctx, lhs)
@@ -684,7 +684,7 @@ object BuiltIns {
           case ComparisonType.GreaterUnsigned | ComparisonType.LessOrEqualUnsigned =>
             compileLongComparison(ctx, ComparisonType.flip(compType), rhs, lhs, size, branches, alreadyFlipped = true)
           case _ =>
-            ErrorReporting.error("Long signed comparisons are not yet supported", lhs.position)
+            ctx.log.error("Long signed comparisons are not yet supported", lhs.position)
             Nil
         }
     }
@@ -755,7 +755,7 @@ object BuiltIns {
 
   def compileInPlaceByteAddition(ctx: CompilationContext, v: LhsExpression, addend: Expression, subtract: Boolean, decimal: Boolean): List[AssemblyLine] = {
     if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
-      ErrorReporting.warn("Unsupported decimal operation", ctx.options, v.position)
+      ctx.log.warn("Unsupported decimal operation", v.position)
     }
     val env = ctx.env
     val b = env.get[Type]("byte")
@@ -807,7 +807,7 @@ object BuiltIns {
 
   def compileInPlaceWordOrLongAddition(ctx: CompilationContext, lhs: LhsExpression, addend: Expression, subtract: Boolean, decimal: Boolean): List[AssemblyLine] = {
     if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
-      ErrorReporting.warn("Unsupported decimal operation", ctx.options, lhs.position)
+      ctx.log.warn("Unsupported decimal operation", lhs.position)
     }
     val env = ctx.env
     val b = env.get[Type]("byte")
@@ -936,7 +936,7 @@ object BuiltIns {
             if (subtract) {
               if (isRhsComplex(base)) {
                 if (isRhsStack(base)) {
-                  ErrorReporting.warn("Subtracting a stack-based value", ctx.options)
+                  ctx.log.warn("Subtracting a stack-based value", addend.position)
                   ???
                 }
                 (base ++ List(AssemblyLine.implied(PHA))) -> List(List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(LDA, 0x101)))
@@ -951,7 +951,7 @@ object BuiltIns {
             if (isRhsStack(base)) {
               val fixedBase = MosExpressionCompiler.compile(ctx, addend, Some(MosExpressionCompiler.getExpressionType(ctx, addend) -> RegisterVariable(MosRegister.AY, w)), NoBranching)
               if (subtract) {
-                ErrorReporting.warn("Subtracting a stack-based value", ctx.options)
+                ctx.log.warn("Subtracting a stack-based value", addend.position)
                 if (isRhsComplex(base)) {
                   ???
                 } else {
@@ -1211,7 +1211,7 @@ object BuiltIns {
       case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
         if (simplicity(ctx.env, h) < 'J' || simplicity(ctx.env, l) < 'J') {
           // a[b]:c[d] is the most complex expression that doesn't cause the following warning
-          ErrorReporting.warn("Too complex expression given to the `:` operator, generated code might be wrong", ctx.options, lhs.position)
+          ctx.log.warn("Too complex expression given to the `:` operator, generated code might be wrong", lhs.position)
         }
         List(
           getStorageForEachByte(ctx, l).head,
@@ -1249,7 +1249,7 @@ object BuiltIns {
           case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
             if (simplicity(ctx.env, h) < 'J' || simplicity(ctx.env, l) < 'J') {
               // a[b]:c[d] is the most complex expression that doesn't cause the following warning
-              ErrorReporting.warn("Too complex expression given to the `:` operator, generated code might be wrong", ctx.options, expr.position)
+              ctx.log.warn("Too complex expression given to the `:` operator, generated code might be wrong", expr.position)
             }
             List.tabulate(size) { i =>
               if (i == 0) getStorageForEachByte(ctx, l).head

@@ -12,7 +12,7 @@ import millfork.assembly.mos.AssemblyLine
 import millfork.compiler.CompilationContext
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, MosAssembler}
@@ -97,6 +97,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
   def apply2(source: String): (Timings, MemoryBank) = {
     Console.out.flush()
     Console.err.flush()
+    val log = TestErrorReporting.log
     println(source)
     val platform = EmuPlatform.get(cpu)
     val options = CompilationOptions(platform, Map(
@@ -112,25 +113,25 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
-    ), None, 2)
-    ErrorReporting.hasErrors = false
-    ErrorReporting.verbosity = 999
+    ), None, 2, log)
+    log.hasErrors = false
+    log.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
-    ErrorReporting.setSource(Some(effectiveSource.lines.toIndexedSeq))
+    log.setSource(Some(effectiveSource.lines.toIndexedSeq))
     val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = MosParser("", preprocessedSource, "", options, features)
     parserF.toAst match {
       case Success(unoptimized, _) =>
-        ErrorReporting.assertNoErrors("Parse failed")
+        log.assertNoErrors("Parse failed")
 
 
         // prepare
         val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
-        val callGraph = new StandardCallGraph(program)
-        val env = new Environment(None, "", CpuFamily.M6502)
+        val callGraph = new StandardCallGraph(program, log)
+        val env = new Environment(None, "", CpuFamily.M6502, log)
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
@@ -146,11 +147,11 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
             unoptimizedSize += d.typ.size
         }
 
-        ErrorReporting.assertNoErrors("Compile failed")
+        log.assertNoErrors("Compile failed")
 
 
         // compile
-        val env2 = new Environment(None, "", CpuFamily.M6502)
+        val env2 = new Environment(None, "", CpuFamily.M6502, log)
         env2.collectDeclarations(program, options)
         val assembler = new MosAssembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)
@@ -168,7 +169,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
           println(f"Gain:              ${(100L * (unoptimizedSize - optimizedSize) / unoptimizedSize.toDouble).round}%5d%%")
         }
 
-        if (ErrorReporting.hasErrors) {
+        if (log.hasErrors) {
           fail("Code generation failed")
         }
 
@@ -180,30 +181,30 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         }
         val timings = platform.cpu match {
           case millfork.Cpu.Cmos =>
-            runViaSymon(memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.CMOS_6502)
+            runViaSymon(log, memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.CMOS_6502)
           case millfork.Cpu.Ricoh =>
-            runViaHalfnes(memoryBank, platform.codeAllocators("default").startAt)
+            runViaHalfnes(log, memoryBank, platform.codeAllocators("default").startAt)
           case millfork.Cpu.Mos =>
-            ErrorReporting.fatal("There's no NMOS emulator with decimal mode support")
+            log.fatal("There's no NMOS emulator with decimal mode support")
             Timings(-1, -1) -> memoryBank
           case millfork.Cpu.StrictMos | millfork.Cpu.StrictRicoh =>
-            runViaSymon(memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.NMOS_6502)
+            runViaSymon(log, memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.NMOS_6502)
           case _ =>
-            ErrorReporting.trace("No emulation support for " + platform.cpu)
+            log.trace("No emulation support for " + platform.cpu)
             Timings(-1, -1) -> memoryBank
         }
-        ErrorReporting.clearErrors()
+        log.clearErrors()
         timings
       case f: Failure[_, _] =>
         println(f)
         println(f.extra.toString)
         println(f.lastParser.toString)
-        ErrorReporting.error("Syntax error", Some(parserF.lastPosition))
+        log.error("Syntax error", Some(parserF.lastPosition))
         fail("syntax error")
     }
   }
 
-  def runViaHalfnes(memoryBank: MemoryBank, org: Int): (Timings, MemoryBank) = {
+  def runViaHalfnes(log: Logger, memoryBank: MemoryBank, org: Int): (Timings, MemoryBank) = {
     val cpu = new CPU(new CPURAM(memoryBank))
     cpu.reset()
     cpu.PC = org
@@ -221,7 +222,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     Timings(cpu.clocks, 0) -> memoryBank
   }
 
-  def runViaSymon(memoryBank: MemoryBank, org: Int, behavior: CpuBehavior): (Timings, MemoryBank) = {
+  def runViaSymon(log: Logger, memoryBank: MemoryBank, org: Int, behavior: CpuBehavior): (Timings, MemoryBank) = {
     val cpu = new Cpu
     cpu.setBehavior(behavior)
     val ram = new SymonTestRam(memoryBank)
@@ -257,7 +258,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         }
       }
     }
-    ErrorReporting.trace(f"[$$c000] = ${memoryBank.readByte(0xc000)}%02X")
+    log.trace(f"[$$c000] = ${memoryBank.readByte(0xc000)}%02X")
     countCmos should be < TooManyCycles
     println(countNmos + " NMOS cycles")
     println(countCmos + " CMOS cycles")

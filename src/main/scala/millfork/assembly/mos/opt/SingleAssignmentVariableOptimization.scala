@@ -6,7 +6,7 @@ import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.{ConsoleLogger, Logger}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -70,8 +70,8 @@ object SingleAssignmentVariableOptimization extends AssemblyOptimization[Assembl
 
     if (finalGoodVariables.isEmpty) return code
     val (bestVar, bestCode) = finalGoodVariables.minBy(_._2.view.map(_.sizeInBytes).sum)
-    ErrorReporting.debug(s"Removing effectively const variable ${bestVar.name}")
-    reportOptimizedBlock(code, bestCode)
+    optimizationContext.log.debug(s"Removing effectively const variable ${bestVar.name}")
+    reportOptimizedBlock(optimizationContext.log, code, bestCode)
     bestCode
   }
 
@@ -120,9 +120,11 @@ object SingleAssignmentVariableOptimization extends AssemblyOptimization[Assembl
     case x :: xs => replaceVariable(variable, replacement, xs).map(x._1 :: _)
   }
 
-  protected def reportOptimizedBlock(oldCode: List[AssemblyLine], newCode: List[AssemblyLine]): Unit = {
-    oldCode.foreach(l => ErrorReporting.trace(l.toString))
-    ErrorReporting.trace("     ↓")
-    newCode.foreach(l => ErrorReporting.trace(l.toString))
+  protected def reportOptimizedBlock(log: Logger, oldCode: List[AssemblyLine], newCode: List[AssemblyLine]): Unit = {
+    if (log.traceEnabled) {
+      oldCode.foreach(l => log.trace(l.toString))
+      log.trace("     ↓")
+      newCode.foreach(l => log.trace(l.toString))
+    }
   }
 }

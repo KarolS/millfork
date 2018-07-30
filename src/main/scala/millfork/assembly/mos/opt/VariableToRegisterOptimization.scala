@@ -6,7 +6,7 @@ import millfork.assembly.mos._
 import millfork.assembly.mos.Opcode._
 import AddrMode._
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.{FatalErrorReporting, Logger}
 import millfork.node.MosNiceFunctionProperty
 
 import scala.collection.mutable.ListBuffer
@@ -30,11 +30,13 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
                      functionsSafeForX: Set[String],
                      functionsSafeForY: Set[String],
                      functionsSafeForZ: Set[String],
-                     identityArray: Constant)
+                     identityArray: Constant,
+                     log: Logger)
 
   case class FeaturesForAccumulator(
                      cmos: Boolean,
-                     safeFunctions: Set[String])
+                     safeFunctions: Set[String],
+                     log: Logger)
 
   // If any of these opcodes is present within a method,
   // then it's too hard to assign any variable to a register.
@@ -117,6 +119,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val options = optimizationContext.options
+    val log = options.log
     val paramVariables = f.params match {
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
         Set[String]()
@@ -162,11 +165,13 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       functionsSafeForX = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeX).map(_._2),
       functionsSafeForY = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeY).map(_._2),
       functionsSafeForZ = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeIZ).map(_._2),
-      identityArray = identityArray
+      identityArray = identityArray,
+      log = log
     )
     val featuresForAcc = FeaturesForAccumulator(
       cmos = options.flag(CompilationFlag.EmitCmosOpcodes),
-      safeFunctions = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeA).map(_._2)
+      safeFunctions = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeA).map(_._2),
+      log = log
     )
 
     val xCandidates = variablesWithLifetimes.filter {
@@ -257,9 +262,11 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     val (_, bestXs, bestYs, bestZs, bestAs) = variants.maxBy(_._1)
 
     def reportOptimizedBlock[T](oldCode: List[(AssemblyLine, T)], newCode: List[AssemblyLine]): Unit = {
-      oldCode.foreach(l => ErrorReporting.trace(l._1.toString))
-      ErrorReporting.trace("     ↓")
-      newCode.foreach(l => ErrorReporting.trace(l.toString))
+      if (log.traceEnabled) {
+        oldCode.foreach(l => log.trace(l._1.toString))
+        log.trace("     ↓")
+        newCode.foreach(l => log.trace(l.toString))
+      }
     }
 
     if (bestXs.nonEmpty || bestYs.nonEmpty || bestZs.nonEmpty || bestAs.nonEmpty) {
@@ -269,7 +276,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         var done = false
         bestXs.find(_._2.start == i).foreach {
           case (v, range, _) =>
-            ErrorReporting.debug(s"Inlining $v to register X")
+            log.debug(s"Inlining $v to register X")
             val oldCode = code.zip(importances).slice(range.start, range.end)
             val newCode = inlineVars(Some(v), None, None, None, featuresForIndices, oldCode)
             reportOptimizedBlock(oldCode, newCode)
@@ -283,7 +290,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if (!done) {
           bestYs.find(_._2.start == i).foreach {
             case (v, range, _) =>
-              ErrorReporting.debug(s"Inlining $v to register Y")
+              log.debug(s"Inlining $v to register Y")
               val oldCode = code.zip(importances).slice(range.start, range.end)
               val newCode = inlineVars(None, Some(v), None, None, featuresForIndices, oldCode)
               reportOptimizedBlock(oldCode, newCode)
@@ -298,7 +305,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if (!done) {
           bestZs.find(_._2.start == i).foreach {
             case (v, range, _) =>
-              ErrorReporting.debug(s"Inlining $v to register Z")
+              log.debug(s"Inlining $v to register Z")
               val oldCode = code.zip(importances).slice(range.start, range.end)
               val newCode = inlineVars(None, None, Some(v), None, featuresForIndices, oldCode)
               reportOptimizedBlock(oldCode, newCode)
@@ -313,7 +320,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if (!done) {
           bestAs.find(_._2.start == i).foreach {
             case (v, range, _) =>
-              ErrorReporting.debug(s"Inlining $v to register A")
+              log.debug(s"Inlining $v to register A")
               val oldCode = code.zip(importances).slice(range.start, range.end)
               val newCode = inlineVars(None, None, None, Some(v), featuresForIndices, oldCode)
               reportOptimizedBlock(oldCode, newCode)
@@ -957,12 +964,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
         if (features.izIsAlwaysZero) AssemblyLine.immediate(LDX, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
-        else  ErrorReporting.fatal("Unexpected STZ")
+        else features.log.fatal("Unexpected STZ")
 
       case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vy =>
         if (features.izIsAlwaysZero) AssemblyLine.immediate(LDY, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
-        else  ErrorReporting.fatal("Unexpected STZ")
+        else features.log.fatal("Unexpected STZ")
 
       case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == va =>
@@ -970,13 +977,13 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         else AssemblyLine.implied(TZA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
 
       case (AssemblyLine(TAX, _, _, _), _) :: xs if xCandidate.isDefined =>
-        ErrorReporting.fatal("Unexpected TAX")
+        features.log.fatal("Unexpected TAX")
 
       case (AssemblyLine(TAY, _, _, _), _) :: xs if yCandidate.isDefined =>
-        ErrorReporting.fatal("Unexpected TAY")
+        features.log.fatal("Unexpected TAY")
 
       case (AssemblyLine(TAZ, _, _, _), _) :: xs if zCandidate.isDefined =>
-        ErrorReporting.fatal("Unexpected TAZ")
+        features.log.fatal("Unexpected TAZ")
 
       case (AssemblyLine(TXA, _, _, _), _) :: xs if aCandidate.isDefined =>
         AssemblyLine.immediate(CPX, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)

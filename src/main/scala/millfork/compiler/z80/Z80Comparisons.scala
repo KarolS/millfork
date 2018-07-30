@@ -23,7 +23,7 @@ object Z80Comparisons {
     val calculateFlags =
       Z80ExpressionCompiler.compileToA(ctx, r) ++
         List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
-        Z80ExpressionCompiler.stashDEIfChanged(Z80ExpressionCompiler.compileToA(ctx, l)) ++
+        Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, l)) ++
         List(ZLine.register(ZOpcode.CP, ZRegister.E))
     if (branches == NoBranching) return calculateFlags
     val jump = (compType, branches) match {
@@ -72,7 +72,7 @@ object Z80Comparisons {
     val calculateRight = Z80ExpressionCompiler.compileToHL(ctx, r)
     val (calculated, useBC) = if (calculateLeft.exists(Z80ExpressionCompiler.changesBC)) {
       if (calculateLeft.exists(Z80ExpressionCompiler.changesDE)) {
-        calculateRight ++ List(ZLine.register(ZOpcode.PUSH, ZRegister.HL)) ++ Z80ExpressionCompiler.fixTsx(calculateLeft) ++ List(ZLine.register(ZOpcode.POP, ZRegister.BC)) -> false
+        calculateRight ++ List(ZLine.register(ZOpcode.PUSH, ZRegister.HL)) ++ Z80ExpressionCompiler.fixTsx(ctx, calculateLeft) ++ List(ZLine.register(ZOpcode.POP, ZRegister.BC)) -> false
       } else {
         calculateRight ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L)) ++ calculateLeft -> false
       }
@@ -162,15 +162,15 @@ object Z80Comparisons {
         List(ZLine(LD, TwoRegisters(A, reg), _, _))) if reg != MEM_ABS_8 =>
           lb :+ ZLine.register(sub, reg)
         case (List(ZLine(LD, TwoRegisters(A, _), _, _)), _) =>
-          Z80ExpressionCompiler.stashAFIfChangedF(rb :+ ZLine.ld8(E, A)) ++ lb :+ ZLine.register(sub, E)
+          Z80ExpressionCompiler.stashAFIfChangedF(ctx, rb :+ ZLine.ld8(E, A)) ++ lb :+ ZLine.register(sub, E)
         case _ =>
           if (preserveBc || preserveHl) ??? // TODO: preserve HL/BC for the next round of comparisons
-        var compileArgs = rb ++ List(ZLine.ld8(E, A)) ++ Z80ExpressionCompiler.stashDEIfChanged(lb) ++ List(ZLine.ld8(D, A))
-          if (i > 0) compileArgs = Z80ExpressionCompiler.stashAFIfChangedF(compileArgs)
+        var compileArgs = rb ++ List(ZLine.ld8(E, A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, lb) ++ List(ZLine.ld8(D, A))
+          if (i > 0) compileArgs = Z80ExpressionCompiler.stashAFIfChangedF(ctx, compileArgs)
           compileArgs ++ List(ZLine.ld8(A, D), ZLine.register(sub, E))
       }
-      if (i > 0 && preserveBc) compareBytes = Z80ExpressionCompiler.stashBCIfChanged(compareBytes)
-      if (i > 0 && preserveHl) compareBytes = Z80ExpressionCompiler.stashHLIfChanged(compareBytes)
+      if (i > 0 && preserveBc) compareBytes = Z80ExpressionCompiler.stashBCIfChanged(ctx, compareBytes)
+      if (i > 0 && preserveHl) compareBytes = Z80ExpressionCompiler.stashHLIfChanged(ctx, compareBytes)
       compareBytes
     }
     if (branches == NoBranching) return calculateFlags
@@ -229,12 +229,12 @@ object Z80Comparisons {
             (rb :+ ZLine.ld8(E, A)) ++ lb :+ ZLine.register(CP, E)
           case _ =>
             var actualLb = lb
-            if (i == 0 && preserveBc) actualLb = Z80ExpressionCompiler.stashBCIfChanged(actualLb)
-            actualLb ++ List(ZLine.ld8(E, A)) ++ Z80ExpressionCompiler.stashDEIfChanged(rb) :+ ZLine.register(CP, E)
+            if (i == 0 && preserveBc) actualLb = Z80ExpressionCompiler.stashBCIfChanged(ctx, actualLb)
+            actualLb ++ List(ZLine.ld8(E, A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, rb) :+ ZLine.register(CP, E)
         }
       }
-      if (i > 0 && preserveBc) compareBytes = Z80ExpressionCompiler.stashBCIfChanged(compareBytes)
-      if (i > 0 && preserveHl) compareBytes = Z80ExpressionCompiler.stashHLIfChanged(compareBytes)
+      if (i > 0 && preserveBc) compareBytes = Z80ExpressionCompiler.stashBCIfChanged(ctx, compareBytes)
+      if (i > 0 && preserveHl) compareBytes = Z80ExpressionCompiler.stashHLIfChanged(ctx, compareBytes)
       if (i != size - 1 && branches != NoBranching) compareBytes :+ jump else compareBytes
     }
     if (branches == NoBranching) calculateFlags

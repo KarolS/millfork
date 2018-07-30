@@ -6,7 +6,7 @@ import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 
 /**
   * @author Karol Stasiak
@@ -71,7 +71,7 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
       return code
     }
 
-    ErrorReporting.debug(s"Removing pointless store(s) to foreign variables ${unusedForeignVariables.mkString(", ")}")
+    optimizationContext.log.debug(s"Removing pointless store(s) to foreign variables ${unusedForeignVariables.mkString(", ")}")
     code.filterNot {
       case AssemblyLine(op, am, MemoryAddressConstant(th), _)
         if storeInstructions(op) && storeAddrModes(am) =>

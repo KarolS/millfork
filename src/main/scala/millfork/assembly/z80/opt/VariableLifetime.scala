@@ -3,7 +3,7 @@ package millfork.assembly.z80.opt
 import millfork.assembly.opt.SingleStatus
 import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine}
 import millfork.env._
-import millfork.error.ErrorReporting
+import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 
 /**
@@ -50,13 +50,13 @@ object VariableLifetime {
       }
     }
 
-//    ErrorReporting.trace("Lifetime for " + variableName)
+//    log.trace("Lifetime for " + variableName)
 //    codeWithFlow.zipWithIndex.foreach {
 //      case ((_, line), index) =>
 //        if (index >= min && index < max) {
-//          ErrorReporting.trace(f"$line%-30s  <")
+//          log.trace(f"$line%-30s  <")
 //        } else {
-//          ErrorReporting.trace(line.toString)
+//          log.trace(line.toString)
 //        }
 //    }
 
