@@ -219,6 +219,13 @@ object Cpu extends Enumeration {
     case "intel8080" => Intel8080
     case _ => ErrorReporting.fatal("Unknown CPU achitecture: " + name)
   }
+
+  def getMaxSizeReturnableViaRegisters(cpu: Cpu.Value, compilationOptions: CompilationOptions): Int =
+    CpuFamily.forType(cpu) match {
+      case CpuFamily.M6502 => 2
+      case CpuFamily.I80 | CpuFamily.I86 => 4
+      case _ => ???
+    }
 }
 
 object CompilationFlag extends Enumeration {

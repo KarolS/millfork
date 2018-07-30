@@ -66,7 +66,22 @@ sealed trait Constant {
     if (requiredSize <= index) Constant.Zero
     else {
       // TODO: check if ok
-      CompoundConstant(MathOperator.Or, CompoundConstant(MathOperator.Shl, subbyte(index+1), NumericConstant(8, 1)), subbyte(0)).quickSimplify
+      CompoundConstant(MathOperator.Or, CompoundConstant(MathOperator.Shl, subbyte(index + 1), NumericConstant(8, 1)), subbyte(index)).quickSimplify
+    }
+  }
+
+  def subconstant(offset: Int, length: Int): Constant = {
+    if (offset == 0 && length == requiredSize) {
+      this
+    } else if (length == 1) {
+      subbyte(offset)
+    } else if (offset >= requiredSize) {
+      Constant.Zero
+    } else {
+      ((length - 1) to 0 by (-1)).map { i =>
+        val index = i + offset
+        if (i == 0) subbyte(index) else CompoundConstant(MathOperator.Shl, subbyte(index), NumericConstant(8 * i, 1))
+      }.reduceLeft((l, r) => CompoundConstant(MathOperator.Or, l, r).quickSimplify).quickSimplify
     }
   }
 

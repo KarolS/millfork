@@ -18,6 +18,8 @@
 
 * two-byte return values are passed via the A (low byte) and X (high byte) register
 
+* otherwise, the return value is passed via a static location
+
 #### Register preservation:
 
 * callee may clobber all three registers (A, X, Y) and most flags (Z, V, C, N, and also I if using inline assembly)
@@ -42,6 +44,14 @@
 
 * if the function has one parameter of size two bytes, it is passed via the HL register pair
 
+* if the function has one parameter of size three bytes,
+its least significant two bytes are passed via the HL register pair
+and the most significant byte is passed via the E register
+
+* if the function has one parameter of size four bytes,
+its least significant word is passed via the HL register pair
+and the most significant word is passed via the DE register pair
+
 * otherwise, all parameters are passed via static locations
 
 #### Return values:
@@ -49,6 +59,16 @@
 * one-byte return values are passed via the A register
 
 * two-byte return values are passed via the HL register pair
+
+* in case of three-byte return values,
+its least significant two bytes are passed via the HL register pair
+and the most significant byte is passed via the E register
+
+* in case of four-byte return values,
+its least significant word is passed via the HL register pair
+and the most significant word is passed via the DE register pair
+
+* otherwise, the return value is passed via a static location
 
 #### Register preservation:
 

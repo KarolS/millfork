@@ -209,6 +209,12 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
               }
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardYF()) ++ returnInstructions
+            case _ =>
+              if (statement.position.isDefined){
+                ErrorReporting.warn("Returning without a value", ctx.options, statement.position)
+              }
+              stackPointerFixBeforeReturn(ctx) ++
+                List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
           }
         }
       case s : ReturnDispatchStatement =>
@@ -224,6 +230,9 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx) ++ returnInstructions
               case 2 =>
                 MosExpressionCompiler.compile(ctx, e, someRegisterAX, NoBranching) ++ stackPointerFixBeforeReturn(ctx) ++ returnInstructions
+              case _ =>
+                MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + "`return")) ++
+                  stackPointerFixBeforeReturn(ctx) ++ returnInstructions
             }
           case _ =>
             AbstractExpressionCompiler.checkAssignmentType(ctx, e, m.returnType)
@@ -244,6 +253,9 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                     List(AssemblyLine.implied(TAX), AssemblyLine.implied(TYA), AssemblyLine.discardYF()) ++
                     returnInstructions
                 }
+              case _ =>
+                MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + ".return")) ++
+                  stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
             }
         }
       case s: IfStatement =>

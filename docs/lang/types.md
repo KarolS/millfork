@@ -9,11 +9,15 @@ Millfork puts extra limitations on which types can be used in which contexts.
 * `byte` – 1-byte value of undefined signedness, defaulting to unsigned
 
 * `word` – 2-byte value of undefined signedness, defaulting to unsigned
+(alias: `int16`)
 
-* `farword` – 3-byte value of undefined signedness, defaulting to unsigned  
-(the name is an analogy to a future 24-bit type called `farpointer`)
+* `int24` – 3-byte value of undefined signedness, defaulting to unsigned
+(alias: `farword`; this alias is deprecated and might be removed in the future)
 
 * `long` – 4-byte value of undefined signedness, defaulting to unsigned
+(alias: `int32`)
+
+* `int40`, `int48`,... `int128` – even larger types
 
 * `sbyte` – signed 1-byte value
 

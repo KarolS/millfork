@@ -676,6 +676,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
       case f@FunctionCallExpression(name, params) =>
         var zeroExtend = false
+        var resultVariable = ""
         val calculate: List[AssemblyLine] = name match {
           case "not" =>
             assertBool(ctx, "not", params, 1)
@@ -1054,6 +1055,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case function: EmptyFunction =>
                 ??? // TODO: type conversion?
               case function: FunctionInMemory =>
+                if (function.returnType.size > 2) {
+                  resultVariable = function.name + ".return"
+                }
                 function match {
                   case nf: NormalFunction =>
                     if (nf.interrupt) {
@@ -1089,11 +1093,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 result
             }
         }
-        val store: List[AssemblyLine] = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
-        if (zeroExtend && exprTypeAndVariable.exists(_._1.size >= 2)) {
-          calculate ++ List(AssemblyLine.immediate(LDX, 0)) ++ store
+        if (resultVariable == "") {
+          val store: List[AssemblyLine] = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+          if (zeroExtend && exprTypeAndVariable.exists(_._1.size >= 2)) {
+            calculate ++ List(AssemblyLine.immediate(LDX, 0)) ++ store
+          } else {
+            calculate ++ store
+          }
         } else {
-          calculate ++ store
+          calculate ++ compile(ctx, VariableExpression(resultVariable), exprTypeAndVariable, branches)
         }
     }
   }

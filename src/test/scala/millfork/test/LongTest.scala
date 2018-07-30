@@ -198,4 +198,132 @@ class LongTest extends FunSuite with Matchers {
       m.readLong(0xc018) should equal(0xffffffff)
     }
   }
+
+  test("Returning long") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | long output @$c000
+        | void main () {
+        |   output = l($91929394)
+        | }
+        | long l(long param) {
+        |   return param
+        | }
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(0x91929394)
+    }
+  }
+
+  test("Various combinations involving promotions") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | long output0 @$c000
+        | long output1 @$c004
+        | long output2 @$c008
+        | long output3 @$c00c
+        | long output4 @$c010
+        | long output5 @$c014
+        | long output6 @$c018
+        |
+        | farword f0 @$c020
+        | farword f1 @$c023
+        | farword f2 @$c026
+        | void main () {
+        |   output0 = ll($91929394)
+        |   output1 = lf($929394)
+        |   output2 = ff($929394)
+        |   output3 = lw($9394)
+        |   output4 = fw($9394)
+        |   output5 = lb($94)
+        |   output6 = fb($94)
+        |
+        |   f0 = ff($929394)
+        |   f1 = fw($9394)
+        |   f2 = fb($94)
+        | }
+        | long ll(long param) {
+        |   return param
+        | }
+        | long lf(farword param) {
+        |   return param
+        | }
+        | long lw(word param) {
+        |   return param
+        | }
+        | long lb(byte param) {
+        |   return param
+        | }
+        | farword ff(farword param) {
+        |   return param
+        | }
+        | farword fw(word param) {
+        |   return param
+        | }
+        | farword fb(byte param) {
+        |   return param
+        | }
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(0x91929394)
+      m.readLong(0xc004) should equal(0x929394)
+      m.readLong(0xc008) should equal(0x929394)
+      m.readLong(0xc00c) should equal(0x9394)
+      m.readLong(0xc010) should equal(0x9394)
+      m.readLong(0xc014) should equal(0x94)
+      m.readLong(0xc018) should equal(0x94)
+      m.readMedium(0xc020) should equal(0x929394)
+      m.readMedium(0xc023) should equal(0x9394)
+      m.readMedium(0xc026) should equal(0x94)
+    }
+  }
+
+  test("Larger than long") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | int64 output0 @$c000
+        | int64 output1 @$c008
+        | int64 output2 @$c010
+        | int64 output3 @$c018
+        | int64 output4 @$c020
+        |
+        | void main () {
+        |   output0 = xl($91929394)
+        |   output1 = xf($929394)
+        |   output2 = xw($9394)
+        |   output3 = xb($94)
+        |   output4 = xx($91929394)
+        | }
+        | int64 xl(long param) {
+        |   return param
+        | }
+        | int64 xf(farword param) {
+        |   return param
+        | }
+        | int64 xw(word param) {
+        |   return param
+        | }
+        | int64 xb(byte param) {
+        |   return param
+        | }
+        | int64 xx(int64 param) {
+        |   param.b4 += 1
+        |   param.b5 += 1
+        |   param.b6 += 1
+        |   param.b7 += 1
+        |   return param
+        | }
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(0x91929394)
+      m.readLong(0xc008) should equal(0x929394)
+      m.readLong(0xc010) should equal(0x9394)
+      m.readLong(0xc018) should equal(0x94)
+
+      m.readLong(0xc004) should equal(0)
+      m.readLong(0xc00c) should equal(0)
+      m.readLong(0xc014) should equal(0)
+      m.readLong(0xc01c) should equal(0)
+
+      m.readLong(0xc020) should equal(0x91929394)
+      m.readLong(0xc024) should equal(0x01010101)
+    }
+  }
 }

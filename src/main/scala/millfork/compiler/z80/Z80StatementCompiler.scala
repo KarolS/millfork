@@ -25,16 +25,13 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       case ReturnStatement(None) =>
         fixStackOnReturn(ctx) ++ (ctx.function.returnType match {
           case _: BooleanType =>
-            List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+            List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
           case t => t.size match {
             case 0 =>
-              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
-            case 1 =>
+              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+            case _ =>
               ErrorReporting.warn("Returning without a value", options, statement.position)
-              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
-            case 2 =>
-              ErrorReporting.warn("Returning without a value", options, statement.position)
-              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
           }
         })
       case ReturnStatement(Some(e)) =>
@@ -43,13 +40,13 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
             case 0 =>
               ErrorReporting.error("Cannot return anything from a void function", statement.position)
               fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
             case 1 =>
               Z80ExpressionCompiler.compileToA(ctx, e) ++ fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+                List(ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
             case 2 =>
               Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
           }
           case t =>
             AbstractExpressionCompiler.checkAssignmentType(ctx, e, ctx.function.returnType)
@@ -57,13 +54,23 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
               case 0 =>
                 ErrorReporting.error("Cannot return anything from a void function", statement.position)
                 fixStackOnReturn(ctx) ++
-                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
               case 1 =>
                 Z80ExpressionCompiler.compileToA(ctx, e) ++ fixStackOnReturn(ctx) ++
-                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
               case 2 =>
                 Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
-                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BCDEIX), ZLine.implied(RET))
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+              case 3 =>
+                Z80ExpressionCompiler.compileToEHL(ctx, e) ++ fixStackOnReturn(ctx) ++
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC), ZLine.implied(RET))
+              case 4 =>
+                Z80ExpressionCompiler.compileToDEHL(ctx, e) ++ fixStackOnReturn(ctx) ++
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC), ZLine.implied(RET))
+              case _ =>
+                Z80ExpressionCompiler.storeLarge(ctx, VariableExpression(ctx.function.name + ".return"), e) ++ fixStackOnReturn(ctx) ++
+                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+
             }
         }
       case Assignment(destination, source) =>

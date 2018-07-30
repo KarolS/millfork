@@ -1,5 +1,6 @@
 package millfork.assembly.mos.opt
 
+import millfork.Cpu
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.Opcode._
@@ -40,7 +41,11 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
             case th: MemoryVariable if th.alloc == VariableAllocationMethod.Zeropage => Some(th.name) // TODO: ???
             case _ => None
           }
-          params ++ locals
+          if (other.returnType.size > Cpu.getMaxSizeReturnableViaRegisters(optimizationContext.options.platform.cpu, optimizationContext.options)) {
+            other.name + ".return" :: (params ++ locals)
+          } else {
+            params ++ locals
+          }
         }
       case _ => Nil
     }.toSet

@@ -9,7 +9,7 @@ sealed trait Thing {
   def name: String
 }
 
-case class Alias(name: String, target: String) extends Thing
+case class Alias(name: String, target: String, deprecated: Boolean = false) extends Thing
 
 sealed trait CallableThing extends Thing
 

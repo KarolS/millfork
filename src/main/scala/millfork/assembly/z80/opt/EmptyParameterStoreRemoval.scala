@@ -1,5 +1,6 @@
 package millfork.assembly.z80.opt
 
+import millfork.Cpu
 import millfork.assembly.z80.ZOpcode._
 import millfork.assembly.z80.{TwoRegisters, ZLine}
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
@@ -35,7 +36,11 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[ZLine] {
             case th: MemoryVariable if th.alloc == VariableAllocationMethod.Auto => Some(th.name)
             case _ => None
           }
-          params ++ locals
+          if (other.returnType.size > Cpu.getMaxSizeReturnableViaRegisters(optimizationContext.options.platform.cpu, optimizationContext.options)) {
+            other.name + ".return" :: (params ++ locals)
+          } else {
+            params ++ locals
+          }
         }
       case _ => Nil
     }.toSet

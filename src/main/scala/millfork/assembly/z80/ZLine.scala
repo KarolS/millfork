@@ -171,7 +171,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     import ZRegister._
     val inherent = opcode match {
       case BYTE => 1
-      case DISCARD_BCDEIX | DISCARD_A | DISCARD_F | DISCARD_HL => 0
+      case d if ZOpcodeClasses.NoopDiscards(d) => 0
       case JP => registers match {
         case OneRegister(HL | IX | IY) => 0
         case _ => 2
@@ -235,7 +235,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case DISCARD_A => "    ; DISCARD_A"
       case DISCARD_HL => "    ; DISCARD_HL"
       case DISCARD_F => "    ; DISCARD_F"
-      case DISCARD_BCDEIX => "    ; DISCARD_BCDEIX"
+      case DISCARD_BC => "    ; DISCARD_BC"
+      case DISCARD_DE => "    ; DISCARD_DE"
+      case DISCARD_IX => "    ; DISCARD_IX"
+      case DISCARD_IY => "    ; DISCARD_IY"
       case BYTE => "    !byte " + parameter.toString // TODO: format?
       case LABEL => parameter.toString + ":"
       case RST => s"    RST $parameter"
@@ -400,7 +403,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           }
           case JP | JR | RET | RETI | RETN |
                POP |
-               DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
+               DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
           case DJNZ => r == B
           case DAA | NEG | CPL => r == A
           case LABEL | DI | EI | NOP | HALT => false
@@ -533,7 +536,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           }
           case JP | JR | RET | RETI | RETN |
                PUSH |
-               DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
+               DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
           case ADD | ADC | AND | OR | XOR | SUB | SBC | DAA | NEG | CPL => r == A
           case CP => false
           case DJNZ => r == B
@@ -564,7 +567,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       }
       case JP | JR | RET | RETI | RETN |
            PUSH | DJNZ | DAA |
-           DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
+           DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
       case LABEL | DI | EI | NOP => false
       case _ => true // TODO
     }
@@ -585,7 +588,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       }
       case JP | JR | RET | RETI | RETN |
            PUSH | DJNZ | DAA |
-           DISCARD_A | DISCARD_BCDEIX | DISCARD_HL | DISCARD_F => false
+           DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
       case LABEL | DI | EI | NOP | HALT => false
       case _ => true // TODO
     }

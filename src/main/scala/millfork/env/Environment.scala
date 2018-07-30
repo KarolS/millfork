@@ -3,7 +3,7 @@ package millfork.env
 import java.util.concurrent.atomic.AtomicLong
 
 import millfork.assembly.BranchingOpcodeMapping
-import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
+import millfork.{CompilationFlag, CompilationOptions, Cpu, CpuFamily}
 import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
 import millfork.error.ErrorReporting
@@ -112,6 +112,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 && options.platform.cpuFamily == CpuFamily.I80 =>
           Nil
         case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 2 && options.platform.cpuFamily == CpuFamily.I80 =>
+          Nil
+        case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 3 && options.platform.cpuFamily == CpuFamily.I80 =>
+          Nil
+        case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 4 && options.platform.cpuFamily == CpuFamily.I80 =>
           Nil
         case NormalParamSignature(ps) =>
           ps.map(p => p.name)
@@ -233,7 +237,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         t.asInstanceOf[T]
       } else {
         t match {
-          case Alias(_, target) => root.get[T](target)
+          case Alias(_, target, deprectated) =>
+            if (deprectated) {
+              ErrorReporting.info(s"Alias `$name` is deprecated, use `$target` instead", position)
+            }
+            root.get[T](target)
           case _ => ErrorReporting.fatal(s"`$name` is not a ${clazz.getSimpleName}", position)
         }
       }
@@ -254,7 +262,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         Some(t.asInstanceOf[T])
       } else {
         t match {
-          case Alias(_, target) => root.maybeGet[T](target)
+          case Alias(_, target, deprectated) =>
+            if (deprectated) {
+              ErrorReporting.info(s"Alias `$name` is deprecated, use `$target` instead")
+            }
+            root.maybeGet[T](target)
           case _ => None
         }
       }
@@ -302,12 +314,30 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val w = BasicPlainType("word", 2)
     addThing(b, None)
     addThing(w, None)
-    addThing(BasicPlainType("farword", 3), None)
-    addThing(BasicPlainType("long", 4), None)
+    addThing(Alias("int8", "byte"), None)
+    addThing(Alias("int16", "word"), None)
+    addThing(BasicPlainType("int24", 3), None)
+    addThing(Alias("farword", "int24", deprecated = true), None)
+    addThing(BasicPlainType("int32", 4), None)
+    addThing(Alias("long", "int32"), None)
+    addThing(BasicPlainType("int40", 5), None)
+    addThing(BasicPlainType("int48", 6), None)
+    addThing(BasicPlainType("int56", 7), None)
+    addThing(BasicPlainType("int64", 8), None)
+    addThing(BasicPlainType("int72", 9), None)
+    addThing(BasicPlainType("int80", 10), None)
+    addThing(BasicPlainType("int88", 11), None)
+    addThing(BasicPlainType("int96", 12), None)
+    addThing(BasicPlainType("int104", 13), None)
+    addThing(BasicPlainType("int112", 14), None)
+    addThing(BasicPlainType("int120", 15), None)
+    addThing(BasicPlainType("int128", 16), None)
     addThing(DerivedPlainType("pointer", w, isSigned = false), None)
     //    addThing(DerivedPlainType("farpointer", get[PlainType]("farword"), isSigned = false), None)
     addThing(DerivedPlainType("ubyte", b, isSigned = false), None)
     addThing(DerivedPlainType("sbyte", b, isSigned = true), None)
+    addThing(Alias("unsigned8", "ubyte"), None)
+    addThing(Alias("signed8", "sbyte"), None)
     val trueType = ConstantBooleanType("true$", value = true)
     val falseType = ConstantBooleanType("false$", value = false)
     addThing(trueType, None)
@@ -315,6 +345,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(ConstantThing("true", NumericConstant(0, 0), trueType), None)
     addThing(ConstantThing("false", NumericConstant(0, 0), falseType), None)
     addThing(ConstantThing("__zeropage_usage", UnexpandedConstant("__zeropage_usage", 1), b), None)
+    addThing(ConstantThing("__heap_start", UnexpandedConstant("__heap_start", 1), b), None)
     addThing(FlagBooleanType("set_carry",
       BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C)),
       BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C))),
@@ -673,6 +704,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         env.get[MemoryVariable](pd.assemblyParamPassingConvention.asInstanceOf[ByVariable].name)
       })
     }
+    if (resultType.size > Cpu.getMaxSizeReturnableViaRegisters(options.platform.cpu, options)) {
+      registerVariable(VariableDeclarationStatement(stmt.name + ".return", stmt.resultType, None, global = true, stack = false, constant = false, volatile = false, register = false, None, None), options)
+    }
     stmt.statements match {
       case None =>
         stmt.address match {
@@ -712,7 +746,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             resultType,
             params,
             env,
-            executableStatements ++ (if (needsExtraRTS) List(MosAssemblyStatement.implied(Opcode.RTS, elidable = true)) else Nil)
+            executableStatements
           )
           addThing(mangled, stmt.position)
         } else {
@@ -772,28 +806,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
         val zp = typ.name == "pointer" // TODO
-      val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None)
+        val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None)
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position, options)
         val addr = v.toAddress
-        typ.size match {
-          case 2 =>
-            addThing(RelativeVariable(v.name + ".hi", addr + 1, b, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".lo", addr, b, zeropage = zp, None), stmt.position)
-          case 3 =>
-            addThing(RelativeVariable(v.name + ".hiword", addr + 1, w, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".loword", addr, w, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".b2", addr + 2, b, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".b1", addr + 1, b, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".b0", addr, b, zeropage = zp, None), stmt.position)
-          case 4 =>
-            addThing(RelativeVariable(v.name + ".hiword", addr + 2, w, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".loword", addr, w, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".b3", addr + 3, b, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".b2", addr + 2, b, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".b1", addr + 1, b, zeropage = zp, None), stmt.position)
-            addThing(RelativeVariable(v.name + ".b0", addr, b, zeropage = zp, None), stmt.position)
-          case _ =>
+        for((suffix, offset, t) <- getSubvariables(typ)) {
+          addThing(RelativeVariable(v.name + suffix, addr + offset, t, zeropage = zp, None), stmt.position)
         }
       case ByMosRegister(_) => ()
       case ByZRegister(_) => ()
@@ -1005,24 +1023,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(Constant.error(s"`$name` has a non-constant value", position))
       if (constantValue.requiredSize > typ.size) ErrorReporting.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
-      typ.size match {
-        case 2 =>
-          addThing(ConstantThing(prefix + name + ".hi", constantValue.hiByte, b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".lo", constantValue.loByte, b), stmt.position)
-        case 3 =>
-          addThing(ConstantThing(prefix + name + ".hiword", constantValue.subword(1), b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".loword", constantValue.subword(0), b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".b2", constantValue.subbyte(2), b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".b1", constantValue.hiByte, b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".b0", constantValue.loByte, b), stmt.position)
-        case 4 =>
-          addThing(ConstantThing(prefix + name + ".hiword", constantValue.subword(2), b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".loword", constantValue.subword(0), b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".b3", constantValue.subbyte(3), b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".b2", constantValue.subbyte(2), b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".b1", constantValue.hiByte, b), stmt.position)
-          addThing(ConstantThing(prefix + name + ".b0", constantValue.loByte, b), stmt.position)
-        case _ =>
+      for((suffix, offset, t) <- getSubvariables(typ)) {
+        addThing(ConstantThing(prefix + name + suffix, constantValue.subconstant(offset, t.size), t), stmt.position)
       }
     } else {
       if (stmt.stack && stmt.global) ErrorReporting.error(s"`$name` is static or global and cannot be on stack", position)
@@ -1036,24 +1038,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
         baseStackOffset += typ.size
         addThing(v, stmt.position)
-        typ.size match {
-          case 2 =>
-            addThing(StackVariable(prefix + name + ".hi", b, baseStackOffset + 1), stmt.position)
-            addThing(StackVariable(prefix + name + ".lo", b, baseStackOffset), stmt.position)
-          case 3 =>
-            addThing(StackVariable(prefix + name + ".hiword", w, baseStackOffset + 1), stmt.position)
-            addThing(StackVariable(prefix + name + ".loword", w, baseStackOffset), stmt.position)
-            addThing(StackVariable(prefix + name + ".b2", b, baseStackOffset + 2), stmt.position)
-            addThing(StackVariable(prefix + name + ".b1", b, baseStackOffset + 1), stmt.position)
-            addThing(StackVariable(prefix + name + ".b0", b, baseStackOffset), stmt.position)
-          case 4 =>
-            addThing(StackVariable(prefix + name + ".hiword", w, baseStackOffset + 2), stmt.position)
-            addThing(StackVariable(prefix + name + ".loword", w, baseStackOffset), stmt.position)
-            addThing(StackVariable(prefix + name + ".b3", b, baseStackOffset + 3), stmt.position)
-            addThing(StackVariable(prefix + name + ".b2", b, baseStackOffset + 2), stmt.position)
-            addThing(StackVariable(prefix + name + ".b1", b, baseStackOffset + 1), stmt.position)
-            addThing(StackVariable(prefix + name + ".b0", b, baseStackOffset), stmt.position)
-          case _ =>
+        for((suffix, offset, t) <- getSubvariables(typ)) {
+          addThing(StackVariable(prefix + name + suffix, t, baseStackOffset + offset), stmt.position)
         }
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
@@ -1089,26 +1075,38 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         if (!v.isInstanceOf[MemoryVariable]) {
           addThing(ConstantThing(v.name + "`", addr, b), stmt.position)
         }
-        typ.size match {
-          case 2 =>
-            addThing(RelativeVariable(prefix + name + ".hi", addr + 1, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".lo", addr, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-          case 3 =>
-            addThing(RelativeVariable(prefix + name + ".hiword", addr + 1, w, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".loword", addr, w, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".b2", addr + 2, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".b1", addr + 1, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".b0", addr, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-          case 4 =>
-            addThing(RelativeVariable(prefix + name + ".hiword", addr + 2, w, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".loword", addr, w, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".b3", addr + 3, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".b2", addr + 2, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".b1", addr + 1, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-            addThing(RelativeVariable(prefix + name + ".b0", addr, b, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
-          case _ =>
+        for((suffix, offset, t) <- getSubvariables(typ)) {
+          addThing(RelativeVariable(prefix + name + suffix, addr + offset, t, zeropage = v.zeropage, declaredBank = stmt.bank), stmt.position)
         }
       }
+    }
+  }
+
+  def getSubvariables(typ: Type): List[(String, Int, VariableType)] = {
+    val b = get[VariableType]("byte")
+    val w = get[VariableType]("word")
+    typ match {
+      case _: PlainType => typ.size match {
+        case 2 => List(
+          (".lo", 0, b),
+          (".hi", 1, b))
+        case 3 => List(
+          (".loword", 0, w),
+          (".hiword", 1, w),
+          (".b0", 0, b),
+          (".b1", 1, b),
+          (".b2", 2, b))
+        case 4 => List(
+          (".loword", 0, w),
+          (".hiword", 2, w),
+          (".b0", 0, b),
+          (".b1", 1, b),
+          (".b2", 2, b),
+          (".b3", 3, b))
+        case sz if sz > 4 => List.tabulate(sz){ i => (".b" + i, i, b) }
+        case _ => Nil
+      }
+      case _ => Nil
     }
   }
 

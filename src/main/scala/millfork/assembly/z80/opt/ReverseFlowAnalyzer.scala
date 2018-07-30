@@ -211,8 +211,14 @@ object ReverseFlowAnalyzer {
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex)
           case ZLine(DISCARD_HL, _, _, _) =>
             currentImportance = currentImportance.copy(h = Unimportant, l = Unimportant)
-          case ZLine(DISCARD_BCDEIX, _, _, _) =>
-            currentImportance = currentImportance.copy(b = Unimportant, c = Unimportant, d = Unimportant, e = Unimportant, ixh = Unimportant, ixl = Unimportant)
+          case ZLine(DISCARD_DE, _, _, _) =>
+            currentImportance = currentImportance.copy(d = Unimportant, e = Unimportant)
+          case ZLine(DISCARD_BC, _, _, _) =>
+            currentImportance = currentImportance.copy(b = Unimportant, c = Unimportant)
+          case ZLine(DISCARD_IX, _, _, _) =>
+            currentImportance = currentImportance.copy(ixh = Unimportant, ixl = Unimportant)
+          case ZLine(DISCARD_IY, _, _, _) =>
+            currentImportance = currentImportance.copy(iyh = Unimportant, iyl = Unimportant)
           case ZLine(DISCARD_A, _, _, _) =>
             currentImportance = currentImportance.copy(a = Unimportant)
           case ZLine(DISCARD_F, _, _, _) =>
@@ -353,6 +359,42 @@ object ReverseFlowAnalyzer {
                   c = Unimportant,
                   d = Unimportant,
                   e = Unimportant,
+                  h = Important,
+                  l = Important,
+                  hlNumeric = Unimportant,
+                  iyh = Unimportant,
+                  iyl = Unimportant,
+                  zf = Unimportant,
+                  cf = Unimportant,
+                  nf = Unimportant,
+                  sf = Unimportant,
+                  hf = Unimportant
+                )
+              case NormalParamSignature(List(v)) if v.typ.size == 3 =>
+                currentImportance = currentImportance.copy(
+                  a = Unimportant,
+                  b = Unimportant,
+                  c = Unimportant,
+                  d = Unimportant,
+                  e = Important,
+                  h = Important,
+                  l = Important,
+                  hlNumeric = Unimportant,
+                  iyh = Unimportant,
+                  iyl = Unimportant,
+                  zf = Unimportant,
+                  cf = Unimportant,
+                  nf = Unimportant,
+                  sf = Unimportant,
+                  hf = Unimportant
+                )
+              case NormalParamSignature(List(v)) if v.typ.size == 4 =>
+                currentImportance = currentImportance.copy(
+                  a = Unimportant,
+                  b = Unimportant,
+                  c = Unimportant,
+                  d = Important,
+                  e = Important,
                   h = Important,
                   l = Important,
                   hlNumeric = Unimportant,

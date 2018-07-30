@@ -28,6 +28,10 @@ object VariableStatus {
         Set[String]()
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 2 =>
         Set[String]()
+      case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 3 =>
+        Set[String]()
+      case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 4 =>
+        Set[String]()
       case NormalParamSignature(ps) =>
         ps.map(_.name).toSet
       case _ =>

@@ -35,6 +35,37 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
             ZLine.ld8(ZRegister.A, ZRegister.H),
             ZLine.ldAbs8(param.toAddress + 1, ZRegister.A))
         }
+      case NormalParamSignature(List(param)) if param.typ.size == 3 =>
+        import ZRegister._
+        val p = param.toAddress
+        if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
+          List(ZLine.ldAbs16(p, HL), ZLine.ld8(A, E), ZLine.ldAbs8(p + 2, A))
+        } else {
+          List(
+            ZLine.ld8(A, L),
+            ZLine.ldAbs8(p, A),
+            ZLine.ld8(A, H),
+            ZLine.ldAbs8(p + 1, A),
+            ZLine.ld8(A, E),
+            ZLine.ldAbs8(p + 2, A))
+        }
+      case NormalParamSignature(List(param)) if param.typ.size == 4 =>
+        import ZRegister._
+        val p = param.toAddress
+        if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
+          // TODO: is this optimal?
+          List(ZLine.ldAbs16(p, HL), ZLine.ld8(A, E), ZLine.ldAbs8(p + 2, A), ZLine.ld8(A, D), ZLine.ldAbs8(p + 3, A))
+        } else {
+          List(
+            ZLine.ld8(A, L),
+            ZLine.ldAbs8(p, A),
+            ZLine.ld8(A, H),
+            ZLine.ldAbs8(p + 1, A),
+            ZLine.ld8(A, E),
+            ZLine.ldAbs8(p + 2, A),
+            ZLine.ld8(A, D),
+            ZLine.ldAbs8(p + 3, A))
+        }
       case _ => Nil
     }
     label :: (stackPointerFixAtBeginning(ctx) ++ storeParamsFromRegisters ++ chunk)
