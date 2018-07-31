@@ -80,5 +80,4 @@ object MosReturnDispatch extends AbstractReturnDispatch[AssemblyLine] {
     }
   }
 
-  override def nextLabel(prefix: String): String = MosCompiler.nextLabel("di")
 }

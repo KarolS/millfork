@@ -159,7 +159,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
   def targetifyA(ctx: CompilationContext, target: ZExpressionTarget.Value, lines: List[ZLine], isSigned: Boolean): List[ZLine] = {
     def toWord(h: ZRegister.Value, l: ZRegister.Value) = {
       lines ++ (if (isSigned) {
-        val label = Z80Compiler.nextLabel("sx")
+        val label = ctx.nextLabel("sx")
         if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
           List(
             ZLine.ld8(l, ZRegister.A),
@@ -554,7 +554,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case BranchIfFalse(_) =>
                     params.flatMap(compile(ctx, _, target, branches))
                   case _ =>
-                    val skip = Z80Compiler.nextLabel("an")
+                    val skip = ctx.nextLabel("an")
                     params.init.flatMap(compile(ctx, _, target, BranchIfFalse(skip))) ++
                       compile(ctx, params.last, target, branches) ++
                       List(ZLine.label(skip))
@@ -565,7 +565,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case BranchIfTrue(_) =>
                     params.flatMap(compile(ctx, _, target, branches))
                   case _ =>
-                    val skip = Z80Compiler.nextLabel("or")
+                    val skip = ctx.nextLabel("or")
                     params.init.flatMap(compile(ctx, _, target, BranchIfTrue(skip))) ++
                       compile(ctx, params.last, target, branches) ++
                       List(ZLine.label(skip))
@@ -1011,7 +1011,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
 
   private def signExtendHighestByte(ctx: CompilationContext, hiRegister: ZRegister.Value): List[ZLine] = {
     val prefix = if (hiRegister == ZRegister.A) Nil else List(ZLine.ld8(ZRegister.A, hiRegister))
-    val label = Z80Compiler.nextLabel("sx")
+    val label = ctx.nextLabel("sx")
     if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
       prefix ++ List(
         ZLine.imm8(OR, 0x7f),

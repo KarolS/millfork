@@ -1,14 +1,24 @@
 package millfork
 
-import millfork.error.{Logger, ConsoleLogger}
+import millfork.compiler.LabelGenerator
+import millfork.error.{ConsoleLogger, Logger}
 
 /**
   * @author Karol Stasiak
   */
-case class CompilationOptions(platform: Platform, commandLineFlags: Map[CompilationFlag.Value, Boolean], outputFileName: Option[String], zpRegisterSize: Int, log: Logger) {
+case class CompilationOptions(platform: Platform,
+                              commandLineFlags: Map[CompilationFlag.Value, Boolean],
+                              outputFileName: Option[String],
+                              zpRegisterSize: Int,
+                              jobContext: JobContext) {
 
   import CompilationFlag._
   import Cpu._
+
+  @inline
+  def log: Logger = jobContext.log
+  @inline
+  def nextLabel: LabelGenerator = jobContext.nextLabel
 
   val flags: Map[CompilationFlag.Value, Boolean] = CompilationFlag.values.map { f =>
     f -> commandLineFlags.getOrElse(f, platform.flagOverrides.getOrElse(f, Cpu.defaultFlags(platform.cpu)(f)))

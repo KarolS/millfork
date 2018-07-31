@@ -17,11 +17,8 @@ import millfork.env._
 //noinspection ZeroIndexToHead
 object AlwaysGoodOptimizations {
 
-  val counter = new AtomicInteger(30000)
   val LdxAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageY, AbsoluteY)
   val LdyAddrModes = Set(Immediate, Absolute, ZeroPage, ZeroPageX, AbsoluteX)
-
-  def getNextLabel(prefix: String) = f".$prefix%s__${counter.getAndIncrement()}%05d"
 
   private def jvmFix(r: => RuleBasedAssemblyOptimization): RuleBasedAssemblyOptimization = r
 
@@ -1725,8 +1722,8 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasOpcode(LDA) & HasImmediate(0) & HasClear(State.D)) ~
       (Elidable & HasOpcode(ADC) & MatchAddrMode(1) & MatchParameter(2) & HasAddrModeIn(ZeroPage, ZeroPageX, Absolute, AbsoluteX)) ~
-      (Elidable & HasOpcode(STA) & MatchAddrMode(1) & MatchParameter(2) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { code =>
-      val label = getNextLabel("ah")
+      (Elidable & HasOpcode(STA) & MatchAddrMode(1) & MatchParameter(2) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { (code, ctx) =>
+      val label = ctx.nextLabel("ah")
       List(
         AssemblyLine.relative(BCC, label),
         code.last.copy(opcode = INC),
@@ -1734,8 +1731,8 @@ object AlwaysGoodOptimizations {
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(1) & MatchParameter(2) & HasAddrModeIn(ZeroPage, ZeroPageX, Absolute, AbsoluteX)) ~
       (Elidable & HasOpcode(ADC) & HasImmediate(0) & HasClear(State.D)) ~
-      (Elidable & HasOpcode(STA) & MatchAddrMode(1) & MatchParameter(2) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { code =>
-      val label = getNextLabel("ah")
+      (Elidable & HasOpcode(STA) & MatchAddrMode(1) & MatchParameter(2) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { (code, ctx) =>
+      val label = ctx.nextLabel("ah")
       List(
         AssemblyLine.relative(BCC, label),
         code.last.copy(opcode = INC),
@@ -1753,8 +1750,8 @@ object AlwaysGoodOptimizations {
     },
     (Elidable & HasOpcode(TXA) & HasClear(State.D)) ~
       (Elidable & HasOpcode(ADC) & HasImmediate(0)) ~
-      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { code =>
-      val label = getNextLabel("ah")
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { (code, ctx) =>
+      val label = ctx.nextLabel("ah")
       List(
         AssemblyLine.relative(BCC, label),
         AssemblyLine.implied(INX),
@@ -1762,8 +1759,8 @@ object AlwaysGoodOptimizations {
     },
     (Elidable & HasOpcode(TYA) & HasClear(State.D)) ~
       (Elidable & HasOpcode(ADC) & HasImmediate(0)) ~
-      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { code =>
-      val label = getNextLabel("ah")
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z, State.N, State.V)) ~~> { (code, ctx) =>
+      val label = ctx.nextLabel("ah")
       List(
         AssemblyLine.relative(BCC, label),
         AssemblyLine.implied(INY),
@@ -1796,8 +1793,8 @@ object AlwaysGoodOptimizations {
       (Linear & Not(ChangesNAndZ) & Not(HasOpcode(CLC)) & Not(ChangesA)).* ~
       (Elidable & HasOpcode(CLC) & HasClear(State.D)) ~
       (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & HasAddrModeIn(ZeroPage, ZeroPageX, Absolute, AbsoluteX)) ~
-      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.V, State.Z, State.N, State.A)) ~~> { code =>
-      val label = getNextLabel("in")
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.V, State.Z, State.N, State.A)) ~~> { (code, ctx) =>
+      val label = ctx.nextLabel("in")
       code.take(code.length - 3) ++ List(
         AssemblyLine.relative(BEQ, label),
         code.last.copy(opcode = INC),
@@ -1807,8 +1804,8 @@ object AlwaysGoodOptimizations {
     (HasOpcode(ANC) & HasImmediate(1)) ~
       (Linear & Not(ChangesNAndZ) & Not(ChangesA) & (Not(ChangesC) | HasOpcode(CLC))).* ~
       (Elidable & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & HasClear(State.D) & HasAddrModeIn(ZeroPage, ZeroPageX, Absolute, AbsoluteX)) ~
-      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.V, State.Z, State.N, State.A)) ~~> { code =>
-      val label = getNextLabel("in")
+      (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.V, State.Z, State.N, State.A)) ~~> { (code, ctx) =>
+      val label = ctx.nextLabel("in")
       code.head.copy(opcode = AND) :: code.take(code.length - 2).tail ++ List(
         AssemblyLine.relative(BEQ, label),
         code.last.copy(opcode = INC),
@@ -2234,7 +2231,7 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(TXA)) ~
       (Elidable & HasOpcode(ADC) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesNotConcernMemoryAt(0, 1)) ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)) ~~> { (code, ctx) =>
-      val label = getNextLabel("in")
+      val label = ctx.nextLabel("in")
       List(
         code(1), // BCC
         code(8).copy(opcode = INC),
@@ -2256,7 +2253,7 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(TXA)) ~
       (Elidable & HasOpcode(ADC) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesNotConcernMemoryAt(0, 1)) ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)) ~~> { (code, ctx) =>
-      val label = getNextLabel("in")
+      val label = ctx.nextLabel("in")
       List(
         code(1), // BCC
         code(8).copy(opcode = INC),
@@ -2275,7 +2272,7 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
       (Elidable & HasOpcode(STX) & MatchAddrMode(2) & MatchParameter(3) & DoesNotConcernMemoryAt(0, 1) & Not(HasAddrMode(ZeroPageY)) &
         DoesntMatterWhatItDoesWith(State.X, State.A, State.C, State.V)) ~~> { (code, ctx) =>
-      val label = getNextLabel("in")
+      val label = ctx.nextLabel("in")
       List(
         code(4), // STA
         code.head.copy(opcode = LDA), // LDX
@@ -2289,7 +2286,7 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
       (Elidable & HasOpcode(STX) & MatchAddrMode(2) & MatchParameter(3) & DoesNotConcernMemoryAt(0, 1) & Not(HasAddrMode(ZeroPageY)) &
         DoesntMatterWhatItDoesWith(State.X, State.A, State.C, State.V)) ~~> { (code, ctx) =>
-      val label = getNextLabel("in")
+      val label = ctx.nextLabel("in")
       List(
         code(4), // STA
         AssemblyLine.immediate(ADC, 0),
@@ -2308,7 +2305,7 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(TXA)) ~
       (Elidable & HasOpcodeIn(ORA, EOR) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesNotConcernMemoryAt(0, 1)) ~
       (Elidable & HasOpcode(STA) & MatchAddrMode(2) & MatchParameter(3) & Not(ConcernsX) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)) ~~>{ (code, ctx) =>
-        val label = getNextLabel("in")
+        val label = ctx.nextLabel("in")
             List(
               code(4), //EOR/ORA
               code(5), //STA

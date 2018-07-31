@@ -7,14 +7,14 @@ import eu.rekawek.coffeegb.gpu.Gpu
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.z80.ZLine
-import millfork.compiler.CompilationContext
+import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.ConsoleLogger
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, Z80Assembler}
 import millfork.parser.{Preprocessor, Z80Parser}
-import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily, JobContext}
 import millfork.compiler.z80.Z80Compiler
 import org.scalatest.Matchers
 
@@ -40,7 +40,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80),
       CompilationFlag.LenientTextEncoding -> true)
-    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0, log)
+    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0, JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source
@@ -56,7 +56,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         // prepare
         val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program, log)
-        val env = new Environment(None, "", CpuFamily.I80, log)
+        val env = new Environment(None, "", CpuFamily.I80, options.jobContext)
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
@@ -76,7 +76,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
 
 
         // compile
-        val env2 = new Environment(None, "", CpuFamily.I80, log)
+        val env2 = new Environment(None, "", CpuFamily.I80, options.jobContext)
         env2.collectDeclarations(program, options)
         val assembler = new Z80Assembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)

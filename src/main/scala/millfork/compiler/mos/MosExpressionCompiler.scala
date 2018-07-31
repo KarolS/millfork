@@ -326,7 +326,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         AssemblyLine.variable(ctx, LDA, source) ++ List(
-                          AssemblyLine.implied(PHA)) ++ signExtendA() ++ List(
+                          AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(
                           AssemblyLine.implied(XBA),
                           AssemblyLine.implied(PLA))
                       } else List(AssemblyLine.immediate(LDX, 0), AssemblyLine.implied(XBA)) ++ AssemblyLine.variable(ctx, LDA, source) :+ AssemblyLine.immediate(LDX, 0)
@@ -340,7 +340,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         AssemblyLine.variable(ctx, LDA, source) ++ List(
-                          AssemblyLine.implied(PHA)) ++ signExtendA() ++ List(
+                          AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(
                           AssemblyLine.implied(TAX),
                           AssemblyLine.implied(PLA))
                       } else AssemblyLine.variable(ctx, LDA, source) :+ AssemblyLine.immediate(LDX, 0)
@@ -351,7 +351,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         AssemblyLine.variable(ctx, LDA, source) ++ List(
-                          AssemblyLine.implied(PHA)) ++ signExtendA() ++ List(
+                          AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(
                           AssemblyLine.implied(TAY),
                           AssemblyLine.implied(PLA))
                       } else {
@@ -363,7 +363,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   case RegisterVariable(MosRegister.XA, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
-                        AssemblyLine.variable(ctx, LDX, source) ++ List(AssemblyLine.implied(TXA)) ++ signExtendA()
+                        AssemblyLine.variable(ctx, LDX, source) ++ List(AssemblyLine.implied(TXA)) ++ signExtendA(ctx)
                       } else
                         AssemblyLine.variable(ctx, LDX, source) :+ AssemblyLine.immediate(LDA, 0)
                       case 2 =>
@@ -372,7 +372,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   case RegisterVariable(MosRegister.YA, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
-                        AssemblyLine.variable(ctx, LDY, source) ++ List(AssemblyLine.implied(TYA)) ++ signExtendA()
+                        AssemblyLine.variable(ctx, LDY, source) ++ List(AssemblyLine.implied(TYA)) ++ signExtendA(ctx)
                       } else
                         AssemblyLine.variable(ctx, LDY, source) :+ AssemblyLine.immediate(LDA, 0)
                       case 2 =>
@@ -386,7 +386,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       val copyFromLo  = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) ++ AssemblyLine.variable(ctx, STA, target, i))
                       val copy = if (shouldCopyFromHiToLo(source.toAddress, target.toAddress)) copyFromLo.reverse else copyFromLo
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
-                        signExtendA() ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
+                        signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
                           List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
@@ -400,7 +400,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     } else {
                       val copy = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) :+ AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i))
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
-                        signExtendA() ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
+                        signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
                           List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
@@ -419,7 +419,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                         List(
                           AssemblyLine.implied(TSX),
                           AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset),
-                          AssemblyLine.implied(PHA)) ++ signExtendA() ++ List(
+                          AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(
                           AssemblyLine.implied(TAX),
                           AssemblyLine.implied(PLA))
                       } else List(
@@ -437,7 +437,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   case RegisterVariable(MosRegister.AY, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
-                        val label = MosCompiler.nextLabel("sx")
+                        val label = ctx.nextLabel("sx")
                         ??? // TODO
                       } else {
                         List(
@@ -455,7 +455,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   case RegisterVariable(MosRegister.YA, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
-                        val label = MosCompiler.nextLabel("sx")
+                        val label = ctx.nextLabel("sx")
                         ??? // TODO
                       } else {
                         List(
@@ -475,7 +475,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     } else {
                       val copy = List.tabulate(exprType.size)(i => AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i) :: AssemblyLine.variable(ctx, STA, target, i))
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
-                        signExtendA() ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
+                        signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
                           List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
@@ -490,7 +490,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       val copyFromLo = List.tabulate(exprType.size)(i => List(AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i), AssemblyLine.absoluteX(STA, target.baseOffset + i)))
                       val copy = if (shouldCopyFromHiToLo(NumericConstant(source.baseOffset, 2), NumericConstant(target.baseOffset, 2))) copyFromLo.reverse else copyFromLo
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
-                        signExtendA() ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
+                        signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
                           List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
@@ -523,7 +523,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 AssemblyLine.variable(ctx, STA, target)
               }
               else if (target.typ.isSigned) {
-                AssemblyLine.variable(ctx, STA, target) ++ signExtendA() ++
+                AssemblyLine.variable(ctx, STA, target) ++ signExtendA(ctx) ++
                   List.tabulate(target.typ.size - 1)(i => AssemblyLine.variable(ctx, STA, target, i + 1)).flatten
               } else {
                 AssemblyLine.variable(ctx, STA, target) ++
@@ -697,7 +697,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 val compilation = compile(ctx, param, Some(MosExpressionCompiler.getExpressionType(ctx, param) -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
                 if (hi) {
                   if (typ.size == 2) compilation :+ AssemblyLine.implied(TXA)
-                  else if (typ.isSigned) compilation ++ signExtendA()
+                  else if (typ.isSigned) compilation ++ signExtendA(ctx)
                   else List(AssemblyLine.immediate(LDA, 0))
                 } else compilation
               }
@@ -720,7 +720,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 case _ =>
                   ctx.log.warn("Unspecified nonet operation, results might be unpredictable", expr.position)
               }
-              val label = MosCompiler.nextLabel("no")
+              val label = ctx.nextLabel("no")
               compile(ctx, params.head, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None) ++ List(
                 AssemblyLine.immediate(LDX, 0),
                 AssemblyLine.relative(BCC, label),
@@ -734,7 +734,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case BranchIfFalse(_) =>
                 params.flatMap(compile(ctx, _, exprTypeAndVariable, branches))
               case _ =>
-                val skip = MosCompiler.nextLabel("an")
+                val skip = ctx.nextLabel("an")
                 params.init.flatMap(compile(ctx, _, exprTypeAndVariable, BranchIfFalse(skip))) ++
                   compile(ctx, params.last, exprTypeAndVariable, branches) ++
                   List(AssemblyLine.label(skip))
@@ -745,7 +745,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case BranchIfTrue(_) =>
                 params.flatMap(compile(ctx, _, exprTypeAndVariable, branches))
               case _ =>
-                val skip = MosCompiler.nextLabel("or")
+                val skip = ctx.nextLabel("or")
                 params.init.flatMap(compile(ctx, _, exprTypeAndVariable, BranchIfTrue(skip))) ++
                   compile(ctx, params.last, exprTypeAndVariable, branches) ++
                   List(AssemblyLine.label(skip))
@@ -1189,7 +1189,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             AssemblyLine.variable(ctx, STA, v)
           case s if s > 1 =>
             if (t.isSigned) {
-              AssemblyLine.variable(ctx, STA, v) ++ signExtendA() ++ List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, v, i + 1)).flatten
+              AssemblyLine.variable(ctx, STA, v) ++ signExtendA(ctx) ++ List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, v, i + 1)).flatten
             } else {
               AssemblyLine.variable(ctx, STA, v) ++ List(AssemblyLine.immediate(LDA, 0)) ++
                 List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, v, i + 1)).flatten
@@ -1206,7 +1206,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               AssemblyLine.variable(ctx, STA, v) ++
                 AssemblyLine.variable(ctx, STX, v, 1) ++
                 List(AssemblyLine.implied(TXA)) ++
-                signExtendA() ++
+                signExtendA(ctx) ++
                 List.tabulate(s - 2)(i => AssemblyLine.variable(ctx, STA, v, i + 2)).flatten
             } else {
               AssemblyLine.variable(ctx, STA, v) ++ AssemblyLine.variable(ctx, STX, v, 1) ++ List(
@@ -1224,7 +1224,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               List(
                 AssemblyLine.implied(TSX),
                 AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset)) ++
-                signExtendA() ++
+                signExtendA(ctx) ++
                 List.tabulate(s - 1)(i => AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset + i + 1))
             } else {
               List(
@@ -1293,7 +1293,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case _ =>
     }
     if (arrayLength > 0 && arrayLength < 255) {
-      val label = MosCompiler.nextLabel("bc")
+      val label = ctx.nextLabel("bc")
       val compare = register match {
         case MosRegister.A => CMP
         case MosRegister.X => CPX
@@ -1311,8 +1311,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     }
   }
 
-  private def signExtendA(): List[AssemblyLine] = {
-    val label = MosCompiler.nextLabel("sx")
+  private def signExtendA(ctx: CompilationContext): List[AssemblyLine] = {
+    val label = ctx.nextLabel("sx")
     List(
       AssemblyLine.immediate(ORA, 0x7F),
       AssemblyLine.relative(BMI, label),

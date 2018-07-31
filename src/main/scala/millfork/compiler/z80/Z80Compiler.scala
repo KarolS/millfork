@@ -1,22 +1,15 @@
 package millfork.compiler.z80
 
-import java.util.concurrent.atomic.AtomicLong
-
 import millfork.CompilationFlag
 import millfork.assembly.z80.ZLine
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env.{Label, NormalParamSignature}
-import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 
 /**
   * @author Karol Stasiak
   */
 object Z80Compiler extends AbstractCompiler[ZLine] {
-
-  private val labelCounter = new AtomicLong
-
-  override def nextLabel(prefix: String): String = "." + prefix + "__" + labelCounter.incrementAndGet().formatted("%05d")
 
   override def compile(ctx: CompilationContext): List[ZLine] = {
     ctx.env.nameCheck(ctx.function.code)

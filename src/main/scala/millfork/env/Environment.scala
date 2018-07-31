@@ -1,11 +1,10 @@
 package millfork.env
 
-import java.util.concurrent.atomic.AtomicLong
-
 import millfork.assembly.BranchingOpcodeMapping
-import millfork.{CompilationFlag, CompilationOptions, Cpu, CpuFamily}
+import millfork._
 import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
+import millfork.compiler.LabelGenerator
 import millfork.error.Logger
 import millfork.node._
 import millfork.output.{AllocationLocation, CompiledMemory, VariableAllocator}
@@ -17,8 +16,12 @@ import scala.collection.mutable
   * @author Karol Stasiak
   */
 //noinspection NotImplementedCode
-class Environment(val parent: Option[Environment], val prefix: String, val cpuFamily: CpuFamily.Value, val log: Logger) {
+class Environment(val parent: Option[Environment], val prefix: String, val cpuFamily: CpuFamily.Value, val jobContext: JobContext) {
 
+  @inline
+  def log: Logger = jobContext.log
+  @inline
+  def nextLabel: LabelGenerator = jobContext.nextLabel
 
   private var baseStackOffset: Int = cpuFamily match {
     case CpuFamily.M6502 => 0x101
@@ -31,7 +34,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def genRelativeVariable(constant: Constant, typ: Type, zeropage: Boolean): RelativeVariable = {
-    val variable = RelativeVariable(".rv__" + Environment.relVarId.incrementAndGet().formatted("%06d"), constant, typ, zeropage = zeropage, declaredBank = None /*TODO*/)
+    val variable = RelativeVariable(nextLabel("rv"), constant, typ, zeropage = zeropage, declaredBank = None /*TODO*/)
     addThing(variable, None)
     variable
   }
@@ -45,7 +48,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         m.environment.getAllPrefixedThings
       case _ => Map[String, Thing]()
     }.fold(things.toMap)(_ ++ _)
-    val e = new Environment(None, "", cpuFamily, log)
+    val e = new Environment(None, "", cpuFamily, jobContext)
     e.things.clear()
     e.things ++= allThings
     e
@@ -685,7 +688,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         log.error(s"Non-macro function `$name` cannot have inlinable parameters", stmt.position)
     }
 
-    val env = new Environment(Some(this), name + "$", cpuFamily, log)
+    val env = new Environment(Some(this), name + "$", cpuFamily, jobContext)
     stmt.params.foreach(p => env.registerParameter(p, options))
     val params = if (stmt.assembly) {
       AssemblyParamSignature(stmt.params.map {
@@ -1242,5 +1245,4 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
 object Environment {
   val predefinedFunctions = Set("not", "hi", "lo", "nonet")
-  val relVarId = new AtomicLong
 }

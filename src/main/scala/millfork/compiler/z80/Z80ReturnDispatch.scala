@@ -12,7 +12,6 @@ import scala.collection.mutable
   * @author Karol Stasiak
   */
 object Z80ReturnDispatch extends AbstractReturnDispatch[ZLine] {
-  override def nextLabel(prefix: String): String = Z80Compiler.nextLabel("di")
 
   override def compileImpl(ctx: CompilationContext,
                            stmt: ReturnDispatchStatement,

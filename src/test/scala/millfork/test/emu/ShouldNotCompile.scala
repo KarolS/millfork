@@ -4,13 +4,12 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
 import fastparse.core.Parsed.{Failure, Success}
-import millfork.compiler.CompilationContext
+import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
-import millfork.error.{ConsoleLogger, FatalErrorReporting}
 import millfork.node.StandardCallGraph
 import millfork.parser.{MosParser, Preprocessor}
-import millfork.{CompilationFlag, CompilationOptions, Cpu, CpuFamily}
+import millfork._
 import org.scalatest.Matchers
 
 import scala.collection.JavaConverters._
@@ -29,7 +28,7 @@ object ShouldNotCompile extends Matchers {
     val log = TestErrorReporting.log
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val options = CompilationOptions(platform, Map(CompilationFlag.LenientTextEncoding -> true), None, platform.zpRegisterSize, log)
+    val options = CompilationOptions(platform, Map(CompilationFlag.LenientTextEncoding -> true), None, platform.zpRegisterSize, JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source
@@ -46,7 +45,7 @@ object ShouldNotCompile extends Matchers {
         // prepare
         val callGraph = new StandardCallGraph(program, log)
         val cpuFamily = CpuFamily.forType(cpu)
-        val env = new Environment(None, "", cpuFamily, log)
+        val env = new Environment(None, "", cpuFamily, options.jobContext)
         env.collectDeclarations(program, options)
 
         var unoptimizedSize = 0L

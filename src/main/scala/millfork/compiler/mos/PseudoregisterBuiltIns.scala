@@ -26,7 +26,7 @@ object PseudoregisterBuiltIns {
           val typ = MosExpressionCompiler.getExpressionType(ctx, v)
           if (typ.size == 1 && !typ.isSigned) {
             val bytePart = MosExpressionCompiler.compile(ctx, v, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
-            val label = MosCompiler.nextLabel("ah")
+            val label = ctx.nextLabel("ah")
             return bytePart ++ List(
               AssemblyLine.implied(CLC),
               AssemblyLine.immediate(ADC, constPart.loByte),
@@ -216,8 +216,8 @@ object PseudoregisterBuiltIns {
               else List(AssemblyLine.implied(PLA), AssemblyLine.implied(TAX))
               )
         }
-        val labelRepeat = MosCompiler.nextLabel("sr")
-        val labelSkip = MosCompiler.nextLabel("ss")
+        val labelRepeat = ctx.nextLabel("sr")
+        val labelSkip = ctx.nextLabel("ss")
         if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
           compileCounterAndPrepareFirstParam ++ List(
             AssemblyLine.relative(BEQ, labelSkip),

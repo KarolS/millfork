@@ -1,7 +1,5 @@
 package millfork.compiler.mos
 
-import java.util.concurrent.atomic.AtomicLong
-
 import millfork.CompilationFlag
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
@@ -14,10 +12,6 @@ import millfork.env._
 //noinspection NotImplementedCode,ScalaUnusedSymbol
 object MosCompiler extends AbstractCompiler[AssemblyLine] {
 
-
-  private val labelCounter = new AtomicLong
-
-  def nextLabel(prefix: String): String = "." + prefix + "__" + labelCounter.incrementAndGet().formatted("%05d")
 
   override def compile(ctx: CompilationContext): List[AssemblyLine] = {
     ctx.env.nameCheck(ctx.function.code)

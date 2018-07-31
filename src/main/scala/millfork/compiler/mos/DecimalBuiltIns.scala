@@ -43,11 +43,11 @@ object DecimalBuiltIns {
   }
 
   private def shiftOrRotateAccumulatorRight(ctx: CompilationContext, rotate: Boolean, preserveCarry: Boolean) = {
-    val skipHiDigit = MosCompiler.nextLabel("ds")
-    val skipLoDigit = MosCompiler.nextLabel("ds")
+    val skipHiDigit = ctx.nextLabel("ds")
+    val skipLoDigit = ctx.nextLabel("ds")
     val cmos = ctx.options.flags(CompilationFlag.EmitCmosOpcodes)
     if (preserveCarry) {
-      val constantLabel = MosCompiler.nextLabel("c8")
+      val constantLabel = ctx.nextLabel("c8")
       val bit = if (cmos) {
         AssemblyLine.immediate(BIT, 8)
       } else {

@@ -1,5 +1,6 @@
 package millfork.output
 
+import millfork.JobContext
 import millfork.assembly.AbstractCode
 import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.ZOpcode
@@ -13,7 +14,7 @@ import scala.collection.mutable
   */
 abstract class AbstractInliningCalculator[T <: AbstractCode] {
   def codeForInlining(fname: String, functionsAlreadyKnownToBeNonInlineable: Set[String], code: List[T]): Option[List[T]]
-  def inline(code: List[T], inlinedFunctions: Map[String, List[T]], compiler: AbstractCompiler[T]): List[T]
+  def inline(code: List[T], inlinedFunctions: Map[String, List[T]], jobContext: JobContext): List[T]
 
   private val sizes = Seq(64, 64, 8, 6, 5, 5, 4)
 

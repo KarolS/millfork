@@ -12,7 +12,6 @@ import millfork.node._
   * @author Karol Stasiak
   */
 object Z80MacroExpander extends MacroExpander[ZLine] {
-  override def nextLabel(prefix: String): String = Z80Compiler.nextLabel(prefix)
 
   override def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyParam], params: List[Expression], code: List[ExecutableStatement]): (List[ZLine], List[ExecutableStatement]) =  {
       var paramPreparation = List[ZLine]()

@@ -4,6 +4,7 @@ import millfork.CompilationOptions
 import millfork.assembly._
 import millfork.assembly.mos._
 import millfork.assembly.opt.SingleStatus
+import millfork.compiler.LabelGenerator
 import millfork.env._
 import millfork.error.{FatalErrorReporting, Logger}
 import millfork.node.{MosNiceFunctionProperty, NiceFunctionProperty}
@@ -85,7 +86,10 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
                               val labelMap: Map[String, Int],
                               val zeropageRegister: Option[ThingInMemory],
                               val niceFunctionProperties: Set[(NiceFunctionProperty, String)]) {
+  @inline
   def log: Logger = compilationOptions.log
+  @inline
+  def nextLabel: LabelGenerator = compilationOptions.nextLabel
 
   def functionChangesA(name: String): Boolean = !niceFunctionProperties(MosNiceFunctionProperty.DoesntChangeA -> name)
 

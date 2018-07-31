@@ -3,6 +3,7 @@ package millfork.assembly.mos.opt
 import millfork.{CompilationFlag, CompilationOptions, OptimizationPresets}
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
+import millfork.compiler.LabelGenerator
 import millfork.env.NormalFunction
 import millfork.error.{ConsoleLogger, ErrorsOnlyLogger}
 
@@ -56,7 +57,7 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
     )
     val optionsForMeasurements = options.copy(
       commandLineFlags = options.commandLineFlags + (CompilationFlag.InternalCurrentlyOptimizingForMeasurement -> true),
-      log = new ErrorsOnlyLogger(options.log)
+      jobContext = options.jobContext.copy(log = new ErrorsOnlyLogger(options.log))
     )
     val optimizationContextForMeasurements = optimizationContext.copy(options = optionsForMeasurements)
     val quicklyCleanedCode = quickScrub.foldLeft(code)((c, o) => o.optimize(m, c, optimizationContextForMeasurements))

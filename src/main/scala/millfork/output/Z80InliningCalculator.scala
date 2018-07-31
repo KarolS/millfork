@@ -1,5 +1,6 @@
 package millfork.output
 
+import millfork.JobContext
 import millfork.assembly.z80._
 import millfork.compiler.AbstractCompiler
 import millfork.env._
@@ -41,22 +42,22 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
     Some(result)
   }
 
-  def wrap(registers: ZRegisters, compiler: AbstractCompiler[ZLine], lines: List[ZLine]): List[ZLine] = registers match {
+  def wrap(registers: ZRegisters, jobContext: JobContext, lines: List[ZLine]): List[ZLine] = registers match {
     case NoRegisters => lines
     case IfFlagClear(flag) =>
-      val label = compiler.nextLabel("ai")
+      val label = jobContext.nextLabel("ai")
       ZLine.jump(label, IfFlagSet(flag)) :: (lines :+ ZLine.label(label))
     case IfFlagSet(flag) =>
-      val label = compiler.nextLabel("ai")
+      val label = jobContext.nextLabel("ai")
       ZLine.jump(label, IfFlagClear(flag)) :: (lines :+ ZLine.label(label))
     case _ => throw new IllegalArgumentException("registers")
   }
 
-  override def inline(code: List[ZLine], inlinedFunctions: Map[String, List[ZLine]], compiler: AbstractCompiler[ZLine]): List[ZLine] = {
+  override def inline(code: List[ZLine], inlinedFunctions: Map[String, List[ZLine]], jobContext: JobContext): List[ZLine] = {
     code.flatMap {
       case ZLine(CALL, registers, p, true) if inlinedFunctions.contains(p.toString) =>
-        val labelPrefix = compiler.nextLabel("ai")
-        wrap(registers, compiler,
+        val labelPrefix = jobContext.nextLabel("ai")
+        wrap(registers, jobContext,
           inlinedFunctions(p.toString).map {
             case line@ZLine(_, _, MemoryAddressConstant(Label(label)), _) =>
               val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
@@ -64,8 +65,8 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
             case l => l
           })
       case ZLine(JP | JR, registers, p, true) if inlinedFunctions.contains(p.toString) =>
-        val labelPrefix = compiler.nextLabel("ai")
-        wrap(registers, compiler,
+        val labelPrefix = jobContext.nextLabel("ai")
+        wrap(registers, jobContext,
           inlinedFunctions(p.toString).map {
             case line@ZLine(_, _, MemoryAddressConstant(Label(label)), _) =>
               val newLabel = MemoryAddressConstant(Label(labelPrefix + label))

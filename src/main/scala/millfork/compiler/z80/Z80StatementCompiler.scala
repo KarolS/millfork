@@ -148,7 +148,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         env.lookupFunction(name, params.map(p => Z80ExpressionCompiler.getExpressionType(ctx, p) -> p)) match {
           case Some(i: MacroFunction) =>
             val (paramPreparation, inlinedStatements) = Z80MacroExpander.inlineFunction(ctx, i, params, e.position)
-            paramPreparation ++ compile(ctx.withInlinedEnv(i.environment, Z80Compiler.nextLabel("en")), inlinedStatements)
+            paramPreparation ++ compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)
           case _ =>
             Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING)
         }
@@ -244,8 +244,6 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
   def branchChunk(opcode: BranchingOpcodeMapping, labelName: String) = List(ZLine.jump(Label(labelName), opcode.z80Flags))
 
   def areBlocksLarge(blocks: List[ZLine]*): Boolean = false
-
-  override def nextLabel(prefix: String): String = Z80Compiler.nextLabel(prefix)
 
   override def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[ZLine] =
     Z80ExpressionCompiler.compile(ctx, expr, ZExpressionTarget.NOTHING, branching)

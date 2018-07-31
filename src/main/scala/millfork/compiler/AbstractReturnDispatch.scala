@@ -120,7 +120,7 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
 
     val env = ctx.env.root
     val b = env.get[VariableType]("byte")
-    val label = nextLabel("di")
+    val label = ctx.nextLabel("di")
     val paramArrays = stmt.params.indices.map { ix =>
       val a = InitializedArray(label + "$" + ix + ".array", None, (paramMins(ix) to paramMaxes(ix)).map { key =>
         map(key)._2.lift(ix).getOrElse(LiteralExpression(0, 1))
@@ -131,8 +131,6 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
     }
     compileImpl(ctx, stmt, label, actualMin, actualMax, paramArrays, paramMins, map)
   }
-
-  def nextLabel(prefix: String): String
 
   def compileImpl(ctx: CompilationContext,
                            stmt: ReturnDispatchStatement,

@@ -473,7 +473,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       injectLabels(labelMap, inliningCalculator.inline(
         compiler.compile(CompilationContext(env = f.environment, function = f, extraStackOffset = 0, options = options, niceFunctionProperties = niceFunctionProperties)),
         inlinedFunctions,
-        compiler))
+        options.jobContext))
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
     val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
       opt.optimize(f, c, OptimizationContext(options, labelMap, env.maybeGet[ThingInMemory]("__reg"), niceFunctionProperties))

@@ -176,7 +176,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         env.lookupFunction(name, params.map(p => MosExpressionCompiler.getExpressionType(ctx, p) -> p)) match {
           case Some(i: MacroFunction) =>
             val (paramPreparation, inlinedStatements) = MosMacroExpander.inlineFunction(ctx, i, params, e.position)
-            paramPreparation ++ compile(ctx.withInlinedEnv(i.environment, MosCompiler.nextLabel("en")), inlinedStatements)
+            paramPreparation ++ compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)
           case _ =>
             MosExpressionCompiler.compile(ctx, e, None, NoBranching)
         }
@@ -307,8 +307,6 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     }
     AssemblyLine.implied(TSX) :: (List.fill(m.stackVariablesSize)(AssemblyLine.implied(INX)) :+ AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
   }
-
-  override def nextLabel(prefix: String): String = MosCompiler.nextLabel(prefix)
 
   override def getStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]): AbstractStatementPreprocessor =
     new MosStatementPreprocessor(ctx, statements)

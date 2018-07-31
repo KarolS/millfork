@@ -9,7 +9,7 @@ import com.loomcom.symon.{Bus, Cpu, CpuState}
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.AssemblyLine
-import millfork.compiler.CompilationContext
+import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.{ConsoleLogger, Logger}
@@ -17,7 +17,7 @@ import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, MosAssembler}
 import millfork.parser.{MosParser, Preprocessor}
-import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily, JobContext}
 import org.scalatest.Matchers
 
 import scala.collection.JavaConverters._
@@ -113,7 +113,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
-    ), None, 2, log)
+    ), None, 2, JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source
@@ -131,7 +131,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // prepare
         val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program, log)
-        val env = new Environment(None, "", CpuFamily.M6502, log)
+        val env = new Environment(None, "", CpuFamily.M6502, options.jobContext)
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
@@ -151,7 +151,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
 
         // compile
-        val env2 = new Environment(None, "", CpuFamily.M6502, log)
+        val env2 = new Environment(None, "", CpuFamily.M6502, options.jobContext)
         env2.collectDeclarations(program, options)
         val assembler = new MosAssembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)

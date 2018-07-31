@@ -10,7 +10,6 @@ import millfork.node._
   * @author Karol Stasiak
   */
 object MosMacroExpander extends MacroExpander[AssemblyLine] {
-  override def nextLabel(prefix: String): String = MosCompiler.nextLabel(prefix)
 
   override def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyParam], params: List[Expression], code: List[ExecutableStatement]): (List[AssemblyLine], List[ExecutableStatement]) = {
     var paramPreparation = List[AssemblyLine]()

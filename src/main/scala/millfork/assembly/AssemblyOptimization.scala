@@ -1,6 +1,7 @@
 package millfork.assembly
 
 import millfork.CompilationOptions
+import millfork.compiler.LabelGenerator
 import millfork.env.{NormalFunction, ThingInMemory}
 import millfork.error.Logger
 import millfork.node.NiceFunctionProperty
@@ -12,7 +13,10 @@ case class OptimizationContext(options: CompilationOptions,
                                labelMap: Map[String, Int],
                                zreg: Option[ThingInMemory],
                                niceFunctionProperties: Set[(NiceFunctionProperty, String)]) {
+  @inline
   def log: Logger = options.log
+  @inline
+  def nextLabel: LabelGenerator = options.nextLabel
 }
 
 trait AssemblyOptimization[T <: AbstractCode] {

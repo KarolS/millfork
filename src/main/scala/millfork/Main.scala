@@ -9,9 +9,10 @@ import millfork.assembly.mos.opt._
 import millfork.assembly.z80.opt.Z80OptimizationPresets
 import millfork.buildinfo.BuildInfo
 import millfork.cli.{CliParser, CliStatus}
+import millfork.compiler.LabelGenerator
 import millfork.compiler.mos.MosCompiler
 import millfork.env.Environment
-import millfork.error.{Logger, ConsoleLogger}
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.StandardCallGraph
 import millfork.output._
 import millfork.parser.{MosSourceLoadingQueue, ZSourceLoadingQueue}
@@ -80,7 +81,7 @@ object Main {
       errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     }, c.features)
-    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), errorReporting)
+    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), JobContext(errorReporting, new LabelGenerator))
     errorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")
@@ -162,7 +163,7 @@ object Main {
     }
     val callGraph = new StandardCallGraph(program, options.log)
 
-    val env = new Environment(None, "", platform.cpuFamily, options.log)
+    val env = new Environment(None, "", platform.cpuFamily, options.jobContext)
     env.collectDeclarations(program, options)
 
     val assemblyOptimizations = optLevel match {
@@ -213,7 +214,7 @@ object Main {
     }
     val callGraph = new StandardCallGraph(program, options.log)
 
-    val env = new Environment(None, "", platform.cpuFamily, options.log)
+    val env = new Environment(None, "", platform.cpuFamily, options.jobContext)
     env.collectDeclarations(program, options)
 
     val assemblyOptimizations = optLevel match {

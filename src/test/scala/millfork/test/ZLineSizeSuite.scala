@@ -1,7 +1,8 @@
 package millfork.test
 
-import millfork.{CompilationOptions, Cpu, CpuFamily}
+import millfork.{CompilationOptions, Cpu, CpuFamily, JobContext}
 import millfork.assembly.z80.{LocalVariableAddressViaIX, NoRegisters, ZLine}
+import millfork.compiler.LabelGenerator
 import millfork.env.{Constant, Environment, NumericConstant}
 import millfork.output.Z80Assembler
 import millfork.test.emu._
@@ -14,8 +15,9 @@ import org.scalatest.{FunSuite, Matchers}
 class ZLineSizeSuite extends FunSuite with Matchers {
   private def runCase(line: ZLine): Unit = {
     val platform = EmuPlatform.get(Cpu.Z80)
-    val env = new Environment(None, "", CpuFamily.I80, TestErrorReporting.log)
-    val options = CompilationOptions(platform, Map(), None, 0, TestErrorReporting.log)
+    val jobContext = JobContext(TestErrorReporting.log, new LabelGenerator)
+    val env = new Environment(None, "", CpuFamily.I80, jobContext)
+    val options = CompilationOptions(platform, Map(), None, 0, jobContext)
     val correctSize = new Z80Assembler(null, env, platform).emitInstruction("default", options, 0x100, line) - 0x100
     val guessedSize = line.sizeInBytes
     guessedSize should equal(correctSize)

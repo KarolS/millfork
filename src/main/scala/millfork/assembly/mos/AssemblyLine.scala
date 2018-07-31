@@ -380,7 +380,7 @@ object AssemblyLine {
         List(AssemblyLine.immediate(opcode, 0))
       } else if (opcodesForZeroedOrSignExtendedVariableOperation(opcode)) {
         if (variable.typ.isSigned) {
-          val label = MosCompiler.nextLabel("sx")
+          val label = ctx.nextLabel("sx")
           AssemblyLine.variable(ctx, LDA, variable, variable.typ.size - 1) ++ List(
             AssemblyLine.immediate(ORA, 0x7f),
             AssemblyLine.relative(BMI, label),

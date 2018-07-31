@@ -3,7 +3,7 @@ package millfork.compiler
 import millfork.env.{Environment, Label, NormalFunction}
 import millfork.error.Logger
 import millfork.node.NiceFunctionProperty
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.{CompilationFlag, CompilationOptions, JobContext}
 
 /**
   * @author Karol Stasiak
@@ -16,7 +16,7 @@ case class CompilationContext(env: Environment,
                               breakLabels: Map[String, Label] = Map(),
                               continueLabels: Map[String, Label] = Map()){
   def withInlinedEnv(environment: Environment, newLabel: String): CompilationContext = {
-    val newEnv = new Environment(Some(env), newLabel, environment.cpuFamily, log)
+    val newEnv = new Environment(Some(env), newLabel, environment.cpuFamily, jobContext)
     newEnv.things ++= environment.things
     copy(env = newEnv)
   }
@@ -36,5 +36,10 @@ case class CompilationContext(env: Environment,
   def neverCheckArrayBounds: CompilationContext =
     this.copy(options = options.copy(commandLineFlags = options.commandLineFlags + (CompilationFlag.CheckIndexOutOfBounds -> false)))
 
+  @inline
+  def jobContext: JobContext = options.jobContext
+  @inline
   def log: Logger = options.log
+  @inline
+  def nextLabel: LabelGenerator = options.nextLabel
 }

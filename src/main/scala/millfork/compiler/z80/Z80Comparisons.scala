@@ -197,7 +197,7 @@ object Z80Comparisons {
     val calculateRight = Z80ExpressionCompiler.compileByteReads(ctx, r, size, ZExpressionTarget.BC)
     val preserveHl = isBytesFromHL(calculateLeft)
     val preserveBc = isBytesFromBC(calculateRight)
-    val innerLabel = Z80Compiler.nextLabel("cp")
+    val innerLabel = ctx.nextLabel("cp")
     val (jump, epilogue) = (compType, branches) match {
       case (Equal, BranchIfTrue(label)) =>
         ZLine.jump(innerLabel, IfFlagClear(ZFlag.Z)) -> ZLine.jump(label, IfFlagSet(ZFlag.Z))

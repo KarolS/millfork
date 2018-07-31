@@ -19,8 +19,6 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
 
   def compile(ctx: CompilationContext, statement: ExecutableStatement): List[T]
 
-  def nextLabel(prefix: String): String
-
   def labelChunk(labelName: String): List[T]
 
   def jmpChunk(labelName: String): List[T] = jmpChunk(Label(labelName))
@@ -34,10 +32,10 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
   def areBlocksLarge(blocks: List[T]*): Boolean
 
   def compileWhileStatement(ctx: CompilationContext, s: WhileStatement): List[T] = {
-    val start = nextLabel("wh")
-    val middle = nextLabel("he")
-    val inc = nextLabel("fp")
-    val end = nextLabel("ew")
+    val start = ctx.nextLabel("wh")
+    val middle = ctx.nextLabel("he")
+    val inc = ctx.nextLabel("fp")
+    val end = ctx.nextLabel("ew")
     val condType = AbstractExpressionCompiler.getExpressionType(ctx, s.condition)
     val bodyBlock = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.body)
     val incrementBlock = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.increment)
@@ -71,9 +69,9 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
   }
 
   def compileDoWhileStatement(ctx: CompilationContext, s: DoWhileStatement): List[T] = {
-    val start = nextLabel("do")
-    val inc = nextLabel("fp")
-    val end = nextLabel("od")
+    val start = ctx.nextLabel("do")
+    val inc = ctx.nextLabel("fp")
+    val end = ctx.nextLabel("od")
     val condType = AbstractExpressionCompiler.getExpressionType(ctx, s.condition)
     val bodyBlock = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.body)
     val incrementBlock = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.increment)
@@ -136,13 +134,13 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
     (f.direction, startEvaluated, endEvaluated) match {
 
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e - 1 =>
-        val end = nextLabel("of")
+        val end = ctx.nextLabel("of")
         compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body) ++ labelChunk(end)
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s >= e =>
         Nil
 
       case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e =>
-        val end = nextLabel("of")
+        val end = ctx.nextLabel("of")
         compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body) ++ labelChunk(end)
       case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s > e =>
         Nil
@@ -166,7 +164,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         ))
 
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s == e =>
-        val end = nextLabel("of")
+        val end = ctx.nextLabel("of")
         compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)).pos(p) :: f.body) ++ labelChunk(end)
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s < e =>
         Nil
@@ -288,39 +286,39 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           case (Nil, _) =>
             val conditionBlock = compileExpressionForBranching(ctx, s.condition, NoBranching)
             if (largeElseBlock) {
-              val middle = nextLabel("el")
-              val end = nextLabel("fi")
+              val middle = ctx.nextLabel("el")
+              val end = ctx.nextLabel("fi")
               List(conditionBlock, branchChunk(jumpIfFalse, middle), jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
             } else {
-              val end = nextLabel("fi")
+              val end = ctx.nextLabel("fi")
               List(conditionBlock, branchChunk(jumpIfTrue, end), elseBlock, labelChunk(end)).flatten
             }
           case (_, Nil) =>
             val conditionBlock = compileExpressionForBranching(ctx, s.condition, NoBranching)
             if (largeThenBlock) {
-              val middle = nextLabel("th")
-              val end = nextLabel("fi")
+              val middle = ctx.nextLabel("th")
+              val end = ctx.nextLabel("fi")
               List(conditionBlock, branchChunk(jumpIfTrue, middle), jmpChunk(end), labelChunk(middle), thenBlock, labelChunk(end)).flatten
             } else {
-              val end = nextLabel("fi")
+              val end = ctx.nextLabel("fi")
               List(conditionBlock, branchChunk(jumpIfFalse, end), thenBlock, labelChunk(end)).flatten
             }
           case _ =>
             val conditionBlock = compileExpressionForBranching(ctx, s.condition, NoBranching)
             if (largeThenBlock) {
               if (largeElseBlock) {
-                val middleT = nextLabel("th")
-                val middleE = nextLabel("el")
-                val end = nextLabel("fi")
+                val middleT = ctx.nextLabel("th")
+                val middleE = ctx.nextLabel("el")
+                val end = ctx.nextLabel("fi")
                 List(conditionBlock, branchChunk(jumpIfTrue, middleT), jmpChunk(middleE), labelChunk(middleT), thenBlock, jmpChunk(end), labelChunk(middleE), elseBlock, labelChunk(end)).flatten
               } else {
-                val middle = nextLabel("th")
-                val end = nextLabel("fi")
+                val middle = ctx.nextLabel("th")
+                val end = ctx.nextLabel("fi")
                 List(conditionBlock, branchChunk(jumpIfTrue, middle), elseBlock, jmpChunk(end), labelChunk(middle), thenBlock, labelChunk(end)).flatten
               }
             } else {
-              val middle = nextLabel("el")
-              val end = nextLabel("fi")
+              val middle = ctx.nextLabel("el")
+              val end = ctx.nextLabel("fi")
               List(conditionBlock, branchChunk(jumpIfFalse, middle), thenBlock, jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
             }
         }
@@ -330,43 +328,43 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
             compileExpressionForBranching(ctx, s.condition, NoBranching)
           case (Nil, _) =>
             if (largeElseBlock) {
-              val middle = nextLabel("el")
-              val end = nextLabel("fi")
+              val middle = ctx.nextLabel("el")
+              val end = ctx.nextLabel("fi")
               val conditionBlock = compileExpressionForBranching(ctx, s.condition, BranchIfFalse(middle))
               List(conditionBlock, jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
             } else {
-              val end = nextLabel("fi")
+              val end = ctx.nextLabel("fi")
               val conditionBlock = compileExpressionForBranching(ctx, s.condition, BranchIfTrue(end))
               List(conditionBlock, elseBlock, labelChunk(end)).flatten
             }
           case (_, Nil) =>
             if (largeThenBlock) {
-              val middle = nextLabel("th")
-              val end = nextLabel("fi")
+              val middle = ctx.nextLabel("th")
+              val end = ctx.nextLabel("fi")
               val conditionBlock = compileExpressionForBranching(ctx, s.condition, BranchIfTrue(middle))
               List(conditionBlock, jmpChunk(end), labelChunk(middle), thenBlock, labelChunk(end)).flatten
             } else {
-              val end = nextLabel("fi")
+              val end = ctx.nextLabel("fi")
               val conditionBlock = compileExpressionForBranching(ctx, s.condition, BranchIfFalse(end))
               List(conditionBlock, thenBlock, labelChunk(end)).flatten
             }
           case _ =>
             if (largeThenBlock) {
               if (largeElseBlock) {
-                val middleT = nextLabel("th")
-                val middleE = nextLabel("el")
-                val end = nextLabel("fi")
+                val middleT = ctx.nextLabel("th")
+                val middleE = ctx.nextLabel("el")
+                val end = ctx.nextLabel("fi")
                 val conditionBlock = compileExpressionForBranching(ctx, s.condition, BranchIfTrue(middleT))
                 List(conditionBlock, jmpChunk(middleE), labelChunk(middleT), thenBlock, jmpChunk(end), labelChunk(middleE), elseBlock, labelChunk(end)).flatten
               } else {
-                val middle = nextLabel("th")
-                val end = nextLabel("fi")
+                val middle = ctx.nextLabel("th")
+                val end = ctx.nextLabel("fi")
                 val conditionBlock = compileExpressionForBranching(ctx, s.condition, BranchIfTrue(middle))
                 List(conditionBlock, elseBlock, jmpChunk(end), labelChunk(middle), thenBlock, labelChunk(end)).flatten
               }
             } else {
-              val middle = nextLabel("el")
-              val end = nextLabel("fi")
+              val middle = ctx.nextLabel("el")
+              val end = ctx.nextLabel("fi")
               val conditionBlock = compileExpressionForBranching(ctx, s.condition, BranchIfFalse(middle))
               List(conditionBlock, thenBlock, jmpChunk(end), labelChunk(middle), elseBlock, labelChunk(end)).flatten
             }

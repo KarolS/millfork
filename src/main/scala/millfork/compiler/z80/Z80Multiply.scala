@@ -19,9 +19,9 @@ object Z80Multiply {
     import ZRegister._
     import ZLine._
     if(ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
-      val lblAdd = Z80Compiler.nextLabel("mu")
-      val lblLoop = Z80Compiler.nextLabel("mu")
-      val lblStart = Z80Compiler.nextLabel("mu")
+      val lblAdd = ctx.nextLabel("mu")
+      val lblLoop = ctx.nextLabel("mu")
+      val lblStart = ctx.nextLabel("mu")
       List(
         ld8(E, A),
         ldImm8(A, 0),
@@ -36,9 +36,9 @@ object Z80Multiply {
         jumpR(ctx, lblLoop, IfFlagClear(ZFlag.Z)))
     } else {
       // TODO: optimize
-      val lblAdd = Z80Compiler.nextLabel("mu")
-      val lblLoop = Z80Compiler.nextLabel("mu")
-      val lblStart = Z80Compiler.nextLabel("mu")
+      val lblAdd = ctx.nextLabel("mu")
+      val lblLoop = ctx.nextLabel("mu")
+      val lblStart = ctx.nextLabel("mu")
       List(
         ld8(E, A),
         ldImm8(C, 0),

@@ -12,8 +12,6 @@ import millfork.node.{MosRegister, _}
   */
 abstract class MacroExpander[T <: AbstractCode] {
 
-  def nextLabel(prefix: String): String
-
   def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyParam], params: List[Expression], code: List[ExecutableStatement]): (List[T], List[ExecutableStatement])
 
   def replaceVariable(stmt: Statement, paramName: String, target: Expression): Statement = {
@@ -77,7 +75,7 @@ abstract class MacroExpander[T <: AbstractCode] {
       case MosAssemblyStatement(LABEL, _, VariableExpression(l), _) => Some(l)
       case _ => None
     }.toSet
-    val labelPrefix = nextLabel("il")
+    val labelPrefix = ctx.nextLabel("il")
     paramPreparation -> actualCode.map {
       case s@MosAssemblyStatement(_, _, VariableExpression(v), _) if localLabels(v) =>
         s.copy(expression = VariableExpression(labelPrefix + v))

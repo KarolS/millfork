@@ -391,7 +391,7 @@ object Z80BulkMemoryOperations {
         Z80ExpressionCompiler.stashHLIfChanged(ctx, extraInitializationPair._2)
     }
 
-    val label = Z80Compiler.nextLabel("me")
+    val label = ctx.nextLabel("me")
     val body = if (ldr.isDefined && ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
       List(ZLine.implied(ldr.get))
     } else {

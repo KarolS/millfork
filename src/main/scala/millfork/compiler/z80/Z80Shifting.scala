@@ -44,7 +44,7 @@ object Z80Shifting {
         val calcCount = Z80ExpressionCompiler.compile8BitTo(ctx, rhs, ZRegister.B)
         val l = Z80ExpressionCompiler.stashBCIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, lhs))
         val loopBody = op :: fixAfterShiftIfNeeded(extendedOps, left, 1)
-        val label = Z80Compiler.nextLabel("sh")
+        val label = ctx.nextLabel("sh")
         calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label)
     }
   }
@@ -120,7 +120,7 @@ object Z80Shifting {
         val calcCount = Z80ExpressionCompiler.compile8BitTo(ctx, rhs, ZRegister.B)
         val l = Z80ExpressionCompiler.stashBCIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, lhs))
         val loopBody = ZLine.register(op, ZRegister.A) :: fixAfterShiftIfNeeded(extendedOps, left, 1)
-        val label = Z80Compiler.nextLabel("sh")
+        val label = ctx.nextLabel("sh")
         calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label) ++ Z80ExpressionCompiler.storeA(ctx, lhs, signedSource = false)
     }
   }
@@ -200,7 +200,7 @@ object Z80Shifting {
                 ZLine.ld8(ZRegister.L, ZRegister.A))
             }
           }
-        val label = Z80Compiler.nextLabel("sh")
+        val label = ctx.nextLabel("sh")
         calcCount ++ l ++ List(ZLine.label(label)) ++ loopBody ++ ZLine.djnz(ctx, label)
     }
   }
@@ -270,7 +270,7 @@ object Z80Shifting {
       case Some(NumericConstant(n, _)) =>
         List.fill(n.toInt)(shiftOne).flatten
       case _ =>
-        val label = Z80Compiler.nextLabel("sh")
+        val label = ctx.nextLabel("sh")
         val calcCount = Z80ExpressionCompiler.compile8BitTo(ctx, rhs, ZRegister.B)
         calcCount ++ List(ZLine.label(label)) ++ shiftOne ++ ZLine.djnz(ctx, label)
     }
