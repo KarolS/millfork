@@ -13,7 +13,7 @@ import millfork.error.ConsoleLogger
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, Z80Assembler}
-import millfork.parser.{Preprocessor, Z80Parser}
+import millfork.parser.{PreprocessingResult, Preprocessor, Z80Parser}
 import millfork.{CompilationFlag, CompilationOptions, CpuFamily, JobContext}
 import millfork.compiler.z80.Z80Compiler
 import org.scalatest.Matchers
@@ -46,8 +46,9 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
     log.setSource(Some(effectiveSource.lines.toIndexedSeq))
-    val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
-    val parserF = Z80Parser("", preprocessedSource, "", options, features)
+    val PreprocessingResult(preprocessedSource, features, pragmas) = Preprocessor.preprocessForTest(options, effectiveSource)
+    val parserF = Z80Parser("", preprocessedSource, "", options, features, false)
+      //if (pragmas.contains("intel_syntax")) true else if (pragmas.contains("zilog_syntax")) false else options.flag(CompilationFlag.UseIntelSyntax))
     parserF.toAst match {
       case Success(unoptimized, _) =>
         log.assertNoErrors("Parse failed")

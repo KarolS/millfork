@@ -6,8 +6,10 @@ import millfork.env._
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.{CallGraph, NiceFunctionProperty, Program}
 import millfork._
+import millfork.assembly.z80.ZLine
 
 import scala.collection.mutable
+import scala.math.Integral.Implicits.infixIntegralOps
 
 /**
   * @author Karol Stasiak
@@ -177,6 +179,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   private def asDecimal(a: Long, b: Long, f: (Long, Long) => Long): Long =
     storeDecimalValueInNormalRespresentation(f(parseNormalToDecimalValue(a), parseNormalToDecimalValue(b)))
 
+  def bytePseudoopcode: String
+
   def assemble(callGraph: CallGraph, optimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions): AssemblerOutput = {
     mem.programName = options.outputFileName.getOrElse("MILLFORK")
     val platform = options.platform
@@ -266,7 +270,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           index += 1
         }
         items.grouped(16).foreach { group =>
-          assembly.append("    !byte " + group.map(expr => env.eval(expr) match {
+          assembly.append("    " + bytePseudoopcode + " " + group.map(expr => env.eval(expr) match {
             case Some(c) => c.quickSimplify.toString
             case None => "<? unknown constant ?>"
           }).mkString(", "))
@@ -490,7 +494,16 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     assOut.append("* = $" + startFrom.toHexString)
     for (instr <- code) {
       if (instr.isPrintable) {
-        assOut.append(instr.toString)
+        if (options.flag(CompilationFlag.UseIntelSyntaxForOutput)) {
+          instr match {
+            case zline: ZLine =>
+              assOut.append(zline.toIntelString)
+            case _ =>
+              assOut.append(instr.toString)
+          }
+        } else {
+          assOut.append(instr.toString)
+        }
       }
       index = emitInstruction(bank, options, index, instr)
     }

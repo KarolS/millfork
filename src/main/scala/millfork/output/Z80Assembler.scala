@@ -615,6 +615,8 @@ class Z80Assembler(program: Program,
   override def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[ZLine]): Unit = {
     // do nothing yet
   }
+
+  override def bytePseudoopcode: String = "DB"
 }
 
 object Z80Assembler {

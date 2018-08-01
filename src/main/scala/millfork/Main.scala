@@ -451,6 +451,9 @@ object Main {
     flag("--single-threaded").action(c =>
       c.changeFlag(CompilationFlag.SingleThreaded, true)
     ).description("Run the compiler in a single thread.")
+    boolean("-foutput_intel_syntax", "-foutput_zilog_syntax").action((c,v) =>
+      c.changeFlag(CompilationFlag.UseIntelSyntaxForOutput, v)
+    ).description("Select syntax for assembly output.")
 
     flag("--help").action(c => {
       println("millfork version " + BuildInfo.version)

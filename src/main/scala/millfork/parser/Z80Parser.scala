@@ -13,7 +13,16 @@ import millfork.node._
 /**
   * @author Karol Stasiak
   */
-case class Z80Parser(filename: String, input: String, currentDirectory: String, options: CompilationOptions, featureConstants: Map[String, Long]) extends MfParser[ZLine](filename, input, currentDirectory, options, featureConstants) {
+case class Z80Parser(filename: String,
+                     input: String,
+                     currentDirectory: String,
+                     options: CompilationOptions,
+                     featureConstants: Map[String, Long],
+                     useIntelSyntax: Boolean) extends MfParser[ZLine](filename, input, currentDirectory, options, featureConstants) {
+
+  if (useIntelSyntax) {
+    options.log.error("Parsing assembly with Intel syntax not supported yet")
+  }
 
   import MfParser._
 
@@ -60,7 +69,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
     "IY" -> ZRegister.IY, "iy" -> ZRegister.IY,
     "SP" -> ZRegister.SP, "sp" -> ZRegister.SP,
   )
-  
+
   private def param(allowAbsolute: Boolean, allowRI: Boolean = false): P[(ZRegister.Value, Option[Expression])] = asmExpressionWithParens.map {
     case (VariableExpression("R" | "r"), false) if allowRI => (ZRegister.R, None)
     case (VariableExpression("I" | "i"), false) if allowRI => (ZRegister.I, None)
@@ -156,7 +165,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
   private val jumpConditionWithComma: P[ZRegisters] = (jumpCondition ~ "," ~/ HWS).?.map (_.getOrElse(NoRegisters))
   private val jumpConditionWithoutComma: P[ZRegisters] = (jumpCondition ~/ HWS).?.map (_.getOrElse(NoRegisters))
 
-  val asmInstruction: P[ExecutableStatement] = {
+  val zilogAsmInstruction: P[ExecutableStatement] = {
     import ZOpcode._
     for {
       el <- elidable
@@ -360,6 +369,10 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
       Z80AssemblyStatement(actualOpcode, registers, offset, param, el)
     }
   }
+
+  val intelAsmInstruction: P[ExecutableStatement] = null // TODO
+
+  val asmInstruction: P[ExecutableStatement] = if (useIntelSyntax) intelAsmInstruction else zilogAsmInstruction
 
   private def imm(opcode: ZOpcode.Value): P[(ZOpcode.Value, ZRegisters, Option[Expression], Expression)] =
     P("").map(_=>(opcode, NoRegisters, None, zero))

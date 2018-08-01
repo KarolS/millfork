@@ -37,7 +37,7 @@ case class CompilationOptions(platform: Platform,
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(
       EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitIntel8080Opcodes, EmitEZ80Opcodes,
-      UseIxForStack, UseIyForStack, UseShadowRegistersForInterrupts)
+      UseIxForStack, UseIyForStack, UseShadowRegistersForInterrupts, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
 
     invalids = invalids.filter(flags)
 
@@ -210,7 +210,7 @@ object Cpu extends Enumeration {
     case Sixteen =>
       mosAlwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes, ReturnWordsViaAccumulator)
     case Intel8080 =>
-      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes)
+      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, UseIntelSyntaxForOutput)
     case Z80 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts)
     case EZ80 =>
@@ -279,6 +279,8 @@ object CompilationFlag extends Enumeration {
   UseShadowRegistersForInterrupts,
   UseIxForStack, UseIyForStack,
   UseIxForScratch, UseIyForScratch,
+  UseIntelSyntaxForInput,
+  UseIntelSyntaxForOutput,
   // optimization options:
   DangerousOptimizations, InlineFunctions, InterproceduralOptimization, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
   // memory allocation options
@@ -313,6 +315,7 @@ object CompilationFlag extends Enumeration {
     "ix_scratch" -> UseIxForScratch,
     "iy_scratch" -> UseIyForScratch,
     "use_shadow_registers_for_irq" -> UseShadowRegistersForInterrupts,
+    "output_intel_syntax" -> UseIntelSyntaxForOutput,
     "ipo" -> InterproceduralOptimization,
     "inline" -> InlineFunctions,
     "dangerous_optimizations" -> DangerousOptimizations,

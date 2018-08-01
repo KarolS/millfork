@@ -26,6 +26,10 @@ no extension for BBC micro program file,
 
 * `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file and the extension is `.asm`.
 
+* `-foutput_intel_syntax`, `-foutput_zilog_syntax` –
+Choose syntax for assembly output on 8080-like targets.
+`.ini` equivalent: `output_intel_syntax`. Default: Intel (true) on Intel 8080, Zilog (false) otherwise.
+
 * `-g` – Generate also the label file. The label file contains labels with their addresses, with duplicates removed. It can be loaded into the monitor of the Vice emulator for debugging purposes. The file has the same name as the output file and the extension is `.lbl`.
 
 * `-I  <dir>;<dir>` – The include directories. The current working directory is also an include directory. Those directories are searched for modules and platform definitions.

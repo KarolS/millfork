@@ -48,6 +48,7 @@ You may be also interested in the following:
 * `-fipo` – enable interprocedural optimization
 
 * `-s` – additionally generate assembly output
+(if targeting Intel 8080, use `-foutput_intel_syntax` or `-foutput_zilog_syntax` to choose the preferred output syntax)
 
 * `-g` – additionally generate a label file, in format compatible with VICE emulator
 

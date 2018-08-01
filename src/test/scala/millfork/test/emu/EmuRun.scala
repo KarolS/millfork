@@ -16,7 +16,7 @@ import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.StandardCallGraph
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, MosAssembler}
-import millfork.parser.{MosParser, Preprocessor}
+import millfork.parser.{MosParser, PreprocessingResult, Preprocessor}
 import millfork.{CompilationFlag, CompilationOptions, CpuFamily, JobContext}
 import org.scalatest.Matchers
 
@@ -121,7 +121,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
     log.setSource(Some(effectiveSource.lines.toIndexedSeq))
-    val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
+    val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = MosParser("", preprocessedSource, "", options, features)
     parserF.toAst match {
       case Success(unoptimized, _) =>

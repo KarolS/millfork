@@ -51,16 +51,23 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     options.log.fatal(s"Module `$moduleName` not found", position)
   }
 
-  def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long]) : MfParser[T]
+  def supportedPragmas: Set[String]
+
+  def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long], pragmas: Set[String]) : MfParser[T]
 
   def parseModule(moduleName: String, includePath: List[String], why: Either[Option[Position], String]): Unit = {
     val filename: String = why.fold(p => lookupModuleFile(includePath, moduleName, p), s => s)
     options.log.debug(s"Parsing $filename")
     val path = Paths.get(filename)
     val parentDir = path.toFile.getAbsoluteFile.getParent
-    val (src, featureConstants) = Preprocessor(options, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
+    val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
+    for (pragma <- pragmas) {
+      if (!supportedPragmas(pragma._1)) {
+        options.log.warn(s"Unsupported pragma: #pragma $pragma", Some(Position(moduleName, pragma._2, 1, 0)))
+      }
+    }
     val shortFileName = path.getFileName.toString
-    val parser = createParser(shortFileName, src, parentDir, featureConstants)
+    val parser = createParser(shortFileName, src, parentDir, featureConstants, pragmas.keySet)
     options.log.addSource(shortFileName, src.lines.toIndexedSeq)
     parser.toAst match {
       case Success(prog, _) =>

@@ -164,6 +164,8 @@ class MosAssembler(program: Program,
       case _ => true
     }
   }
+
+  override def bytePseudoopcode: String = "!byte"
 }
 
 

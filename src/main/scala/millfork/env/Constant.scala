@@ -17,6 +17,9 @@ import millfork.error.ConsoleLogger
 import millfork.node.Position
 
 sealed trait Constant {
+
+  def toIntelString: String
+
   def isProvablyZero: Boolean = false
   def isProvably(value: Int): Boolean = false
   def isProvablyNonnegative: Boolean = false
@@ -101,12 +104,15 @@ case class AssertByte(c: Constant) extends Constant {
   override def quickSimplify: Constant = AssertByte(c.quickSimplify)
 
   override def fitsInto(typ: Type): Boolean = true
+  override def toIntelString: String = c.toIntelString
 }
 
 case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant {
   override def isRelatedTo(v: Thing): Boolean = false
 
   override def toString: String = name
+
+  override def toIntelString: String = name
 }
 
 case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
@@ -134,6 +140,11 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   override def -(that: Long) = NumericConstant(value - that, minimumSize(value - that))
 
   override def toString: String = if (value > 9) value.formatted("$%X") else value.toString
+
+  override def toIntelString: String = if (value > 9) {
+    val tmp = value.formatted("%Xh")
+    if (tmp(0) > '9') "0" + tmp else tmp
+  } else value.toString
 
   override def isRelatedTo(v: Thing): Boolean = false
 
@@ -166,6 +177,8 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
 
   override def toString: String = thing.name
 
+  override def toIntelString: String = thing.name
+
   override def isRelatedTo(v: Thing): Boolean = thing.name == v.name
 }
 
@@ -186,12 +199,17 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
 
   override def isProvablyNonnegative: Boolean = true
 
-  override def toString: String = base + (index match {
-    case 0 => ".lo"
-    case 1 => ".hi"
-    case 2 => ".b2"
-    case 3 => ".b3"
-  })
+  override def toString: String = index match {
+    case 0 => s"lo($base)"
+    case 1 => s"hi($base)"
+    case i => s"b$i($base)"
+  }
+
+  override def toIntelString: String = index match {
+      case 0 => s"lo(${base.toIntelString})"
+      case 1 => s"hi($base.toIntelString)"
+      case i => s"b$i($base.toIntelString)"
+    }
 
   override def isRelatedTo(v: Thing): Boolean = base.isRelatedTo(v)
 }
@@ -373,36 +391,70 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     }
   }
 
-  private def plhs = lhs match {
-    case _: NumericConstant | _: MemoryAddressConstant => lhs
+  private def plhs: String = lhs match {
+    case _: NumericConstant | _: MemoryAddressConstant => lhs.toString
     case _ => "(" + lhs + ')'
   }
 
-  private def prhs = lhs match {
-    case _: NumericConstant | _: MemoryAddressConstant => rhs
+  private def prhs: String = lhs match {
+    case _: NumericConstant | _: MemoryAddressConstant => rhs.toString
     case _ => "(" + rhs + ')'
+  }
+
+
+  private def plhis: String = lhs match {
+    case _: NumericConstant | _: MemoryAddressConstant => lhs.toIntelString
+    case _ => "(" + lhs.toIntelString + ')'
+  }
+
+  private def prhis: String = lhs match {
+    case _: NumericConstant | _: MemoryAddressConstant => rhs.toIntelString
+    case _ => "(" + rhs.toIntelString + ')'
   }
 
   override def toString: String = {
     operator match {
-      case Plus => f"$plhs + $prhs"
-      case Plus9 => f"nonet($plhs + $prhs)"
-      case Minus => f"$plhs - $prhs"
-      case Times => f"$plhs * $prhs"
-      case Shl => f"$plhs << $prhs"
-      case Shr => f"$plhs >> $prhs"
-      case Shl9 => f"nonet($plhs << $prhs)"
-      case Shr9 => f"$plhs >>>> $prhs"
-      case DecimalPlus => f"$plhs +' $prhs"
-      case DecimalPlus9 => f"nonet($plhs +' $prhs)"
-      case DecimalMinus => f"$plhs -' $prhs"
-      case DecimalTimes => f"$plhs *' $prhs"
-      case DecimalShl => f"$plhs <<' $prhs"
-      case DecimalShl9 => f"nonet($plhs <<' $prhs)"
-      case DecimalShr => f"$plhs >>' $prhs"
-      case And => f"$plhs & $prhs"
-      case Or => f"$plhs | $prhs"
-      case Exor => f"$plhs ^ $prhs"
+      case Plus => s"$plhs + $prhs"
+      case Plus9 => s"nonet($plhs + $prhs)"
+      case Minus => s"$plhs - $prhs"
+      case Times => s"$plhs * $prhs"
+      case Shl => s"$plhs << $prhs"
+      case Shr => s"$plhs >> $prhs"
+      case Shl9 => s"nonet($plhs << $prhs)"
+      case Shr9 => s"$plhs >>>> $prhs"
+      case DecimalPlus => s"$plhs +' $prhs"
+      case DecimalPlus9 => s"nonet($plhs +' $prhs)"
+      case DecimalMinus => s"$plhs -' $prhs"
+      case DecimalTimes => s"$plhs *' $prhs"
+      case DecimalShl => s"$plhs <<' $prhs"
+      case DecimalShl9 => s"nonet($plhs <<' $prhs)"
+      case DecimalShr => s"$plhs >>' $prhs"
+      case And => s"$plhs & $prhs"
+      case Or => s"$plhs | $prhs"
+      case Exor => s"$plhs ^ $prhs"
+    }
+  }
+
+  override def toIntelString: String = {
+    operator match {
+      case Plus => s"$plhis + $prhis"
+      case Plus9 => s"nonet($plhis + $prhis)"
+      case Minus => s"$plhis - $prhis"
+      case Times => s"$plhis * $prhis"
+      case Shl => s"$plhis << $prhis"
+      case Shr => s"$plhis >> $prhis"
+      case Shl9 => s"nonet($plhis << $prhis)"
+      case Shr9 => s"$plhis >>>> $prhis"
+      case DecimalPlus => s"$plhis +' $prhis"
+      case DecimalPlus9 => s"nonet($plhis +' $prhis)"
+      case DecimalMinus => s"$plhis -' $prhis"
+      case DecimalTimes => s"$plhis *' $prhis"
+      case DecimalShl => s"$plhis <<' $prhis"
+      case DecimalShl9 => s"nonet($plhis <<' $prhis)"
+      case DecimalShr => s"$plhis >>' $prhis"
+      case And => s"$plhis & $prhis"
+      case Or => s"$plhis | $prhis"
+      case Exor => s"$plhis ^ $prhis"
     }
   }
 

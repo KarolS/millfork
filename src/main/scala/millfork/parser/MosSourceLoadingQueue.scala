@@ -10,7 +10,7 @@ class MosSourceLoadingQueue(initialFilenames: List[String],
                             includePath: List[String],
                             options: CompilationOptions) extends AbstractSourceLoadingQueue[AssemblyLine](initialFilenames, includePath, options) {
 
-  override def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long]): MfParser[AssemblyLine] =
+  override def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long], pragmas: Set[String]): MfParser[AssemblyLine] =
     MosParser(filename, src, parentDir, options, featureConstants)
 
   def enqueueStandardModules(): Unit = {
@@ -19,4 +19,5 @@ class MosSourceLoadingQueue(initialFilenames: List[String],
     }
   }
 
+  override val supportedPragmas: Set[String] = Set()
 }

@@ -10,17 +10,20 @@ import scala.collection.mutable
 /**
   * @author Karol Stasiak
   */
+
+case class PreprocessingResult(source: String, featureConstants: Map[String, Long], pragmas: Map[String, Int])
+
 object Preprocessor {
 
   private val Regex = raw"\A\s*#\s*([a-z]+)\s*(.*?)\s*\z".r
 
-  def preprocessForTest(options: CompilationOptions, code: String): (String, Map[String, Long]) = {
+  def preprocessForTest(options: CompilationOptions, code: String): PreprocessingResult = {
     apply(options, code.lines.toSeq)
   }
 
   case class IfContext(hadEnabled: Boolean, hadElse: Boolean, enabledBefore: Boolean)
 
-  def apply(options: CompilationOptions, lines: Seq[String]): (String, Map[String, Long]) = {
+  def apply(options: CompilationOptions, lines: Seq[String]): PreprocessingResult = {
     val platform = options.platform
     val log = options.log
 //    if (log.traceEnabled) {
@@ -30,6 +33,7 @@ object Preprocessor {
 //    }
     val result = mutable.ListBuffer[String]()
     val featureConstants = mutable.Map[String, Long]()
+    val pragmas = mutable.Map[String, Int]()
     var enabled = true
     val ifStack = mutable.Stack[IfContext]()
     var lineNo = 0
@@ -105,6 +109,9 @@ object Preprocessor {
                 }
                 ifStack.push(ifStack.pop().copy(hadEnabled = true, hadElse = true))
               }
+            case "pragma" =>
+              if (param == "") log.error("#pragma should", pos)
+              pragmas += param -> lineNo
             case _ =>
               log.error("Invalid preprocessor directive: #" + keyword, pos)
 
@@ -121,7 +128,7 @@ object Preprocessor {
 //        case (line, i) => log.trace(f"${i + 1}%-4d $line%s")
 //      }
 //    }
-    (result.mkString("\n"), featureConstants.toMap)
+    PreprocessingResult(result.mkString("\n"), featureConstants.toMap, pragmas.toMap)
   }
 
 

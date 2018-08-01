@@ -8,7 +8,7 @@ import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.node.StandardCallGraph
-import millfork.parser.{MosParser, Preprocessor}
+import millfork.parser.{MosParser, PreprocessingResult, Preprocessor}
 import millfork._
 import org.scalatest.Matchers
 
@@ -36,7 +36,7 @@ object ShouldNotCompile extends Matchers {
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
     log.setSource(Some(effectiveSource.lines.toIndexedSeq))
-    val (preprocessedSource, features) = Preprocessor.preprocessForTest(options, effectiveSource)
+    val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = MosParser("", preprocessedSource, "", options, features)
     parserF.toAst match {
       case Success(program, _) =>
