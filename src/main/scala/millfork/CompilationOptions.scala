@@ -35,7 +35,9 @@ case class CompilationOptions(platform: Platform,
       EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
       PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, LUnixRelocatableCode, RorWarning)
 
-    if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, UseIxForStack)
+    if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(
+      EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitIntel8080Opcodes, EmitEZ80Opcodes,
+      UseIxForStack, UseIyForStack, UseShadowRegistersForInterrupts)
 
     invalids = invalids.filter(flags)
 
@@ -103,9 +105,34 @@ case class CompilationOptions(platform: Platform,
             log.error("Illegal opcodes enabled for architecture that doesn't support them")
           }
         }
-        if (flags(UseIxForStack)) {
+        if (flags(UseIxForStack) || flags(UseIxForScratch)) {
           if (platform.cpu != Z80) {
             log.error("IX register enabled for architecture that doesn't support it")
+          } else if (!flags(EmitZ80Opcodes)) {
+            log.error("IX register is enabled but instructions using it are disabled")
+          }
+        }
+        if (flags(UseIyForStack) || flags(UseIyForScratch)) {
+          if (platform.cpu != Z80) {
+            log.error("IY register enabled for architecture that doesn't support it")
+          } else if (!flags(EmitZ80Opcodes)) {
+            log.error("IY register is enabled but instructions using it are disabled")
+          }
+        }
+        if (flags(UseIxForScratch) && flags(UseIxForStack)) {
+          log.error("Cannot use the IX register for both stack variables and scratch simultaneously")
+        }
+        if (flags(UseIyForScratch) && flags(UseIyForStack)) {
+          log.error("Cannot use the IY register for both stack variables and scratch simultaneously")
+        }
+        if (flags(UseIxForStack) && flags(UseIyForStack)) {
+          log.error("Cannot use both IX and IY registers for stack variables simultaneously")
+        }
+        if (flags(UseShadowRegistersForInterrupts)) {
+          if (platform.cpu != Z80) {
+            log.error("Shadow registers enabled for architecture that doesn't support them")
+          } else if (!flags(EmitZ80Opcodes)) {
+            log.error("Shadow registers are enabled but instructions using them are disabled")
           }
         }
         if (flags(EmitZ80Opcodes)) {
@@ -185,9 +212,9 @@ object Cpu extends Enumeration {
     case Intel8080 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes)
     case Z80 =>
-      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack)
+      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts)
     case EZ80 =>
-      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, EmitEZ80Opcodes)
+      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts, EmitEZ80Opcodes)
     case Sharp =>
       i80AlwaysDefaultFlags ++ Set(EmitExtended80Opcodes, EmitSharpOpcodes)
   }
@@ -248,7 +275,10 @@ object CompilationFlag extends Enumeration {
   EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
   PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator,
   // compilation options for I80
-  EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, EmitEZ80Opcodes, EmitSharpOpcodes, UseIxForStack,
+  EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, EmitEZ80Opcodes, EmitSharpOpcodes,
+  UseShadowRegistersForInterrupts,
+  UseIxForStack, UseIyForStack,
+  UseIxForScratch, UseIyForScratch,
   // optimization options:
   DangerousOptimizations, InlineFunctions, InterproceduralOptimization, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
   // memory allocation options
@@ -279,6 +309,10 @@ object CompilationFlag extends Enumeration {
     "emit_8080" -> EmitIntel8080Opcodes,
     "emit_sharp" -> EmitSharpOpcodes,
     "ix_stack" -> UseIxForStack,
+    "iy_stack" -> UseIyForStack,
+    "ix_scratch" -> UseIxForScratch,
+    "iy_scratch" -> UseIyForScratch,
+    "use_shadow_registers_for_irq" -> UseShadowRegistersForInterrupts,
     "ipo" -> InterproceduralOptimization,
     "inline" -> InlineFunctions,
     "dangerous_optimizations" -> DangerousOptimizations,

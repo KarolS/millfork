@@ -1,5 +1,6 @@
 package millfork.assembly.z80.opt
 
+import millfork.CompilationFlag
 import millfork.assembly.OptimizationContext
 import millfork.assembly.opt.SingleStatus
 import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine}
@@ -84,9 +85,13 @@ object VariableStatus {
       case v: StackVariable =>
         v -> StackVariableLifetime.apply(v.baseOffset, flow)
     }
+    val stackPrefix =
+      if (optimizationContext.options.flag(CompilationFlag.UseIxForStack)) "IX+"
+      else if (optimizationContext.options.flag(CompilationFlag.UseIyForStack)) "IY+"
+      else "SP+"
     val variablesWithLifetimesMap = variablesWithLifetimes.map {
       case (v: MemoryVariable, lt) => v.name -> lt
-      case (v: StackVariable, lt) => ("IX+" + v.baseOffset) -> lt
+      case (v: StackVariable, lt) => (stackPrefix + v.baseOffset) -> lt
     }.toMap
     Some(new VariableStatus(
       paramVariables,

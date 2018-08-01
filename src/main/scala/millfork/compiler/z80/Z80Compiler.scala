@@ -61,7 +61,101 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
         }
       case _ => Nil
     }
-    label :: (stackPointerFixAtBeginning(ctx) ++ storeParamsFromRegisters ++ chunk)
+    label :: (preserveRegisters(ctx) ++ stackPointerFixAtBeginning(ctx) ++ storeParamsFromRegisters ++ chunk)
+  }
+
+  def preserveRegisters(ctx: CompilationContext): List[ZLine] = {
+    import millfork.assembly.z80.ZOpcode._
+    import ZRegister._
+    if (ctx.function.interrupt) {
+      if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+        if (ctx.options.flag(CompilationFlag.UseShadowRegistersForInterrupts)) {
+          List(
+            ZLine.implied(EX_AF_AF),
+            ZLine.implied(EXX),
+            ZLine.register(PUSH, IX),
+            ZLine.register(PUSH, IY))
+        } else {
+          List(
+            ZLine.register(PUSH, AF),
+            ZLine.register(PUSH, BC),
+            ZLine.register(PUSH, DE),
+            ZLine.register(PUSH, HL),
+            ZLine.register(PUSH, IX),
+            ZLine.register(PUSH, IY))
+        }
+      } else {
+        List(
+          ZLine.register(PUSH, AF),
+          ZLine.register(PUSH, BC),
+          ZLine.register(PUSH, DE),
+          ZLine.register(PUSH, HL))
+      }
+    } else if (ctx.function.kernalInterrupt) {
+      if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+        List(
+          ZLine.register(PUSH, IX),
+          ZLine.register(PUSH, IY))
+      } else Nil
+    } else Nil
+  }
+
+  def restoreRegistersAndReturn(ctx: CompilationContext): List[ZLine] = {
+    import millfork.assembly.z80.ZOpcode._
+    import ZRegister._
+    if (ctx.function.interrupt) {
+      if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+        if (ctx.options.flag(CompilationFlag.UseShadowRegistersForInterrupts)) {
+          List(
+            ZLine.register(POP, IY),
+            ZLine.register(POP, IX),
+            ZLine.implied(EXX),
+            ZLine.implied(EX_AF_AF),
+            ZLine.implied(EI),
+            ZLine.implied(RETI)) // TODO: NMI?
+        } else {
+          List(
+            ZLine.register(POP, IY),
+            ZLine.register(POP, IX),
+            ZLine.register(POP, HL),
+            ZLine.register(POP, DE),
+            ZLine.register(POP, BC),
+            ZLine.register(POP, AF),
+            ZLine.implied(EI),
+            ZLine.implied(RETI))
+        }
+      } else if (ctx.options.flag(CompilationFlag.EmitSharpOpcodes)) {
+        List(
+          ZLine.register(POP, HL),
+          ZLine.register(POP, DE),
+          ZLine.register(POP, BC),
+          ZLine.register(POP, AF),
+          ZLine.implied(RETI)) // Gameboy enables interrupts automatically
+      } else if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+        List(
+          ZLine.register(POP, HL),
+          ZLine.register(POP, DE),
+          ZLine.register(POP, BC),
+          ZLine.register(POP, AF),
+          ZLine.implied(EI),
+          ZLine.implied(RETI))
+      } else {
+        List(
+          ZLine.register(POP, HL),
+          ZLine.register(POP, DE),
+          ZLine.register(POP, BC),
+          ZLine.register(POP, AF),
+          ZLine.implied(EI),
+          ZLine.implied(RET))
+      }
+    } else if (ctx.function.kernalInterrupt) {
+      if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+        List(
+          ZLine.register(POP, IY),
+          ZLine.register(POP, IX),
+          ZLine.implied(RET))
+      } else List(ZLine.implied(RET))
+    } else List(ZLine.implied(RET))
   }
 
   def stackPointerFixAtBeginning(ctx: CompilationContext): List[ZLine] = {
@@ -84,6 +178,12 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
         ZLine.ldImm16(IX, 0x10000 - localVariableArea),
         ZLine.registers(ADD_16, IX, SP),
         ZLine.ld16(SP, IX))
+    } else if (ctx.options.flag(CompilationFlag.UseIyForStack)) {
+      List(
+        ZLine.register(PUSH, IY),
+        ZLine.ldImm16(IY, 0x10000 - localVariableArea),
+        ZLine.registers(ADD_16, IY, SP),
+        ZLine.ld16(SP, IY))
     } else if (localVariableArea == 2) {
       // cycles: 11
       // bytes: 1

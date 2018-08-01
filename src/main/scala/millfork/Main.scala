@@ -353,6 +353,32 @@ object Main {
     boolean("-flenient-encoding", "-fno-lenient-encoding").action { (c, v) =>
       c.changeFlag(CompilationFlag.LenientTextEncoding, v)
     }.description("Whether the compiler should replace invalid characters in string literals that use the default encodings.")
+    boolean("-fshadow-irq", "-fno-shadow-irq").action { (c, v) =>
+      c.changeFlag(CompilationFlag.UseShadowRegistersForInterrupts, v)
+    }.description("Whether shadow registers should be used in interrupt routines (Z80 only)")
+    flag("-fuse-ix-for-stack").action { c =>
+      c.changeFlag(CompilationFlag.UseIxForStack, true).changeFlag(CompilationFlag.UseIyForStack, false)
+    }.description("Use IX as base pointer for stack variables (Z80 only)")
+    flag("-fuse-iy-for-stack").action { c =>
+      c.changeFlag(CompilationFlag.UseIyForStack, true).changeFlag(CompilationFlag.UseIxForStack, false)
+    }.description("Use IY as base pointer for stack variables (Z80 only)")
+    boolean("-fuse-ix-for-scratch", "-fno-use-ix-for-scratch").action { (c, v) =>
+      if (v) {
+        c.changeFlag(CompilationFlag.UseIxForScratch, true).changeFlag(CompilationFlag.UseIxForStack, false)
+      } else {
+        c.changeFlag(CompilationFlag.UseIxForScratch, false)
+      }
+    }.description("Use IX as base pointer for stack variables (Z80 only)")
+    boolean("-fuse-iy-for-scratch", "-fno-use-iy-for-scratch").action { (c, v) =>
+      if (v) {
+        c.changeFlag(CompilationFlag.UseIyForScratch, true).changeFlag(CompilationFlag.UseIyForStack, false)
+      } else {
+        c.changeFlag(CompilationFlag.UseIyForScratch, false)
+      }
+    }.description("Use IY as base pointer for stack variables (Z80 only)")
+    flag("-fno-use-index-for-stack").action { c =>
+      c.changeFlag(CompilationFlag.UseIyForStack, false).changeFlag(CompilationFlag.UseIxForStack, false)
+    }.description("Don't use either IX or IY as base pointer for stack variables (Z80 only)")
 
     fluff("", "Optimization options:", "")
 

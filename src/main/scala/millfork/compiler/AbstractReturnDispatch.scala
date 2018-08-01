@@ -19,6 +19,13 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
       return Nil
     }
 
+    if (ctx.function.interrupt) {
+      ctx.log.error(s"Return dispatch in interrupt function ${ctx.function.name}", stmt.position)
+    }
+    if (ctx.function.kernalInterrupt) {
+      ctx.log.error(s"Return dispatch in kernal interrupt function ${ctx.function.name}", stmt.position)
+    }
+
     def toConstant(e: Expression) = {
       ctx.env.eval(e).getOrElse {
         ctx.log.error("Non-constant parameter for dispatch branch", e.position)

@@ -18,6 +18,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
   def compile(ctx: CompilationContext, statement: ExecutableStatement): List[ZLine] = {
     val options = ctx.options
     val env = ctx.env
+    val ret = Z80Compiler.restoreRegistersAndReturn(ctx)
     statement match {
       case EmptyStatement(stmts) =>
         stmts.foreach(s => compile(ctx, s))
@@ -25,13 +26,13 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       case ReturnStatement(None) =>
         fixStackOnReturn(ctx) ++ (ctx.function.returnType match {
           case _: BooleanType =>
-            List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+            List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE)) ++ ret
           case t => t.size match {
             case 0 =>
-              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE)) ++ ret
             case _ =>
               ctx.log.warn("Returning without a value", statement.position)
-              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE)) ++ ret
           }
         })
       case ReturnStatement(Some(e)) =>
@@ -40,13 +41,16 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
             case 0 =>
               ctx.log.error("Cannot return anything from a void function", statement.position)
               fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE)) ++ ret
             case 1 =>
               Z80ExpressionCompiler.compileToA(ctx, e) ++ fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+                List(ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE)) ++ ret
             case 2 =>
               Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
-                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE)) ++ ret
+            case _ =>
+              Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
+                List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC)) ++ ret
           }
           case t =>
             AbstractExpressionCompiler.checkAssignmentType(ctx, e, ctx.function.returnType)
@@ -208,6 +212,20 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
             ZLine.registers(ADD_16, HL, SP),
             ZLine.ld16(SP, HL),
             ZLine.register(POP, IX))
+        }
+      } else if (ctx.options.flags(CompilationFlag.UseIyForStack)) {
+        if (ctx.function.returnType.size == 2) {
+          List(
+            ZLine.ldImm16(IY, localVariableArea),
+            ZLine.registers(ADD_16, IY, SP),
+            ZLine.ld16(SP, IY),
+            ZLine.register(POP, IY))
+        } else {
+          List(
+            ZLine.ldImm16(HL, localVariableArea),
+            ZLine.registers(ADD_16, HL, SP),
+            ZLine.ld16(SP, HL),
+            ZLine.register(POP, IY))
         }
       } else {
         if (ctx.function.returnType.size == 2) {

@@ -67,6 +67,17 @@ Default: the same as `encoding`.
     * `ipo` - enable interprocedural optimization, default is `false`.
     
     * `lenient_encoding` - allow for automatic substitution of invalid characters in string literals using the default encodings, default is `false`.
+    
+    * `use_shadow_registers_for_irq` – use Z80 shadow registers in interrupt routines, default is `true` for Z80 and `false` otherwise
+    
+    * `ix_stack` – use the IX register to access stack variables, default is `true` for Z80 and `false` otherwise
+    
+    * `iy_stack` – use the IY register to access stack variables, default is `false`
+    
+    * `ix_scratch` – allow using the IY register for other purposes, default is `false`
+    
+    * `iy_scratch` – allow using the IY register for other purposes, default is `false`
+
 
 #### `[define]` section
 

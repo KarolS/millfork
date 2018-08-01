@@ -92,7 +92,23 @@ This may cause problems if the parameter table is stored next to a hardware regi
 
 * `-flenient-encoding`, `-fno-lenient-encoding` – 
 Whether the compiler should allow for invalid characters in string/character literals that use the default encodings and replace them with alternatives.
-.ini` equivalent: `lenient_encoding`. Default: no.
+`.ini` equivalent: `lenient_encoding`. Default: no.
+
+* `-fshadow-irq`, `-fno-shadow-irq` –
+Whether the interrupt routines should make use of Z80 shadow registers.
+`.ini` equivalent: `use_shadow_registers_for_irq`. Default: yes on Z80, no otherwise.
+
+* `-fuse-ix-for-stack`, `-fuse-iy-for-stack`, `-fno-use-index-for-stack` –
+Which of Z80 index registers should be used for accessing stack variables, if any. 
+`.ini` equivalent: `ix_stack` and `iy_stack`. Default: IX on Z80, no otherwise.
+
+* `-fuse-ix-for-scratch`, `-fno-use-ix-for-scratch` –
+Allow using the IX register for other purposes.
+`.ini` equivalent: `ix_scratch`. Default: no.
+
+* `-fuse-iy-for-scratch`, `-fno-use-iy-for-scratch` –
+Allow using the IY register for other purposes.
+`.ini` equivalent: `iy_scratch`. Default: no.
 
 ## Optimization options
 

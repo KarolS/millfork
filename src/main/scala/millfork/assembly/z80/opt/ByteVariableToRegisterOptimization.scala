@@ -3,7 +3,6 @@ package millfork.assembly.z80.opt
 import millfork.assembly.z80._
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
 import millfork.env._
-import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 import millfork.{CompilationFlag, NonOverlappingIntervals}
 
@@ -29,14 +28,19 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
     val vs = VariableStatus(f, code, optimizationContext, _.size == 1).getOrElse(return code)
     val options = optimizationContext.options
+    val useIx = options.flag(CompilationFlag.UseIxForStack)
+    val useIy = options.flag(CompilationFlag.UseIyForStack)
     val log = options.log
     val removeVariablesForReal = !options.flag(CompilationFlag.InternalCurrentlyOptimizingForMeasurement)
     val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
     lazy val savingsForRemovingOneStackVariable = {
       val localVariableAreaSize = code.flatMap {
-        case ZLine(_, OneRegisterOffset(ZRegister.MEM_IX_D, offset), _, _) => Some(offset)
-        case ZLine(_, TwoRegistersOffset(_, ZRegister.MEM_IX_D, offset), _, _) => Some(offset)
-        case ZLine(_, TwoRegistersOffset(ZRegister.MEM_IX_D, _, offset), _, _) => Some(offset)
+        case ZLine(_, OneRegisterOffset(ZRegister.MEM_IX_D, offset), _, _) if useIx => Some(offset)
+        case ZLine(_, TwoRegistersOffset(_, ZRegister.MEM_IX_D, offset), _, _) if useIx => Some(offset)
+        case ZLine(_, TwoRegistersOffset(ZRegister.MEM_IX_D, _, offset), _, _) if useIx => Some(offset)
+        case ZLine(_, OneRegisterOffset(ZRegister.MEM_IY_D, offset), _, _) if useIy => Some(offset)
+        case ZLine(_, TwoRegistersOffset(_, ZRegister.MEM_IY_D, offset), _, _) if useIy => Some(offset)
+        case ZLine(_, TwoRegistersOffset(ZRegister.MEM_IY_D, _, offset), _, _) if useIy => Some(offset)
         case _ => None
       }.toSet.size
       val prologueAndEpilogue = if (f.returnType.size == 2) CyclesAndBytes(107, 20) else CyclesAndBytes(95, 17)
@@ -49,12 +53,12 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
 
     }
 
-    val bCandidates = getCandidates(vs, _.b, ZRegister.B, savingsForRemovingOneStackVariable)
-    val cCandidates = getCandidates(vs, _.c, ZRegister.C, savingsForRemovingOneStackVariable)
-    val dCandidates = getCandidates(vs, _.d, ZRegister.D, savingsForRemovingOneStackVariable)
-    val eCandidates = getCandidates(vs, _.e, ZRegister.E, savingsForRemovingOneStackVariable)
-    val hCandidates = getCandidates(vs, _.h, ZRegister.H, savingsForRemovingOneStackVariable)
-    val lCandidates = getCandidates(vs, _.l, ZRegister.L, savingsForRemovingOneStackVariable)
+    val bCandidates = getCandidates(vs, _.b, ZRegister.B, savingsForRemovingOneStackVariable, useIx, useIy)
+    val cCandidates = getCandidates(vs, _.c, ZRegister.C, savingsForRemovingOneStackVariable, useIx, useIy)
+    val dCandidates = getCandidates(vs, _.d, ZRegister.D, savingsForRemovingOneStackVariable, useIx, useIy)
+    val eCandidates = getCandidates(vs, _.e, ZRegister.E, savingsForRemovingOneStackVariable, useIx, useIy)
+    val hCandidates = getCandidates(vs, _.h, ZRegister.H, savingsForRemovingOneStackVariable, useIx, useIy)
+    val lCandidates = getCandidates(vs, _.l, ZRegister.L, savingsForRemovingOneStackVariable, useIx, useIy)
 
     val bCandidateSets = NonOverlappingIntervals.apply[(String, Range, CyclesAndBytes)](bCandidates, _._2.start, _._2.end)
     val cCandidateSets = NonOverlappingIntervals.apply[(String, Range, CyclesAndBytes)](cCandidates, _._2.start, _._2.end)
@@ -135,7 +139,12 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
             reportOptimizedBlock(oldCode, newCode)
             output ++= newCode
             i = range.end
-            if (removeVariablesForReal && !v.startsWith("IX+") && vs.variablesWithLifetimesMap.contains(v) && contains(range, vs.variablesWithLifetimesMap(v))) {
+            if (removeVariablesForReal &&
+              !v.startsWith("IX+") &&
+              !v.startsWith("IY+") &&
+              !v.startsWith("SP+") &&
+              vs.variablesWithLifetimesMap.contains(v) &&
+              contains(range, vs.variablesWithLifetimesMap(v))) {
               f.environment.removeVariable(v)
             }
             true
@@ -171,7 +180,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     }
   }
 
-  private def getCandidates(vs: VariableStatus, importanceExtractor: CpuImportance => Importance, register: ZRegister.Value, savingsForRemovingOneStackVariable: =>CyclesAndBytes) = {
+  private def getCandidates(vs: VariableStatus, importanceExtractor: CpuImportance => Importance, register: ZRegister.Value, savingsForRemovingOneStackVariable: =>CyclesAndBytes, useIx: Boolean, useIy: Boolean): Seq[(String, Range, CyclesAndBytes)] = {
     vs.variablesWithLifetimes.filter {
       case (v, range) =>
         val tuple = vs.codeWithFlow(range.start)
@@ -183,12 +192,15 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case (v, range) =>
         val id = v match {
           case MemoryVariable(name, _, _) => name
-          case StackVariable(_, _, offset) => "IX+" + offset
+          case StackVariable(_, _, offset) if useIx => "IX+" + offset
+          case StackVariable(_, _, offset) if useIy => "IY+" + offset
+          case StackVariable(_, _, offset) => "SP+" + offset
         }
         var bonus = CyclesAndBytes.Zero
         if (vs.variablesWithRegisterHint(v.name)) bonus += CyclesAndBytes(16, 16)
-        if (id.startsWith("IX+")) bonus += savingsForRemovingOneStackVariable
-        canBeInlined(id, synced = false, register, Some(false), Some(false), Some(false), vs.codeWithFlow.slice(range.start, range.end)).map { score =>
+        if (id.startsWith("IX+") || id.startsWith("IY+")) bonus += savingsForRemovingOneStackVariable
+        if (id.startsWith("SP+")) None
+        else canBeInlined(id, synced = false, register, Some(false), Some(false), Some(false), vs.codeWithFlow.slice(range.start, range.end)).map { score =>
           (id, range, score + bonus)
         }
     }
@@ -220,8 +232,11 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         case _ => None
       }
     }
-    object ThisOffset {
+    object ThisOffsetX {
       def unapply(c: Int): Option[Int] = if ("IX+" + c == vname) Some(c) else None
+    }
+    object ThisOffsetY {
+      def unapply(c: Int): Option[Int] = if ("IY+" + c == vname) Some(c) else None
     }
     code match {
       case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), ThisVar(_), _)) :: xs =>
@@ -229,11 +244,18 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), ThisVar(_), _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(9, 2)))
 
-      case (_, ZLine(LD, TwoRegistersOffset(reg, MEM_IX_D, ThisOffset(_)), _, _)) :: xs =>
+      case (_, ZLine(LD, TwoRegistersOffset(reg, MEM_IX_D, ThisOffsetX(_)), _, _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(reg == target, CyclesAndBytes(19, 3), CyclesAndBytes(15, 2)))
-      case (_, ZLine(LD, TwoRegistersOffset(MEM_IX_D, reg, ThisOffset(_)), _, _)) :: xs =>
+      case (_, ZLine(LD, TwoRegistersOffset(MEM_IX_D, reg, ThisOffsetX(_)), _, _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(reg == target, CyclesAndBytes(19, 3), CyclesAndBytes(15, 2)))
-      case (_, ZLine(_, OneRegisterOffset(MEM_IX_D, ThisOffset(_)), _, _)) :: xs =>
+      case (_, ZLine(_, OneRegisterOffset(MEM_IX_D, ThisOffsetX(_)), _, _)) :: xs =>
+        canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(15, 2)))
+
+      case (_, ZLine(LD, TwoRegistersOffset(reg, MEM_IY_D, ThisOffsetY(_)), _, _)) :: xs =>
+        canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(reg == target, CyclesAndBytes(19, 3), CyclesAndBytes(15, 2)))
+      case (_, ZLine(LD, TwoRegistersOffset(MEM_IY_D, reg, ThisOffsetY(_)), _, _)) :: xs =>
+        canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(reg == target, CyclesAndBytes(19, 3), CyclesAndBytes(15, 2)))
+      case (_, ZLine(_, OneRegisterOffset(MEM_IY_D, ThisOffsetY(_)), _, _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(15, 2)))
 
       case (_, ZLine(LD_16, TwoRegisters(HL, IMM_16), ThisVar(_), _)) :: xs =>
@@ -309,6 +331,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         ZLine.ld8(A, target) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
       case ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _) :: xs if th.name == vname =>
         ZLine.ld8(target, A) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+
       case ZLine(LD, TwoRegistersOffset(reg, MEM_IX_D, off), _, _) :: xs if "IX+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
         else ZLine.ld8(reg, target) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
@@ -316,6 +339,15 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
         else ZLine.ld8(target, reg) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
       case (l@ZLine(_, OneRegisterOffset(MEM_IX_D, off), _, _)) :: xs if "IX+" + off == vname =>
+        l.copy(registers = OneRegister(target)) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+
+      case ZLine(LD, TwoRegistersOffset(reg, MEM_IY_D, off), _, _) :: xs if "IY+" + off == vname =>
+        if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+        else ZLine.ld8(reg, target) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case ZLine(LD, TwoRegistersOffset(MEM_IY_D, reg, off), _, _) :: xs if "IY+" + off == vname =>
+        if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+        else ZLine.ld8(target, reg) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case (l@ZLine(_, OneRegisterOffset(MEM_IY_D, off), _, _)) :: xs if "IY+" + off == vname =>
         l.copy(registers = OneRegister(target)) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
       case  ZLine(LD_16, TwoRegisters(HL, IMM_16), MemoryAddressConstant(th), _) :: xs if th.name == vname =>

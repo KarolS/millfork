@@ -8,6 +8,8 @@ import millfork.Cpu
   */
 object EmuUnoptimizedRun extends EmuRun(Cpu.StrictMos, Nil, Nil)
 
+object EmuUnoptimizedCmosRun extends EmuRun(Cpu.Cmos, Nil, Nil)
+
 object EmuUnoptimizedZ80Run extends EmuZ80Run(Cpu.Z80, Nil, Nil)
 
 object EmuUnoptimizedIntel8080Run extends EmuZ80Run(Cpu.Intel8080, Nil, Nil)
