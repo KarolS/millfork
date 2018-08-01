@@ -1,11 +1,13 @@
 package millfork.compiler.z80
 
 import millfork.CompilationFlag
-import millfork.assembly.z80.ZLine
+import millfork.assembly.z80._
 import millfork.compiler.CompilationContext
 import millfork.env.NumericConstant
 import millfork.error.ConsoleLogger
 import millfork.node.{Expression, LhsExpression, ZRegister}
+
+import scala.collection.mutable.ListBuffer
 
 /**
   * @author Karol Stasiak
@@ -67,6 +69,137 @@ object Z80DecimalBuiltIns {
       case _ =>
         ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
+    }
+  }
+
+  def compileShiftARight(ctx: CompilationContext, clearCarry: Boolean, preserveCarry: Boolean, output: List[ZLine]): List[ZLine] = {
+    import millfork.assembly.z80.ZOpcode._
+    import ZRegister._
+    val skipHiDigit = ctx.nextLabel("ds")
+    val skipLoDigit = ctx.nextLabel("ds")
+    val result = ListBuffer[ZLine]()
+    if (clearCarry) {
+      result += ZLine.register(OR, A)
+    }
+    if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+      // Z80 and Sharp
+      if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
+        result += ZLine.register(RR, A)
+      } else {
+        result += ZLine.implied(RRA)
+      }
+      if (preserveCarry) {
+        result += ZLine.register(PUSH, AF)
+      }
+      if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
+        result += ZLine.jump(skipHiDigit, IfFlagClear(ZFlag.S))
+      } else {
+        result += ZLine.register(BIT7, A)
+        result += ZLine.jumpR(ctx, skipHiDigit, IfFlagSet(ZFlag.Z))
+      }
+      result += ZLine.imm8(SUB, 0x30)
+      result += ZLine.label(skipHiDigit)
+      result += ZLine.register(BIT3, A)
+      result += ZLine.jumpR(ctx, skipLoDigit, IfFlagSet(ZFlag.Z))
+      result += ZLine.imm8(SUB, 3)
+      result += ZLine.label(skipLoDigit)
+    } else {
+      // Intel 8080
+      result += ZLine.implied(RRA)
+      if (preserveCarry) {
+        result += ZLine.register(PUSH, AF)
+      }
+      result += ZLine.register(OR, A)
+      result += ZLine.jump(skipHiDigit, IfFlagClear(ZFlag.S))
+      result += ZLine.imm8(SUB, 0x30)
+      result += ZLine.label(skipHiDigit)
+      result += ZLine.ld8(E, A)
+      result += ZLine.imm8(AND, 8)
+      result += ZLine.ld8(A, E)
+      result += ZLine.jump(skipLoDigit, IfFlagSet(ZFlag.Z))
+      result += ZLine.imm8(SUB, 3)
+      result += ZLine.label(skipLoDigit)
+    }
+    if (output == Nil && preserveCarry) throw new IllegalArgumentException
+    result ++= output
+    if (preserveCarry) {
+      result += ZLine.register(POP, AF)
+    }
+    result.toList
+  }
+
+  def compileByteShiftRight(ctx: CompilationContext, l: Option[Expression], r: Expression): List[ZLine] = {
+    val left = l match {
+      case Some(e) => Z80ExpressionCompiler.compileToA(ctx, e)
+      case _ => Nil
+    }
+    ctx.env.eval(r) match {
+      case Some(NumericConstant(0, _)) => left
+      case Some(NumericConstant(n, _)) =>
+        left ++ List.fill(n.toInt)(compileShiftARight(ctx, clearCarry = true, preserveCarry = false, Nil)).flatten
+      case _ =>
+        val right = Z80ExpressionCompiler.compile8BitTo(ctx, r, ZRegister.B)
+        val load = if (!left.exists(_.changesRegister(ZRegister.B))) {
+          right ++ left
+        } else if (!right.exists(_.changesRegister(ZRegister.A))) {
+          left ++ right
+        } else {
+          right ++ Z80ExpressionCompiler.stashBCIfChanged(ctx, left)
+        }
+        val label = ctx.nextLabel("ds")
+        load ++ List(ZLine.label(label)) ++
+          compileShiftARight(ctx, clearCarry = true, preserveCarry = false, Nil) ++ ZLine.djnz(ctx, label)
+    }
+  }
+
+  def compileWordShiftRight(ctx: CompilationContext, l: Expression, r: Expression): List[ZLine] = {
+    val left = Z80ExpressionCompiler.compileToHL(ctx, l)
+    ctx.env.eval(r) match {
+      case Some(NumericConstant(0, _)) => left
+      case Some(NumericConstant(n, _)) =>
+        left ++ List.fill(n.toInt) {
+          List(ZLine.ld8(ZRegister.A, ZRegister.H)) ++
+            compileShiftARight(ctx, clearCarry = true, preserveCarry = true, List(ZLine.ld8(ZRegister.H, ZRegister.A))) ++
+            List(ZLine.ld8(ZRegister.A, ZRegister.L)) ++
+            compileShiftARight(ctx, clearCarry = false, preserveCarry = false, List(ZLine.ld8(ZRegister.L, ZRegister.A)))
+        }.flatten
+      case _ =>
+        val right = Z80ExpressionCompiler.compile8BitTo(ctx, r, ZRegister.B)
+        val load = if (!left.exists(_.changesRegister(ZRegister.B))) {
+          right ++ left
+        } else if (!right.exists(_.changesRegister(ZRegister.HL))) {
+          left ++ right
+        } else {
+          left ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, right)
+        }
+        val label = ctx.nextLabel("ds")
+        load ++
+          List(ZLine.label(label), ZLine.ld8(ZRegister.A, ZRegister.H)) ++
+          compileShiftARight(ctx, clearCarry = true, preserveCarry = true, Nil) ++
+          List(ZLine.ld8(ZRegister.H, ZRegister.A), ZLine.ld8(ZRegister.A, ZRegister.L)) ++
+          compileShiftARight(ctx, clearCarry = false, preserveCarry = false, Nil) ++
+          List(ZLine.ld8(ZRegister.L, ZRegister.A)) ++ ZLine.djnz(ctx, label)
+    }
+  }
+
+  def compileInPlaceShiftRight(ctx: CompilationContext, l: LhsExpression, r: Expression, size: Int): List[ZLine] = {
+    val loads = Z80ExpressionCompiler.compileByteReads(ctx, l, size, ZExpressionTarget.HL)
+    val stores = Z80ExpressionCompiler.compileByteStores(ctx, l, size, includeStep = false)
+    ctx.env.eval(r) match {
+      case Some(NumericConstant(0, _)) => loads.flatten
+      case Some(NumericConstant(n, _)) =>
+        List.fill(n.toInt)(loads.zip(stores).zipWithIndex.reverse.flatMap {
+          case ((ld, st), i) =>
+            ld ++ compileShiftARight(ctx, i == size - 1, i != 0, st)
+        }).flatten
+      case _ =>
+        val right = Z80ExpressionCompiler.compile8BitTo(ctx, r, ZRegister.B)
+        val label = ctx.nextLabel("ds")
+        right ++ List(ZLine.label(label)) ++
+          loads.zip(stores).zipWithIndex.reverse.flatMap {
+            case ((ld, st), i) =>
+              Z80ExpressionCompiler.stashBCIfChanged(ctx, ld) ++ compileShiftARight(ctx, i == size - 1, i != 0, st)
+          } ++ ZLine.djnz(ctx, label)
     }
   }
 

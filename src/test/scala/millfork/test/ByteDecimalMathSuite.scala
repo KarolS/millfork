@@ -211,7 +211,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal right shift test") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | void main () {
@@ -220,12 +220,13 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         |   output = n >>' 2
         | }
         | byte thirty_six() { return $36 }
-      """.stripMargin)
-    m.readByte(0xc000) should equal(9)
+      """.stripMargin) { m=>
+      m.readByte(0xc000) should equal(9)
+    }
   }
 
   test("Decimal right shift test 2") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | void main () {
@@ -233,12 +234,13 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         |   output >>'= 2
         | }
         | byte thirty_six() { return $36 }
-      """.stripMargin)
-    m.readByte(0xc000) should equal(9)
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(9)
+    }
   }
 
   test("Decimal right shift test 3") {
-    val m = EmuUnoptimizedRun(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | word output @$c000
         | void main () {
@@ -246,8 +248,9 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         |   output >>'= 2
         | }
         | word thirty_six() { return $364 }
-      """.stripMargin)
-    m.readWord(0xc000) should equal(0x91)
+      """.stripMargin) { m =>
+      m.readWord(0xc000) should equal(0x91)
+    }
   }
 
   private def toDecimal(v: Int): Int = {
@@ -272,15 +275,16 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
 
   test("Decimal word right-shift comprehensive suite") {
     for (i <- List(0, 1, 10, 100, 1000, 2000, 500, 200, 280, 300, 5234, 7723, 7344, 9, 16, 605, 1111, 2222, 3333, 9999, 8888, 8100)) {
-      val m = EmuUnoptimizedRun(
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
         """
           | word output @$c000
           | void main () {
           |   output = $#
           |   output >>'= 1
           | }
-        """.stripMargin.replace("#", i.toString))
-      toDecimal(m.readWord(0xc000)) should equal(i/2)
+        """.stripMargin.replace("#", i.toString)) {m =>
+        toDecimal(m.readWord(0xc000)) should equal(i/2)
+      }
     }
   }
 

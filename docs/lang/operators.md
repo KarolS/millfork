@@ -12,9 +12,6 @@ Certain expressions require the commandline flag `-fzp-register` (`.ini` equival
 They will be marked with (zpreg) next to them. 
 The flag is enabled by default, but you can disable it if you need to.
 
-**Work in progress**: 
-Certain expressions may not work on non-6502 targets yet. This should improve in the future.
-
 ## Precedence
 
 Millfork has different operator precedence compared to most other languages. From highest to lowest it goes:
@@ -105,7 +102,10 @@ There are no division, remainder or modulo operators.
 
 ## Decimal arithmetic operators
 
-These operators work using the decimal arithmetic and will not work on Ricoh CPU's.
+These operators work using the decimal arithmetic (packed BCD).
+
+**Work in progress**: 
+These operations don't work on Ricoh-based targets (i.e. Famicom) yet.
 The compiler issues a warning if these operators appear in the code.
 
 * `+'`, `-'`: decimal addition/subtraction  

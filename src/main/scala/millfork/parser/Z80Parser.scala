@@ -167,6 +167,7 @@ case class Z80Parser(filename: String, input: String, currentDirectory: String, 
         case "IM" => asmExpression.map((IM, NoRegisters, None, _))
         case "EI" => imm(EI)
         case "DI" => imm(DI)
+        case "HLT" => imm(HALT)
         case "HALT" => imm(HALT)
         case "STOP" => imm(STOP)
 

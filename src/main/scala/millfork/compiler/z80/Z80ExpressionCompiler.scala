@@ -617,7 +617,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case ">>'" =>
                 assertAllArithmeticBytes("Long shift ops not supported", ctx, params)
                 val (l, r, 1) = assertArithmeticBinary(ctx, params)
-                ???
+                targetifyA(ctx, target, Z80DecimalBuiltIns.compileByteShiftRight(ctx, Some(l), r), isSigned = false)
               case "<" =>
                 val (size, signed) = assertArithmeticComparison(ctx, params)
                 compileTransitiveRelation(ctx, "<", params, target, branches) { (l, r) =>
@@ -729,7 +729,21 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 }
               case ">>'=" =>
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
-                ???
+                size match {
+                  case 1 =>
+                    calculateAddressToAppropriatePointer(ctx, l) match {
+                      case Some((lvo, code)) =>
+                        code ++
+                          (ZLine.ld8(ZRegister.A, lvo) ::
+                            (Z80DecimalBuiltIns.compileByteShiftRight(ctx, None, r) :+ ZLine.ld8(lvo, ZRegister.A)))
+                      case None =>
+                        ctx.log.error("Invalid left-hand side", l.position)
+                        Nil
+                    }
+                  case 2 =>
+                    Z80DecimalBuiltIns.compileWordShiftRight(ctx, l, r) ++ storeHL(ctx, l, signedSource = false)
+                  case _ => Z80DecimalBuiltIns.compileInPlaceShiftRight(ctx, l, r, size)
+                }
               case "*=" =>
                 assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
                 val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
@@ -1441,10 +1455,19 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               ctx.log.error(s"Variable `$vname` is too small", lhs.position)
             }
             import ZRegister._
-            if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+            if (ctx.options.flag(CompilationFlag.UseIxForStack)) {
               List.tabulate(size) { i =>
                 if (i < size) {
                   List(ZLine.ldViaIx(v.baseOffset + i, ZRegister.A))
+                } else {
+                  Nil
+                }
+              }
+            } else
+            if (ctx.options.flag(CompilationFlag.UseIyForStack)) {
+              List.tabulate(size) { i =>
+                if (i < size) {
+                  List(ZLine.ldViaIy(v.baseOffset + i, ZRegister.A))
                 } else {
                   Nil
                 }
