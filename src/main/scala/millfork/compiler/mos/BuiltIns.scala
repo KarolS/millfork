@@ -983,11 +983,15 @@ object BuiltIns {
                 }
               }
             }
-          case _ => Nil -> (addend match {
+          case _ => addend match {
             case vv: VariableExpression =>
               val source = env.get[Variable](vv.name)
-              List.tabulate(addendSize)(i => AssemblyLine.variable(ctx, LDA, source, i))
-          })
+              Nil -> List.tabulate(addendSize)(i => AssemblyLine.variable(ctx, LDA, source, i))
+            case f: FunctionCallExpression =>
+              val jsr = MosExpressionCompiler.compile(ctx, addend, None, BranchSpec.None)
+              val result = ctx.env.get[VariableInMemory](f.functionName + ".return")
+              jsr -> List.tabulate(addendSize)(i => AssemblyLine.variable(ctx, LDA, result, i))
+          }
         }
     }
     val addendByteRead = addendByteRead0 ++ List.fill((targetSize - addendByteRead0.size) max 0)(List(AssemblyLine.immediate(LDA, 0)))
@@ -1129,11 +1133,15 @@ object BuiltIns {
           case 2 =>
             val base = MosExpressionCompiler.compile(ctx, param, Some(MosExpressionCompiler.getExpressionType(ctx, param) -> RegisterVariable(MosRegister.AX, w)), NoBranching)
             base -> List(Nil, List(AssemblyLine.implied(TXA)))
-          case _ => Nil -> (param match {
+          case _ => param match {
             case vv: VariableExpression =>
               val source = env.get[Variable](vv.name)
-              List.tabulate(paramSize)(i => AssemblyLine.variable(ctx, LDA, source, i))
-          })
+              Nil -> List.tabulate(paramSize)(i => AssemblyLine.variable(ctx, LDA, source, i))
+            case f: FunctionCallExpression =>
+              val jsr = MosExpressionCompiler.compile(ctx, param, None, BranchSpec.None)
+              val result = ctx.env.get[VariableInMemory](f.functionName + ".return")
+              jsr -> List.tabulate(paramSize)(i => AssemblyLine.variable(ctx, LDA, result, i))
+          }
         }
     }
     if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
