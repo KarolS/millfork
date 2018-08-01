@@ -36,10 +36,12 @@ abstract class MacroExpander[T <: AbstractCode] {
       case DoWhileStatement(b, i, c, n) => DoWhileStatement(b.map(gx), i.map(gx), f(c), n)
       case ForStatement(v, start, end, dir, body) => ForStatement(h(v), f(start), f(end), dir, body.map(gx))
       case IfStatement(c, t, e) => IfStatement(f(c), t.map(gx), e.map(gx))
+      case s: Z80AssemblyStatement => s.copy(expression = f(s.expression), offsetExpression = s.offsetExpression.map(f))
       case s: MosAssemblyStatement => s.copy(expression = f(s.expression))
       case Assignment(d, s) => Assignment(fx(d), f(s))
       case BreakStatement(s) => if (s == paramName) BreakStatement(target.toString) else stmt
       case ContinueStatement(s) => if (s == paramName) ContinueStatement(target.toString) else stmt
+      case s: EmptyStatement => s.copy(toTypecheck = s.toTypecheck.map(gx))
       case _ =>
         println(stmt)
         ???
