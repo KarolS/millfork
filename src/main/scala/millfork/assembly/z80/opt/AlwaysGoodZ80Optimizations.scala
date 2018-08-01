@@ -3,8 +3,9 @@ package millfork.assembly.z80.opt
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.z80._
 import millfork.assembly.z80.ZOpcode._
-import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
+import millfork.env.Constant
 import millfork.node.ZRegister
+import ZRegister._
 
 /**
   * Optimizations valid for Z80 and EZ80
@@ -80,6 +81,17 @@ object AlwaysGoodZ80Optimizations {
 
     (Elidable & HasOpcode(NEG)) ~
       (Elidable & HasOpcode(ADD) & Has8BitImmediate(0xff) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => List(ZLine.implied(CPL))),
+
+    (Elidable & HasOpcode(OR) & HasRegisters(OneRegister(A)) & HasRegister(BC, 0)) ~
+      (Elidable & HasOpcode(SBC_16) & HasRegisters(TwoRegisters(HL, BC)) & DoesntMatterWhatItDoesWithFlagsExceptZero) ~~> { code =>
+      List(ZLine.ld8(A, H), ZLine.register(OR, L))
+    },
+
+    (Elidable & HasOpcode(OR) & HasRegisters(OneRegister(A)) & HasRegister(DE, 0)) ~
+      (Elidable & HasOpcode(SBC_16) & HasRegisters(TwoRegisters(HL, DE)) & DoesntMatterWhatItDoesWithFlagsExceptZero) ~~> { code =>
+      List(ZLine.ld8(A, H), ZLine.register(OR, L))
+    },
+
 
   )
 

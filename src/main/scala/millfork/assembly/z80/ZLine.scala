@@ -14,6 +14,7 @@ object ZFlag extends Enumeration {
   val Z, P, C, S, H, N = Value
 
   val AllButSZ: Seq[Value] = Seq(P, C, H, N)
+  val AllButZ: Seq[Value] = Seq(P, C, H, N, S)
 }
 
 sealed trait ZRegisters

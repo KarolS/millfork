@@ -621,8 +621,18 @@ case object DoesntMatterWhatItDoesWithFlagsOtherThanSZ extends AssemblyLinePatte
   override def toString: String = "[¯\\_(ツ)_/¯:NPVH]"
 }
 
-case object DoesntMatterWhatItDoesWithFlagsExceptCarry extends AssemblyLinePattern {
+case object DoesntMatterWhatItDoesWithFlagsExceptZero extends AssemblyLinePattern {
 
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertBackward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    ZFlag.AllButZ.forall(r => flowInfo.importanceAfter.getFlag(r) != Important)
+
+  override def toString: String = "[¯\\_(ツ)_/¯:NPVHS]"
+}
+
+case object DoesntMatterWhatItDoesWithFlagsExceptCarry extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertBackward(needsFlowInfo)
 

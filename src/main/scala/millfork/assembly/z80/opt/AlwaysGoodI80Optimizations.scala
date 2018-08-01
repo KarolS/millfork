@@ -5,6 +5,7 @@ import millfork.assembly.z80._
 import millfork.assembly.z80.ZOpcode._
 import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
 import millfork.node.ZRegister
+import ZRegister._
 
 /**
   * Optimizations valid for Intel8080, Z80, EZ80 and Sharp
@@ -742,7 +743,60 @@ object AlwaysGoodI80Optimizations {
         ZLine.implied(RLCA),
         ZLine.imm8(AND, 7))
     },
+    (Elidable & HasOpcode(RR) & HasRegisterParam(ZRegister.A) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> {_ =>
+      List(ZLine.implied(RRA))
+    },
+    (Elidable & HasOpcode(RRC) & HasRegisterParam(ZRegister.A) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> {_ =>
+      List(ZLine.implied(RRCA))
+    },
+    (Elidable & HasOpcode(RL) & HasRegisterParam(ZRegister.A) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> {_ =>
+      List(ZLine.implied(RLA))
+    },
+    (Elidable & HasOpcode(RLC) & HasRegisterParam(ZRegister.A) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> {_ =>
+      List(ZLine.implied(RLCA))
+    },
   )
+
+  val PointlessExdehl = new RuleBasedAssemblyOptimization("Pointless EX DE,HL",
+      needsFlowInfo = FlowInfoRequirement.NoRequirement,
+
+      (Elidable & HasOpcode(EX_DE_HL)) ~
+        (Elidable & (
+          HasOpcode(LD_16) & (HasRegisters(TwoRegisters(DE, IMM_16)) | HasRegisters(TwoRegisters(HL, IMM_16)) | HasRegisters(TwoRegisters(BC, IMM_16))) |
+          Is8BitLoad(A, H) |
+          Is8BitLoad(A, L) |
+          Is8BitLoad(A, D) |
+          Is8BitLoad(A, E) |
+          Is8BitLoad(H, A) |
+          Is8BitLoad(L, A) |
+          Is8BitLoad(D, A) |
+          Is8BitLoad(E, A) |
+          HasOpcodeIn(Set(POP, PUSH, INC_16, DEC_16)) |
+          HasOpcodeIn(Set(INC, DEC, ADD, ADC, SUB, SBC, RLA, RLA, RRCA, RRCA, RL, RR, RRC, RLC, AND, XOR, OR, CP))
+          )).* ~
+      (Elidable & HasOpcode(EX_DE_HL)) ~~> { code =>
+        code.tail.init.map { line =>
+          line.registers match {
+            case OneRegister(HL) => line.copy(registers = OneRegister(DE))
+            case OneRegister(DE) => line.copy(registers = OneRegister(HL))
+            case TwoRegisters(HL, source) => line.copy(registers = TwoRegisters(DE, source))
+            case TwoRegisters(DE, source) => line.copy(registers = TwoRegisters(HL, source))
+            case TwoRegisters(H, r) => line.copy(registers = TwoRegisters(D, r))
+            case TwoRegisters(L, r) => line.copy(registers = TwoRegisters(E, r))
+            case TwoRegisters(D, r) => line.copy(registers = TwoRegisters(H, r))
+            case TwoRegisters(E, r) => line.copy(registers = TwoRegisters(L, r))
+            case TwoRegisters(r, H) => line.copy(registers = TwoRegisters(r, D))
+            case TwoRegisters(r, L) => line.copy(registers = TwoRegisters(r, E))
+            case TwoRegisters(r, D) => line.copy(registers = TwoRegisters(r, H))
+            case TwoRegisters(r, E) => line.copy(registers = TwoRegisters(r, L))
+            case _ => line
+          }
+        }
+      },
+
+
+    )
+
 
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
     BranchInPlaceRemoval,
