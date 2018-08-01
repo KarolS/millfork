@@ -24,12 +24,12 @@ asm byte hi_nibble_to_hex(byte a) {
 #if CPUFEATURE_GAMEBOY
     SWAP A
 #else
-    RR A
-    RR A
-    RR A
-    RR A
+    RRA
+    RRA
+    RRA
+    RRA
 #endif
-    JP lo_nibble_to_hex
+    ? JP lo_nibble_to_hex
 }
 
 asm byte lo_nibble_to_hex(byte a) {
