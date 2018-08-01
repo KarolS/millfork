@@ -147,7 +147,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def asmParamDefinition: P[ParameterDeclaration]
 
-  def arrayListElement: P[ArrayContents] = arrayStringContents | arrayLoopContents | arrayFileContents | mfExpression(nonStatementLevel).map(e => LiteralContents(List(e)))
+  def arrayListElement: P[ArrayContents] = arrayStringContents | arrayProcessedContents | arrayLoopContents | arrayFileContents | mfExpression(nonStatementLevel).map(e => LiteralContents(List(e)))
 
   def arrayProcessedContents: P[ArrayContents] = for {
     _ <- "@" ~/ HWS
