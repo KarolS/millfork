@@ -85,6 +85,40 @@ class LongTest extends FunSuite with Matchers {
       m.readLong(0xc000) should equal(0x58008)
     }
   }
+  test("Long addition 3") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | long output @$c000
+        | void main () {
+        |   output = 0
+        |   output += f()
+        |   output += $8000
+        |   output += $8
+        | }
+        | long f() {
+        |   return $50000
+        | }
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(0x58008)
+    }
+  }
+  test("Extralong addition") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | int128 output @$c000
+        | void main () {
+        |   output = 0
+        |   output += f()
+        |   output += $8000
+        |   output += $8
+        | }
+        | int128 f() {
+        |   return $50000
+        | }
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(0x58008)
+    }
+  }
   test("Long subtraction") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """

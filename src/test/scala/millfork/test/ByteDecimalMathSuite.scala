@@ -34,7 +34,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal byte subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | byte a
@@ -80,7 +80,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place decimal byte subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | byte output @$c000
         | byte a
@@ -92,7 +92,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place decimal word subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | word output @$c000
         | word a
@@ -103,6 +103,21 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         |  output -'= a
         | }
       """.stripMargin)(_.readWord(0xc000) should equal(0x781))
+  }
+
+  test("In-place decimal long subtraction") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | long output @$c000
+        | word a
+        | void main () {
+        |  output = $22334455
+        |  output -'= f()
+        | }
+        | noinline long f() {
+        |  return $20304050
+        | }
+      """.stripMargin)(_.readLong(0xc000) should equal(0x2030405))
   }
 
   test("Flag switching test") {

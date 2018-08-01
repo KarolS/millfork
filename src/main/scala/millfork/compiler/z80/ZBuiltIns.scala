@@ -129,13 +129,24 @@ object ZBuiltIns {
                 result += ZLine.register(INC, ZRegister.A)
               }
             } else {
-              // TODO: optimize
-              result += ZLine.ld8(ZRegister.D, ZRegister.A)
-              result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, expr))
-              result += ZLine.ld8(ZRegister.E, ZRegister.A)
-              result += ZLine.ld8(ZRegister.A, ZRegister.D)
-              result += ZLine.register(SUB, ZRegister.E)
-              if (decimal) {
+              if (!decimal || ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+                // TODO: optimize
+                result += ZLine.ld8(ZRegister.D, ZRegister.A)
+                result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, expr))
+                result += ZLine.ld8(ZRegister.E, ZRegister.A)
+                result += ZLine.ld8(ZRegister.A, ZRegister.D)
+                result += ZLine.register(SUB, ZRegister.E)
+                if (decimal) {
+                  result += ZLine.implied(DAA)
+                }
+              } else {
+                // -' on Intel 8080
+                result += ZLine.ld8(ZRegister.D, ZRegister.A)
+                result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, expr))
+                result += ZLine.ld8(ZRegister.E, ZRegister.A)
+                result += ZLine.ldImm8(ZRegister.A, 0x9a)
+                result += ZLine.register(SUB, ZRegister.E)
+                result += ZLine.register(ADD, ZRegister.D)
                 result += ZLine.implied(DAA)
               }
             }
@@ -151,8 +162,17 @@ object ZBuiltIns {
     if (hasConst) {
       const match {
         case CompoundConstant(MathOperator.DecimalMinus | MathOperator.Minus, NumericConstant(0, _), c) =>
-          result += ZLine.imm8(SUB, c.loByte)
-          if (decimal) {
+          if (!decimal || ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+            result += ZLine.imm8(SUB, c.loByte)
+            if (decimal) {
+              result += ZLine.implied(DAA)
+            }
+          } else {
+            import ZRegister._
+            result += ZLine.ld8(E, A)
+            result += ZLine.ldImm8(A, 0x9a)
+            result += ZLine.imm8(SUB, c.loByte)
+            result += ZLine.register(ADD, E)
             result += ZLine.implied(DAA)
           }
         case NumericConstant(n, _) if n < 0 && !decimal =>
@@ -183,11 +203,11 @@ object ZBuiltIns {
                 result += ZLine.ld8(ZRegister.D, ZRegister.H)
                 result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
                 result += ZLine.ld8(ZRegister.A, ZRegister.L)
-                result += ZLine.registers(ADD, ZRegister.A, ZRegister.E)
+                result += ZLine.register(ADD, ZRegister.E)
                 result += ZLine.implied(DAA)
                 result += ZLine.ld8(ZRegister.L, ZRegister.A)
                 result += ZLine.ld8(ZRegister.A, ZRegister.H)
-                result += ZLine.registers(ADC, ZRegister.A, ZRegister.D)
+                result += ZLine.register(ADC, ZRegister.D)
                 result += ZLine.implied(DAA)
                 result += ZLine.ld8(ZRegister.H, ZRegister.A)
               }
@@ -198,7 +218,36 @@ object ZBuiltIns {
         case (true, expr) =>
           ctx.env.eval(expr) match {
             case None =>
-              ctx.log.error("Decimal subtraction not supported on Intel 8080-like CPUs.", expr.position)
+              if (result.isEmpty) {
+                ???
+              } else if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+                result += ZLine.ld8(ZRegister.E, ZRegister.L)
+                result += ZLine.ld8(ZRegister.D, ZRegister.H)
+                result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
+                result += ZLine.ld8(ZRegister.A, ZRegister.E)
+                result += ZLine.registers(SUB, ZRegister.A, ZRegister.L)
+                result += ZLine.implied(DAA)
+                result += ZLine.ld8(ZRegister.L, ZRegister.A)
+                result += ZLine.ld8(ZRegister.A, ZRegister.D)
+                result += ZLine.registers(SBC, ZRegister.A, ZRegister.H)
+                result += ZLine.implied(DAA)
+                result += ZLine.ld8(ZRegister.H, ZRegister.A)
+              } else {
+                result += ZLine.ld8(ZRegister.E, ZRegister.L)
+                result += ZLine.ld8(ZRegister.D, ZRegister.H)
+                result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
+                result += ZLine.ldImm8(ZRegister.A, 0x9A)
+                result += ZLine.register(SUB, ZRegister.L)
+                result += ZLine.register(ADD, ZRegister.E)
+                result += ZLine.implied(DAA)
+                result += ZLine.ld8(ZRegister.L, ZRegister.A)
+                result += ZLine.ldImm8(ZRegister.A, 0x99)
+                result += ZLine.imm8(ADC, 0)
+                result += ZLine.register(SUB, ZRegister.H)
+                result += ZLine.register(ADD, ZRegister.D)
+                result += ZLine.implied(DAA)
+                result += ZLine.ld8(ZRegister.H, ZRegister.A)
+              }
             case Some(c) =>
               hasConst = true
               const = CompoundConstant(MathOperator.DecimalMinus, const, c).quickSimplify
@@ -309,12 +358,23 @@ object ZBuiltIns {
               ZLine.ld8(lv, ZRegister.A))
         }
       case SUB if decimal =>
-        setup ++ List(
-          ZLine.ld8(ZRegister.E, ZRegister.A),
-          ZLine.ld8(ZRegister.A, lv),
-          ZLine.register(SUB, ZRegister.E),
-          ZLine.implied(DAA),
-          ZLine.ld8(lv, ZRegister.A))
+        if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+          setup ++ List(
+            ZLine.ld8(ZRegister.E, ZRegister.A),
+            ZLine.ld8(ZRegister.A, lv),
+            ZLine.register(SUB, ZRegister.E),
+            ZLine.implied(DAA),
+            ZLine.ld8(lv, ZRegister.A))
+        } else {
+          setup ++ List(
+            ZLine.ld8(ZRegister.E, ZRegister.A),
+            ZLine.ld8(ZRegister.D, lv),
+            ZLine.ldImm8(ZRegister.A, 0x9a),
+            ZLine.register(SUB, ZRegister.E),
+            ZLine.register(ADD, ZRegister.D),
+            ZLine.implied(DAA),
+            ZLine.ld8(lv, ZRegister.A))
+        }
       case SUB if !decimal=>
         constantRight match {
           case Some(NumericConstant(1, _)) =>
@@ -447,14 +507,50 @@ object ZBuiltIns {
       }
     }
     val store = Z80ExpressionCompiler.compileByteStores(ctx, lhs, size, includeStep = false)
-    val loadLeft = Z80ExpressionCompiler.compileByteReads(ctx, lhs, size, ZExpressionTarget.HL)
     val loadRight = Z80ExpressionCompiler.compileByteReads(ctx, rhs, size, ZExpressionTarget.BC)
-    List.tabulate(size) {i =>
+    val rightIsBig = loadRight.exists(_.exists(l => l.changesRegister(ZRegister.HL) || l.changesRegister(ZRegister.DE)))
+    val (leftStasher, calcStasher, loadLeft) = if (rightIsBig) {
+      (
+        ((e: List[ZLine]) => Z80ExpressionCompiler.stashHLIfChanged(ctx, e)),
+        ((e: List[ZLine]) => Z80ExpressionCompiler.stashDEIfChanged(ctx, e)),
+        Z80ExpressionCompiler.compileByteReads(ctx, lhs, size, ZExpressionTarget.BC)
+      )
+    } else {
+      (
+        ((e: List[ZLine]) => Z80ExpressionCompiler.stashBCIfChanged(ctx, e)),
+        ((e: List[ZLine]) => e),
+        Z80ExpressionCompiler.compileByteReads(ctx, lhs, size, ZExpressionTarget.HL)
+      )
+    }
+    List.tabulate(size) { i =>
+      import ZRegister._
       // TODO: stash things correctly?
-      val firstPhase = loadRight(i) ++ List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
-        (Z80ExpressionCompiler.stashBCIfChanged(ctx, loadLeft(i)) :+ ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.E))
-      val secondPhase = if (decimal) firstPhase :+ ZLine.implied(ZOpcode.DAA) else firstPhase
-      secondPhase ++ store(i)
+      if (opcodeFirst == ZOpcode.SUB && decimal && !ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+        // TODO: check if carry is ok
+        if (i == 0) {
+          loadRight(i) ++ calcStasher(List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
+            (leftStasher(loadLeft(i)) ++ List(
+              ZLine.ld8(D, A),
+              ZLine.ldImm8(A, 0x9A),
+              ZLine.register(SUB, E),
+              ZLine.register(ADD, D),
+              ZLine.implied(DAA)) ++ store(i)))
+        } else {
+          loadRight(i) ++ calcStasher(List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
+            (leftStasher(loadLeft(i)) ++ List(
+              ZLine.ld8(D, A),
+              ZLine.ldImm8(A, 0x99),
+              ZLine.imm8(ADC, 0),
+              ZLine.register(SUB, E),
+              ZLine.register(ADD, D),
+              ZLine.implied(DAA)) ++ store(i)))
+        }
+      } else {
+        val firstPhase = loadRight(i) ++ calcStasher(List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
+          (leftStasher(loadLeft(i)) :+ ZLine.register(if (i == 0) opcodeFirst else opcodeLater, ZRegister.E)))
+        val secondPhase = if (decimal) firstPhase :+ ZLine.implied(ZOpcode.DAA) else firstPhase
+        secondPhase ++ store(i)
+      }
     }.flatten
   }
 }

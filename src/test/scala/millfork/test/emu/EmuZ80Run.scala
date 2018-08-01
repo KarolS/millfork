@@ -113,7 +113,13 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         memoryBank.output(0x1f3) = 0x76.toByte
 
         (0x200 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
-
+        val resetN = source.contains("-'") && !options.flag(CompilationFlag.EmitExtended80Opcodes)
+        val resetNMethod = {
+          val clazz = classOf[Z80Core]
+          val method = clazz.getDeclaredMethod("resetN")
+          method.setAccessible(true)
+          method
+        }
         val timings = platform.cpu match {
           case millfork.Cpu.Z80 | millfork.Cpu.Intel8080 =>
             val cpu = new Z80Core(Z80Memory(memoryBank), DummyIO)
@@ -122,6 +128,9 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
             cpu.resetTStates()
             while (!cpu.getHalt) {
               cpu.executeOneInstruction()
+              if (resetN) {
+                resetNMethod.invoke(cpu)
+              }
 //              dump(cpu)
               cpu.getTStates should be < TooManyCycles
             }
