@@ -655,7 +655,7 @@ case class HasClear(flag: ZFlag.Value) extends AssemblyLinePattern {
     FlowInfoRequirement.assertForward(needsFlowInfo)
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
-    flowInfo.statusBefore.getFlag(flag).exists(_ == true)
+    flowInfo.statusBefore.getFlag(flag).exists(_ == false)
 }
 
 case object Anything extends TrivialAssemblyLinePattern {

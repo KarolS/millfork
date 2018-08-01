@@ -377,7 +377,7 @@ object AlwaysGoodI80Optimizations {
     (Elidable & HasOpcodeIn(Set(ADD, OR, XOR, SUB)) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
     (Elidable & HasOpcode(AND) & Has8BitImmediate(0xff) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
     (Elidable & HasOpcode(AND) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => List(ZLine.ldImm8(ZRegister.A, 0))),
-    (Elidable & HasOpcode(AND) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => List(ZLine.ldImm8(ZRegister.A, 0))),
+    (Elidable & HasOpcode(XOR) & Has8BitImmediate(0xff) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => List(ZLine.implied(CPL))),
 
 
     (Elidable & HasOpcode(OR) & Match8BitImmediate(1) & MatchRegister(ZRegister.A, 0)) ~
@@ -467,7 +467,31 @@ object AlwaysGoodI80Optimizations {
       (Elidable & Is8BitLoadTo(ZRegister.A)) ~
       (Elidable & HasOpcode(SBC)) ~~> { code =>
       List(code(1), code.last.copy(opcode = SUB))
-    }
+    },
+
+    (Elidable & HasOpcode(ADD) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { _ =>
+      List(ZLine.register(OR, A))
+    },
+
+    (Elidable & HasOpcode(SUB) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { _ =>
+      List(ZLine.register(OR, A))
+    },
+
+    (Elidable & HasOpcode(ADC) & Has8BitImmediate(0) & HasClear(ZFlag.C) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { _ =>
+      List(ZLine.register(OR, A))
+    },
+
+    (Elidable & HasOpcode(ADC) & HasClear(ZFlag.C)) ~~> { code =>
+      code.map(_.copy(opcode = ADD))
+    },
+
+    (Elidable & HasOpcode(SBC) & HasClear(ZFlag.C)) ~~> { code =>
+      code.map(_.copy(opcode = SUB))
+    },
+
+    (Elidable & HasOpcodeIn(Set(OR, XOR)) & Has8BitImmediate(0) & DoesntMatterWhatItDoesWithFlags) ~~> ( _ => Nil),
+
+    (Elidable & HasOpcode(OR) & HasRegisterParam(A) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
 
   )
 
