@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.assembly.AssemblyOptimization
-import millfork.assembly.z80._
+import millfork.assembly.z80.{opt, _}
 import millfork.assembly.z80.ZOpcode._
 import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
 import millfork.node.ZRegister
@@ -223,37 +223,37 @@ object AlwaysGoodI80Optimizations {
     // 5
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.D)) ~
       (Linear & Not(HasOpcodeIn(Set(POP,PUSH))) & Not(Changes(ZRegister.D)) & Not(ReadsStackPointer)).* ~
-      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> {code =>
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.D)) ~~> {code =>
       ZLine.ld8(ZRegister.D, ZRegister.E) :: (code.tail.init :+ ZLine.ld8(ZRegister.E, ZRegister.D))
     },
     // 6
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.E)) ~
       (Linear & Not(HasOpcodeIn(Set(POP,PUSH))) & Not(Changes(ZRegister.E)) & Not(ReadsStackPointer)).* ~
-      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> { code =>
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.E)) ~~> { code =>
       ZLine.ld8(ZRegister.E, ZRegister.D) :: (code.tail.init :+ ZLine.ld8(ZRegister.D, ZRegister.E))
     },
     // 7
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.B)) ~
       (Linear & Not(HasOpcodeIn(Set(POP,PUSH))) & Not(Changes(ZRegister.B)) & Not(ReadsStackPointer)).* ~
-      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> (code =>
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.B)) ~~> (code =>
       ZLine.ld8(ZRegister.B, ZRegister.C) :: (code.tail.init :+ ZLine.ld8(ZRegister.C, ZRegister.B))
       ),
     // 8
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.C)) ~
       (Linear & Not(HasOpcodeIn(Set(POP,PUSH))) & Not(Changes(ZRegister.C)) & Not(ReadsStackPointer)).* ~
-      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> { code =>
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.C)) ~~> { code =>
       ZLine.ld8(ZRegister.C, ZRegister.B) :: (code.tail.init :+ ZLine.ld8(ZRegister.B, ZRegister.C))
     },
     // 9
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.H)) ~
       (Linear & Not(HasOpcodeIn(Set(POP,PUSH))) & Not(Changes(ZRegister.H)) & Not(ReadsStackPointer)).* ~
-      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> { code =>
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.H)) ~~> { code =>
       ZLine.ld8(ZRegister.H, ZRegister.L) :: (code.tail.init :+ ZLine.ld8(ZRegister.L, ZRegister.H))
     },
     // 10
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.L)) ~
       (Linear & Not(HasOpcodeIn(Set(POP,PUSH))) & Not(Changes(ZRegister.L)) & Not(ReadsStackPointer)).* ~
-      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> { code =>
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.L)) ~~> { code =>
       ZLine.ld8(ZRegister.L, ZRegister.H) :: (code.tail.init :+ ZLine.ld8(ZRegister.H, ZRegister.L))
     },
     // 11-15
