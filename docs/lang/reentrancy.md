@@ -59,7 +59,23 @@ and assigning all parameters to variables as soon as possible. This is slow thou
 A function is interrupt-safe if it can be safely called, either directly or indirectly,
 simultaneously by the main code and by an interrupt routine.
 
-The only way to make a function interrupt-safe is to have no parameters and make all local variables stack-allocated.
+The only way to make a function interrupt-safe is:
+
+* have either no parameters, or just one parameter passed via registers that is immediately assigned to a local stack-allocated variable
+
+* if there is a parameter: enable optimizations
+
+* make all local variables stack-allocated,
+
+* have a return type that can be returned via registers.
+
+The size limit on the parameter and the return type depends on architecture:
+
+* for 6502-like architectures: 2 bytes
+
+* for 8080-like architectures: 4 bytes
+
+All built-in functions and operators are designed to be interrupt-safe.
 
 # Reentrancy safety violations
 
