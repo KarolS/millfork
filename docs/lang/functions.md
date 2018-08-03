@@ -8,12 +8,13 @@ Syntax:
 
 `[segment (<segment>)] asm <return_type> <name> ( <params> ) @ <address> extern`
 
-* `<segment>`: segment name; if absent, then defaults to `default_code_segment` as defined for the platform
+* `<segment>`: segment name; if absent, then defaults to `default_code_segment` as defined for the platform (usually `default`)
 
 * `<modifiers>`: zero or more of the following:
 
     * `asm` – the function is written in assembly, not in Millfork (obligatory for `extern` functions), 
-    see [Using assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions)
+    see [Using 6502 assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions)
+    or [Using 8080/LR35902/Z80 assembly within Millfork programs#Assembly functions](./assemblyz80.md#assembly-functions)
     
     * `macro` – the function is a macro, 
     see [Macros_and inlining#Macros](../abi/inlining.md#macros)

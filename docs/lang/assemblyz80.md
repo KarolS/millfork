@@ -10,7 +10,9 @@ There are two ways to include raw assembly code in your Millfork programs:
 
 ## Assembly syntax
 
-Millfork uses Zilog syntax for Intel 8080, Z80 and LR35902 assembly.  
+By default, Millfork uses Zilog syntax for Z80 and LR35902 assembly and Intel syntax for Intel 8080 assembly.
+This can be overridden per file by a pragma directive or by several other means.
+Using both kinds of syntax in one file is not supported.
 
 Indexing via the IX/IY register uses the following syntax: `IX(1)` 
 
@@ -20,15 +22,23 @@ LR35902 instructions that load/store the accumulator indirectly via HL and then 
 LR35902 instructions for faster access to the $FFxx addresses use the `LDH` mnemonic: `LDH A,(4)`, `LDH (C),A` etc.
 
 Only instructions available on the current CPU architecture are available.
-Undocumented instructions are not supported, except for `SLL`.
+Intel syntax does not support instructions that are unavailable on the 8080.
+Undocumented Z80 instructions are not supported, except for `SLL`.
 
 Labels have to be followed by a colon and they can optionally be on a separate line.
 Indentation is not important:
 
+    // Zilog syntax
     first:  INC a
     second: 
             INC b
     INC c
+    
+    // Intel syntax
+    first:  INR a
+    second: 
+            INR b
+    INR c
 
 
 Label names have to start with a letter and can contain digits, underscores and letters.
@@ -44,9 +54,15 @@ but you need to be careful with using absolute vs immediate addressing:
     byte ten() {
         byte result
         asm {
-            LD A, (fiveVariable)
+            // Zilog syntax
+            LD A, (fiveVariable)  // not LD A,fiveVariable
             ADD A,fiveConstant
             LD (result), A
+            
+            // Intel syntax
+            LDA fiveVariable  // not MVI A,fiveVariable
+            ADD fiveConstant
+            STA result
         }
         return result
     }
@@ -84,7 +100,7 @@ Assembly functions can be declared as `macro` or not.
 A macro assembly function is inserted into the calling function like an inline assembly block,
 and therefore usually it shouldn't end with `RET`, `RETI` or `RETN`.
 
-A non-macro assembly function should end with `RET`, `JP`, `RETI` or `RETN` as appropriate,
+A non-macro assembly function should end with `RET`, `JP`, `RETI` or `RETN` (Zilog) / `RET` or `JMP` (Intel) as appropriate,
 or it should be an external function. 
 
 For both macro and non-macro assembly functions,
@@ -107,17 +123,31 @@ Macro assembly functions can have the following parameter types:
 
 For example, if you have:
 
+    // Zilog syntax
     macro asm void increase(byte ref v, byte const inc) {
         LD A,(v)
         ADD A,inc
         LDA (v),A
     }
 
+    // Intel syntax
+    macro asm void increase(byte ref v, byte const inc) {
+        LDA v
+        ADD inc
+        STA v
+    }
+
 and call `increase(score, 10)`, the entire call will compile into:
 
+    // Zilog syntax
     LD A,(score)
     ADD A,10
     LD (score),A
+    
+    // Intel syntax
+    LDA score
+    ADD 10
+    STA score
 
 Non-macro functions can only have their parameters passed via registers:
 
@@ -160,6 +190,6 @@ it should abide to the following rules:
 
 * don't change the stack pointer
 
-* end non-inline assembly functions with `RET`, `JP`, `RETI` or `RETN` as appropriate
+* end non-inline assembly functions with `RET`, `JP`, `RETI` or `RETN` (Zilog) / `RET` or `JMP` (Intel) as appropriate
 
 The above list is not exhaustive.
