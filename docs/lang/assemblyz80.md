@@ -12,15 +12,13 @@ There are two ways to include raw assembly code in your Millfork programs:
 
 Millfork uses Zilog syntax for Intel 8080, Z80 and LR35902 assembly.  
 
-**Work in progress**:
-Intel syntax is not supported yet.
-LR35902 instructions for faster access to the $FFxx addresses are not available yet.
-
 Indexing via the IX/IY register uses the following syntax: `IX(1)` 
 
 LR35902 instructions that load/store the accumulator indirectly via HL and then increment/decrement HL are written
 `LD A,(HLI)`, `LD, A,(HLD)`, `LD (HLI),A` and `LD (HLD),A`
  
+LR35902 instructions for faster access to the $FFxx addresses use the `LDH` mnemonic: `LDH A,(4)`, `LDH (C),A` etc.
+
 Only instructions available on the current CPU architecture are available.
 Undocumented instructions are not supported, except for `SLL`.
 

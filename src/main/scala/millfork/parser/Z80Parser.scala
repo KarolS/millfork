@@ -88,10 +88,15 @@ case class Z80Parser(filename: String,
     "SP" -> ZRegister.SP, "sp" -> ZRegister.SP,
   )
 
-  private def param(allowAbsolute: Boolean, allowRI: Boolean = false): P[(ZRegister.Value, Option[Expression])] = asmExpressionWithParens.map {
+  private def param(allowAbsolute: Boolean, allowRI: Boolean = false, allowFfc: Boolean = false): P[(ZRegister.Value, Option[Expression])] = asmExpressionWithParens.map {
     case (VariableExpression("R" | "r"), false) if allowRI => (ZRegister.R, None)
     case (VariableExpression("I" | "i"), false) if allowRI => (ZRegister.I, None)
     case (VariableExpression(r), false) if toRegister.contains(r)=> (toRegister(r), None)
+    case (SumExpression(List(
+    (false, LiteralExpression(0xff00, _)),
+    (false, VariableExpression("C" | "c"))
+    ), false), true) if allowFfc => (ZRegister.MEM_BC, None) // MEM_BC is a placeholder here for ($FF00 + C)
+    case (VariableExpression("C" | "c"), true) if allowFfc => (ZRegister.MEM_BC, None) // MEM_BC is a placeholder here for ($FF00 + C)
     case (VariableExpression("HL" | "hl"), true) => (ZRegister.MEM_HL, None)
     case (VariableExpression("BC" | "bc"), true) => (ZRegister.MEM_BC, None)
     case (VariableExpression("DE" | "de"), true) => (ZRegister.MEM_DE, None)
@@ -361,6 +366,15 @@ case class Z80Parser(filename: String,
           }
         }
 
+        case "LDH" => (param(allowAbsolute = true, allowFfc = true) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = true, allowFfc = true)).map {
+          case (ZRegister.MEM_ABS_8, Some(expr), (ZRegister.A, None)) => (LDH_DA, NoRegisters, None, expr)
+          case (ZRegister.A, None, (ZRegister.MEM_ABS_8, Some(expr))) => (LDH_AD, NoRegisters, None, expr)
+          case (ZRegister.A, None, (ZRegister.MEM_BC, None)) => (LDH_AC, NoRegisters, None, zero)
+          case (ZRegister.MEM_BC, None, (ZRegister.A, None)) => (LDH_CA, NoRegisters, None, zero)
+          case _ =>
+            log.error("Invalid parameters for LDH", Some(pos))
+            (NOP, NoRegisters, None, zero)
+        }
         case "LD" => (param(allowAbsolute = true, allowRI = true) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = true, allowRI = true)).map {
           case (ZRegister.HL, None, (ZRegister.IMM_8 | ZRegister.IMM_16, Some(SumExpression((false, VariableExpression("sp" | "SP")) :: offset, false))))
             if options.flags(CompilationFlag.EmitSharpOpcodes) =>

@@ -279,6 +279,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case LD_AHLD => "    LD A,(HLD)"
       case LD_HLIA => "    LD (HLI),A"
       case LD_HLDA => "    LD (HLD),A"
+      case LDH_AC => "    LDH A,(C)"
+      case LDH_CA => "    LDH (C),A"
+      case LDH_DA => s"    LDH ($parameter),A"
+      case LDH_AD => s"    LDH A,($parameter)"
       case LD_HLSP => "    LD HL,SP+" + parameter
       case ADD_SP => "    ADD SP," + parameter
       case EX_SP => registers match {
@@ -606,6 +610,12 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case DJNZ => r == B
           case DAA | NEG | CPL | RLA | RRA | RLCA | RRCA => r == A
           case LABEL | DI | EI | NOP | HALT => false
+          case LDH_AC => r == C
+          case LDH_CA => r == C || r == A
+          case LDH_DA => r == A
+          case LDH_AD => false
+          case LD_HLIA | LD_HLDA => r == H || r == L | r == A
+          case LD_AHLI | LD_AHLD => r == H || r == L
           case _ => true // TODO
         }
     }
@@ -742,6 +752,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case DJNZ => r == B
           case LABEL | DI | EI | NOP | HALT => false
           case CALL => r != IXH && r != IXL && r != SP
+          case LDH_CA | LDH_DA => false
+          case LDH_AC | LDH_AD => r == A
+          case LD_HLIA | LD_HLDA => r == H || r == L
+          case LD_AHLI | LD_AHLD => r == H || r == L | r == A
           case _ => true // TODO
         }
     }
@@ -770,6 +784,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
            DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
       case EX_DE_HL | NEG => false
       case LABEL | DI | EI | NOP => false
+      case LDH_AC | LDH_AD | LD_AHLI | LD_AHLD => false
+      case LDH_CA | LDH_DA | LD_HLIA | LD_HLDA => true
       case _ => true // TODO
     }
   }
@@ -792,6 +808,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
            DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
       case EX_DE_HL | NEG => false
       case LABEL | DI | EI | NOP | HALT => false
+      case LDH_AC | LDH_AD | LD_AHLI | LD_AHLD => true
+      case LDH_CA | LDH_DA | LD_HLIA | LD_HLDA => false
       case _ => true // TODO
     }
   }

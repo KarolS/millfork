@@ -879,6 +879,10 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   swap c
         |   swap(hl)
         |
+        |   ldh a,(9)
+        |   ldh (9),a
+        |   ldh a,(c)
+        |   ldh (c),a
         |   ret
         | }
       """.stripMargin)

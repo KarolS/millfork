@@ -596,6 +596,24 @@ class Z80Assembler(program: Program,
         requireSharp()
         writeByte(bank, index, 0x32)
         index + 1
+      case ZLine(LDH_AD, _, param, _) =>
+        requireSharp()
+        writeByte(bank, index, 0xf0)
+        writeByte(bank, index + 1, param.loByte)
+        index + 2
+      case ZLine(LDH_DA, _, param, _) =>
+        requireSharp()
+        writeByte(bank, index, 0xe0)
+        writeByte(bank, index + 1, param.loByte)
+        index + 2
+      case ZLine(LDH_AC, _, _, _) =>
+        requireSharp()
+        writeByte(bank, index, 0xf2)
+        index + 1
+      case ZLine(LDH_CA, _, _, _) =>
+        requireSharp()
+        writeByte(bank, index, 0xe2)
+        index + 1
       case ZLine(STOP, _, _, _) =>
         requireSharp()
         writeByte(bank, index, 0x10)

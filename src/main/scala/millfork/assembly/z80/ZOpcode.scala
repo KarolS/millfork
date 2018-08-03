@@ -24,7 +24,7 @@ object ZOpcode extends Enumeration {
   RST, IM, EI, DI,
   DJNZ, JP, JR, CALL, RET, RETN, RETI, HALT,
   //sharp:
-  LD_AHLI, LD_AHLD, LD_HLIA, LD_HLDA, SWAP, LD_H, LD_HLSP, ADD_SP, STOP,
+  LD_AHLI, LD_AHLD, LD_HLIA, LD_HLDA, SWAP, LDH_DA, LDH_AD, LDH_CA, LDH_AC, LD_HLSP, ADD_SP, STOP,
   DISCARD_A, DISCARD_F, DISCARD_HL, DISCARD_BC, DISCARD_DE, DISCARD_IX, DISCARD_IY,
   LABEL, BYTE = Value
 }
@@ -57,6 +57,7 @@ object ZOpcodeClasses {
   val ChangesAFAlways = Set( // TODO: !
     DAA, ADD, ADC, SUB, SBC, XOR, OR, AND, INC, DEC,
     SCF, CCF, NEG,
+    LDH_AC, LDH_AD, LD_AHLI, LD_AHLD,
     ADD_16, ADC_16, SBC_16, INC_16, DEC_16,
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,
@@ -68,6 +69,7 @@ object ZOpcodeClasses {
   val ChangesHLAlways = Set(
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,
+    LD_AHLI, LD_AHLD, LD_HLIA, LD_HLDA,
     EXX, EX_DE_HL, CALL, JR, JP, LABEL)
   val ChangesDEAlways = Set(
     LDI, LDIR, LDD, LDDR,
