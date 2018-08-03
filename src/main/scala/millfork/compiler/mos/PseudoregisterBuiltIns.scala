@@ -61,48 +61,87 @@ object PseudoregisterBuiltIns {
       ctx.log.error("Word addition or subtraction requires the zeropage pseudoregister", r.position)
       return Nil
     }
+    if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode) && ctx.options.zpRegisterSize < 4) {
+      ctx.log.error("Unsupported decimal operation. Consider increasing the size of the zeropage register.", r.position)
+      return Nil
+    }
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg")
     // TODO: smarter on 65816
-    val compileRight = MosExpressionCompiler.compile(ctx, r, Some(MosExpressionCompiler.getExpressionType(ctx, r) -> reg), BranchSpec.None)
     val op = if (subtract) SBC else ADC
     val prepareCarry = AssemblyLine.implied(if (subtract) SEC else CLC)
-    compileRight match {
+    val rightType = MosExpressionCompiler.getExpressionType(ctx, r)
+    if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
+      val compileRight = MosExpressionCompiler.compile(ctx, r, Some(rightType -> ctx.env.get[VariableInMemory]("__reg.b2b3")), BranchSpec.None)
+      compileRight match {
+            case List(
+            AssemblyLine(LDA, Immediate, NumericConstant(0, _), _),
+            AssemblyLine(STA, ZeroPage, _, _),
+            AssemblyLine(LDX | LDA, Immediate, NumericConstant(0, _), _),
+            AssemblyLine(STA | STX, ZeroPage, _, _)) => Nil
+            case _ =>
+              compileRight ++
+              List(
+                AssemblyLine.zeropage(LDX, reg, 3),
+                AssemblyLine.zeropage(LDA, reg, 2),
+                AssemblyLine.zeropage(STA, reg, 3),
+                AssemblyLine.implied(TXA),
+                AssemblyLine.implied(PHA),
+                AssemblyLine.zeropage(LDA, reg),
+                AssemblyLine.zeropage(STA, reg, 2)) ++ (
+                if (subtract) List(AssemblyLine.absolute(JSR, ctx.env.get[ThingInMemory]("__sub_decimal")))
+                else List(AssemblyLine.implied(CLC), AssemblyLine.absolute(JSR, ctx.env.get[ThingInMemory]("__adc_decimal")))
+              ) ++ List(
+                AssemblyLine.zeropage(STA, reg),
+                AssemblyLine.implied(PLA),
+                AssemblyLine.zeropage(STA, reg, 3),
+                AssemblyLine.zeropage(LDA, reg, 1),
+                AssemblyLine.zeropage(STA, reg, 2),
+                AssemblyLine.absolute(JSR,
+                  if (subtract) ctx.env.get[ThingInMemory]("__sbc_decimal")
+                  else ctx.env.get[ThingInMemory]("__adc_decimal")),
+                AssemblyLine.zeropage(STA, reg, 1))
+          }
+    } else {
+      val compileRight = MosExpressionCompiler.compile(ctx, r, Some(rightType -> reg), BranchSpec.None)
+      compileRight match {
 
-      case List(
-      AssemblyLine(LDA, Immediate, NumericConstant(0, _), _),
-      AssemblyLine(STA, ZeroPage, _, _),
-      AssemblyLine(LDX | LDA, Immediate, NumericConstant(0, _), _),
-      AssemblyLine(STA | STX, ZeroPage, _, _)) => Nil
+        case List(
+        AssemblyLine(LDA, Immediate, NumericConstant(0, _), _),
+        AssemblyLine(STA, ZeroPage, _, _),
+        AssemblyLine(LDX | LDA, Immediate, NumericConstant(0, _), _),
+        AssemblyLine(STA | STX, ZeroPage, _, _)) => Nil
 
-      case List(
-      l@AssemblyLine(LDA, _, _, _),
-      AssemblyLine(STA, ZeroPage, _, _),
-      h@AssemblyLine(LDX | LDA, addrMode, _, _),
-      AssemblyLine(STA | STX, ZeroPage, _, _)) if addrMode != ZeroPageY => BuiltIns.wrapInSedCldIfNeeded(decimal,
-        List(prepareCarry,
-          AssemblyLine.zeropage(LDA, reg),
-          l.copy(opcode = op),
-          AssemblyLine.zeropage(STA, reg),
-          AssemblyLine.zeropage(LDA, reg, 1),
-          h.copy(opcode = op),
-          AssemblyLine.zeropage(STA, reg, 1),
-          AssemblyLine.zeropage(LDA, reg)))
+        case List(
+        l@AssemblyLine(LDA, _, _, _),
+        AssemblyLine(STA, ZeroPage, _, _),
+        h@AssemblyLine(LDX | LDA, addrMode, _, _),
+        AssemblyLine(STA | STX, ZeroPage, _, _)) if addrMode != ZeroPageY => BuiltIns.wrapInSedCldIfNeeded(decimal,
+          List(prepareCarry,
+            AssemblyLine.zeropage(LDA, reg),
+            l.copy(opcode = op),
+            AssemblyLine.zeropage(STA, reg),
+            AssemblyLine.zeropage(LDA, reg, 1),
+            h.copy(opcode = op),
+            AssemblyLine.zeropage(STA, reg, 1),
+            AssemblyLine.zeropage(LDA, reg)))
 
-      case _ => BuiltIns.wrapInSedCldIfNeeded(decimal,
-        List(
-          AssemblyLine.zeropage(LDA, reg, 1),
-          AssemblyLine.implied(PHA),
-          AssemblyLine.zeropage(LDA, reg),
-          AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.fixTsx(MosExpressionCompiler.fixTsx(compileRight)) ++ List(
-          prepareCarry,
-          AssemblyLine.implied(PLA),
-          AssemblyLine.zeropage(op, reg),
-          AssemblyLine.zeropage(STA, reg),
-          AssemblyLine.implied(PLA),
-          AssemblyLine.zeropage(op, reg, 1),
-          AssemblyLine.zeropage(STA, reg, 1)))
+        case _ =>
+          List(
+            AssemblyLine.zeropage(LDA, reg, 1),
+            AssemblyLine.implied(PHA),
+            AssemblyLine.zeropage(LDA, reg),
+            AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.fixTsx(MosExpressionCompiler.fixTsx(compileRight)) ++
+            BuiltIns.wrapInSedCldIfNeeded(decimal, List(
+              prepareCarry,
+              AssemblyLine.implied(PLA),
+              AssemblyLine.zeropage(op, reg),
+              AssemblyLine.zeropage(STA, reg),
+              AssemblyLine.implied(PLA),
+              AssemblyLine.zeropage(op, reg, 1),
+              AssemblyLine.zeropage(STA, reg, 1)))
+      }
     }
   }
 

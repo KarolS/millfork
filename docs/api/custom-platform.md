@@ -47,7 +47,8 @@ Default: the same as `encoding`.
 
     * `emit_65816` – which 65816 instructions should the compiler emit, either `no`, `emulation` or `native` 
     
-    * `decimal_mode` – whether the compiler should emit decimal instructions, default is `false` on `ricoh` and `strictricoh` and `true` elsewhere
+    * `decimal_mode` – whether the compiler should emit decimal instructions, default is `false` on `ricoh` and `strictricoh` and `true` elsewhere;
+    if disabled, a software decimal mode will be used
     
     * `ro_arrays` – whether the compiler should warn upon array writes, default is `false`
     
@@ -59,8 +60,9 @@ Default: the same as `encoding`.
     
     * `lunix` – generate relocatable code for LUnix/LNG, default is `false`
     
-    * `zeropage_register` – reserve 2 bytes of zero page as a pseudoregister to increase language features.
-    Default: `true` if targeting a 6502-based architecture, `false` otherwise.
+    * `zeropage_register` – reserve a certain amount of bytes of zero page as a pseudoregister to increase language features.
+    Default: `4` if targeting a 6502-based architecture, `0` otherwise.  
+    `true` is a synonym of the current compiler default (currently: 4) and `false` is a synonym for 0.
     
     * `inline` - inline functions automatically by default, default is `false`.
     

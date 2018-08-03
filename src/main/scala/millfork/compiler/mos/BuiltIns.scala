@@ -118,8 +118,9 @@ object BuiltIns {
   }
 
   def compileAddition(ctx: CompilationContext, params: List[(Boolean, Expression)], decimal: Boolean): List[AssemblyLine] = {
-    if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
-      ctx.log.warn("Unsupported decimal operation", params.head._2.position)
+    if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode) && ctx.options.zpRegisterSize < 4) {
+      ctx.log.error("Unsupported decimal operation. Consider increasing the size of the zeropage register.", params.head._2.position)
+      return compileAddition(ctx, params, decimal = false)
     }
     //    if (params.isEmpty) {
     //      return Nil
@@ -142,10 +143,24 @@ object BuiltIns {
     }
 
     val remainingParamsCompiled = normalizedParams.tail.flatMap { p =>
-      if (p._1) {
-        insertBeforeLast(AssemblyLine.implied(SEC), simpleOperation(SBC, ctx, p._2, IndexChoice.PreferY, preserveA = true, commutative = false, decimal = decimal))
+      if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
+        val reg = ctx.env.get[VariableInMemory]("__reg")
+        if (p._1) {
+          List(AssemblyLine.zeropage(STA, reg, 2)) ++
+            MosExpressionCompiler.preserveZpregIfNeededDestroyingAAndX(ctx, 2,
+              MosExpressionCompiler.compileToA(ctx, p._2)) ++
+            List(AssemblyLine.zeropage(STA, reg, 3), AssemblyLine.absolute(JSR, ctx.env.get[FunctionInMemory]("__sub_decimal")))
+        } else {
+          List(AssemblyLine.zeropage(STA, reg, 2), AssemblyLine.implied(CLC)) ++
+            MosExpressionCompiler.preserveZpregIfNeededDestroyingAAndX(ctx, 2, MosExpressionCompiler.compileToA(ctx, p._2)) ++
+            List(AssemblyLine.zeropage(STA, reg, 3), AssemblyLine.absolute(JSR, ctx.env.get[FunctionInMemory]("__adc_decimal")))
+        }
       } else {
-        insertBeforeLast(AssemblyLine.implied(CLC), simpleOperation(ADC, ctx, p._2, IndexChoice.PreferY, preserveA = true, commutative = true, decimal = decimal))
+        if (p._1) {
+          insertBeforeLast(AssemblyLine.implied(SEC), simpleOperation(SBC, ctx, p._2, IndexChoice.PreferY, preserveA = true, commutative = false, decimal = decimal))
+        } else {
+          insertBeforeLast(AssemblyLine.implied(CLC), simpleOperation(ADC, ctx, p._2, IndexChoice.PreferY, preserveA = true, commutative = true, decimal = decimal))
+        }
       }
     }
     firstParamCompiled ++ firstParamSignCompiled ++ remainingParamsCompiled
@@ -748,14 +763,15 @@ object BuiltIns {
           PseudoregisterBuiltIns.compileByteMultiplication(ctx, Some(variables(0)._1), variables(1)._1, storeInRegLo = false)
         else
           PseudoregisterBuiltIns.compileByteMultiplication(ctx, Some(variables(0)._1), variables(1)._1, storeInRegLo = true) ++
-          compileByteMultiplication(ctx, VariableExpression("__reg.lo"), constant)
+          compileByteMultiplication(ctx, VariableExpression("__reg.b0"), constant)
       case _ => ??? // TODO
     }
   }
 
   def compileInPlaceByteAddition(ctx: CompilationContext, v: LhsExpression, addend: Expression, subtract: Boolean, decimal: Boolean): List[AssemblyLine] = {
-    if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
-      ctx.log.warn("Unsupported decimal operation", v.position)
+    if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode) && ctx.options.zpRegisterSize < 4) {
+      ctx.log.error("Unsupported decimal operation. Consider increasing the size of the zeropage register.", v.position)
+      return compileInPlaceByteAddition(ctx, v, addend, subtract, decimal = false)
     }
     val env = ctx.env
     val b = env.get[Type]("byte")
@@ -783,7 +799,20 @@ object BuiltIns {
         simpleOperation(DEC, ctx, v, IndexChoice.RequireX, preserveA = false, commutative = true)
       }
       case _ =>
-        if (!subtract && simplicity(env, v) > simplicity(env, addend)) {
+        if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
+          val reg = ctx.env.get[MemoryVariable]("__reg")
+          val loadRhs = MosExpressionCompiler.compile(ctx, addend, Some(b -> ctx.env.genRelativeVariable(reg.toAddress + 3, b, zeropage = true)), NoBranching)
+          val loadLhs = MosExpressionCompiler.compileToA(ctx, v)
+          val storeLhs = MosExpressionCompiler.compileByteStorage(ctx, MosRegister.A, v)
+          val subroutine = if (subtract) "__sub_decimal" else "__adc_decimal"
+          loadRhs ++ MosExpressionCompiler.preserveZpregIfNeededDestroyingAAndX(ctx, 3, loadLhs) ++ List(
+            AssemblyLine.zeropage(STA, reg, 2)) ++ (if (subtract) List(
+            AssemblyLine.absolute(JSR, ctx.env.get[ThingInMemory]("__sub_decimal"))
+          ) else List(
+            AssemblyLine.implied(CLC),
+            AssemblyLine.absolute(JSR, ctx.env.get[ThingInMemory]("__adc_decimal"))
+          )) ++ storeLhs
+        } else if (!subtract && simplicity(env, v) > simplicity(env, addend)) {
           val loadRhs = MosExpressionCompiler.compile(ctx, addend, Some(b -> RegisterVariable(MosRegister.A, b)), NoBranching)
           val modifyAcc = insertBeforeLast(AssemblyLine.implied(CLC), simpleOperation(ADC, ctx, v, IndexChoice.PreferY, preserveA = true, commutative = true, decimal = decimal))
           val storeLhs = MosExpressionCompiler.compileByteStorage(ctx, MosRegister.A, v)
@@ -806,8 +835,9 @@ object BuiltIns {
   }
 
   def compileInPlaceWordOrLongAddition(ctx: CompilationContext, lhs: LhsExpression, addend: Expression, subtract: Boolean, decimal: Boolean): List[AssemblyLine] = {
-    if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
-      ctx.log.warn("Unsupported decimal operation", lhs.position)
+    if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode) && ctx.options.zpRegisterSize < 4) {
+      ctx.log.error("Unsupported decimal operation. Consider increasing the size of the zeropage register.", lhs.position)
+      return compileInPlaceWordOrLongAddition(ctx, lhs, addend, subtract, decimal = false)
     }
     val env = ctx.env
     val b = env.get[Type]("byte")
@@ -941,7 +971,7 @@ object BuiltIns {
                 }
                 (base ++ List(AssemblyLine.implied(PHA))) -> List(List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(LDA, 0x101)))
               } else {
-                Nil -> base.map(_ :: Nil)
+                Nil -> base.map(l => l.copy(opcode = LDA) :: Nil)
               }
             } else {
               base -> List(Nil)
@@ -955,7 +985,7 @@ object BuiltIns {
                 if (isRhsComplex(base)) {
                   ???
                 } else {
-                  Nil -> fixedBase
+                  Nil -> fixedBase.map(l => l.copy(opcode = LDA) :: Nil)
                   ???
                 }
               } else {
@@ -972,7 +1002,7 @@ object BuiltIns {
                     List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(LDA, 0x102)),
                     List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(LDA, 0x101)))
                 } else {
-                  Nil -> base.map(_ :: Nil)
+                  Nil -> base.map(l => l.copy(opcode = LDA) :: Nil)
                 }
               } else {
                 if (lhsIsStack) {
@@ -1046,7 +1076,30 @@ object BuiltIns {
     val extendMultipleBytes = targetSize > addendSize + 1
     val extendAtLeastOneByte = targetSize > addendSize
     for (i <- 0 until targetSize) {
-      if (subtract) {
+      if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
+        val reg = ctx.env.get[VariableInMemory]("__reg")
+        buffer ++= staTo(LDA, targetBytes(i))
+        if (targetBytes(i).isEmpty) {
+          buffer += AssemblyLine.immediate(LDA, 0)
+        }
+        buffer += AssemblyLine.zeropage(STA, reg, 2)
+        // TODO: AX?
+        buffer ++= MosExpressionCompiler.preserveZpregIfNeededDestroyingAAndX(ctx, 2, addendByteRead(i))
+        buffer += AssemblyLine.zeropage(STA, reg, 3)
+        if (subtract) {
+          if (i == 0) {
+            buffer += AssemblyLine.absolute(JSR, env.get[ThingInMemory]("__sub_decimal"))
+          } else {
+            buffer += AssemblyLine.absolute(JSR, env.get[ThingInMemory]("__sbc_decimal"))
+          }
+        } else {
+          if (i == 0) {
+            buffer += AssemblyLine.implied(CLC)
+          }
+          buffer += AssemblyLine.absolute(JSR, env.get[ThingInMemory]("__adc_decimal"))
+        }
+        buffer ++= targetBytes(i)
+      } else if (subtract) {
         if (addendSize < targetSize && addendType.isSigned) {
           // TODO: sign extension
           ???
@@ -1208,7 +1261,7 @@ object BuiltIns {
   }
 
 
-  private def getStorageForEachByte(ctx: CompilationContext, lhs: LhsExpression): List[List[AssemblyLine]] = {
+  def getStorageForEachByte(ctx: CompilationContext, lhs: LhsExpression): List[List[AssemblyLine]] = {
     val env = ctx.env
     lhs match {
       case v: VariableExpression =>

@@ -12,8 +12,8 @@ import millfork.assembly.mos.AssemblyLine
 import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
-import millfork.error.{ConsoleLogger, Logger}
-import millfork.node.StandardCallGraph
+import millfork.error.Logger
+import millfork.node.{Program, StandardCallGraph}
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, MosAssembler}
 import millfork.parser.{MosParser, PreprocessingResult, Preprocessor}
@@ -26,6 +26,28 @@ import scala.collection.JavaConverters._
   * @author Karol Stasiak
   */
 case class Timings(nmos: Long, cmos: Long)
+
+object EmuRun {
+
+  private def preload(filename: String):  Option[Program] = {
+    TestErrorReporting.log.info(s"Loading $filename")
+    val source = Files.readAllLines(Paths.get(filename), StandardCharsets.US_ASCII).asScala.mkString("\n")
+    val options = CompilationOptions(EmuPlatform.get(millfork.Cpu.Mos), Map(
+          CompilationFlag.LenientTextEncoding -> true
+        ), None, 4, JobContext(TestErrorReporting.log, new LabelGenerator))
+    val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
+    TestErrorReporting.log.info(s"Parsing $filename")
+    MosParser("", preprocessedSource, "", options, features).toAst match {
+      case Success(x, _) => Some(x)
+      case _ => None
+    }
+  }
+
+  private lazy val cachedZpregO:  Option[Program]= preload("include/zp_reg.mfk")
+  private lazy val cachedBcdO:  Option[Program] = preload("include/bcd_6502.mfk")
+  def cachedZpreg: Program = synchronized { cachedZpregO.getOrElse(throw new IllegalStateException()) }
+  def cachedBcd: Program = synchronized { cachedBcdO.getOrElse(throw new IllegalStateException()) }
+}
 
 class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[AssemblyLine]]) extends Matchers {
 
@@ -101,6 +123,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     println(source)
     val platform = EmuPlatform.get(cpu)
     val options = CompilationOptions(platform, Map(
+      CompilationFlag.DecimalMode -> millfork.Cpu.defaultFlags(cpu).contains(CompilationFlag.DecimalMode),
       CompilationFlag.LenientTextEncoding -> true,
       CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.InlineFunctions -> this.inline,
@@ -113,13 +136,11 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
-    ), None, 2, JobContext(log, new LabelGenerator))
+    ), None, 4, JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
-    if (source.contains("import zp_reg"))
-      effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
     log.setSource(Some(effectiveSource.lines.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = MosParser("", preprocessedSource, "", options, features)
@@ -127,9 +148,16 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       case Success(unoptimized, _) =>
         log.assertNoErrors("Parse failed")
 
-
         // prepare
-        val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
+        val withLibraries = {
+          var tmp = unoptimized
+          if(source.contains("import zp_reg"))
+            tmp += EmuRun.cachedZpreg
+          if(!options.flag(CompilationFlag.DecimalMode) && (source.contains("+'") || source.contains("-'") || source.contains("<<'") || source.contains("*'")))
+            tmp += EmuRun.cachedBcd
+          tmp
+        }
+        val program = nodeOptimizations.foldLeft(withLibraries)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program, log)
         val env = new Environment(None, "", CpuFamily.M6502, options.jobContext)
         env.collectDeclarations(program, options)

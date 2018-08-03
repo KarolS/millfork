@@ -74,12 +74,14 @@ Default: native if targeting 65816, no otherwise.
 `.ini` equivalent: `prevent_jmp_indirect_bug`.
 Default: no if targeting a 65C02-compatible architecture or a non-6502 architecture, yes otherwise.
 
-* `-fzp-register`, `-fno-zp-register` – Whether should reserve 2 bytes of zero page as a pseudoregister.
+* `-fzp-register`, `-fno-zp-register` – Whether should reserve 4 bytes of zero page as a pseudoregister.
 Increases language features. 
 `.ini` equivalent: `zeropage_register`.
 Default: yes if targeting a 6502-based architecture, no otherwise.
                     
-* `-fdecimal-mode`, `-fno-decimal-mode` – Whether decimal mode should be available.  
+* `-fdecimal-mode`, `-fno-decimal-mode` –
+Whether hardware decimal mode should be used (6502 only).
+If disabled, a sofware decimal mode will be used.  
 `.ini` equivalent: `decimal_mode`.
 Default: no if targeting Ricoh, yes otherwise.
 

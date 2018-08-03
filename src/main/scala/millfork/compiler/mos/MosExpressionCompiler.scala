@@ -4,6 +4,7 @@ import millfork.CompilationFlag
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
+import millfork.assembly.z80.ZLine
 import millfork.compiler._
 import millfork.env._
 import millfork.error.ConsoleLogger
@@ -77,6 +78,37 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     case (txs@AssemblyLine(TXS, _, _, _)) :: xs => ???
     case x :: xs => x :: fixTsx(xs)
     case Nil => Nil
+  }
+
+  def preserveZpregIfNeededDestroyingAAndX(ctx: CompilationContext, Offset: Int, code: List[AssemblyLine]): List[AssemblyLine] = {
+    if (code.exists{
+      case AssemblyLine(op,
+      AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute,
+      CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(Offset, _)),
+      _) if th.name =="__reg" && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
+      case AssemblyLine(op,
+      AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute,
+      MemoryAddressConstant(th),
+      _) if th.name =="__reg" && Offset == 0 && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
+      case AssemblyLine(JSR | BYTE | BSR, _, _, _) => true
+      case _ => false
+    }) {
+      List(AssemblyLine.zeropage(LDA, ctx.env.get[VariableInMemory]("__reg"), Offset), AssemblyLine.implied(PHA)) ++
+      code ++
+        List(
+          AssemblyLine.implied(TAX),
+          AssemblyLine.implied(PLA),
+          AssemblyLine.zeropage(STA, ctx.env.get[VariableInMemory]("__reg"), Offset),
+          AssemblyLine.implied(TXA))
+    } else code
+  }
+  def preserveCarryIfNeeded(ctx: CompilationContext, code: List[AssemblyLine]): List[AssemblyLine] = {
+    if (code.exists {
+      case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => true
+      case x => OpcodeClasses.ChangesC(x.opcode)
+    }) {
+      AssemblyLine.implied(PHP) +: fixTsx(code) :+ AssemblyLine.implied(PLP)
+    } else code
   }
 
   def preserveRegisterIfNeeded(ctx: CompilationContext, register: MosRegister.Value, code: List[AssemblyLine]): List[AssemblyLine] = {
@@ -297,6 +329,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
   }
   val noop: List[AssemblyLine] = Nil
 
+
+  def compileToA(ctx: CompilationContext, expr: Expression): List[AssemblyLine] = {
+    val env = ctx.env
+    val b = env.get[Type]("byte")
+    compile(ctx, expr, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
+  }
 
   def compile(ctx: CompilationContext, expr: Expression, exprTypeAndVariable: Option[(Type, Variable)], branches: BranchSpec): List[AssemblyLine] = {
     val env = ctx.env

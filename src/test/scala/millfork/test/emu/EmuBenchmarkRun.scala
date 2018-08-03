@@ -90,6 +90,9 @@ object EmuCrossPlatformBenchmarkRun {
     if (platforms.contains(millfork.Cpu.Mos)) {
       EmuBenchmarkRun.apply(source)(verifier)
     }
+    if (platforms.contains(millfork.Cpu.Ricoh)) {
+      verifier(EmuUndocumentedRun.apply(source))
+    }
     if (platforms.contains(millfork.Cpu.Cmos)) {
       EmuCmosBenchmarkRun.apply(source)(verifier)
     }

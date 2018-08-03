@@ -22,7 +22,7 @@ object EmuPlatform {
     Map("default" -> new VariableAllocator(
       if (CpuFamily.forType(cpu) == CpuFamily.M6502) pointers else Nil,
       new AfterCodeByteAllocator(0xff00))),
-    if (CpuFamily.forType(cpu) == CpuFamily.M6502) 2 else 0,
+    if (CpuFamily.forType(cpu) == CpuFamily.M6502) 4 else 0,
     pointers,
     ".bin",
     false,

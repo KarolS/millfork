@@ -1,6 +1,6 @@
 package millfork.parser
 
-import millfork.CompilationOptions
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.AssemblyLine
 
 /**
@@ -16,6 +16,9 @@ class MosSourceLoadingQueue(initialFilenames: List[String],
   def enqueueStandardModules(): Unit = {
     if (options.zpRegisterSize > 0) {
       moduleQueue.enqueue(() => parseModule("zp_reg", includePath, Left(None)))
+    }
+    if (options.zpRegisterSize >= 4 && !options.flag(CompilationFlag.DecimalMode)) {
+      moduleQueue.enqueue(() => parseModule("bcd_6502", includePath, Left(None)))
     }
   }
 

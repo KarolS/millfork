@@ -93,8 +93,8 @@ object Platform {
     }
     val startingModules = cs.get(classOf[String], "modules", "").split("[, ]+").filter(_.nonEmpty).toList
     val zpRegisterSize = cs.get(classOf[String], "zeropage_register", "").toLowerCase match {
-      case "" | null => if (CpuFamily.forType(cpu) == CpuFamily.M6502) 2 else 0
-      case "true" | "on" | "yes" => 2
+      case "" | null => if (CpuFamily.forType(cpu) == CpuFamily.M6502) 4 else 0
+      case "true" | "on" | "yes" => 4
       case "false" | "off" | "no" | "0" => 0
       case x => x.toInt
     }

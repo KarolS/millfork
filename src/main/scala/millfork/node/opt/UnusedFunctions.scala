@@ -11,7 +11,18 @@ import millfork.node._
 object UnusedFunctions extends NodeOptimization {
 
   private val operatorImplementations: List[(String, Int, String)] = List(
-    ("*", 2, "__mul_u8u8u8")
+    ("*", 2, "__mul_u8u8u8"),
+    ("*=", 2, "__mul_u8u8u8"),
+    ("+'", 4, "__adc_decimal"),
+    ("+'=", 4, "__adc_decimal"),
+    ("-'", 4, "__sub_decimal"),
+    ("-'=", 4, "__sub_decimal"),
+    ("-'", 4, "__sbc_decimal"),
+    ("-'=", 4, "__sbc_decimal"),
+    ("<<'", 4, "__adc_decimal"),
+    ("<<'=", 4, "__adc_decimal"),
+    ("*'", 4, "__adc_decimal"),
+    ("*'=", 4, "__adc_decimal"),
   )
 
   override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
@@ -77,7 +88,13 @@ object UnusedFunctions extends NodeOptimization {
           s.name.stripSuffix(".addr.hi"))
     case s: LiteralExpression => Nil
     case HalfWordExpression(param, _) => getAllCalledFunctions(param :: Nil)
-    case SumExpression(xs, _) => getAllCalledFunctions(xs.map(_._2))
+    case SumExpression(xs, decimal) =>
+      var set = List[String]()
+      if (decimal) {
+        if (xs.tail.exists(_._1)) set ::= "-'"
+        if (xs.tail.exists(p => !p._1)) set ::= "+'"
+      }
+      set ++ getAllCalledFunctions(xs.map(_._2))
     case FunctionCallExpression(name, xs) => name :: getAllCalledFunctions(xs)
     case IndexedExpression(arr, index) => arr :: getAllCalledFunctions(List(index))
     case SeparateBytesExpression(h, l) => getAllCalledFunctions(List(h, l))

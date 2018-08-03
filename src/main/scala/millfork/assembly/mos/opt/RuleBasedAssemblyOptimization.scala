@@ -105,6 +105,8 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
 
   def functionReadsD(name: String): Boolean = !niceFunctionProperties(MosNiceFunctionProperty.DoesntConcernD -> name)
 
+  def functionReadsC(name: String): Boolean = ReverseFlowAnalyzer.functionsThatReadC(name)
+
   def functionChangesMemory(name: String): Boolean = !niceFunctionProperties(NiceFunctionProperty.DoesntWriteMemory -> name)
 
   def functionReadsMemory(name: String): Boolean = !niceFunctionProperties(NiceFunctionProperty.DoesntReadMemory -> name)
@@ -861,7 +863,16 @@ case object ChangesY extends AssemblyLinePattern {
 
 case object ReadsNOrZ extends HasOpcodeIn(OpcodeClasses.ReadsNOrZ)
 
-case object ReadsC extends HasOpcodeIn(OpcodeClasses.ReadsC)
+case object ReadsC extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {
+    import Opcode._
+    import AddrMode._
+    line match {
+      case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionReadsC(th.name)
+      case _ => OpcodeClasses.ReadsC(line.opcode)
+    }
+  }
+}
 
 case object ReadsD extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {

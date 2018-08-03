@@ -104,9 +104,7 @@ There are no division, remainder or modulo operators.
 
 These operators work using the decimal arithmetic (packed BCD).
 
-**Work in progress**: 
-These operations don't work on Ricoh-based targets (i.e. Famicom) yet.
-The compiler issues a warning if these operators appear in the code.
+On Ricoh-based targets (e.g. Famicom) they require the zeropage register to have size at least 4
 
 * `+'`, `-'`: decimal addition/subtraction  
 `byte +' byte`  

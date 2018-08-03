@@ -15,7 +15,26 @@ import millfork.node.{Expression, MosRegister, _}
   */
 object DecimalBuiltIns {
   def compileByteShiftLeft(ctx: CompilationContext, l: Expression, r: Expression, rotate: Boolean): List[AssemblyLine] = {
-    ctx.env.eval(r) match {
+    if (ctx.options.zpRegisterSize >= 4 && !ctx.options.flag(CompilationFlag.DecimalMode)) {
+      val reg = ctx.env.get[VariableInMemory]("__reg")
+      val subroutine = ctx.env.get[ThingInMemory]("__adc_decimal")
+      ctx.env.eval(r) match {
+        case Some(NumericConstant(0, _)) =>
+          Nil
+        case Some(NumericConstant(v, _)) =>
+          val addition =
+            MosExpressionCompiler.compileToA(ctx, l) ++ List.fill(v.toInt)(List(
+              AssemblyLine.zeropage(STA, reg, 2),
+              AssemblyLine.zeropage(STA, reg, 3),
+              AssemblyLine.implied(CLC),
+              AssemblyLine.absolute(JSR, subroutine)
+            )).flatten
+          if (rotate) addition.filterNot(_.opcode == CLC) else addition
+        case _ =>
+          ctx.log.error("Cannot shift by a non-constant amount", r.position)
+          Nil
+      }
+    } else ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
         Nil
       case Some(NumericConstant(v, _)) =>
@@ -92,7 +111,23 @@ object DecimalBuiltIns {
       case Some(NumericConstant(0, _)) =>
         Nil
       case Some(NumericConstant(v, _)) =>
-        List.fill(v.toInt)(BuiltIns.compileInPlaceWordOrLongAddition(ctx, l, l, decimal = true, subtract = false)).flatten
+        if (!ctx.options.flag(CompilationFlag.DecimalMode) && ctx.options.zpRegisterSize >= 4) {
+          import BuiltIns.staTo
+          val targetBytes: List[List[AssemblyLine]] = BuiltIns.getStorageForEachByte(ctx, l)
+          val reg = ctx.env.get[VariableInMemory]("__reg")
+          val subroutine = ctx.env.get[FunctionInMemory]("__adc_decimal")
+          List.fill(v.toInt) {
+            targetBytes.zipWithIndex.flatMap { case (staByte, i) =>
+              staTo(LDA, staByte) ++
+                List(AssemblyLine.zeropage(STA, reg, 2), AssemblyLine.zeropage(STA, reg, 3)) ++
+                (if (i == 0) List(AssemblyLine.implied(CLC)) else Nil) ++
+                List(AssemblyLine.absolute(JSR, subroutine)) ++
+                (if (i == targetBytes.size - 1) staByte else MosExpressionCompiler.preserveCarryIfNeeded(ctx, staByte))
+            }
+          }.flatten
+        } else {
+          List.fill(v.toInt)(BuiltIns.compileInPlaceWordOrLongAddition(ctx, l, l, decimal = true, subtract = false)).flatten
+        }
       case _ =>
         ctx.log.error("Cannot shift by a non-constant amount", r.position)
         Nil
@@ -128,6 +163,9 @@ object DecimalBuiltIns {
   }
 
   def compileInPlaceByteMultiplication(ctx: CompilationContext, l: LhsExpression, r: Expression): List[AssemblyLine] = {
+    val ricoh = !ctx.options.flag(CompilationFlag.DecimalMode) && ctx.options.zpRegisterSize >= 4
+    val reg = ctx.env.maybeGet[VariableInMemory]("__reg")
+    val adcSubroutine = ctx.env.maybeGet[ThingInMemory]("__adc_decimal")
     val multiplier = ctx.env.eval(r) match {
       case Some(NumericConstant(v, _)) =>
         if (v.&(0xf0) > 0x90 || v.&(0xf) > 9)
@@ -141,16 +179,27 @@ object DecimalBuiltIns {
     val sta = fullStorage.last
     if (sta.opcode != STA) ???
     val fullLoad = fullStorage.init :+ sta.copy(opcode = LDA)
-    val transferToStash = sta.addrMode match {
+    val transferToStash = if (ricoh) AssemblyLine.zeropage(STA, reg.get, 1) else sta.addrMode match {
       case AbsoluteX | AbsoluteIndexedX | ZeroPageX | IndexedX => AssemblyLine.implied(TAY)
       case _ => AssemblyLine.implied(TAX)
     }
-    val transferToAccumulator = sta.addrMode match {
+    val transferToAccumulator = if (ricoh) AssemblyLine.zeropage(LDA, reg.get, 1) else sta.addrMode match {
       case AbsoluteX | AbsoluteIndexedX | ZeroPageX | IndexedX => AssemblyLine.implied(TYA)
       case _ => AssemblyLine.implied(TXA)
     }
 
-    def add1 = List(transferToAccumulator, AssemblyLine.implied(CLC), sta.copy(opcode = ADC), sta)
+    def add1: List[AssemblyLine] = if (ricoh) {
+      List(
+        AssemblyLine.zeropage(LDA, reg.get),
+        AssemblyLine.zeropage(STA, reg.get, 2),
+        AssemblyLine.zeropage(LDA, reg.get, 1),
+        AssemblyLine.zeropage(STA, reg.get, 3),
+        AssemblyLine.implied(CLC),
+        AssemblyLine.absolute(JSR, adcSubroutine.get),
+        AssemblyLine.zeropage(STA, reg.get),
+        AssemblyLine.zeropage(STA, reg.get, 2)
+      )
+    } else List(transferToAccumulator, AssemblyLine.implied(CLC), sta.copy(opcode = ADC), sta)
     def times7 = List(
       AssemblyLine.implied(ASL), AssemblyLine.implied(ASL),
       AssemblyLine.implied(ASL), AssemblyLine.implied(ASL),
@@ -170,10 +219,12 @@ object DecimalBuiltIns {
       sta)
 
     val execute = multiplier match {
-      case 0 => List(AssemblyLine.immediate(LDA, 0), sta)
+      case 0 =>
+        if (ricoh) List(AssemblyLine.immediate(LDA, 0), AssemblyLine.zeropage(STA, reg.get))
+        else List(AssemblyLine.immediate(LDA, 0), sta)
       case 1 => Nil
       case x =>
-        val ways = sta.addrMode match {
+        val ways = if(ricoh) waysForRicoh else sta.addrMode match {
           case Absolute | AbsoluteX | AbsoluteY | AbsoluteIndexedX | Indirect =>
             waysForLongAddrModes
           case _ =>
@@ -181,15 +232,43 @@ object DecimalBuiltIns {
         }
         ways(x).flatMap {
           case 1 => add1
-          case -7 => times7
-          case q if q < 9 => List.fill(q - 1)(List(AssemblyLine.implied(CLC), sta.copy(opcode = ADC))).flatten :+ sta
-          case 8 => times8
-          case 9 => times9
-          case q => List(AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL)) ++
+          case -7 if !ricoh => times7
+          case q if q < 9 && ricoh => List.fill(q - 1) {
+              List(
+                AssemblyLine.zeropage(LDA, reg.get),
+                AssemblyLine.zeropage(STA, reg.get, 3),
+                AssemblyLine.implied(CLC),
+                AssemblyLine.absolute(JSR, adcSubroutine.get),
+                AssemblyLine.zeropage(STA, reg.get, 2)
+              )
+          }.flatten :+ AssemblyLine.zeropage(STA, reg.get)
+          case q if q < 9 && !ricoh => List.fill(q - 1) (List(AssemblyLine.implied(CLC), sta.copy(opcode = ADC))).flatten :+ sta
+          case 8 if !ricoh => times8
+          case 9 if !ricoh => times9
+          case 10 if ricoh =>
+            List(
+              AssemblyLine.zeropage(LDA, reg.get, 2),
+              AssemblyLine.implied(ASL),
+              AssemblyLine.implied(ASL),
+              AssemblyLine.implied(ASL),
+              AssemblyLine.implied(ASL),
+              AssemblyLine.zeropage(STA, reg.get, 2),
+              AssemblyLine.zeropage(STA, reg.get)
+            )
+          case q if !ricoh => List(AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL), AssemblyLine.implied(ASL)) ++
             List.fill(q - 10)(List(AssemblyLine.implied(CLC), sta.copy(opcode = ADC))).flatten :+ sta
+          case _ => throw new IllegalStateException(ways.toString)
         }
     }
-    if (execute.contains(transferToAccumulator)) {
+    if (ricoh) {
+      fullLoad ++
+        List(
+          AssemblyLine.zeropage(STA, reg.get),
+          AssemblyLine.zeropage(STA, reg.get, 1),
+          AssemblyLine.zeropage(STA, reg.get, 2)) ++
+        execute ++
+        List(AssemblyLine.zeropage(LDA, reg.get)) ++ fullStorage
+    } else if (execute.contains(transferToAccumulator)) {
       AssemblyLine.implied(SED) :: (fullLoad ++ List(transferToStash) ++ execute :+ AssemblyLine.implied(CLD))
     } else {
       AssemblyLine.implied(SED) :: (fullLoad ++ execute :+ AssemblyLine.implied(CLD))
@@ -219,6 +298,18 @@ object DecimalBuiltIns {
     71 -> List(-7,10,1), 72 -> List(8,9), 73 -> List(8,9,1), 74 -> List(2,2,9,1,2), 75 -> List(12,2,1,3), 76 -> List(2,9,1,2,2), 77 -> List(11,-7), 78 -> List(3,2,13), 79 -> List(3,2,13,1), 80 -> List(8,10),
     81 -> List(9,9), 82 -> List(9,9,1), 83 -> List(9,9,1,1), 84 -> List(12,-7), 85 -> List(12,-7,1), 86 -> List(2,10,1,2,1,2), 87 -> List(3,9,1,1,3), 88 -> List(8,11), 89 -> List(8,11,1), 90 -> List(9,10),
     91 -> List(9,10,1), 92 -> List(9,10,1,1), 93 -> List(3,10,1,3), 94 -> List(3,10,1,3,1), 95 -> List(2,9,1,5), 96 -> List(8,12), 97 -> List(8,12,1), 98 -> List(14,-7), 99 -> List(11,9),
+  )
+  private lazy val waysForRicoh: Map[Int, List[Int]] = Map (
+    2 -> List(2), 3 -> List(3), 4 -> List(2,2), 5 -> List(2,2,1), 6 -> List(3,2), 7 -> List(3,2,1), 8 -> List(2,2,2), 9 -> List(3,3), 10 -> List(10),
+    11 -> List(10,1), 12 -> List(10,1,1), 13 -> List(10,1,1,1), 14 -> List(10,1,1,1,1), 15 -> List(2,2,1,3), 16 -> List(2,2,2,2), 17 -> List(2,2,2,2,1), 18 -> List(3,3,2), 19 -> List(3,3,2,1), 20 -> List(2,10),
+    21 -> List(2,10,1), 22 -> List(10,1,2), 23 -> List(10,1,2,1), 24 -> List(10,1,1,2), 25 -> List(10,1,1,2,1), 26 -> List(10,1,1,1,2), 27 -> List(10,1,1,1,2,1), 28 -> List(10,1,1,1,1,2), 29 -> List(3,2,1,2,2,1), 30 -> List(3,10),
+    31 -> List(3,10,1), 32 -> List(3,10,1,1), 33 -> List(10,1,3), 34 -> List(10,1,3,1), 35 -> List(10,1,3,1,1), 36 -> List(10,1,1,3), 37 -> List(10,1,1,3,1), 38 -> List(10,1,1,3,1,1), 39 -> List(10,1,1,1,3), 40 -> List(2,2,10),
+    41 -> List(2,2,10,1), 42 -> List(2,10,1,2), 43 -> List(2,10,1,2,1), 44 -> List(10,1,2,2), 45 -> List(10,1,2,2,1), 46 -> List(10,1,2,1,2), 47 -> List(10,1,2,1,2,1), 48 -> List(10,1,1,2,2), 49 -> List(10,1,1,2,2,1), 50 -> List(2,2,1,10),
+    51 -> List(2,2,1,10,1), 52 -> List(2,2,1,10,1,1), 53 -> List(10,5,1,1,1), 54 -> List(3,3,3,2), 55 -> List(10,1,5), 56 -> List(10,1,5,1), 57 -> List(10,1,5,1,1), 58 -> List(10,1,5,1,1,1), 59 -> List(7,2,2,1,2,1), 60 -> List(3,2,10),
+    61 -> List(3,2,10,1), 62 -> List(3,10,1,2), 63 -> List(2,10,1,3), 64 -> List(3,10,1,1,2), 65 -> List(3,10,1,1,2,1), 66 -> List(10,1,3,2), 67 -> List(10,1,3,2,1), 68 -> List(10,1,3,1,2), 69 -> List(10,1,2,1,3), 70 -> List(3,2,1,10),
+    71 -> List(3,2,1,10,1), 72 -> List(10,1,1,3,2), 73 -> List(10,1,1,3,2,1), 74 -> List(10,1,1,3,1,2), 75 -> List(10,1,1,2,1,3), 76 -> List(3,3,2,1,2,2), 77 -> List(10,1,7), 78 -> List(10,1,1,1,3,2), 79 -> List(10,1,7,1,1), 80 -> List(2,2,2,10),
+    81 -> List(2,2,2,10,1), 82 -> List(2,2,10,1,2), 83 -> List(2,2,10,1,2,1), 84 -> List(2,10,1,2,2), 85 -> List(2,10,1,2,2,1), 86 -> List(2,10,1,2,1,2), 87 -> List(3,3,3,1,1,3), 88 -> List(10,1,2,2,2), 89 -> List(10,1,2,2,2,1), 90 -> List(3,3,10),
+    91 -> List(3,3,10,1), 92 -> List(10,1,2,1,2,2), 93 -> List(3,10,1,3), 94 -> List(3,10,1,3,1), 95 -> List(3,10,1,3,1,1), 96 -> List(10,1,1,2,2,2), 97 -> List(3,10,1,1,3,1), 98 -> List(10,1,1,1,1,7), 99 -> List(10,1,3,3),
   )
 
   // The following functions are used to generate the tables above:
@@ -279,6 +370,7 @@ object DecimalBuiltIns {
   def main(args: Array[String]): Unit = {
     val shortCosts = multiplyCosts(ZeroPageY)
     val longCosts = multiplyCosts(AbsoluteX)
+    val ricohCosts = Map(1 -> 1, 2 -> 1, 3 -> 2, 5 -> 4, 7 -> 6, 10 -> 0)
     for (i <- 2 to 99) {
       if (waysForLongAddrModes(i) != waysForShortAddrModes(i)) {
         println(i)
@@ -302,6 +394,12 @@ object DecimalBuiltIns {
     println()
     for (i <- 2 to 99) {
       print(s"$i -> List(${findWay(i, longCosts).mkString(",")}), ")
+      if (i % 10 == 0) println()
+    }
+    println()
+    println()
+    for (i <- 2 to 99) {
+      print(s"$i -> List(${findWay(i, ricohCosts).mkString(",")}), ")
       if (i % 10 == 0) println()
     }
   }

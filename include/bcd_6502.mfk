@@ -1,0 +1,81 @@
+
+#if not(ARCH_6502)
+#warn bcd_6502 module should be only used on 6502-compatible targets
+#endif
+
+// subtracts __reg+3 from __reg+2 in a decimal way respecting carry
+// returns the result in A and C
+asm byte __sbc_decimal() {
+    LDA #$99
+    ADC #0
+    SEC
+    SBC __reg+3
+    STA __reg+3
+    CLC
+    ? JMP __adc_decimal
+}
+
+// subtracts __reg+3 from __reg+2 in a decimal way ignoring carry
+// returns the result in A and C
+asm byte __sub_decimal() {
+    LDA #$9A
+    SEC
+    SBC __reg+3
+    STA __reg+3
+    CLC
+    ? JMP __adc_decimal
+}
+
+// adds __reg+2 and __reg+3 in a decimal way
+// returns the result in A and C
+asm byte __adc_decimal() {
+    LDA __reg+2
+    TAX
+    AND #$F
+    STA __reg+2
+    LDA __reg+3
+    AND #$F
+    ADC __reg+2
+    STX __reg+2
+    CMP #$A
+    BCC __adc_decimal_lo_no_carry
+    // not needed: SEC
+    ADC #5
+    AND #$F
+    TAX // X contains the sum of low digits
+    LDA #$10
+    CLC
+    ADC __reg+2
+    STA __reg+2 // halfcarry pushed into R2
+    ? JMP __adc_decimal_after_hi
+    __adc_decimal_lo_no_carry:
+    TAX
+    __adc_decimal_after_hi:
+    CLC
+    LDA __reg+2
+    AND #$F0
+    ADC __reg+3
+    AND #$F0
+    BCS __adc_decimal_hi_carry
+    STA __reg+2  // R2 contains the sum of high digits
+    TXA
+    CLC
+    ADC __reg+2
+    CMP #$A0
+    BCC __adc_decimal_hi_no_carry
+    // ; not needed: SEC
+    SBC #$A0
+    SEC
+    __adc_decimal_hi_no_carry:
+    RTS
+    __adc_decimal_hi_carry:
+    // ; not needed: SEC
+    SBC #$A0
+    STA __reg+2  // R2 contains the sum of high digits
+    TXA
+    CLC
+    ADC __reg+2
+    SEC
+    RTS
+
+}

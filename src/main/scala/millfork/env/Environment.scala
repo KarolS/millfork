@@ -608,7 +608,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 } else {
                   if (minus) MathOperator.Minus else MathOperator.Plus
                 }
-                Some(CompoundConstant(op, c, addend))
+                Some(CompoundConstant(op, c, addend).quickSimplify)
             }
           }
         }
@@ -1096,6 +1096,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (typ.name == "__reg$type") {
       return (".lo", 0, b) ::
         (".hi", 1, b) ::
+        (".b2b3", 2, w) ::
         List.tabulate(typ.size) { i => (".b" + i, i, b) }
     }
     typ match {

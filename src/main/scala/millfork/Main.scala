@@ -340,7 +340,7 @@ object Main {
     }.description("Whether should prevent indirect JMP bug on page boundary.")
     boolean("-fdecimal-mode", "-fno-decimal-mode").action { (c, v) =>
       c.changeFlag(CompilationFlag.DecimalMode, v)
-    }.description("Whether decimal mode should be available.")
+    }.description("Whether hardware decimal mode should be used (6502 only).")
     boolean("-fvariable-overlap", "-fno-variable-overlap").action { (c, v) =>
       c.changeFlag(CompilationFlag.VariableOverlap, v)
     }.description("Whether variables should overlap if their scopes do not intersect.")

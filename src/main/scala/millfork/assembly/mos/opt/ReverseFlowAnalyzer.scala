@@ -48,8 +48,10 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          w: Importance = UnknownImportance,
                          r0: Importance = UnknownImportance,
                          r1: Importance = UnknownImportance,
+                         r2: Importance = UnknownImportance,
+                         r3: Importance = UnknownImportance,
                         ) {
-  override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; R0=$r0,R1=$r1"
+  override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; R0=$r0,R1=$r1,R2=$r2,R3=$r3"
 
   def ~(that: CpuImportance) = new CpuImportance(
     a = this.a ~ that.a,
@@ -65,6 +67,8 @@ case class CpuImportance(a: Importance = UnknownImportance,
     w = this.w ~ that.w,
     r0 = this.r0 ~ that.r0,
     r1 = this.r1 ~ that.r1,
+    r2 = this.r2 ~ that.r2,
+    r3 = this.r3 ~ that.r3,
   )
 
   def isUnimportant(state: State.Value): Boolean = state match {
@@ -86,12 +90,15 @@ case class CpuImportance(a: Importance = UnknownImportance,
   def isPseudoregisterUnimportant(index: Int): Boolean = index match {
     case 0 => r0 != Important
     case 1 => r1 != Important
+    case 2 => r2 != Important
+    case 3 => r3 != Important
     case _ => false
   }
 }
 
 object ReverseFlowAnalyzer {
 
+  val functionsThatReadC = Set("__adc_decimal", "__sbc_decimal")
   private val aluAdders = Set(Opcode.ADC, Opcode.SBC, Opcode.ISC, Opcode.DCP, Opcode.ADC_W, Opcode.SBC_W)
   private val actuallyRead = Set(AddrMode.IndexedZ, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.LongIndexedZ, AddrMode.IndexedX, AddrMode.Indirect, AddrMode.AbsoluteIndexedX)
   private val absoluteLike = Set(AddrMode.ZeroPage, AddrMode.Absolute, AddrMode.LongAbsolute)
@@ -109,13 +116,15 @@ object ReverseFlowAnalyzer {
     m = Important,
     w = Important,
     r0 = Unimportant,
-    r1 = Unimportant)
+    r1 = Unimportant,
+    r2 = Unimportant,
+    r3 = Unimportant)
   private val finalImportance: CpuImportance = CpuImportance(
     a = Important, ah = Important,
     x = Important, y = Important, iz = Important,
     c = Important, v = Important, d = Important, z = Important, n = Important,
     m = Important, w = Important,
-    r0 = Important, r1 = Important)
+    r0 = Important, r1 = Important, r2 = Important, r3 = Important)
 
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[CpuImportance] = {
@@ -181,20 +190,32 @@ object ReverseFlowAnalyzer {
               x = if (niceFunctionProperties(DoesntChangeX -> fun.name)) currentImportance.x ~ result.x else result.x,
               y = if (niceFunctionProperties(DoesntChangeY -> fun.name)) currentImportance.y ~ result.y else result.y,
               iz = if (niceFunctionProperties(DoesntChangeIZ -> fun.name)) currentImportance.iz ~ result.iz else result.iz,
-              c = if (niceFunctionProperties(DoesntChangeC -> fun.name)) currentImportance.c ~ result.c else result.c,
+              c = if (functionsThatReadC(fun.name)) Important else if (niceFunctionProperties(DoesntChangeC -> fun.name)) currentImportance.c ~ result.c else result.c,
               d = if (niceFunctionProperties(DoesntConcernD -> fun.name)) currentImportance.d else result.d,
               r0 =
-                if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput(fun.name))
+                if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput.getOrElse(fun.name, Set())(0))
                   Important
                 else if (niceFunctionProperties(DoesntChangeZpRegister -> fun.name))
                   currentImportance.r0 ~ result.r0
                 else result.r0,
               r1 =
-                if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput(fun.name))
+                if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput.getOrElse(fun.name, Set())(1))
                   Important
                 else if (niceFunctionProperties(DoesntChangeZpRegister -> fun.name))
                   currentImportance.r1 ~ result.r1
-                else result.r1
+                else result.r1,
+              r2 =
+                if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput.getOrElse(fun.name, Set())(2))
+                  Important
+                else if (niceFunctionProperties(DoesntChangeZpRegister -> fun.name))
+                  currentImportance.r2 ~ result.r2
+                else result.r2,
+              r3 =
+                if (ZeropageRegisterOptimizations.functionsThatUsePseudoregisterAsInput.getOrElse(fun.name, Set())(3))
+                  Important
+                else if (niceFunctionProperties(DoesntChangeZpRegister -> fun.name))
+                  currentImportance.r3 ~ result.r3
+                else result.r3
             )
 
           case AssemblyLine(ANC, _, NumericConstant(0, _), _) =>
@@ -283,6 +304,10 @@ object ReverseFlowAnalyzer {
                 if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Unimportant)
               case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
                 if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Unimportant)
+              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
+                if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Unimportant)
+              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(3, _))
+                if th.name == "__reg" => currentImportance = currentImportance.copy(r3 = Unimportant)
               case _ => ()
             }
           }
@@ -290,6 +315,10 @@ object ReverseFlowAnalyzer {
             currentLine.parameter match {
               case MemoryAddressConstant(th: Thing)
                 if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Unimportant, r1 = Unimportant)
+              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
+                if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Unimportant, r2 = Unimportant)
+              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
+                if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Unimportant, r3 = Unimportant)
               case _ => ()
             }
           }
@@ -298,6 +327,10 @@ object ReverseFlowAnalyzer {
           currentLine.parameter match {
             case MemoryAddressConstant(th: Thing)
               if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Important, r1 = Important)
+            case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
+              if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Important, r2 = Important)
+            case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
+              if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Important, r3 = Important)
             case _ => ()
           }
         } else if (OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(currentLine.opcode)) {
@@ -305,6 +338,10 @@ object ReverseFlowAnalyzer {
             currentLine.parameter match {
               case MemoryAddressConstant(th: Thing)
                 if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Important, r1 = Important)
+              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
+                if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Important, r2 = Important)
+              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
+                if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Important, r3 = Important)
               case _ => ()
             }
           } else {
@@ -313,6 +350,10 @@ object ReverseFlowAnalyzer {
                 if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Important)
               case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
                 if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Important)
+              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
+                if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Important)
+              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(3, _))
+                if th.name == "__reg" => currentImportance = currentImportance.copy(r3 = Important)
               case _ => ()
             }
           }
