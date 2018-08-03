@@ -6,6 +6,7 @@ import millfork.assembly.z80.ZOpcode._
 import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
 import millfork.node.ZRegister
 import ZRegister._
+import millfork.DecimalUtils._
 
 /**
   * Optimizations valid for Intel8080, Z80, EZ80 and Sharp
@@ -265,7 +266,34 @@ object AlwaysGoodI80Optimizations {
         code.drop(2).init :+ code.head
       }
     }),
-
+    //16
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL)) ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> {_ =>
+      List(
+        ZLine.ld8(ZRegister.D, ZRegister.H),
+        ZLine.ld8(ZRegister.E, ZRegister.L))
+    },
+    //17,
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL)) ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> {_ =>
+      List(
+        ZLine.ld8(ZRegister.B, ZRegister.H),
+        ZLine.ld8(ZRegister.C, ZRegister.L))
+    },
+    //18
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE)) ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> {_ =>
+      List(
+        ZLine.ld8(ZRegister.H, ZRegister.D),
+        ZLine.ld8(ZRegister.L, ZRegister.E))
+    },
+    //19,
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC)) ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> {_ =>
+      List(
+        ZLine.ld8(ZRegister.H, ZRegister.B),
+        ZLine.ld8(ZRegister.L, ZRegister.C))
+    },
   )
 
   private def simplifiable16BitAddWithSplitTarget(targetH: ZRegister.Value, targetL: ZRegister.Value, target: ZRegister.Value, source: ZRegister.Value) = MultipleAssemblyRules(List(
@@ -316,6 +344,12 @@ object AlwaysGoodI80Optimizations {
     for6Registers(register =>
       (Elidable & HasOpcode(ADD) & MatchRegister(ZRegister.A, 0) & HasRegisterParam(register) & MatchRegister(register, 1) &
         DoesntMatterWhatItDoesWithFlags) ~~> ((code, ctx) => List(ZLine.ldImm8(ZRegister.A, (ctx.get[Int](0) + ctx.get[Int](1)) & 0xff))),
+    ),
+    for6Registers(register =>
+      (Elidable & HasOpcode(ADD) & MatchRegister(ZRegister.A, 0) & HasRegisterParam(register) & MatchRegister(register, 1)) ~
+        (Elidable & HasOpcode(DAA) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
+        List(ZLine.ldImm8(ZRegister.A, asDecimal(ctx.get[Int](0) & 0xff, ctx.get[Int](1) & 0xff, _ + _).toInt & 0xff))
+      },
     ),
     simplifiable16BitAddWithSplitTarget(ZRegister.H, ZRegister.L, ZRegister.HL, ZRegister.BC),
     simplifiable16BitAddWithSplitTarget(ZRegister.H, ZRegister.L, ZRegister.HL, ZRegister.DE),
