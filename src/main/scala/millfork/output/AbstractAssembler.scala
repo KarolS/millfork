@@ -9,7 +9,7 @@ import millfork._
 import millfork.assembly.z80.ZLine
 
 import scala.collection.mutable
-import scala.math.Integral.Implicits.infixIntegralOps
+import DecimalUtils._
 
 /**
   * @author Karol Stasiak
@@ -104,6 +104,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             case Some(cc) =>
               deepConstResolve(cc)
             case None =>
+              log.fatal("Failed to resolve constant: " + th.name)
               println(th)
               ???
           }
@@ -149,35 +150,6 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case _ => log.fatal("Failed to extract bank number from constant " + c)
     }
   }
-
-  private def parseNormalToDecimalValue(a: Long): Long = {
-    if (a < 0) -parseNormalToDecimalValue(-a)
-    var x = a
-    var result = 0L
-    var multiplier = 1L
-    while (x > 0) {
-      result += multiplier * (x % 16L)
-      x /= 16L
-      multiplier *= 10L
-    }
-    result
-  }
-
-  private def storeDecimalValueInNormalRespresentation(a: Long): Long = {
-    if (a < 0) -storeDecimalValueInNormalRespresentation(-a)
-    var x = a
-    var result = 0L
-    var multiplier = 1L
-    while (x > 0) {
-      result += multiplier * (x % 10L)
-      x /= 10L
-      multiplier *= 16L
-    }
-    result
-  }
-
-  private def asDecimal(a: Long, b: Long, f: (Long, Long) => Long): Long =
-    storeDecimalValueInNormalRespresentation(f(parseNormalToDecimalValue(a), parseNormalToDecimalValue(b)))
 
   def bytePseudoopcode: String
 

@@ -1,7 +1,6 @@
 package millfork.env
 
-import millfork.error.{ConsoleLogger, Logger}
-import millfork.node.Position
+import millfork.DecimalUtils._
 
 object Constant {
   val Zero: Constant = NumericConstant(0, 1)
@@ -23,6 +22,10 @@ sealed trait Constant {
   def isProvablyZero: Boolean = false
   def isProvably(value: Int): Boolean = false
   def isProvablyNonnegative: Boolean = false
+  def isProvablyGreaterOrEqualThan(other: Constant): Boolean = other match {
+    case NumericConstant(0, _) => true
+    case _ => false
+  }
 
   def asl(i: Constant): Constant = i match {
     case NumericConstant(sa, _) => asl(sa.toInt)
@@ -93,6 +96,7 @@ sealed trait Constant {
 }
 
 case class AssertByte(c: Constant) extends Constant {
+  override def isProvablyGreaterOrEqualThan(other: Constant): Boolean = c.isProvablyGreaterOrEqualThan(other)
   override def isProvablyZero: Boolean = c.isProvablyZero
   override def isProvably(i: Int): Boolean = c.isProvably(i)
   override def isProvablyNonnegative: Boolean = c.isProvablyNonnegative
@@ -121,6 +125,10 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
       throw new IllegalArgumentException(s"The constant $value is too big")
     }
   }
+  override def isProvablyGreaterOrEqualThan(other: Constant): Boolean = value >= 0 && (other match {
+    case NumericConstant(o, _) if o >= 0  => value >=o
+    case _ => false
+  })
   override def isProvablyZero: Boolean = value == 0
   override def isProvably(i: Int): Boolean = value == i
   override def isProvablyNonnegative: Boolean = value >= 0
@@ -172,6 +180,11 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
 case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
 
   override def isProvablyNonnegative: Boolean = true
+  override def isProvablyGreaterOrEqualThan(other: Constant): Boolean = other match {
+    case NumericConstant(0, _) => true
+    case MemoryAddressConstant(otherThing) => thing == otherThing
+    case _ => false
+  }
 
   override def requiredSize = 2
 
@@ -239,6 +252,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     val l = lhs.quickSimplify
     val r = rhs.quickSimplify
     (l, r) match {
+      case (MemoryAddressConstant(lt), MemoryAddressConstant(rt)) if operator == MathOperator.Minus && lt == rt => Constant.Zero
       case (CompoundConstant(MathOperator.Plus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv, _)) if operator == MathOperator.Plus =>
         CompoundConstant(MathOperator.Plus, a, ll + rr).quickSimplify
       case (CompoundConstant(MathOperator.Minus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv, _)) if operator == MathOperator.Minus =>
@@ -263,37 +277,6 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
 
       case (_, CompoundConstant(MathOperator.DecimalMinus, a, b)) if operator == MathOperator.DecimalPlus =>
         CompoundConstant(MathOperator.DecimalMinus, CompoundConstant(MathOperator.DecimalPlus, l, a), b).quickSimplify
-      case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
-        var size = ls max rs
-        val value = operator match {
-          case MathOperator.Plus => lv + rv
-          case MathOperator.Minus => lv - rv
-          case MathOperator.Times => lv * rv
-          case MathOperator.Shl => lv << rv
-          case MathOperator.Shr => lv >> rv
-          case MathOperator.Shl9 => (lv << rv) & 0x1ff
-          case MathOperator.Plus9 => (lv + rv) & 0x1ff
-          case MathOperator.Shr9 => (lv & 0x1ff) >> rv
-          case MathOperator.Exor => lv ^ rv
-          case MathOperator.Or => lv | rv
-          case MathOperator.And => lv & rv
-          case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
-            asDecimal(lv & 0xff, rv & 0xff, _ + _) & 0xff
-          case MathOperator.DecimalMinus if ls == 1 && rs == 1 && lv.&(0xff) >= rv.&(0xff) =>
-            asDecimal(lv & 0xff, rv & 0xff, _ - _) & 0xff
-          case _ => return this
-        }
-        operator match {
-          case MathOperator.Plus9 | MathOperator.DecimalPlus9 =>
-            size = 2
-          case MathOperator.Times | MathOperator.Shl =>
-            val mask = (1 << (size * 8)) - 1
-            if (value != (value & mask)) {
-              size = ls + rs
-            }
-          case _ =>
-        }
-        NumericConstant(value, size)
       case (NumericConstant(0, 1), c) =>
         operator match {
           case MathOperator.Plus => c
@@ -329,38 +312,40 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.And => Constant.Zero
           case _ => CompoundConstant(operator, l, r)
         }
+      case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
+        var size = ls max rs
+        val value = operator match {
+          case MathOperator.Plus => lv + rv
+          case MathOperator.Minus => lv - rv
+          case MathOperator.Times => lv * rv
+          case MathOperator.Shl => lv << rv
+          case MathOperator.Shr => lv >> rv
+          case MathOperator.Shl9 => (lv << rv) & 0x1ff
+          case MathOperator.Plus9 => (lv + rv) & 0x1ff
+          case MathOperator.Shr9 => (lv & 0x1ff) >> rv
+          case MathOperator.Exor => lv ^ rv
+          case MathOperator.Or => lv | rv
+          case MathOperator.And => lv & rv
+          case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
+            asDecimal(lv & 0xff, rv & 0xff, _ + _) & 0xff
+          case MathOperator.DecimalMinus if ls == 1 && rs == 1 && lv.&(0xff) >= rv.&(0xff) =>
+            asDecimal(lv & 0xff, rv & 0xff, _ - _) & 0xff
+          case _ => return this
+        }
+        operator match {
+          case MathOperator.Plus9 | MathOperator.DecimalPlus9 =>
+            size = 2
+          case MathOperator.Times | MathOperator.Shl =>
+            val mask = (1 << (size * 8)) - 1
+            if (value != (value & mask)) {
+              size = ls + rs
+            }
+          case _ =>
+        }
+        NumericConstant(value, size)
       case _ => CompoundConstant(operator, l, r)
     }
   }
-
-  private def parseNormalToDecimalValue(a: Long): Long = {
-    if (a < 0) -parseNormalToDecimalValue(-a)
-    var x = a
-    var result = 0L
-    var multiplier = 1L
-    while (x > 0) {
-      result += multiplier * (x % 16L)
-      x /= 16L
-      multiplier *= 10L
-    }
-    result
-  }
-
-  private def storeDecimalValueInNormalRespresentation(a: Long): Long = {
-    if (a < 0) -storeDecimalValueInNormalRespresentation(-a)
-    var x = a
-    var result = 0L
-    var multiplier = 1L
-    while (x > 0) {
-      result += multiplier * (x % 10L)
-      x /= 10L
-      multiplier *= 16L
-    }
-    result
-  }
-
-  private def asDecimal(a: Long, b: Long, f: (Long, Long) => Long): Long =
-    storeDecimalValueInNormalRespresentation(f(parseNormalToDecimalValue(a), parseNormalToDecimalValue(b)))
 
 
   import MathOperator._
