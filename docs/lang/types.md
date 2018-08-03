@@ -25,10 +25,22 @@ Millfork puts extra limitations on which types can be used in which contexts.
 
 * `pointer` – the same as `word`, but variables of this type default to be zero-page-allocated
 and you can index `pointer` variables (not arbitrary `pointer`-typed expressions though, `f()[0]` won't compile)
-
-Functions cannot return types longer than 2 bytes. 
-There's also no reason to make a function return `pointer`, since to dereference it, 
+You can create pointer values by suffixing `.addr` to the name of a variable, function or array.  
+**Work in progress**:
+There's no reason to make a function return `pointer` yet, since currently to dereference it, 
 you need to put it in a variable first anyway.
+
+You can access single bytes of variables by using the following notations:
+
+* for 2-byte-sized variables: `.lo` for the least significant byte and `.hi` for the most significant byte
+
+* for larger variables: `.b0` for the least significant byte and then `.b1`, `.b2` and so on
+
+You can also access words that are parts of variables:
+
+* for 3-byte-sized variables: `.loword` is the word formed from `.b1` and `.b0` and `.hiword` is the word formed from `.b2` and `.b1`
+
+* for 4-byte-sized variables: `.loword` is the word formed from `.b1` and `.b0` and `.hiword` is the word formed from `.b3` and `.b2`
 
 Numeric types can be converted automatically:
 
