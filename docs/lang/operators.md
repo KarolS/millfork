@@ -144,9 +144,12 @@ Note you cannot mix those operators, so `a <= b < c` is not valid.
 `simple word > simple word`  
 `simple long > simple long`
 
-Currently, `>`, `<`, `<=`, `>=` operators perform unsigned comparison 
-if none of the types of their arguments is signed,
-and fail to compile otherwise. This will be changed in the future.  
+Currently, `>`, `<`, `<=`, `>=` operators perform signed comparison 
+if any of the types of their arguments is signed,
+and unsigned comparison otherwise.  
+
+**WARNING:** On targets using Intel 8080 and Sharp LR35902, a signed comparison `a OP b` is compiled as `a - b OP 0`,
+which may give wrong results if the subtraction overflows.
 
 ## Assignment and in-place modification operators
 

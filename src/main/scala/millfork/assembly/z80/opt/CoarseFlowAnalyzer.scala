@@ -4,7 +4,7 @@ import millfork.assembly.opt.{AnyStatus, SingleStatus, Status}
 import millfork.assembly.z80._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConstant}
 import millfork.node.ZRegister
-import millfork.{CompilationOptions, Cpu}
+import millfork.{CompilationFlag, CompilationOptions, Cpu}
 
 /**
   * @author Karol Stasiak
@@ -17,6 +17,7 @@ object CoarseFlowAnalyzer {
     val emptyStatus = CpuStatus()
     val flagArray = Array.fill[CpuStatus](code.length)(emptyStatus)
     val codeArray = code.toArray
+    val z80 = compilationOptions.flag(CompilationFlag.EmitZ80Opcodes)
 
     var changed = true
     while (changed) {
@@ -42,25 +43,41 @@ object CoarseFlowAnalyzer {
           case ZLine(BYTE, _, _, _) =>
             currentStatus = initialStatus
 
-          case ZLine(ADD, OneRegister(s), _, _) =>
+          case ZLine(ADD, OneRegister(ZRegister.IMM_8), NumericConstant(0, _), _) =>
+            currentStatus = currentStatus.copy(
+              nf = Status.SingleFalse,
+              cf = Status.SingleFalse,
+              zf = currentStatus.a.map(_.&(0xff) == 0),
+              sf = currentStatus.a.map(_.&(0x80) == 0),
+              pf = if (z80) Status.SingleFalse else AnyStatus,
+              hf = Status.SingleFalse)
+          case ZLine(SUB, OneRegister(ZRegister.IMM_8), NumericConstant(0, _), _) =>
+            currentStatus = currentStatus.copy(
+              nf = Status.SingleTrue,
+              cf = Status.SingleFalse,
+              zf = currentStatus.a.map(_.&(0xff) == 0),
+              sf = currentStatus.a.map(_.&(0x80) == 0),
+              pf = if (z80) Status.SingleFalse else AnyStatus,
+              hf = Status.SingleFalse)
+          case l@ZLine(ADD, OneRegister(s), _, _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m + n) & 0xff),
-              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+              nf = Status.SingleFalse, cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
           case ZLine(SUB, OneRegister(s), _, _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m - n) & 0xff),
-              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+              nf = Status.SingleTrue, cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
           case ZLine(AND, OneRegister(s), _, _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m & n) & 0xff),
-              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+              nf = Status.SingleFalse, cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
           case ZLine(OR, OneRegister(ZRegister.A), _, _) =>
-            currentStatus = currentStatus.copy(cf = Status.SingleFalse, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+            currentStatus = currentStatus.copy(nf = Status.SingleFalse, cf = Status.SingleFalse, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
           case ZLine(XOR, OneRegister(ZRegister.A), _, _) =>
-            currentStatus = currentStatus.copy(a = Status.SingleZero, cf = Status.SingleFalse, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+            currentStatus = currentStatus.copy(a = Status.SingleZero, nf = Status.SingleFalse, cf = Status.SingleFalse, zf = Status.SingleTrue, sf = Status.SingleFalse, pf = AnyStatus, hf = AnyStatus)
           case ZLine(OR, OneRegister(s), _, _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m | n) & 0xff),
-              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+              nf = Status.SingleFalse, cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
           case ZLine(XOR, OneRegister(s), _, _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m ^ n) & 0xff),
-              cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+              nf = Status.SingleFalse, cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
 
           case ZLine(INC, OneRegister(r), _, _) =>
             currentStatus = currentStatus.
@@ -126,8 +143,8 @@ object CoarseFlowAnalyzer {
               zf = AnyStatus,
               pf = AnyStatus, hf = Status.SingleFalse)
 
-          case ZLine(SCF, _, _, _) => currentStatus.copy(cf = Status.SingleTrue)
-          case ZLine(CCF, _, _, _) => currentStatus.copy(cf = currentStatus.cf.negate)
+          case ZLine(SCF, _, _, _) => currentStatus.copy(cf = Status.SingleTrue, hf = Status.SingleFalse, nf = Status.SingleFalse)
+          case ZLine(CCF, _, _, _) => currentStatus.copy(cf = currentStatus.cf.negate, hf = AnyStatus, nf = AnyStatus)
 
           case ZLine(opcode, registers, _, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)

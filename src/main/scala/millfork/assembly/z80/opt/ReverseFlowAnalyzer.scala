@@ -73,6 +73,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     cf = this.cf ~ that.cf,
     pf = this.pf ~ that.pf,
     hf = this.hf ~ that.hf,
+    sf = this.sf ~ that.sf,
   )
 
   def getRegister(register: ZRegister.Value, offset: Int = -1): Importance = register match {

@@ -392,7 +392,7 @@ object ZBuiltIns {
           case Some(NumericConstant(0xfd | -3, _)) if ctx.options.flag(CompilationFlag.OptimizeForSpeed) =>
             calculateAddress ++ List(ZLine.register(INC, lv), ZLine.register(INC, lv), ZLine.register(INC, lv))
           case _ =>
-            if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+            if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
               setup ++ List(
                 ZLine.implied(NEG),
                 ZLine.register(ADD, lv),

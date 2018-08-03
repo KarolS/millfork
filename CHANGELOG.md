@@ -35,6 +35,8 @@ Code that uses a custom platform definitions will cause extra warnings until fix
 
 * Fixed decimal subtraction.
 
+* Fixed signed comparison.
+
 * Parser performance improvement.
 
 * Standard libraries improvements.

@@ -135,7 +135,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
 
   override def toString: String = {
     val memRepr = if (memIx.isEmpty) "" else (0 to memIx.keys.max).map(i => memIx.getOrElse(i, UnknownStatus)).mkString("")
-    s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,Y=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf; M=" + memRepr.padTo(4, ' ')
+    s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,IY=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf; M=" + memRepr.padTo(4, ' ')
   }
 
 }

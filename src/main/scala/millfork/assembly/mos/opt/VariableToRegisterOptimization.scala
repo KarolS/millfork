@@ -6,10 +6,11 @@ import millfork.assembly.mos._
 import millfork.assembly.mos.Opcode._
 import AddrMode._
 import millfork.env._
-import millfork.error.{FatalErrorReporting, Logger}
+import millfork.error.Logger
 import millfork.node.MosNiceFunctionProperty
 
 import scala.collection.mutable.ListBuffer
+import scala.util.control.TailCalls.{ TailRec, done, tailcall }
 
 /**
   * @author Karol Stasiak
@@ -278,7 +279,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           case (v, range, _) =>
             log.debug(s"Inlining $v to register X")
             val oldCode = code.zip(importances).slice(range.start, range.end)
-            val newCode = inlineVars(Some(v), None, None, None, featuresForIndices, oldCode)
+            val newCode = inlineVars(Some(v), None, None, None, featuresForIndices, oldCode).result
             reportOptimizedBlock(oldCode, newCode)
             output ++= newCode
             i = range.end
@@ -292,7 +293,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
             case (v, range, _) =>
               log.debug(s"Inlining $v to register Y")
               val oldCode = code.zip(importances).slice(range.start, range.end)
-              val newCode = inlineVars(None, Some(v), None, None, featuresForIndices, oldCode)
+              val newCode = inlineVars(None, Some(v), None, None, featuresForIndices, oldCode).result
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
@@ -307,7 +308,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
             case (v, range, _) =>
               log.debug(s"Inlining $v to register Z")
               val oldCode = code.zip(importances).slice(range.start, range.end)
-              val newCode = inlineVars(None, None, Some(v), None, featuresForIndices, oldCode)
+              val newCode = inlineVars(None, None, Some(v), None, featuresForIndices, oldCode).result
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
@@ -322,7 +323,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
             case (v, range, _) =>
               log.debug(s"Inlining $v to register A")
               val oldCode = code.zip(importances).slice(range.start, range.end)
-              val newCode = inlineVars(None, None, None, Some(v), featuresForIndices, oldCode)
+              val newCode = inlineVars(None, None, None, Some(v), featuresForIndices, oldCode).result
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
@@ -744,7 +745,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     case _ => true
   }
 
-  def inlineVars(xCandidate: Option[String], yCandidate: Option[String], zCandidate: Option[String], aCandidate: Option[String], features: FeaturesForIndexRegisters, lines: List[(AssemblyLine, CpuImportance)]): List[AssemblyLine] = {
+  def inlineVars(xCandidate: Option[String],
+                 yCandidate: Option[String],
+                 zCandidate: Option[String],
+                 aCandidate: Option[String],
+                 features: FeaturesForIndexRegisters,
+                 lines: List[(AssemblyLine, CpuImportance)]): TailRec[List[AssemblyLine]] = {
     val vx = xCandidate.getOrElse("-")
     val vy = yCandidate.getOrElse("-")
     val vz = zCandidate.getOrElse("-")
@@ -752,94 +758,94 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     lines match {
       case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
-        AssemblyLine.implied(INX) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map( AssemblyLine.implied(INX) :: _)
 
       case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vy =>
-        AssemblyLine.implied(INY) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(INY) :: _)
 
       case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vz =>
-        AssemblyLine.implied(INZ) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(INZ) :: _)
 
       case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
-        AssemblyLine.implied(DEX) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEX) :: _)
 
       case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vy =>
-        AssemblyLine.implied(DEY) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEY) :: _)
 
       case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vz =>
-        AssemblyLine.implied(DEZ) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEZ) :: _)
 
       case (AssemblyLine(opcode@(DEC | INC | ROL | ROR | ASL | LSR), Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == va =>
-        AssemblyLine.implied(opcode) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(opcode) :: _)
 
       case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
         if th.name == vx =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
-          inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs))
         } else {
-          AssemblyLine.immediate(CPX, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPX, 0) :: _)
         }
 
       case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
-        AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) ::  _)
 
       case (l@AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesIdentityTable(op) && th.name == vx =>
-        l.copy(addrMode = AbsoluteX, parameter = features.identityArray) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l.copy(addrMode = AbsoluteX, parameter = features.identityArray) ::  _)
 
       case (l@AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesIdentityTable(op) && th.name == vy =>
-        l.copy(addrMode = AbsoluteY, parameter = features.identityArray) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l.copy(addrMode = AbsoluteY, parameter = features.identityArray) ::  _)
 
       case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == va =>
-        l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l.copy(opcode = op) ::  _)
 
       case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == va =>
-        clc :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(clc :: l.copy(opcode = op) ::  _)
 
       case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == vx =>
-        AssemblyLine.implied(TXA) :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) :: l.copy(opcode = op) ::  _)
 
       case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == vx =>
-        AssemblyLine.implied(TXA) :: clc :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) :: clc :: l.copy(opcode = op) ::  _)
 
       case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == vy =>
-        AssemblyLine.implied(TYA) :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) :: l.copy(opcode = op) ::  _)
 
       case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if opcodesCommutative(op) && th.name == vy =>
-        AssemblyLine.implied(TYA) :: clc :: l.copy(opcode = op) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) :: clc :: l.copy(opcode = op) ::  _)
 
       case (AssemblyLine(LDA | STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
         if th.name == va =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
         } else {
-          AssemblyLine.immediate(CMP, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CMP, 0) ::  _)
         }
 
       case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == va =>
-        AssemblyLine.implied(TAX) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX) ::  _)
 
       case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
         if th.name == vy =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
         } else {
-          AssemblyLine.immediate(CPY, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPY, 0) ::  _)
         }
 
       case (AssemblyLine(LDZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
@@ -847,134 +853,134 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if (imp.z == Unimportant && imp.n == Unimportant) {
           inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
         } else {
-          AssemblyLine.immediate(CPZ, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPZ, 0) ::  _)
         }
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TAX, _, _, true), _) :: xs
         if th.name == vx =>
         // these TXA's may get optimized away by a different optimization
-        AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) ::  _)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TAY, _, _, true), _) :: xs
         if th.name == vy =>
         // these TYA's may get optimized away by a different optimization
-        AssemblyLine.implied(TYA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) ::  _)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TAZ, _, _, true), _) :: xs
         if th.name == vz =>
         // these TZA's may get optimized away by a different optimization
-        AssemblyLine.implied(TZA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA) ::  _)
 
       case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TXA, _, _, true), _) :: xs
         if th.name == va =>
         // these TAX's may get optimized away by a different optimization
-        AssemblyLine.implied(TAX) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX) ::  _)
 
       case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TYA, _, _, true), _) :: xs
         if th.name == va =>
         // these TAY's may get optimized away by a different optimization
-        AssemblyLine.implied(TAY) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY) ::  _)
 
       case (AssemblyLine(LDA, am, param, true), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
         if th.name == vx && LdxAddrModes(am) =>
         // these TXA's may get optimized away by a different optimization
-        AssemblyLine(LDX, am, param) :: AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDX, am, param) :: AssemblyLine.implied(TXA) ::  _)
 
       case (AssemblyLine(LDA, am, param, true), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
         if th.name == vy && LdyAddrModes(am) =>
         // these TYA's may get optimized away by a different optimization
-        AssemblyLine(LDY, am, param) :: AssemblyLine.implied(TYA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDY, am, param) :: AssemblyLine.implied(TYA) ::  _)
 
       case (AssemblyLine(LDA, am, param, true), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
         if th.name == vz && LdzAddrModes(am) =>
         // these TZA's may get optimized away by a different optimization
-        AssemblyLine(LDZ, am, param) :: AssemblyLine.implied(TZA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDZ, am, param) :: AssemblyLine.implied(TZA) ::  _)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
         if th.name == vx && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
-        AssemblyLine.implied(TXA) :: AssemblyLine(CPX, am, param) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) :: AssemblyLine(CPX, am, param) ::  _)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
         if th.name == vy && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
-        AssemblyLine.implied(TYA) :: AssemblyLine(CPY, am, param) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) :: AssemblyLine(CPY, am, param) ::  _)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
         if th.name == vy && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
-        AssemblyLine.implied(TZA) :: AssemblyLine(CPZ, am, param) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA) :: AssemblyLine(CPZ, am, param) ::  _)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
-        AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) ::  _)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vy =>
-        AssemblyLine.implied(TYA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) ::  _)
 
       case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
-        AssemblyLine.implied(TXY) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXY) ::  _)
 
       case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vy =>
-        AssemblyLine.implied(TYX) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYX) ::  _)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vz =>
-        AssemblyLine.implied(TZA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA) ::  _)
 
       case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == va =>
-        AssemblyLine.implied(TAX) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX) ::  _)
 
       case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == va =>
-        AssemblyLine.implied(TAY) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY) ::  _)
 
       case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
-        AssemblyLine.implied(TAX) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX) ::  _)
 
       case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vy =>
-        AssemblyLine.implied(TAY) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY) ::  _)
 
       case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vz =>
-        AssemblyLine.implied(TAZ) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAZ) ::  _)
 
       case (AssemblyLine(STX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == va =>
-        AssemblyLine.implied(TXA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) ::  _)
 
       case (AssemblyLine(STY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == va =>
-        AssemblyLine.implied(TYA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) ::  _)
 
       case (AssemblyLine(STX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vy =>
-        AssemblyLine.implied(TXY) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXY) ::  _)
 
       case (AssemblyLine(STY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
-        AssemblyLine.implied(TYX) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYX) ::  _)
 
       case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vx =>
-        if (features.izIsAlwaysZero) AssemblyLine.immediate(LDX, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDX, 0) ::  _)
         else features.log.fatal("Unexpected STZ")
 
       case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == vy =>
-        if (features.izIsAlwaysZero) AssemblyLine.immediate(LDY, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDY, 0) ::  _)
         else features.log.fatal("Unexpected STZ")
 
       case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
         if th.name == va =>
-        if (features.izIsAlwaysZero) AssemblyLine.immediate(LDA, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
-        else AssemblyLine.implied(TZA) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDA, 0) ::  _)
+        else tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA) ::  _)
 
       case (AssemblyLine(TAX, _, _, _), _) :: xs if xCandidate.isDefined =>
         features.log.fatal("Unexpected TAX")
@@ -986,17 +992,17 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         features.log.fatal("Unexpected TAZ")
 
       case (AssemblyLine(TXA, _, _, _), _) :: xs if aCandidate.isDefined =>
-        AssemblyLine.immediate(CPX, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPX, 0) ::  _)
 
       case (AssemblyLine(TYA, _, _, _), _) :: xs if aCandidate.isDefined =>
-        AssemblyLine.immediate(CPY, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPY, 0) ::  _)
 
       case (AssemblyLine(TZA, _, _, _), _) :: xs if aCandidate.isDefined =>
-        AssemblyLine.immediate(CPZ, 0) :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPZ, 0) ::  _)
 
-      case (x, _) :: xs => x :: inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
+      case (x, _) :: xs => inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs).map(x ::  _)
 
-      case Nil => Nil
+      case Nil => done(Nil)
     }
   }
 

@@ -162,21 +162,35 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     }
   }
 
+  def formatZ80Flags(f: Int): String = {
+    val array = Array[Char]('s', 'z', 'y', 'h', 'x', 'p', 'n', 'c')
+    for (x <- 0 to 7) {
+      if (f.&(1 << x) != 0) {
+        array(7 - x) = (array(7 - x).toInt - 32).toChar
+      }
+    }
+    new String(array)
+  }
+
   def dump(cpu: Z80Core): Unit = {
+    val pc = cpu.getRegisterValue(CPUConstants.RegisterNames.PC)
     val a = cpu.getRegisterValue(CPUConstants.RegisterNames.A)
     val bc = cpu.getRegisterValue(CPUConstants.RegisterNames.BC)
     val de = cpu.getRegisterValue(CPUConstants.RegisterNames.DE)
     val hl = cpu.getRegisterValue(CPUConstants.RegisterNames.HL)
-    println(f"A=$a%02x,BC=$bc%04x,DE=$de%04x,HL=$hl%04x")
+    val f = cpu.getRegisterValue(CPUConstants.RegisterNames.F)
+    println(f"PC=$pc%04x A=$a%02x,BC=$bc%04x,DE=$de%04x,HL=$hl%04x F=${formatZ80Flags(f)}%s")
   }
 
   def dump(cpu: Cpu): Unit = {
     val regs = cpu.getRegisters
+    val pc = regs.getPC
     val a = regs.getA
     val bc = regs.getBC
     val de = regs.getDE
     val hl = regs.getHL
-    println(f"A=$a%02x,BC=$bc%04x,DE=$de%04x,HL=$hl%04x")
+    val f = regs.getFlags.toString
+    println(f"PC=$pc%04x A=$a%02x,BC=$bc%04x,DE=$de%04x,HL=$hl%04x F=$f%s")
   }
 
 }

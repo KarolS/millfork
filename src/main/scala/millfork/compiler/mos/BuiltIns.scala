@@ -383,20 +383,24 @@ object BuiltIns {
         }
       case _ =>
     }
-    val secondParamCompiled = maybeConstant match {
+    val cmpOp = if (ComparisonType.isSigned(compType)) SBC else CMP
+    var comparingAgainstZero = false
+    val secondParamCompiled0 = maybeConstant match {
       case Some(x) =>
         compType match {
-          case ComparisonType.Equal | ComparisonType.NotEqual | ComparisonType.LessSigned | ComparisonType.GreaterOrEqualSigned =>
-            if (x.quickSimplify.isLowestByteAlwaysEqual(0) && OpcodeClasses.ChangesAAlways(firstParamCompiled.last.opcode)) Nil
-            else List(AssemblyLine.immediate(CMP, x))
+          case ComparisonType.Equal | ComparisonType.NotEqual | ComparisonType.LessSigned | ComparisonType.GreaterOrEqualSigned | ComparisonType.LessOrEqualSigned | ComparisonType.GreaterSigned =>
+            if (x.quickSimplify.isLowestByteAlwaysEqual(0) && OpcodeClasses.ChangesAAlways(firstParamCompiled.last.opcode)) {
+              comparingAgainstZero = true
+              Nil
+            } else List(AssemblyLine.immediate(cmpOp, x))
           case _ =>
-            List(AssemblyLine.immediate(CMP, x))
+            List(AssemblyLine.immediate(cmpOp, x))
         }
       case _ => compType match {
         case ComparisonType.Equal | ComparisonType.NotEqual | ComparisonType.LessSigned | ComparisonType.GreaterOrEqualSigned =>
-          val secondParamCompiledUnoptimized = simpleOperation(CMP, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
+          val secondParamCompiledUnoptimized = simpleOperation(cmpOp, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
           secondParamCompiledUnoptimized match {
-            case List(AssemblyLine(CMP, Immediate, NumericConstant(0, _), true)) =>
+            case List(AssemblyLine(cmpOp, Immediate, NumericConstant(0, _), true)) =>
               if (OpcodeClasses.ChangesAAlways(firstParamCompiled.last.opcode)) {
                 Nil
               } else {
@@ -405,9 +409,10 @@ object BuiltIns {
             case _ => secondParamCompiledUnoptimized
           }
         case _ =>
-          simpleOperation(CMP, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
+          simpleOperation(cmpOp, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
       }
     }
+    val secondParamCompiled = if(cmpOp == SBC && !comparingAgainstZero) AssemblyLine.implied(SEC) :: secondParamCompiled0 else secondParamCompiled0
     val (effectiveComparisonType, label) = branches match {
       case NoBranching => return Nil
       case BranchIfTrue(l) => compType -> l
@@ -460,17 +465,51 @@ object BuiltIns {
           AssemblyLine.label(x))
 
       case ComparisonType.LessSigned =>
-        List(AssemblyLine.relative(BMI, Label(label)))
+        if (comparingAgainstZero) List(AssemblyLine.relative(BMI, label)) else {
+          val fixup = ctx.nextLabel("co")
+          List(
+            AssemblyLine.relative(BVC, fixup),
+            AssemblyLine.immediate(EOR, 0x80),
+            AssemblyLine.label(fixup),
+            AssemblyLine.relative(BMI, label))
+        }
       case ComparisonType.GreaterOrEqualSigned =>
-        List(AssemblyLine.relative(BPL, Label(label)))
+        if (comparingAgainstZero) List(AssemblyLine.relative(BPL, label)) else {
+          val fixup = ctx.nextLabel("co")
+          List(
+            AssemblyLine.relative(BVC, fixup),
+            AssemblyLine.immediate(EOR, 0x80),
+            AssemblyLine.label(fixup), AssemblyLine.relative(BPL, label))
+        }
       case ComparisonType.LessOrEqualSigned =>
-        List(AssemblyLine.relative(BMI, Label(label)), AssemblyLine.relative(BEQ, Label(label)))
+        if (comparingAgainstZero) {
+          List(AssemblyLine.relative(BEQ, label),
+            AssemblyLine.relative(BMI, label))
+        } else {
+          val fixup = ctx.nextLabel("co")
+          List(AssemblyLine.relative(BVC, fixup),
+            AssemblyLine.immediate(EOR, 0x80),
+            AssemblyLine.label(fixup),
+            AssemblyLine.relative(BMI, label),
+            AssemblyLine.relative(BEQ, label))
+        }
       case ComparisonType.GreaterSigned =>
-        val x = ctx.nextLabel("co")
-        List(
-          AssemblyLine.relative(BEQ, x),
-          AssemblyLine.relative(BPL, Label(label)),
-          AssemblyLine.label(x))
+        if (comparingAgainstZero) {
+          val x = ctx.nextLabel("co")
+          List(AssemblyLine.relative(BEQ, x),
+            AssemblyLine.relative(BPL, label),
+            AssemblyLine.label(x))
+        } else {
+          val fixup = ctx.nextLabel("co")
+          val x = ctx.nextLabel("co")
+          List(
+            AssemblyLine.relative(BVC, fixup),
+            AssemblyLine.immediate(EOR, 0x80),
+            AssemblyLine.label(fixup),
+            AssemblyLine.relative(BEQ, x),
+            AssemblyLine.relative(BPL, label),
+            AssemblyLine.label(x))
+        }
     }
     firstParamCompiled ++ secondParamCompiled ++ branchingCompiled
 
@@ -622,8 +661,33 @@ object BuiltIns {
           List(AssemblyLine.relative(BCS, x),
             AssemblyLine.label(innerLabel))
 
+      case ComparisonType.LessSigned =>
+        val fixup = ctx.nextLabel("co")
+        cmpTo(LDA, ll) ++
+          List(AssemblyLine.implied(SEC)) ++
+          cmpTo(SBC, rl) ++
+          cmpTo(LDA, lh) ++
+          cmpTo(SBC, rh) ++
+          List(
+            AssemblyLine.relative(BVC, fixup),
+            AssemblyLine.immediate(EOR, 0x80),
+            AssemblyLine.label(fixup))
+        List(AssemblyLine.relative(BCC, x))
+
+      case ComparisonType.GreaterOrEqualSigned =>
+        val fixup = ctx.nextLabel("co")
+        cmpTo(LDA, ll) ++
+          List(AssemblyLine.implied(SEC)) ++
+          cmpTo(SBC, rl) ++
+          cmpTo(LDA, lh) ++
+          cmpTo(SBC, rh) ++
+          List(
+            AssemblyLine.relative(BVC, fixup),
+            AssemblyLine.immediate(EOR, 0x80),
+            AssemblyLine.label(fixup))
+        List(AssemblyLine.relative(BCS, x))
       case _ => ???
-      // TODO: signed word comparisons
+      // TODO: signed word comparisons: <=, >
     }
   }
 
