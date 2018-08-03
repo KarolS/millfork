@@ -4,6 +4,8 @@
 #warn stdlib_i80 module should be only used on Intel 8080-like targets
 #endif
 
+#pragma zilog_syntax
+
 macro asm void poke(word const addr, byte a) {
     LD (addr), A
 }

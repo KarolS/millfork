@@ -47,8 +47,8 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
     log.setSource(Some(effectiveSource.lines.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, pragmas) = Preprocessor.preprocessForTest(options, effectiveSource)
-    val parserF = Z80Parser("", preprocessedSource, "", options, features, false)
-      //if (pragmas.contains("intel_syntax")) true else if (pragmas.contains("zilog_syntax")) false else options.flag(CompilationFlag.UseIntelSyntax))
+    // tests use Intel syntax only when forced to:
+    val parserF = Z80Parser("", preprocessedSource, "", options, features, pragmas.contains("intel_syntax"))
     parserF.toAst match {
       case Success(unoptimized, _) =>
         log.assertNoErrors("Parse failed")
@@ -158,7 +158,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         println(f.extra.toString)
         println(f.lastParser.toString)
         log.error("Syntax error", Some(parserF.lastPosition))
-        ???
+        fail("Parsing error")
     }
   }
 

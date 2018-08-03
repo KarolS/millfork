@@ -3,6 +3,8 @@
 #warn zxspectrum module should be only used on ZX Spectrum-compatible targets
 #endif
 
+#pragma zilog_syntax
+
 inline asm void putchar(byte a) {
     rst $10
     ? ret

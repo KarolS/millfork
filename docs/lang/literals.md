@@ -14,6 +14,9 @@ Octal: `0o172`
 
 Hexadecimal: `$D323`, `0x2a2`
 
+When using Intel syntax for inline assembly, another hexadecimal syntax is available: `0D323H`, `2a2h`.
+It is not allowed in any other places.
+
 ## String literals
 
 String literals can be used as either array initializers or expressions of type `pointer`.

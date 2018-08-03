@@ -21,6 +21,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   var lastLabel = ""
   protected val log: Logger = options.log
 
+  def allowIntelHexAtomsInAssembly: Boolean
+
   def toAst: Parsed[Program] = program.parse(input + "\n\n\n")
 
   private val lineStarts: Array[Int] = (0 +: input.zipWithIndex.filter(_._1 == '\n').map(_._2)).toArray
@@ -88,7 +90,11 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val literalAtom: P[LiteralExpression] = charAtom | binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom
 
+  val literalAtomWithIntel: P[LiteralExpression] = charAtom | binaryAtom | hexAtom | octalAtom | quaternaryAtom | intelHexAtom | decimalAtom
+
   val atom: P[Expression] = P(position() ~ (literalAtom | variableAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
+
+  val atomWithIntel: P[Expression] = P(position() ~ (literalAtomWithIntel | variableAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
   val globalVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)
@@ -99,8 +105,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     flags <- variableFlags ~ HWS
     typ <- identifier ~ SWS
     name <- identifier ~/ HWS ~/ Pass
-    addr <- ("@" ~/ HWS ~/ mfExpression(1)).?.opaque("<address>") ~ HWS
-    initialValue <- ("=" ~/ HWS ~/ mfExpression(1)).? ~ HWS
+    addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~ HWS
+    initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~ HWS
     _ <- &(EOL) ~/ ""
   } yield {
     Seq(VariableDeclarationStatement(name, typ,
@@ -122,9 +128,9 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   }
 
   def asmExpression: P[Expression] = (position() ~ NoCut(
-    ("<" ~/ HWS ~ mfExpression(mathLevel)).map(e => HalfWordExpression(e, hiByte = false)) |
-      (">" ~/ HWS ~ mfExpression(mathLevel)).map(e => HalfWordExpression(e, hiByte = true)) |
-      mfExpression(mathLevel)
+    ("<" ~/ HWS ~ mfExpression(mathLevel, allowIntelHexAtomsInAssembly)).map(e => HalfWordExpression(e, hiByte = false)) |
+      (">" ~/ HWS ~ mfExpression(mathLevel, allowIntelHexAtomsInAssembly)).map(e => HalfWordExpression(e, hiByte = true)) |
+      mfExpression(mathLevel, allowIntelHexAtomsInAssembly)
   )).map { case (p, e) => e.pos(p) }
 
   def asmExpressionWithParens: P[(Expression, Boolean)] = (position() ~ NoCut(
@@ -147,7 +153,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def asmParamDefinition: P[ParameterDeclaration]
 
-  def arrayListElement: P[ArrayContents] = arrayStringContents | arrayProcessedContents | arrayLoopContents | arrayFileContents | mfExpression(nonStatementLevel).map(e => LiteralContents(List(e)))
+  def arrayListElement: P[ArrayContents] = arrayStringContents | arrayProcessedContents | arrayLoopContents | arrayFileContents | mfExpression(nonStatementLevel, false).map(e => LiteralContents(List(e)))
 
   def arrayProcessedContents: P[ArrayContents] = for {
     _ <- "@" ~/ HWS
@@ -176,10 +182,10 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def arrayLoopContents: P[ArrayContents] = for {
       identifier <- "for" ~ SWS ~/ identifier ~/ HWS ~ "," ~/ HWS ~ Pass
-      start <- mfExpression(nonStatementLevel) ~ HWS ~ "," ~/ HWS ~/ Pass
+      start <- mfExpression(nonStatementLevel, false) ~ HWS ~ "," ~/ HWS ~/ Pass
       pos <- position("loop direction")
       direction <- forDirection ~/ HWS ~/ "," ~/ HWS ~/ Pass
-      end <- mfExpression(nonStatementLevel)
+      end <- mfExpression(nonStatementLevel, false)
       body <- AWS ~ arrayContents
     } yield {
     val fixedDirection = direction match {
@@ -208,21 +214,27 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     p <- position()
     bank <- bankDeclaration
     name <- "array" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
-    length <- ("[" ~/ AWS ~/ mfExpression(nonStatementLevel) ~ AWS ~ "]").? ~ HWS
-    addr <- ("@" ~/ HWS ~/ mfExpression(1)).? ~/ HWS
+    length <- ("[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]").? ~ HWS
+    addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
     contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
   } yield Seq(ArrayDeclarationStatement(name, bank, length, addr, contents).pos(p))
 
-  def tightMfExpression: P[Expression] = P(mfParenExpr | functionCall | mfIndexedExpression | atom) // TODO
+  def tightMfExpression(allowIntelHex: Boolean): P[Expression] = {
+    val a = if (allowIntelHex) atomWithIntel else atom
+    P(mfParenExpr(allowIntelHex) | functionCall(allowIntelHex) | mfIndexedExpression | a) // TODO
+  }
 
-  def tightMfExpressionButNotCall: P[Expression] = P(mfParenExpr | mfIndexedExpression | atom) // TODO
+  def tightMfExpressionButNotCall(allowIntelHex: Boolean): P[Expression] = {
+    val a = if (allowIntelHex) atomWithIntel else atom
+    P(mfParenExpr(allowIntelHex) | mfIndexedExpression | a) // TODO
+  }
 
-  def mfExpression(level: Int): P[Expression] = {
+  def mfExpression(level: Int, allowIntelHex: Boolean): P[Expression] = {
     val allowedOperators = mfOperatorsDropFlatten(level)
 
     def inner: P[SeparatedList[Expression, String]] = {
       for {
-        head <- tightMfExpression ~/ HWS
+        head <- tightMfExpression(allowIntelHex) ~/ HWS
         maybeOperator <- StringIn(allowedOperators: _*).!.?
         maybeTail <- maybeOperator.fold[P[Option[List[(String, Expression)]]]](Pass.map(_ => None))(o => (HWS ~/ inner ~/ HWS).map(x2 => Some((o -> x2.head) :: x2.tail)))
       } yield {
@@ -237,7 +249,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         xs.separators.distinct match {
           case Nil =>
             if (xs.tail.nonEmpty)
-              log.error("Too many different operators")
+              log.error("Too many different operators", xs.head.head.position)
             p(xs.head, level + 1)
           case List("+") | List("-") | List("+", "-") | List("-", "+") =>
             SumExpression(xs.toPairList("+").map { case (op, value) => (op == "-", p(value, level + 1)) }, decimal = false)
@@ -253,7 +265,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
           case List(op) =>
             FunctionCallExpression(op, xs.items.map(value => p(value, level + 1)))
           case _ =>
-            log.error("Too many different operators")
+            log.error("Too many different operators", xs.head.head.position)
             LiteralExpression(0, 1)
         }
       }
@@ -269,24 +281,24 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   } yield rightOpt.fold(left)(right => SeparateBytesExpression(left, right).pos(p))
 
 
-  def mfParenExpr: P[Expression] = P("(" ~/ AWS ~/ mfExpression(nonStatementLevel) ~ AWS ~/ ")")
+  def mfParenExpr(allowIntelHex: Boolean): P[Expression] = P("(" ~/ AWS ~/ mfExpression(nonStatementLevel, allowIntelHex) ~ AWS ~/ ")")
 
   def mfIndexedExpression: P[IndexedExpression] = for {
     p <- position()
     array <- identifier
-    index <- HWS ~ "[" ~/ AWS ~/ mfExpression(nonStatementLevel) ~ AWS ~/ "]"
+    index <- HWS ~ "[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~/ "]"
   } yield IndexedExpression(array, index).pos(p)
 
-  def functionCall: P[FunctionCallExpression] = for {
+  def functionCall(allowIntelHex: Boolean): P[FunctionCallExpression] = for {
     p <- position()
     name <- identifier
-    params <- HWS ~ "(" ~/ AWS ~/ mfExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ ""
+    params <- HWS ~ "(" ~/ AWS ~/ mfExpression(nonStatementLevel, allowIntelHex).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ ""
   } yield FunctionCallExpression(name, params.toList).pos(p)
 
-  val expressionStatement: P[Seq[ExecutableStatement]] = mfExpression(0).map(x => Seq(ExpressionStatement(x)))
+  val expressionStatement: P[Seq[ExecutableStatement]] = mfExpression(0, false).map(x => Seq(ExpressionStatement(x)))
 
   val assignmentStatement: P[Seq[ExecutableStatement]] =
-    (position() ~ mfLhsExpression ~ HWS ~ "=" ~/ HWS ~ mfExpression(1)).map {
+    (position() ~ mfLhsExpression ~ HWS ~ "=" ~/ HWS ~ mfExpression(1, false)).map {
       case (p, l, r) => Seq(Assignment(l, r).pos(p))
     }
 
@@ -314,7 +326,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   def executableStatements: P[Seq[ExecutableStatement]] = ("{" ~/ AWS ~/ executableStatement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~ "}").map(_.flatten)
 
   val dispatchLabel: P[ReturnDispatchLabel] =
-    ("default" ~ !letterOrDigit ~/ AWS ~/ ("(" ~/ position("default branch range") ~ AWS ~/ mfExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?).map{
+    ("default" ~ !letterOrDigit ~/ AWS ~/ ("(" ~/ position("default branch range") ~ AWS ~/ mfExpression(nonStatementLevel, false).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?).map{
       case None => DefaultReturnDispatchLabel(None, None)
       case Some((_, Seq())) => DefaultReturnDispatchLabel(None, None)
       case Some((_, Seq(e))) => DefaultReturnDispatchLabel(None, Some(e))
@@ -322,17 +334,17 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       case Some((pos, _)) =>
         log.error("Invalid default branch declaration", Some(pos))
         DefaultReturnDispatchLabel(None, None)
-    } | mfExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS).map(exprs => StandardReturnDispatchLabel(exprs.toList))
+    } | mfExpression(nonStatementLevel, false).rep(min = 0, sep = AWS ~ "," ~/ AWS).map(exprs => StandardReturnDispatchLabel(exprs.toList))
 
   val dispatchBranch: P[ReturnDispatchBranch] = for {
     pos <- position()
     l <- dispatchLabel ~/ HWS ~/ "@" ~/ HWS
-    f <- tightMfExpressionButNotCall ~/ HWS
-    parameters <- ("(" ~/ position("dispatch actual parameters") ~ AWS ~/ mfExpression(nonStatementLevel).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?
+    f <- tightMfExpressionButNotCall(false) ~/ HWS
+    parameters <- ("(" ~/ position("dispatch actual parameters") ~ AWS ~/ mfExpression(nonStatementLevel, false).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?
   } yield ReturnDispatchBranch(l, f, parameters.map(_._2.toList).getOrElse(Nil)).pos(pos)
 
   val dispatchStatementBody: P[Seq[ExecutableStatement]] = for {
-    indexer <- "[" ~/ AWS ~/ mfExpression(nonStatementLevel) ~/ AWS ~/ "]" ~/ AWS
+    indexer <- "[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~/ AWS ~/ "]" ~/ AWS
     _ <- position("dispatch statement body")
     parameters <- ("(" ~/ position("dispatch parameters") ~ AWS ~/ mfLhsExpression.rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ "").?
     _ <- AWS ~/ position("dispatch statement body") ~/ "{" ~/ AWS
@@ -340,24 +352,24 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     _ <- AWS ~/ "}"
   } yield Seq(ReturnDispatchStatement(indexer, parameters.map(_._2.toList).getOrElse(Nil), branches.toList))
 
-  val returnOrDispatchStatement: P[Seq[ExecutableStatement]] = "return" ~ !letterOrDigit ~/ HWS ~ (dispatchStatementBody | mfExpression(nonStatementLevel).?.map(ReturnStatement).map(Seq(_)))
+  val returnOrDispatchStatement: P[Seq[ExecutableStatement]] = "return" ~ !letterOrDigit ~/ HWS ~ (dispatchStatementBody | mfExpression(nonStatementLevel, false).?.map(ReturnStatement).map(Seq(_)))
 
   def ifStatement: P[Seq[ExecutableStatement]] = for {
-    condition <- "if" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel)
+    condition <- "if" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel, false)
     thenBranch <- AWS ~/ executableStatements
     elseBranch <- (AWS ~ "else" ~/ AWS ~/ (ifStatement | executableStatements)).?
   } yield Seq(IfStatement(condition, thenBranch.toList, elseBranch.getOrElse(Nil).toList))
 
   def whileStatement: P[Seq[ExecutableStatement]] = for {
-    condition <- "while" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel)
+    condition <- "while" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel, false)
     body <- AWS ~ executableStatements
   } yield Seq(WhileStatement(condition, body.toList, Nil))
 
   def forStatement: P[Seq[ExecutableStatement]] = for {
     identifier <- "for" ~ SWS ~/ identifier ~/ HWS ~ "," ~/ HWS ~ Pass
-    start <- mfExpression(nonStatementLevel) ~ HWS ~ "," ~/ HWS ~/ Pass
+    start <- mfExpression(nonStatementLevel, false) ~ HWS ~ "," ~/ HWS ~/ Pass
     direction <- forDirection ~/ HWS ~/ "," ~/ HWS ~/ Pass
-    end <- mfExpression(nonStatementLevel)
+    end <- mfExpression(nonStatementLevel, false)
     body <- AWS ~ executableStatements
   } yield Seq(ForStatement(identifier, start, end, direction, body.toList))
 
@@ -366,7 +378,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   //noinspection MutatorLikeMethodIsParameterless
   def doWhileStatement: P[Seq[ExecutableStatement]] = for {
     body <- "do" ~ !letterOrDigit ~/ AWS ~ executableStatements ~/ AWS
-    condition <- "while" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel)
+    condition <- "while" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel, false)
   } yield Seq(DoWhileStatement(body.toList, Nil, condition))
 
   val functionDefinition: P[Seq[DeclarationStatement]] = for {
@@ -377,7 +389,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if !InvalidReturnTypes(returnType)
     name <- identifier ~ HWS
     params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
-    addr <- ("@" ~/ HWS ~/ mfExpression(1)).?.opaque("<address>") ~/ AWS
+    addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~/ AWS
     statements <- (externFunctionBody | (if (flags("asm")) asmStatements else statements).map(l => Some(l))) ~/ Pass
   } yield {
     if (flags("interrupt") && flags("macro")) log.error(s"Interrupt function `$name` cannot be macros", Some(p))
@@ -408,7 +420,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val enumVariant: P[(String, Option[Expression])] = for {
     name <- identifier ~/ HWS
-    value <- ("=" ~/ HWS ~/ mfExpression(1)).? ~ HWS
+    value <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~ HWS
   } yield name -> value
 
   val enumVariants: P[List[(String, Option[Expression])]] =
@@ -498,6 +510,20 @@ object MfParser {
       _ <- P("0x" | "0X" | "$") ~/ Pass
       s <- CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>")
     } yield {
+      val abs = parseLong(s, 16)
+      val value = sign(abs, minus.isDefined)
+      LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6))
+    }
+
+  val intelHexAtom: P[LiteralExpression] =
+    for {
+      minus <- "-".!.?
+      head <- CharIn("0123456789").!
+      tail <- CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>")
+      _ <- P("h" | "H")
+    } yield {
+      // check for marking zero:
+      val s = if (head == "0" && tail.nonEmpty && tail.head >'9') tail else head + tail
       val abs = parseLong(s, 16)
       val value = sign(abs, minus.isDefined)
       LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6))

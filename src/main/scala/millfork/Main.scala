@@ -285,6 +285,18 @@ object Main {
       }
     }.description("Define a feature value for the preprocessor.")
 
+    boolean("-finput_intel_syntax", "-finput_zilog_syntax").action((c,v) =>
+      c.changeFlag(CompilationFlag.UseIntelSyntaxForInput, v)
+    ).description("Select syntax for assembly source input.")
+
+    boolean("-foutput_intel_syntax", "-foutput_zilog_syntax").action((c,v) =>
+      c.changeFlag(CompilationFlag.UseIntelSyntaxForOutput, v)
+    ).description("Select syntax for assembly output.")
+
+    boolean("--syntax=intel", "--syntax=zilog").action((c,v) =>
+      c.changeFlag(CompilationFlag.UseIntelSyntaxForInput, v).changeFlag(CompilationFlag.UseIntelSyntaxForOutput, v)
+    ).description("Select syntax for assembly input and output.")
+
     endOfFlags("--").description("Marks the end of options.")
 
     fluff("", "Verbosity options:", "")
@@ -451,9 +463,6 @@ object Main {
     flag("--single-threaded").action(c =>
       c.changeFlag(CompilationFlag.SingleThreaded, true)
     ).description("Run the compiler in a single thread.")
-    boolean("-foutput_intel_syntax", "-foutput_zilog_syntax").action((c,v) =>
-      c.changeFlag(CompilationFlag.UseIntelSyntaxForOutput, v)
-    ).description("Select syntax for assembly output.")
 
     flag("--help").action(c => {
       println("millfork version " + BuildInfo.version)

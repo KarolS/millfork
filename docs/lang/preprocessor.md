@@ -103,4 +103,12 @@ To use such value in other files, consider this:
 
     #use WIDESCREEN
     const byte is_widescreen = WIDESCREEN
+    
+### `#pragma`
+
+Changes the behaviour of the parser for the current file.
+
+ * `#pragma intel_syntax` – interpret assembly using Intel syntax
+ 
+ * `#pragma zilog_syntax` – interpret assembly using Zilog syntax
 

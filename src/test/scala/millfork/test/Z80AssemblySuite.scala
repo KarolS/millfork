@@ -8,9 +8,10 @@ import org.scalatest.{FunSuite, Matchers}
   */
 class Z80AssemblySuite extends FunSuite with Matchers {
 
-  test("Common I80 instructions") {
+  test("Common I80 instructions (Zilog syntax)") {
     EmuUnoptimizedIntel8080Run(
       """
+        | #pragma zilog_syntax
         | asm void main () {
         |   ret
         |
@@ -58,19 +59,19 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   ld l,$2e
         |   cpl
         |
-        |   ld hl,$2121
+        |   ld sp,$3131
         |   ld ($fffe),a
         |   inc sp
         |   inc (hl)
         |   dec (hl)
-        |   ld h,$26
+        |   ld (hl),$36
         |   scf
         |   add hl,sp
         |   ld a,($fffe)
         |   dec sp
         |   inc a
         |   dec a
-        |   ld l,$2e
+        |   ld a,$3e
         |   ccf
         |   
         |   ld b,b
@@ -273,10 +274,277 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         | }
       """.stripMargin)
   }
-
-  test("Intel 8080 instructions") {
+  test("Common I80 instructions (Intel syntax)") {
     EmuUnoptimizedIntel8080Run(
       """
+        | #pragma intel_syntax
+        | asm void main () {
+        |   ret
+        |
+        |   nop
+        |   lxi b, 0101h
+        |   stax b
+        |   inx b
+        |   inr b
+        |   dcr b
+        |   mvi b,6
+        |   rlc
+        |   dad b
+        |   ldax b
+        |   dcx b
+        |   inr c
+        |   dcr c
+        |   mvi c,0eh
+        |   rrc
+        |
+        |   lxi d,1111h
+        |   stax d
+        |   inx d
+        |   inr d
+        |   dcr d
+        |   mvi d,16h
+        |   ral
+        |   dad d
+        |   ldax d
+        |   dcx d
+        |   inr d
+        |   dcr d
+        |   mvi e, 1eh
+        |   rar
+        |   
+        |   lxi h, 2121h
+        |   inx h
+        |   inr h
+        |   dcr h
+        |   mvi h,26h
+        |   daa
+        |   dad h
+        |   dcx h
+        |   inr l
+        |   dcr l
+        |   mvi l,2eh
+        |   cma
+        |
+        |   lxi sp, 3131h
+        |   sta 0fffeh
+        |   inx sp
+        |   inr m
+        |   dcr m
+        |   mvi m, 36h
+        |   stc
+        |   dad sp
+        |   lda 0fffeh
+        |   dcx sp
+        |   inr a
+        |   dcr a
+        |   mvi a, 3eh
+        |   cmc
+        |
+        |   mov b,b
+        |   mov b,c
+        |   mov b,d
+        |   mov b,e
+        |   mov b,h
+        |   mov b,l
+        |   mov b,m
+        |   mov b,a
+        |
+        |   mov c,b
+        |   mov c,c
+        |   mov c,d
+        |   mov c,e
+        |   mov c,h
+        |   mov c,l
+        |   mov c,m
+        |   mov c,a
+        |
+        |   mov d,b
+        |   mov d,c
+        |   mov d,d
+        |   mov d,e
+        |   mov d,h
+        |   mov d,l
+        |   mov d,m
+        |   mov d,a
+        |
+        |   mov e,b
+        |   mov e,c
+        |   mov e,d
+        |   mov e,e
+        |   mov e,h
+        |   mov e,l
+        |   mov e,m
+        |   mov e,a
+        |
+        |   mov h,b
+        |   mov h,c
+        |   mov h,d
+        |   mov h,e
+        |   mov h,h
+        |   mov h,l
+        |   mov h,m
+        |   mov h,a
+        |
+        |   mov l,b
+        |   mov l,c
+        |   mov l,d
+        |   mov l,e
+        |   mov l,h
+        |   mov l,l
+        |   mov l,m
+        |   mov l,a
+        |
+        |   mov m,b
+        |   mov m,c
+        |   mov m,d
+        |   mov m,e
+        |   mov m,h
+        |   mov m,l
+        |   hlt
+        |   mov m,a
+        |
+        |   mov a,b
+        |   mov a,c
+        |   mov a,d
+        |   mov a,e
+        |   mov a,h
+        |   mov a,l
+        |   mov a,m
+        |   mov a,a
+        |
+        |   add b
+        |   add c
+        |   add d
+        |   add e
+        |   add h
+        |   add l
+        |   add m
+        |   add a
+        |
+        |   adc b
+        |   adc c
+        |   adc d
+        |   adc e
+        |   adc h
+        |   adc l
+        |   adc m
+        |   adc a
+        |
+        |   sub b
+        |   sub c
+        |   sub d
+        |   sub e
+        |   sub h
+        |   sub l
+        |   sub m
+        |   sub a
+        |
+        |   sbb b
+        |   sbb c
+        |   sbb d
+        |   sbb e
+        |   sbb h
+        |   sbb l
+        |   sbb m
+        |   sbb a
+        |
+        |   ana b
+        |   ana c
+        |   ana d
+        |   ana e
+        |   ana h
+        |   ana l
+        |   ana m
+        |   ana a
+        |
+        |   xra b
+        |   xra c
+        |   xra d
+        |   xra e
+        |   xra h
+        |   xra l
+        |   xra m
+        |   xra a
+        |
+        |   ora b
+        |   ora c
+        |   ora d
+        |   ora e
+        |   ora h
+        |   ora l
+        |   ora m
+        |   ora a
+        |
+        |   cmp b
+        |   cmp c
+        |   cmp d
+        |   cmp e
+        |   cmp h
+        |   cmp l
+        |   cmp m
+        |   cmp a
+        |
+        |   rnz
+        |   pop b
+        |   jnz main
+        |   jmp main
+        |   cnz main
+        |   push b
+        |   adi 1
+        |   rst 0
+        |
+        |   rz
+        |   ret
+        |   jz main
+        |   cz main
+        |   call main
+        |   aci 1
+        |   rst 1
+        |
+        |   rnc
+        |   pop d
+        |   jnc main
+        |   cnc main
+        |   push d
+        |   sui 1
+        |   rst 2
+        |
+        |   rc
+        |   jc main
+        |   cc main
+        |   sbi 1
+        |   rst 3
+        |
+        |   pop h
+        |   xthl
+        |   push h
+        |   ani 1
+        |   rst 4
+        |
+        |   pchl
+        |   xri 1
+        |   rst 5
+        |
+        |   pop psw
+        |   di
+        |   push psw
+        |   ori 1
+        |   rst 6
+        |
+        |   sphl
+        |   ei
+        |   cpi 1
+        |   rst 7
+        |
+        |   ret
+        | }
+      """.stripMargin)
+  }
+
+  test("Intel 8080 instructions (Zilog syntax)") {
+    EmuUnoptimizedIntel8080Run(
+      """
+        | #pragma zilog_syntax
         | asm void main () {
         |   ret
         |   ld ($fffe),hl
@@ -296,6 +564,35 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   ret m
         |   jp m,main
         |   call m,main
+        |
+        |   ret
+        | }
+      """.stripMargin)
+  }
+
+  test("Intel 8080 instructions (Intel syntax)") {
+    EmuUnoptimizedIntel8080Run(
+      """
+        | #pragma intel_syntax
+        | asm void main () {
+        |   ret
+        |   shld 0fffeh
+        |   lhld 0fffeh
+        |   out 1
+        |   in 1
+        |   rpo
+        |   jpo main
+        |   cpo main
+        |   rpe
+        |   jpe main
+        |   xchg
+        |   cpe main
+        |   rp
+        |   jp main
+        |   cp main
+        |   rm
+        |   jm main
+        |   cm main
         |
         |   ret
         | }

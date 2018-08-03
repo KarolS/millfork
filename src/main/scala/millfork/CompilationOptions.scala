@@ -210,7 +210,7 @@ object Cpu extends Enumeration {
     case Sixteen =>
       mosAlwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes, ReturnWordsViaAccumulator)
     case Intel8080 =>
-      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, UseIntelSyntaxForOutput)
+      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
     case Z80 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts)
     case EZ80 =>
@@ -316,6 +316,7 @@ object CompilationFlag extends Enumeration {
     "iy_scratch" -> UseIyForScratch,
     "use_shadow_registers_for_irq" -> UseShadowRegistersForInterrupts,
     "output_intel_syntax" -> UseIntelSyntaxForOutput,
+    "input_intel_syntax" -> UseIntelSyntaxForInput,
     "ipo" -> InterproceduralOptimization,
     "inline" -> InlineFunctions,
     "dangerous_optimizations" -> DangerousOptimizations,

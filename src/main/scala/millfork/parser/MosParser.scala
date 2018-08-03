@@ -14,6 +14,8 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   import MfParser._
 
+  def allowIntelHexAtomsInAssembly: Boolean = false
+
   // TODO: label and instruction in one line
   val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => MosAssemblyStatement(Opcode.LABEL, AddrMode.DoesNotExist, VariableExpression(l), elidable = true))
 
@@ -62,7 +64,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
     }
   }
 
-  val asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall).map(ExpressionStatement)
+  val asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall(false)).map(ExpressionStatement)
 
   val asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
 

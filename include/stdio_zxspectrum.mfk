@@ -3,6 +3,8 @@
 #warn stdio_zxspectrum module should be only used on ZX Spectrum-compatible targets
 #endif
 
+#pragma zilog_syntax
+
 import stdio
 
 void putstr(pointer str, byte len) {
