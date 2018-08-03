@@ -44,6 +44,21 @@ class WordMathSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(240))
   }
 
+  test("Word subtraction 3") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+        | word output @$c000
+        | word a
+        | void main () {
+        |  a = 640
+        |  f()
+        |  output = a - f()
+        | }
+        | word f() {
+        |   return 400
+        | }
+      """.stripMargin)(_.readWord(0xc000) should equal(240))
+  }
+
   test("Byte-to-word addition") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000

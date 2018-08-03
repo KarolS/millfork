@@ -217,19 +217,24 @@ object ZBuiltIns {
           }
         case (true, expr) =>
           ctx.env.eval(expr) match {
-            case None =>
+            case Some(c) if hasConst && const.isProvablyGreaterOrEqualThan(c)=>
+              const = CompoundConstant(MathOperator.DecimalMinus, const, c).quickSimplify
+            case _ =>
               if (result.isEmpty) {
-                ???
-              } else if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+                result += ZLine.ldImm16(ZRegister.HL, const)
+                const = NumericConstant(0, 2)
+                hasConst = false
+              }
+              if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
                 result += ZLine.ld8(ZRegister.E, ZRegister.L)
                 result += ZLine.ld8(ZRegister.D, ZRegister.H)
                 result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
                 result += ZLine.ld8(ZRegister.A, ZRegister.E)
-                result += ZLine.registers(SUB, ZRegister.A, ZRegister.L)
+                result += ZLine.register(SUB, ZRegister.L)
                 result += ZLine.implied(DAA)
                 result += ZLine.ld8(ZRegister.L, ZRegister.A)
                 result += ZLine.ld8(ZRegister.A, ZRegister.D)
-                result += ZLine.registers(SBC, ZRegister.A, ZRegister.H)
+                result += ZLine.register(SBC, ZRegister.H)
                 result += ZLine.implied(DAA)
                 result += ZLine.ld8(ZRegister.H, ZRegister.A)
               } else {
@@ -248,9 +253,6 @@ object ZBuiltIns {
                 result += ZLine.implied(DAA)
                 result += ZLine.ld8(ZRegister.H, ZRegister.A)
               }
-            case Some(c) =>
-              hasConst = true
-              const = CompoundConstant(MathOperator.DecimalMinus, const, c).quickSimplify
           }
       }
     } else {
