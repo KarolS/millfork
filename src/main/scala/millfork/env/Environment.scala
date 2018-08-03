@@ -1093,6 +1093,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def getSubvariables(typ: Type): List[(String, Int, VariableType)] = {
     val b = get[VariableType]("byte")
     val w = get[VariableType]("word")
+    if (typ.name == "__reg$type") {
+      return (".lo", 0, b) ::
+        (".hi", 1, b) ::
+        List.tabulate(typ.size) { i => (".b" + i, i, b) }
+    }
     typ match {
       case _: PlainType => typ.size match {
         case 2 => List(
