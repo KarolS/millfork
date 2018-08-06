@@ -13,7 +13,7 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
 
   override def compile(ctx: CompilationContext): List[ZLine] = {
     ctx.env.nameCheck(ctx.function.code)
-    val chunk = Z80StatementCompiler.compile(ctx, ctx.function.code)
+    val chunk = Z80StatementCompiler.compile(ctx, new Z80StatementPreprocessor(ctx, ctx.function.code)())
     val label = ZLine.label(Label(ctx.function.name)).copy(elidable = false)
     val storeParamsFromRegisters = ctx.function.params match {
       case NormalParamSignature(List(param)) if param.typ.size == 1 =>

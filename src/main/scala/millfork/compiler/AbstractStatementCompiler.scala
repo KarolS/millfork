@@ -12,10 +12,8 @@ import millfork.node._
 abstract class AbstractStatementCompiler[T <: AbstractCode] {
 
   def compile(ctx: CompilationContext, statements: List[ExecutableStatement]): List[T] = {
-    getStatementPreprocessor(ctx, statements)().flatMap(s => compile(ctx, s))
+    statements.flatMap(s => compile(ctx, s))
   }
-
-  def getStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]): AbstractStatementPreprocessor
 
   def compile(ctx: CompilationContext, statement: ExecutableStatement): List[T]
 

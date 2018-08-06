@@ -307,7 +307,4 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     }
     AssemblyLine.implied(TSX) :: (List.fill(m.stackVariablesSize)(AssemblyLine.implied(INX)) :+ AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
   }
-
-  override def getStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]): AbstractStatementPreprocessor =
-    new MosStatementPreprocessor(ctx, statements)
 }
