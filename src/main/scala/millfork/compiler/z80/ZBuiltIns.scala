@@ -401,7 +401,7 @@ object ZBuiltIns {
               setup ++ List(
                 ZLine.implied(CPL),
                 ZLine.register(INC, ZRegister.A),
-                ZLine.register(SUB, lv),
+                ZLine.register(ADD, lv),
                 ZLine.ld8(lv, ZRegister.A))
             }
         }
