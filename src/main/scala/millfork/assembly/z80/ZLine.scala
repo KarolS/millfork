@@ -726,9 +726,9 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case _ => false
           }
           case op if ZOpcodeClasses.RES_or_SET(op) => registers match {
-            case OneRegister(MEM_HL) => r == H || r == L
-            case OneRegister(MEM_IX_D) => r == IXH || r == IXL
-            case OneRegister(MEM_IY_D) => r == IYH || r == IYL
+            case OneRegister(MEM_HL) => false
+            case OneRegister(MEM_IX_D) => false
+            case OneRegister(MEM_IY_D) => false
             case OneRegister(s) => r == s
             case OneRegisterOffset(s, _) => r == s
             case _ => false
