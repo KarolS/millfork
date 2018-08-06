@@ -31,6 +31,8 @@ Code that uses a custom platform definitions will cause extra warnings until fix
 
 * Optimizations for stack variables.
 
+* Various code deduplication optimizations.
+
 * Fixed emitting constant decimal expressions.
 
 * Fixed decimal subtraction.

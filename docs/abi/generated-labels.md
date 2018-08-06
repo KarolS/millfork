@@ -58,4 +58,5 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `wh` – beginning of a `while` statement
 
+* `xc` – automatically extracted subroutine of commonly repeating code
 

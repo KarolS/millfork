@@ -153,6 +153,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   def bytePseudoopcode: String
 
+  def deduplicate(options: CompilationOptions, compiledFunctions: mutable.Map[String, CompiledFunction[T]]): Unit
+
   def assemble(callGraph: CallGraph, optimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions): AssemblerOutput = {
     mem.programName = options.outputFileName.getOrElse("MILLFORK")
     val platform = options.platform
@@ -184,7 +186,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 3, forZpOnly = true)
 
     var inlinedFunctions = Map[String, List[T]]()
-    val compiledFunctions = mutable.Map[String, List[T]]()
+    val compiledFunctions = mutable.Map[String, CompiledFunction[T]]()
     val recommendedCompilationOrder = callGraph.recommendedCompilationOrder
     val niceFunctionProperties = mutable.Set[(NiceFunctionProperty, String)]()
     recommendedCompilationOrder.foreach { f =>
@@ -199,10 +201,10 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case Some(c) =>
             log.debug("Inlining " + f, function.position)
             inlinedFunctions += f -> c
-            compiledFunctions(f) = Nil
+            compiledFunctions(f) = NonexistentFunction()
           case None =>
             nonInlineableFunctions += function.name
-            compiledFunctions(f) = code
+            compiledFunctions(f) = NormalCompiledFunction(function.declaredBank.getOrElse(platform.defaultCodeBank), code, function.address.isDefined)
             optimizedCodeSize += code.map(_.sizeInBytes).sum
             if (options.flag(CompilationFlag.InterproceduralOptimization)) {
               gatherNiceFunctionProperties(niceFunctionProperties, f, code)
@@ -211,6 +213,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         function.environment.removedThings.foreach(env.removeVariable)
       }
     }
+//    deduplicate(options, compiledFunctions)
     if (log.traceEnabled) {
       niceFunctionProperties.toList.groupBy(_._2).mapValues(_.map(_._1).sortBy(_.toString)).toList.sortBy(_._1).foreach{ case (fname, properties) =>
           log.trace(fname.padTo(30, ' ') + properties.mkString(" "))
@@ -253,51 +256,44 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val bank = f.bank(options)
         val bank0 = mem.banks(bank)
         val index = f.address.get.asInstanceOf[NumericConstant].value.toInt
-        val code = compiledFunctions(f.name)
-        if (code.nonEmpty) {
-          labelMap(f.name) = index
-          val end = outputFunction(bank, code, index, assembly, options)
-          for(i <- index until end) {
-            bank0.occupied(index) = true
-            bank0.initialized(index) = true
-            bank0.readable(index) = true
-          }
+        compiledFunctions(f.name) match {
+          case NormalCompiledFunction(_, code, _) =>
+            labelMap(f.name) = index
+            val end = outputFunction(bank, code, index, assembly, options)
+            for (i <- index until end) {
+              bank0.occupied(index) = true
+              bank0.initialized(index) = true
+              bank0.readable(index) = true
+            }
+          case NonexistentFunction() => throw new IllegalStateException()
+          case RedirectedFunction(_, _, _) => throw new IllegalStateException()
         }
       case _ =>
     }
 
     val codeAllocators = platform.codeAllocators.mapValues(new VariableAllocator(Nil, _))
     var justAfterCode = platform.codeAllocators.mapValues(a => a.startAt)
-    env.allPreallocatables.foreach {
-      case f: NormalFunction if f.address.isEmpty && f.name == "main" =>
-        val bank = f.bank(options)
 
-        val code = compiledFunctions(f.name)
-        if (code.nonEmpty) {
-          val size = code.map(_.sizeInBytes).sum
-          val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High)
-          labelMap(f.name) = index
-          justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
-        }
-      case _ =>
+    compiledFunctions.toList.sortBy{case (name, cf) => if (name == "main") 0 -> "" else cf.orderKey}.foreach {
+      case (_, NormalCompiledFunction(_, _, true)) =>
+        // already done before
+      case (name, NormalCompiledFunction(bank, code, false)) =>
+        val size = code.map(_.sizeInBytes).sum
+        val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High)
+        labelMap(name) = index
+        justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
+      case (_, NonexistentFunction()) =>
+      case (name, RedirectedFunction(_, target, offset)) =>
+        labelMap(name) = labelMap(target) + offset
     }
-    env.allPreallocatables.foreach {
-      case f: NormalFunction if f.address.isEmpty && f.name != "main" =>
-        val bank = f.bank(options)
-        val bank0 = mem.banks(bank)
-        val code = compiledFunctions(f.name)
-        if (code.nonEmpty) {
-          val size = code.map(_.sizeInBytes).sum
-          val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false, location = AllocationLocation.High)
-          labelMap(f.name) = index
-          justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
-        }
-      case _ =>
-    }
+
     if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
       env.allThings.things.foreach {
         case (_, m@UninitializedMemoryVariable(name, typ, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
-          val isUsed = compiledFunctions.values.exists(_.exists(_.parameter.isRelatedTo(m)))
+          val isUsed = compiledFunctions.values.exists{
+            case NormalCompiledFunction(_, code, _)  => code.exists(_.parameter.isRelatedTo(m))
+            case _ => false
+          }
 //          println(m.name -> isUsed)
           if (isUsed) {
             val bank = m.bank(options)

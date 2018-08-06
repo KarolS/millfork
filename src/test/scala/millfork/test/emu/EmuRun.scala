@@ -61,6 +61,8 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
   def blastProcessing = false
 
+  def optimizeForSize = false
+
   private val timingNmos = Array[Int](
     7, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
     2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
@@ -133,6 +135,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.EmitEmulation65816Opcodes -> (platform.cpu == millfork.Cpu.Sixteen),
       CompilationFlag.Emit65CE02Opcodes -> (platform.cpu == millfork.Cpu.CE02),
       CompilationFlag.EmitHudsonOpcodes -> (platform.cpu == millfork.Cpu.HuC6280),
+      CompilationFlag.OptimizeForSize -> optimizeForSize,
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,

@@ -635,6 +635,9 @@ class Z80Assembler(program: Program,
   }
 
   override def bytePseudoopcode: String = "DB"
+
+  override def deduplicate(options: CompilationOptions, compiledFunctions: mutable.Map[String, CompiledFunction[ZLine]]): Unit =
+    new Z80Deduplicate(rootEnv, options).apply(compiledFunctions)
 }
 
 object Z80Assembler {

@@ -166,6 +166,9 @@ class MosAssembler(program: Program,
   }
 
   override def bytePseudoopcode: String = "!byte"
+
+  override def deduplicate(options: CompilationOptions, compiledFunctions: mutable.Map[String, CompiledFunction[AssemblyLine]]): Unit =
+    new MosDeduplicate(rootEnv, options).apply(compiledFunctions)
 }
 
 
