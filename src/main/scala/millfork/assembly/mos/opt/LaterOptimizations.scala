@@ -503,6 +503,48 @@ object LaterOptimizations {
     )),
   )
 
+  val ReplaceableLoad = new RuleBasedAssemblyOptimization("Replaceable load",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(LDA) & MatchImmediate(1) & MatchA(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => Nil),
+    (Elidable & HasOpcode(LDX) & MatchImmediate(1) & MatchX(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => Nil),
+    (Elidable & HasOpcode(LDY) & MatchImmediate(1) & MatchY(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => Nil),
+    (Elidable & HasOpcode(LDA) & MatchImmediate(1) & MatchX(0)) ~
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => List(AssemblyLine.implied(TXA))),
+    (Elidable & HasOpcode(LDA) & MatchImmediate(1) & MatchY(0)) ~
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => List(AssemblyLine.implied(TYA))),
+    (Elidable & HasOpcode(LDX) & MatchImmediate(1) & MatchA(0)) ~
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => List(AssemblyLine.implied(TAX))),
+    (Elidable & HasOpcode(LDY) & MatchImmediate(1) & MatchA(0)) ~
+      Where(ctx => ctx.get[Constant](1).quickSimplify.isLowestByteAlwaysEqual(ctx.get[Int](0))) ~~> (_ => List(AssemblyLine.implied(TAY))),
+
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Absolute, ZeroPage, Immediate)) ~
+      (Elidable & HasOpcode(TAX)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & DoesntMatterWhatItDoesWith(State.A)) ~~>{ code =>
+      List(code.head.copy(opcode = LDX), code.last.copy(opcode = STX))
+    },
+
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(Absolute, ZeroPage, Immediate)) ~
+      (Elidable & HasOpcode(TAY)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & DoesntMatterWhatItDoesWith(State.A)) ~~>{ code =>
+      List(code.head.copy(opcode = LDY), code.last.copy(opcode = STY))
+    },
+
+    (Elidable & HasOpcode(LDX) & HasAddrModeIn(Absolute, ZeroPage, Immediate)) ~
+      (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & DoesntMatterWhatItDoesWith(State.A)) ~~>{ code =>
+      List(code.head, code.last.copy(opcode = STX))
+    },
+
+    (Elidable & HasOpcode(LDY) & HasAddrModeIn(Absolute, ZeroPage, Immediate)) ~
+      (Elidable & HasOpcode(TYA)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & DoesntMatterWhatItDoesWith(State.A)) ~~>{ code =>
+      List(code.head, code.last.copy(opcode = STY))
+    },
+  )
+
   val All = List(
     DoubleLoadToDifferentRegisters,
     DoubleLoadToTheSameRegister,
@@ -510,6 +552,7 @@ object LaterOptimizations {
     LoadingBranchesOptimization,
     PointlessLoadAfterStore,
     PointessLoadingForShifting,
+    ReplaceableLoad,
     LoadingAfterShifting,
     UseBit,
     UseXInsteadOfStack,

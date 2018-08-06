@@ -52,7 +52,13 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
       case Nil => Nil
       case head :: tail =>
         for ((rule, index) <- actualRules.zipWithIndex) {
-          val ctx = new AssemblyMatchingContext(optimizationContext.options, optimizationContext.labelMap, optimizationContext.zreg, optimizationContext.niceFunctionProperties)
+          val ctx = new AssemblyMatchingContext(
+            optimizationContext.options,
+            optimizationContext.labelMap,
+            optimizationContext.zreg,
+            optimizationContext.niceFunctionProperties,
+            head._1.labelUseCount(_)
+          )
           rule.pattern.matchTo(ctx, code) match {
             case Some(rest: List[(FlowInfo, AssemblyLine)]) =>
               val matchedChunkToOptimize: List[AssemblyLine] = code.take(code.length - rest.length).map(_._2)
@@ -85,7 +91,8 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
                               val labelMap: Map[String, Int],
                               val zeropageRegister: Option[ThingInMemory],
-                              val niceFunctionProperties: Set[(NiceFunctionProperty, String)]) {
+                              val niceFunctionProperties: Set[(NiceFunctionProperty, String)],
+                              val labeUseCount: String => Int) {
   @inline
   def log: Logger = compilationOptions.log
   @inline
@@ -202,8 +209,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
     }
     // if a jump leads inside the block, then it's internal
     // if a jump leads outside the block, then it's external
-    jumps --= labels
-    jumps.isEmpty
+    jumps == labels && labels.forall(l => labeUseCount(l) <= 1)
   }
 
   def zreg(i: Int): Constant = {

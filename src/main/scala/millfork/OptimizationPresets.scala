@@ -158,6 +158,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessStackStore,
     AlwaysGoodOptimizations.SimplifiableStackOperation,
     LaterOptimizations.UseBit,
+    LaterOptimizations.ReplaceableLoad,
   )
 
   val Good: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](

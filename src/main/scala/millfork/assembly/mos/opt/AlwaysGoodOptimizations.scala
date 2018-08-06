@@ -2067,6 +2067,18 @@ object AlwaysGoodOptimizations {
       (Elidable & (HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.A) | HasOpcode(CPY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
       code.tail.init :+ code.head
     },
+    (Elidable & HasOpcodeIn(DEX, INX) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Not(ConcernsX)).*.capture(1) ~
+      Where(ctx => ctx.isExternallyLinearBlock(1)) ~
+      (Elidable & (HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.A) | HasOpcode(CPX) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
+      code.tail.init :+ code.head
+    },
+    (Elidable & HasOpcodeIn(DEY, INY) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Not(ConcernsY)).*.capture(1) ~
+      Where(ctx => ctx.isExternallyLinearBlock(1)) ~
+      (Elidable & (HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.A) | HasOpcode(CPY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
+      code.tail.init :+ code.head
+    },
     (Elidable & HasAddrMode(Implied) & HasOpcodeIn(DEC, INC) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
       (Linear & Not(ConcernsA)).* ~
       (Elidable & (
