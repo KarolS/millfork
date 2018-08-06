@@ -1210,7 +1210,7 @@ object BuiltIns {
            | (ORA, Some(NumericConstant(0, _)))
            | (AND, Some(NumericConstant(0xff, _)))
            | (AND, Some(NumericConstant(-1, _))) =>
-        Nil
+        MosExpressionCompiler.compile(ctx, v, None, NoBranching)
       case _ =>
         if (simplicity(env, v) > simplicity(env, param)) {
           val loadRhs = MosExpressionCompiler.compile(ctx, param, Some(b -> RegisterVariable(MosRegister.A, b)), NoBranching)
