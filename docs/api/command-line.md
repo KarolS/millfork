@@ -81,10 +81,11 @@ Default: native if targeting 65816, no otherwise.
 `.ini` equivalent: `prevent_jmp_indirect_bug`.
 Default: no if targeting a 65C02-compatible architecture or a non-6502 architecture, yes otherwise.
 
-* `-fzp-register`, `-fno-zp-register` – Whether should reserve 4 bytes of zero page as a pseudoregister.
-Increases language features. 
+* `-fzp-register=[0-15]`, `-fno-zp-register` – Sets the size of the zeropage pseudoregister.
+Increases language features on 6502-based targets.
+Recommended values: 2 or 4. Values higher than 4 are pointless.  
 `.ini` equivalent: `zeropage_register`.
-Default: yes if targeting a 6502-based architecture, no otherwise.
+Default: 4 if targeting a 6502-based architecture, 0 otherwise.
                     
 * `-fdecimal-mode`, `-fno-decimal-mode` –
 Whether hardware decimal mode should be used (6502 only).

@@ -41,16 +41,16 @@ class CliParser[T] {
     args match {
       case k :: v :: xs if mapOptions.contains(k) =>
         mapOptions(k) match {
-          case p: ParamOption[T] => parseInner(p.encounter(v, context), xs)
+          case p: ParamOption[T] if !p._dummy => parseInner(p.encounter(v, context), xs)
           case _ => ???
         }
       case k :: xs if mapFlags.contains(k) =>
         mapFlags(k) match {
-          case p: FlagOption[T] =>
+          case p: FlagOption[T] if !p._dummy =>
             parseInner(p.encounter(context), xs)
-          case p: BooleanOption[T] =>
+          case p: BooleanOption[T] if !p._dummy =>
             parseInner(p.encounter(k, context), xs)
-          case p: NoMoreOptions[T] =>
+          case p: NoMoreOptions[T] if !p._dummy =>
             p.encounter()
             xs.foldLeft(context)((t, x) => _default.encounter(x, t))
           case _ => ???

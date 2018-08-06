@@ -25,6 +25,7 @@ trait CliOption[T, O <: CliOption[T, O]] {
   private[cli] val _shortName: String
   private[cli] var _description: String = ""
   private[cli] var _hidden = false
+  private[cli] var _dummy = false
   private[cli] var _maxEncounters = 1
   private[cli] var _minEncounters = 0
   private[cli] var _actualEncounters = 0
@@ -68,6 +69,11 @@ trait CliOption[T, O <: CliOption[T, O]] {
 
   def hidden(): O = {
     _hidden = true
+    this
+  }
+
+  def dummy(): O = {
+    _dummy = true
     this
   }
 

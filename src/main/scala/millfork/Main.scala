@@ -323,7 +323,7 @@ object Main {
     }.description("Whether should emit 65CE02 opcodes.")
     boolean("-fhuc6280-ops", "-fno-huc6280-ops").action { (c, v) =>
       c.changeFlag(CompilationFlag.EmitHudsonOpcodes, v)
-    }.description("Whether should emit HuC6280huc6280 opcodes.")
+    }.description("Whether should emit HuC6280 opcodes.")
     flag("-fno-65816-ops").action { c =>
       c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = false)
       c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = false)
@@ -344,12 +344,19 @@ object Main {
     boolean("-fillegals", "-fno-illegals").action { (c, v) =>
       c.changeFlag(CompilationFlag.EmitIllegals, v)
     }.description("Whether should emit illegal (undocumented) NMOS opcodes. Requires -O2 or higher to have an effect.")
-    boolean("-fzp-register", "-fno-zp-register").action { (c, v) =>
-      c.copy(zpRegisterSize = Some(if (v) 2 else 0)) // TODO
-    }.description("Whether should use 2 bytes of zeropage as a pseudoregister.")
+    flag("-fzp-register=[0-15]").description("Set the size of the zeropage pseudoregister (6502 only).").dummy()
+    (0 to 15).foreach(i =>
+      flag("-fzp-register="+i).action(c => c.copy(zpRegisterSize = Some(i))).hidden()
+    )
+    flag("-fzp-register").action { c =>
+      c.copy(zpRegisterSize = Some(4))
+    }.description("Alias for -fzp-register=4.")
+    flag("-fno-zp-register").action { c =>
+      c.copy(zpRegisterSize = Some(0))
+    }.description("Alias for -fzp-register=0.")
     boolean("-fjmp-fix", "-fno-jmp-fix").action { (c, v) =>
       c.changeFlag(CompilationFlag.PreventJmpIndirectBug, v)
-    }.description("Whether should prevent indirect JMP bug on page boundary.")
+    }.description("Whether should prevent indirect JMP bug on page boundary (6502 only).")
     boolean("-fdecimal-mode", "-fno-decimal-mode").action { (c, v) =>
       c.changeFlag(CompilationFlag.DecimalMode, v)
     }.description("Whether hardware decimal mode should be used (6502 only).")
