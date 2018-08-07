@@ -604,6 +604,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case _ => false
           }
           case EX_DE_HL => r == D || r == E || r == H || r == L
+          case LDIR | LDDR => r == D || r == E || r == H || r == L || r == B || r == C
           case JP | JR | RET | RETI | RETN |
                POP |
                DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
@@ -744,6 +745,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
             case _ => false
           }
           case EX_DE_HL => r == D || r == E || r == H || r == L
+          case LDIR | LDDR => r == D || r == E || r == H || r == L || r == B || r == C
           case JP | JR | RET | RETI | RETN |
                PUSH |
                DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
