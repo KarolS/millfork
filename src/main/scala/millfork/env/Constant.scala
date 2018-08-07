@@ -263,6 +263,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
         } else {
           CompoundConstant(MathOperator.Minus, a, rr - ll).quickSimplify
         }
+      case (CompoundConstant(MathOperator.Plus, a, ll@NumericConstant(lv, _)), b) if operator == MathOperator.Minus && a == b =>
+        ll.quickSimplify
       case (CompoundConstant(MathOperator.Minus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv, _)) if operator == MathOperator.Plus =>
         if (lv >= rv) {
           CompoundConstant(MathOperator.Minus, a, ll - rr).quickSimplify
