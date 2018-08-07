@@ -67,7 +67,7 @@ object PseudoregisterBuiltIns {
     }
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
-    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val reg = ctx.env.get[VariableInMemory]("__reg.loword")
     // TODO: smarter on 65816
     val op = if (subtract) SBC else ADC
     val prepareCarry = AssemblyLine.implied(if (subtract) SEC else CLC)
