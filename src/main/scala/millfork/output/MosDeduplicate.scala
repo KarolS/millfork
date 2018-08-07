@@ -1,10 +1,12 @@
 package millfork.output
 
 import millfork.CompilationOptions
-import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode, OpcodeClasses}
 import millfork.env.{Environment, Label, MemoryAddressConstant}
 import Opcode._
 import millfork.assembly.mos.AddrMode._
+
+import scala.collection.mutable
 
 /**
   * @author Karol Stasiak
@@ -43,24 +45,71 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
     SED, CLD, SEC, CLC, CLV, SEI, CLI, SEP, REP,
     HuSAX, SAY, SXY,
     CLA, CLX, CLY,
+    JMP, BRA, BEQ, BNE, BMI, BCC, BCS, BVC, BVS, LABEL,
   )
 
-  private val badAddressingModes = Set(Stack, IndexedSY, Relative)
+  private val badAddressingModes = Set(Stack, IndexedSY, AbsoluteIndexedX, Indirect, LongIndirect)
 
   override def isExtractable(line: AssemblyLine): Boolean =
     goodOpcodes(line.opcode) && !badAddressingModes(line.addrMode)
 
   override def isBadExtractedCodeHead(head: AssemblyLine): Boolean = false
 
-  override def isBadExtractedCodeLast(head: AssemblyLine): Boolean = false
+  override def isBadExtractedCodeLast(last: AssemblyLine): Boolean = false
 
   override def createCall(functionName: String): AssemblyLine = AssemblyLine.absolute(Opcode.JSR, Label(functionName))
 
   override def createReturn(): AssemblyLine = AssemblyLine.implied(RTS)
 
+  def rtsPrecededByDiscards(xs: List[AssemblyLine]): Option[List[AssemblyLine]] = {
+    xs match {
+      case AssemblyLine(op, _, _, _) :: xs if OpcodeClasses.NoopDiscardsFlags(op) => rtsPrecededByDiscards(xs)
+      case AssemblyLine(RTS, _, _, _) :: xs => Some(xs)
+      case _ => None
+    }
+  }
+
   override def tco(code: List[AssemblyLine]): List[AssemblyLine] = code match {
-    case (call@AssemblyLine(JSR, Absolute, _, _)) :: AssemblyLine(RTS, _, _, _) :: xs => call.copy(opcode = JMP) :: tco(xs)
+    case (call@AssemblyLine(JSR, Absolute | LongAbsolute, _, _)) :: xs => rtsPrecededByDiscards(xs) match {
+      case Some(rest) => call.copy(opcode = JMP) :: tco(rest)
+      case _ => call :: tco(xs)
+    }
     case x :: xs => x :: tco(xs)
     case Nil => Nil
   }
+
+  override def renumerateLabels(code: List[AssemblyLine], temporary: Boolean): List[AssemblyLine] = {
+    val map = mutable.Map[String, String]()
+    var counter = 0
+    code.foreach{
+      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(x)), _) if x.startsWith(".") =>
+        map(x) = if (temporary) ".ddtmp__" + counter else env.nextLabel("dd")
+        counter += 1
+      case _ =>
+    }
+    code.map{
+      case l@AssemblyLine(_, _, MemoryAddressConstant(Label(x)), _) if map.contains(x) =>
+        l.copy(parameter = MemoryAddressConstant(Label(map(x))))
+      case l => l
+    }
+  }
+
+  def checkIfLabelsAreInternal(snippet: List[AssemblyLine], wholeCode: List[AssemblyLine]): Boolean = {
+    val myLabels = mutable.Set[String]()
+    val useCount = mutable.Map[String, Int]()
+    snippet.foreach{
+      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(x)), _) =>
+        myLabels += x
+      case AssemblyLine(_, _, MemoryAddressConstant(Label(x)), _) =>
+        useCount(x) = useCount.getOrElse(x, 0) - 1
+      case _ =>
+    }
+    wholeCode.foreach {
+      case AssemblyLine(op, _, MemoryAddressConstant(Label(x)), _) if op != LABEL && myLabels(x) =>
+        useCount(x) = useCount.getOrElse(x, 0) + 1
+      case _ =>
+    }
+    useCount.values.forall(_ == 0)
+  }
+
 }

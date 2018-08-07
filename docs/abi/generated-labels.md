@@ -20,6 +20,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `cp` – equality comparison for larger types
 
+* `dd` – labels renamed by code deduplication
+
 * `de` – decrement for larger types
 
 * `do` – beginning of a `do-while` statement

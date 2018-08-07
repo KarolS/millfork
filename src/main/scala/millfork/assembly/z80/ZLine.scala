@@ -178,7 +178,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     import ZRegister._
     val inherent = opcode match {
       case BYTE => 1
-      case d if ZOpcodeClasses.NoopDiscards(d) => 0
+      case LABEL => return 0
+      case d if ZOpcodeClasses.NoopDiscards(d) => return 0
       case JP => registers match {
         case OneRegister(HL | IX | IY) => 1
         case _ => 2

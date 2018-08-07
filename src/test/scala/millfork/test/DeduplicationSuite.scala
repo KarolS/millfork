@@ -69,4 +69,36 @@ class DeduplicationSuite extends FunSuite with Matchers {
       m.readMedium(0xc000) should equal(0x1FB00)
     }
   }
+
+  test("Loop subroutine extraction") {
+    EmuSizeOptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+      """
+        | array output [8] @$c000
+        | void main() {
+        |   f(2)
+        |   g(3)
+        |   h(6)
+        | }
+        | noinline void f(byte x) {
+        |   byte i
+        |   for i,0,until,output.length {
+        |     output[i] = x
+        |   }
+        | }
+        | noinline void g(byte x) {
+        |   byte i
+        |   for i,0,until,output.length {
+        |     output[i] = x
+        |   }
+        | }
+        | noinline void h(byte x) {
+        |   byte i
+        |   for i,0,until,output.length {
+        |     output[i] = x
+        |   }
+        | }
+      """.stripMargin) {m =>
+      m.readByte(0xc000) should equal(6)
+    }
+  }
 }

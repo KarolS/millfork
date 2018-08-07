@@ -274,7 +274,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val codeAllocators = platform.codeAllocators.mapValues(new VariableAllocator(Nil, _))
     var justAfterCode = platform.codeAllocators.mapValues(a => a.startAt)
 
-    compiledFunctions.toList.sortBy{case (name, cf) => if (name == "main") 0 -> "" else cf.orderKey}.foreach {
+    val sortedCompilerFunctions = compiledFunctions.toList.sortBy { case (name, cf) => if (name == "main") 0 -> "" else cf.orderKey }
+    sortedCompilerFunctions.foreach {
       case (_, NormalCompiledFunction(_, _, true, _)) =>
         // already done before
       case (name, NormalCompiledFunction(bank, code, false, alignment)) =>
@@ -282,9 +283,12 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
         labelMap(name) = index
         justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
-      case (_, NonexistentFunction()) =>
+      case _ =>
+    }
+    sortedCompilerFunctions.foreach {
       case (name, RedirectedFunction(_, target, offset)) =>
         labelMap(name) = labelMap(target) + offset
+      case _ =>
     }
 
     if (options.flag(CompilationFlag.LUnixRelocatableCode)) {

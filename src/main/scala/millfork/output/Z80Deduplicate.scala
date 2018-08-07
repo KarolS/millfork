@@ -6,6 +6,8 @@ import millfork.env.{Environment, Label, MemoryAddressConstant}
 import ZOpcode._
 import millfork.node.ZRegister.SP
 
+import scala.collection.mutable
+
 /**
   * @author Karol Stasiak
   */
@@ -39,7 +41,7 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
     IN_IMM, OUT_IMM, IN_C, OUT_C,
     LD_AHLI, LD_AHLD, LD_HLIA, LD_HLDA,
     LDH_AC, LDH_AD, LDH_CA, LDH_DA,
-    CALL,
+    CALL, JP, JR, LABEL,
   ) ++ ZOpcodeClasses.AllSingleBit
 
   private val conditionallyGoodOpcodes = Set(
@@ -58,7 +60,7 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
 
   override def isBadExtractedCodeHead(head: ZLine): Boolean = false
 
-  override def isBadExtractedCodeLast(head: ZLine): Boolean = head.opcode match {
+  override def isBadExtractedCodeLast(last: ZLine): Boolean = last.opcode match {
     case EI | DI | IM => true
     case _ => false
   }
@@ -67,9 +69,54 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
 
   override def createReturn(): ZLine = ZLine.implied(RET)
 
+  def retPrecededByDiscards(xs: List[ZLine]): Option[List[ZLine]] = {
+    xs match {
+      case ZLine(op, _, _, _) :: xs if ZOpcodeClasses.NoopDiscards(op) => retPrecededByDiscards(xs)
+      case ZLine(RET, _, _, _) :: xs => Some(xs)
+      case _ => None
+    }
+  }
+
   override def tco(code: List[ZLine]): List[ZLine] = code match {
-    case (call@ZLine(CALL, _, _, _)) :: ZLine(RET, NoRegisters, _, _) :: xs => call.copy(opcode = JP) :: tco(xs)
+    case (call@ZLine(CALL, _, _, _)) :: xs => retPrecededByDiscards(xs) match {
+      case Some(rest) =>call.copy(opcode = JP) :: tco(rest)
+      case _ => call :: tco(xs)
+    }
     case x :: xs => x :: tco(xs)
     case Nil => Nil
+  }
+
+  override def renumerateLabels(code: List[ZLine], temporary: Boolean): List[ZLine] = {
+    val map = mutable.Map[String, String]()
+    var counter = 0
+    code.foreach{
+      case ZLine(LABEL, _, MemoryAddressConstant(Label(x)), _) if x.startsWith(".") =>
+        map(x) = if (temporary) ".ddtmp__" + counter else env.nextLabel("dd")
+        counter += 1
+      case _ =>
+    }
+    code.map{
+      case l@ZLine(_, _, MemoryAddressConstant(Label(x)), _) if map.contains(x) =>
+        l.copy(parameter = MemoryAddressConstant(Label(map(x))))
+      case l => l
+    }
+  }
+
+  def checkIfLabelsAreInternal(snippet: List[ZLine], wholeCode: List[ZLine]): Boolean = {
+    val myLabels = mutable.Set[String]()
+    val useCount = mutable.Map[String, Int]()
+    snippet.foreach{
+      case ZLine(LABEL, _, MemoryAddressConstant(Label(x)), _) =>
+        myLabels += x
+      case ZLine(_, _, MemoryAddressConstant(Label(x)), _) =>
+        useCount(x) = useCount.getOrElse(x, 0) - 1
+      case _ =>
+    }
+    wholeCode.foreach {
+      case ZLine(op, _, MemoryAddressConstant(Label(x)), _) if op != LABEL && myLabels(x) =>
+        useCount(x) = useCount.getOrElse(x, 0) + 1
+      case _ =>
+    }
+    useCount.values.forall(_ == 0)
   }
 }
