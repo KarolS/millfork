@@ -227,7 +227,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     }
 
     env.allPreallocatables.foreach {
-      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, NoAlignment) =>
+      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, _) =>
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)
         var index = address.toInt
@@ -251,7 +251,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           }).mkString(", "))
         }
         initializedVariablesSize += items.length
-      case thing@InitializedArray(name, Some(_), items, _, _, _, NoAlignment) => ???
+      case thing@InitializedArray(name, Some(_), items, _, _, _, _) => ???
       case f: NormalFunction if f.address.isDefined =>
         val bank = f.bank(options)
         val bank0 = mem.banks(bank)
@@ -289,7 +289,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
     if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
       env.allThings.things.foreach {
-        case (_, m@UninitializedMemoryVariable(name, typ, _, _, NoAlignment)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
+        case (_, m@UninitializedMemoryVariable(name, typ, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
           val isUsed = compiledFunctions.values.exists{
             case NormalCompiledFunction(_, code, _)  => code.exists(_.parameter.isRelatedTo(m))
             case _ => false
