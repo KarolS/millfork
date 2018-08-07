@@ -297,15 +297,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case th@InitializedArray(_, _, cs, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e)
       case th@UninitializedArray(_, size, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
       case th@RelativeArray(_, _, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
-      case ConstantThing(_, value, typ) if typ.size <= 2 =>
+      case ConstantThing(_, value, typ) if typ.size <= 2 && typ.isPointy =>
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
-        // TODO:
         ConstantPointy(value, None, None, w, b)
-      case th:VariableInMemory =>
+      case th:VariableInMemory if th.typ.isPointy=>
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
-        // TODO:
         VariablePointy(th.toAddress, w, b)
       case _ =>
         log.error(s"$name is not a valid pointer or array")
@@ -340,11 +338,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(BasicPlainType("int112", 14), None)
     addThing(BasicPlainType("int120", 15), None)
     addThing(BasicPlainType("int128", 16), None)
-    val p = DerivedPlainType("pointer", w, isSigned = false)
+    val p = DerivedPlainType("pointer", w, isSigned = false, isPointy = true)
     addThing(p, None)
     //    addThing(DerivedPlainType("farpointer", get[PlainType]("farword"), isSigned = false), None)
-    addThing(DerivedPlainType("ubyte", b, isSigned = false), None)
-    addThing(DerivedPlainType("sbyte", b, isSigned = true), None)
+    addThing(DerivedPlainType("ubyte", b, isSigned = false, isPointy = false), None)
+    addThing(DerivedPlainType("sbyte", b, isSigned = true, isPointy = false), None)
     addThing(Alias("unsigned8", "ubyte"), None)
     addThing(Alias("signed8", "sbyte"), None)
     val trueType = ConstantBooleanType("true$", value = true)

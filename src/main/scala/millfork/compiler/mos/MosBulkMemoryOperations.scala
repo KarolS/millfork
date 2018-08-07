@@ -17,6 +17,7 @@ object MosBulkMemoryOperations {
       target.index.containsVariable(f.variable) ||
       !target.index.isPure ||
       f.direction == ForDirection.DownTo) return MosStatementCompiler.compileForStatement(ctx, f)
+    ctx.env.getPointy(target.name)
     val sizeExpr = f.direction match {
       case ForDirection.DownTo =>
         SumExpression(List(false -> f.start, true -> f.end, false -> LiteralExpression(1, 1)), decimal = false)

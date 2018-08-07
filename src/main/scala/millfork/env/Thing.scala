@@ -32,6 +32,8 @@ sealed trait Type extends CallableThing {
   def isAssignableTo(targetType: Type): Boolean = isCompatible(targetType)
 
   def isArithmetic = false
+
+  def isPointy = false
 }
 
 sealed trait VariableType extends Type
@@ -49,7 +51,7 @@ sealed trait PlainType extends VariableType {
 
   override def isAssignableTo(targetType: Type): Boolean = isCompatible(targetType) || (targetType match {
     case BasicPlainType(_, size) => size > this.size // TODO
-    case DerivedPlainType(_, parent, size) => isAssignableTo(parent)
+    case DerivedPlainType(_, parent, size, _) => isAssignableTo(parent)
     case _ => false
   })
 
@@ -62,7 +64,7 @@ case class BasicPlainType(name: String, size: Int) extends PlainType {
   override def isSubtypeOf(other: Type): Boolean = this == other
 }
 
-case class DerivedPlainType(name: String, parent: PlainType, isSigned: Boolean) extends PlainType {
+case class DerivedPlainType(name: String, parent: PlainType, isSigned: Boolean, override val isPointy: Boolean) extends PlainType {
   def size: Int = parent.size
 
   override def isSubtypeOf(other: Type): Boolean = parent == other || parent.isSubtypeOf(other)
