@@ -7,7 +7,7 @@ import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
 import millfork.compiler.LabelGenerator
 import millfork.error.Logger
 import millfork.node._
-import millfork.output.{AllocationLocation, CompiledMemory, VariableAllocator}
+import millfork.output._
 
 import scala.collection.mutable
 
@@ -156,7 +156,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case VariableAllocationMethod.Zeropage =>
             if (forZpOnly || !options.platform.hasZeroPage) {
               val addr =
-                allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Zeropage)
+                allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Zeropage, alignment = m.alignment)
               onEachVariable(m.name, addr)
               List(
                 ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
@@ -170,7 +170,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               val graveName = m.name.stripPrefix(prefix) + "`"
               if (forZpOnly) {
                 if (bank == "default") {
-                  allocators(bank).tryAllocateZeropageBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes) match {
+                  allocators(bank).tryAllocateZeropageBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, alignment = m.alignment) match {
                     case None => Nil
                     case Some(addr) =>
                       onEachVariable(m.name, addr)
@@ -182,7 +182,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               } else if (things.contains(graveName)) {
                 Nil
               } else {
-                val addr = allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Either)
+                val addr = allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Either, alignment = m.alignment)
                 onEachVariable(m.name, addr)
                 List(
                   ConstantThing(graveName, NumericConstant(addr, 2), p)
@@ -294,8 +294,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     InitializedMemoryVariable
     UninitializedMemoryVariable
     getArrayOrPointer(name) match {
-      case th@InitializedArray(_, _, cs, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e)
-      case th@UninitializedArray(_, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
+      case th@InitializedArray(_, _, cs, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e)
+      case th@UninitializedArray(_, size, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
       case th@RelativeArray(_, _, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
       case ConstantThing(_, value, typ) if typ.size <= 2 =>
         val b = get[VariableType]("byte")
@@ -713,7 +713,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       })
     }
     if (resultType.size > Cpu.getMaxSizeReturnableViaRegisters(options.platform.cpu, options)) {
-      registerVariable(VariableDeclarationStatement(stmt.name + ".return", stmt.resultType, None, global = true, stack = false, constant = false, volatile = false, register = false, None, None), options)
+      registerVariable(VariableDeclarationStatement(stmt.name + ".return", stmt.resultType, None, global = true, stack = false, constant = false, volatile = false, register = false, None, None, None), options)
     }
     stmt.statements match {
       case None =>
@@ -786,7 +786,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (!thing.zeropage && options.flag(CompilationFlag.LUnixRelocatableCode)) {
       val b = get[Type]("byte")
       val w = get[Type]("word")
-      val relocatable = UninitializedMemoryVariable(thing.name + ".addr", w, VariableAllocationMethod.Static, None)
+      val relocatable = UninitializedMemoryVariable(thing.name + ".addr", w, VariableAllocationMethod.Static, None, defaultVariableAlignment(options, 2))
       val addr = relocatable.toAddress
       addThing(relocatable, position)
       addThing(RelativeVariable(thing.name + ".addr.hi", addr + 1, b, zeropage = false, None), position)
@@ -814,7 +814,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
         val zp = typ.name == "pointer" // TODO
-        val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None)
+        val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None, defaultVariableAlignment(options, 2))
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position, options)
         val addr = v.toAddress
@@ -870,6 +870,18 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       }
   }
 
+  private def defaultArrayAlignment(options: CompilationOptions, size: Long): MemoryAlignment = {
+    if (options.platform.cpuFamily == CpuFamily.M6502 &&
+      options.flag(CompilationFlag.OptimizeForSpeed) &&
+      size <= 256) WithinPageAlignment
+    else NoAlignment
+  }
+
+  private def defaultVariableAlignment(options: CompilationOptions, size: Long): MemoryAlignment = {
+    if (options.flag(CompilationFlag.PreventJmpIndirectBug) && size == 2) WithinPageAlignment
+    else NoAlignment
+  }
+
   def registerArray(stmt: ArrayDeclarationStatement, options: CompilationOptions): Unit = {
     val b = get[VariableType]("byte")
     val w = get[VariableType]("word")
@@ -897,14 +909,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             lengthConst match {
               case NumericConstant(length, _) =>
                 if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
+                val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
                 val array = address match {
                   case None => UninitializedArray(stmt.name + ".array", length.toInt,
-                              declaredBank = stmt.bank, indexType, b)
+                              declaredBank = stmt.bank, indexType, b, alignment)
                   case Some(aa) => RelativeArray(stmt.name + ".array", aa, length.toInt,
                               declaredBank = stmt.bank, indexType, b)
                 }
                 addThing(array, stmt.position)
-                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank), stmt.position, options)
+                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank, NoAlignment), stmt.position, options)
                 val a = address match {
                   case None => array.toAddress
                   case Some(aa) => aa
@@ -914,7 +927,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
                   val b = get[Type]("byte")
                   val w = get[Type]("word")
-                  val relocatable = UninitializedMemoryVariable(stmt.name, w, VariableAllocationMethod.Static, None)
+                  val relocatable = UninitializedMemoryVariable(stmt.name, w, VariableAllocationMethod.Static, None, NoAlignment)
                   val addr = relocatable.toAddress
                   addThing(relocatable, stmt.position)
                   addThing(RelativeVariable(stmt.name + ".addr.hi", addr + 1, b, zeropage = false, None), stmt.position)
@@ -968,11 +981,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
         val length = contents.length
         if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
+        val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
         val address = stmt.address.map(a => eval(a).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant address", stmt.position)))
-        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, b)
+        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, b, alignment)
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
-                    declaredBank = stmt.bank), stmt.position, options)
+                    declaredBank = stmt.bank, alignment), stmt.position, options)
         val a = address match {
           case None => array.toAddress
           case Some(aa) => aa
@@ -982,7 +996,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
           val b = get[Type]("byte")
           val w = get[Type]("word")
-          val relocatable = UninitializedMemoryVariable(stmt.name, w, VariableAllocationMethod.Static, None)
+          val relocatable = UninitializedMemoryVariable(stmt.name, w, VariableAllocationMethod.Static, None, NoAlignment)
           val addr = relocatable.toAddress
           addThing(relocatable, stmt.position)
           addThing(RelativeVariable(stmt.name + ".array.hi", addr + 1, b, zeropage = false, None), stmt.position)
@@ -1023,6 +1037,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         case _ => ()
       }
     }
+    val alignment = stmt.alignment.getOrElse(defaultVariableAlignment(options, typ.size))
     if (stmt.constant) {
       if (stmt.stack) log.error(s"`$name` is a constant and cannot be on stack", position)
       if (stmt.register) log.error(s"`$name` is a constant and cannot be in a register", position)
@@ -1060,11 +1075,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             log.error(s"`$name` cannot be preinitialized`", position)
           }
           val v = stmt.initialValue.fold[MemoryVariable](UninitializedMemoryVariable(prefix + name, typ, alloc,
-                      declaredBank = stmt.bank)){ive =>
+                      declaredBank = stmt.bank, alignment)){ive =>
             if (options.flags(CompilationFlag.ReadOnlyArrays)) {
               log.warn("Initialized variable in read-only segment", position)
             }
-            InitializedMemoryVariable(name, None, typ, ive, declaredBank = stmt.bank)
+            InitializedMemoryVariable(name, None, typ, ive, declaredBank = stmt.bank, alignment)
           }
           registerAddressConstant(v, stmt.position, options)
           (v, v.toAddress)
@@ -1096,6 +1111,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (typ.name == "__reg$type") {
       return (".lo", 0, b) ::
         (".hi", 1, b) ::
+        (".loword", 0, w) ::
         (".b2b3", 2, w) ::
         List.tabulate(typ.size) { i => (".b" + i, i, b) }
     }
@@ -1161,7 +1177,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
     val b = get[VariableType]("byte")
     if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) {
-      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None, b, b), None)
+      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None, b, b, defaultArrayAlignment(options, 256)), None)
     }
     program.declarations.foreach {
       case a: AliasDefinitionStatement => registerAlias(a)
@@ -1189,11 +1205,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         volatile = false,
         register = false,
         initialValue = None,
-        address = None), options)
+        address = None,
+        alignment = None), options)
     }
     if (CpuFamily.forType(options.platform.cpu) == CpuFamily.M6502) {
       if (!things.contains("__constant8")) {
-        things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None, b, b)
+        things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None, b, b, NoAlignment)
       }
     }
   }

@@ -107,6 +107,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     name <- identifier ~/ HWS ~/ Pass
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~ HWS
     initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~ HWS
+    alignment = None // TODO
     _ <- &(EOL) ~/ ""
   } yield {
     Seq(VariableDeclarationStatement(name, typ,
@@ -116,7 +117,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       constant = flags("const"),
       volatile = flags("volatile"),
       register = flags("register"),
-      initialValue, addr).pos(p))
+      initialValue, addr, alignment).pos(p))
   }
 
   val paramDefinition: P[ParameterDeclaration] = for {
@@ -216,8 +217,9 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     name <- "array" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
     length <- ("[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]").? ~ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
+    alignment = None // TODO
     contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
-  } yield Seq(ArrayDeclarationStatement(name, bank, length, addr, contents).pos(p))
+  } yield Seq(ArrayDeclarationStatement(name, bank, length, addr, contents, alignment).pos(p))
 
   def tightMfExpression(allowIntelHex: Boolean): P[Expression] = {
     val a = if (allowIntelHex) atomWithIntel else atom

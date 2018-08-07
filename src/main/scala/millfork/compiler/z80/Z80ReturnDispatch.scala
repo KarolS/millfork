@@ -5,6 +5,7 @@ import millfork.compiler.{AbstractReturnDispatch, CompilationContext}
 import millfork.env.{Constant, InitializedArray, ThingInMemory, VariableType}
 import millfork.error.ConsoleLogger
 import millfork.node.{Expression, ReturnDispatchStatement, ZRegister}
+import millfork.output.NoAlignment
 
 import scala.collection.mutable
 
@@ -50,8 +51,8 @@ object Z80ReturnDispatch extends AbstractReturnDispatch[ZLine] {
     }
     val copyParams = pair._2.reverse.flatten
     val offsetAfterParams = pair._1
-    val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b)
-    val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b)
+    val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, NoAlignment)
+    val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, NoAlignment)
     env.registerUnnamedArray(jumpTableLo)
     env.registerUnnamedArray(jumpTableHi)
 

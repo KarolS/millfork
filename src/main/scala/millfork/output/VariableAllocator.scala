@@ -28,13 +28,19 @@ sealed trait ByteAllocator {
 
   def notifyAboutEndOfCode(org: Int): Unit
 
-  def findFreeBytes(mem: MemoryBank, count: Int, options: CompilationOptions): Int = {
+  def findFreeBytes(mem: MemoryBank, count: Int, options: CompilationOptions, alignment: MemoryAlignment): Int = {
     var lastFree = startAt
     var counter = 0
     val occupied = mem.occupied
     var previous = -800
     for(i <- preferredOrder.getOrElse(startAt until endBefore)) {
-      if (occupied(i) || counter == 0 && count == 2 && i.&(0xff) == 0xff && options.flags(CompilationFlag.PreventJmpIndirectBug)) {
+      if (occupied(i)) {
+        counter = 0
+      } else if (counter == 0 && (alignment match {
+        case WithinPageAlignment => i.&(0xff00) != i.+(count - 1).&(0xff00)
+        case DivisibleAlignment(divisor) => i % divisor != 0
+        case NoAlignment => false
+      })) {
         counter = 0
       } else {
         if (previous != i - 1) {
@@ -87,7 +93,7 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
 
   var heapStart: Int = bytes.startAt
 
-  def allocateBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value): Int = {
+  def allocateBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value, alignment: MemoryAlignment): Int = {
     if (!variableMap.contains(count)) {
       variableMap(count) = mutable.Map()
     }
@@ -97,12 +103,12 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
         return a
       }
     }
-    val addr = allocateBytes(mem, options, count, initialized, writeable, location)
+    val addr = allocateBytes(mem, options, count, initialized, writeable, location, alignment)
     variableMap(count)(addr) = Set(p)
     addr
   }
 
-  def tryAllocateZeropageBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int): Option[Int]={
+  def tryAllocateZeropageBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int, alignment: MemoryAlignment): Option[Int]={
     if (!variableMap.contains(count)) {
       variableMap(count) = mutable.Map()
     }
@@ -112,32 +118,32 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
         return Some(a)
       }
     }
-    val addr = zeropage.findFreeBytes(mem, count, options)
+    val addr = zeropage.findFreeBytes(mem, count, options, alignment)
     if (addr < 0) None else {
       markBytes(options.log, mem, addr, count, initialized = false, writeable = true)
       Some(addr)
     }
   }
 
-  def allocateBytes(mem: MemoryBank, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value): Int = {
+  def allocateBytes(mem: MemoryBank, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value, alignment: MemoryAlignment): Int = {
     val addr = if (options.platform.hasZeroPage) {
       location match {
         case AllocationLocation.Zeropage =>
-          val a = zeropage.findFreeBytes(mem, count, options)
+          val a = zeropage.findFreeBytes(mem, count, options, alignment)
           if (a < 0) {
             options.log.fatal("Out of zeropage memory")
           }
           a
         case AllocationLocation.High =>
-          val a = bytes.findFreeBytes(mem, count, options)
+          val a = bytes.findFreeBytes(mem, count, options, alignment)
           if (a < 0) {
             options.log.fatal("Out of high memory")
           }
           a
         case AllocationLocation.Either =>
-          var a = zeropage.findFreeBytes(mem, count, options)
+          var a = zeropage.findFreeBytes(mem, count, options, alignment)
           if (a < 0) {
-            a = bytes.findFreeBytes(mem, count, options)
+            a = bytes.findFreeBytes(mem, count, options, alignment)
             if (a < 0) {
               options.log.fatal("Out of high memory")
             }
@@ -145,7 +151,7 @@ class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
           a
       }
     } else {
-      val a = bytes.findFreeBytes(mem, count, options)
+      val a = bytes.findFreeBytes(mem, count, options, alignment)
       if (a < 0) {
         options.log.fatal("Out of high memory")
       }

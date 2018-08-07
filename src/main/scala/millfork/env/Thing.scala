@@ -1,9 +1,9 @@
 package millfork.env
 
 import millfork.assembly.BranchingOpcodeMapping
-import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
-import millfork.assembly.mos.Opcode
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.node._
+import millfork.output.{MemoryAlignment, NoAlignment}
 
 sealed trait Thing {
   def name: String
@@ -27,7 +27,7 @@ sealed trait Type extends CallableThing {
 
   def isCompatible(other: Type): Boolean = this == other
 
-  override def toString(): String = name
+  override def toString: String = name
 
   def isAssignableTo(targetType: Type): Boolean = isCompatible(targetType)
 
@@ -110,6 +110,8 @@ sealed trait PreallocableThing extends ThingInMemory {
 
   def address: Option[Constant]
 
+  def alignment: MemoryAlignment
+
   def toAddress: Constant = address.getOrElse(MemoryAddressConstant(this))
 }
 
@@ -152,6 +154,8 @@ sealed trait UninitializedMemory extends ThingInMemory {
   def sizeInBytes: Int
 
   def alloc: VariableAllocationMethod.Value
+
+  def alignment: MemoryAlignment
 }
 
 object VariableAllocationMethod extends Enumeration {
@@ -170,7 +174,7 @@ abstract class MemoryVariable extends VariableInMemory {
   def alloc: VariableAllocationMethod.Value
 }
 
-case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableAllocationMethod.Value, declaredBank: Option[String]) extends MemoryVariable with UninitializedMemory {
+case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableAllocationMethod.Value, declaredBank: Option[String], override val alignment: MemoryAlignment) extends MemoryVariable with UninitializedMemory {
   override def sizeInBytes: Int = typ.size
 
   override def zeropage: Boolean = alloc == VariableAllocationMethod.Zeropage
@@ -178,7 +182,7 @@ case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableA
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 }
 
-case class InitializedMemoryVariable(name: String, address: Option[Constant], typ: Type, initialValue: Expression, declaredBank: Option[String]) extends MemoryVariable with PreallocableThing {
+case class InitializedMemoryVariable(name: String, address: Option[Constant], typ: Type, initialValue: Expression, declaredBank: Option[String], override val alignment: MemoryAlignment) extends MemoryVariable with PreallocableThing {
   override def zeropage: Boolean = false
 
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
@@ -193,10 +197,10 @@ trait MfArray extends ThingInMemory with IndexableThing {
   def elementType: VariableType
 }
 
-case class UninitializedArray(name: String, sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType) extends MfArray with UninitializedMemory {
+case class UninitializedArray(name: String, sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 
-  override def alloc = VariableAllocationMethod.Static
+  override def alloc: VariableAllocationMethod.Value = VariableAllocationMethod.Static
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
 
@@ -215,7 +219,7 @@ case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, decl
   override def zeropage: Boolean = false
 }
 
-case class InitializedArray(name: String, address: Option[Constant], contents: List[Expression], declaredBank: Option[String], indexType: VariableType, elementType: VariableType) extends MfArray with PreallocableThing {
+case class InitializedArray(name: String, address: Option[Constant], contents: List[Expression], declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val alignment: MemoryAlignment) extends MfArray with PreallocableThing {
   override def shouldGenerate = true
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
@@ -293,6 +297,8 @@ case class NormalFunction(name: String,
   override def shouldGenerate = true
 
   override def zeropage: Boolean = false
+
+  override def alignment: MemoryAlignment = NoAlignment
 }
 
 case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing {

@@ -3,6 +3,7 @@ package millfork.node
 import millfork.assembly.mos.{AddrMode, Opcode}
 import millfork.assembly.z80.{ZOpcode, ZRegisters}
 import millfork.env.{Constant, ParamPassingConvention, Type}
+import millfork.output.MemoryAlignment
 
 case class Position(moduleName: String, line: Int, column: Int, cursor: Int)
 
@@ -203,7 +204,8 @@ case class VariableDeclarationStatement(name: String,
                                         volatile: Boolean,
                                         register: Boolean,
                                         initialValue: Option[Expression],
-                                        address: Option[Expression]) extends DeclarationStatement {
+                                        address: Option[Expression],
+                                        alignment: Option[MemoryAlignment]) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = List(initialValue, address).flatten
 }
 
@@ -268,7 +270,8 @@ case class ArrayDeclarationStatement(name: String,
                                      bank: Option[String],
                                      length: Option[Expression],
                                      address: Option[Expression],
-                                     elements: Option[ArrayContents]) extends DeclarationStatement {
+                                     elements: Option[ArrayContents],
+                                     alignment: Option[MemoryAlignment]) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = List(length, address).flatten ++ elements.fold(List[Expression]())(_.getAllExpressions)
 }
 

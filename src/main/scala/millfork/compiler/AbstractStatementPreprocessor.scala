@@ -34,7 +34,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
   }
   protected val reentrantVars: Set[String] = trackableVars.filter(v => env.get[Variable](v) match {
     case _: StackVariable => true
-    case UninitializedMemoryVariable(_, _, VariableAllocationMethod.Auto, _) => ctx.options.flag(CompilationFlag.DangerousOptimizations)
+    case UninitializedMemoryVariable(_, _, VariableAllocationMethod.Auto, _, _) => ctx.options.flag(CompilationFlag.DangerousOptimizations)
     case _ => false
   })
   protected val nonreentrantVars: Set[String] = trackableVars -- reentrantVars
@@ -172,7 +172,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
       case TextLiteralExpression(characters) =>
         val name = genName(characters)
         if (ctx.env.maybeGet[Thing](name).isEmpty) {
-          ctx.env.root.registerArray(ArrayDeclarationStatement(name, None, None, None, Some(LiteralContents(characters))).pos(pos), ctx.options)
+          ctx.env.root.registerArray(ArrayDeclarationStatement(name, None, None, None, Some(LiteralContents(characters)), None).pos(pos), ctx.options)
         }
         VariableExpression(name).pos(pos)
       case VariableExpression(v) if currentVarValues.contains(v) =>

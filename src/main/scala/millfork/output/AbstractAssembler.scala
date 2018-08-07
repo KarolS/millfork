@@ -227,7 +227,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     }
 
     env.allPreallocatables.foreach {
-      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _) =>
+      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, NoAlignment) =>
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)
         var index = address.toInt
@@ -251,7 +251,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           }).mkString(", "))
         }
         initializedVariablesSize += items.length
-      case thing@InitializedArray(name, Some(_), items, _, _, _) => ???
+      case thing@InitializedArray(name, Some(_), items, _, _, _, NoAlignment) => ???
       case f: NormalFunction if f.address.isDefined =>
         val bank = f.bank(options)
         val bank0 = mem.banks(bank)
@@ -279,7 +279,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         // already done before
       case (name, NormalCompiledFunction(bank, code, false)) =>
         val size = code.map(_.sizeInBytes).sum
-        val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High)
+        val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = NoAlignment)
         labelMap(name) = index
         justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
       case (_, NonexistentFunction()) =>
@@ -289,7 +289,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
     if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
       env.allThings.things.foreach {
-        case (_, m@UninitializedMemoryVariable(name, typ, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
+        case (_, m@UninitializedMemoryVariable(name, typ, _, _, NoAlignment)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
           val isUsed = compiledFunctions.values.exists{
             case NormalCompiledFunction(_, code, _)  => code.exists(_.parameter.isRelatedTo(m))
             case _ => false
@@ -299,7 +299,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             val bank = m.bank(options)
             if (bank != "default") ???
             val bank0 = mem.banks(bank)
-            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false, location = AllocationLocation.High)
+            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = NoAlignment)
             labelMap(name) = index + 1
             val altName = m.name.stripPrefix(env.prefix) + "`"
             val thing = if (name.endsWith(".addr")) env.get[ThingInMemory](name.stripSuffix(".addr")) else env.get[ThingInMemory](name + ".array")
@@ -320,17 +320,17 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           }
         case _ => ()
       }
-      val index = codeAllocators("default").allocateBytes(mem.banks("default"), options, 1, initialized = true, writeable = false, location = AllocationLocation.High)
+      val index = codeAllocators("default").allocateBytes(mem.banks("default"), options, 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = NoAlignment)
       writeByte("default", index, 2.toByte) // BIT abs
       assembly.append("* = $" + index.toHexString)
       assembly.append("    !byte 2 ;; end of LUnix relocatable segment")
       justAfterCode += "default" -> (index + 1)
     }
     env.allPreallocatables.foreach {
-      case thing@InitializedArray(name, None, items, _, _, _) =>
+      case thing@InitializedArray(name, None, items, _, _, _, alignment) =>
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)
-        var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true, location = AllocationLocation.High)
+        var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
         labelMap(name) = index
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
@@ -349,10 +349,10 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
         initializedVariablesSize += items.length
         justAfterCode += bank -> index
-      case m@InitializedMemoryVariable(name, None, typ, value, _)  =>
+      case m@InitializedMemoryVariable(name, None, typ, value, _, alignment)  =>
         val bank = m.bank(options)
         val bank0 = mem.banks(bank)
-        var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High)
+        var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
         labelMap(name) = index
         val altName = m.name.stripPrefix(env.prefix) + "`"
         env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
