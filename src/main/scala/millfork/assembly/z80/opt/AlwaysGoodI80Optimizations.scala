@@ -527,6 +527,36 @@ object AlwaysGoodI80Optimizations {
 
     (Elidable & HasOpcode(OR) & HasRegisterParam(A) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
 
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(HL, IMM_16)) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(INC_16) & HasRegisterParam(HL) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (_, ctx) =>
+      List(ZLine.ldImm16(HL, ctx.get[Constant](0).+(1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(HL, IMM_16)) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(DEC_16) & HasRegisterParam(HL) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (_, ctx) =>
+      List(ZLine.ldImm16(HL, ctx.get[Constant](0).+(1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(DE, IMM_16)) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(INC_16) & HasRegisterParam(DE) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (_, ctx) =>
+      List(ZLine.ldImm16(DE, ctx.get[Constant](0).+(1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(DE, IMM_16)) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(DEC_16) & HasRegisterParam(DE) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (_, ctx) =>
+      List(ZLine.ldImm16(DE, ctx.get[Constant](0).-(1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(BC, IMM_16)) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(INC_16) & HasRegisterParam(BC) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (_, ctx) =>
+      List(ZLine.ldImm16(BC, ctx.get[Constant](0).+(1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(BC, IMM_16)) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(DEC_16) & HasRegisterParam(BC) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (_, ctx) =>
+      List(ZLine.ldImm16(BC, ctx.get[Constant](0).-(1).quickSimplify))
+    },
+
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",
@@ -713,6 +743,21 @@ object AlwaysGoodI80Optimizations {
       (Not(Concerns(ZRegister.DE)) & Not(Concerns(ZRegister.BC))).* ~
       (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.BC)) & DoesntMatterWhatItDoesWith(ZRegister.DE, ZRegister.BC)) ~~> { code =>
       code.drop(2).init :+ code.last.copy(registers = TwoRegisters(ZRegister.HL, ZRegister.DE))
+    },
+
+    (Elidable & Is8BitLoadTo(ZRegister.H) & MatchImmediate(1)) ~
+      (Elidable & Is8BitLoadTo(ZRegister.L) & MatchImmediate(0)) ~~> { (code, ctx) =>
+      List(ZLine.ldImm16(ZRegister.HL, (ctx.get[Constant](0) + ctx.get[Constant](1).asl(8)).quickSimplify))
+    },
+
+    (Elidable & Is8BitLoadTo(ZRegister.D) & MatchImmediate(1)) ~
+      (Elidable & Is8BitLoadTo(ZRegister.E) & MatchImmediate(0)) ~~> { (code, ctx) =>
+      List(ZLine.ldImm16(ZRegister.DE, (ctx.get[Constant](0) + ctx.get[Constant](1).asl(8)).quickSimplify))
+    },
+
+    (Elidable & Is8BitLoadTo(ZRegister.B) & MatchImmediate(1)) ~
+      (Elidable & Is8BitLoadTo(ZRegister.C) & MatchImmediate(0)) ~~> { (code, ctx) =>
+      List(ZLine.ldImm16(ZRegister.BC, (ctx.get[Constant](0) + ctx.get[Constant](1).asl(8)).quickSimplify))
     },
   )
 
