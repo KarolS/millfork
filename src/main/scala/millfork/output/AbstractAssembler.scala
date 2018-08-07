@@ -213,7 +213,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         function.environment.removedThings.foreach(env.removeVariable)
       }
     }
-//    deduplicate(options, compiledFunctions)
+    deduplicate(options, compiledFunctions)
     if (log.traceEnabled) {
       niceFunctionProperties.toList.groupBy(_._2).mapValues(_.map(_._1).sortBy(_.toString)).toList.sortBy(_._1).foreach{ case (fname, properties) =>
           log.trace(fname.padTo(30, ' ') + properties.mkString(" "))
