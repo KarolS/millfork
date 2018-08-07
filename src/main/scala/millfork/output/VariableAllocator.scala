@@ -37,7 +37,7 @@ sealed trait ByteAllocator {
       if (occupied(i)) {
         counter = 0
       } else if (counter == 0 && (alignment match {
-        case WithinPageAlignment => i.&(0xff00) != i.+(count - 1).&(0xff00)
+        case WithinPageAlignment => count <= 256 && i.&(0xff00) != i.+(count - 1).&(0xff00)
         case DivisibleAlignment(divisor) => i % divisor != 0
         case NoAlignment => false
       })) {

@@ -774,7 +774,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             kernalInterrupt = stmt.kernalInterrupt,
             reentrant = stmt.reentrant,
             position = stmt.position,
-            declaredBank = stmt.bank
+            declaredBank = stmt.bank,
+            alignment = defaultFunctionAlignment(options, hot = true) // TODO: decide actual hotness in a smarter way
           )
           addThing(mangled, stmt.position)
           registerAddressConstant(mangled, stmt.position, options)
@@ -879,6 +880,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   private def defaultVariableAlignment(options: CompilationOptions, size: Long): MemoryAlignment = {
     if (options.flag(CompilationFlag.PreventJmpIndirectBug) && size == 2) WithinPageAlignment
+    else NoAlignment
+  }
+
+  private def defaultFunctionAlignment(options: CompilationOptions, hot: Boolean): MemoryAlignment = {
+    // TODO:
+    if (hot && options.platform.cpuFamily == CpuFamily.M6502 &&
+          options.flag(CompilationFlag.OptimizeForSonicSpeed)) WithinPageAlignment
     else NoAlignment
   }
 

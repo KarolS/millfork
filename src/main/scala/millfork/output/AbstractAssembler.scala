@@ -204,7 +204,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             compiledFunctions(f) = NonexistentFunction()
           case None =>
             nonInlineableFunctions += function.name
-            compiledFunctions(f) = NormalCompiledFunction(function.declaredBank.getOrElse(platform.defaultCodeBank), code, function.address.isDefined)
+            compiledFunctions(f) = NormalCompiledFunction(function.declaredBank.getOrElse(platform.defaultCodeBank), code, function.address.isDefined, function.alignment)
             optimizedCodeSize += code.map(_.sizeInBytes).sum
             if (options.flag(CompilationFlag.InterproceduralOptimization)) {
               gatherNiceFunctionProperties(niceFunctionProperties, f, code)
@@ -257,7 +257,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val bank0 = mem.banks(bank)
         val index = f.address.get.asInstanceOf[NumericConstant].value.toInt
         compiledFunctions(f.name) match {
-          case NormalCompiledFunction(_, code, _) =>
+          case NormalCompiledFunction(_, code, _, _) =>
             labelMap(f.name) = index
             val end = outputFunction(bank, code, index, assembly, options)
             for (i <- index until end) {
@@ -275,11 +275,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     var justAfterCode = platform.codeAllocators.mapValues(a => a.startAt)
 
     compiledFunctions.toList.sortBy{case (name, cf) => if (name == "main") 0 -> "" else cf.orderKey}.foreach {
-      case (_, NormalCompiledFunction(_, _, true)) =>
+      case (_, NormalCompiledFunction(_, _, true, _)) =>
         // already done before
-      case (name, NormalCompiledFunction(bank, code, false)) =>
+      case (name, NormalCompiledFunction(bank, code, false, alignment)) =>
         val size = code.map(_.sizeInBytes).sum
-        val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = NoAlignment)
+        val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
         labelMap(name) = index
         justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
       case (_, NonexistentFunction()) =>
@@ -291,7 +291,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       env.allThings.things.foreach {
         case (_, m@UninitializedMemoryVariable(name, typ, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
           val isUsed = compiledFunctions.values.exists{
-            case NormalCompiledFunction(_, code, _)  => code.exists(_.parameter.isRelatedTo(m))
+            case NormalCompiledFunction(_, code, _, _)  => code.exists(_.parameter.isRelatedTo(m))
             case _ => false
           }
 //          println(m.name -> isUsed)
@@ -299,7 +299,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             val bank = m.bank(options)
             if (bank != "default") ???
             val bank0 = mem.banks(bank)
-            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = NoAlignment)
+            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = m.alignment)
             labelMap(name) = index + 1
             val altName = m.name.stripPrefix(env.prefix) + "`"
             val thing = if (name.endsWith(".addr")) env.get[ThingInMemory](name.stripSuffix(".addr")) else env.get[ThingInMemory](name + ".array")

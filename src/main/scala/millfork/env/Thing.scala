@@ -295,12 +295,11 @@ case class NormalFunction(name: String,
                           kernalInterrupt: Boolean,
                           reentrant: Boolean,
                           position: Option[Position],
-                          declaredBank: Option[String]) extends FunctionInMemory with PreallocableThing {
+                          declaredBank: Option[String],
+                          override val alignment: MemoryAlignment) extends FunctionInMemory with PreallocableThing {
   override def shouldGenerate = true
 
   override def zeropage: Boolean = false
-
-  override def alignment: MemoryAlignment = NoAlignment
 }
 
 case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing {
