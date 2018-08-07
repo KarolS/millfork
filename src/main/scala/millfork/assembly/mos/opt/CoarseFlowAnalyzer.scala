@@ -73,7 +73,7 @@ object CoarseFlowAnalyzer {
             currentStatus = FlowAnalyzerForImmediate.get(op)(nn.toInt, currentStatus)
 
           case AssemblyLine(op, _, _, _) if FlowAnalyzerForTheRest.hasDefinition(op) =>
-            currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus)
+            currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, None)
 
           case AssemblyLine(opcode, addrMode, _, _) =>
             currentStatus = currentStatus.copy(src = AnyStatus)

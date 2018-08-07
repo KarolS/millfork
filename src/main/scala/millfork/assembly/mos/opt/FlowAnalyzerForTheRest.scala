@@ -8,35 +8,35 @@ import millfork.assembly.opt.{AnyStatus, SingleStatus, Status}
   * @author Karol Stasiak
   */
 object FlowAnalyzerForTheRest {
-  private val map: Map[Opcode.Value, CpuStatus => CpuStatus] = Map(
-    STA -> identity,
-    STX -> identity,
-    STY -> identity,
-    STZ -> identity,
-    SAX -> identity,
-    NOP -> identity,
-    DISCARD_AF -> identity,
-    DISCARD_XF -> identity,
-    DISCARD_YF -> identity,
-    REP -> (currentStatus => {
+  private val map: Map[Opcode.Value, (CpuStatus, Option[Int]) => CpuStatus] = Map(
+    STA -> ((c,zpreg) => c.setReg(zpreg, c.a)),
+    STX -> ((c,zpreg) => c.setReg(zpreg, c.x)),
+    STY -> ((c,zpreg) => c.setReg(zpreg, c.y)),
+    STZ -> ((c,zpreg) => c.setReg(zpreg, c.iz)),
+    SAX -> ((c,zpreg) => c.setReg(zpreg, (c.a <*> c.x)(_ & _))),
+    NOP -> ((x,_) => x),
+    DISCARD_AF -> ((x,_) => x),
+    DISCARD_XF -> ((x,_) => x),
+    DISCARD_YF -> ((x,_) => x),
+    REP -> ((currentStatus, zpreg) => {
       currentStatus.copy(c = AnyStatus, d = AnyStatus, n = AnyStatus, z= AnyStatus, v = AnyStatus, m = AnyStatus, w = AnyStatus)
     }),
-    SEP -> (currentStatus => {
+    SEP -> ((currentStatus, zpreg) => {
       currentStatus.copy(c = AnyStatus, d = AnyStatus, n = AnyStatus, z= AnyStatus, v = AnyStatus, m = AnyStatus, w = AnyStatus)
     }),
-    BCC -> (currentStatus => {
+    BCC -> ((currentStatus, zpreg) => {
       currentStatus.copy(c = Status.SingleTrue)
     }),
-    BCS -> (currentStatus => {
+    BCS -> ((currentStatus, zpreg) => {
       currentStatus.copy(c = Status.SingleFalse)
     }),
-    BVS -> (currentStatus => {
+    BVS -> ((currentStatus, zpreg) => {
       currentStatus.copy(v = Status.SingleFalse)
     }),
-    BVC -> (currentStatus => {
+    BVC -> ((currentStatus, zpreg) => {
       currentStatus.copy(v = Status.SingleTrue)
     }),
-    BMI -> (c => {
+    BMI -> ((c, zpreg) => {
       var currentStatus = c
       currentStatus = currentStatus.copy(n = Status.SingleFalse)
       if (currentStatus.src.isFromA) {
@@ -44,7 +44,7 @@ object FlowAnalyzerForTheRest {
       }
       currentStatus
     }),
-    BPL -> (c => {
+    BPL -> ((c, zpreg) => {
       var currentStatus = c
       currentStatus = currentStatus.copy(n = Status.SingleTrue)
       if (currentStatus.src.isFromA) {
@@ -52,10 +52,10 @@ object FlowAnalyzerForTheRest {
       }
       currentStatus
     }),
-    BEQ -> (currentStatus => {
+    BEQ -> ((currentStatus, zpreg) => {
       currentStatus.copy(z = Status.SingleFalse)
     }),
-    BNE -> (c => {
+    BNE -> ((c, zpreg) => {
       var currentStatus = c
       currentStatus = currentStatus.copy(z = Status.SingleTrue)
       if (currentStatus.src.isFromA) {
@@ -79,100 +79,123 @@ object FlowAnalyzerForTheRest {
       }
       currentStatus
     }),
-    LDX -> (currentStatus => {
+    LDX -> ((currentStatus, zpreg) => {
+      val newX = currentStatus.getReg(zpreg)
       currentStatus.copy(
-        x = AnyStatus,
-        n = AnyStatus,
-        z = AnyStatus,
+        x = newX,
+        n = newX.n(),
+        z = newX.z(),
         src = SourceOfNZ.X)
     }),
-    LDY -> (currentStatus => {
+    LDY -> ((currentStatus, zpreg) => {
+      val newY = currentStatus.getReg(zpreg)
       currentStatus.copy(
-        y = AnyStatus,
-        n = AnyStatus,
-        z = AnyStatus,
+        y = newY,
+        n = newY.n(),
+        z = newY.z(),
         src = SourceOfNZ.Y)
     }),
-    LDA -> (currentStatus => {
+    LDA -> ((currentStatus, zpreg) => {
+      val newA = currentStatus.getReg(zpreg)
       currentStatus.copy(
-        a = AnyStatus,
-        a7 = AnyStatus,
-        a0 = AnyStatus,
-        n = AnyStatus,
-        z = AnyStatus,
+        a = newA,
+        a7 = newA.bit7,
+        a0 = newA.bit0,
+        n = newA.n(),
+        z = newA.z(),
         src = SourceOfNZ.A)
     }),
-    LDZ -> (currentStatus => {
+    LDZ -> ((currentStatus, zpreg) => {
+      val newZ = currentStatus.getReg(zpreg)
       currentStatus.copy(
-        iz = AnyStatus,
-        n = AnyStatus,
-        z = AnyStatus,
+        iz = newZ,
+        n = newZ.n(),
+        z = newZ.z(),
         src = SourceOfNZ.Z)
     }),
-    LAX -> (currentStatus => {
+    LAX -> ((currentStatus, zpreg) => {
+      val newA = currentStatus.getReg(zpreg)
       currentStatus.copy(
-        x = AnyStatus,
-        a = AnyStatus,
-        a7 = AnyStatus,
-        a0 = AnyStatus,
-        n = AnyStatus,
-        z = AnyStatus,
+        x = newA,
+        a = newA,
+        a7 = newA.bit7,
+        a0 = newA.bit0,
+        n = newA.n(),
+        z = newA.z(),
         src = SourceOfNZ.AX)
     }),
-    LDA_W -> (currentStatus => {
+    LDA_W -> ((currentStatus, zpreg) => {
+      val newA = currentStatus.getReg(zpreg)
+      val newAH = currentStatus.getRegHi(zpreg)
       currentStatus.copy(
-        ah = AnyStatus,
-        a = AnyStatus,
+        ah = newAH,
+        a = newA,
         a7 = AnyStatus,
-        a0 = AnyStatus,
+        a0 = newA.bit0,
         n = AnyStatus,
         z = AnyStatus,
         src = SourceOfNZ.AW)
     }),
-    LDX_W -> (currentStatus => {
+    LDX_W -> ((currentStatus, zpreg) => {
       currentStatus.copy(
         x = AnyStatus,
         n = AnyStatus,
         z = AnyStatus,
         src = AnyStatus)
     }),
-    LDY_W -> (currentStatus => {
+    LDY_W -> ((currentStatus, zpreg) => {
       currentStatus.copy(
         y = AnyStatus,
         n = AnyStatus,
         z = AnyStatus,
         src = AnyStatus)
     }),
-    ADC -> (currentStatus => {
+    ADC -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      val newA: Status[Int]= if (currentStatus.d.contains(false)) Status.flatMap3(currentStatus.a, r, currentStatus.c) {
+        case (m, n, false) => SingleStatus((m + n) & 0xff)
+        case (m, n, true) => SingleStatus((m + n + 1) & 0xff)
+      } else AnyStatus
+      val newC: Status[Boolean]= if (currentStatus.d.contains(false)) Status.flatMap3(currentStatus.a, r, currentStatus.c) {
+        case (m, n, false) => SingleStatus((m.&(0xff) + n.&(0xff)) > 0xff)
+        case (m, n, true) => SingleStatus((m.&(0xff) + n.&(0xff) + 1) > 0xff)
+      } else AnyStatus
       currentStatus.copy(
-        a = AnyStatus,
-        a7 = AnyStatus,
-        a0 = AnyStatus,
+        a = newA,
+        a7 = newA.bit7,
+        a0 = newA.bit0,
         v = AnyStatus,
-        c = Status.flatMap3(currentStatus.a, currentStatus.c, currentStatus.d) {
+        c = newC | Status.flatMap3(currentStatus.a, currentStatus.c, currentStatus.d) {
           case (0, false, false) => SingleStatus[Boolean](false)
           case _ => AnyStatus
         },
-        z = AnyStatus,
-        n = AnyStatus,
+        z = newA.z(),
+        n = newA.n(),
         src = currentStatus.d.flatMap((dec: Boolean) => if (dec) AnyStatus else SourceOfNZ.A))
     }),
-    SBC -> (currentStatus => {
+    SBC -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      val newA: Status[Int]= if (currentStatus.d.contains(false)) Status.flatMap3(currentStatus.a, r, currentStatus.c) {
+        case (m, n, false) => SingleStatus((m - n + 0xff) & 0xff)
+        case (m, n, true) => SingleStatus((m - n + 0x100) & 0xff)
+      } else AnyStatus
       currentStatus.copy(
-        a = AnyStatus,
-        a7 = AnyStatus,
-        a0 = AnyStatus,
+        a = newA,
+        a7 = newA.bit7,
+        a0 = newA.bit0,
         v = AnyStatus,
         c = Status.flatMap3(currentStatus.a, currentStatus.c, currentStatus.d) {
           case (0xff, true, false) => SingleStatus[Boolean](true)
           case _ => AnyStatus
         },
-        z = AnyStatus,
-        n = AnyStatus,
+        z = newA.z(),
+        n = newA.n(),
         src = currentStatus.d.flatMap((dec: Boolean) => if (dec) AnyStatus else SourceOfNZ.A))
     }),
-    AND -> (currentStatus => {
-      val newA: Status[Int] = currentStatus.a.flatMap(v => if ((v & 0xff) == 0) Status.SingleZero else AnyStatus)
+    AND -> ((currentStatus, zpreg) => {
+      val newA: Status[Int] =
+        currentStatus.a.flatMap(v => if ((v & 0xff) == 0) Status.SingleZero else AnyStatus) |
+          (currentStatus.a <*> currentStatus.getReg(zpreg))(_ & _)
       currentStatus.copy(
         a = newA,
         a7 = currentStatus.a7.flatMap(v => if (!v) Status.SingleFalse else AnyStatus),
@@ -181,8 +204,10 @@ object FlowAnalyzerForTheRest {
         z = newA.z(),
         src = SourceOfNZ.A)
     }),
-    ORA -> (currentStatus => {
-      val newA: Status[Int] = currentStatus.a.flatMap(v => if ((v & 0xff) == 0xff) Status.SingleFF else AnyStatus)
+    ORA -> ((currentStatus, zpreg) => {
+      val newA: Status[Int] =
+        currentStatus.a.flatMap(v => if ((v & 0xff) == 0xff) Status.SingleFF else AnyStatus) |
+          (currentStatus.a <*> currentStatus.getReg(zpreg))(_ | _)
       currentStatus.copy(
         a = newA,
         a7 = currentStatus.a7.flatMap(v => if (v) Status.SingleTrue else AnyStatus),
@@ -191,7 +216,7 @@ object FlowAnalyzerForTheRest {
         z = newA.z(),
         src = SourceOfNZ.A)
     }),
-    SLO -> (currentStatus => {
+    SLO -> ((currentStatus, zpreg) => {
       val newA: Status[Int] = currentStatus.a.flatMap(v => if ((v & 0xff) == 0xff) Status.SingleFF else AnyStatus)
       currentStatus.copy(
         c = AnyStatus,
@@ -200,28 +225,19 @@ object FlowAnalyzerForTheRest {
         a0 = currentStatus.a0.flatMap(v => if (v) Status.SingleTrue else AnyStatus),
         n = newA.n(),
         z = newA.z(),
-        src = SourceOfNZ.A)
+        src = SourceOfNZ.A).setReg(zpreg, AnyStatus)
     }),
-    EOR -> (currentStatus => {
+    EOR -> ((currentStatus, zpreg) => {
+      val newA: Status[Int] = (currentStatus.a <*> currentStatus.getReg(zpreg))(_ ^ _)
       currentStatus.copy(
-        n = AnyStatus,
-        z = AnyStatus,
-        a = AnyStatus,
-        a7 = AnyStatus,
-        a0 = AnyStatus,
-        src = SourceOfNZ.A)
+        n = newA.n(),
+        z = newA.z(),
+        a = newA,
+        a7 = newA.bit7,
+        a0 = newA.bit0,
+        src = SourceOfNZ.A).setReg(zpreg, AnyStatus)
     }),
-    SRE -> (currentStatus => {
-      currentStatus.copy(
-        c = AnyStatus,
-        n = AnyStatus,
-        z = AnyStatus,
-        a = AnyStatus,
-        a7 = AnyStatus,
-        a0 = AnyStatus,
-        src = SourceOfNZ.A)
-    }),
-    RLA -> (currentStatus => {
+    SRE -> ((currentStatus, zpreg) => {
       currentStatus.copy(
         c = AnyStatus,
         n = AnyStatus,
@@ -229,20 +245,19 @@ object FlowAnalyzerForTheRest {
         a = AnyStatus,
         a7 = AnyStatus,
         a0 = AnyStatus,
-        src = SourceOfNZ.A)
+        src = SourceOfNZ.A).setReg(zpreg, AnyStatus)
     }),
-    RRA -> (currentStatus => {
+    RLA -> ((currentStatus, zpreg) => {
       currentStatus.copy(
         c = AnyStatus,
         n = AnyStatus,
-        v = AnyStatus,
+        z = AnyStatus,
         a = AnyStatus,
         a7 = AnyStatus,
         a0 = AnyStatus,
-        z = AnyStatus,
-        src = currentStatus.d.flatMap(dec => if (dec) AnyStatus else SourceOfNZ.A))
+        src = SourceOfNZ.A).setReg(zpreg, AnyStatus)
     }),
-    ISC -> (currentStatus => {
+    RRA -> ((currentStatus, zpreg) => {
       currentStatus.copy(
         c = AnyStatus,
         n = AnyStatus,
@@ -251,27 +266,81 @@ object FlowAnalyzerForTheRest {
         a7 = AnyStatus,
         a0 = AnyStatus,
         z = AnyStatus,
-        src = currentStatus.d.flatMap(dec => if (dec) AnyStatus else SourceOfNZ.A))
+        src = currentStatus.d.flatMap(dec => if (dec) AnyStatus else SourceOfNZ.A)).setReg(zpreg, AnyStatus)
     }),
-    ROL -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    ROR -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    ASL -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    LSR -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    INC -> (_.copy(n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    DEC -> (_.copy(n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    CMP -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    CPX -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    CPY -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    CPZ -> (_.copy(c = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    BIT -> (_.copy(v = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
-    TRB -> (_.copy(z = AnyStatus, src = AnyStatus)),
-    TSB -> (_.copy(z = AnyStatus, src = AnyStatus)),
-    JMP -> (_ => CpuStatus()),
-    BRA -> (_ => CpuStatus()),
-    BRL -> (_ => CpuStatus()),
+    DCP -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(
+        c = AnyStatus,
+        n = AnyStatus,
+        z = AnyStatus,
+        src = AnyStatus).setReg(zpreg, r.map(n => (n - 1) & 0xff))
+    }),
+    ISC -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(
+        c = AnyStatus,
+        n = AnyStatus,
+        v = AnyStatus,
+        a = AnyStatus,
+        a7 = AnyStatus,
+        a0 = AnyStatus,
+        z = AnyStatus,
+        src = currentStatus.d.flatMap(dec => if (dec) AnyStatus else SourceOfNZ.A)).setReg(zpreg, r.map(n => (n + 1) & 0xff))
+    }),
+    ROL -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(c = r.bit7, n = AnyStatus, z = AnyStatus, src = AnyStatus).setReg(zpreg, currentStatus.c.flatMap { c =>
+        r.map(n => (n << 1) & 0xff | (if (c) 1 else 0))
+      })
+    }),
+    ROR -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(c = r.bit0, n = AnyStatus, z = AnyStatus, src = AnyStatus).setReg(zpreg, currentStatus.c.flatMap { c =>
+        r.map(n => (n >> 1) & 0x7f | (if (c) 0x80 else 0))
+      })
+    }),
+    ASL -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(c = r.bit7, n = AnyStatus, z = AnyStatus, src = AnyStatus).setReg(zpreg, r.map(n => (n << 1) & 0xff))
+    }),
+    LSR -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(c = r.bit0, n = AnyStatus, z = AnyStatus, src = AnyStatus).setReg(zpreg, r.map(n => (n >> 1) & 0xff))
+    }),
+    INC -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(n = AnyStatus, z = AnyStatus, src = AnyStatus).setReg(zpreg, r.map(n => (n + 1) & 0xff))
+    }),
+    DEC -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(n = AnyStatus, z = AnyStatus, src = AnyStatus).setReg(zpreg, r.map(n => (n - 1) & 0xff))
+    }),
+    CMP -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(c = AnyStatus, n = AnyStatus, z = (currentStatus.a <*> r)(_==_), src = if (r.contains(0)) SourceOfNZ.A else AnyStatus)
+    }),
+    CPX -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(c = AnyStatus, n = AnyStatus, z = (currentStatus.x <*> r)(_==_), src = if (r.contains(0)) SourceOfNZ.X else AnyStatus)
+    }),
+    CPY -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(c = AnyStatus, n = AnyStatus, z = (currentStatus.y <*> r)(_==_), src = if (r.contains(0)) SourceOfNZ.Y else AnyStatus)
+    }),
+    CPZ -> ((currentStatus, zpreg) => {
+      val r = currentStatus.getReg(zpreg)
+      currentStatus.copy(c = AnyStatus, n = AnyStatus, z = (currentStatus.iz <*> r)(_==_), src = if (r.contains(0)) SourceOfNZ.Z else AnyStatus)
+    }),
+    BIT -> ((currentStatus, zpreg) => currentStatus.copy(v = AnyStatus, n = AnyStatus, z = AnyStatus, src = AnyStatus)),
+    TRB -> ((currentStatus, zpreg) => currentStatus.copy(z = AnyStatus, src = AnyStatus).setReg(zpreg, AnyStatus)),
+    TSB -> ((currentStatus, zpreg) => currentStatus.copy(z = AnyStatus, src = AnyStatus).setReg(zpreg, AnyStatus)),
+    JMP -> ((_,_) => CpuStatus()),
+    BRA -> ((_,_) => CpuStatus()),
+    BRL -> ((_,_) => CpuStatus()),
   )
 
   def hasDefinition(opcode: Opcode.Value): Boolean = map.contains(opcode)
 
-  def get(opcode: Opcode.Value): CpuStatus => CpuStatus = map(opcode)
+  def get(opcode: Opcode.Value): (CpuStatus, Option[Int]) => CpuStatus = map(opcode)
 }

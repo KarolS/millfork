@@ -93,6 +93,12 @@ object Status {
     case _ => AnyStatus
   }
 
+  def flatMap4[T, U, V, W, R](a: Status[T], b: Status[U], c: Status[V], d: Status[W])(f: (T, U, V, W) => Status[R]): Status[R] = (a, b, c, d) match {
+    case (SingleStatus(t), SingleStatus(u), SingleStatus(v), SingleStatus(w)) => f(t, u, v, w)
+    case (UnknownStatus, UnknownStatus, UnknownStatus, UnknownStatus) => UnknownStatus
+    case _ => AnyStatus
+  }
+
   implicit class BoolStatusOps(val inner: Status[Boolean]) extends AnyVal {
     def withHiddenHi: Status[Boolean] = inner match {
       case SingleStatus(false) => inner
@@ -187,28 +193,28 @@ object Status {
       case _ => AnyStatus
     }
 
-    def adc(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
+    def adc(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): (Status[Int], Status[Boolean]) = inner match {
       case SingleStatus(x) => decimal match {
         case SingleStatus(false) => carry match {
-          case SingleStatus(true) => SingleStatus((x + value + 1) & 0xff)
-          case SingleStatus(false) => SingleStatus((x + value) & 0xff)
-          case _ => AnyStatus
+          case SingleStatus(true) => SingleStatus((x + value + 1) & 0xff) -> SingleStatus((x.&(0xff) + value.&(0xff) + 1) > 0xff)
+          case SingleStatus(false) => SingleStatus((x + value) & 0xff) -> SingleStatus((x.&(0xff) + value.&(0xff)) > 0xff)
+          case _ => AnyStatus -> (if (value == 0) SingleFalse else AnyStatus)
         }
-        case _ => AnyStatus
+        case _ => AnyStatus -> AnyStatus
       }
-      case _ => AnyStatus
+      case _ => AnyStatus -> AnyStatus
     }
 
-    def sbc(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
+    def sbc(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): (Status[Int], Status[Boolean]) = inner match {
       case SingleStatus(x) => decimal match {
         case SingleStatus(false) => carry match {
-          case SingleStatus(true) => SingleStatus((x - value) & 0xff)
-          case SingleStatus(false) => SingleStatus((x - value - 1) & 0xff)
-          case _ => AnyStatus
+          case SingleStatus(true) => SingleStatus((x - value) & 0xff) -> SingleStatus((x.&(0xff) - value.&(0xff)) >= 0)
+          case SingleStatus(false) => SingleStatus((x - value - 1) & 0xff) -> SingleStatus((x.&(0xff) - value.&(0xff) - 1) >= 0)
+          case _ => AnyStatus -> (if (value == 0) SingleTrue else AnyStatus)
         }
-        case _ => AnyStatus
+        case _ => AnyStatus -> AnyStatus
       }
-      case _ => AnyStatus
+      case _ => AnyStatus -> AnyStatus
     }
 
     def adc_w(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {

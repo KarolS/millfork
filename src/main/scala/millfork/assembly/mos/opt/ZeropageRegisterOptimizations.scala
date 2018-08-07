@@ -5,7 +5,7 @@ import millfork.assembly.mos.AddrMode._
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.{AssemblyLine, Opcode, State}
 import millfork.env.{CompoundConstant, Constant, MathOperator}
-
+import millfork.DecimalUtils.asDecimal
 /**
   * @author Karol Stasiak
   */
@@ -23,6 +23,11 @@ object ZeropageRegisterOptimizations {
       (Linear & Not(RefersToOrUses("__reg", 1)) & DoesntChangeMemoryAt(0, 1)).* ~
       (HasOpcode(STA) & RefersTo("__reg", 1) & MatchA(5)) ~
       (Elidable & HasOpcode(JSR) & RefersTo("__mul_u8u8u8", 0)) ~~> { (code, ctx) =>
+      val product = ctx.get[Int](4) * ctx.get[Int](5)
+      code.init :+ AssemblyLine.immediate(LDA, product & 0xff)
+    },
+
+    (Elidable & HasOpcode(JSR) & RefersTo("__mul_u8u8u8", 0) & MatchZpReg(4, 0) & MatchZpReg(5, 1)) ~~> { (code, ctx) =>
       val product = ctx.get[Int](4) * ctx.get[Int](5)
       code.init :+ AssemblyLine.immediate(LDA, product & 0xff)
     },
@@ -171,41 +176,74 @@ object ZeropageRegisterOptimizations {
     })
   )
 
+  val PointlessLoad = new RuleBasedAssemblyOptimization("Pointless load from zeropage register",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    MultipleAssemblyRules((0 until 4).flatMap{ zpregIndex =>
+      List(
+        (Elidable & HasOpcode(LDA) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchA(4) & 
+          DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
+        (Elidable & HasOpcode(LDX) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchX(4) & 
+          DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
+        (Elidable & HasOpcode(LDY) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchY(4) &
+          DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
 
-  private def parseNormalToDecimalValue(a: Long): Long = {
-    if (a < 0) -parseNormalToDecimalValue(-a)
-    var x = a
-    var result = 0L
-    var multiplier = 1L
-    while (x > 0) {
-      result += multiplier * (x % 16L)
-      x /= 16L
-      multiplier *= 10L
-    }
-    result
-  }
+        (Elidable & HasOpcode(LDA) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchX(4)) ~~> (_ => List(AssemblyLine.implied(TXA))),
+        (Elidable & HasOpcode(LDA) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchY(4)) ~~> (_ => List(AssemblyLine.implied(TYA))),
+        (Elidable & HasOpcode(LDX) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchA(4)) ~~> (_ => List(AssemblyLine.implied(TAX))),
+        (Elidable & HasOpcode(LDY) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchA(4)) ~~> (_ => List(AssemblyLine.implied(TAY))),
+        (Elidable & HasOpcode(LAX) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchX(4)) ~~> (_ => List(AssemblyLine.implied(TXA))),
+        (Elidable & HasOpcode(LAX) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(4, zpregIndex) & MatchA(4)) ~~> (_ => List(AssemblyLine.implied(TAX))),
 
-  private def storeDecimalValueInNormalRespresentation(a: Long): Long = {
-    if (a < 0) -storeDecimalValueInNormalRespresentation(-a)
-    var x = a
-    var result = 0L
-    var multiplier = 1L
-    while (x > 0) {
-      result += multiplier * (x % 10L)
-      x /= 10L
-      multiplier *= 16L
-    }
-    result
-  }
+        (Elidable & HasOpcode(ADC) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(5, zpregIndex) & MatchA(4) & HasClear(State.D) & HasClear(State.C) &
+          DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
+          val sum = ctx.get[Int](4) + ctx.get[Int](5)
+          List(AssemblyLine.immediate(LDA, sum & 0xff))
+        },
 
-  private def asDecimal(a: Long, b: Long, f: (Long, Long) => Long): Long =
-    storeDecimalValueInNormalRespresentation(f(parseNormalToDecimalValue(a), parseNormalToDecimalValue(b)))
+        (Elidable & HasOpcode(SBC) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(5, zpregIndex) & MatchA(4) & HasClear(State.D) & HasSet(State.C) &
+          DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
+          val sum = ctx.get[Int](4) - ctx.get[Int](5)
+          List(AssemblyLine.immediate(LDA, sum & 0xff))
+        },
+
+        (Elidable & HasOpcode(AND) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(5, zpregIndex) & MatchA(4)) ~~> { (code, ctx) =>
+          val sum = ctx.get[Int](4) & ctx.get[Int](5)
+          List(AssemblyLine.immediate(LDA, sum & 0xff))
+        },
+
+        (Elidable & HasOpcode(ORA) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(5, zpregIndex) & MatchA(4)) ~~> { (code, ctx) =>
+          val sum = ctx.get[Int](4) | ctx.get[Int](5)
+          List(AssemblyLine.immediate(LDA, sum & 0xff))
+        },
+
+        (Elidable & HasOpcode(EOR) & RefersTo("__reg", zpregIndex) &
+          MatchZpReg(5, zpregIndex) & MatchA(4)) ~~> { (code, ctx) =>
+          val sum = ctx.get[Int](4) ^ ctx.get[Int](5)
+          List(AssemblyLine.immediate(LDA, sum & 0xff))
+        }
+      )
+    })
+  )
 
   val All: List[AssemblyOptimization[AssemblyLine]] = List(
     ConstantDecimalMath,
     ConstantMultiplication,
     DeadRegStore,
     DeadRegStoreFromFlow,
+    PointlessLoad,
     StashInRegInsteadOfStack,
   )
 

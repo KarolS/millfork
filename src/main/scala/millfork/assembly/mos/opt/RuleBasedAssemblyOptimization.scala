@@ -547,6 +547,17 @@ case class MatchY(i: Int) extends AssemblyLinePattern {
     }
 }
 
+case class MatchZpReg(i: Int, registerIndex: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.statusBefore.reg(registerIndex) match {
+      case SingleStatus(value) => ctx.addObject(i, value)
+      case _ => false
+    }
+}
+
 case class HasA(value: Int) extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertForward(needsFlowInfo)

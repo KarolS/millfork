@@ -47,6 +47,10 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      x: Status[Int] = UnknownStatus,
                      y: Status[Int] = UnknownStatus,
                      iz: Status[Int] = UnknownStatus,
+                     r0: Status[Int] = UnknownStatus,
+                     r1: Status[Int] = UnknownStatus,
+                     r2: Status[Int] = UnknownStatus,
+                     r3: Status[Int] = UnknownStatus,
                      src: Status[SourceOfNZ] = UnknownStatus,
                      eqSX: Boolean = false,
                      z: Status[Boolean] = UnknownStatus,
@@ -90,7 +94,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
 //    case _ =>
 //  }
 
-  override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; A7=$a7,A0=$a0,NZ:$src" +
+  override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; R0=$r0,R1=$r1,R2=$r2,R3=$r3; A7=$a7,A0=$a0,NZ:$src" +
     (if (eqSX) "; S=X"
     else /* */ "     ")
 
@@ -159,6 +163,39 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case State.W => w.contains(true)
     case _ => false
   }
+
+  def reg(i: Int) : Status[Int] = i match {
+    case 0 => r0
+    case 1 => r1
+    case 2 => r2
+    case 3 => r3
+    case _ => AnyStatus
+  }
+
+  def getReg(i: Option[Int]) : Status[Int] = i match {
+    case Some(0) => r0
+    case Some(1) => r1
+    case Some(2) => r2
+    case Some(3) => r3
+    case _ => AnyStatus
+  }
+
+  def getRegHi(i: Option[Int]) : Status[Int] = i match {
+    case Some(0) => r1
+    case Some(1) => r2
+    case Some(2) => r3
+    case _ => AnyStatus
+  }
+
+  def setReg(i: Option[Int], status: Status[Int]): CpuStatus = {
+    i match {
+      case Some(0) => this.copy(r0 = status)
+      case Some(1) => this.copy(r1 = status)
+      case Some(2) => this.copy(r2 = status)
+      case Some(3) => this.copy(r3 = status)
+      case None => this
+    }
+  }
 }
 
 object CpuStatus {
@@ -173,7 +210,11 @@ object CpuStatus {
         d = SingleStatus(false),
         m = SingleStatus(true),
         w = SingleStatus(true),
-        iz = SingleStatus(0)
+        iz = SingleStatus(0),
+        r0 = AnyStatus,
+        r1 = AnyStatus,
+        r2 = AnyStatus,
+        r3 = AnyStatus,
       )
   val initialStatusCE = CpuStatus(
         a = AnyStatus,
@@ -186,7 +227,11 @@ object CpuStatus {
         d = SingleStatus(false),
         m = SingleStatus(true),
         w = SingleStatus(true),
-        iz = AnyStatus
+        iz = AnyStatus,
+        r0 = AnyStatus,
+        r1 = AnyStatus,
+        r2 = AnyStatus,
+        r3 = AnyStatus,
       )
 
   val initialInterruptStatusStandard = CpuStatus(
@@ -200,7 +245,11 @@ object CpuStatus {
         d = AnyStatus,
         m = AnyStatus,
         w = AnyStatus,
-        iz = SingleStatus(0)
+        iz = SingleStatus(0),
+        r0 = AnyStatus,
+        r1 = AnyStatus,
+        r2 = AnyStatus,
+        r3 = AnyStatus,
       )
   val initialInterruptStatusCmos = CpuStatus(
         a = AnyStatus,
@@ -213,7 +262,11 @@ object CpuStatus {
         d = SingleStatus(false),
         m = AnyStatus,
         w = AnyStatus,
-        iz = SingleStatus(0)
+        iz = SingleStatus(0),
+        r0 = AnyStatus,
+        r1 = AnyStatus,
+        r2 = AnyStatus,
+        r3 = AnyStatus,
       )
   val initialInterruptStatusCE = CpuStatus(
         a = AnyStatus,
@@ -226,7 +279,11 @@ object CpuStatus {
         d = SingleStatus(false),
         m = AnyStatus,
         w = AnyStatus,
-        iz = AnyStatus
+        iz = AnyStatus,
+        r0 = AnyStatus,
+        r1 = AnyStatus,
+        r2 = AnyStatus,
+        r3 = AnyStatus,
       )
 
   val emptyStatusStandard = CpuStatus(iz = SingleStatus(0))

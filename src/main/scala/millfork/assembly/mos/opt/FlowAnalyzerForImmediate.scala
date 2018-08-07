@@ -72,7 +72,7 @@ object FlowAnalyzerForImmediate {
     },
     ADC -> {(nn, currentStatus) =>
       val n = nn & 0xff
-      val newA = currentStatus.a.adc(n, currentStatus.c, currentStatus.d)
+      val (newA, newC) = currentStatus.a.adc(n, currentStatus.c, currentStatus.d)
       currentStatus.copy(
         n = newA.n(),
         z = newA.z(),
@@ -80,7 +80,7 @@ object FlowAnalyzerForImmediate {
         a = newA,
         a0 = newA.bit0,
         a7 = newA.bit7,
-        c = Status.flatMap3(currentStatus.a, currentStatus.c, currentStatus.d) {
+        c = newC | Status.flatMap3(currentStatus.a, currentStatus.c, currentStatus.d) {
           case (aa, false, false) => SingleStatus((aa & 0xff) + n >= 0x100)
           case _ => AnyStatus
         },
@@ -88,7 +88,7 @@ object FlowAnalyzerForImmediate {
     },
     SBC -> {(nn, currentStatus) =>
       val n = nn & 0xff
-      val newA = currentStatus.a.sbc(n, currentStatus.c, currentStatus.d)
+      val (newA, newC) = currentStatus.a.sbc(n, currentStatus.c, currentStatus.d)
       currentStatus.copy(
         n = newA.n(),
         z = newA.z(),
@@ -96,7 +96,7 @@ object FlowAnalyzerForImmediate {
         a = newA,
         a0 = newA.bit0,
         a7 = newA.bit7,
-        c = AnyStatus,
+        c = newC,
         v = AnyStatus)
     },
     EOR -> {(nn, currentStatus) =>
