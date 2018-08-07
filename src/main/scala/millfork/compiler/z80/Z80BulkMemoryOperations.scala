@@ -43,6 +43,53 @@ object Z80BulkMemoryOperations {
     */
   def compileMemset(ctx: CompilationContext, target: IndexedExpression, source: Expression, f: ForStatement): List[ZLine] = {
     val loadA = Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, source)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+
+    def compileForZ80(targetOffset: Expression): List[ZLine] = {
+      val targetIndexExpression = f.direction match {
+        case ForDirection.DownTo => SumExpression(List(false -> targetOffset, false -> f.end), decimal = false)
+        case _ => SumExpression(List(false -> targetOffset, false -> f.start), decimal = false)
+      }
+      val array = if (target.name != f.variable) target.name else "$0000"
+      val calculateAddress = Z80ExpressionCompiler.calculateAddressToHL(ctx, IndexedExpression(array, targetIndexExpression))
+      val calculateSize = f.direction match {
+        case ForDirection.DownTo =>
+          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.start, true -> f.end, false -> LiteralExpression(1, 1)), decimal = false)))
+        case ForDirection.To | ForDirection.ParallelTo =>
+          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.end, true -> f.start, false -> LiteralExpression(1, 1)), decimal = false)))
+        case ForDirection.Until | ForDirection.ParallelUntil =>
+          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.end, true -> f.start), decimal = false)))
+      }
+      val (incOp, ldOp) = f.direction match {
+        case ForDirection.DownTo => DEC_16 -> LDDR
+        case _ => INC_16 -> LDIR
+      }
+      val loadFirstValue = ctx.env.eval(source) match {
+        case Some(c) => List(ZLine.ldImm8(ZRegister.MEM_HL, c))
+        case _ => Z80ExpressionCompiler.stashBCIfChanged(ctx, loadA)
+      }
+      val loadDE = calculateAddress match {
+        case List(ZLine(ZOpcode.LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), c, _)) =>
+          if (incOp == DEC_16) List(ZLine.ldImm16(ZRegister.DE, (c - 1).quickSimplify))
+          else List(ZLine.ldImm16(ZRegister.DE, (c + 1).quickSimplify))
+        case _ => List(
+          ZLine.ld8(ZRegister.D, ZRegister.H),
+          ZLine.ld8(ZRegister.E, ZRegister.L),
+          ZLine.register(incOp, ZRegister.DE))
+      }
+      calculateAddress ++ calculateSize ++ loadFirstValue ++ loadDE :+ ZLine.implied(ldOp)
+    }
+
+    if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+      removeVariableOnce(f.variable, target.index) match {
+        case Some(targetOffset) if targetOffset.isPure =>
+          return compileForZ80(targetOffset)
+        case _ =>
+      }
+      if (target.isPure && target.name == f.variable && !target.index.containsVariable(f.variable)) {
+        return compileForZ80(target.index)
+      }
+    }
+
     compileMemoryBulk(ctx, target, f,
       useDEForTarget = false,
       preferDecreasing = false,

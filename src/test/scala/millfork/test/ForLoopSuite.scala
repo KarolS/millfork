@@ -174,6 +174,40 @@ class ForLoopSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Memset with index") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | array output[5]@$c001
+        | void main () {
+        |   byte i
+        |   for i,0,until,output.length {
+        |     output[i] = 22
+        |   }
+        | }
+        | void _panic(){while(true){}}
+      """.stripMargin){ m=>
+      m.readByte(0xc001) should equal (22)
+      m.readByte(0xc005) should equal (22)
+    }
+  }
+
+  test("Memset with pointer") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | array output[5]@$c001
+        | void main () {
+        |   pointer p
+        |   for p,output.addr,until,output.addr+output.length {
+        |     p[0] = 22
+        |   }
+        | }
+        | void _panic(){while(true){}}
+      """.stripMargin){ m=>
+      m.readByte(0xc001) should equal (22)
+      m.readByte(0xc005) should equal (22)
+    }
+  }
+
   test("Screen fill") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """

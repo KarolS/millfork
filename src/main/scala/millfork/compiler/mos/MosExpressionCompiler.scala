@@ -81,18 +81,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
   }
 
   def preserveZpregIfNeededDestroyingAAndX(ctx: CompilationContext, Offset: Int, code: List[AssemblyLine]): List[AssemblyLine] = {
-    if (code.exists{
-      case AssemblyLine(op,
-      AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute,
-      CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(Offset, _)),
-      _) if th.name =="__reg" && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
-      case AssemblyLine(op,
-      AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute,
-      MemoryAddressConstant(th),
-      _) if th.name =="__reg" && Offset == 0 && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
-      case AssemblyLine(JSR | BYTE | BSR, _, _, _) => true
-      case _ => false
-    }) {
+    if (changesZpreg(code, Offset)) {
       List(AssemblyLine.zeropage(LDA, ctx.env.get[VariableInMemory]("__reg"), Offset), AssemblyLine.implied(PHA)) ++
       code ++
         List(
@@ -102,6 +91,22 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           AssemblyLine.implied(TXA))
     } else code
   }
+
+  def changesZpreg(code: List[AssemblyLine], Offset: Int): Boolean = {
+    code.exists {
+      case AssemblyLine(op,
+      AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute,
+      CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(Offset, _)),
+      _) if th.name == "__reg" && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
+      case AssemblyLine(op,
+      AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute,
+      MemoryAddressConstant(th),
+      _) if th.name == "__reg" && Offset == 0 && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
+      case AssemblyLine(JSR | BYTE | BSR, _, _, _) => true
+      case _ => false
+    }
+  }
+
   def preserveCarryIfNeeded(ctx: CompilationContext, code: List[AssemblyLine]): List[AssemblyLine] = {
     if (code.exists {
       case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => true

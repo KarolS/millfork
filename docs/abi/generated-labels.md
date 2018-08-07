@@ -42,6 +42,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `me` – start of a `for` loop doing bulk memory operations
 
+* `ms` – bulk memory operations
+
 * `no` – nonet to word extension caused by the `nonet` operator
 
 * `od` – end of  a `do-while` statement

@@ -340,7 +340,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(BasicPlainType("int112", 14), None)
     addThing(BasicPlainType("int120", 15), None)
     addThing(BasicPlainType("int128", 16), None)
-    addThing(DerivedPlainType("pointer", w, isSigned = false), None)
+    val p = DerivedPlainType("pointer", w, isSigned = false)
+    addThing(p, None)
     //    addThing(DerivedPlainType("farpointer", get[PlainType]("farword"), isSigned = false), None)
     addThing(DerivedPlainType("ubyte", b, isSigned = false), None)
     addThing(DerivedPlainType("sbyte", b, isSigned = true), None)
@@ -354,6 +355,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(ConstantThing("false", NumericConstant(0, 0), falseType), None)
     addThing(ConstantThing("__zeropage_usage", UnexpandedConstant("__zeropage_usage", 1), b), None)
     addThing(ConstantThing("__heap_start", UnexpandedConstant("__heap_start", 1), b), None)
+    addThing(ConstantThing("$0000", NumericConstant(0, 2), p), None)
     addThing(FlagBooleanType("set_carry",
       BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C)),
       BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C))),

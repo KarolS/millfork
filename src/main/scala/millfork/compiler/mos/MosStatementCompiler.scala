@@ -264,6 +264,8 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         compileWhileStatement(ctx, s)
       case s: DoWhileStatement =>
         compileDoWhileStatement(ctx, s)
+      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if !source.containsVariable(variable) =>
+        MosBulkMemoryOperations.compileMemset(ctx, target, source, f)
       case f:ForStatement =>
         compileForStatement(ctx,f)
       case s:BreakStatement =>
