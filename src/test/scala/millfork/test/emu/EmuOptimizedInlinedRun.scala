@@ -14,13 +14,20 @@ object EmuOptimizedInlinedRun extends EmuRun(
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     OptimizationPresets.Good ++
+    OptimizationPresets.AssOpt ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.AssOpt ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.AssOpt ++
+    OptimizationPresets.AssOpt ++
+    OptimizationPresets.AssOpt ++
+    OptimizationPresets.Good ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     ZeropageRegisterOptimizations.All ++
-    OptimizationPresets.Good) {
+    OptimizationPresets.AssOpt) {
   override def inline: Boolean = true
   override def blastProcessing: Boolean = true
 }

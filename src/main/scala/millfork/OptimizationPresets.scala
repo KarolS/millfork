@@ -114,6 +114,9 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PoinlessStoreBeforeStore,
     LaterOptimizations.PointlessLoadAfterStore,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
+    AlwaysGoodOptimizations.UnconditionalJumpRemoval,
+    AlwaysGoodOptimizations.AlwaysTakenJumpRemoval,
+    AlwaysGoodOptimizations.UnusedLabelRemoval,
 
     LaterOptimizations.LoadingAfterShifting,
     AlwaysGoodOptimizations.PointlessAccumulatorShifting,
@@ -147,6 +150,9 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.IncrementingIndexRegistersAfterTransfer,
     AlwaysGoodOptimizations.MathOperationOnTwoIdenticalMemoryOperands,
     LaterOptimizations.UseZeropageAddressingMode,
+    AlwaysGoodOptimizations.UnconditionalJumpRemoval,
+    AlwaysGoodOptimizations.AlwaysTakenJumpRemoval,
+    AlwaysGoodOptimizations.UnusedLabelRemoval,
 
     LaterOptimizations.UseXInsteadOfStack,
     LaterOptimizations.UseYInsteadOfStack,

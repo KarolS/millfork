@@ -186,7 +186,8 @@ object Main {
           if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil
         ).flatten
         val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good ++ goodExtras).flatten
-        goodCycle ++ OptimizationPresets.AssOpt ++ extras ++ goodCycle
+        val mainCycle = List.fill(optLevel - 1)(OptimizationPresets.AssOpt ++ extras).flatten
+        goodCycle ++ mainCycle ++ goodCycle
     }
 
     // compile

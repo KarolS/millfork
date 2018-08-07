@@ -680,7 +680,7 @@ object AlwaysGoodOptimizations {
 
   val UnconditionalJumpRemoval = new RuleBasedAssemblyOptimization("Unconditional jump removal",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    (Elidable & HasOpcode(JMP) & HasAddrMode(Absolute) & MatchParameter(0)) ~
+    (Elidable & HasOpcode(JMP) & HasAddrModeIn(Absolute, Relative, LongAbsolute, LongRelative) & MatchParameter(0)) ~
       (Elidable & LinearOrBranch).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (code => List(code.last)),
     (Elidable & HasOpcode(BRA) & MatchParameter(0)) ~

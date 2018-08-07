@@ -102,9 +102,11 @@ class WordMathSuite extends FunSuite with Matchers {
   test("nesdev.com example") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
+        | byte tile @$C3A6
         | array map [256] @$c300
         | array b[2]
         | void main () {
+        | tile = 77
         |   output = get(5, 6)
         | }
         | byte get(byte mx, byte my) {
@@ -114,7 +116,27 @@ class WordMathSuite extends FunSuite with Matchers {
         |   p += map
         |   return p[my]
         | }
-      """.stripMargin)(m => ())
+      """.stripMargin) { m =>
+      m.readByte(0xc3a6) should equal(77)
+    }
+  }
+
+  test("nesdev.com example 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+        | byte output @$c000
+        | byte tile @$C3A6
+        | array map [256] @$c300
+        | array b[2]
+        | void main () {
+        |   tile = 77
+        |   output = get(5, 6)
+        | }
+        | byte get(byte mx, byte my) {
+        |   return map[((mx + 00000) << 5) + my]
+        | }
+      """.stripMargin){ m =>
+      m.readByte(0xc3a6) should equal(77)
+    }
   }
 
   test("hi()/lo()") {
