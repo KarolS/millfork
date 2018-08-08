@@ -220,8 +220,8 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
 
   override def toIntelString: String = index match {
       case 0 => s"lo(${base.toIntelString})"
-      case 1 => s"hi($base.toIntelString)"
-      case i => s"b$i($base.toIntelString)"
+      case 1 => s"hi(${base.toIntelString})"
+      case i => s"b$i(${base.toIntelString})"
     }
 
   override def isRelatedTo(v: Thing): Boolean = base.isRelatedTo(v)
