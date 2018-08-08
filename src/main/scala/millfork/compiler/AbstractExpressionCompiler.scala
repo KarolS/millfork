@@ -130,6 +130,24 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     }
     count <= 1
   }
+
+  def validateTypeCastAndGetSourceExpressionType(ctx: CompilationContext, typ: Type, params: List[Expression]): Type = {
+    var failed = false
+    if (typ.name == "pointer") {
+      ctx.log.error("Cannot cast into pointer")
+      failed = true
+    }
+    if (params.length != 1) {
+      ctx.log.error("Type casting should have exactly one argument")
+      failed = true
+    }
+    val sourceType = getExpressionType(ctx, params.head)
+    if (typ.size != sourceType.size && !sourceType.isAssignableTo(typ)) {
+      ctx.log.error("Cannot cast a type to an incompatible type of different size")
+      failed = true
+    }
+    sourceType
+  }
 }
 
 object AbstractExpressionCompiler {

@@ -225,8 +225,17 @@ Other kinds of expressions than the above (even `nonet(byte + byte + byte)`) wil
 * `hi`, `lo`: most/least significant byte of a word  
 `hi(word)`
 
-Furthermore, any type that can be assigned to a variable
-can be used to convert from one type to another of the same size.
+Furthermore, any type that can be assigned to a variable can be used to convert
+either from one type either to another type of the same size,
+or from a 1-byte integer type to a compatible 2-byte integer type.
+
+`byte` → `word`  
+`word` → `pointer`  
+some enum → `byte`  
+`byte` → some enum  
+but not  
+`word` → `byte`  
+some enum → `word`
 
 
 

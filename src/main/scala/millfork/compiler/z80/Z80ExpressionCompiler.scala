@@ -782,20 +782,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case _ =>
                 env.maybeGet[Type](f.functionName) match {
                   case Some(typ) =>
-                    var failed = false
-                    if (typ.name == "pointer") {
-                      ctx.log.error("Cannot cast into pointer")
-                      failed = true
-                    }
-                    if (params.length != 1) {
-                      ctx.log.error("Type casting should have exactly one argument")
-                      failed = true
-                    }
-                    val sourceType = getExpressionType(ctx, params.head)
-                    if (typ.size != sourceType.size) {
-                      ctx.log.error("Cannot cast a type to a type of different size")
-                      failed = true
-                    }
+                    val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
                     return sourceType.size match {
                       case 1 => targetifyA(ctx, target, compileToA(ctx, params.head), isSigned = sourceType.isSigned)
                       case 2 => targetifyHL(ctx, target, compileToHL(ctx, params.head))

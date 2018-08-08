@@ -1066,22 +1066,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           case _ =>
             env.maybeGet[Type](f.functionName) match {
               case Some(typ) =>
-                var failed = false
-                if (typ.name == "pointer") {
-                  ctx.log.error("Cannot cast into pointer")
-                  failed = true
-                }
-                if (params.length != 1) {
-                  ctx.log.error("Type casting should have exactly one argument")
-                  failed = true
-                }
-                val sourceType = getExpressionType(ctx, params.head)
-                if (typ.size != sourceType.size){
-                  ctx.log.error("Cannot cast a type to a type of different size")
-                  failed = true
-                }
+                val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
                 val newExprTypeAndVariable = exprTypeAndVariable.map(i => sourceType -> i._2)
-                return if (failed) Nil else compile(ctx, params.head, newExprTypeAndVariable, branches)
+                return compile(ctx, params.head, newExprTypeAndVariable, branches)
               case None =>
                 // fallthrough to the lookup below
             }

@@ -20,6 +20,19 @@ class WordMathSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(1280))
   }
 
+  test("Cast word addition") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+        | byte output @$c000
+        | word a
+        | void main () {
+        |  output = add(155, 166)
+        | }
+        | byte add(byte a, byte b) {
+        |   return hi(word(a) + word(b))
+        | }
+      """.stripMargin)(_.readByte(0xc000) should equal(1))
+  }
+
   test("Word subtraction") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
@@ -132,7 +145,7 @@ class WordMathSuite extends FunSuite with Matchers {
         |   output = get(5, 6)
         | }
         | byte get(byte mx, byte my) {
-        |   return map[((mx + 00000) << 5) + my]
+        |   return map[(word(mx) << 5) + my]
         | }
       """.stripMargin){ m =>
       m.readByte(0xc3a6) should equal(77)
