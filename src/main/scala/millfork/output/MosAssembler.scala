@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.assembly.mos.opt.{HudsonOptimizations, JumpFixing, JumpShortening}
+import millfork.assembly.mos.opt.{HudsonOptimizations, JumpFixing, JumpFollowing, JumpShortening}
 import millfork.assembly._
 import millfork.env._
 import millfork.error.{ConsoleLogger, FatalErrorReporting}
@@ -24,7 +24,7 @@ class MosAssembler(program: Program,
     val optimizationContext = OptimizationContext(options, Map(), f.environment.maybeGet[ThingInMemory]("__reg"), Set())
     if (actuallyOptimize) {
       val finalCode = if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.removeLoadZero(f, code, optimizationContext) else code
-      JumpShortening(f, JumpShortening(f, JumpFixing(f, finalCode, options), optimizationContext), optimizationContext)
+      JumpShortening(f, JumpShortening(f, JumpFixing(f, JumpFollowing(options, finalCode), options), optimizationContext), optimizationContext)
     }
     else JumpFixing(f, code, options)
   }

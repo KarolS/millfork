@@ -2,10 +2,9 @@ package millfork.output
 
 import millfork.{CompilationFlag, CompilationOptions, Cpu, Platform}
 import millfork.assembly.z80._
-import millfork.assembly.z80.opt.JumpShortening
+import millfork.assembly.z80.opt.{ConditionalInstructions, JumpFollowing, JumpShortening}
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
-import millfork.error.ConsoleLogger
 import millfork.node.{NiceFunctionProperty, Program, ZRegister}
 
 import scala.collection.mutable
@@ -18,7 +17,7 @@ class Z80Assembler(program: Program,
                    platform: Platform) extends AbstractAssembler[ZLine](program, rootEnv, platform, Z80InliningCalculator, Z80Compiler) {
   override def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[ZLine]): List[ZLine] = {
     if (actuallyOptimize) {
-      JumpShortening(f, code, options)
+      JumpShortening(f, ConditionalInstructions(options, JumpFollowing(options, code)), options)
     } else code
   }
 
@@ -393,12 +392,10 @@ class Z80Assembler(program: Program,
 
 
       case ZLine(CALL, IfFlagClear(ZFlag.Z), param, _) =>
-        requireIntel8080()
         writeByte(bank, index, 0xc4)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(CALL, IfFlagClear(ZFlag.C), param, _) =>
-        requireIntel8080()
         writeByte(bank, index, 0xd4)
         writeWord(bank, index + 1, param)
         index + 3
@@ -414,12 +411,10 @@ class Z80Assembler(program: Program,
         index + 3
 
       case ZLine(CALL, IfFlagSet(ZFlag.Z), param, _) =>
-        requireIntel8080()
         writeByte(bank, index, 0xcc)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine(CALL, IfFlagSet(ZFlag.C), param, _) =>
-        requireIntel8080()
         writeByte(bank, index, 0xdc)
         writeWord(bank, index + 1, param)
         index + 3
@@ -491,11 +486,9 @@ class Z80Assembler(program: Program,
         index + 2
 
       case ZLine(RET, IfFlagClear(ZFlag.Z), _, _) =>
-        requireIntel8080()
         writeByte(bank, index, 0xc0)
         index + 1
       case ZLine(RET, IfFlagClear(ZFlag.C), _, _) =>
-        requireIntel8080()
         writeByte(bank, index, 0xd0)
         index + 1
       case ZLine(RET, IfFlagClear(ZFlag.P), _, _) =>
@@ -508,11 +501,9 @@ class Z80Assembler(program: Program,
         index + 1
 
       case ZLine(RET, IfFlagSet(ZFlag.Z), _, _) =>
-        requireIntel8080()
         writeByte(bank, index, 0xc8)
         index + 1
       case ZLine(RET, IfFlagSet(ZFlag.C), _, _) =>
-        requireIntel8080()
         writeByte(bank, index, 0xd8)
         index + 1
       case ZLine(RET, IfFlagSet(ZFlag.P), _, _) =>

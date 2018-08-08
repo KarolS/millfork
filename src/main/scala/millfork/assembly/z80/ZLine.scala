@@ -17,13 +17,19 @@ object ZFlag extends Enumeration {
   val AllButZ: Seq[Value] = Seq(P, C, H, N, S)
 }
 
-sealed trait ZRegisters
+sealed trait ZRegisters {
+  def negate: ZRegisters = this
+}
 
 case object NoRegisters extends ZRegisters
 
-case class IfFlagSet(flag: ZFlag.Value) extends ZRegisters
+case class IfFlagSet(flag: ZFlag.Value) extends ZRegisters {
+  override def negate: ZRegisters = IfFlagClear(flag)
+}
 
-case class IfFlagClear(flag: ZFlag.Value) extends ZRegisters
+case class IfFlagClear(flag: ZFlag.Value) extends ZRegisters {
+  override def negate: ZRegisters = IfFlagSet(flag)
+}
 
 case class OneRegister(register: ZRegister.Value) extends ZRegisters {
 //  if (register == ZRegister.MEM_IY_D || register == ZRegister.MEM_IX_D) ???

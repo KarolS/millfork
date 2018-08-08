@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -40,7 +40,7 @@ class EnumSuite extends FunSuite with Matchers {
   }
 
   test("Enum arrays") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | enum ugly {
         |   a
@@ -52,7 +52,7 @@ class EnumSuite extends FunSuite with Matchers {
         | void main () {
         |   if a2[a] != 6 { crash() }
         | }
-        | asm void crash() {
+        | asm noinline void crash() {
         | #if ARCH_6502
         |   sta $bfff
         |   rts
