@@ -17,7 +17,7 @@ class ZLineSizeSuite extends FunSuite with Matchers {
     val platform = EmuPlatform.get(Cpu.Z80)
     val jobContext = JobContext(TestErrorReporting.log, new LabelGenerator)
     val env = new Environment(None, "", CpuFamily.I80, jobContext)
-    val options = CompilationOptions(platform, Map(), None, 0, jobContext)
+    val options = CompilationOptions(platform, Map(), None, 0, Map(), jobContext)
     val correctSize = new Z80Assembler(null, env, platform).emitInstruction("default", options, 0x100, line) - 0x100
     val guessedSize = line.sizeInBytes
     guessedSize should equal(correctSize)
