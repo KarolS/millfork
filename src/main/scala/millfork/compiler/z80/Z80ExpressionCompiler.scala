@@ -7,6 +7,7 @@ import millfork.env._
 import millfork.node.{ZRegister, _}
 import millfork.assembly.z80.ZOpcode._
 import millfork.error.ConsoleLogger
+import millfork.output.{NoAlignment, WithinPageAlignment}
 
 /**
   * @author Karol Stasiak
@@ -940,13 +941,21 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     val pointy = env.getPointy(i.name)
     AbstractExpressionCompiler.checkIndexType(ctx, pointy, i.index)
     pointy match {
-      case ConstantPointy(baseAddr, _, _, _, _) =>
+      case ConstantPointy(baseAddr, _, size, _, _, alignment) =>
         env.evalVariableAndConstantSubParts(i.index) match {
           case (None, offset) => List(ZLine.ldImm16(ZRegister.HL, (baseAddr + offset).quickSimplify))
           case (Some(index), offset) =>
-            List(ZLine.ldImm16(ZRegister.BC, (baseAddr + offset).quickSimplify)) ++
-              stashBCIfChanged(ctx, compileToHL(ctx, index)) ++
-              List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
+            val constantPart = (baseAddr + offset).quickSimplify
+            if (getExpressionType(ctx, i.index).size == 1 && size.exists(_ < 256) && alignment == WithinPageAlignment) {
+              compileToA(ctx, i.index) ++ List(
+                ZLine.imm8(ADD, constantPart.loByte),
+                ZLine.ld8(ZRegister.L, ZRegister.A),
+                ZLine.ldImm8(ZRegister.H, constantPart.hiByte))
+            } else {
+              List(ZLine.ldImm16(ZRegister.BC, constantPart)) ++
+                stashBCIfChanged(ctx, compileToHL(ctx, index)) ++
+                List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
+            }
         }
       case VariablePointy(varAddr, _, _) =>
         env.eval(i.index) match {

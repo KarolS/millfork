@@ -294,13 +294,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     InitializedMemoryVariable
     UninitializedMemoryVariable
     getArrayOrPointer(name) match {
-      case th@InitializedArray(_, _, cs, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e)
-      case th@UninitializedArray(_, size, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
-      case th@RelativeArray(_, _, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e)
+      case th@InitializedArray(_, _, cs, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e, th.alignment)
+      case th@UninitializedArray(_, size, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, th.alignment)
+      case th@RelativeArray(_, _, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, NoAlignment)
       case ConstantThing(_, value, typ) if typ.size <= 2 && typ.isPointy =>
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
-        ConstantPointy(value, None, None, w, b)
+        ConstantPointy(value, None, None, w, b, NoAlignment)
       case th:VariableInMemory if th.typ.isPointy=>
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
@@ -309,7 +309,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         log.error(s"$name is not a valid pointer or array")
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
-        ConstantPointy(Constant.Zero, None, None, w, b)
+        ConstantPointy(Constant.Zero, None, None, w, b, NoAlignment)
     }
   }
 
@@ -872,9 +872,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   private def defaultArrayAlignment(options: CompilationOptions, size: Long): MemoryAlignment = {
-    if (options.platform.cpuFamily == CpuFamily.M6502 &&
-      options.flag(CompilationFlag.OptimizeForSpeed) &&
-      size <= 256) WithinPageAlignment
+    if (options.flag(CompilationFlag.OptimizeForSpeed) && size <= 256 && size != 0) WithinPageAlignment
     else NoAlignment
   }
 

@@ -9,6 +9,7 @@ import millfork.compiler._
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node.{MosRegister, _}
+import millfork.output.NoAlignment
 /**
   * @author Karol Stasiak
   */
@@ -180,7 +181,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     val reg = ctx.env.get[VariableInMemory]("__reg")
     val compileIndex = compile(ctx, indexExpression, Some(MosExpressionCompiler.getExpressionType(ctx, indexExpression) -> RegisterVariable(MosRegister.YA, w)), BranchSpec.None)
     val prepareRegister = pointy match {
-      case ConstantPointy(addr, _, _, _, _) =>
+      case ConstantPointy(addr, _, _, _, _, _) =>
         List(
           AssemblyLine.implied(CLC),
           AssemblyLine.immediate(ADC, addr.hiByte),
@@ -295,7 +296,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             wrapWordIndexingStorage(prepareWordIndexing(ctx, p, indexExpr))
           case (p: ConstantPointy, Some(v), 2, _) =>
             val w = env.get[VariableType]("word")
-            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, None, if (constIndex.isProvablyZero) p.size else None, w, p.elementType), v))
+            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, None, if (constIndex.isProvablyZero) p.size else None, w, p.elementType, NoAlignment), v))
           case (p: ConstantPointy, Some(v), 1, _) =>
             storeToArrayAtUnknownIndex(v, p.value)
           //TODO: should there be a type check or a zeropage check?
@@ -614,7 +615,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 None,
                 if (constantIndex.isProvablyZero) a.size else None,
                 env.get[VariableType]("word"),
-                a.elementType), v) ++ loadFromReg()
+                a.elementType, NoAlignment), v) ++ loadFromReg()
             case (a: VariablePointy, _, 2, _) =>
               prepareWordIndexing(ctx, a, indexExpr) ++ loadFromReg()
             case (p:VariablePointy, None, 0 | 1, _) =>
