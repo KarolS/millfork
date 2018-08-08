@@ -34,7 +34,7 @@ object EmuRun {
     val source = Files.readAllLines(Paths.get(filename), StandardCharsets.US_ASCII).asScala.mkString("\n")
     val options = CompilationOptions(EmuPlatform.get(millfork.Cpu.Mos), Map(
           CompilationFlag.LenientTextEncoding -> true
-        ), None, 4, JobContext(TestErrorReporting.log, new LabelGenerator))
+        ), None, 4, Map(), JobContext(TestErrorReporting.log, new LabelGenerator))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
     TestErrorReporting.log.info(s"Parsing $filename")
     MosParser("", preprocessedSource, "", options, features).toAst match {
@@ -139,7 +139,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
-    ), None, 4, JobContext(log, new LabelGenerator))
+    ), None, 4, Map(), JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source

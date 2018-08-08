@@ -30,19 +30,35 @@ You can also define feature values using the `-D` command line option.
 
 ### Built-in features
 
+The following features are defined based on the chosen CPU and compilation options:
+
 * `ARCH_6502` – 1 if compiling for 6502, 0 otherwise
-
-* `CPUFEATURE_65C02` – 1 if compiling for 65C02-compatible processor, 0 otherwise
-
-* `CPUFEATURE_65CE02` – 1 if compiling for 65CE02-compatible processor, 0 otherwise
 
 * `ARCH_I80` – 1 if compiling for Intel 8080-like processor, 0 otherwise
 
-* `CPUFEATURE_8080` – 1 if compiling for Intel 8080-compatible processor, 0 otherwise
+* `CPU_65C02`, `CPU_65CE02`, `CPU_65816`, `CPU_HUC6280`, `CPU_8080`, `CPU_GAMEBOY`, `CPU_Z80`
+– 1 if compiling for the exact given processor, 0 otherwise
 
-* `CPUFEATURE_GAMEBOY` – 1 if compiling for Sharp LR35902-compatible processor, 0 otherwise
+* `CPU_6502` – 1 if compiling for any pre-65C02 6502-like processor, 0 otherwise
 
-* `CPUFEATURE_Z80` – 1 if compiling for Z80-compatible processor, 0 otherwise
+* `CPUFEATURE_DECIMAL_MODE` – 1 if decimal mode is enabled, 0 otherwise
+
+* `CPUFEATURE_65C02`, `CPUFEATURE_65CE02`, `CPUFEATURE_HUC6280`, `CPUFEATURE_65816_EMULATION`, `CPUFEATURE_65816_NATIVE`,
+`CPUFEATURE_8080`, `CPUFEATURE_GAMEBOY`, `CPUFEATURE_Z80`,
+`CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS` – 1 if given instruction subset is enabled, 0 otherwise
+
+* `OPTIMIZE_FOR_SIZE`, `OPTIMIZE_FOR_SPEED`, `OPTIMIZE_INLINE`, `OPTIMIZE_IPO`
+– 1 if given optimization setting is enabled, 0 otherwise
+
+* `SYNTAX_INTEL`, `SYNTAX_ZILOG` – 1 if given assembly syntax is chosen, 0 otherwise; doesn't take this file's pragmas into account
+
+* `USES_ZPREG` – 1 if the zeropage pseudoregister is used, 0 otherwise
+
+* `ZPREG_SIZE` – size of the pseudoregister in bytes
+
+* `USES_IX_STACK`, `USES_IY_STACK` – 1 if given index register is used as a base pointer for stack-allocated variables, 0 otherwise 
+
+* `USES_SHADOW_REGISTERS` – 1 if interrupts preserve old registers in the shadow registers, 0 otherwise
 
 ### Commonly used features
 
@@ -52,11 +68,17 @@ You can also define feature values using the `-D` command line option.
 
 * `CBM_64` – 1 if the target is an 8-bit Commodore computer compatible with Commodore 64, 0 otherwise
 
+* `CBM_264` – 1 if the target is an 8-bit Commodore computer from the 264 line, 0 otherwise
+
 * `KEYBOARD` – 1 if the target has a keyboard, 0 otherwise
 
 * `JOYSTICKS` – the maximum number of joysticks using standard hardware configurations, may be 0
 
 * `HAS_BITMAP_MODE` – 1 if the target has a display mode with every pixel addressable, 0 otherwise
+
+* `MOS_6510` – 1 if the target uses a MOS 6510-compatible processor (with an I/O port at $0000/$0001)
+
+* `CPM` – 1 if the target is CP/M, 0 otherwise
 
 ### Built-in preprocessor functions and operators
 

@@ -10,6 +10,7 @@ case class CompilationOptions(platform: Platform,
                               commandLineFlags: Map[CompilationFlag.Value, Boolean],
                               outputFileName: Option[String],
                               zpRegisterSize: Int,
+                              featureOverrides: Map[String, Long],
                               jobContext: JobContext) {
 
   import CompilationFlag._
@@ -162,6 +163,38 @@ case class CompilationOptions(platform: Platform,
         }
     }
   }
+
+  def features: Map[String, Long] = {
+    @inline
+    def toLong(b: Boolean): Long = if (b) 1L else 0L
+    val featuresFromOptions = Map[String, Long](
+      "OPTIMIZE_FOR_SIZE" -> toLong(flag(CompilationFlag.OptimizeForSize)),
+      "OPTIMIZE_FOR_SPEED" -> toLong(flag(CompilationFlag.OptimizeForSpeed)),
+      "OPTIMIZE_INLINE" -> toLong(flag(CompilationFlag.InlineFunctions)),
+      "OPTIMIZE_IPO" -> toLong(flag(CompilationFlag.InterproceduralOptimization)),
+      "CPUFEATURE_DECIMAL_MODE" -> toLong(flag(CompilationFlag.DecimalMode)),
+      "CPUFEATURE_Z80" -> toLong(flag(CompilationFlag.EmitZ80Opcodes)),
+      "CPUFEATURE_EZ80" -> toLong(flag(CompilationFlag.EmitEZ80Opcodes)),
+      "CPUFEATURE_8080" -> toLong(flag(CompilationFlag.EmitIntel8080Opcodes)),
+      "CPUFEATURE_GAMEBOY" -> toLong(flag(CompilationFlag.EmitSharpOpcodes)),
+      "CPUFEATURE_65C02" -> toLong(flag(CompilationFlag.EmitCmosOpcodes)),
+      "CPUFEATURE_65CE02" -> toLong(flag(CompilationFlag.Emit65CE02Opcodes)),
+      "CPUFEATURE_HUC6280" -> toLong(flag(CompilationFlag.EmitHudsonOpcodes)),
+      "CPUFEATURE_65816_EMULATION" -> toLong(flag(CompilationFlag.EmitEmulation65816Opcodes)),
+      "CPUFEATURE_65816_NATIVE" -> toLong(flag(CompilationFlag.EmitNative65816Opcodes)),
+      "CPUFEATURE_6502_ILLEGALS" -> toLong(platform.cpuFamily == CpuFamily.M6502 && flag(CompilationFlag.EmitIllegals)),
+      "CPUFEATURE_Z80_ILLEGALS" -> toLong(platform.cpuFamily == CpuFamily.I80 && flag(CompilationFlag.EmitIllegals)),
+      "SYNTAX_INTEL" -> toLong(platform.cpuFamily == CpuFamily.I80 && flag(CompilationFlag.UseIntelSyntaxForInput)),
+      "SYNTAX_ZILOG" -> toLong(platform.cpuFamily == CpuFamily.I80 && !flag(CompilationFlag.UseIntelSyntaxForInput)),
+      "USES_ZPREG" -> toLong(platform.cpuFamily == CpuFamily.M6502 && zpRegisterSize > 0),
+      "USES_IX_STACK" -> toLong(flag(CompilationFlag.UseIxForStack)),
+      "USES_IY_STACK" -> toLong(flag(CompilationFlag.UseIyForStack)),
+      "USES_SHADOW_REGISTERS" -> toLong(flag(CompilationFlag.UseShadowRegistersForInterrupts)),
+      "ZPREG_SIZE" -> (if (platform.cpuFamily == CpuFamily.M6502) zpRegisterSize.toLong else 0)
+    )
+    platform.features ++ featuresFromOptions ++ featureOverrides
+  }
+
 }
 
 object CpuFamily extends Enumeration {

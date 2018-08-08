@@ -42,18 +42,18 @@ class Platform(
 
 object Platform {
 
-  def lookupPlatformFile(includePath: List[String], platformName: String, featureOverrides: Map[String, Long])(implicit log: Logger): Platform = {
+  def lookupPlatformFile(includePath: List[String], platformName: String)(implicit log: Logger): Platform = {
     includePath.foreach { dir =>
       val file = Paths.get(dir, platformName + ".ini").toFile
       log.debug("Checking " + file)
       if (file.exists()) {
-        return load(file, featureOverrides)
+        return load(file)
       }
     }
     log.fatal(s"Platfom definition `$platformName` not found", None)
   }
 
-  def load(file: File, featureOverrides: Map[String, Long])(implicit log: Logger): Platform = {
+  def load(file: File)(implicit log: Logger): Platform = {
     val conf = new INIConfiguration()
     val bytes = Files.readAllBytes(file.toPath)
     conf.read(new StringReader(new String(bytes, StandardCharsets.UTF_8)))
@@ -219,7 +219,7 @@ object Platform {
       startingModules,
       codec,
       srcCodec,
-      builtInFeatures ++ definedFeatures ++ featureOverrides,
+      builtInFeatures ++ definedFeatures,
       outputPackager,
       codeAllocators.toMap,
       variableAllocators.toMap,
@@ -232,29 +232,25 @@ object Platform {
       outputStyle)
   }
 
-  @inline
-  private def toLong(b: Boolean): Long = if (b) 1L else 0L
-
   def builtInCpuFeatures(cpu: Cpu.Value): Map[String, Long] = {
+    @inline
+    def toLong(b: Boolean): Long = if (b) 1L else 0L
     Map[String, Long](
       "ARCH_6502" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6502),
-      "CPUFEATURE_65C02" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.EmitCmosOpcodes)),
-      "CPUFEATURE_65CE02" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.Emit65CE02Opcodes)),
+      "CPU_6502" -> toLong(Set(Cpu.Mos, Cpu.StrictMos, Cpu.Ricoh, Cpu.StrictRicoh)(cpu)),
+      "CPU_65C02" -> toLong(cpu == Cpu.Cmos),
+      "CPU_65CE02" -> toLong(cpu == Cpu.CE02),
+      "CPU_65816" -> toLong(cpu == Cpu.Sixteen),
+      "CPU_HUC6280" -> toLong(cpu == Cpu.HuC6280),
       "ARCH_I80" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I80),
-      "CPUFEATURE_Z80" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.EmitZ80Opcodes)),
-      "CPUFEATURE_8080" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.EmitIntel8080Opcodes)),
-      "CPUFEATURE_GAMEBOY" -> toLong(Cpu.defaultFlags(cpu).contains(CompilationFlag.EmitSharpOpcodes)),
+      "CPU_Z80" -> toLong(cpu == Cpu.Z80),
+      "CPU_EZ80" -> toLong(cpu == Cpu.EZ80),
+      "CPU_8080" -> toLong(cpu == Cpu.Intel8080),
+      "CPU_GAMEBOY" -> toLong(cpu == Cpu.Sharp),
       "ARCH_X86" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I86),
       "ARCH_6800" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6800),
       "ARCH_ARM" -> toLong(CpuFamily.forType(cpu) == CpuFamily.ARM),
-      "ARCH_68K" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M68K),
-      "HAS_HARDWARE_MULTIPLY" -> (cpu match {
-        case Cpu.EZ80 => 1L
-        case _ => CpuFamily.forType(cpu) match {
-          case CpuFamily.M6502 | CpuFamily.I80 | CpuFamily.M6800 => 0L
-          case CpuFamily.I86 | CpuFamily.ARM | CpuFamily.M68K => 1L
-        }
-      })
+      "ARCH_68K" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M68K)
       // TODO
     )
   }

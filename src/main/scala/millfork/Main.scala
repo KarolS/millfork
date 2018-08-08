@@ -80,8 +80,8 @@ object Main {
     val platform = Platform.lookupPlatformFile(c.includePath, c.platform.getOrElse {
       errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
-    }, c.features)
-    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), JobContext(errorReporting, new LabelGenerator))
+    })
+    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, JobContext(errorReporting, new LabelGenerator))
     errorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")
