@@ -18,7 +18,7 @@ object Z80OptimizationPresets {
             EmptyMemoryStoreRemoval)
       ).flatten ++
         List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization, CompactStackFrame) ++
-        LaterIntel8080Optimizations.All
+        LaterIntel8080Optimizations.All ++ LaterI80Optimizations.All
     ).flatten
   }
 
@@ -32,7 +32,7 @@ object Z80OptimizationPresets {
           )
       ).flatten ++
         List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization) ++
-        LaterIntel8080Optimizations.All
+        LaterIntel8080Optimizations.All ++ LaterI80Optimizations.All
     ).flatten
   }
 
@@ -45,7 +45,7 @@ object Z80OptimizationPresets {
             EmptyMemoryStoreRemoval)
       ).flatten ++
         List(WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization) ++
-        LaterSharpOptimizations.All
+        LaterSharpOptimizations.All ++ LaterI80Optimizations.All
     ).flatten
   }
 

@@ -30,6 +30,9 @@ object AlwaysGoodI80Optimizations {
   def for6Registers(f: ZRegister.Value => AssemblyRuleSet) = MultipleAssemblyRules(
     List(ZRegister.B, ZRegister.C, ZRegister.D, ZRegister.E, ZRegister.H, ZRegister.L).map(f))
 
+  def for6RegistersAndM(f: ZRegister.Value => AssemblyRuleSet) = MultipleAssemblyRules(
+    List(ZRegister.B, ZRegister.C, ZRegister.D, ZRegister.E, ZRegister.H, ZRegister.L, ZRegister.MEM_HL).map(f))
+
   val UsingKnownValueFromAnotherRegister = new RuleBasedAssemblyOptimization("Using known value from another register",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
     for7Registers(register =>
@@ -557,6 +560,30 @@ object AlwaysGoodI80Optimizations {
       List(ZLine.ldImm16(BC, ctx.get[Constant](0).-(1).quickSimplify))
     },
 
+    for6RegistersAndM(reg =>
+      (Elidable & Is8BitLoadTo(A) & Has8BitImmediate(1) ) ~
+      (Elidable & HasOpcode(ADD) & opt.HasRegisterParam(reg) ) ~
+        (Elidable & Is8BitLoad(reg, A) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(A)) ~~> { _ =>
+        List(ZLine.register(INC, reg))
+      }
+    ),
+
+    for6RegistersAndM(reg =>
+      (Elidable & Is8BitLoadTo(A) & Has8BitImmediate(2) ) ~
+      (Elidable & HasOpcode(ADD) & opt.HasRegisterParam(reg) ) ~
+        (Elidable & Is8BitLoad(reg, A) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(A)) ~~> { _ =>
+        List(ZLine.register(INC, reg), ZLine.register(INC, reg))
+      }
+    ),
+
+    for6RegistersAndM(reg =>
+      (Elidable & Is8BitLoadTo(A) & Has8BitImmediate(3) ) ~
+      (Elidable & HasOpcode(ADD) & opt.HasRegisterParam(reg) ) ~
+        (Elidable & Is8BitLoad(reg, A) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(A)) ~~> { _ =>
+        List(ZLine.register(INC, reg), ZLine.register(INC, reg), ZLine.register(INC, reg))
+      }
+    ),
+
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",
@@ -858,6 +885,82 @@ object AlwaysGoodI80Optimizations {
     (Elidable & HasOpcode(RLC) & HasRegisterParam(ZRegister.A) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> {_ =>
       List(ZLine.implied(RLCA))
     },
+    (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA) & DoesntMatterWhatItDoesWithFlags) ~~> { _ =>
+      List(
+        ZLine.implied(RLCA),
+        ZLine.implied(RLCA),
+        ZLine.implied(RLCA))
+    },
+    (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA) & DoesntMatterWhatItDoesWithFlags) ~~> { _ =>
+      List(
+        ZLine.implied(RLCA),
+        ZLine.implied(RLCA))
+    },
+    (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RRCA) & DoesntMatterWhatItDoesWithFlags) ~~> { _ =>
+      List(ZLine.implied(RLCA))
+    },
+
+    (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA) & DoesntMatterWhatItDoesWithFlags) ~~> { _ =>
+      List(
+        ZLine.implied(RRCA),
+        ZLine.implied(RRCA),
+        ZLine.implied(RRCA))
+    },
+    (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA) & DoesntMatterWhatItDoesWithFlags) ~~> { _ =>
+      List(
+        ZLine.implied(RRCA),
+        ZLine.implied(RRCA))
+    },
+    (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA) & DoesntMatterWhatItDoesWithFlags) ~~> { _ =>
+      List(ZLine.implied(RRCA))
+    },
+
+    (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RLCA) & DoesntMatterWhatItDoesWithFlags) ~~> { _ =>
+      List(ZLine.implied(RRCA))
+    },
+
+    (Elidable & HasOpcode(RLCA)) ~
+      (Elidable & HasOpcode(RRCA) & DoesntMatterWhatItDoesWithFlags) ~~> ( _ => Nil),
+
+    (Elidable & HasOpcode(RRCA)) ~
+      (Elidable & HasOpcode(RLCA) & DoesntMatterWhatItDoesWithFlags) ~~> ( _ => Nil),
+  
   )
 
   val PointlessExdehl = new RuleBasedAssemblyOptimization("Pointless EX DE,HL",
