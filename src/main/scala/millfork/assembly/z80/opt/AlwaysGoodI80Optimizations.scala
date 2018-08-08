@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.assembly.AssemblyOptimization
-import millfork.assembly.z80.{opt, _}
+import millfork.assembly.z80._
 import millfork.assembly.z80.ZOpcode._
 import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
 import millfork.node.ZRegister
@@ -786,6 +786,25 @@ object AlwaysGoodI80Optimizations {
       (Elidable & Is8BitLoadTo(ZRegister.C) & MatchImmediate(0)) ~~> { (code, ctx) =>
       List(ZLine.ldImm16(ZRegister.BC, (ctx.get[Constant](0) + ctx.get[Constant](1).asl(8)).quickSimplify))
     },
+
+    // TODO: this is a bit controversial
+    // 41 cycles 6 bytes → 24 cycles 8 bytes
+    MultipleAssemblyRules(Seq(BC, DE).map{ reg =>
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(reg)) ~
+        (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(reg, IMM_16)) & MatchParameter(0)) ~
+        (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(HL, reg))) ~
+        (Elidable & HasOpcode(POP) & HasRegisterParam(reg) & DoesntMatterWhatItDoesWithFlagsExceptCarry & DoesntMatterWhatItDoesWith(A)) ~~> { (code, ctx) =>
+        val offset = ctx.get[Constant](0)
+        List(
+          ZLine.ld8(A, L),
+          ZLine.imm8(ADD, offset.loByte),
+          ZLine.ld8(L, A),
+          ZLine.ld8(A, H),
+          ZLine.imm8(ADC, offset.hiByte),
+          ZLine.ld8(H, A)
+        )
+      }
+    })
   )
 
   val UnusedCodeRemoval = new RuleBasedAssemblyOptimization("Unreachable code removal",
