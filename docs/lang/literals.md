@@ -122,3 +122,13 @@ The parameters for `file` are: file path, optional start offset, optional length
 The `for`-style expression has a variable, a starting index, a direction, a final index, 
 and a parameterizable array initializer.
 The initializer is repeated for every value of the variable in the given range.
+
+What might be useful is the fact that the compiler allows for built-in trigonometric functions
+in constant expressions only:
+
+* `sin(x, n)` – returns _n_·**sin**(*x*π/128)
+
+* `cos(x, n)` – returns _n_·**cos**(*x*π/128)
+
+* `tan(x, n)` – returns _n_·**tan**(*x*π/128)
+

@@ -511,7 +511,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             if (params.size == 2) {
               (eval(params(0)) -> eval(params(1))) match {
                 case (Some(NumericConstant(angle, _)), Some(NumericConstant(scale, _))) =>
-                  val value = (scale * math.sin(angle * math.Pi / 128)).toInt
+                  val value = (scale * math.sin(angle * math.Pi / 128)).round.toInt
                   Some(Constant(value))
                 case _ => None
               }
@@ -523,12 +523,24 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             if (params.size == 2) {
               (eval(params(0)) -> eval(params(1))) match {
                 case (Some(NumericConstant(angle, _)), Some(NumericConstant(scale, _))) =>
-                  val value = (scale * math.cos(angle * math.Pi / 128)).toInt
+                  val value = (scale * math.cos(angle * math.Pi / 128)).round.toInt
                   Some(Constant(value))
                 case _ => None
               }
             } else {
               log.error("Invalid number of parameters for `cos`", e.position)
+              None
+            }
+          case "tan" =>
+            if (params.size == 2) {
+              (eval(params(0)) -> eval(params(1))) match {
+                case (Some(NumericConstant(angle, _)), Some(NumericConstant(scale, _))) =>
+                  val value = (scale * math.tan(angle * math.Pi / 128)).round.toInt
+                  Some(Constant(value))
+                case _ => None
+              }
+            } else {
+              log.error("Invalid number of parameters for `tan`", e.position)
               None
             }
           case "nonet" =>
