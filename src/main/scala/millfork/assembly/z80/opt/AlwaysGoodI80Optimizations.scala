@@ -374,6 +374,14 @@ object AlwaysGoodI80Optimizations {
       Nil
     },
 
+    (Elidable & HasOpcode(ADD) & Has8BitImmediate(1) & DoesntMatterWhatItDoesWithFlagsOtherThanSZ) ~~> { _ =>
+      List(ZLine.register(INC, A))
+    },
+
+    (Elidable & HasOpcode(SUB) & Has8BitImmediate(1) & DoesntMatterWhatItDoesWithFlagsOtherThanSZ) ~~> { _ =>
+      List(ZLine.register(DEC, A))
+    },
+
     (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.BC)) & HasRegister(ZRegister.BC, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
       List(ZLine.register(ZOpcode.INC_16, ZRegister.HL))
     },
