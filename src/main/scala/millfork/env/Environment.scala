@@ -787,7 +787,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             reentrant = stmt.reentrant,
             position = stmt.position,
             declaredBank = stmt.bank,
-            alignment = defaultFunctionAlignment(options, hot = true) // TODO: decide actual hotness in a smarter way
+            alignment = if (name == "main") NoAlignment else defaultFunctionAlignment(options, hot = true) // TODO: decide actual hotness in a smarter way
           )
           addThing(mangled, stmt.position)
           registerAddressConstant(mangled, stmt.position, options)
