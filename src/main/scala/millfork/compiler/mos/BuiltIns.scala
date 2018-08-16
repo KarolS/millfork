@@ -205,6 +205,33 @@ object BuiltIns {
     firstParamCompiled ++ remainingParamsCompiled
   }
 
+  def maybeCompileShiftFromByteToWord(ctx: CompilationContext, l: Expression, r: Expression, left: Boolean): Option[List[AssemblyLine]] = {
+    val env = ctx.env
+    env.eval(r) match {
+      case Some(NumericConstant(n, _)) =>
+        l match {
+          case FunctionCallExpression(wordTypeName, List(param)) =>
+            if (AbstractExpressionCompiler.getExpressionType(ctx, param).size == 1 && env.maybeGet[Type](wordTypeName).exists(_.size == 2)) {
+              Some(MosExpressionCompiler.compileToA(ctx, param) ++ BuiltIns.compileShiftFromByteToWord(ctx, n.toInt, left))
+            } else {
+              None
+            }
+        }
+      case _ => None
+    }
+  }
+
+  def compileShiftFromByteToWord(ctx: CompilationContext, count: Int, left: Boolean): List[AssemblyLine] = {
+    if (count == 8) {
+      List(AssemblyLine.implied(TAX), AssemblyLine.immediate(LDA, 0))
+    } else {
+      List(AssemblyLine.implied(PHA)) ++
+        List.fill(8 - count)(AssemblyLine.implied(if (left) LSR else ASL)) ++
+        List(AssemblyLine.implied(TAX), AssemblyLine.implied(PLA)) ++
+        List.fill(count)(AssemblyLine.implied(if (left) ASL else LSR))
+    }
+  }
+
   def compileShiftOps(opcode: Opcode.Value, ctx: CompilationContext, l: Expression, r: Expression): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
     val firstParamCompiled = MosExpressionCompiler.compile(ctx, l, Some(b -> RegisterVariable(MosRegister.A, b)), NoBranching)

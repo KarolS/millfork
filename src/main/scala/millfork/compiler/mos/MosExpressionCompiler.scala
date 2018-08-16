@@ -831,7 +831,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 zeroExtend = true
                 BuiltIns.compileShiftOps(ASL, ctx, l, r)
               case 2 =>
-                PseudoregisterBuiltIns.compileWordShiftOps(left = true, ctx, l, r)
+                BuiltIns.maybeCompileShiftFromByteToWord(ctx, l, r, left = true).getOrElse(PseudoregisterBuiltIns.compileWordShiftOps(left = true, ctx, l, r))
               case _ =>
                 ctx.log.error("Long shift ops not supported", l.position)
                 Nil
@@ -843,7 +843,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 zeroExtend = true
                 BuiltIns.compileShiftOps(LSR, ctx, l, r)
               case 2 =>
-                PseudoregisterBuiltIns.compileWordShiftOps(left = false, ctx, l, r)
+                BuiltIns.maybeCompileShiftFromByteToWord(ctx, l, r, left = false).getOrElse(PseudoregisterBuiltIns.compileWordShiftOps(left = false, ctx, l, r))
               case _ =>
                 ctx.log.error("Long shift ops not supported", l.position)
                 Nil

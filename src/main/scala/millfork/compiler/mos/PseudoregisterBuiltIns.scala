@@ -229,7 +229,7 @@ object PseudoregisterBuiltIns {
     val firstParamCompiled = MosExpressionCompiler.compile(ctx, l, Some(MosExpressionCompiler.getExpressionType(ctx, l) -> reg), NoBranching)
     ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
-        Nil
+        List(AssemblyLine.zeropage(LDA, reg), AssemblyLine.zeropage(LDX, reg, 1))
       case Some(NumericConstant(v, _)) if v > 0 =>
         if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
           firstParamCompiled ++
