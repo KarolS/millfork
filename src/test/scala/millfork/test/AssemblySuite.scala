@@ -96,7 +96,7 @@ class AssemblySuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc000) should equal(5))
   }
 
-  test("Adresses in asm") {
+  test("Addresses in asm") {
     EmuBenchmarkRun(
       """
         | word output @$c000
