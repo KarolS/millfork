@@ -216,6 +216,7 @@ object BuiltIns {
             } else {
               None
             }
+          case _ => None
         }
       case _ => None
     }
