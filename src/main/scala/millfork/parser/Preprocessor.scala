@@ -68,6 +68,11 @@ object Preprocessor {
             case "error" => if (enabled) log.error(param, pos)
             case "warn" => if (enabled) log.warn(param, pos)
             case "info" => if (enabled) log.info(param, pos)
+            case "infoeval" =>
+              if (enabled) {
+                val value = evalParam(param, pos)
+                log.info(s"$param = $value", pos)
+              }
             case "if" =>
               if (enabled) {
                 val value = evalParam(param, pos)

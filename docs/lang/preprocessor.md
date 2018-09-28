@@ -114,6 +114,11 @@ Emits a diagnostic message.
 `#warn` emits a warning. It may be treated as an error depending on compilation options.  
 `#info` emits a benign diagnostic message.
 
+### `#infoeval`
+
+    #infoeval <expr>
+    
+Evaluates an expression and emits the result as a diagnostic message.
 
 ### `#use`
 
