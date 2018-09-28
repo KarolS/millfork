@@ -2,7 +2,7 @@ package millfork.assembly.z80.opt
 
 import millfork.assembly.opt.{AnyStatus, SingleStatus, Status}
 import millfork.assembly.z80._
-import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConstant}
+import millfork.env._
 import millfork.node.ZRegister
 import millfork.{CompilationFlag, CompilationOptions, Cpu}
 
@@ -18,6 +18,13 @@ object CoarseFlowAnalyzer {
     val flagArray = Array.fill[CpuStatus](code.length)(emptyStatus)
     val codeArray = code.toArray
     val z80 = compilationOptions.flag(CompilationFlag.EmitZ80Opcodes)
+
+    val preservesB: Set[String] = Set("__mul_u8u8u8")
+    val preservesC: Set[String] = if (z80) Set("__mul_u8u8u8") else Set()
+    val preservesD: Set[String] = Set()
+    val preservesE: Set[String] = Set()
+    val preservesH: Set[String] = Set("__mul_u8u8u8")
+    val preservesL: Set[String] = Set("__mul_u8u8u8")
 
     var changed = true
     while (changed) {
@@ -37,6 +44,18 @@ object CoarseFlowAnalyzer {
               case ZLine(_, _, MemoryAddressConstant(Label(L)), _) => Some(flagArray(j))
               case _ => None
             }).fold(currentStatus)(_ ~ _)
+
+          case ZLine(CALL, _, MemoryAddressConstant(fun: FunctionInMemory), _) =>
+            val n = fun.name
+            val result = initialStatus.copy(memIx = currentStatus.memIx)
+            currentStatus = result.copy(
+              b = if (preservesB(n)) currentStatus.b else result.b,
+              c = if (preservesC(n)) currentStatus.c else result.c,
+              d = if (preservesD(n)) currentStatus.d else result.d,
+              e = if (preservesE(n)) currentStatus.e else result.e,
+              h = if (preservesH(n)) currentStatus.h else result.h,
+              l = if (preservesL(n)) currentStatus.l else result.l
+            )
 
           case ZLine(CALL, _, _, _) =>
             currentStatus = initialStatus.copy(memIx = currentStatus.memIx)

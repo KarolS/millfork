@@ -1,0 +1,51 @@
+
+#if not(ARCH_I80)
+#warn i80_math module should be used only on 8080-like targets
+#endif
+
+#pragma zilog_syntax
+
+#if CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
+
+inline asm byte __mul_u8u8u8() {
+    ? LD E,A
+    ? LD A, 0
+    ? JR __mul_u8u8u8_start
+    __mul_u8u8u8_add:
+    ? ADD A,E
+    __mul_u8u8u8_loop:
+    ? SLA E
+    __mul_u8u8u8_start:
+    ? SRL D
+    ? JR C, __mul_u8u8u8_add
+    ? JR NZ, __mul_u8u8u8_loop
+    ? RET
+}
+
+#else
+
+inline asm byte __mul_u8u8u8() {
+    ? LD E,A
+    ? LD C, 0
+    ? JP __mul_u8u8u8_start
+    __mul_u8u8u8_add:
+    ? LD A,C
+    ? ADD A,E
+    ? LD C,A
+    __mul_u8u8u8_loop:
+    ? LD A,E
+    ? ADD A,A
+    ? LD E,A
+    __mul_u8u8u8_start:
+    ? OR A
+    ? LD A,D
+    ? RRA
+    ? LD D,A
+    ? JP C, __mul_u8u8u8_add
+    ? OR A
+    ? JP NZ, __mul_u8u8u8_loop
+    ? LD A,C
+    ? RET
+}
+
+#endif

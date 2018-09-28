@@ -1,5 +1,8 @@
 package millfork.test.emu
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
+
 import com.codingrodent.microprocessor.Z80.{CPUConstants, Z80Core}
 import eu.rekawek.coffeegb.AddressSpace
 import eu.rekawek.coffeegb.cpu.{Cpu, InterruptManager, SpeedMode}
@@ -10,17 +13,49 @@ import millfork.assembly.z80.ZLine
 import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.ConsoleLogger
-import millfork.node.StandardCallGraph
+import millfork.node.{Program, StandardCallGraph}
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, Z80Assembler}
-import millfork.parser.{PreprocessingResult, Preprocessor, Z80Parser}
-import millfork.{CompilationFlag, CompilationOptions, CpuFamily, JobContext}
+import millfork.parser.{MosParser, PreprocessingResult, Preprocessor, Z80Parser}
+import millfork._
 import millfork.compiler.z80.Z80Compiler
 import org.scalatest.Matchers
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * @author Karol Stasiak
   */
+object EmuZ80Run {
+
+  private def preload(cpu: millfork.Cpu.Value, filename: String):  Option[Program] = {
+    TestErrorReporting.log.info(s"Loading $filename for $cpu")
+    val source = Files.readAllLines(Paths.get(filename), StandardCharsets.US_ASCII).asScala.mkString("\n")
+    val options = CompilationOptions(EmuPlatform.get(cpu), Map(
+          CompilationFlag.LenientTextEncoding -> true
+        ), None, 0, Map(), JobContext(TestErrorReporting.log, new LabelGenerator))
+    val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
+    TestErrorReporting.log.debug(s"Features: $features")
+    TestErrorReporting.log.info(s"Parsing $filename")
+    val parser = Z80Parser(filename, preprocessedSource, "", options, features, useIntelSyntax = false)
+    parser.toAst match {
+      case Success(x, _) => Some(x)
+      case f: Failure[_, _] =>
+        TestErrorReporting.log.error(f.toString)
+        TestErrorReporting.log.error(f.extra.toString)
+        TestErrorReporting.log.error(f.lastParser.toString)
+        TestErrorReporting.log.error("Syntax error", Some(parser.lastPosition))
+        TestErrorReporting.log.error("Parsing error")
+        ???
+    }
+  }
+
+  private lazy val cache: mutable.Map[millfork.Cpu.Value, Option[Program]] = mutable.Map[millfork.Cpu.Value, Option[Program]]()
+
+  def cachedMath(cpu: millfork.Cpu.Value): Program = synchronized { cache.getOrElseUpdate(cpu, preload(cpu, "include/i80_math.mfk")).getOrElse(throw new IllegalStateException()) }
+}
+
 class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[ZLine]]) extends Matchers {
   def inline: Boolean = false
 
@@ -58,7 +93,12 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
 
 
         // prepare
-        val program = nodeOptimizations.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
+        val withLibraries = {
+          var tmp = unoptimized
+          tmp += EmuZ80Run.cachedMath(cpu)
+          tmp
+        }
+        val program = nodeOptimizations.foldLeft(withLibraries)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program, log)
         val env = new Environment(None, "", CpuFamily.I80, options.jobContext)
         env.collectDeclarations(program, options)

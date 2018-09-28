@@ -6,6 +6,8 @@
 
 #pragma zilog_syntax
 
+import i80_math
+
 macro asm void poke(word const addr, byte a) {
     LD (addr), A
 }

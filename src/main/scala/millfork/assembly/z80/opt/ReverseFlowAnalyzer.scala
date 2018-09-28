@@ -175,6 +175,14 @@ case class CpuImportance(a: Importance = UnknownImportance,
 
 object ReverseFlowAnalyzer {
 
+  val readsA = Set("__mul_u8u8u8")
+  val readsB = Set("")
+  val readsC = Set("")
+  val readsD = Set("__mul_u8u8u8")
+  val readsE = Set("")
+  val readsH = Set("")
+  val readsL = Set("")
+
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[ZLine]): List[CpuImportance] = {
     val importanceArray = Array.fill[CpuImportance](code.length)(new CpuImportance())
@@ -336,16 +344,17 @@ object ReverseFlowAnalyzer {
           case ZLine(PUSH, OneRegister(r), _, _) =>
             currentImportance = currentImportance.butReadsRegister(r)
           case ZLine(CALL | JP, NoRegisters, MemoryAddressConstant(fun: FunctionInMemory), _) =>
+            val n = fun.name
             fun.params match {
               case NormalParamSignature(List(v)) if v.typ.size == 1 =>
                 currentImportance = currentImportance.copy(
                   a = Important,
-                  b = Unimportant,
-                  c = Unimportant,
-                  d = Unimportant,
-                  e = Unimportant,
-                  h = Unimportant,
-                  l = Unimportant,
+                  b = if (readsB(n)) Important else Unimportant,
+                  c = if (readsC(n)) Important else Unimportant,
+                  d = if (readsD(n)) Important else Unimportant,
+                  e = if (readsE(n)) Important else Unimportant,
+                  h = if (readsH(n)) Important else Unimportant,
+                  l = if (readsL(n)) Important else Unimportant,
                   hlNumeric = Unimportant,
                   iyh = Unimportant,
                   iyl = Unimportant,
@@ -357,11 +366,11 @@ object ReverseFlowAnalyzer {
                 )
               case NormalParamSignature(List(v)) if v.typ.size == 2 =>
                 currentImportance = currentImportance.copy(
-                  a = Unimportant,
-                  b = Unimportant,
-                  c = Unimportant,
-                  d = Unimportant,
-                  e = Unimportant,
+                  a = if (readsA(n)) Important else Unimportant,
+                  b = if (readsB(n)) Important else Unimportant,
+                  c = if (readsC(n)) Important else Unimportant,
+                  d = if (readsD(n)) Important else Unimportant,
+                  e = if (readsE(n)) Important else Unimportant,
                   h = Important,
                   l = Important,
                   hlNumeric = Unimportant,
@@ -375,10 +384,10 @@ object ReverseFlowAnalyzer {
                 )
               case NormalParamSignature(List(v)) if v.typ.size == 3 =>
                 currentImportance = currentImportance.copy(
-                  a = Unimportant,
-                  b = Unimportant,
-                  c = Unimportant,
-                  d = Unimportant,
+                  a = if (readsA(n)) Important else Unimportant,
+                  b = if (readsB(n)) Important else Unimportant,
+                  c = if (readsC(n)) Important else Unimportant,
+                  d = if (readsD(n)) Important else Unimportant,
                   e = Important,
                   h = Important,
                   l = Important,
@@ -393,9 +402,9 @@ object ReverseFlowAnalyzer {
                 )
               case NormalParamSignature(List(v)) if v.typ.size == 4 =>
                 currentImportance = currentImportance.copy(
-                  a = Unimportant,
-                  b = Unimportant,
-                  c = Unimportant,
+                  a = if (readsA(n)) Important else Unimportant,
+                  b = if (readsB(n)) Important else Unimportant,
+                  c = if (readsC(n)) Important else Unimportant,
                   d = Important,
                   e = Important,
                   h = Important,
@@ -411,13 +420,13 @@ object ReverseFlowAnalyzer {
                 )
               case NormalParamSignature(_) | AssemblyParamSignature(Nil) =>
                 currentImportance = currentImportance.copy(
-                  a = Unimportant,
-                  b = Unimportant,
-                  c = Unimportant,
-                  d = Unimportant,
-                  e = Unimportant,
-                  h = Unimportant,
-                  l = Unimportant,
+                  a = if (readsA(n)) Important else Unimportant,
+                  b = if (readsB(n)) Important else Unimportant,
+                  c = if (readsC(n)) Important else Unimportant,
+                  d = if (readsD(n)) Important else Unimportant,
+                  e = if (readsE(n)) Important else Unimportant,
+                  h = if (readsH(n)) Important else Unimportant,
+                  l = if (readsL(n)) Important else Unimportant,
                   hlNumeric = Unimportant,
                   iyh = Unimportant,
                   iyl = Unimportant,

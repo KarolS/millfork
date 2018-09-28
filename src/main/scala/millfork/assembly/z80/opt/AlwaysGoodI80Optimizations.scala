@@ -1030,10 +1030,28 @@ object AlwaysGoodI80Optimizations {
 
     )
 
+  val PointlessArithmetic = new RuleBasedAssemblyOptimization("Pointless arithmetic",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcodeIn(Set(ADD, ADC, SUB, SBC, OR, AND, XOR, CP)) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A)) ~~> (_ => Nil)
+  )
+
+  val ConstantMultiplication = new RuleBasedAssemblyOptimization("Constant multiplication",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+      (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+        & MatchRegister(ZRegister.A, 4)
+        & MatchRegister(ZRegister.D, 5)
+        & DoesntMatterWhatItDoesWithFlags
+        & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      val product = ctx.get[Int](4) * ctx.get[Int](5)
+      List(ZLine.ldImm8(ZRegister.A, product))
+    },
+  )
 
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
     BranchInPlaceRemoval,
+    ConstantMultiplication,
     FreeHL,
+    PointlessArithmetic,
     PointlessLoad,
     PointlessStackStashing,
     ReloadingKnownValueFromMemory,

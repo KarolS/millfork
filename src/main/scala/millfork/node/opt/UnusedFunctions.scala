@@ -1,6 +1,6 @@
 package millfork.node.opt
 
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node._
@@ -33,8 +33,12 @@ object UnusedFunctions extends NodeOptimization {
     }.toSet
     val allCalledFunctions = getAllCalledFunctions(nodes).toSet
     var unusedFunctions = allNormalFunctions -- allCalledFunctions
+    val effectiveZpSize = options.platform.cpuFamily match {
+      case CpuFamily.M6502 => options.zpRegisterSize
+      case _ => 999999
+    }
     for((op, zp, fun) <- operatorImplementations) {
-      if (allCalledFunctions.contains(op) && options.zpRegisterSize >= zp) {
+      if (allCalledFunctions.contains(op) && effectiveZpSize >= zp) {
         unusedFunctions -= fun
       }
     }

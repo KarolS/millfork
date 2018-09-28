@@ -1,9 +1,8 @@
 package millfork.compiler.z80
 
-import millfork.CompilationFlag
 import millfork.assembly.z80._
-import millfork.compiler.{BranchSpec, CompilationContext}
-import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
+import millfork.compiler.CompilationContext
+import millfork.env._
 import millfork.node.{ConstantArrayElementExpression, Expression, LhsExpression, ZRegister}
 
 /**
@@ -15,52 +14,8 @@ object Z80Multiply {
     * Compiles A = A * D
     */
   private def multiplication(ctx: CompilationContext): List[ZLine] = {
-    import millfork.assembly.z80.ZOpcode._
-    import ZRegister._
-    import ZLine._
-    if(ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
-      val lblAdd = ctx.nextLabel("mu")
-      val lblLoop = ctx.nextLabel("mu")
-      val lblStart = ctx.nextLabel("mu")
-      List(
-        ld8(E, A),
-        ldImm8(A, 0),
-        jumpR(ctx, lblStart),
-        label(lblAdd),
-        register(ADD, E),
-        label(lblLoop),
-        register(SLA, E),
-        label(lblStart),
-        register(SRL, D),
-        jumpR(ctx, lblAdd, IfFlagSet(ZFlag.C)),
-        jumpR(ctx, lblLoop, IfFlagClear(ZFlag.Z)))
-    } else {
-      // TODO: optimize
-      val lblAdd = ctx.nextLabel("mu")
-      val lblLoop = ctx.nextLabel("mu")
-      val lblStart = ctx.nextLabel("mu")
-      List(
-        ld8(E, A),
-        ldImm8(C, 0),
-        jumpR(ctx, lblStart),
-        label(lblAdd),
-        ld8(A, C),
-        register(ADD, E),
-        ld8(C, A),
-        label(lblLoop),
-        ld8(A, E),
-        register(ADD, A),
-        ld8(E, A),
-        label(lblStart),
-        register(OR, A),
-        ld8(A, D),
-        implied(RRA),
-        ld8(D, A),
-        jumpR(ctx, lblAdd, IfFlagSet(ZFlag.C)),
-        register(OR, A),
-        jumpR(ctx, lblLoop, IfFlagClear(ZFlag.Z)),
-        ld8(A, C))
-    }
+    List(ZLine(ZOpcode.CALL, NoRegisters,
+      ctx.env.get[ThingInMemory]("__mul_u8u8u8").toAddress))
   }
 
   /**
