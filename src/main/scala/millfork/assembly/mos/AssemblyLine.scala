@@ -339,6 +339,21 @@ object OpcodeClasses {
   val DiscardsD = OverwritesD
   val DiscardsI = NoopDiscardsFlags | OverwritesI
 
+  val SupportsZeropage = Set(
+    LDA, LDX, LDY, LAX, // LDZ doesn't!
+    LDA_W, LDX_W, LDY_W,
+    STA, STX, STY, SAX, STZ,
+    STA_W, LDX_W, LDY_W,
+    BIT,
+    CPX, CPY, CPZ,
+    ADC, SBC, CMP, AND, ORA, EOR,
+    ADC_W, SBC_W, CMP_W, AND_W, ORA_W, EOR_W,
+    INC, DEC, ROL, ROR, ASL, LSR,
+    INC_W, DEC_W, ROL_W, ROR_W, ASL_W, LSR_W,
+    ISC, DCP, RLA, RRA, SLO, SRE,
+    TSB, TRB,
+  )
+
 }
 
 object AssemblyLine {

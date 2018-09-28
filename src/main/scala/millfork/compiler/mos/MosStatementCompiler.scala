@@ -156,6 +156,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         }
         val actualAddrMode = a match {
           case Absolute if OpcodeClasses.ShortBranching(o) => Relative
+          case Absolute if OpcodeClasses.SupportsZeropage(o) && c.fitsProvablyIntoByte => ZeroPage
           case IndexedX if o == JMP => AbsoluteIndexedX
           case Indirect if o != JMP => IndexedZ
           case _ => a

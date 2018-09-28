@@ -1,11 +1,11 @@
 package millfork.test
-import millfork.test.emu.EmuBenchmarkRun
-import org.scalatest.{FunSuite, Matchers}
+import millfork.test.emu.{EmuBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedRun}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class AssemblySuite extends FunSuite with Matchers {
+class AssemblySuite extends FunSuite with Matchers with AppendedClues {
 
   test("Inline assembly") {
     EmuBenchmarkRun(
@@ -163,4 +163,52 @@ class AssemblySuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(10))
   }
+
+  test("Correctly use zeropage for CPU port on C64") {
+    val m = EmuOptimizedRun(
+      """
+        | byte port @1
+        | const byte port_addr = 1
+        | byte port_alt @port_addr
+        | void main () {
+        |   a()
+        |   b()
+        |   c()
+        |   d()
+        |   e()
+        |   f()
+        | }
+        | noinline void a() {
+        |   port = 1
+        | }
+        | noinline void b() {
+        |   port_alt = 2
+        | }
+        | noinline asm void c() {
+        |   lda #3
+        |   sta 1
+        |   rts
+        | }
+        | noinline asm void d() {
+        |   lda #4
+        |   sta port
+        |   rts
+        | }
+        | noinline asm void e() {
+        |   lda #5
+        |   sta port_addr
+        |   rts
+        | }
+        | noinline asm void f() {
+        |   lda #6
+        |   sta port_alt
+        |   rts
+        | }
+      """.stripMargin)
+    for (addr <- 0x0200 to 0x02ff) {
+      m.readable(addr) = true
+      m.readByte(addr) should not equal 0x8d withClue f"STA abs at $addr%04x"
+    }
+  }
+
 }

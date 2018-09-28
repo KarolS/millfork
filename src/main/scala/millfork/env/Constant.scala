@@ -26,6 +26,7 @@ sealed trait Constant {
     case NumericConstant(0, _) => true
     case _ => false
   }
+  def fitsProvablyIntoByte: Boolean = false
 
   def asl(i: Constant): Constant = i match {
     case NumericConstant(sa, _) => asl(sa.toInt)
@@ -100,6 +101,7 @@ case class AssertByte(c: Constant) extends Constant {
   override def isProvablyZero: Boolean = c.isProvablyZero
   override def isProvably(i: Int): Boolean = c.isProvably(i)
   override def isProvablyNonnegative: Boolean = c.isProvablyNonnegative
+  override def fitsProvablyIntoByte: Boolean = true
 
   override def requiredSize: Int = 1
 
@@ -132,6 +134,7 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   override def isProvablyZero: Boolean = value == 0
   override def isProvably(i: Int): Boolean = value == i
   override def isProvablyNonnegative: Boolean = value >= 0
+  override def fitsProvablyIntoByte: Boolean = requiredSize == 1
 
   override def isLowestByteAlwaysEqual(i: Int) : Boolean = (value & 0xff) == (i&0xff)
 
@@ -211,6 +214,7 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
   override def requiredSize = 1
 
   override def isProvablyNonnegative: Boolean = true
+  override def fitsProvablyIntoByte: Boolean = true
 
   override def toString: String = index match {
     case 0 => s"lo($base)"
