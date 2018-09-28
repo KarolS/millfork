@@ -18,7 +18,8 @@ void putstr(pointer str, byte len) {
 }
 
 void putstrz(pointer str) {
-    word length = strzlen(str)
+    word length
+    length = strzlen(str)
     asm {
         ? LD DE,(str)
         ? LD BC,(length)
