@@ -736,6 +736,18 @@ object AlwaysGoodI80Optimizations {
         ZLine.ld8(ZRegister.E, ZRegister.C))
     },
 
+    Is8BitLoad(ZRegister.D, ZRegister.H) ~
+      Is8BitLoad(ZRegister.E, ZRegister.L) ~
+      (Elidable & HasOpcode(EX_DE_HL)) ~~> { code =>
+      code.init
+    },
+
+    Is8BitLoad(ZRegister.H, ZRegister.D) ~
+      Is8BitLoad(ZRegister.L, ZRegister.E) ~
+      (Elidable & HasOpcode(EX_DE_HL)) ~~> { code =>
+      code.init
+    },
+
     (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(ZRegister.HL, ZRegister.MEM_ABS_16)) & MatchParameter(0)) ~
       (Elidable & Is8BitLoad(ZRegister.A, ZRegister.L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> { (code, ctx) =>
       List(ZLine.ldAbs8(ZRegister.A, ctx.get[Constant](0)))
@@ -1037,13 +1049,89 @@ object AlwaysGoodI80Optimizations {
 
   val ConstantMultiplication = new RuleBasedAssemblyOptimization("Constant multiplication",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
-      (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
-        & MatchRegister(ZRegister.A, 4)
-        & MatchRegister(ZRegister.D, 5)
-        & DoesntMatterWhatItDoesWithFlags
-        & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & MatchRegister(ZRegister.A, 4)
+      & MatchRegister(ZRegister.D, 5)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       val product = ctx.get[Int](4) * ctx.get[Int](5)
       List(ZLine.ldImm8(ZRegister.A, product))
+    },
+
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & (HasRegister(ZRegister.D, 0) | HasRegister(ZRegister.A, 0))
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.ldImm8(ZRegister.A, 0))
+    },
+
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.D, 1)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      Nil
+    },
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.D, 2)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.register(ADD, ZRegister.A))
+    },
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.D, 4)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
+    },
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.D, 8)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
+    },
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.D, 16)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
+    },
+
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.A, 1)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.ld8(ZRegister.A, ZRegister.D))
+    },
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.A, 2)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A))
+    },
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.A, 4)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
+    },
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.A, 8)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
+    },
+    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      & HasRegister(ZRegister.A, 16)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
+    },
+
+    (Elidable & Is8BitLoad(D, A)) ~
+      (Elidable & Is8BitLoad(A, IMM_8)) ~
+      (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+        & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
+      List(code(1).copy(registers = TwoRegisters(D, IMM_8)), code(2))
     },
   )
 

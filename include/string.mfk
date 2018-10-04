@@ -1,4 +1,16 @@
 
+#if ARCH_I80
+
+byte strzlen(pointer str) {
+    pointer end
+    end = str
+    while end[0] != 0 {
+        end += 1
+    }
+    return lo(end - str)
+}
+
+#else
 
 byte strzlen(pointer str) {
     byte index
@@ -8,3 +20,4 @@ byte strzlen(pointer str) {
     }
     return index
 }
+#endif
