@@ -178,28 +178,28 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
         |   e()
         |   f()
         | }
-        | noinline void a() {
+        | void a() {
         |   port = 1
         | }
-        | noinline void b() {
+        | void b() {
         |   port_alt = 2
         | }
-        | noinline asm void c() {
+        | asm void c() {
         |   lda #3
         |   sta 1
         |   rts
         | }
-        | noinline asm void d() {
+        | asm void d() {
         |   lda #4
         |   sta port
         |   rts
         | }
-        | noinline asm void e() {
+        | asm void e() {
         |   lda #5
         |   sta port_addr
         |   rts
         | }
-        | noinline asm void f() {
+        | asm void f() {
         |   lda #6
         |   sta port_alt
         |   rts

@@ -49,13 +49,13 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
   )
 
   override def isExtractable(line: ZLine): Boolean = {
-    alwaysGoodOpcodes(line.opcode) ||
+    line.elidable && (alwaysGoodOpcodes(line.opcode) ||
       conditionallyGoodOpcodes(line.opcode) && (line.registers match {
         case OneRegister(SP) => false
         case TwoRegisters(_, SP) => false
         case TwoRegisters(SP, _) => false
         case _ => true
-      })
+      }))
   }
 
   override def isBadExtractedCodeHead(head: ZLine): Boolean = false

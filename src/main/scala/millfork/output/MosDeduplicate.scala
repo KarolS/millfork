@@ -51,7 +51,7 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
   private val badAddressingModes = Set(Stack, IndexedSY, AbsoluteIndexedX, Indirect, LongIndirect)
 
   override def isExtractable(line: AssemblyLine): Boolean =
-    goodOpcodes(line.opcode) && !badAddressingModes(line.addrMode)
+    line.elidable && goodOpcodes(line.opcode) && !badAddressingModes(line.addrMode)
 
   override def isBadExtractedCodeHead(head: AssemblyLine): Boolean = false
 
