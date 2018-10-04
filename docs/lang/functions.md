@@ -4,7 +4,7 @@
 
 Syntax:
 
-`[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [@ <address>] { <body> }`
+`[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [align ( <alignment> )] [@ <address>] { <body> }`
 
 `[segment (<segment>)] asm <return_type> <name> ( <params> ) @ <address> extern`
 
@@ -37,6 +37,13 @@ Syntax:
 * `<return_type>` is a valid return type, see [Types](./types.md)
 
 * `<params>` is a comma-separated list of parameters, in form `type name`. Allowed types are the same as for local variables.
+
+* `<alignment>` is either a numeric literal that is a power of 2, or keyword `fast`.
+    The function will be allocated at the address divisible by alignment.
+    `fast` means different things depending on the target platform:
+
+    * on 6502, it means that the function will not cross a page boundary
+    * on Z80, it is ignored   
 
 * `<address>` is a constant expression that defines where in the memory the function is or will be located.
 

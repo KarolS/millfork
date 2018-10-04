@@ -6,6 +6,7 @@ import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node._
 import millfork.CompilationOptions
+import millfork.output.{MemoryAlignment, NoAlignment, WithinPageAlignment}
 
 /**
   * @author Karol Stasiak
@@ -15,6 +16,9 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
   import MfParser._
 
   def allowIntelHexAtomsInAssembly: Boolean = false
+
+  def fastAlignmentForArrays: MemoryAlignment = WithinPageAlignment
+  def fastAlignmentForFunctions: MemoryAlignment = WithinPageAlignment
 
   // TODO: label and instruction in one line
   val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => MosAssemblyStatement(Opcode.LABEL, AddrMode.DoesNotExist, VariableExpression(l), elidable = true))

@@ -8,6 +8,7 @@ import fastparse.all._
 import millfork.env._
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node._
+import millfork.output.{DivisibleAlignment, MemoryAlignment, NoAlignment}
 import millfork.{CompilationFlag, CompilationOptions, SeparatedList}
 
 /**
@@ -211,13 +212,30 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     target <- "=" ~/ HWS ~/ identifier ~/ HWS
   } yield Seq(AliasDefinitionStatement(name, target).pos(p))
 
+  def fastAlignmentForArrays: MemoryAlignment
+  def fastAlignmentForFunctions: MemoryAlignment
+
+  def alignmentDeclaration(fast: MemoryAlignment): P[MemoryAlignment] = (position() ~ "align" ~/ AWS ~/ "(" ~/ AWS ~/ atom ~/ AWS ~/ ")").map {
+    case (_, LiteralExpression(1, _)) => NoAlignment
+    case (pos, LiteralExpression(n, _)) =>
+      if (n >= 1 && n <= 0x8000 & (n & (n - 1)) == 0) DivisibleAlignment(n.toInt)
+      else {
+        log.error("Invalid alignment: " + n, Some(pos))
+        NoAlignment
+      }
+    case (pos, VariableExpression("fast")) => fast
+    case (pos, _) =>
+      log.error("Invalid alignment", Some(pos))
+      NoAlignment
+  }
+
   val arrayDefinition: P[Seq[ArrayDeclarationStatement]] = for {
     p <- position()
     bank <- bankDeclaration
     name <- "array" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
     length <- ("[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]").? ~ HWS
+    alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
-    alignment = None // TODO
     contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
   } yield Seq(ArrayDeclarationStatement(name, bank, length, addr, contents, alignment).pos(p))
 
@@ -391,6 +409,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if !InvalidReturnTypes(returnType)
     name <- identifier ~ HWS
     params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
+    alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ AWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~/ AWS
     statements <- (externFunctionBody | (if (flags("asm")) asmStatements else statements).map(l => Some(l))) ~/ Pass
   } yield {
@@ -404,11 +423,14 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (flags("inline") && flags("macro")) log.error("Macro and inline exclude each other", Some(p))
     if (flags("interrupt") && returnType != "void") log.error("Interrupt function `$name` has to return void", Some(p))
     if (addr.isEmpty && statements.isEmpty) log.error("Extern function `$name` must have an address", Some(p))
+    if (addr.isDefined && alignment.isDefined) log.error("Function `$name` has both address and alignment", Some(p))
+    if (statements.isEmpty && alignment.isDefined) log.error("Extern function `$name` cannot have alignment", Some(p))
     if (statements.isEmpty && !flags("asm") && params.nonEmpty) log.error("Extern non-asm function `$name` cannot have parameters", Some(p))
     if (flags("asm")) validateAsmFunctionBody(p, flags, name, statements)
     Seq(FunctionDeclarationStatement(name, returnType, params.toList,
       bank,
       addr,
+      alignment,
       statements,
       flags("macro"),
       if (flags("inline")) Some(true) else if (flags("noinline")) Some(false) else None,

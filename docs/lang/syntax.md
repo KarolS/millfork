@@ -88,7 +88,7 @@ An array is a continuous sequence of bytes in memory.
 
 Syntax:
 
-`[segment(<segment>)] array <name> [[<size>]] [@<address>] [= <initial_values>]`
+`[segment(<segment>)] array <name> [[<size>]] [align ( <alignment> )] [@<address>] [= <initial_values>]`
 
 * `<segment>`: segment name; if absent,
 then defaults to `default_code_segment` as defined for the platform if the array has initial values,
@@ -99,6 +99,13 @@ or a name of a plain enumeration type, in which case changes the type of the ind
 and declares the array size to be equal to the number of variants in that enumeration.
 If the size is not specified here, then it's deduced from the `<initial_values>`.
 If the declared size and the size deduced from the `<initial_values>` don't match, then an error is raised.
+
+* `<alignment>` is either a numeric literal that is a power of 2, or keyword `fast`.
+    The array will be allocated at the address divisible by alignment.
+    `fast` means different things depending on the target platform:
+
+    * on 6502, it means that the array will not cross a page boundary
+    * on Z80, it means that the array will not cross a page boundary
 
 TODO
 

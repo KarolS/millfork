@@ -14,6 +14,8 @@
 
 * Added preprocessor
 
+* Added `align` keyword for choosing data and code alignment.
+
 * Automatic selection of text encoding based on target platform.
 
 * Text literals can be now used as expressions of type `pointer`.

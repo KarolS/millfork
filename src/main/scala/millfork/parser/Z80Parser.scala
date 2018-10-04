@@ -10,6 +10,7 @@ import millfork.assembly.z80.{ZOpcode, _}
 import millfork.env.{ByZRegister, Constant, ParamPassingConvention}
 import millfork.error.ConsoleLogger
 import millfork.node._
+import millfork.output.{MemoryAlignment, NoAlignment, WithinPageAlignment}
 
 /**
   * @author Karol Stasiak
@@ -24,6 +25,9 @@ case class Z80Parser(filename: String,
   import MfParser._
 
   def allowIntelHexAtomsInAssembly: Boolean = useIntelSyntax
+
+  def fastAlignmentForArrays: MemoryAlignment = WithinPageAlignment
+  def fastAlignmentForFunctions: MemoryAlignment = NoAlignment
 
   private val zero = LiteralExpression(0, 1)
 

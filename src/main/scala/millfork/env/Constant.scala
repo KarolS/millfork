@@ -1,6 +1,7 @@
 package millfork.env
 
 import millfork.DecimalUtils._
+import millfork.output.DivisibleAlignment
 
 object Constant {
   val Zero: Constant = NumericConstant(0, 1)
@@ -27,6 +28,7 @@ sealed trait Constant {
     case _ => false
   }
   def fitsProvablyIntoByte: Boolean = false
+  def isProvablyDivisibleBy256: Boolean = false
 
   def asl(i: Constant): Constant = i match {
     case NumericConstant(sa, _) => asl(sa.toInt)
@@ -47,7 +49,7 @@ sealed trait Constant {
 
   def loByte: Constant = {
     if (requiredSize == 1) return this
-    SubbyteConstant(this, 0)
+    if (isProvablyDivisibleBy256) Constant.Zero else SubbyteConstant(this, 0)
   }
 
   def hiByte: Constant = {
@@ -58,7 +60,7 @@ sealed trait Constant {
   def subbyte(index: Int): Constant = {
     if (requiredSize <= index) Constant.Zero
     else index match {
-      case 0 => loByte
+      case 0 => if (isProvablyDivisibleBy256) Constant.Zero else loByte
       case 1 => hiByte
       case _ => SubbyteConstant(this, index)
     }
@@ -128,13 +130,14 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
     }
   }
   override def isProvablyGreaterOrEqualThan(other: Constant): Boolean = value >= 0 && (other match {
-    case NumericConstant(o, _) if o >= 0  => value >=o
+    case NumericConstant(o, _) if o >= 0  => value >= o
     case _ => false
   })
   override def isProvablyZero: Boolean = value == 0
   override def isProvably(i: Int): Boolean = value == i
   override def isProvablyNonnegative: Boolean = value >= 0
   override def fitsProvablyIntoByte: Boolean = requiredSize == 1
+  override def isProvablyDivisibleBy256: Boolean = (value & 0xff) == 0
 
   override def isLowestByteAlwaysEqual(i: Int) : Boolean = (value & 0xff) == (i&0xff)
 
@@ -189,6 +192,14 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
     case _ => false
   }
 
+  override def isProvablyDivisibleBy256: Boolean = thing match {
+    case t:PreallocableThing => t.alignment match {
+      case DivisibleAlignment(divisor) => divisor.&(0xff) == 0
+      case _ => false
+    }
+    case _ => false
+  }
+
   override def requiredSize = 2
 
   override def toString: String = thing.name
@@ -215,6 +226,7 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
 
   override def isProvablyNonnegative: Boolean = true
   override def fitsProvablyIntoByte: Boolean = true
+  override def isProvablyDivisibleBy256: Boolean = index == 0 && base.isProvablyDivisibleBy256
 
   override def toString: String = index match {
     case 0 => s"lo($base)"
@@ -250,6 +262,16 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
            And | Or | Exor => lhs.isProvablyNonnegative && rhs.isProvablyNonnegative
       case _ => false
     }
+  }
+
+  override def isProvablyDivisibleBy256: Boolean = operator match {
+    case MathOperator.And | MathOperator.Times =>
+      lhs.isProvablyDivisibleBy256 || rhs.isProvablyDivisibleBy256
+    case MathOperator.Or | MathOperator.Exor | MathOperator.Plus | MathOperator.Minus =>
+      lhs.isProvablyDivisibleBy256 && rhs.isProvablyDivisibleBy256
+    case MathOperator.Shl =>
+      rhs.isProvablyGreaterOrEqualThan(NumericConstant(8, 1))
+    case _ => false
   }
 
   override def quickSimplify: Constant = {
