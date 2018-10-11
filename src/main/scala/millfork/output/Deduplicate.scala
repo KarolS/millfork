@@ -18,6 +18,10 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
     }
     runStage(compiledFunctions, deduplicateIdenticalFunctions)
     runStage(compiledFunctions, eliminateTailJumps)
+    runStage(compiledFunctions, eliminateTailJumps)
+    runStage(compiledFunctions, eliminateTailJumps)
+    runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
+    runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
     runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
     fixDoubleRedirects(compiledFunctions)
 //    println(compiledFunctions.map {
@@ -27,6 +31,8 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
 //      })
 //    }.mkString(" ; "))
   }
+
+  def removeChains(map: Map[String, String]): Map[String, String] = map.filterNot{case (_, to) => map.contains(to)}
 
   def runStage(compiledFunctions: mutable.Map[String, CompiledFunction[T]],
                function: (String, Map[String, Either[String, CodeAndAlignment[T]]]) => Seq[(String, CompiledFunction[T])]): Unit = {
@@ -195,7 +201,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
           .map(name -> _)
       case _ => None
     }
-    val fallthroughPredecessors = fallThroughList.groupBy(_._2).mapValues(_.head._1) // TODO: be smarter than head
+    val fallthroughPredecessors = removeChains(fallThroughList).groupBy(_._2).mapValues(_.head._1) // TODO: be smarter than head
     fallthroughPredecessors.foreach {
       case (to, from) =>
         options.log.debug(s"Fallthrough from $from to $to")
@@ -228,7 +234,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
           .map(name -> _)
       case _ => None
     }
-    val fallthroughPredecessors = fallThroughList.groupBy(_._2).mapValues(_.keySet)
+    val fallthroughPredecessors = removeChains(fallThroughList).groupBy(_._2).mapValues(_.keySet)
     fallthroughPredecessors.foreach {
       case (to, froms) =>
         for (from <- froms) {
