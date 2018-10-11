@@ -211,8 +211,8 @@ object FlowAnalyzerForImmediate {
     },
     CMP -> {(nn, currentStatus) =>
       currentStatus.copy(
-        c = if (nn == 0) Status.SingleTrue else AnyStatus,
-        n = AnyStatus,
+        c = if (nn == 0) Status.SingleTrue else currentStatus.a.map(v => (v & 0xff) >= (nn & 0xff)),
+        n = currentStatus.a.map(v => v.-(nn).&(0x80).!=(0)),
         z = currentStatus.a.map(v => (v & 0xff) == (nn & 0xff)) |
           currentStatus.a0.flatMap(v => if (v) {
             if ((nn & 1) == 0) Status.SingleFalse
@@ -232,22 +232,22 @@ object FlowAnalyzerForImmediate {
     },
     CPX -> { (nn, currentStatus) =>
       currentStatus.copy(
-        c = if (nn == 0) Status.SingleTrue else AnyStatus,
-        n = AnyStatus,
+        c = if (nn == 0) Status.SingleTrue else currentStatus.x.map(v => (v & 0xff) >= (nn & 0xff)),
+        n = currentStatus.x.map(v => v.-(nn).&(0x80).!=(0)),
         z = currentStatus.x.map(v => (v & 0xff) == (nn & 0xff)),
         src = if (nn == 0) SourceOfNZ.X else AnyStatus)
     },
     CPY -> {(nn, currentStatus) =>
       currentStatus.copy(
-        c = if (nn == 0) Status.SingleTrue else AnyStatus,
-        n = AnyStatus,
+        c = if (nn == 0) Status.SingleTrue else currentStatus.y.map(v => (v & 0xff) >= (nn & 0xff)),
+        n = currentStatus.y.map(v => v.-(nn).&(0x80).!=(0)),
         z = currentStatus.y.map(v => (v & 0xff) == (nn & 0xff)),
         src = if (nn == 0) SourceOfNZ.Y else AnyStatus)
     },
     CPZ -> {(nn, currentStatus) =>
       currentStatus.copy(
-        c = if (nn == 0) Status.SingleTrue else AnyStatus,
-        n = AnyStatus,
+        c = if (nn == 0) Status.SingleTrue else currentStatus.iz.map(v => (v & 0xff) >= (nn & 0xff)),
+        n = currentStatus.iz.map(v => v.-(nn).&(0x80).!=(0)),
         z = currentStatus.iz.map(v => (v & 0xff) == (nn & 0xff)),
         src = if (nn == 0) SourceOfNZ.Z else AnyStatus)
     },
