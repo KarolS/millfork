@@ -79,7 +79,13 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     }
   }
 
+  var stackProbeCount = 0
+
   def deepConstResolve(c: Constant): Long = {
+    def stackProbe(n: Int): Int = {
+      stackProbeCount += 1
+      if (n == 0) 0 else stackProbe(n - 1) + 1
+    }
     c match {
       case NumericConstant(v, _) => v
       case AssertByte(inner) =>
@@ -100,6 +106,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           val x5 = env.maybeGet[RelativeVariable](th.name).map(_.address)
           val x6 = env.maybeGet[ConstantThing](th.name.stripSuffix(".array") + ".addr").map(_.value)
           val x = x1.orElse(x2).orElse(x3).orElse(x4).orElse(x5).orElse(x6)
+          stackProbe(700)
           x match {
             case Some(cc) =>
               deepConstResolve(cc)

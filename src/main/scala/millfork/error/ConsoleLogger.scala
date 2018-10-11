@@ -33,6 +33,7 @@ class ConsoleLogger extends Logger {
     }
   }
 
+  @inline
   def f(position: Option[Position]): String = position.fold("")(p => s"(${p.moduleName}:${p.line}:${p.column}) ")
 
   override def info(msg: String, position: Option[Position] = None): Unit = {
