@@ -229,6 +229,8 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
             names)
         ))
       case (ForDirection.DownTo, _, _) =>
+        // TODO: smarter countdown if end is not a constant
+        val endMinusOne = SumExpression(List(true -> f.end, false -> LiteralExpression(1, 1)), decimal = false).pos(p)
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
           IfStatement(
@@ -236,7 +238,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
             List(DoWhileStatement(
               f.body,
               List(decrement),
-              FunctionCallExpression("!=", List(vex, f.end)).pos(p),
+              FunctionCallExpression("!=", List(vex, endMinusOne)).pos(p),
               names
             ).pos(p)),
             Nil)

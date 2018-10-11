@@ -77,6 +77,30 @@ class ForLoopSuite extends FunSuite with Matchers {
     }
   }
 
+  test("For-downto 3") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | array output [55] @$c000
+        | void main () {
+        |   byte i
+        |   output[0] = 0
+        |   output[1] = 0
+        |   output[5] = 0
+        |   output[6] = 0
+        |   for i,5,downto,1 {
+        |     stuff()
+        |     output[i] += 1
+        |   }
+        | }
+        | noinline void stuff() {}
+      """.stripMargin){m =>
+      m.readByte(0xc000) should equal(0)
+      m.readByte(0xc001) should equal(1)
+      m.readByte(0xc005) should equal(1)
+      m.readByte(0xc006) should equal(0)
+    }
+  }
+
   test("For-until") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
