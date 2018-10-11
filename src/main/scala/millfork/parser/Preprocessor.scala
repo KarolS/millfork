@@ -121,7 +121,7 @@ object Preprocessor {
               log.error("Invalid preprocessor directive: #" + keyword, pos)
 
           }
-        case _ => if (enabled) resulting = line
+        case _ => if (enabled) resulting = line.replace("\t", "    ")
       }
       result += resulting
     }
