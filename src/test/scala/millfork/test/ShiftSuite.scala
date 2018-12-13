@@ -102,4 +102,25 @@ class ShiftSuite extends FunSuite with Matchers {
       m.readByte(0xc005) should equal(8)
     }
   }
+
+  test("Zero shifting") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+        | byte output0 @$c000
+        | byte output1 @$c001
+        | noinline byte sl(byte input, byte amount) {
+        |   return input << amount
+        | }
+        | noinline byte sr(byte input, byte amount) {
+        |   return input >> amount
+        | }
+        | void main () {
+        |   output0 = sl(42, 0)
+        |   output1 = sr(42, 0)
+        | }
+        | noinline byte b(byte x) { return x }
+      """.stripMargin){m =>
+      m.readByte(0xc000) should equal(42)
+      m.readByte(0xc001) should equal(42)
+    }
+  }
 }
