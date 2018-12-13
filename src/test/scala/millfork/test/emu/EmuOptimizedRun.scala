@@ -18,6 +18,10 @@ object EmuOptimizedRun extends EmuRun(
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
     OptimizationPresets.Good)
 
 object EmuSizeOptimizedRun extends EmuRun(
@@ -29,6 +33,10 @@ object EmuSizeOptimizedRun extends EmuRun(
     OptimizationPresets.Good ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     OptimizationPresets.Good) {

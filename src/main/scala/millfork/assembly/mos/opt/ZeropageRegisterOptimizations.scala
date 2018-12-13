@@ -175,7 +175,7 @@ object ZeropageRegisterOptimizations {
 
     (Elidable & HasOpcode(LDY) & RefersTo("__reg", 0)) ~
       (Linear & Not(ConcernsY) & Not(RefersToOrUses("__reg", 0))).*.capture(2) ~
-      (Elidable & (HasA(0) & HasOpcode(STA) | HasOpcode(STZ)) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWith(State.A)) ~
+      (Elidable & (HasA(0) & HasOpcode(STA) | HasZ(0) & HasOpcode(STZ)) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWith(State.A)) ~
       ((Linear & Not(ConcernsY) & Not(RefersToOrUses("__reg", 0))).* ~
         (Elidable & RefersToOrUses("__reg", 0) & HasAddrMode(IndexedY) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWith(State.Y))).capture(3) ~~> ((code, ctx) =>
       ctx.get[List[AssemblyLine]](2) ++ List(AssemblyLine.immediate(LDY, 0)) ++ ctx.get[List[AssemblyLine]](3)

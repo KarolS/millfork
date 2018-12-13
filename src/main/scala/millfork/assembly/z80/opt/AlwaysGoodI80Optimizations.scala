@@ -1044,7 +1044,16 @@ object AlwaysGoodI80Optimizations {
 
   val PointlessArithmetic = new RuleBasedAssemblyOptimization("Pointless arithmetic",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
-    (Elidable & HasOpcodeIn(Set(ADD, ADC, SUB, SBC, OR, AND, XOR, CP)) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A)) ~~> (_ => Nil)
+    (Elidable & HasOpcodeIn(Set(ADD, ADC, SUB, SBC, OR, AND, XOR, CP)) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A)) ~~> (_ => Nil),
+    for7Registers(register =>
+      (Elidable & HasOpcodeIn(Set(INC, DEC))
+        & HasRegisterParam(register) & DoesntMatterWhatItDoesWithFlagsExceptCarry & DoesntMatterWhatItDoesWith(register)) ~~> (_ => Nil)
+    ),
+    for7Registers(register =>
+      (Elidable & HasOpcodeIn(Set(SLA, RRC, RR, RL, RLC, SLL, SRL, SRA))
+        & HasRegisterParam(register) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(register)) ~~> (_ => Nil)
+    ),
+    (Elidable & HasOpcode(DAA) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A)) ~~> (_ => Nil),
   )
 
   val ConstantMultiplication = new RuleBasedAssemblyOptimization("Constant multiplication",
@@ -1175,7 +1184,6 @@ object AlwaysGoodI80Optimizations {
     },
 
     (Elidable & HasOpcodeIn(Set(JP, JR)) & MatchJumpTarget(3) & IsUnconditional & MatchRegister(ZRegister.B, 1)) ~
-      DebugMatching ~
       (Elidable & IsLabelMatching(2)) ~
       (Elidable & HasOpcodeIn(Set(ADD, SLA, SRL, SLL, RLC, RLCA, RRC, RRCA, RR, RL, RLA, RRA)) & Not(HasRegisterParam(ZRegister.B))).*.capture(5) ~
       (Elidable & IsLabelMatching(3)) ~

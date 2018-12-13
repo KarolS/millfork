@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class InliningSuite extends FunSuite with Matchers {
 
   test("Should inline square") {
-    EmuSizeOptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | import zp_reg
         | byte output @$c000
@@ -24,7 +24,7 @@ class InliningSuite extends FunSuite with Matchers {
   }
 
   test("Should inline <<") {
-    EmuSizeOptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       """
         | byte output @$c000
         | word output2 @$c006
@@ -43,5 +43,20 @@ class InliningSuite extends FunSuite with Matchers {
       m.readWord(0xc006) should equal(84.<<(4).&(0xffff))
     }
 
+  }
+
+  test("Should inline this weird thing") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output @$c000
+        | inline word square(word x) {
+        |   return x << x.lo
+        | }
+        | void main() {
+        |   output = hi(square(6))
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(6.<<(6).>>(8))
+    }
   }
 }
