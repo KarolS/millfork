@@ -118,6 +118,7 @@ sealed class NiceFunctionProperty(override val toString: String)
 object NiceFunctionProperty {
   case object DoesntReadMemory extends NiceFunctionProperty("MR")
   case object DoesntWriteMemory extends NiceFunctionProperty("MW")
+  case object IsLeaf extends NiceFunctionProperty("LEAF")
 }
 
 object MosNiceFunctionProperty {

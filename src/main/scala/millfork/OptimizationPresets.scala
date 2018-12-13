@@ -118,6 +118,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.AlwaysTakenJumpRemoval,
     AlwaysGoodOptimizations.UnusedLabelRemoval,
 
+    AlwaysGoodOptimizations.ConstantInlinedShifting,
     LaterOptimizations.LoadingAfterShifting,
     AlwaysGoodOptimizations.PointlessAccumulatorShifting,
     EmptyMemoryStoreRemoval,
@@ -130,6 +131,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.UnusedCodeRemoval,
     AlwaysGoodOptimizations.ReverseFlowAnalysis,
     AlwaysGoodOptimizations.ModificationOfJustWrittenValue,
+    AlwaysGoodOptimizations.ConstantInlinedShifting,
     AlwaysGoodOptimizations.ShiftingJustWrittenValue,
     AlwaysGoodOptimizations.PointlessAccumulatorShifting,
     AlwaysGoodOptimizations.ReverseFlowAnalysis,
@@ -175,6 +177,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.BranchInPlaceRemoval,
     AlwaysGoodOptimizations.CarryFlagConversion,
     DangerousOptimizations.ConstantIndexOffsetPropagation,
+    AlwaysGoodOptimizations.ConstantInlinedShifting,
     AlwaysGoodOptimizations.CommonBranchBodyOptimization,
     AlwaysGoodOptimizations.CommonExpressionInConditional,
     AlwaysGoodOptimizations.CommonIndexSubexpressionElimination,

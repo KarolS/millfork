@@ -2483,4 +2483,29 @@ object AlwaysGoodOptimizations {
       AssemblyLine.immediate(ORA, 1) :: code.init
     },
   )
+
+  val ConstantInlinedShifting = new RuleBasedAssemblyOptimization("Constant inlined shifting",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    // TODO: set limits on the loop iteration to avoid huge unrolled code
+
+    (Elidable & HasOpcode(LABEL) & MatchX(1) & MatchParameter(2)) ~
+      (Elidable & HasOpcodeIn(ASL, LSR, ROL, ROR, DEC, INC) & Not(ConcernsX)).*.capture(5) ~
+      (Elidable & HasOpcode(DEX)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(2)) ~~> { (code, ctx) =>
+      val iters = ctx.get[Int](1)
+      val shift = ctx.get[List[AssemblyLine]](5)
+      List.fill(iters)(shift).flatten :+ AssemblyLine.immediate(LDX, 0)
+    },
+
+    (Elidable & HasOpcode(LABEL) & MatchY(1) & MatchParameter(2))~
+      (Elidable & HasOpcodeIn(ASL, LSR, ROL, ROR, DEC, INC) & Not(ConcernsY)).*.capture(5) ~
+      (Elidable & HasOpcode(DEY)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(2)) ~~> { (code, ctx) =>
+      val iters = ctx.get[Int](1)
+      val shift = ctx.get[List[AssemblyLine]](5)
+      List.fill(iters)(shift).flatten :+ AssemblyLine.immediate(LDY, 0)
+    },
+
+  )
 }

@@ -100,6 +100,14 @@ abstract class CallGraph(program: Program, log: Logger) {
     everCalledFunctions ++= entryPoints
     callEdges.filter(e => entryPoints.contains(e._1)).foreach(e => everCalledFunctions += e._2)
     multiaccessibleFunctions ++= callEdges.filter(e => entryPoints.contains(e._1)).map(_._2).groupBy(identity).filter(p => p._2.size > 1).keys
+    for {
+      operator <- everCalledFunctions
+      if operator.nonEmpty && operator.head != '_' && !operator.head.isLetterOrDigit
+      internal <- allFunctions
+      if internal.startsWith("__")
+    } {
+      callEdges += operator -> internal
+    }
 
     if (log.traceEnabled) {
       log.trace("Call edges:")

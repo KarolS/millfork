@@ -4,7 +4,6 @@ import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.{AssemblyLine, Opcode, State}
-import millfork.env.{CompoundConstant, Constant, MathOperator}
 import millfork.DecimalUtils.asDecimal
 /**
   * @author Karol Stasiak
@@ -16,6 +15,25 @@ object ZeropageRegisterOptimizations {
     "__adc_decimal" -> Set(2, 3),
     "__sbc_decimal" -> Set(2, 3),
     "__sub_decimal" -> Set(2, 3))
+
+  val ConstantInlinedMultiplication = new RuleBasedAssemblyOptimization("Constant inlined multiplication",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(LDA) & HasImmediate(0) & MatchZpReg(4, 0) & MatchZpReg(5, 1)) ~
+      (Elidable & HasOpcodeIn(JMP, BEQ) & MatchParameter(13)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(11)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasOpcode(ADC) & RefersTo("__reg", 0)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(12)) ~
+      (Elidable & HasOpcode(ASL) & RefersTo("__reg", 0)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(13)) ~
+      (Elidable & HasOpcode(LSR) & RefersTo("__reg", 1)) ~
+      (Elidable & HasOpcode(BCS) & MatchParameter(11)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(12) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.V)) ~
+      (Not(RefersTo("__reg")) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWithReg(1)) ~~> { (code, ctx) =>
+      val product = ctx.get[Int](4) * ctx.get[Int](5)
+      List(AssemblyLine.immediate(LDA, product & 0xff), AssemblyLine.implied(CLC), code.last)
+    },
+  )
 
   val ConstantMultiplication = new RuleBasedAssemblyOptimization("Constant multiplication",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
@@ -125,27 +143,35 @@ object ZeropageRegisterOptimizations {
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
     (Elidable & HasOpcode(STA) & RefersTo("__reg", 0) & MatchAddrMode(0) & MatchParameter(1)) ~
       (LinearOrLabel & DoesNotConcernMemoryAt(0, 1)).* ~
-      (HasOpcodeIn(Set(RTS, RTL)) | CallsAnyExcept(functionsThatUsePseudoregisterAsInput.filter(_._2.contains(0)).keySet)) ~~> (_.tail),
+      (HasOpcodeIn(Set(RTS, RTL)) | HasOpcodeIn(JSR, JMP) & CallsAnyExcept(functionsThatUsePseudoregisterAsInput.filter(_._2.contains(0)).keySet)) ~~> (_.tail),
 
     (Elidable & HasOpcode(STA) & RefersTo("__reg", 1) & MatchAddrMode(0) & MatchParameter(1)) ~
       (LinearOrLabel & DoesNotConcernMemoryAt(0, 1)).* ~
-      (HasOpcodeIn(Set(RTS, RTL)) | CallsAnyExcept(functionsThatUsePseudoregisterAsInput.filter(_._2.contains(1)).keySet)) ~~> (_.tail),
+      (HasOpcodeIn(Set(RTS, RTL)) | HasOpcodeIn(JSR, JMP) & CallsAnyExcept(functionsThatUsePseudoregisterAsInput.filter(_._2.contains(1)).keySet)) ~~> (_.tail),
 
     (Elidable & HasOpcode(STA) & RefersTo("__reg", 2) & MatchAddrMode(0) & MatchParameter(1)) ~
       (LinearOrLabel & DoesNotConcernMemoryAt(0, 1)).* ~
-      (HasOpcodeIn(Set(RTS, RTL)) | CallsAnyExcept(functionsThatUsePseudoregisterAsInput.filter(_._2.contains(2)).keySet)) ~~> (_.tail),
+      (HasOpcodeIn(Set(RTS, RTL)) | HasOpcodeIn(JSR, JMP) & CallsAnyExcept(functionsThatUsePseudoregisterAsInput.filter(_._2.contains(2)).keySet)) ~~> (_.tail),
 
     (Elidable & HasOpcode(STA) & RefersTo("__reg", 3) & MatchAddrMode(0) & MatchParameter(1)) ~
       (LinearOrLabel & DoesNotConcernMemoryAt(0, 1)).* ~
-      (HasOpcodeIn(Set(RTS, RTL)) | CallsAnyExcept(functionsThatUsePseudoregisterAsInput.filter(_._2.contains(3)).keySet)) ~~> (_.tail),
+      (HasOpcodeIn(Set(RTS, RTL)) | HasOpcodeIn(JSR, JMP) & CallsAnyExcept(functionsThatUsePseudoregisterAsInput.filter(_._2.contains(3)).keySet)) ~~> (_.tail),
   )
 
   val DeadRegStoreFromFlow = new RuleBasedAssemblyOptimization("Dead zeropage register store from flow",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
-    (Elidable & HasOpcode(STA) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0)) ~~> (_.tail),
-    (Elidable & HasOpcode(STA) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1)) ~~> (_.tail),
-    (Elidable & HasOpcode(STA) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2)) ~~> (_.tail),
-    (Elidable & HasOpcode(STA) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(STA, STX, SAX, STY, STZ) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(STA, STX, SAX, STY, STZ) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(STA, STX, SAX, STY, STZ) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(STA, STX, SAX, STY, STZ) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.tail),
 
     (Elidable & HasOpcode(LDY) & RefersTo("__reg", 0)) ~
       (Linear & Not(ConcernsY) & Not(RefersToOrUses("__reg", 0))).*.capture(2) ~
@@ -238,9 +264,20 @@ object ZeropageRegisterOptimizations {
     })
   )
 
+  val LoadingKnownValue = new RuleBasedAssemblyOptimization("Loading known value from register",
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+    MultipleAssemblyRules((0 to 4).map{ zregIndex =>
+      (Elidable & HasOpcodeIn(LDA, ADC, SBC, CMP, EOR, AND, ORA, LDX, LDY, CPX, CPY) & RefersToOrUses("__reg", zregIndex) & MatchZpReg(1, zregIndex)) ~~> { (code, ctx) =>
+        List(AssemblyLine.immediate(code.head.opcode, ctx.get[Int](1)))
+      }
+    })
+  )
+
   val All: List[AssemblyOptimization[AssemblyLine]] = List(
     ConstantDecimalMath,
     ConstantMultiplication,
+    ConstantInlinedMultiplication,
+    LoadingKnownValue,
     DeadRegStore,
     DeadRegStoreFromFlow,
     PointlessLoad,

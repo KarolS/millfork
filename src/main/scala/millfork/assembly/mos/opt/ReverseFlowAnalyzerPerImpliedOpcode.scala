@@ -12,7 +12,8 @@ object ReverseFlowAnalyzerPerImpiedOpcode {
     a = Important, ah = Important,
     x = Important, y = Important, iz = Important,
     c = Important, v = Important, d = Important, z = Important, n = Important,
-    m = Important, w = Important)
+    m = Important, w = Important,
+    r0 = Unimportant, r1 = Unimportant, r2 = Unimportant, r3 = Unimportant)
 
   private def allAddingOutputsUnimportant(currentImportance: CpuImportance): Boolean =
     currentImportance.a == Unimportant &&

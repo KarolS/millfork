@@ -193,7 +193,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
       case Some(1) => this.copy(r1 = status)
       case Some(2) => this.copy(r2 = status)
       case Some(3) => this.copy(r3 = status)
-      case None => this
+      case _ => this
     }
   }
 }

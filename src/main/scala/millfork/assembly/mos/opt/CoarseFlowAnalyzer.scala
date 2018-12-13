@@ -5,7 +5,7 @@ import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.OpcodeClasses
 import millfork.assembly.opt.AnyStatus
-import millfork.env.{Label, MemoryAddressConstant, NormalFunction, NumericConstant}
+import millfork.env._
 
 /**
   * @author Karol Stasiak
@@ -71,6 +71,14 @@ object CoarseFlowAnalyzer {
 
           case AssemblyLine(op, Immediate | WordImmediate, NumericConstant(nn, _), _) if FlowAnalyzerForImmediate.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForImmediate.get(op)(nn.toInt, currentStatus)
+
+          case AssemblyLine(op, _, MemoryAddressConstant(th: Thing), _)
+            if th.name == "__reg" &&  FlowAnalyzerForTheRest.hasDefinition(op) =>
+            currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, Some(0))
+
+          case AssemblyLine(op, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(n, _)), _)
+            if th.name == "__reg" &&  FlowAnalyzerForTheRest.hasDefinition(op) =>
+            currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, Some(n.toInt))
 
           case AssemblyLine(op, _, _, _) if FlowAnalyzerForTheRest.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, None)

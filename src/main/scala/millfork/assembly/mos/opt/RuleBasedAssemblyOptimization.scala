@@ -1116,7 +1116,7 @@ case class CallsAnyExcept(identifiers: Set[String]) extends TrivialAssemblyLineP
     (line.addrMode == AddrMode.Absolute ||
       line.addrMode == AddrMode.LongAbsolute ||
       line.addrMode == AddrMode.LongRelative) && (line.parameter match {
-      case MemoryAddressConstant(th) => !identifiers(th.name)
+      case MemoryAddressConstant(th) => th.name.head != '.' && !identifiers(th.name)
       case _ => false
     })
   }

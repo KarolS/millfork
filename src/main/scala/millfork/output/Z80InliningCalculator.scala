@@ -17,7 +17,7 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
   private val badOpcodes = Set(RET, RETI, RETN, CALL, BYTE, POP, PUSH)
   private val jumpingRelatedOpcodes = Set(LABEL, JP, JR)
 
-  override def codeForInlining(fname: String, functionsAlreadyKnownToBeNonInlineable: Set[String], code: List[ZLine]): Option[List[ZLine]] = {
+  override def codeForInlining(fname: String, functionsThatCanBeCalledFromInlinedFunctions: Set[String], code: List[ZLine]): Option[List[ZLine]] = {
     if (code.isEmpty) return None
     code.last match {
       case ZLine(RET, NoRegisters, _, _) =>
@@ -35,7 +35,7 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
       case ZLine(CALL, _, NumericConstant(_, _), _) => false
       case ZLine(JP, OneRegister(_), _, _) => false
       case ZLine(CALL, _, MemoryAddressConstant(th: NormalFunction), _) =>
-        !functionsAlreadyKnownToBeNonInlineable(th.name)
+        !functionsThatCanBeCalledFromInlinedFunctions(th.name)
       case ZLine(op, _, _, _) if jumpingRelatedOpcodes(op) || badOpcodes(op) => true
       case _ => false
     }) return None

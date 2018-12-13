@@ -231,7 +231,7 @@ object ReverseFlowAnalyzer {
           case ZLine(DISCARD_A, _, _, _) =>
             currentImportance = currentImportance.copy(a = Unimportant)
           case ZLine(DISCARD_F, _, _, _) =>
-            currentImportance = currentImportance.copy(cf = Unimportant, zf = Unimportant, sf = Unimportant, pf = Unimportant, hf = Unimportant)
+            currentImportance = currentImportance.copy(cf = Unimportant, zf = Unimportant, sf = Unimportant, pf = Unimportant, hf = Unimportant, nf = Unimportant)
           case ZLine(LD, TwoRegistersOffset(t, s, o), _, _) =>
             currentImportance = currentImportance.butWritesRegister(t, o).butReadsRegister(s, o)
           case ZLine(LD | LD_16, TwoRegisters(t, s), _, _) =>
@@ -448,6 +448,8 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butReadsRegister(r).copy(cf = Unimportant, zf = Unimportant, hf = Unimportant, nf = Unimportant, pf = Unimportant)
           case ZLine(RLA | RRA | RLCA | RRCA, _, _, _) =>
             currentImportance = currentImportance.butReadsRegister(ZRegister.A).copy(cf = Important, hf = Unimportant, nf = Unimportant)
+          case ZLine(SCF, _, _, _) =>
+            currentImportance = currentImportance.copy(cf = Unimportant, hf = Unimportant, nf = Unimportant)
           case _ =>
             currentImportance = finalImportance // TODO
         }

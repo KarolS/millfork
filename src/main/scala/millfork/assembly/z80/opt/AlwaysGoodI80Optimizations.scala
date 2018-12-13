@@ -344,11 +344,11 @@ object AlwaysGoodI80Optimizations {
 
   val SimplifiableMaths = new RuleBasedAssemblyOptimization("Simplifiable maths",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
-    for6Registers(register =>
+    for7Registers(register =>
       (Elidable & HasOpcode(ADD) & MatchRegister(ZRegister.A, 0) & HasRegisterParam(register) & MatchRegister(register, 1) &
         DoesntMatterWhatItDoesWithFlags) ~~> ((code, ctx) => List(ZLine.ldImm8(ZRegister.A, (ctx.get[Int](0) + ctx.get[Int](1)) & 0xff))),
     ),
-    for6Registers(register =>
+    for7Registers(register =>
       (Elidable & HasOpcode(ADD) & MatchRegister(ZRegister.A, 0) & HasRegisterParam(register) & MatchRegister(register, 1)) ~
         (Elidable & HasOpcode(DAA) & DoesntMatterWhatItDoesWithFlags) ~~> {(code, ctx) =>
         List(ZLine.ldImm8(ZRegister.A, asDecimal(ctx.get[Int](0) & 0xff, ctx.get[Int](1) & 0xff, _ + _).toInt & 0xff))
@@ -829,7 +829,7 @@ object AlwaysGoodI80Optimizations {
 
   val UnusedCodeRemoval = new RuleBasedAssemblyOptimization("Unreachable code removal",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
-    (HasOpcodeIn(Set(JP, JR)) & HasRegisters(NoRegisters)) ~ (Not(HasOpcode(LABEL)) & Elidable).+ ~~> (c => c.head :: Nil)
+    (HasOpcodeIn(Set(JP, JR)) & IsUnconditional) ~ (Not(HasOpcode(LABEL)) & Elidable).+ ~~> (c => c.head :: Nil)
   )
 
   val UnusedLabelRemoval = new RuleBasedAssemblyOptimization("Unused label removal",
@@ -1049,7 +1049,9 @@ object AlwaysGoodI80Optimizations {
 
   val ConstantMultiplication = new RuleBasedAssemblyOptimization("Constant multiplication",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & MatchRegister(ZRegister.A, 4)
       & MatchRegister(ZRegister.D, 5)
       & DoesntMatterWhatItDoesWithFlags
@@ -1058,69 +1060,91 @@ object AlwaysGoodI80Optimizations {
       List(ZLine.ldImm8(ZRegister.A, product))
     },
 
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & (HasRegister(ZRegister.D, 0) | HasRegister(ZRegister.A, 0))
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.ldImm8(ZRegister.A, 0))
     },
 
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.D, 1)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       Nil
     },
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.D, 2)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.register(ADD, ZRegister.A))
     },
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.D, 4)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
     },
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.D, 8)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
     },
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.D, 16)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
     },
 
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.A, 1)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.ld8(ZRegister.A, ZRegister.D))
     },
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.A, 2)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A))
     },
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.A, 4)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
     },
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.A, 8)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
     },
-    (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u8u8u8", 0)
       & HasRegister(ZRegister.A, 16)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
@@ -1129,20 +1153,126 @@ object AlwaysGoodI80Optimizations {
 
     (Elidable & Is8BitLoad(D, A)) ~
       (Elidable & Is8BitLoad(A, IMM_8)) ~
-      (Elidable & HasOpcode(CALL) & RefersTo("__mul_u8u8u8", 0)
+      (Elidable & HasOpcode(CALL) & IsUnconditional & RefersTo("__mul_u8u8u8", 0)
         & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       List(code(1).copy(registers = TwoRegisters(D, IMM_8)), code(2))
     },
   )
 
+  val ConstantInlinedShifting = new RuleBasedAssemblyOptimization("Constant multiplication",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    // TODO: set limits on the loop iteration to avoid huge unrolled code
+    // TODO: non-Z80 code without DJNZ
+
+    (Elidable & IsLabelMatching(2) & MatchRegister(ZRegister.B, 1)) ~
+      Where(ctx => ctx.get[Int](1) > 0) ~
+      (Elidable & HasOpcodeIn(Set(ADD, SLA, SRL, SLL, RLC, RLCA, RRC, RRCA, RR, RL, RLA, RRA)) & Not(HasRegisterParam(ZRegister.B))).*.capture(5) ~
+      (Elidable & HasOpcode(DJNZ) & MatchJumpTarget(2) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      val iter = ctx.get[Int](1)
+      val code = ctx.get[List[ZLine]](5)
+      List.fill(iter)(code).flatten :+ ZLine.ldImm8(ZRegister.B, 0)
+    },
+
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & MatchJumpTarget(3) & IsUnconditional & MatchRegister(ZRegister.B, 1)) ~
+      DebugMatching ~
+      (Elidable & IsLabelMatching(2)) ~
+      (Elidable & HasOpcodeIn(Set(ADD, SLA, SRL, SLL, RLC, RLCA, RRC, RRCA, RR, RL, RLA, RRA)) & Not(HasRegisterParam(ZRegister.B))).*.capture(5) ~
+      (Elidable & IsLabelMatching(3)) ~
+      (Elidable & HasOpcode(DJNZ) & MatchJumpTarget(2) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+      val iter = ctx.get[Int](1).-(1).&(0xff)
+      val code = ctx.get[List[ZLine]](5)
+      List.fill(iter)(code).flatten :+ ZLine.ldImm8(ZRegister.B, 0)
+    },
+
+  )
+
+  val ShiftingKnownValue = new RuleBasedAssemblyOptimization("Shifting known value",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    for7Registers(register =>
+      (Elidable & HasOpcode(SLA) & HasRegisterParam(register) & MatchRegister(register, 1) & DoesntMatterWhatItDoesWithFlags) ~~> {(code,ctx) =>
+        val value = ctx.get[Int](1)
+        List(ZLine.ldImm8(register, value.<<(1).&(0xff)))
+      }
+    ),
+
+    (Elidable & HasOpcode(ADD) & HasRegisterParam(ZRegister.A) & MatchRegister(ZRegister.A, 1) & DoesntMatterWhatItDoesWithFlags) ~~> {(code,ctx) =>
+      val value = ctx.get[Int](1)
+      List(ZLine.ldImm8(ZRegister.A, value.<<(1).&(0xff)))
+    },
+
+    (Elidable & HasOpcode(ADD_16) & HasRegisterParam(ZRegister.HL) & MatchRegister(ZRegister.HL, 1) & DoesntMatterWhatItDoesWithFlags) ~~> {(code,ctx) =>
+      val value = ctx.get[Int](1)
+      List(ZLine.ldImm16(ZRegister.HL, value.<<(1).&(0xffff)))
+    },
+
+    for7Registers(register =>
+      (Elidable & HasOpcode(SLA) & HasRegisterParam(register) & MatchRegister(register, 1) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> {(code,ctx) =>
+        val value = ctx.get[Int](1)
+        if (value.&(0x80) != 0) {
+          List(ZLine.ldImm8(register, value.<<(1).&(0xff)), ZLine.implied(SCF))
+        } else {
+          List(ZLine.ldImm8(register, value.<<(1).&(0xff)), ZLine.register(OR, ZRegister.A))
+        }
+      }
+    ),
+
+    for7Registers(register =>
+      (Elidable & HasOpcode(RL) & HasRegisterParam(register) & HasSet(ZFlag.C) & MatchRegister(register, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+        val value = ctx.get[Int](1)
+        List(ZLine.ldImm8(register, value.<<(1).&(0xff).+(1)))
+      }
+    ),
+
+    for7Registers(register =>
+      (Elidable & HasOpcode(RL) & HasRegisterParam(register) & HasClear(ZFlag.C) & MatchRegister(register, 1) & DoesntMatterWhatItDoesWithFlags) ~~> { (code, ctx) =>
+        val value = ctx.get[Int](1)
+        List(ZLine.ldImm8(register, value.<<(1).&(0xff)))
+      }
+    ),
+
+    for7Registers(register =>
+      (Elidable & HasOpcode(RL) & HasRegisterParam(register) & HasSet(ZFlag.C) & MatchRegister(register, 1) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (code, ctx) =>
+        val value = ctx.get[Int](1)
+        if (value.&(0x80) != 0) {
+          List(ZLine.ldImm8(register, value.<<(1).&(0xff).+(1)), ZLine.implied(SCF))
+        } else {
+          List(ZLine.ldImm8(register, value.<<(1).&(0xff).+(1)), ZLine.register(OR, ZRegister.A))
+        }
+      }
+    ),
+
+    for7Registers(register =>
+      (Elidable & HasOpcode(RL) & HasRegisterParam(register) & HasClear(ZFlag.C) & MatchRegister(register, 1) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (code, ctx) =>
+        val value = ctx.get[Int](1)
+        if (value.&(0x80) != 0) {
+          List(ZLine.ldImm8(register, value.<<(1).&(0xff)), ZLine.implied(SCF))
+        } else {
+          List(ZLine.ldImm8(register, value.<<(1).&(0xff)), ZLine.register(OR, ZRegister.A))
+        }
+      }
+    ),
+  )
+
+  val PointlessFlagChange = new RuleBasedAssemblyOptimization("Pointless flag change",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(SCF) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
+    (Elidable & HasOpcode(CCF) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(Set(OR, AND)) & HasRegisterParam(ZRegister.A) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
+  )
+
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
     BranchInPlaceRemoval,
     ConstantMultiplication,
+    ConstantInlinedShifting,
     FreeHL,
     PointlessArithmetic,
+    PointlessFlagChange,
     PointlessLoad,
     PointlessStackStashing,
     ReloadingKnownValueFromMemory,
+    ShiftingKnownValue,
     SimplifiableMaths,
     SimplifiableShifting,
     UnusedCodeRemoval,

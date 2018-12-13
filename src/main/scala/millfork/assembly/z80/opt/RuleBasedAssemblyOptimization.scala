@@ -553,6 +553,11 @@ case class MatchParameter(i: Int) extends AssemblyLinePattern {
     }
 }
 
+case class IsLabelMatching(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.opcode == ZOpcode.LABEL && ctx.addObject(i, line.parameter.quickSimplify)
+}
+
 case class MatchParameterOrNothing(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     ctx.addObject(i, line.parameter.quickSimplify)
@@ -564,6 +569,11 @@ case class MatchJumpTarget(i: Int) extends AssemblyLinePattern {
       case NoRegisters | IfFlagClear(_) | IfFlagSet(_) => ctx.addObject(i, line.parameter.quickSimplify)
       case _ => false
     }
+}
+
+case object IsUnconditional extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers == NoRegisters
 }
 
 case class MatchConstantInHL(i: Int) extends AssemblyLinePattern {

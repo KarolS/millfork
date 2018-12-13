@@ -10,6 +10,7 @@ import millfork.assembly.z80.ZLine
 
 import scala.collection.mutable
 import DecimalUtils._
+import millfork.node.NiceFunctionProperty.IsLeaf
 
 /**
   * @author Karol Stasiak
@@ -186,7 +187,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         else 1.2)
 
     val potentiallyInlineable: Map[String, Int] = inliningResult.potentiallyInlineableFunctions
-    var nonInlineableFunctions: Set[String] = inliningResult.nonInlineableFunctions
+    var functionsThatCanBeCalledFromInlinedFunctions: Set[String] = inliningResult.nonInlineableFunctions
 
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 1, forZpOnly = true)
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = true)
@@ -202,15 +203,21 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val strippedCodeForInlining = for {
           limit <- potentiallyInlineable.get(f)
           if code.map(_.sizeInBytes).sum <= limit
-          s <- inliningCalculator.codeForInlining(f, nonInlineableFunctions, code)
+          s <- inliningCalculator.codeForInlining(f, functionsThatCanBeCalledFromInlinedFunctions, code)
         } yield s
         strippedCodeForInlining match {
           case Some(c) =>
             log.debug("Inlining " + f, function.position)
             inlinedFunctions += f -> c
+            val tmp = mutable.Set[(NiceFunctionProperty, String)]()
+            gatherNiceFunctionProperties(tmp, f, c)
+            if (tmp.exists(_._1 == IsLeaf)) {
+              functionsThatCanBeCalledFromInlinedFunctions += function.name
+            }
             compiledFunctions(f) = NonexistentFunction()
           case None =>
-            nonInlineableFunctions += function.name
+            log.trace("Not inlining " + f, function.position)
+            functionsThatCanBeCalledFromInlinedFunctions += function.name
             compiledFunctions(f) = NormalCompiledFunction(function.declaredBank.getOrElse(platform.defaultCodeBank), code, function.address.isDefined, function.alignment)
             optimizedCodeSize += code.map(_.sizeInBytes).sum
             if (options.flag(CompilationFlag.InterproceduralOptimization)) {

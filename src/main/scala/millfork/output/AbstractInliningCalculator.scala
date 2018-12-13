@@ -12,8 +12,11 @@ import scala.collection.mutable
 /**
   * @author Karol Stasiak
   */
+
+case class InliningResult(potentiallyInlineableFunctions: Map[String, Int], nonInlineableFunctions: Set[String])
+
 abstract class AbstractInliningCalculator[T <: AbstractCode] {
-  def codeForInlining(fname: String, functionsAlreadyKnownToBeNonInlineable: Set[String], code: List[T]): Option[List[T]]
+  def codeForInlining(fname: String, functionsThatCanBeCalledFromInlinedFunctions: Set[String], code: List[T]): Option[List[T]]
   def inline(code: List[T], inlinedFunctions: Map[String, List[T]], jobContext: JobContext): List[T]
 
   private val sizes = Seq(64, 64, 8, 6, 5, 5, 4)

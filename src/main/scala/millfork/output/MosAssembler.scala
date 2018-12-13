@@ -154,13 +154,18 @@ class MosAssembler(program: Program,
       case AssemblyLine(op, _, _, _) => !OpcodeClasses.ReadsD(op) && !OpcodeClasses.OverwritesD(op)
     }
     genericPropertyScan(DoesntReadMemory) {
-      case AssemblyLine(op, _, Implied | Immediate | WordImmediate, _) => true
+      case AssemblyLine(op, Implied | Immediate | WordImmediate, _, _) => true
       case AssemblyLine(op, _, _, _) if OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(op) => false
       case _ => true
     }
     genericPropertyScan(DoesntWriteMemory) {
-      case AssemblyLine(op, _, Implied | Immediate | WordImmediate, _)  => true
+      case AssemblyLine(op, Implied | Immediate | WordImmediate, _, _)  => true
       case AssemblyLine(op, _, _, _) if OpcodeClasses.ChangesMemoryIfNotImplied(op) || OpcodeClasses.ChangesMemoryAlways(op) => false
+      case _ => true
+    }
+    genericPropertyScan(IsLeaf) {
+      case AssemblyLine(JSR | BSR, Implied | Immediate | WordImmediate, _, _)  => false
+      case AssemblyLine(JMP, Absolute, th:Thing, _)  => th.name.startsWith(".")
       case _ => true
     }
   }
