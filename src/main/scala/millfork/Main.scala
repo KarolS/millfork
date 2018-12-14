@@ -403,6 +403,9 @@ object Main {
     flag("-fno-use-index-for-stack").action { c =>
       c.changeFlag(CompilationFlag.UseIyForStack, false).changeFlag(CompilationFlag.UseIxForStack, false)
     }.description("Don't use either IX or IY as base pointer for stack variables (Z80 only)")
+    boolean("-fsoftware-stack", "-fno-software-stack").action { (c, v) =>
+      c.changeFlag(CompilationFlag.SoftwareStack, v)
+    }.description("Use software stack for stack variables (6502 only)")
 
     fluff("", "Optimization options:", "")
 

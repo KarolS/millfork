@@ -15,7 +15,7 @@ object FlowAnalyzerForImplied {
     RTI -> identity,
     SEI -> identity,
     CLI -> identity,
-    TXS -> (_.copy(eqSX = true)),
+    TXS -> (_.copy(eqSX = true, eqSpX = false)),
     PHP -> (_.copy(eqSX = false)),
     PHA -> (_.copy(eqSX = false)),
     PHA_W -> (_.copy(eqSX = false)),
@@ -33,12 +33,12 @@ object FlowAnalyzerForImplied {
     SEC -> (_.copy(c = Status.SingleTrue)),
     CLV -> (_.copy(v = Status.SingleFalse)),
     CLA -> (currentStatus => currentStatus.copy(a = Status.SingleZero, src = currentStatus.src.butNotA)),
-    CLX -> (currentStatus => currentStatus.copy(x = Status.SingleZero, src = currentStatus.src.butNotX)),
+    CLX -> (currentStatus => currentStatus.copy(x = Status.SingleZero, src = currentStatus.src.butNotX, eqSX = false, eqSpX = false)),
     CLY -> (currentStatus => currentStatus.copy(y = Status.SingleZero, src = currentStatus.src.butNotY)),
     XCE -> (_.copy(c = AnyStatus, m = AnyStatus, w = AnyStatus, x = AnyStatus, y = AnyStatus, eqSX = false)),
     PLA -> (_.copy(src = SourceOfNZ.A, a = AnyStatus, n = AnyStatus, z = AnyStatus, eqSX = false)),
-    PLX -> (_.copy(src = SourceOfNZ.X, x = AnyStatus, n = AnyStatus, z = AnyStatus, eqSX = false)),
-    PLX_W -> (_.copy(src = SourceOfNZ.X, x = AnyStatus, n = AnyStatus, z = AnyStatus, eqSX = false)),
+    PLX -> (_.copy(src = SourceOfNZ.X, x = AnyStatus, n = AnyStatus, z = AnyStatus, eqSX = false, eqSpX = false)),
+    PLX_W -> (_.copy(src = SourceOfNZ.X, x = AnyStatus, n = AnyStatus, z = AnyStatus, eqSX = false, eqSpX = false)),
     PLY -> (_.copy(src = SourceOfNZ.Y, y = AnyStatus, n = AnyStatus, z = AnyStatus, eqSX = false)),
     PLY_W -> (_.copy(src = SourceOfNZ.Y, y = AnyStatus, n = AnyStatus, z = AnyStatus, eqSX = false)),
     PLZ -> (_.copy(src = SourceOfNZ.Z, iz = AnyStatus, n = AnyStatus, z = AnyStatus, eqSX = false)),
@@ -57,6 +57,7 @@ object FlowAnalyzerForImplied {
         z = newX.z(),
         x = newX,
         eqSX = false,
+        eqSpX = false,
         src = SourceOfNZ.X)
     }),
     DEX -> (currentStatus => {
@@ -66,6 +67,7 @@ object FlowAnalyzerForImplied {
         z = newX.z(),
         x = newX,
         eqSX = false,
+        eqSpX = false,
         src = SourceOfNZ.X)
     }),
     INY -> (currentStatus => {
@@ -137,6 +139,7 @@ object FlowAnalyzerForImplied {
         z = newX.z().withHiddenHi,
         x = newX,
         eqSX = false,
+        eqSpX = false,
         src = AnyStatus)
     }),
     DEX_W -> (currentStatus => {
@@ -146,6 +149,7 @@ object FlowAnalyzerForImplied {
         z = newX.z().withHiddenHi,
         x = newX,
         eqSX = false,
+        eqSpX = false,
         src = AnyStatus)
     }),
     INY_W -> (currentStatus => {
@@ -192,6 +196,7 @@ object FlowAnalyzerForImplied {
       currentStatus.copy(
         x = currentStatus.a,
         eqSX = false,
+        eqSpX = false,
         n = currentStatus.a.n(),
         z = currentStatus.a.z(),
         src = SourceOfNZ.AX)
@@ -232,6 +237,7 @@ object FlowAnalyzerForImplied {
       currentStatus.copy(
         x = currentStatus.y,
         eqSX = false,
+        eqSpX = false,
         n = currentStatus.y.n(),
         z = currentStatus.y.z(),
         src = SourceOfNZ.XY)
@@ -258,6 +264,7 @@ object FlowAnalyzerForImplied {
         a0 = currentStatus.x.bit0,
         a7 = currentStatus.x.bit7,
         eqSX = false,
+        eqSpX = false,
         x = currentStatus.a)
     }),
     SAY -> (currentStatus => {
@@ -271,6 +278,7 @@ object FlowAnalyzerForImplied {
       currentStatus.copy(
         y = currentStatus.x,
         eqSX = false,
+        eqSpX = false,
         x = currentStatus.y)
     }),
     ASL -> (currentStatus => {
@@ -376,6 +384,7 @@ object FlowAnalyzerForImplied {
       currentStatus.copy(
         x = AnyStatus,
         eqSX = true,
+        eqSpX = false,
         src = SourceOfNZ.X)
     }),
   )

@@ -35,14 +35,18 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     val w = env.get[Type]("word")
     val zpRegisterSize = ctx.options.zpRegisterSize
     lazy val plReg =
-      if (zpRegisterSize > 0) {
+      (if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+        List(
+          AssemblyLine.implied(PLA),
+          AssemblyLine.absolute(STA, ctx.env.get[ThingInMemory]("__sp")))
+      } else Nil) ++ (if (zpRegisterSize > 0) {
         val reg = env.get[VariableInMemory]("__reg")
-        (zpRegisterSize.-(1) to 0 by (-1)).flatMap{ i=>
+        (zpRegisterSize.-(1) to 0 by (-1)).flatMap { i =>
           List(
             AssemblyLine.implied(PLA),
             AssemblyLine.zeropage(STA, reg,i))
         }.toList
-      } else Nil
+      } else Nil)
     val someRegisterA = Some(b, RegisterVariable(MosRegister.A, b))
     val someRegisterAX = Some(w, RegisterVariable(MosRegister.AX, w))
     val someRegisterYA = Some(w, RegisterVariable(MosRegister.YA, w))
@@ -228,9 +232,9 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 ctx.log.error("Cannot return anything from a void function", statement.position)
                 stackPointerFixBeforeReturn(ctx) ++ returnInstructions
               case 1 =>
-                MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx) ++ returnInstructions
+                MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true) ++ returnInstructions
               case 2 =>
-                MosExpressionCompiler.compile(ctx, e, someRegisterAX, NoBranching) ++ stackPointerFixBeforeReturn(ctx) ++ returnInstructions
+                MosExpressionCompiler.compile(ctx, e, someRegisterAX, NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true, preserveX = true) ++ returnInstructions
               case _ =>
                 MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + "`return")) ++
                   stackPointerFixBeforeReturn(ctx) ++ returnInstructions
@@ -242,10 +246,10 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 ctx.log.error("Cannot return anything from a void function", statement.position)
                 stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
               case 1 =>
-                MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
+                MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true) ++ List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
               case 2 =>
                 // TODO: ???
-                val stackPointerFix = stackPointerFixBeforeReturn(ctx)
+                val stackPointerFix = stackPointerFixBeforeReturn(ctx, preserveA = true, preserveY = true)
                 if (stackPointerFix.isEmpty) {
                   MosExpressionCompiler.compile(ctx, e, someRegisterAX, NoBranching) ++ List(AssemblyLine.discardYF()) ++ returnInstructions
                 } else {
@@ -276,38 +280,80 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     }).map(_.positionIfEmpty(statement.position))
   }
 
-  def stackPointerFixBeforeReturn(ctx: CompilationContext): List[AssemblyLine] = {
+  private def stackPointerFixBeforeReturn(ctx: CompilationContext, preserveA: Boolean = false, preserveX: Boolean = false, preserveY: Boolean = false): List[AssemblyLine] = {
     val m = ctx.function
-    if (m.stackVariablesSize == 0) return Nil
-
-    if (m.returnType.size == 0 && m.stackVariablesSize <= 2)
-      return List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLA))
-
-    if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
-      if (m.returnType.size == 1 && m.stackVariablesSize <= 2) {
-        return List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLX))
-      }
-      if (m.returnType.size == 2 && m.stackVariablesSize <= 2) {
-        return List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLY))
-      }
-    }
-
-    if (ctx.options.flag(CompilationFlag.EmitIllegals)) {
-      if (m.returnType.size == 0 && m.stackVariablesSize > 4)
-        return List(
-          AssemblyLine.implied(TSX),
-          AssemblyLine.immediate(LDA, 0xff),
-          AssemblyLine.immediate(SBX, 256 - m.stackVariablesSize),
-          AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
-      if (m.returnType.size == 1 && m.stackVariablesSize > 6)
-        return List(
-          AssemblyLine.implied(TAY),
-          AssemblyLine.implied(TSX),
-          AssemblyLine.immediate(LDA, 0xff),
-          AssemblyLine.immediate(SBX, 256 - m.stackVariablesSize),
-          AssemblyLine.implied(TXS), // this TXS is fine, it won't appear in 65816 code
+    if (m.stackVariablesSize == 0 && m.name != "main") return Nil
+    if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+      // TODO
+      val stackPointer = ctx.env.get[ThingInMemory]("__sp")
+      if (m.name == "main") {
+        List(
+          AssemblyLine.immediate(LDY, 0xff),
+          AssemblyLine.absolute(STY, stackPointer))
+      } else if (m.stackVariablesSize < 3) {
+        List.fill(m.stackVariablesSize)(AssemblyLine.absolute(INC, stackPointer))
+      } else if (!preserveA) {
+        List(AssemblyLine.absolute(LDA, stackPointer),
+          AssemblyLine.implied(CLC),
+          AssemblyLine.immediate(ADC, m.stackVariablesSize),
+          AssemblyLine.absolute(STA, stackPointer))
+      } else if (!preserveY) {
+        List(AssemblyLine.implied(TAY),
+          AssemblyLine.absolute(LDA, stackPointer),
+          AssemblyLine.implied(CLC),
+          AssemblyLine.immediate(ADC, m.stackVariablesSize),
+          AssemblyLine.absolute(STA, stackPointer),
           AssemblyLine.implied(TYA))
+      } else if (!preserveX) {
+        List(AssemblyLine.implied(TAY),
+          AssemblyLine.absolute(LDA, stackPointer),
+          AssemblyLine.implied(CLC),
+          AssemblyLine.immediate(ADC, m.stackVariablesSize),
+          AssemblyLine.absolute(STA, stackPointer),
+          AssemblyLine.implied(TYA))
+      } else ???
+    } else {
+      if (!preserveA && m.stackVariablesSize <= 2)
+        return List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLA))
+
+      if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
+        if (!preserveX && m.stackVariablesSize <= 2) {
+          return List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLX))
+        }
+        if (!preserveY && m.stackVariablesSize <= 2) {
+          return List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLY))
+        }
+      }
+
+      if (ctx.options.flag(CompilationFlag.EmitIllegals) && !preserveX) {
+        // TODO
+        if (!preserveA && m.stackVariablesSize > 4)
+          return List(
+            AssemblyLine.implied(TSX),
+            AssemblyLine.immediate(LDA, 0xff),
+            AssemblyLine.immediate(SBX, 256 - m.stackVariablesSize),
+            AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
+        if (!preserveY && m.stackVariablesSize > 6)
+          return List(
+            AssemblyLine.implied(TAY),
+            AssemblyLine.implied(TSX),
+            AssemblyLine.immediate(LDA, 0xff),
+            AssemblyLine.immediate(SBX, 256 - m.stackVariablesSize),
+            AssemblyLine.implied(TXS), // this TXS is fine, it won't appear in 65816 code
+            AssemblyLine.implied(TYA))
+      }
+      if (!preserveX) {
+        AssemblyLine.implied(TSX) :: (List.fill(m.stackVariablesSize)(AssemblyLine.implied(INX)) :+ AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
+      } else {
+        // TODO: figure out if there's nothing better
+        if (!preserveA) {
+          List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLA))
+        } else if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes) && !preserveY) {
+          List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLY))
+        } else if (!preserveY) {
+          AssemblyLine.implied(TAY) :: (List.fill(m.stackVariablesSize)(AssemblyLine.implied(PLA)) :+ AssemblyLine.implied(TYA))
+        } else ???
+      }
     }
-    AssemblyLine.implied(TSX) :: (List.fill(m.stackVariablesSize)(AssemblyLine.implied(INX)) :+ AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
   }
 }

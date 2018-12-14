@@ -53,6 +53,8 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      r3: Status[Int] = UnknownStatus,
                      src: Status[SourceOfNZ] = UnknownStatus,
                      eqSX: Boolean = false,
+                     eqSpA: Boolean = false,
+                     eqSpX: Boolean = false,
                      z: Status[Boolean] = UnknownStatus,
                      n: Status[Boolean] = UnknownStatus,
                      c: Status[Boolean] = UnknownStatus,
@@ -61,6 +63,8 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
                      m: Status[Boolean] = UnknownStatus,
                      w: Status[Boolean] = UnknownStatus
                     ) {
+  def overwriteSp(sp: Boolean): CpuStatus = if (sp && eqSpX) this.copy(eqSpX = false) else this
+
 //  assert(a ne null)
 //  assert(ah ne null)
 //  assert(x ne null)
@@ -96,7 +100,9 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
 
   override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; R0=$r0,R1=$r1,R2=$r2,R3=$r3; A7=$a7,A0=$a0,NZ:$src" +
     (if (eqSX) "; S=X"
-    else /* */ "     ")
+    else /*-*/ "     ") +
+    (if (eqSpX) "; SP=X"
+    else /*--*/ "      ")
 
   def aw: Status[Int] = (ah, a) match {
     case (SingleStatus(h), SingleStatus(l)) => SingleStatus(h.&(0xff).<<(8).+(l&0xff))
@@ -123,6 +129,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     iz = this.iz ~ that.iz,
     src = this.src ~ that.src,
     eqSX = this.eqSX && that.eqSX,
+    eqSpX = this.eqSpX && that.eqSpX,
     z = this.z ~ that.z,
     n = this.n ~ that.n,
     c = this.c ~ that.c,

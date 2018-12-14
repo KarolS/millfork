@@ -25,14 +25,17 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
       case _ => Nil
     }).map(_.position(ctx.function.position))
     val phReg =
-      if (zpRegisterSize > 0) {
+      (if (zpRegisterSize > 0) {
         val reg = ctx.env.get[VariableInMemory]("__reg")
         (0 until zpRegisterSize).flatMap { i =>
           List(
             AssemblyLine.zeropage(LDA, reg, i),
             AssemblyLine.implied(PHA))
         }.toList.map(_.position(ctx.function.position))
-      } else Nil
+      } else Nil) ++ (
+      if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+        List(AssemblyLine.absolute(LDA, ctx.env.get[ThingInMemory]("__sp")), AssemblyLine.implied(PHA))
+      } else Nil)
 
     val prefix = storeParamsFromRegisters ++ (if (ctx.function.interrupt) {
 
@@ -124,16 +127,36 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
 
   def stackPointerFixAtBeginning(ctx: CompilationContext): List[AssemblyLine] = {
     val m = ctx.function
-    if (m.stackVariablesSize == 0) return Nil
-    if (ctx.options.flag(CompilationFlag.EmitIllegals)) {
-      if (m.stackVariablesSize > 4)
-        return List(
-          AssemblyLine.implied(TSX),
-          AssemblyLine.immediate(LDA, 0xff),
-          AssemblyLine.immediate(SBX, m.stackVariablesSize),
-          AssemblyLine.implied(TXS)).map(_.position(m.position)) // this TXS is fine, it won't appear in 65816 code
+    if (m.stackVariablesSize == 0 && m.name != "main") return Nil
+    if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+      val stackPointer = ctx.env.get[ThingInMemory]("__sp")
+      if (m.name == "main") {
+        List(
+          AssemblyLine.immediate(LDX, 0xff - m.stackVariablesSize),
+          AssemblyLine.absolute(STX, stackPointer)).map(_.position(m.position))
+      } else if (m.stackVariablesSize < 3 || m.stackVariablesSize == 3 && ctx.prologueShouldAvoidA) {
+        List.fill(m.stackVariablesSize)(AssemblyLine.absolute(DEC, stackPointer)).map(_.position(m.position))
+      } else {
+        List(AssemblyLine.absolute(LDA, stackPointer),
+          AssemblyLine.implied(SEC),
+          AssemblyLine.immediate(SBC, m.stackVariablesSize),
+          AssemblyLine.absolute(STA, stackPointer)).map(_.position(m.position))
+      }
+    } else {
+      if (ctx.options.flag(CompilationFlag.EmitIllegals)) {
+        // TODO
+        if (m.stackVariablesSize > 4 && !ctx.prologueShouldAvoidA)
+          return List(
+            AssemblyLine.implied(TSX),
+            AssemblyLine.immediate(LDA, 0xff),
+            AssemblyLine.immediate(SBX, m.stackVariablesSize),
+            AssemblyLine.implied(TXS)).map(_.position(m.position)) // this TXS is fine, it won't appear in 65816 code
+      }
+      if (ctx.prologueShouldAvoidA && ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
+        return List.fill(m.stackVariablesSize)(AssemblyLine.implied(PHX)).map(_.position(m.position))
+      }
+      List.fill(m.stackVariablesSize)(AssemblyLine.implied(PHA)).map(_.position(m.position))
     }
-    List.fill(m.stackVariablesSize)(AssemblyLine.implied(PHA)).map(_.position(m.position))
   }
 
 }

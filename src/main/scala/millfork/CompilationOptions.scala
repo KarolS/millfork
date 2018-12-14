@@ -34,7 +34,7 @@ case class CompilationOptions(platform: Platform,
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.M6502) invalids ++= Set(
       EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
-      PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, LUnixRelocatableCode, RorWarning)
+      PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, LUnixRelocatableCode, RorWarning, SoftwareStack)
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(
       EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitIntel8080Opcodes, EmitEZ80Opcodes,
@@ -189,6 +189,7 @@ case class CompilationOptions(platform: Platform,
       "USES_ZPREG" -> toLong(platform.cpuFamily == CpuFamily.M6502 && zpRegisterSize > 0),
       "USES_IX_STACK" -> toLong(flag(CompilationFlag.UseIxForStack)),
       "USES_IY_STACK" -> toLong(flag(CompilationFlag.UseIyForStack)),
+      "USES_SOFTWARE_STACK" -> toLong(flag(CompilationFlag.SoftwareStack)),
       "USES_SHADOW_REGISTERS" -> toLong(flag(CompilationFlag.UseShadowRegistersForInterrupts)),
       "ZPREG_SIZE" -> (if (platform.cpuFamily == CpuFamily.M6502) zpRegisterSize.toLong else 0)
     )
@@ -306,7 +307,7 @@ object CompilationFlag extends Enumeration {
   EmitIllegals, DecimalMode, ReadOnlyArrays, LenientTextEncoding, LineNumbersInAssembly,
   // compilation options for MOS:
   EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
-  PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator,
+  PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, SoftwareStack,
   // compilation options for I80
   EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, EmitEZ80Opcodes, EmitSharpOpcodes,
   UseShadowRegistersForInterrupts,
@@ -347,6 +348,7 @@ object CompilationFlag extends Enumeration {
     "iy_stack" -> UseIyForStack,
     "ix_scratch" -> UseIxForScratch,
     "iy_scratch" -> UseIyForScratch,
+    "software_stack" -> SoftwareStack,
     "use_shadow_registers_for_irq" -> UseShadowRegistersForInterrupts,
     "output_intel_syntax" -> UseIntelSyntaxForOutput,
     "input_intel_syntax" -> UseIntelSyntaxForInput,

@@ -43,6 +43,25 @@ object EmuSizeOptimizedRun extends EmuRun(
   override def optimizeForSize = true
 }
 
+object EmuOptimizedSoftwareStackRun extends EmuRun(
+  Cpu.StrictMos,
+  OptimizationPresets.NodeOpt,
+  OptimizationPresets.AssOpt ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
+    OptimizationPresets.Good ++
+    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
+    ZeropageRegisterOptimizations.All ++
+    OptimizationPresets.Good ++
+    OptimizationPresets.Good) {
+  override def softwareStack = true
+}
+
 
 object EmuOptimizedZ80Run extends EmuZ80Run(Cpu.Z80, OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForZ80)
 

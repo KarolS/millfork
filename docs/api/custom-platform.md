@@ -80,6 +80,8 @@ Default: the same as `encoding`.
     
     * `iy_scratch` – allow using the IY register for other purposes, default is `false`
     
+    * `software_stach` – use software stack for stack variables, default is `false`
+    
     * `output_intel_syntax` – use Intel syntax instead of Zilog syntax, default is `true` for Intel 8080 and `false` otherwise
 
 

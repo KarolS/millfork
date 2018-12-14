@@ -1,6 +1,6 @@
 package millfork.compiler
 
-import millfork.env.{Environment, Label, NormalFunction}
+import millfork.env.{Environment, Label, NormalFunction, NormalParamSignature}
 import millfork.error.Logger
 import millfork.node.NiceFunctionProperty
 import millfork.{CompilationFlag, CompilationOptions, JobContext}
@@ -42,4 +42,11 @@ case class CompilationContext(env: Environment,
   def log: Logger = options.log
   @inline
   def nextLabel: LabelGenerator = options.nextLabel
+
+  def prologueShouldAvoidA: Boolean = {
+    function.params match {
+      case NormalParamSignature(List(param)) => param.typ.size == 1
+      case _ => false
+    }
+  }
 }

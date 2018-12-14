@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCmosBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuZ80BenchmarkRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuOptimizedSoftwareStackRun, EmuSoftwareStackBenchmarkRun, EmuUnoptimizedZ80Run}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StackVarSuite extends FunSuite with Matchers {
 
   test("Basic stack assignment") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -24,7 +24,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -42,7 +42,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Complex expressions involving stack variables (6502)") {
-    EmuCmosBenchmarkRun("""
+    EmuSoftwareStackBenchmarkRun("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -89,7 +89,7 @@ class StackVarSuite extends FunSuite with Matchers {
 //  }
 
   test("Stack word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   stack word a
@@ -107,7 +107,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
@@ -143,7 +143,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
@@ -175,7 +175,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Complex stack-related stuff") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
         | array id = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         | void main() {
@@ -193,7 +193,7 @@ class StackVarSuite extends FunSuite with Matchers {
 
 
   test("Indexing") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | array output [200] @$c000
         | void main () {
         |   stack byte a
@@ -206,7 +206,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
     test("Double array with stack variables") {
-      EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
         """
           | array output[5]@$c001
           | array input = [0,1,4,9,16,25,36,49]
@@ -220,6 +220,35 @@ class StackVarSuite extends FunSuite with Matchers {
         """.stripMargin){ m=>
         m.readByte(0xc001) should equal (2)
         m.readByte(0xc005) should equal (50)
+      }
+    }
+
+    test("Complex large stacks") {
+      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+//      val m = EmuUnoptimizedZ80Run(
+        """
+          | array output[5]@$c000
+          | noinline byte f(byte y) {
+          |   stack int56 param
+          |   param = y
+          |   param -= 1
+          |   if param == 0 {
+          |     return 1
+          |   }
+          |   return f(param.b0) + 1
+          | }
+          | void main () {
+          |   output[0] = f(7)
+          |   output[1] = f(8)
+          |   output[2] = f(9)
+          |   output[3] = f(2)
+          | }
+          | void _panic(){while(true){}}
+        """.stripMargin) { m =>
+        m.readByte(0xc000) should equal(7)
+        m.readByte(0xc001) should equal(8)
+        m.readByte(0xc002) should equal(9)
+        m.readByte(0xc003) should equal(2)
       }
     }
 }

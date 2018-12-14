@@ -306,7 +306,7 @@ object AlwaysGoodOptimizations {
 
     (HasOpcode(PHA)) ~
       (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
-      (Elidable & XContainsStackPointer & HasOpcode(STA) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
+      (Elidable & XContainsHardwareStackPointer & HasOpcode(STA) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
         case NumericConstant(n, _) => n == 0x101
         case _ => false
       })) ~~> (_.init),
@@ -423,14 +423,14 @@ object AlwaysGoodOptimizations {
     (HasOpcodeIn(LDX, TAX, TSX, INX, DEX) & Elidable) ~ (LinearOrLabel & Not(ConcernsX) & Not(ReadsNOrZ) & Not(HasOpcode(DISCARD_XF))).* ~ HasOpcode(DISCARD_XF) ~~> (_.tail),
     (HasOpcodeIn(LDY, TAY, INY, DEY) & Elidable) ~ (LinearOrLabel & Not(ConcernsY) & Not(ReadsNOrZ) & Not(HasOpcode(DISCARD_YF))).* ~ HasOpcode(DISCARD_YF) ~~> (_.tail),
     (HasOpcode(LDX) & Elidable & MatchAddrMode(3) & MatchParameter(4)) ~
-      (LinearOrLabel & Not(ConcernsX) & Not(ReadsNOrZ) & DoesntChangeMemoryAt(3, 4) & DoesntChangeIndexingInAddrMode(3)).*.capture(1) ~
+      (LinearOrLabel & Not(ConcernsX) & Not(ReadsNOrZ) & DoesntChangeMemoryAtAssumingNonchangingIndices(3, 4) & DoesntChangeIndexingInAddrMode(3)).*.capture(1) ~
       (HasOpcode(TXA) & Elidable) ~
       ((LinearOrLabel & Not(ConcernsX) & Not(HasOpcode(DISCARD_XF))).* ~
         HasOpcode(DISCARD_XF)).capture(2) ~~> { (c, ctx) =>
       ctx.get[List[AssemblyLine]](1) ++ (c.head.copy(opcode = LDA) :: ctx.get[List[AssemblyLine]](2))
     },
     (HasOpcode(LDY) & Elidable & MatchAddrMode(3) & MatchParameter(4)) ~
-      (LinearOrLabel & Not(ConcernsY) & Not(ReadsNOrZ) & DoesntChangeMemoryAt(3, 4) & DoesntChangeIndexingInAddrMode(3)).*.capture(1) ~
+      (LinearOrLabel & Not(ConcernsY) & Not(ReadsNOrZ) & DoesntChangeMemoryAtAssumingNonchangingIndices(3, 4) & DoesntChangeIndexingInAddrMode(3)).*.capture(1) ~
       (HasOpcode(TYA) & Elidable) ~
       ((LinearOrLabel & Not(ConcernsY) & Not(HasOpcode(DISCARD_YF))).* ~
         HasOpcode(DISCARD_YF)).capture(2) ~~> { (c, ctx) =>
@@ -606,19 +606,19 @@ object AlwaysGoodOptimizations {
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(PHA)) ~
-      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAtAssumingNonchangingIndices(0, 1)).* ~
       (Elidable & HasOpcode(PLA)) ~~> { code =>
       code.head :: (code.drop(2).init :+ code.head)
     },
     (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(PHX)) ~
-      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAtAssumingNonchangingIndices(0, 1)).* ~
       (Elidable & HasOpcode(PLX)) ~~> { code =>
       code.head :: (code.drop(2).init :+ code.head)
     },
     (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(PHY)) ~
-      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAtAssumingNonchangingIndices(0, 1)).* ~
       (Elidable & HasOpcode(PLY)) ~~> { code =>
       code.head :: (code.drop(2).init :+ code.head)
     },
@@ -976,16 +976,16 @@ object AlwaysGoodOptimizations {
   val LoadingOfJustWrittenValue = jvmFix(new RuleBasedAssemblyOptimization("Loading of just written value",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
 
-    (HasOpcode(STA) & XContainsStackPointer & HasAddrMode(AbsoluteX) & MatchAddrMode(0) & MatchParameter(1) & MatchA(2) & HasParameterWhere(_ match {
+    (HasOpcode(STA) & XContainsHardwareStackPointer & HasAddrMode(AbsoluteX) & MatchAddrMode(0) & MatchParameter(1) & MatchA(2) & HasParameterWhere(_ match {
       case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
       case _ => false
     })) ~
       (HasOpcode(JSR) |
-        XContainsStackPointer & HasOpcodeIn(INC, DEC, ASL, LSR) & MatchAddrMode(0) & MatchParameter(1) |
-        Linear & XContainsStackPointer & HasAddrMode(AbsoluteX) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
-        Linear & HasAddrMode(AbsoluteX) & Not(MatchParameter(1) & XContainsStackPointer) & Not(ChangesMemory) |
+        XContainsHardwareStackPointer & HasOpcodeIn(INC, DEC, ASL, LSR) & MatchAddrMode(0) & MatchParameter(1) |
+        Linear & XContainsHardwareStackPointer & HasAddrMode(AbsoluteX) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
+        Linear & HasAddrMode(AbsoluteX) & Not(MatchParameter(1) & XContainsHardwareStackPointer) & Not(ChangesMemory) |
         Linear & Not(ChangesS) & DoesntChangeMemoryAt(0, 1) & Not(HasAddrMode(AbsoluteX))).* ~
-      (Elidable & XContainsStackPointer & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, ORA, EOR, AND, CMP) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
+      (Elidable & XContainsHardwareStackPointer & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, ORA, EOR, AND, CMP) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       val oldA = ctx.get[Int](2)
       val ADDR = ctx.get[Constant](1)
       val value = code.foldLeft(oldA) { (prev, line) =>
@@ -1003,20 +1003,20 @@ object AlwaysGoodOptimizations {
     (HasOpcode(STA) & HasAddrMode(Stack) & MatchAddrMode(0) & MatchParameter(1) & MatchA(2)) ~
       (HasOpcode(JSR) |
         Linear & HasAddrMode(Stack) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
-        Linear & Not(ChangesS) & DoesntChangeMemoryAt(0, 1) & Not(HasAddrMode(Stack))).* ~
+        Linear & Not(ChangesS) & DoesntChangeMemoryAt(0, 1) & Not(HasAddrMode(Stack)) & Not(MatchAddrMode(0) & MatchParameter(1))).* ~
       (Elidable & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, ORA, EOR, AND, CMP) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       code.init :+ code.last.copy(addrMode = AddrMode.Immediate, parameter = NumericConstant(ctx.get[Int](2), 1))
     },
 
     (HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1) & MatchA(2)) ~
-      (Linear & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (LinearOrBranch & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAtAssumingNonchangingIndices(0, 1) & Not(MatchAddrMode(0) & MatchParameter(1))).* ~
       (Elidable & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, ORA, EOR, AND, CMP) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       code.init :+ code.last.copy(addrMode = AddrMode.Immediate, parameter = NumericConstant(ctx.get[Int](2), 1))
     },
 
     (HasOpcode(PHA)) ~
       (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
-      (Elidable & XContainsStackPointer & HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.N, State.Z) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
+      (Elidable & XContainsHardwareStackPointer & HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.N, State.Z) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
         case NumericConstant(n, _) => n == 0x101
         case _ => false
       })) ~~> (_.init),
@@ -1030,7 +1030,7 @@ object AlwaysGoodOptimizations {
 
     (HasOpcode(PHA)) ~
       (Linear & Not(ChangesA) & Not(ChangesStack) & Not(ChangesMemory)).* ~
-      (Elidable & XContainsStackPointer & HasOpcode(LDA) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
+      (Elidable & XContainsHardwareStackPointer & HasOpcode(LDA) & HasAddrMode(AbsoluteX) & HasParameterWhere(p => p.quickSimplify match {
         case NumericConstant(n, _) => n == 0x101
         case _ => false
       })) ~~> (code => code.init :+ AssemblyLine.immediate(ORA, 0)),
@@ -1040,7 +1040,13 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(LDA) & HasAddrMode(Stack) & HasParameterWhere(p => p.quickSimplify match {
         case NumericConstant(n, _) => n == 1
         case _ => false
-      })) ~~> (code => code.init :+ AssemblyLine.immediate(ORA, 0))
+      })) ~~> (code => code.init :+ AssemblyLine.immediate(ORA, 0)),
+
+      (HasOpcode(LDX) & RefersTo("__sp", 0)
+        & XContainsSoftwareStackPointer & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
+
+      (HasOpcodeIn(LAX, LDA) & RefersTo("__sp", 0)
+        & XContainsSoftwareStackPointer) ~~> (_ => List(AssemblyLine.implied(TXA))),
   ))
 
   val PointlessStackStore = new RuleBasedAssemblyOptimization("Pointless stack store",
@@ -1048,13 +1054,13 @@ object AlwaysGoodOptimizations {
 
     // TODO: check if JSR is OK
 
-    (Elidable & HasOpcode(STA) & HasAddrMode(AbsoluteX) & XContainsStackPointer & HasParameterWhere(_ match {
+    (Elidable & HasOpcode(STA) & HasAddrMode(AbsoluteX) & XContainsHardwareStackPointer & HasParameterWhere(_ match {
       case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
       case _ => false
     }) & MatchParameter(1)) ~
       (HasOpcode(JSR) |
         Not(ChangesS) & Not(HasOpcodeIn(RTS, RTI)) & Linear & Not(HasAddrMode(AbsoluteX)) |
-        HasAddrMode(AbsoluteX) & XContainsStackPointer & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory))).* ~
+        HasAddrMode(AbsoluteX) & XContainsHardwareStackPointer & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory))).* ~
       HasOpcodeIn(RTS, RTI) ~~> (_.tail),
 
     (Elidable & HasOpcode(STA) & HasAddrMode(AbsoluteX) & HasParameterWhere(_ match {
@@ -1075,14 +1081,14 @@ object AlwaysGoodOptimizations {
       (HasOpcode(JSR) | Linear & Not(HasAddrMode(Stack)) & Not(HasOpcodeIn(RTS, RTI))).* ~
       HasOpcodeIn(RTS, RTI) ~~> (_.tail),
 
-    (HasOpcode(STA) & XContainsStackPointer & HasAddrMode(AbsoluteX) & MatchAddrMode(0) & MatchParameter(1) & HasParameterWhere(_ match {
+    (HasOpcode(STA) & XContainsHardwareStackPointer & HasAddrMode(AbsoluteX) & MatchAddrMode(0) & MatchParameter(1) & HasParameterWhere(_ match {
       case NumericConstant(addr, _) => addr >= 0x100 && addr <= 0x1ff
       case _ => false
     })) ~
       (HasOpcode(JSR) |
-        Linear & XContainsStackPointer & HasAddrMode(AbsoluteX) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
+        Linear & XContainsHardwareStackPointer & HasAddrMode(AbsoluteX) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
         Linear & Not(ChangesS) & Not(HasAddrMode(AbsoluteX)) & DoesNotConcernMemoryAt(0, 1)).* ~
-    (Elidable & XContainsStackPointer & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.tail),
+    (Elidable & XContainsHardwareStackPointer & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.tail),
   )
 
   val IdempotentDuplicateRemoval = new RuleBasedAssemblyOptimization("Idempotent duplicate operation",

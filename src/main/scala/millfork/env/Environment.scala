@@ -1,7 +1,7 @@
 package millfork.env
 
 import millfork.assembly.BranchingOpcodeMapping
-import millfork._
+import millfork.{env, _}
 import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
 import millfork.compiler.LabelGenerator
@@ -1077,11 +1077,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (stmt.register && stmt.address.isDefined) log.error(s"`$name` cannot by simultaneously at an address and in a register", position)
       if (stmt.stack) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
-        baseStackOffset += typ.size
         addThing(v, stmt.position)
         for((suffix, offset, t) <- getSubvariables(typ)) {
           addThing(StackVariable(prefix + name + suffix, t, baseStackOffset + offset), stmt.position)
         }
+        baseStackOffset += typ.size
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
           val alloc =
@@ -1229,6 +1229,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (CpuFamily.forType(options.platform.cpu) == CpuFamily.M6502) {
       if (!things.contains("__constant8")) {
         things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None, b, b, NoAlignment)
+      }
+      if (options.flag(CompilationFlag.SoftwareStack)) {
+        if (!things.contains("__sp")) {
+          things("__sp") = UninitializedMemoryVariable("__sp", b, VariableAllocationMethod.Auto, None, NoAlignment)
+          things("__stack") = UninitializedArray("__stack", 256, None, b, b, WithinPageAlignment)
+        }
       }
     }
   }

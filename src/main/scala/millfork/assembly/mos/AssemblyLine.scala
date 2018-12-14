@@ -421,11 +421,7 @@ object AssemblyLine {
           List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
         case v: VariableInMemory => List(AssemblyLine.absolute(opcode, v.toAddress + offset))
         case v: StackVariable =>
-          if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
-            List(AssemblyLine.stackRelative(opcode, v.baseOffset + offset + ctx.extraStackOffset))
-          } else {
-            List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(opcode, v.baseOffset + offset + ctx.extraStackOffset))
-          }
+          AssemblyLine.tsx(ctx) :+ AssemblyLine.dataStackX(ctx, opcode, v, offset)
       }
     }
 
@@ -459,6 +455,35 @@ object AssemblyLine {
 
   def absoluteX(opcode: Opcode.Value, addr: Int) =
     AssemblyLine(opcode, AddrMode.AbsoluteX, NumericConstant(addr, 2))
+
+  def dataStackX(ctx: CompilationContext, opcode: Opcode.Value, v: StackVariable): AssemblyLine =
+    dataStackX(ctx, opcode, v.baseOffset)
+
+  def dataStackX(ctx: CompilationContext, opcode: Opcode.Value, v: StackVariable, offset: Int): AssemblyLine =
+    dataStackX(ctx, opcode, v.baseOffset + offset)
+
+  def dataStackX(ctx: CompilationContext, opcode: Opcode.Value, offset: Int): AssemblyLine =
+    if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+      val stack = ctx.env.get[ThingInMemory]("__stack")
+      if (offset == 0x108) {
+        println()
+      }
+      AssemblyLine.absoluteX(opcode, stack.toAddress + (offset - 0x100))
+    } else if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+      AssemblyLine.stackRelative(opcode, offset + ctx.extraStackOffset)
+    } else {
+      AssemblyLine.absoluteX(opcode, offset + ctx.extraStackOffset)
+    }
+
+  def tsx(ctx: CompilationContext): List[AssemblyLine] =
+    if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+      val sp = ctx.env.get[ThingInMemory]("__sp")
+      List(AssemblyLine.absolute(LDX, sp))
+    } else if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+      Nil
+    } else {
+      List(AssemblyLine.implied(TSX))
+    }
 
   def absoluteX(opcode: Opcode.Value, addr: Constant) =
     AssemblyLine(opcode, AddrMode.AbsoluteX, addr)

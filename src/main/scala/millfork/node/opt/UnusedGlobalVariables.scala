@@ -47,7 +47,7 @@ object UnusedGlobalVariables extends NodeOptimization {
   }
 
   def getAllReadVariables(expressions: List[Node]): List[String] = expressions.flatMap {
-    case s: VariableDeclarationStatement => getAllReadVariables(s.address.toList) ++ getAllReadVariables(s.initialValue.toList)
+    case s: VariableDeclarationStatement => getAllReadVariables(s.address.toList) ++ getAllReadVariables(s.initialValue.toList) ++ (if (s.stack) List("__sp", "__stack") else Nil)
     case s: ArrayDeclarationStatement => getAllReadVariables(s.address.toList) ++ getAllReadVariables(s.elements.toList)
     case s: ArrayContents => getAllReadVariables(s.getAllExpressions)
     case s: FunctionDeclarationStatement => getAllReadVariables(s.address.toList) ++ getAllReadVariables(s.statements.getOrElse(Nil))

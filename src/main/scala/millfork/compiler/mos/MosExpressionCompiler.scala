@@ -57,24 +57,24 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case StackVariable(_, t, offset) =>
         t.size match {
           case 0 => Nil
-          case 1 => List(
+          case 1 => AssemblyLine.tsx(ctx) ++ List(
+            AssemblyLine.immediate(LDA, expr.loByte),
+            AssemblyLine.dataStackX(ctx, STA, offset))
+          case 2 => AssemblyLine.tsx(ctx) ++ List(
             AssemblyLine.implied(TSX),
             AssemblyLine.immediate(LDA, expr.loByte),
-            AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset))
-          case 2 => List(
-            AssemblyLine.implied(TSX),
-            AssemblyLine.immediate(LDA, expr.loByte),
-            AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset),
+            AssemblyLine.dataStackX(ctx, STA, offset),
             AssemblyLine.immediate(LDA, expr.hiByte),
-            AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset + 1))
-          case s => AssemblyLine.implied(TSX) :: List.tabulate(s)(i => List(
+            AssemblyLine.absoluteX(STA, offset + 1))
+          case s => AssemblyLine.tsx(ctx) ++ List.tabulate(s)(i => List(
             AssemblyLine.immediate(LDA, expr.subbyte(i)),
-            AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset + i))).flatten
+            AssemblyLine.dataStackX(ctx, STA, offset + i))).flatten
         }
     }
   }
 
   def fixTsx(code: List[AssemblyLine]): List[AssemblyLine] = code match {
+    case (access@AssemblyLine0(_, Stack | IndexedSY, p)) :: xs => access.copy(parameter =  (p + 1).quickSimplify) :: fixTsx(xs)
     case (tsx@AssemblyLine0(TSX, _, _)) :: xs => tsx :: AssemblyLine.implied(INX) :: fixTsx(xs)
     case (txs@AssemblyLine0(TXS, _, _)) :: xs => ???
     case x :: xs => x :: fixTsx(xs)
@@ -218,12 +218,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           case 1 =>
             v match {
               case mv: VariableInMemory => AssemblyLine.variable(ctx, store, mv)
-              case sv@StackVariable(_, _, offset) =>
-                if (ctx.options.flags(CompilationFlag.EmitEmulation65816Opcodes)) {
-                  AssemblyLine.implied(transferToA) :: AssemblyLine.stackRelative(STA, offset + ctx.extraStackOffset) :: Nil
-                } else {
-                  AssemblyLine.implied(transferToA) :: AssemblyLine.implied(TSX) :: AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset) :: Nil
-                }
+              case sv: StackVariable =>
+                AssemblyLine.implied(transferToA) :: (AssemblyLine.tsx(ctx) :+ AssemblyLine.dataStackX(ctx, STA, sv))
             }
           case s if s > 1 =>
             v match {
@@ -231,11 +227,13 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 AssemblyLine.variable(ctx, store, mv) ++
                   List(AssemblyLine.immediate(LDA, 0)) ++
                   List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, mv, i + 1)).flatten
-              case sv@StackVariable(_, _, offset) =>
-                AssemblyLine.implied(transferToA) ::
-                  AssemblyLine.implied(TSX) ::
-                  AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset) ::
-                  List.tabulate(s - 1)(i => AssemblyLine.absoluteX(STA, offset + ctx.extraStackOffset + i + 1))
+              case sv: StackVariable =>
+                AssemblyLine.implied(transferToA) :: (
+                  AssemblyLine.tsx(ctx) ++
+                    List(AssemblyLine.dataStackX(ctx, STA, sv), AssemblyLine.immediate(LDA, 0)) ++
+                    List.tabulate(s - 1)(i => AssemblyLine.dataStackX(ctx, STA, sv, i + 1))
+                  )
+
             }
         }
       case IndexedExpression(arrayName, indexExpr) =>
@@ -440,104 +438,99 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       ctx.log.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
-                      val copy = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) :+ AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i))
+                      val copy = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) :+ AssemblyLine.dataStackX(ctx, STA, target, i))
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
-                        signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
+                        signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.dataStackX(ctx, STA, target, i + exprType.size))
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
-                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
+                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.dataStackX(ctx, STA, target, i + exprType.size))
                       }
-                      AssemblyLine.implied(TSX) :: (copy.flatten ++ extend)
+                      AssemblyLine.tsx(ctx) ++ copy.flatten ++ extend
                     }
                 }
               case source@StackVariable(_, sourceType, offset) =>
                 target match {
-                  case RegisterVariable(MosRegister.A, _) => List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset))
-                  case RegisterVariable(MosRegister.X, _) => List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset), AssemblyLine.implied(TAX))
-                  case RegisterVariable(MosRegister.Y, _) => List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(LDY, offset + ctx.extraStackOffset))
+                  case RegisterVariable(MosRegister.A, _) => AssemblyLine.tsx(ctx) :+ AssemblyLine.dataStackX(ctx, LDA, offset)
+                  case RegisterVariable(MosRegister.X, _) => AssemblyLine.tsx(ctx) ++ List(AssemblyLine.dataStackX(ctx, LDA, offset), AssemblyLine.implied(TAX))
+                  case RegisterVariable(MosRegister.Y, _) => AssemblyLine.tsx(ctx) :+ AssemblyLine.dataStackX(ctx, LDY, offset)
                   case RegisterVariable(MosRegister.AX, _) =>
-                    exprType.size match {
+                    AssemblyLine.tsx(ctx) ++ (exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         List(
-                          AssemblyLine.implied(TSX),
-                          AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset),
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
                           AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(
                           AssemblyLine.implied(TAX),
                           AssemblyLine.implied(PLA))
                       } else List(
                         AssemblyLine.implied(TSX),
-                        AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset),
+                        AssemblyLine.dataStackX(ctx, LDA, offset),
                         AssemblyLine.immediate(LDX, 0))
                       case 2 => List(
                         AssemblyLine.implied(TSX),
-                        AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset),
+                        AssemblyLine.dataStackX(ctx, LDA, offset),
                         AssemblyLine.implied(PHA),
-                        AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + 1),
+                        AssemblyLine.dataStackX(ctx, LDA, offset + 1),
                         AssemblyLine.implied(TAX),
                         AssemblyLine.implied(PLA))
-                    }
+                    })
                   case RegisterVariable(MosRegister.AY, _) =>
-                    exprType.size match {
+                    AssemblyLine.tsx(ctx) ++ (exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         val label = ctx.nextLabel("sx")
                         ??? // TODO
                       } else {
                         List(
-                          AssemblyLine.implied(TSX),
-                          AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset),
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
                           AssemblyLine.immediate(LDY, 0))
                       }
                       case 2 => List(
-                        AssemblyLine.implied(TSX),
-                        AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset),
-                        AssemblyLine.absoluteX(LDY, offset + ctx.extraStackOffset + 1))
-                    }
+                        AssemblyLine.dataStackX(ctx, LDA, offset),
+                        AssemblyLine.dataStackX(ctx, LDY, offset + 1))
+                    })
                   case RegisterVariable(MosRegister.XA, _) =>
                     ??? // TODO
                   case RegisterVariable(MosRegister.YA, _) =>
-                    exprType.size match {
+                    AssemblyLine.tsx(ctx) ++ (exprType.size match {
                       case 1 => if (exprType.isSigned) {
                         val label = ctx.nextLabel("sx")
                         ??? // TODO
                       } else {
                         List(
-                          AssemblyLine.implied(TSX),
-                          AssemblyLine.absoluteX(LDY, offset + ctx.extraStackOffset),
+                          AssemblyLine.dataStackX(ctx, LDY, offset),
                           AssemblyLine.immediate(LDA, 0))
                       }
                       case 2 => List(
-                        AssemblyLine.implied(TSX),
-                        AssemblyLine.absoluteX(LDY, offset + ctx.extraStackOffset),
-                        AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + 1))
-                    }
+                        AssemblyLine.dataStackX(ctx, LDY, offset),
+                        AssemblyLine.dataStackX(ctx, LDA, offset + 1))
+                    })
                   case target: VariableInMemory =>
                     if (exprType.size > target.typ.size) {
                       ctx.log.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
-                      val copy = List.tabulate(exprType.size)(i => AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i) :: AssemblyLine.variable(ctx, STA, target, i))
+                      val copy = List.tabulate(exprType.size)(i => AssemblyLine.dataStackX(ctx, LDA, offset + i) :: AssemblyLine.variable(ctx, STA, target, i))
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
                         signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
                           List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.variable(ctx, STA, target, i + exprType.size)).flatten
                       }
-                      AssemblyLine.implied(TSX) :: (copy.flatten ++ extend)
+                      AssemblyLine.tsx(ctx) ++ copy.flatten ++ extend
                     }
                   case target: StackVariable =>
                     if (exprType.size > target.typ.size) {
                       ctx.log.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
                     } else {
-                      val copyFromLo = List.tabulate(exprType.size)(i => List(AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset + i), AssemblyLine.absoluteX(STA, target.baseOffset + i)))
+                      val copyFromLo = List.tabulate(exprType.size)(i => List(AssemblyLine.dataStackX(ctx, LDA, offset + i), AssemblyLine.dataStackX(ctx, STA, target, i)))
                       val copy = if (shouldCopyFromHiToLo(NumericConstant(source.baseOffset, 2), NumericConstant(target.baseOffset, 2))) copyFromLo.reverse else copyFromLo
                       val extend = if (exprType.size == target.typ.size) Nil else if (exprType.isSigned) {
-                        signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
+                        signExtendA(ctx) ++ List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.dataStackX(ctx, STA, target, i + exprType.size))
                       } else {
                         AssemblyLine.immediate(LDA, 0) ::
-                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.absoluteX(STA, target.baseOffset + ctx.extraStackOffset + i + exprType.size))
+                          List.tabulate(target.typ.size - exprType.size)(i => AssemblyLine.dataStackX(ctx, STA, target, i + exprType.size))
                       }
-                      AssemblyLine.implied(TSX) :: (copy.flatten ++ extend)
+                      AssemblyLine.tsx(ctx) ++ copy.flatten ++ extend
                     }
                 }
               case source@ConstantThing(_, value, _) =>
@@ -710,8 +703,13 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   ctx.log.error(s"Variable `$target.name` cannot hold a word", expr.position)
                   Nil
                 case 2 =>
-                  compile(ctx, l, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset)), branches) ++
-                    compile(ctx, h, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset + 1)), branches)
+                  if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+                    compile(ctx, l, Some(b -> StackVariable("", b, target.baseOffset)), branches) ++
+                      compile(ctx, h, Some(b -> StackVariable("", b, target.baseOffset + 1)), branches)
+                  } else {
+                    compile(ctx, l, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset)), branches) ++
+                      compile(ctx, h, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset + 1)), branches)
+                  }
               }
           }
         }
@@ -1257,21 +1255,19 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case (t, v: StackVariable) => t.size match {
         case 1 => v.typ.size match {
           case 1 =>
-            List(AssemblyLine.implied(TSX), AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset))
+            AssemblyLine.tsx(ctx) :+ AssemblyLine.dataStackX(ctx, STA, v)
           case s if s > 1 =>
-            if (t.isSigned) {
+            AssemblyLine.tsx(ctx) ++ (if (t.isSigned) {
               List(
-                AssemblyLine.implied(TSX),
-                AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset)) ++
+                AssemblyLine.dataStackX(ctx, STA, v.baseOffset)) ++
                 signExtendA(ctx) ++
-                List.tabulate(s - 1)(i => AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset + i + 1))
+                List.tabulate(s - 1)(i => AssemblyLine.dataStackX(ctx, STA, v, i + 1))
             } else {
               List(
-                AssemblyLine.implied(TSX),
-                AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset),
+                AssemblyLine.dataStackX(ctx, STA, v.baseOffset),
                 AssemblyLine.immediate(LDA, 0)) ++
-                List.tabulate(s - 1)(i => AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset + i + 1))
-            }
+                List.tabulate(s - 1)(i => AssemblyLine.dataStackX(ctx, STA, v, i + 1))
+            })
         }
         case 2 => v.typ.size match {
           case 1 =>
@@ -1280,11 +1276,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           case 2 =>
             List(
               AssemblyLine.implied(TAY),
-              AssemblyLine.implied(TXA),
-              AssemblyLine.implied(TSX),
-              AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset + 1),
+              AssemblyLine.implied(TXA)) ++ AssemblyLine.tsx(ctx) ++ List(
+              AssemblyLine.dataStackX(ctx, STA, v, 1),
               AssemblyLine.implied(TYA),
-              AssemblyLine.absoluteX(STA, v.baseOffset + ctx.extraStackOffset))
+              AssemblyLine.dataStackX(ctx, STA, v))
           case s if s > 2 => ???
         }
       }

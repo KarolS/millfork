@@ -50,7 +50,11 @@ The implementation depends on the target architecture:
 
 * on 6502, the stack pointer is transferred into the X register and used as a base
 
-* on 65818, the native stack-based addressing mode is used, similar to 6502, just without clobbering X
+* on 65816, the native stack-based addressing mode is used, similar to 6502, just without clobbering X
+
+* alternatively, on both 6502 and 65816, you can use a software-based stack for stack variables:
+    it's implemented as a separate 256-byte memory area plus a single byte for the stack pointer,
+    exclusively for local stack variables; using it can help against stack overflows
 
 * on 8080 and LR35902, the address is calculated from the stackpointer into the HL register pair
 

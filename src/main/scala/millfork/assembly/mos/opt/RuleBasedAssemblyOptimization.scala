@@ -256,7 +256,7 @@ object HelperCheckers {
   private val badAddrModes = Set(IndexedX, IndexedY, IndexedZ, LongIndexedY, LongIndexedZ, IndexedSY, Indirect, TripleAbsolute, Stack)
   private val goodAddrModes = Set(Implied, Immediate, WordImmediate, Relative, LongRelative)
 
-  def memoryAccessDoesntOverlap(l1: AssemblyLine, l2: AssemblyLine): Boolean = {
+  def memoryAccessDoesntOverlap(l1: AssemblyLine, l2: AssemblyLine, assumeSameIndices: Boolean = false): Boolean = {
     val a1 = l1.addrMode
     val a2 = l2.addrMode
     if (goodAddrModes(a1) || goodAddrModes(a2)) return true
@@ -270,14 +270,17 @@ object HelperCheckers {
     def distinctThings(a: String, b: String): Boolean = {
       if (a == "__reg") return b != "__reg"
       if (b == "__reg") return a != "__reg"
+      if (a == "__sp") return b != "__sp"
+      if (b == "__sp") return a != "__sp"
       a.takeWhile(_ != '.') != b.takeWhile(_ != '.')
     }
 
     def handleKnownDistance(distance: Short): Boolean = {
       // `distance` is the distance between the first byte that can be addressed by l1 (b1) and the first byte that can be addressed by l2 (b2): (b2-b1)
       val indexingAddrModes = Set(AbsoluteIndexedX, AbsoluteX, ZeroPageX, AbsoluteY, ZeroPageY, LongAbsoluteX)
-      val a1Indexing = indexingAddrModes(a1)
-      val a2Indexing = indexingAddrModes(a2)
+      val indicesCancelOut = assumeSameIndices && a1 == a2
+      val a1Indexing = indexingAddrModes(a1) && !indicesCancelOut
+      val a2Indexing = indexingAddrModes(a2) && !indicesCancelOut
       (a1Indexing, a2Indexing) match {
         case (false, false) => distance != 0 && (distance != 1 || !w1) && (distance != -1 || !w2)
         case (true, false) => distance > 255 || distance < 0 && (distance != 256 || !w1) && (distance != -1 || !w2)
@@ -624,12 +627,20 @@ case class HasSet(state: State.Value) extends AssemblyLinePattern {
     flowInfo.hasSet(state)
 }
 
-case object XContainsStackPointer extends AssemblyLinePattern {
+case object XContainsHardwareStackPointer extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertForward(needsFlowInfo)
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
     flowInfo.statusBefore.eqSX
+}
+
+case object XContainsSoftwareStackPointer extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    flowInfo.statusBefore.eqSpX
 }
 
 case class HasSourceOfNZ(state: State.Value) extends AssemblyLinePattern {
@@ -1004,6 +1015,23 @@ case class DoesntChangeMemoryAt(addrMode1: Int, param1: Int, opcode: Opcode.Valu
         // TODO: NOP
         // this will break if the actual instruction was 16-bit
         !changesSomeMemory || HelperCheckers.memoryAccessDoesntOverlap(AssemblyLine(opcode, a1, p1), line)
+    }
+  }
+}
+
+case class DoesntChangeMemoryAtAssumingNonchangingIndices(addrMode1: Int, param1: Int, opcode: Opcode.Value = Opcode.NOP) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {
+    import AddrMode._
+    import Opcode._
+    line match {
+      case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => !ctx.functionChangesMemory(th.name)
+      case _ =>
+        val p1 = ctx.get[Constant](param1)
+        val a1 = ctx.get[AddrMode.Value](addrMode1)
+        val changesSomeMemory = OpcodeClasses.ChangesMemoryAlways(line.opcode) || line.addrMode != AddrMode.Implied && OpcodeClasses.ChangesMemoryIfNotImplied(line.opcode)
+        // TODO: NOP
+        // this will break if the actual instruction was 16-bit
+        !changesSomeMemory || HelperCheckers.memoryAccessDoesntOverlap(AssemblyLine(opcode, a1, p1), line, assumeSameIndices = true)
     }
   }
 }

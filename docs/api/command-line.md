@@ -126,6 +126,10 @@ Allow using the IX register for other purposes.
 Allow using the IY register for other purposes.
 `.ini` equivalent: `iy_scratch`. Default: no.
 
+* `-fsoftware-stack`, `-fno-software-stack` –
+Use a software stack for stack variables.
+`.ini` equivalent: `software_stack`. Default: no.
+
 ## Optimization options
 
 * `-O0` – Disable all optimizations.

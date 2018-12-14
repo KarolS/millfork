@@ -25,6 +25,30 @@ object EmuBenchmarkRun {
   }
 }
 
+object EmuSoftwareStackBenchmarkRun {
+  def apply(source: String)(verifier: MemoryBank => Unit): Unit = {
+    val (Timings(t0, _), m0) = EmuUnoptimizedRun.apply2(source)
+    val (Timings(t1, _), m1) = EmuOptimizedRun.apply2(source)
+    val (Timings(t2, _), m2) = EmuOptimizedInlinedRun.apply2(source)
+    val (Timings(t3, _), m3) = EmuOptimizedSoftwareStackRun.apply2(source)
+    println(f"Before optimization:  $t0%7d")
+    println(f"After optimization:   $t1%7d")
+    println(f"After inlining:       $t2%7d")
+    println(f"After software stack: $t3%7d")
+    println(f"Gain:               ${(100L * (t0 - t1) / t0.toDouble).round}%7d%%")
+    println(f"Gain with inlining: ${(100L * (t0 - t2) / t0.toDouble).round}%7d%%")
+    println(f"Gain with SW stack: ${(100L * (t0 - t3) / t0.toDouble).round}%7d%%")
+    println(f"Running 6502 unoptimized")
+    verifier(m0)
+    println(f"Running 6502 optimized")
+    verifier(m1)
+    println(f"Running 6502 optimized inlined")
+    verifier(m2)
+    println(f"Running 6502 optimized with software stack")
+    verifier(m3)
+  }
+}
+
 object EmuZ80BenchmarkRun {
   def apply(source: String)(verifier: MemoryBank => Unit): Unit = {
     val (Timings(t0, _), m0) = EmuUnoptimizedZ80Run.apply2(source)
@@ -88,6 +112,9 @@ object EmuCrossPlatformBenchmarkRun {
       throw new RuntimeException("Dude, test at least one platform")
     }
     if (platforms.contains(millfork.Cpu.Mos)) {
+      EmuBenchmarkRun.apply(source)(verifier)
+    }
+    if (platforms.contains(millfork.Cpu.StrictMos)) {
       EmuBenchmarkRun.apply(source)(verifier)
     }
     if (platforms.contains(millfork.Cpu.Ricoh)) {

@@ -60,6 +60,8 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `USES_SHADOW_REGISTERS` – 1 if interrupts preserve old registers in the shadow registers, 0 otherwise
 
+* `USES_SOFTWARE_STACK` – 1 if using software stack for variables, 0 otherwise
+
 ### Commonly used features
 
 * `WIDESCREEN` – 1 if the horizontal screen resolution, ignoring borders, is greater than 256, 0 otherwise
