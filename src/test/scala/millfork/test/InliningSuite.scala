@@ -59,4 +59,24 @@ class InliningSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(6.<<(6).>>(8))
     }
   }
+
+  test("Should inline this even weirder thing") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output@$c000
+        | inline word square(word x) {
+        |   byte shiftAmount
+        |   shiftAmount = x.lo
+        |   return x << shiftAmount
+        | }
+        | inline void pokeSquared(byte x)  {
+        |   output = hi(square(x))
+        | }
+        | void main() {
+        |   pokeSquared(6)
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(6.<<(6).>>(8))
+    }
+  }
 }

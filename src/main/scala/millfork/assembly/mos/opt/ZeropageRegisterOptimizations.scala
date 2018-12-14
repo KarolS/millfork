@@ -164,14 +164,22 @@ object ZeropageRegisterOptimizations {
     (Elidable & HasOpcodeIn(STA, STX, SAX, STY, STZ) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1)) ~~> (_.tail),
     (Elidable & HasOpcodeIn(STA, STX, SAX, STY, STZ) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2)) ~~> (_.tail),
     (Elidable & HasOpcodeIn(STA, STX, SAX, STY, STZ) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3)) ~~> (_.tail),
-    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.tail),
-    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.tail),
-    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.tail),
-    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.tail),
-    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.tail),
-    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.tail),
-    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.tail),
-    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.tail),
+    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR, INC, DEC) & RefersTo("__reg", 0) & Not(DoesntMatterWhatItDoesWithReg(0))).* ~
+      (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR, INC, DEC) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR, INC, DEC) & RefersTo("__reg", 1) & Not(DoesntMatterWhatItDoesWithReg(1))).* ~
+      (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR, INC, DEC) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR, INC, DEC) & RefersTo("__reg", 2) & Not(DoesntMatterWhatItDoesWithReg(2))).* ~
+      (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR, INC, DEC) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR, INC, DEC) & RefersTo("__reg", 3) & Not(DoesntMatterWhatItDoesWithReg(3))).* ~
+      (Elidable & HasOpcodeIn(ROL, ROR, ASL, LSR, INC, DEC) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 0) & Not(DoesntMatterWhatItDoesWithReg(0))).* ~
+      (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 0) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 1) & Not(DoesntMatterWhatItDoesWithReg(1))).* ~
+      (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWithReg(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 2) & Not(DoesntMatterWhatItDoesWithReg(2))).* ~
+      (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 2) & DoesntMatterWhatItDoesWithReg(2) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
+    (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 3) & Not(DoesntMatterWhatItDoesWithReg(3))).* ~
+      (Elidable & HasOpcodeIn(INC, DEC) & RefersTo("__reg", 3) & DoesntMatterWhatItDoesWithReg(3) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_ => Nil),
 
     (Elidable & HasOpcode(LDY) & RefersTo("__reg", 0)) ~
       (Linear & Not(ConcernsY) & Not(RefersToOrUses("__reg", 0))).*.capture(2) ~
