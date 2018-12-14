@@ -19,6 +19,14 @@ object Z80Multiply {
   }
 
   /**
+    * Compiles A = A * DE
+    */
+  private def multiplication16And8(ctx: CompilationContext): List[ZLine] = {
+    List(ZLine(ZOpcode.CALL, NoRegisters,
+      ctx.env.get[ThingInMemory]("__mul_u16u8u16").toAddress))
+  }
+
+  /**
     * Calculate A = l * r
     */
   def compile8BitMultiply(ctx: CompilationContext, params: List[Expression]): List[ZLine] = {
@@ -89,6 +97,21 @@ object Z80Multiply {
           rb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ load
         }
         loadRegisters ++ multiplication(ctx) ++ store
+    }
+  }
+
+  /**
+    * Calculate A = l * r
+    */
+  def compile16And8BitInPlaceMultiply(ctx: CompilationContext, l: LhsExpression, r: Expression): List[ZLine] = {
+    ctx.env.eval(r) match {
+      case Some(c) =>
+        Z80ExpressionCompiler.compileToDE(ctx, l) ++ List(ZLine.ldImm8(ZRegister.A, c)) ++ multiplication16And8(ctx) ++ Z80ExpressionCompiler.storeHL(ctx, l, signedSource = false)
+      case _ =>
+        val lw = Z80ExpressionCompiler.compileToDE(ctx, l)
+        val rb = Z80ExpressionCompiler.compileToA(ctx, r)
+        val loadRegisters = lw ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, rb)
+        loadRegisters ++ multiplication16And8(ctx) ++ Z80ExpressionCompiler.storeHL(ctx, l, signedSource = false)
     }
   }
 

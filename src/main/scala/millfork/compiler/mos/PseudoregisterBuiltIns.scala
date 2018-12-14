@@ -326,6 +326,49 @@ object PseudoregisterBuiltIns {
     load ++ calculate
   }
 
+  def compileWordMultiplication(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean): List[AssemblyLine] = {
+    if (ctx.options.zpRegisterSize < 3) {
+      ctx.log.error("Variable word multiplication requires the zeropage pseudoregister of size at least 3", param1OrRegister.flatMap(_.position))
+      return Nil
+    }
+    val b = ctx.env.get[Type]("byte")
+    val w = ctx.env.get[Type]("word")
+    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val load: List[AssemblyLine] = param1OrRegister match {
+      case Some(param1) =>
+        val code1 = MosExpressionCompiler.compile(ctx, param1, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+        val code2 = MosExpressionCompiler.compile(ctx, param2, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
+        if (!usesRegLo(code2) && !usesRegHi(code2)) {
+          code1 ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 2))
+        } else if (!usesReg2(code1)) {
+          code2 ++ List(AssemblyLine.zeropage(STA, reg, 2)) ++ code1 ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1))
+        } else {
+          code2 ++ List(AssemblyLine.implied(PHA)) ++ code1 ++ List(
+            AssemblyLine.zeropage(STA, reg),
+            AssemblyLine.zeropage(STX, reg, 1),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 2)
+          )
+        }
+      case None =>
+        val code2 = MosExpressionCompiler.compile(ctx, param2, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
+        if (!usesRegLo(code2) && !usesRegHi(code2)) {
+          List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 2))
+        } else {
+          List(AssemblyLine.implied(PHA), AssemblyLine.implied(TXA), AssemblyLine.implied(PHA)) ++ code2 ++ List(
+            AssemblyLine.zeropage(STA, reg, 2),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 1),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg)
+          )
+        }
+    }
+    val calculate = AssemblyLine.absoluteOrLongAbsolute(JSR, ctx.env.get[FunctionInMemory]("__mul_u16u8u16"), ctx.options) ::
+      (if (storeInRegLo) List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) else Nil)
+    load ++ calculate
+  }
+
   private def simplicity(env: Environment, expr: Expression): Char = {
     val constPart = env.eval(expr) match {
       case Some(NumericConstant(_, _)) => 'Z'
@@ -351,6 +394,12 @@ object PseudoregisterBuiltIns {
   def usesRegHi(code: List[AssemblyLine]): Boolean = code.forall{
     case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
     case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _))) if th.name == "__reg" => true
+    case _ => false
+  }
+
+  def usesReg2(code: List[AssemblyLine]): Boolean = code.forall{
+    case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
+    case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(2, _))) if th.name == "__reg" => true
     case _ => false
   }
 }

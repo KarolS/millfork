@@ -12,6 +12,7 @@ object ZeropageRegisterOptimizations {
 
   val functionsThatUsePseudoregisterAsInput: Map[String, Set[Int]] = Map(
     "__mul_u8u8u8" -> Set(0, 1),
+    "__mul_u16u8u16" -> Set(0, 1, 2),
     "__adc_decimal" -> Set(2, 3),
     "__sbc_decimal" -> Set(2, 3),
     "__sub_decimal" -> Set(2, 3))

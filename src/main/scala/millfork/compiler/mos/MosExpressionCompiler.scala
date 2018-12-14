@@ -1029,9 +1029,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "*=" =>
-            assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
-            val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
-            BuiltIns.compileInPlaceByteMultiplication(ctx, l, r)
+            assertSizesForMultiplication(ctx, params)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 =>
+                BuiltIns.compileInPlaceByteMultiplication(ctx, l, r)
+              case 2 =>
+                BuiltIns.compileInPlaceWordMultiplication(ctx, l, r)
+            }
           case "*'=" =>
             assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
             val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)

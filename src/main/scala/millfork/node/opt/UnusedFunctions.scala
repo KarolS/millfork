@@ -12,7 +12,9 @@ object UnusedFunctions extends NodeOptimization {
 
   private val operatorImplementations: List[(String, Int, String)] = List(
     ("*", 2, "__mul_u8u8u8"),
+    ("*", 3, "__mul_u16u8u16"),
     ("*=", 2, "__mul_u8u8u8"),
+    ("*=", 2, "__mul_u16u8u16"),
     ("+'", 4, "__adc_decimal"),
     ("+'=", 4, "__adc_decimal"),
     ("-'", 4, "__sub_decimal"),

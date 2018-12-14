@@ -17,3 +17,29 @@ __mul_u8u8u8_start:
     ? BNE __mul_u8u8u8_loop
     ? RTS
 }
+
+#if ZPREG_SIZE >= 3
+
+asm byte __mul_u16u8u16() {
+    ? LDA #0
+    ? TAX
+    ? JMP __mul_u16u8u16_start
+__mul_u16u8u16_add:
+    ? CLC
+    ? ADC __reg
+    ? TAY
+    ? TXA
+    ? ADC __reg + 1
+    ? TAX
+    ? TYA
+__mul_u16u8u16_loop:
+    ? ASL __reg
+    ? ROL __reg + 1
+__mul_u16u8u16_start:
+    ? LSR __reg + 2
+    ? BCS __mul_u16u8u16_add
+    ? BNE __mul_u16u8u16_loop
+    ? RTS
+}
+
+#endif

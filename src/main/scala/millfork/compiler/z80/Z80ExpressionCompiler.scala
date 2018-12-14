@@ -746,9 +746,14 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case _ => Z80DecimalBuiltIns.compileInPlaceShiftRight(ctx, l, r, size)
                 }
               case "*=" =>
-                assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
-                val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
-                Z80Multiply.compile8BitInPlaceMultiply(ctx, l, r)
+                assertSizesForMultiplication(ctx, params)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+                size match {
+                  case 1 =>
+                    Z80Multiply.compile8BitInPlaceMultiply(ctx, l, r)
+                  case 2 =>
+                    Z80Multiply.compile16And8BitInPlaceMultiply(ctx, l, r)
+                }
               case "*'=" =>
                 assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
                 val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)

@@ -185,6 +185,7 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 * `*=`: multiplication in place  
 `mutable byte *= constant byte`  
 `mutable byte *= byte` (zpreg)
+`mutable word *= unsigned byte` (zpreg)
 
 * `*'=`: decimal multiplication in place  
 `mutable byte *'= constant byte`

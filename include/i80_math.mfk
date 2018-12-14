@@ -49,3 +49,28 @@ inline asm byte __mul_u8u8u8() {
 }
 
 #endif
+
+inline asm word __mul_u16u8u16() {
+    ? LD HL,0
+    ? LD B,8
+__mul_u16u8u16_loop:
+    ? ADD HL,HL
+    ? ADC A,A
+#if CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
+    ? JR NC,__mul_u16u8u16_skip
+#else
+    ? JP NC,__mul_u16u8u16_skip
+#endif
+    ? ADD HL,DE
+__mul_u16u8u16_skip:
+#if CPUFEATURE_Z80
+    ? DJNZ __mul_u16u8u16_loop
+#elseif CPUFEATURE_GAMEBOY
+    ? DEC B
+    ? JR NZ,__mul_u16u8u16_loop
+#else
+    ? DEC B
+    ? JP NZ,__mul_u16u8u16_loop
+#endif
+    ? RET
+}

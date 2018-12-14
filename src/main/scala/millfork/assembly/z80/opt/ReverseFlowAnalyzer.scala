@@ -175,11 +175,11 @@ case class CpuImportance(a: Importance = UnknownImportance,
 
 object ReverseFlowAnalyzer {
 
-  val readsA = Set("__mul_u8u8u8")
+  val readsA = Set("__mul_u8u8u8", "__mul_u16u8u16")
   val readsB = Set("")
   val readsC = Set("")
-  val readsD = Set("__mul_u8u8u8")
-  val readsE = Set("")
+  val readsD = Set("__mul_u8u8u8","__mul_u16u8u16")
+  val readsE = Set("__mul_u16u8u16")
   val readsH = Set("")
   val readsL = Set("")
 

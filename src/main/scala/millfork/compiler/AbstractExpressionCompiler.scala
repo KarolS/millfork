@@ -45,6 +45,23 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     params.map { case (_, expr) => getExpressionType(ctx, expr).size}.max
   }
 
+  def assertSizesForMultiplication(ctx: CompilationContext, params: List[Expression]): Unit = {
+    assertAllArithmetic(ctx, params)
+    //noinspection ZeroIndexToHead
+    val lSize = getExpressionType(ctx, params(0)).size
+    val rType = getExpressionType(ctx, params(1))
+    val rSize = rType.size
+    if (lSize != 1 && lSize != 2) {
+      ctx.log.fatal("Long multiplication not supported", params.head.position)
+    }
+    if (rSize != 1) {
+      ctx.log.fatal("Long multiplication not supported", params.head.position)
+    }
+    if (rType.isSigned) {
+      ctx.log.fatal("Signed multiplication not supported", params.head.position)
+    }
+  }
+
   def assertAllArithmeticBytes(msg: String, ctx: CompilationContext, params: List[Expression]): Unit = {
     assertAllArithmetic(ctx, params)
     if (params.exists { expr => getExpressionType(ctx, expr).size != 1 }) {

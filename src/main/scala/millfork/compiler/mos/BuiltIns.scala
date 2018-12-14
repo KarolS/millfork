@@ -831,6 +831,21 @@ object BuiltIns {
     }
   }
 
+  def compileInPlaceWordMultiplication(ctx: CompilationContext, v: LhsExpression, addend: Expression): List[AssemblyLine] = {
+    val b = ctx.env.get[Type]("byte")
+    val w = ctx.env.get[Type]("word")
+    ctx.env.eval(addend) match {
+      case Some(NumericConstant(0, _)) =>
+        MosExpressionCompiler.compile(ctx, v, None, NoBranching) ++ MosExpressionCompiler.compileAssignment(ctx, LiteralExpression(0, 2), v)
+      case Some(NumericConstant(1, _)) =>
+        MosExpressionCompiler.compile(ctx, v, None, NoBranching)
+      case _ =>
+        // TODO: optimize?
+        PseudoregisterBuiltIns.compileWordMultiplication(ctx, Some(v), addend, storeInRegLo = true) ++
+          MosExpressionCompiler.compileAssignment(ctx, VariableExpression("__reg.loword"), v)
+    }
+  }
+
   def compileByteMultiplication(ctx: CompilationContext, v: Expression, c: Int): List[AssemblyLine] = {
     val result = ListBuffer[AssemblyLine]()
     // TODO: optimise

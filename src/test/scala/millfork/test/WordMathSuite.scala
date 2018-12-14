@@ -330,4 +330,54 @@ class WordMathSuite extends FunSuite with Matchers {
       m.readWord(0xc000) should equal(5)
     }
   }
+
+  test("Word multiplication 5") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+        | word output @$c000
+        | void main () {
+        |   output = alot()
+        |   output *= five()
+        | }
+        | noinline word alot() {
+        |   return 4532
+        | }
+        | noinline byte five() {
+        |   return 5
+        | }
+        | import zp_reg
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(4532 * 5)
+    }
+  }
+
+  test("In-place word/byte multiplication") {
+    multiplyCase1(0, 0)
+    multiplyCase1(0, 1)
+    multiplyCase1(0, 2)
+    multiplyCase1(0, 5)
+    multiplyCase1(1, 0)
+    multiplyCase1(5, 0)
+    multiplyCase1(7, 0)
+    multiplyCase1(2, 5)
+    multiplyCase1(7, 2)
+    multiplyCase1(100, 2)
+    multiplyCase1(1000, 2)
+    multiplyCase1(54, 4)
+    multiplyCase1(2, 100)
+    multiplyCase1(500, 50)
+    multiplyCase1(4, 54)
+  }
+
+  private def multiplyCase1(x: Int, y: Int): Unit = {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      s"""
+         | import zp_reg
+         | word output @$$c000
+         | void main () {
+         |  output = $x
+         |  output *= $y
+         | }
+          """.
+        stripMargin)(_.readWord(0xc000) should equal(x * y))
+  }
 }
