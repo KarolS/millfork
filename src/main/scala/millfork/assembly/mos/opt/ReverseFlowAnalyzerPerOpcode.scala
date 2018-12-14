@@ -114,27 +114,34 @@ object ReverseFlowAnalyzerPerOpcode {
     CMP -> (currentImportance => {
       val ignoreOutput = allCompareOutputsAreUnimportant(currentImportance)
       currentImportance.copy(
-        a = if (ignoreOutput) Unimportant else Important,
+        a = if (ignoreOutput) currentImportance.a else Important,
         n = Unimportant, z = Unimportant, c = Unimportant,
         m = Important)
     }),
     DCP -> (currentImportance => {
       val ignoreOutput = allCompareOutputsAreUnimportant(currentImportance)
       currentImportance.copy(
-        a = if (ignoreOutput) Unimportant else Important,
+        a = if (ignoreOutput) currentImportance.a else Important,
         n = Unimportant, z = Unimportant, c = Unimportant)
     }),
     CPX -> (currentImportance => {
       val ignoreOutput = allCompareOutputsAreUnimportant(currentImportance)
       currentImportance.copy(
-        x = if (ignoreOutput) Unimportant else Important,
+        x = if (ignoreOutput) currentImportance.x else Important,
         n = Unimportant, z = Unimportant, c = Unimportant,
         w = Important)
     }),
     CPY -> (currentImportance => {
       val ignoreOutput = allCompareOutputsAreUnimportant(currentImportance)
       currentImportance.copy(
-        y = if (ignoreOutput) Unimportant else Important,
+        y = if (ignoreOutput) currentImportance.y else Important,
+        n = Unimportant, z = Unimportant, c = Unimportant,
+        w = Important)
+    }),
+    CPZ -> (currentImportance => {
+      val ignoreOutput = allCompareOutputsAreUnimportant(currentImportance)
+      currentImportance.copy(
+        iz = if (ignoreOutput) currentImportance.iz else Important,
         n = Unimportant, z = Unimportant, c = Unimportant,
         w = Important)
     }),
