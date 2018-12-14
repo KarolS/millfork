@@ -147,10 +147,10 @@ object ReverseFlowAnalyzer {
         }
         val currentLine = codeArray(i)
         currentLine match {
-          case AssemblyLine(opcode, Relative | LongRelative, MemoryAddressConstant(Label(l)), _) if OpcodeClasses.ShortConditionalBranching(opcode) =>
+          case AssemblyLine0(opcode, Relative | LongRelative, MemoryAddressConstant(Label(l))) if OpcodeClasses.ShortConditionalBranching(opcode) =>
             val L = l
             val labelIndex = codeArray.indexWhere {
-              case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(L)), _) => true
+              case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(L))) => true
               case _ => false
             }
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex) ~ currentImportance
@@ -158,7 +158,7 @@ object ReverseFlowAnalyzer {
         }
         currentLine match {
 
-          case AssemblyLine(JSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(fun: FunctionInMemory), _) =>
+          case AssemblyLine0(JSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(fun: FunctionInMemory)) =>
             // this case has to be handled first, because the generic JSR importance handler is too conservative
             var result = importanceBeforeJsr
             fun.params match {
@@ -218,15 +218,15 @@ object ReverseFlowAnalyzer {
                 else result.r3
             )
 
-          case AssemblyLine(ANC, _, NumericConstant(0, _), _) =>
+          case AssemblyLine0(ANC, _, NumericConstant(0, _)) =>
             currentImportance = currentImportance.copy(c = Unimportant, n = Unimportant, z = Unimportant, a = Unimportant)
-          case AssemblyLine(AND, _, NumericConstant(0, _), _) =>
+          case AssemblyLine0(AND, _, NumericConstant(0, _)) =>
             currentImportance = currentImportance.copy(n = Unimportant, z = Unimportant, a = Unimportant)
 
-          case AssemblyLine(opcode, Implied, _, _) if ReverseFlowAnalyzerPerImpiedOpcode.hasDefinition(opcode) =>
+          case AssemblyLine0(opcode, Implied, _) if ReverseFlowAnalyzerPerImpiedOpcode.hasDefinition(opcode) =>
             currentImportance = ReverseFlowAnalyzerPerImpiedOpcode.get(opcode)(currentImportance)
 
-          case AssemblyLine(opcode, addrMode, _, _) if addrMode != Implied && ReverseFlowAnalyzerPerOpcode.hasDefinition(opcode) =>
+          case AssemblyLine0(opcode, addrMode, _) if addrMode != Implied && ReverseFlowAnalyzerPerOpcode.hasDefinition(opcode) =>
             currentImportance = ReverseFlowAnalyzerPerOpcode.get(opcode)(currentImportance)
             if (addrMode == AbsoluteX || addrMode == LongAbsoluteX || addrMode == IndexedX || addrMode == ZeroPageX || addrMode == AbsoluteIndexedX)
               currentImportance = currentImportance.copy(x = Important)
@@ -235,18 +235,18 @@ object ReverseFlowAnalyzer {
             else if (addrMode == IndexedZ /*|| addrMode == LongIndexedZ*/ )
               currentImportance = currentImportance.copy(iz = Important)
 
-          case AssemblyLine(JMP | BRA, Absolute | Relative | LongAbsolute | LongRelative, MemoryAddressConstant(Label(l)), _) =>
+          case AssemblyLine0(JMP | BRA, Absolute | Relative | LongAbsolute | LongRelative, MemoryAddressConstant(Label(l))) =>
             val L = l
             val labelIndex = codeArray.indexWhere {
-              case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(L)), _) => true
+              case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(L))) => true
               case _ => false
             }
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex)
 
-          case AssemblyLine(JMP, Indirect | AbsoluteIndexedX | LongIndirect, _, _) =>
+          case AssemblyLine0(JMP, Indirect | AbsoluteIndexedX | LongIndirect, _) =>
             currentImportance = finalImportance
 
-          case AssemblyLine(REP | SEP, _, NumericConstant(n, _), _) =>
+          case AssemblyLine0(REP | SEP, _, NumericConstant(n, _)) =>
             if ((n & 1) != 0) currentImportance = currentImportance.copy(c = Unimportant)
             if ((n & 2) != 0) currentImportance = currentImportance.copy(z = Unimportant)
             if ((n & 8) != 0) currentImportance = currentImportance.copy(d = Unimportant)
@@ -255,7 +255,7 @@ object ReverseFlowAnalyzer {
             if ((n & 0x40) != 0) currentImportance = currentImportance.copy(v = Unimportant)
             if ((n & 0x80) != 0) currentImportance = currentImportance.copy(n = Unimportant)
 
-          case AssemblyLine(opcode, addrMode, _, _) =>
+          case AssemblyLine0(opcode, addrMode, _) =>
             val reallyIgnoreC =
               currentImportance.c == Unimportant &&
                 currentImportance.v == Unimportant &&

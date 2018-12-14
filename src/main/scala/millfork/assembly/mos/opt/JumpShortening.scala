@@ -1,7 +1,7 @@
 package millfork.assembly.mos.opt
 
-import millfork.assembly.OptimizationContext
-import millfork.assembly.mos.{AddrMode, AssemblyLine}
+import millfork.assembly.{Elidability, OptimizationContext}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0}
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.Opcode._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
@@ -27,13 +27,13 @@ object JumpShortening {
         o += line.sizeInBytes
     }
     val labelOffsets = code.zipWithIndex.flatMap {
-      case (AssemblyLine(LABEL, _, MemoryAddressConstant(Label(label)), _), ix) => Some(label -> offsets(ix))
+      case (AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(label))), ix) => Some(label -> offsets(ix))
       case _ => None
     }.toMap
     val cmos = options.flags(CompilationFlag.EmitCmosOpcodes)
     if (cmos) {
       code.zipWithIndex.map {
-        case (line@AssemblyLine(JMP, AddrMode.Absolute, MemoryAddressConstant(Label(label)), true), ix) =>
+        case (line@AssemblyLine(JMP, AddrMode.Absolute, MemoryAddressConstant(Label(label)), Elidability.Elidable, _), ix) =>
           labelOffsets.get(label).fold(line) { labelOffset =>
             val thisOffset = offsets(ix)
             if (validShortJump(thisOffset, labelOffset)) {
@@ -51,7 +51,7 @@ object JumpShortening {
       }
     } else {
       FlowAnalyzer.analyze(f, code, optimizationContext, FlowInfoRequirement.ForwardFlow).zipWithIndex.map {
-        case ((info, line@AssemblyLine(JMP, AddrMode.Absolute, MemoryAddressConstant(Label(label)), _)), ix) =>
+        case ((info, line@AssemblyLine0(JMP, AddrMode.Absolute, MemoryAddressConstant(Label(label)))), ix) =>
           labelOffsets.get(label).fold(line) { labelOffset =>
             val thisOffset = offsets(ix)
             if (validShortJump(thisOffset, labelOffset)) {

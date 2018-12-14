@@ -3,7 +3,7 @@ package millfork.assembly.z80.opt
 import millfork.CompilationFlag
 import millfork.assembly.OptimizationContext
 import millfork.assembly.opt.SingleStatus
-import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine}
+import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine, ZLine0}
 import millfork.env._
 import millfork.node.ZRegister
 
@@ -40,22 +40,22 @@ object VariableStatus {
         return None
     }
     val stillUsedVariables = code.flatMap {
-      case ZLine(_, TwoRegisters(MEM_ABS_8 | MEM_ABS_16, _), MemoryAddressConstant(th), _) => Some(th.name)
-      case ZLine(_, TwoRegisters(_, MEM_ABS_8 | MEM_ABS_16), MemoryAddressConstant(th), _) => Some(th.name)
-      case ZLine(_, TwoRegisters(_, IMM_16), MemoryAddressConstant(th), _) => Some(th.name)
-      case ZLine(_, TwoRegisters(MEM_ABS_8 | MEM_ABS_16, _), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _) => Some(th.name)
-      case ZLine(_, TwoRegisters(_, MEM_ABS_8 | MEM_ABS_16), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _) => Some(th.name)
-      case ZLine(_, TwoRegisters(_, IMM_16), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _) => Some(th.name)
+      case ZLine0(_, TwoRegisters(MEM_ABS_8 | MEM_ABS_16, _), MemoryAddressConstant(th)) => Some(th.name)
+      case ZLine0(_, TwoRegisters(_, MEM_ABS_8 | MEM_ABS_16), MemoryAddressConstant(th)) => Some(th.name)
+      case ZLine0(_, TwoRegisters(_, IMM_16), MemoryAddressConstant(th)) => Some(th.name)
+      case ZLine0(_, TwoRegisters(MEM_ABS_8 | MEM_ABS_16, _), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _))) => Some(th.name)
+      case ZLine0(_, TwoRegisters(_, MEM_ABS_8 | MEM_ABS_16), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _))) => Some(th.name)
+      case ZLine0(_, TwoRegisters(_, IMM_16), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _))) => Some(th.name)
       case _ => None
     }.toSet
     val variablesWithAddressesTaken = code.zipWithIndex.flatMap {
-      case (ZLine(_, _, SubbyteConstant(MemoryAddressConstant(th), _), _), _) =>
+      case (ZLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)), _) =>
         Some(th.name)
-      case (ZLine(_, _, SubbyteConstant(CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _), _), _) =>
+      case (ZLine0(_, _, SubbyteConstant(CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _)), _) =>
         Some(th.name)
-      case (ZLine(_,
+      case (ZLine0(_,
       TwoRegisters(ZRegister.MEM_HL, _) | TwoRegisters(_, ZRegister.MEM_HL) | OneRegister(ZRegister.MEM_HL),
-      _, _), i) =>
+      _), i) =>
         flow(i)._1.statusBefore.hl match {
           case SingleStatus(MemoryAddressConstant(th)) =>
             if (flow(i)._1.importanceAfter.hlNumeric != Unimportant) Some(th.name)

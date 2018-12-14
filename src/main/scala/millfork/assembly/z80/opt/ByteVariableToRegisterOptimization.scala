@@ -35,12 +35,12 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
     lazy val savingsForRemovingOneStackVariable = {
       val localVariableAreaSize = code.flatMap {
-        case ZLine(_, OneRegisterOffset(ZRegister.MEM_IX_D, offset), _, _) if useIx => Some(offset)
-        case ZLine(_, TwoRegistersOffset(_, ZRegister.MEM_IX_D, offset), _, _) if useIx => Some(offset)
-        case ZLine(_, TwoRegistersOffset(ZRegister.MEM_IX_D, _, offset), _, _) if useIx => Some(offset)
-        case ZLine(_, OneRegisterOffset(ZRegister.MEM_IY_D, offset), _, _) if useIy => Some(offset)
-        case ZLine(_, TwoRegistersOffset(_, ZRegister.MEM_IY_D, offset), _, _) if useIy => Some(offset)
-        case ZLine(_, TwoRegistersOffset(ZRegister.MEM_IY_D, _, offset), _, _) if useIy => Some(offset)
+        case ZLine0(_, OneRegisterOffset(ZRegister.MEM_IX_D, offset), _) if useIx => Some(offset)
+        case ZLine0(_, TwoRegistersOffset(_, ZRegister.MEM_IX_D, offset), _) if useIx => Some(offset)
+        case ZLine0(_, TwoRegistersOffset(ZRegister.MEM_IX_D, _, offset), _) if useIx => Some(offset)
+        case ZLine0(_, OneRegisterOffset(ZRegister.MEM_IY_D, offset), _) if useIy => Some(offset)
+        case ZLine0(_, TwoRegistersOffset(_, ZRegister.MEM_IY_D, offset), _) if useIy => Some(offset)
+        case ZLine0(_, TwoRegistersOffset(ZRegister.MEM_IY_D, _, offset), _) if useIy => Some(offset)
         case _ => None
       }.toSet.size
       val prologueAndEpilogue = if (f.returnType.size == 2) CyclesAndBytes(107, 20) else CyclesAndBytes(95, 17)
@@ -239,62 +239,62 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       def unapply(c: Int): Option[Int] = if ("IY+" + c == vname) Some(c) else None
     }
     code match {
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), ThisVar(_), _)) :: xs =>
+      case (_, ZLine0(LD, TwoRegisters(A, MEM_ABS_8), ThisVar(_))) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(9, 2)))
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), ThisVar(_), _)) :: xs =>
+      case (_, ZLine0(LD, TwoRegisters(MEM_ABS_8, A), ThisVar(_))) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(9, 2)))
 
-      case (_, ZLine(LD, TwoRegistersOffset(reg, MEM_IX_D, ThisOffsetX(_)), _, _)) :: xs =>
+      case (_, ZLine0(LD, TwoRegistersOffset(reg, MEM_IX_D, ThisOffsetX(_)), _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(reg == target, CyclesAndBytes(19, 3), CyclesAndBytes(15, 2)))
-      case (_, ZLine(LD, TwoRegistersOffset(MEM_IX_D, reg, ThisOffsetX(_)), _, _)) :: xs =>
+      case (_, ZLine0(LD, TwoRegistersOffset(MEM_IX_D, reg, ThisOffsetX(_)), _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(reg == target, CyclesAndBytes(19, 3), CyclesAndBytes(15, 2)))
-      case (_, ZLine(_, OneRegisterOffset(MEM_IX_D, ThisOffsetX(_)), _, _)) :: xs =>
+      case (_, ZLine0(_, OneRegisterOffset(MEM_IX_D, ThisOffsetX(_)), _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(15, 2)))
 
-      case (_, ZLine(LD, TwoRegistersOffset(reg, MEM_IY_D, ThisOffsetY(_)), _, _)) :: xs =>
+      case (_, ZLine0(LD, TwoRegistersOffset(reg, MEM_IY_D, ThisOffsetY(_)), _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(reg == target, CyclesAndBytes(19, 3), CyclesAndBytes(15, 2)))
-      case (_, ZLine(LD, TwoRegistersOffset(MEM_IY_D, reg, ThisOffsetY(_)), _, _)) :: xs =>
+      case (_, ZLine0(LD, TwoRegistersOffset(MEM_IY_D, reg, ThisOffsetY(_)), _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(reg == target, CyclesAndBytes(19, 3), CyclesAndBytes(15, 2)))
-      case (_, ZLine(_, OneRegisterOffset(MEM_IY_D, ThisOffsetY(_)), _, _)) :: xs =>
+      case (_, ZLine0(_, OneRegisterOffset(MEM_IY_D, ThisOffsetY(_)), _)) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(15, 2)))
 
-      case (_, ZLine(LD_16, TwoRegisters(HL, IMM_16), ThisVar(_), _)) :: xs =>
+      case (_, ZLine0(LD_16, TwoRegisters(HL, IMM_16), ThisVar(_))) :: xs =>
         if (target == H || target == L) fail(61) else
         canBeInlined(vname, synced, target, addressInHl = Some(true), addressInBc, addressInDe, xs).map(add(CyclesAndBytes(10, 3)))
-      case (_, ZLine(LD_16, TwoRegisters(BC, IMM_16), ThisVar(_), _)) :: xs =>
+      case (_, ZLine0(LD_16, TwoRegisters(BC, IMM_16), ThisVar(_))) :: xs =>
         if (target == B || target == C) fail(61) else
         canBeInlined(vname, synced, target, addressInHl, addressInBc = Some(true), addressInDe, xs).map(add(CyclesAndBytes(10, 3)))
-      case (_, ZLine(LD_16, TwoRegisters(DE, IMM_16), ThisVar(_), _)) :: xs =>
+      case (_, ZLine0(LD_16, TwoRegisters(DE, IMM_16), ThisVar(_))) :: xs =>
         if (target == D || target == E) fail(61) else
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe = Some(true), xs).map(add(CyclesAndBytes(10, 3)))
 
-      case (_, ZLine(_, OneRegister(MEM_HL), _, _)) :: xs => addressInHl match {
+      case (_, ZLine0(_, OneRegister(MEM_HL), _)) :: xs => addressInHl match {
         case Some(true) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(3, 0)))
         case Some(false) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs)
         case None => fail(70)
       }
 
-      case (_, ZLine(LD, TwoRegisters(MEM_HL, NotTarget(_))  | TwoRegisters(NotTarget(_), MEM_HL), _, _)) :: xs => addressInHl match {
+      case (_, ZLine0(LD, TwoRegisters(MEM_HL, NotTarget(_))  | TwoRegisters(NotTarget(_), MEM_HL), _)) :: xs => addressInHl match {
         case Some(true) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(3, 0)))
         case Some(false) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs)
         case None => fail(71)
       }
-      case (_, ZLine(LD, TwoRegisters(MEM_BC, NotTarget(_)) | TwoRegisters(NotTarget(_), MEM_BC), _, _)) :: xs => addressInBc match {
+      case (_, ZLine0(LD, TwoRegisters(MEM_BC, NotTarget(_)) | TwoRegisters(NotTarget(_), MEM_BC), _)) :: xs => addressInBc match {
         case Some(true) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(3, 0)))
         case Some(false) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs)
         case None => fail(72)
       }
-      case (_, ZLine(LD, TwoRegisters(MEM_DE, NotTarget(_)) | TwoRegisters(NotTarget(_), MEM_DE), _, _)) :: xs => addressInDe match {
+      case (_, ZLine0(LD, TwoRegisters(MEM_DE, NotTarget(_)) | TwoRegisters(NotTarget(_), MEM_DE), _)) :: xs => addressInDe match {
         case Some(true) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(3, 0)))
         case Some(false) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs)
         case None => fail(73)
       }
 
-      case (_, ZLine(_, _, SubbyteConstant(ThisVar(_), _), _)) :: _ => fail(6)
-      case (_, ZLine(_, _, ThisVar(_), _)) :: _ => fail(4)
-      case (_, ZLine(_, _, CompoundConstant(_, ThisVar(_), _), _)) :: _ => fail(5)
+      case (_, ZLine0(_, _, SubbyteConstant(ThisVar(_), _))) :: _ => fail(6)
+      case (_, ZLine0(_, _, ThisVar(_))) :: _ => fail(4)
+      case (_, ZLine0(_, _, CompoundConstant(_, ThisVar(_), _))) :: _ => fail(5)
 
-      case (_, ZLine(CALL, _, _, _)) :: xs =>
+      case (_, ZLine0(CALL, _, _)) :: xs =>
         // TODO: check return type and allow HL sometimes
         target match {
           case ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E =>
@@ -307,7 +307,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case (_, x) :: xs if x.readsRegister(target) && !synced => fail(2)
 
         // TODO: tossing addresses around:
-      // case (_, ZLine(LD, TwoRegisters(H, B), _, _)) :: (_, ZLine(LD, TwoRegisters(L, C), _, _)) :: xs =>
+      // case (_, ZLine0(LD, TwoRegisters(H, B), _)) :: (_, ZLine0(LD, TwoRegisters(L, C), _)) :: xs =>
 
 
       case (_, x) :: xs if x.changesRegister(HL) => canBeInlined(vname, synced, target, addressInHl = Some(false), addressInBc, addressInDe, xs)
@@ -318,7 +318,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case (_, x) :: xs if x.readsRegister(BC) && addressInBc.contains(true) => fail(82)
       case (_, x) :: xs if x.readsRegister(DE) && addressInDe.contains(true) => fail(83)
 
-      case (_, ZLine(LABEL, _, _, _)) :: xs => canBeInlined(vname, synced = false, target, addressInHl, addressInBc, addressInDe, xs)
+      case (_, ZLine0(LABEL, _, _)) :: xs => canBeInlined(vname, synced = false, target, addressInHl, addressInBc, addressInDe, xs)
       case _ :: xs => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs)
       case _ => Some(CyclesAndBytes.Zero)
     }
@@ -327,69 +327,69 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
   def inlineVars(vname: String, target: ZRegister.Value, addressInHl: Boolean, addressInBc: Boolean, addressInDe: Boolean, code: List[ZLine]): List[ZLine] = {
 //    if (code.nonEmpty) println(code.head)
     code match {
-      case ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _) :: xs if th.name == vname =>
-        ZLine.ld8(A, target) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-      case ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _) :: xs if th.name == vname =>
-        ZLine.ld8(target, A) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _, s) :: xs if th.name == vname =>
+        ZLine.ld8(A, target).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _, s) :: xs if th.name == vname =>
+        ZLine.ld8(target, A).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
-      case ZLine(LD, TwoRegistersOffset(reg, MEM_IX_D, off), _, _) :: xs if "IX+" + off == vname =>
+      case ZLine(LD, TwoRegistersOffset(reg, MEM_IX_D, off), _, _, s) :: xs if "IX+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-        else ZLine.ld8(reg, target) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-      case ZLine(LD, TwoRegistersOffset(MEM_IX_D, reg, off), _, _) :: xs if "IX+" + off == vname =>
+        else ZLine.ld8(reg, target).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case ZLine(LD, TwoRegistersOffset(MEM_IX_D, reg, off), _, _, s) :: xs if "IX+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-        else ZLine.ld8(target, reg) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-      case (l@ZLine(_, OneRegisterOffset(MEM_IX_D, off), _, _)) :: xs if "IX+" + off == vname =>
+        else ZLine.ld8(target, reg).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case (l@ZLine0(_, OneRegisterOffset(MEM_IX_D, off), _)) :: xs if "IX+" + off == vname =>
         l.copy(registers = OneRegister(target)) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
-      case ZLine(LD, TwoRegistersOffset(reg, MEM_IY_D, off), _, _) :: xs if "IY+" + off == vname =>
+      case ZLine(LD, TwoRegistersOffset(reg, MEM_IY_D, off), _, _, s) :: xs if "IY+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-        else ZLine.ld8(reg, target) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-      case ZLine(LD, TwoRegistersOffset(MEM_IY_D, reg, off), _, _) :: xs if "IY+" + off == vname =>
+        else ZLine.ld8(reg, target).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case ZLine(LD, TwoRegistersOffset(MEM_IY_D, reg, off), _, _, s) :: xs if "IY+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-        else ZLine.ld8(target, reg) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-      case (l@ZLine(_, OneRegisterOffset(MEM_IY_D, off), _, _)) :: xs if "IY+" + off == vname =>
+        else ZLine.ld8(target, reg).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case (l@ZLine0(_, OneRegisterOffset(MEM_IY_D, off), _)) :: xs if "IY+" + off == vname =>
         l.copy(registers = OneRegister(target)) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
-      case  ZLine(LD_16, TwoRegisters(HL, IMM_16), MemoryAddressConstant(th), _) :: xs if th.name == vname =>
+      case  ZLine0(LD_16, TwoRegisters(HL, IMM_16), MemoryAddressConstant(th)) :: xs if th.name == vname =>
         inlineVars(vname, target, addressInHl = true, addressInBc, addressInDe, xs)
-      case  ZLine(LD_16, TwoRegisters(BC, IMM_16), MemoryAddressConstant(th), _) :: xs if th.name == vname =>
+      case  ZLine0(LD_16, TwoRegisters(BC, IMM_16), MemoryAddressConstant(th)) :: xs if th.name == vname =>
         inlineVars(vname, target, addressInHl, addressInBc = true, addressInDe, xs)
-      case ZLine(LD_16, TwoRegisters(DE, IMM_16), MemoryAddressConstant(th), _) :: xs if th.name == vname =>
+      case ZLine0(LD_16, TwoRegisters(DE, IMM_16), MemoryAddressConstant(th)) :: xs if th.name == vname =>
         inlineVars(vname, target, addressInHl, addressInBc, addressInDe = true, xs)
 
-      case (x@ZLine(_, OneRegister(MEM_HL), _, _)) :: xs if addressInHl =>
+      case (x@ZLine0(_, OneRegister(MEM_HL), _)) :: xs if addressInHl =>
         x.copy(registers = OneRegister(target)) ::
         inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
-      case (x@ZLine(LD, TwoRegisters(MEM_HL, reg), p, _)) :: xs if addressInHl =>
+      case (x@ZLine0(LD, TwoRegisters(MEM_HL, reg), p)) :: xs if addressInHl =>
         x.copy(registers = TwoRegisters(target, reg), parameter = p) ::
           inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-      case (x@ZLine(LD, TwoRegisters(reg, MEM_HL), p, _)) :: xs if addressInHl =>
+      case (x@ZLine0(LD, TwoRegisters(reg, MEM_HL), p)) :: xs if addressInHl =>
         x.copy(registers = TwoRegisters(reg, target), parameter = p) ::
           inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
-      case (x@ZLine(LD, TwoRegisters(MEM_BC, reg), p, _)) :: xs if addressInBc =>
+      case (x@ZLine0(LD, TwoRegisters(MEM_BC, reg), p)) :: xs if addressInBc =>
         x.copy(registers = TwoRegisters(target, reg), parameter = p) ::
           inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-      case (x@ZLine(LD, TwoRegisters(reg, MEM_BC), p, _)) :: xs if addressInBc =>
+      case (x@ZLine0(LD, TwoRegisters(reg, MEM_BC), p)) :: xs if addressInBc =>
         x.copy(registers = TwoRegisters(reg, target), parameter = p) ::
           inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
-      case (x@ZLine(LD, TwoRegisters(MEM_DE, reg), p, _)) :: xs if addressInDe =>
+      case (x@ZLine0(LD, TwoRegisters(MEM_DE, reg), p)) :: xs if addressInDe =>
         x.copy(registers = TwoRegisters(target, reg), parameter = p) ::
           inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
-      case (x@ZLine(LD, TwoRegisters(reg, MEM_DE), p, _)) :: xs if addressInDe =>
+      case (x@ZLine0(LD, TwoRegisters(reg, MEM_DE), p)) :: xs if addressInDe =>
         x.copy(registers = TwoRegisters(reg, target), parameter = p) ::
           inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
-      case (x@ZLine(CALL,_,_,_))::xs =>
+      case (x@ZLine(CALL,_,_,_,s))::xs =>
         // TODO: this push/pull pair shouldn't prevent the inlining to the other register in the pair
         target match {
           case ZRegister.B | ZRegister.C =>
-            ZLine.register(PUSH, BC) :: x :: ZLine.register(POP, BC) ::
+            ZLine.register(PUSH, BC).pos(s) :: x :: ZLine.register(POP, BC).pos(s) ::
               inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
           case ZRegister.D | ZRegister.E =>
-            ZLine.register(PUSH, DE) :: x :: ZLine.register(POP, DE) ::
+            ZLine.register(PUSH, DE).pos(s) :: x :: ZLine.register(POP, DE).pos(s) ::
               inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
         }
 

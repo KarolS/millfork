@@ -3,7 +3,7 @@ package millfork.assembly.mos.opt
 import java.util.concurrent.atomic.AtomicInteger
 
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.assembly.mos.{AssemblyLine, State}
+import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, State}
 import millfork.assembly.mos.OpcodeClasses._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
@@ -71,12 +71,12 @@ object LoopUnrolling {
 
   private def fixLabels(code: List[AssemblyLine]) = {
     val localLabels = code.flatMap {
-      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(l)), _) => Some(l)
+      case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(l))) => Some(l)
       case _ => None
     }.toSet
     val labelPrefix = getNextLabel("ur")
     code.map {
-      case s@AssemblyLine(_, _, MemoryAddressConstant(Label(l)), _) if localLabels(l) =>
+      case s@AssemblyLine0(_, _, MemoryAddressConstant(Label(l))) if localLabels(l) =>
         s.copy(parameter = MemoryAddressConstant(Label(labelPrefix + l)))
       case s => s
     }

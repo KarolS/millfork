@@ -4,6 +4,7 @@ import millfork.CompilationOptions
 import millfork.assembly.z80.{ZOpcode, _}
 import millfork.env.{Environment, Label, MemoryAddressConstant}
 import ZOpcode._
+import millfork.assembly.Elidability
 import millfork.node.ZRegister.SP
 
 import scala.collection.mutable
@@ -13,7 +14,7 @@ import scala.collection.mutable
   */
 class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Deduplicate[ZLine](env, options) {
   override def getJump(line: ZLine): Option[String] = line match {
-    case ZLine(JP, NoRegisters, MemoryAddressConstant(thing), _) => Some(thing.name)
+    case ZLine0(JP, NoRegisters, MemoryAddressConstant(thing)) => Some(thing.name)
     case _ => None
   }
 
@@ -21,7 +22,7 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
 
   override def actualCode(FunctionName: String, functionCode: List[ZLine]): List[ZLine] = {
     functionCode match {
-      case ZLine(LABEL, _, MemoryAddressConstant(Label(FunctionName)), _) :: xs => xs
+      case ZLine0(LABEL, _, MemoryAddressConstant(Label(FunctionName))) :: xs => xs
       case xs => xs
     }
   }
@@ -65,20 +66,20 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
     case _ => false
   }
 
-  override def createCall(functionName: String): ZLine = ZLine(CALL, NoRegisters, MemoryAddressConstant(Label(functionName)), elidable = false)
+  override def createCall(functionName: String): ZLine = ZLine(CALL, NoRegisters, MemoryAddressConstant(Label(functionName)), elidability = Elidability.Fixed)
 
   override def createReturn(): ZLine = ZLine.implied(RET)
 
   def retPrecededByDiscards(xs: List[ZLine]): Option[List[ZLine]] = {
     xs match {
-      case ZLine(op, _, _, _) :: xs if ZOpcodeClasses.NoopDiscards(op) => retPrecededByDiscards(xs)
-      case ZLine(RET, _, _, _) :: xs => Some(xs)
+      case ZLine0(op, _, _) :: ys if ZOpcodeClasses.NoopDiscards(op) => retPrecededByDiscards(ys)
+      case ZLine0(RET, _, _) :: ys => Some(ys)
       case _ => None
     }
   }
 
   override def tco(code: List[ZLine]): List[ZLine] = code match {
-    case (call@ZLine(CALL, _, _, _)) :: xs => retPrecededByDiscards(xs) match {
+    case (call@ZLine0(CALL, _, _)) :: xs => retPrecededByDiscards(xs) match {
       case Some(rest) =>call.copy(opcode = JP) :: tco(rest)
       case _ => call :: tco(xs)
     }
@@ -90,13 +91,13 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
     val map = mutable.Map[String, String]()
     var counter = 0
     code.foreach{
-      case ZLine(LABEL, _, MemoryAddressConstant(Label(x)), _) if x.startsWith(".") =>
+      case ZLine0(LABEL, _, MemoryAddressConstant(Label(x))) if x.startsWith(".") =>
         map(x) = if (temporary) ".ddtmp__" + counter else env.nextLabel("dd")
         counter += 1
       case _ =>
     }
     code.map{
-      case l@ZLine(_, _, MemoryAddressConstant(Label(x)), _) if map.contains(x) =>
+      case l@ZLine0(_, _, MemoryAddressConstant(Label(x))) if map.contains(x) =>
         l.copy(parameter = MemoryAddressConstant(Label(map(x))))
       case l => l
     }
@@ -106,14 +107,14 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
     val myLabels = mutable.Set[String]()
     val useCount = mutable.Map[String, Int]()
     snippet.foreach{
-      case ZLine(LABEL, _, MemoryAddressConstant(Label(x)), _) =>
+      case ZLine0(LABEL, _, MemoryAddressConstant(Label(x))) =>
         myLabels += x
-      case ZLine(_, _, MemoryAddressConstant(Label(x)), _) =>
+      case ZLine0(_, _, MemoryAddressConstant(Label(x))) =>
         useCount(x) = useCount.getOrElse(x, 0) - 1
       case _ =>
     }
     wholeCode.foreach {
-      case ZLine(op, _, MemoryAddressConstant(Label(x)), _) if op != LABEL && myLabels(x) =>
+      case ZLine0(op, _, MemoryAddressConstant(Label(x))) if op != LABEL && myLabels(x) =>
         useCount(x) = useCount.getOrElse(x, 0) + 1
       case _ =>
     }

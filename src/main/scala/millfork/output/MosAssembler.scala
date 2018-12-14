@@ -6,7 +6,7 @@ import millfork.env._
 import millfork.error.{ConsoleLogger, FatalErrorReporting}
 import millfork.node.{MosNiceFunctionProperty, NiceFunctionProperty, Program}
 import millfork._
-import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode, OpcodeClasses}
+import millfork.assembly.mos._
 import millfork.compiler.mos.MosCompiler
 
 import scala.annotation.tailrec
@@ -33,32 +33,32 @@ class MosAssembler(program: Program,
     import millfork.assembly.mos.AddrMode._
     import millfork.assembly.mos.Opcode._
     instr match {
-      case AssemblyLine(BYTE, RawByte, c, _) =>
+      case AssemblyLine0(BYTE, RawByte, c) =>
         writeByte(bank, index, c)
         index + 1
-      case AssemblyLine(BYTE, _, _, _) => log.fatal("BYTE opcode failure")
-      case AssemblyLine(_, RawByte, _, _) => log.fatal("BYTE opcode failure")
-      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(labelName)), _) =>
+      case AssemblyLine0(BYTE, _, _) => log.fatal("BYTE opcode failure")
+      case AssemblyLine0(_, RawByte, _) => log.fatal("BYTE opcode failure")
+      case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(labelName))) =>
         labelMap(labelName) = index
         index
-      case AssemblyLine(_, DoesNotExist, _, _) =>
+      case AssemblyLine0(_, DoesNotExist, _) =>
         index
-      case AssemblyLine(op, Implied, _, _) =>
+      case AssemblyLine0(op, Implied, _) =>
         writeByte(bank, index, MosAssembler.opcodeFor(op, Implied, options))
         index + 1
-      case AssemblyLine(op, Relative, param, _) =>
+      case AssemblyLine0(op, Relative, param) =>
         writeByte(bank, index, MosAssembler.opcodeFor(op, Relative, options))
         writeByte(bank, index + 1, AssertByte(param - (index + 2)))
         index + 2
-      case AssemblyLine(op, am@(Immediate | ZeroPage | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | LongIndexedY | LongIndexedZ | Stack), param, _) =>
+      case AssemblyLine0(op, am@(Immediate | ZeroPage | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | LongIndexedY | LongIndexedZ | Stack), param) =>
         writeByte(bank, index, MosAssembler.opcodeFor(op, am, options))
         writeByte(bank, index + 1, param)
         index + 2
-      case AssemblyLine(op, am@(WordImmediate | Absolute | AbsoluteY | AbsoluteX | Indirect | AbsoluteIndexedX), param, _) =>
+      case AssemblyLine0(op, am@(WordImmediate | Absolute | AbsoluteY | AbsoluteX | Indirect | AbsoluteIndexedX), param) =>
         writeByte(bank, index, MosAssembler.opcodeFor(op, am, options))
         writeWord(bank, index + 1, param)
         index + 3
-      case AssemblyLine(op, am@(LongAbsolute | LongAbsoluteX | LongIndirect), param, _) =>
+      case AssemblyLine0(op, am@(LongAbsolute | LongAbsoluteX | LongIndirect), param) =>
         writeByte(bank, index, MosAssembler.opcodeFor(op, am, options))
         writeWord(bank, index + 1, param)
         writeByte(bank, index + 3, extractBank(param, options))
@@ -76,7 +76,7 @@ class MosAssembler(program: Program,
                           BIT |
                           ADC | SBC | AND | ORA | EOR |
                           INC | DEC | ROL | ROR | ASL | LSR |
-                          ISC | DCP | LAX | SAX | RLA | RRA | SLO | SRE, AddrMode.Absolute, p, true) =>
+                          ISC | DCP | LAX | SAX | RLA | RRA | SLO | SRE, AddrMode.Absolute, p, Elidability.Elidable, _) =>
         p match {
           case NumericConstant(n, _) => if (n <= 255) l.copy(addrMode = AddrMode.ZeroPage) else l
           case MemoryAddressConstant(th) => if (labelMap.getOrElse(th.name, 0x800) < 0x100) l.copy(addrMode = AddrMode.ZeroPage) else l
@@ -95,8 +95,8 @@ class MosAssembler(program: Program,
     import Opcode._
     import AddrMode._
     code match {
-      case AssemblyLine(JMP | JSR | BSR, Indirect | LongIndirect | AbsoluteIndexedX, _, _) :: _ => true
-      case AssemblyLine(PHA, _, _, _) :: AssemblyLine(RTS | RTL, _, _, _) :: _ => true
+      case AssemblyLine0(JMP | JSR | BSR, Indirect | LongIndirect | AbsoluteIndexedX, _) :: _ => true
+      case AssemblyLine0(PHA, _, _) :: AssemblyLine0(RTS | RTL, _, _) :: _ => true
       case _ :: xs => isNaughty(xs)
       case Nil => false
     }
@@ -109,15 +109,15 @@ class MosAssembler(program: Program,
     import NiceFunctionProperty._
     if (isNaughty(code)) return
     val localLabels = code.flatMap {
-      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(l)), _) => Some(l)
+      case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(l))) => Some(l)
       case _ => None
     }.toSet
     def genericPropertyScan(niceFunctionProperty: NiceFunctionProperty)(predicate: AssemblyLine => Boolean): Unit = {
       val preserved = code.forall {
-        case AssemblyLine(JSR | BSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => niceFunctionProperties(niceFunctionProperty -> th.name)
-        case AssemblyLine(JSR | BSR, _, _, _) => false
-        case AssemblyLine(op, _, MemoryAddressConstant(Label(label)), _) if OpcodeClasses.AllDirectJumps(op) => localLabels(label)
-        case AssemblyLine(op, _, _, _) if OpcodeClasses.AllDirectJumps(op) => false
+        case AssemblyLine0(JSR | BSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(th)) => niceFunctionProperties(niceFunctionProperty -> th.name)
+        case AssemblyLine0(JSR | BSR, _, _) => false
+        case AssemblyLine0(op, _, MemoryAddressConstant(Label(label))) if OpcodeClasses.AllDirectJumps(op) => localLabels(label)
+        case AssemblyLine0(op, _, _) if OpcodeClasses.AllDirectJumps(op) => false
         case l => predicate(l)
       }
       if (preserved) {
@@ -125,47 +125,47 @@ class MosAssembler(program: Program,
       }
     }
     genericPropertyScan(DoesntChangeX) {
-      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ChangesX(op)
+      case AssemblyLine0(op, _, _) => !OpcodeClasses.ChangesX(op)
     }
     genericPropertyScan(DoesntChangeY) {
-      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ChangesY(op)
+      case AssemblyLine0(op, _, _) => !OpcodeClasses.ChangesY(op)
     }
     genericPropertyScan(DoesntChangeA) {
-      case AssemblyLine(op, _, _, _) if OpcodeClasses.ChangesAAlways(op) => false
-      case AssemblyLine(op, _, Implied, _) if OpcodeClasses.ChangesAIfImplied(op) => false
+      case AssemblyLine0(op, _, _) if OpcodeClasses.ChangesAAlways(op) => false
+      case AssemblyLine0(op, _, Implied) if OpcodeClasses.ChangesAIfImplied(op) => false
       case _ => true
     }
     genericPropertyScan(DoesntChangeIZ) {
-      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ChangesIZ(op)
+      case AssemblyLine0(op, _, _) => !OpcodeClasses.ChangesIZ(op)
     }
     genericPropertyScan(DoesntChangeAH) {
-      case AssemblyLine(op, _, _, _) if OpcodeClasses.ChangesAHAlways(op) => false
-      case AssemblyLine(op, _, Implied, _) if OpcodeClasses.ChangesAHIfImplied(op) => false
+      case AssemblyLine0(op, _, _) if OpcodeClasses.ChangesAHAlways(op) => false
+      case AssemblyLine0(op, _, Implied) if OpcodeClasses.ChangesAHIfImplied(op) => false
       case _ => true
     }
     genericPropertyScan(DoesntChangeC) {
-      case AssemblyLine(SEP | REP, Immediate, NumericConstant(imm, _), _) => (imm & 1) == 0
-      case AssemblyLine(SEP | REP, _, _, _) => false
-      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ChangesC(op)
+      case AssemblyLine0(SEP | REP, Immediate, NumericConstant(imm, _)) => (imm & 1) == 0
+      case AssemblyLine0(SEP | REP, _, _) => false
+      case AssemblyLine0(op, _, _) => !OpcodeClasses.ChangesC(op)
     }
     genericPropertyScan(DoesntConcernD) {
-      case AssemblyLine(SEP | REP, Immediate, NumericConstant(imm, _), _) => (imm & 8) == 0
-      case AssemblyLine(SEP | REP, _, _, _) => false
-      case AssemblyLine(op, _, _, _) => !OpcodeClasses.ReadsD(op) && !OpcodeClasses.OverwritesD(op)
+      case AssemblyLine0(SEP | REP, Immediate, NumericConstant(imm, _)) => (imm & 8) == 0
+      case AssemblyLine0(SEP | REP, _, _) => false
+      case AssemblyLine0(op, _, _) => !OpcodeClasses.ReadsD(op) && !OpcodeClasses.OverwritesD(op)
     }
     genericPropertyScan(DoesntReadMemory) {
-      case AssemblyLine(op, Implied | Immediate | WordImmediate, _, _) => true
-      case AssemblyLine(op, _, _, _) if OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(op) => false
+      case AssemblyLine0(op, Implied | Immediate | WordImmediate, _) => true
+      case AssemblyLine0(op, _, _) if OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(op) => false
       case _ => true
     }
     genericPropertyScan(DoesntWriteMemory) {
-      case AssemblyLine(op, Implied | Immediate | WordImmediate, _, _)  => true
-      case AssemblyLine(op, _, _, _) if OpcodeClasses.ChangesMemoryIfNotImplied(op) || OpcodeClasses.ChangesMemoryAlways(op) => false
+      case AssemblyLine0(op, Implied | Immediate | WordImmediate, _)  => true
+      case AssemblyLine0(op, _, _) if OpcodeClasses.ChangesMemoryIfNotImplied(op) || OpcodeClasses.ChangesMemoryAlways(op) => false
       case _ => true
     }
     genericPropertyScan(IsLeaf) {
-      case AssemblyLine(JSR | BSR, Implied | Immediate | WordImmediate, _, _)  => false
-      case AssemblyLine(JMP, Absolute, th:Thing, _)  => th.name.startsWith(".")
+      case AssemblyLine0(JSR | BSR, Implied | Immediate | WordImmediate, _)  => false
+      case AssemblyLine0(JMP, Absolute, th:Thing)  => th.name.startsWith(".")
       case _ => true
     }
   }

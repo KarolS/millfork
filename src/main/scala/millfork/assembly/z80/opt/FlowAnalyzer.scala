@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.CompilationOptions
-import millfork.assembly.z80.{ZLine, ZOpcode}
+import millfork.assembly.z80.{ZLine, ZLine0, ZOpcode}
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 
 /**
@@ -47,7 +47,7 @@ object FlowAnalyzer {
     val labelMap: (() => Option[Map[String, Int]]) = () => req match {
       case FlowInfoRequirement.NoRequirement => None
       case _ => Some(code.flatMap {
-        case ZLine(op, _, MemoryAddressConstant(Label(l)), _) if op != ZOpcode.LABEL => Some(l)
+        case ZLine0(op, _, MemoryAddressConstant(Label(l))) if op != ZOpcode.LABEL => Some(l)
         case _ => None
       }.groupBy(identity).mapValues(_.size))
     }

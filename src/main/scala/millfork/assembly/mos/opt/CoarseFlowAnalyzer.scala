@@ -2,8 +2,7 @@ package millfork.assembly.mos.opt
 
 import millfork.assembly.OptimizationContext
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.assembly.mos.AssemblyLine
-import millfork.assembly.mos.OpcodeClasses
+import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, OpcodeClasses}
 import millfork.assembly.opt.AnyStatus
 import millfork.env._
 
@@ -45,14 +44,14 @@ object CoarseFlowAnalyzer {
           flagArray(i) = currentStatus
         }
         codeArray(i) match {
-          case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(l)), _) =>
+          case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(l))) =>
             val L = l
             currentStatus = codeArray.indices.flatMap(j => codeArray(j) match {
-              case AssemblyLine(_, _, MemoryAddressConstant(Label(L)), _) => Some(flagArray(j))
+              case AssemblyLine0(_, _, MemoryAddressConstant(Label(L))) => Some(flagArray(j))
               case _ => None
             }).fold(currentStatus)(_ ~ _)
 
-          case AssemblyLine(JSR, _, MemoryAddressConstant(th), _) =>
+          case AssemblyLine0(JSR, _, MemoryAddressConstant(th)) =>
             currentStatus = initialStatus.copy(
               a = if (niceFunctionProperties(DoesntChangeA -> th.name)) currentStatus.a else AnyStatus,
               ah = if (niceFunctionProperties(DoesntChangeAH -> th.name)) currentStatus.ah else AnyStatus,
@@ -63,27 +62,27 @@ object CoarseFlowAnalyzer {
               c = if (niceFunctionProperties(DoesntChangeC -> th.name)) currentStatus.c else AnyStatus
             )
 
-          case AssemblyLine(JSR | BYTE, _, _, _) =>
+          case AssemblyLine0(JSR | BYTE, _, _) =>
             currentStatus = initialStatus
 
-          case AssemblyLine(op, Implied, _, _) if FlowAnalyzerForImplied.hasDefinition(op) =>
+          case AssemblyLine0(op, Implied, _) if FlowAnalyzerForImplied.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForImplied.get(op)(currentStatus)
 
-          case AssemblyLine(op, Immediate | WordImmediate, NumericConstant(nn, _), _) if FlowAnalyzerForImmediate.hasDefinition(op) =>
+          case AssemblyLine0(op, Immediate | WordImmediate, NumericConstant(nn, _)) if FlowAnalyzerForImmediate.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForImmediate.get(op)(nn.toInt, currentStatus)
 
-          case AssemblyLine(op, _, MemoryAddressConstant(th: Thing), _)
+          case AssemblyLine0(op, _, MemoryAddressConstant(th: Thing))
             if th.name == "__reg" &&  FlowAnalyzerForTheRest.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, Some(0))
 
-          case AssemblyLine(op, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(n, _)), _)
+          case AssemblyLine0(op, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(n, _)))
             if th.name == "__reg" &&  FlowAnalyzerForTheRest.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, Some(n.toInt))
 
-          case AssemblyLine(op, _, _, _) if FlowAnalyzerForTheRest.hasDefinition(op) =>
+          case AssemblyLine0(op, _, _) if FlowAnalyzerForTheRest.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, None)
 
-          case AssemblyLine(opcode, addrMode, _, _) =>
+          case AssemblyLine0(opcode, addrMode, _) =>
             currentStatus = currentStatus.copy(src = AnyStatus)
             if (OpcodeClasses.ChangesX(opcode)) currentStatus = currentStatus.copy(x = AnyStatus, eqSX = false)
             if (OpcodeClasses.ChangesY(opcode)) currentStatus = currentStatus.copy(y = AnyStatus)

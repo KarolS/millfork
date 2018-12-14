@@ -19,7 +19,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
     val options = ctx.options
     val env = ctx.env
     val ret = Z80Compiler.restoreRegistersAndReturn(ctx)
-    statement match {
+    (statement match {
       case EmptyStatement(stmts) =>
         stmts.foreach(s => compile(ctx, s))
         Nil
@@ -158,7 +158,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         }
       case ExpressionStatement(e) =>
         Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING)
-      case Z80AssemblyStatement(op, reg, offset, expression, elidable) =>
+      case Z80AssemblyStatement(op, reg, offset, expression, elidability) =>
         val param: Constant = expression match {
           // TODO: hmmm
           case VariableExpression(name) =>
@@ -191,8 +191,8 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
           }
           case _ => reg
         }
-        List(ZLine(op, registers, param, elidable))
-    }
+        List(ZLine(op, registers, param, elidability))
+    }).map(_.position(statement.position))
   }
 
   private def fixStackOnReturn(ctx: CompilationContext): List[ZLine] = {

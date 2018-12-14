@@ -3,7 +3,7 @@ package millfork.output
 import millfork.assembly._
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env._
-import millfork.error.{ConsoleLogger, Logger}
+import millfork.error.Logger
 import millfork.node.{CallGraph, NiceFunctionProperty, Program}
 import millfork._
 import millfork.assembly.z80.ZLine
@@ -323,14 +323,14 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             val thing = if (name.endsWith(".addr")) env.get[ThingInMemory](name.stripSuffix(".addr")) else env.get[ThingInMemory](name + ".array")
             env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
             assembly.append("* = $" + index.toHexString)
-            assembly.append("    !byte $2c")
+            assembly.append("    " + bytePseudoopcode + " $2c")
             assembly.append(name)
             val c = thing.toAddress
             writeByte(bank, index, 0x2c.toByte) // BIT abs
             index += 1
             for (i <- 0 until typ.size) {
               writeByte(bank, index, c.subbyte(i))
-              assembly.append("    !byte " + c.subbyte(i).quickSimplify)
+              assembly.append("    " + bytePseudoopcode + " " + c.subbyte(i).quickSimplify)
               index += 1
             }
             initializedVariablesSize += typ.size
@@ -341,7 +341,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       val index = codeAllocators("default").allocateBytes(mem.banks("default"), options, 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = NoAlignment)
       writeByte("default", index, 2.toByte) // BIT abs
       assembly.append("* = $" + index.toHexString)
-      assembly.append("    !byte 2 ;; end of LUnix relocatable segment")
+      assembly.append("    " + bytePseudoopcode + " 2 ;; end of LUnix relocatable segment")
       justAfterCode += "default" -> (index + 1)
     }
     env.allPreallocatables.foreach {
@@ -360,7 +360,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           index += 1
         }
         items.grouped(16).foreach { group =>
-          assembly.append("    !byte " + group.map(expr => env.eval(expr) match {
+          assembly.append("    " + bytePseudoopcode + " " + group.map(expr => env.eval(expr) match {
             case Some(c) => c.quickSimplify.toString
             case None => "<? unknown constant ?>"
           }).mkString(", "))
@@ -380,7 +380,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case Some(c) =>
             for (i <- 0 until typ.size) {
               writeByte(bank, index, c.subbyte(i))
-              assembly.append("    !byte " + c.subbyte(i).quickSimplify)
+              assembly.append("    " + bytePseudoopcode + " " + c.subbyte(i).quickSimplify)
               index += 1
             }
           case None =>
@@ -475,23 +475,46 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[T]): List[T]
 
+  private val FinalWhitespace = "\\s+$".r
+
   private def outputFunction(bank: String, code: List[T], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
+    val printLineNumbers = options.flag(CompilationFlag.LineNumbersInAssembly)
     var index = startFrom
     assOut.append("* = $" + startFrom.toHexString)
+    var lastSource = Option.empty[SourceLine]
     for (instr <- code) {
       if (instr.isPrintable) {
-        if (options.flag(CompilationFlag.UseIntelSyntaxForOutput)) {
+        if(lastSource != instr.source) {
+          lastSource = instr.source
+          if (printLineNumbers) {
+            lastSource match {
+              case Some(SourceLine(moduleName, line)) if line > 0 =>
+                assOut.append(s";line:$line:$moduleName")
+              case _ =>
+                assOut.append(s";line")
+            }
+          }
+        }
+        val line = if (options.flag(CompilationFlag.UseIntelSyntaxForOutput)) {
           instr match {
             case zline: ZLine =>
-              assOut.append(zline.toIntelString)
+              zline.toIntelString
             case _ =>
-              assOut.append(instr.toString)
+              instr.toString
           }
         } else {
-          assOut.append(instr.toString)
+          instr.toString
+        }
+        if (line.contains("; @")) {
+          assOut.append(FinalWhitespace.replaceAllIn(line.substring(0, line.lastIndexOf("; @")), ""))
+        } else {
+          assOut.append(line)
         }
       }
       index = emitInstruction(bank, options, index, instr)
+    }
+    if (printLineNumbers && lastSource.isDefined){
+      assOut.append(s";line")
     }
     index
   }

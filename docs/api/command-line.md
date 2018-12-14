@@ -47,6 +47,8 @@ Choose syntax for assembly output on 8080-like targets.
 
 * `--syntax=intel`, `--syntax=zilog` – sets both previous options at once
 
+* `-fline-numbers`, `-fno-line-numbers` – Whether should show source line numbers in assembly output.
+
 ## Verbosity options
 
  * `-q` – Suppress all messages except for errors.

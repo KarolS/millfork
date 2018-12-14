@@ -1,7 +1,7 @@
 package millfork.assembly.mos.opt
 
 import millfork.{CompilationFlag, NonOverlappingIntervals}
-import millfork.assembly.{AssemblyOptimization, OptimizationContext}
+import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
 import millfork.assembly.mos._
 import millfork.assembly.mos.Opcode._
 import AddrMode._
@@ -10,7 +10,7 @@ import millfork.error.Logger
 import millfork.node.MosNiceFunctionProperty
 
 import scala.collection.mutable.ListBuffer
-import scala.util.control.TailCalls.{ TailRec, done, tailcall }
+import scala.util.control.TailCalls.{TailRec, done, tailcall}
 
 /**
   * @author Karol Stasiak
@@ -131,11 +131,11 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         return code
     }
     val stillUsedVariables = code.flatMap {
-      case AssemblyLine(_, _, MemoryAddressConstant(th), _) => Some(th.name)
+      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
       case _ => None
     }.toSet
     val variablesWithAddressesTaken = code.flatMap {
-      case AssemblyLine(_, _, SubbyteConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
+      case AssemblyLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
       case _ => None
     }.toSet
     val localVariables = f.environment.getAllLocalVariables.filter {
@@ -354,17 +354,17 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     val vy = yCandidate.getOrElse("-")
     val vz = zCandidate.getOrElse("-")
     lines match {
-      case (AssemblyLine(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _), _), _) :: xs
+      case (AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)), _) :: xs
         if th.name == vx || th.name == vy || th.name == vz =>
         // if an address of a variable is used, then that variable cannot be assigned to a register
         None
 
-      case (AssemblyLine(_, AbsoluteX | AbsoluteY | LongAbsoluteX |
+      case (AssemblyLine0(_, AbsoluteX | AbsoluteY | LongAbsoluteX |
                             ZeroPageX | ZeroPageY |
                             IndexedY | IndexedX | IndexedZ |
                             LongIndexedY | LongIndexedZ |
                             Indirect | LongIndirect |
-                            AbsoluteIndexedX, MemoryAddressConstant(th), _), _) :: xs =>
+                            AbsoluteIndexedX, MemoryAddressConstant(th)), _) :: xs =>
         // if a variable is used as an array or a pointer, then it cannot be assigned to a register
         if (th.name == vx || th.name == vy || th.name == vz) {
           None
@@ -372,50 +372,50 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
-      case (AssemblyLine(SEP | REP, Immediate, NumericConstant(nn, _), _), _) :: xs =>
+      case (AssemblyLine0(SEP | REP, Immediate, NumericConstant(nn, _)), _) :: xs =>
         if ((nn & 0x10) == 0) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         else None
 
-      case (AssemblyLine(SEP | REP, _, _, _), _) :: xs => None
+      case (AssemblyLine0(SEP | REP, _, _), _) :: xs => None
 
-      case (AssemblyLine(STY | LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs if th.name == vx =>
+      case (AssemblyLine0(STY | LDY, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs if th.name == vx =>
         if (features.indexRegisterTransfers) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         else None
 
-      case (AssemblyLine(STX | LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs if th.name == vy =>
+      case (AssemblyLine0(STX | LDX, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs if th.name == vy =>
         if (features.indexRegisterTransfers) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         else None
 
-      case (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
+      case (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
         if opcodesIdentityTable(op) && features.blastProcessing =>
         if (th.name == vx || th.name == vy) {
-          if (elidable) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 0, cycles = -1))
+          if (elidability == Elidability.Elidable) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 0, cycles = -1))
           else None
         } else {
           if (th.name == vz) None
           else canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
-      case (AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine0(opcode, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if th.name == vx && (opcode == LDY || opcode == LDZ || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
-      case (AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine0(opcode, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if th.name == vy && (opcode == LDX || opcode == LAX || opcode == LDZ || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
-      case (AssemblyLine(opcode, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine0(opcode, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if th.name == vz && (opcode == LDX || opcode == LDY || opcodesThatCannotBeUsedWithIndexRegistersAsParameters(opcode)) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
-      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), imp) :: xs
+      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), imp) :: xs
         if xCandidate.isDefined =>
         // if a register is populated with a different variable, then this variable cannot be assigned to that register
         // removing LDX saves 3 cycles
-        if (elidable && th.name == vx) {
+        if (elidability == Elidability.Elidable && th.name == vx) {
           if (imp.z == Unimportant && imp.n == Unimportant) {
             canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
           } else {
@@ -425,21 +425,21 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           None
         }
 
-      case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: xs
+      case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
         if xCandidate.isDefined =>
         // LAX = LDX-LDA, and since LDX simplifies to nothing and LDA simplifies to TXA,
         // LAX simplifies to TXA, saving two bytes
-        if (elidable && th.name == vx) {
+        if (elidability == Elidability.Elidable && th.name == vx) {
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         } else {
           None
         }
 
-      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), imp) :: xs if yCandidate.isDefined =>
+      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), imp) :: xs if yCandidate.isDefined =>
         // if a register is populated with a different variable, then this variable cannot be assigned to that register
         // removing LDX saves 3 bytes
         // sometimes that LDX has to be converted into CPX#0
-        if (elidable && th.name == vy) {
+        if (elidability == Elidability.Elidable && th.name == vy) {
           if (imp.z == Unimportant && imp.n == Unimportant) {
             canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           } else {
@@ -449,8 +449,8 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           None
         }
 
-      case (AssemblyLine(LDZ, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), imp) :: xs if zCandidate.isDefined =>
-        if (elidable && th.name == vz) {
+      case (AssemblyLine(LDZ, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), imp) :: xs if zCandidate.isDefined =>
+        if (elidability == Elidability.Elidable && th.name == vz) {
           if (imp.z == Unimportant && imp.n == Unimportant) {
             canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           } else {
@@ -460,73 +460,73 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           None
         }
 
-      case (AssemblyLine(LDX, _, _, _), _) :: xs if xCandidate.isDefined =>
+      case (AssemblyLine0(LDX, _, _), _) :: xs if xCandidate.isDefined =>
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
         None
 
-      case (AssemblyLine(LDY, _, _, _), _) :: xs if yCandidate.isDefined =>
+      case (AssemblyLine0(LDY, _, _), _) :: xs if yCandidate.isDefined =>
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
         None
 
-      case (AssemblyLine(LDZ, _, _, _), _) :: xs if zCandidate.isDefined =>
+      case (AssemblyLine0(LDZ, _, _), _) :: xs if zCandidate.isDefined =>
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
         None
 
-      case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
+      case (AssemblyLine(LDA, _, _, elidability, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidability2, _), _) :: xs
         if opcodesCommutative(op) =>
         // LDAw/ANDx -> TXA/ANDw
         if (th.name == vx || th.name == vy) {
-          if (elidable && elidable2) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
+          if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
           else None
         } else {
           if (th.name == vz) None
           else canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
-      case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(CLC, _, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
+      case (AssemblyLine(LDA, _, _, elidability, _), _) :: (AssemblyLine0(CLC, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidability2, _), _) :: xs
         if opcodesCommutative(op) =>
         if (th.name == vx || th.name == vy) {
-          if (elidable && elidable2) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
+          if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable) canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
           else None
         } else {
           if (th.name == vz) None
           else canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: (AssemblyLine(TAX, _, _, elidable2), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: (AssemblyLine(TAX, _, _, elidability2, _), _) :: xs
         if xCandidate.isDefined =>
         // a variable cannot be inlined if there is TAX not after LDA of that variable
         // but LDA-TAX can be simplified to TXA
-        if (elidable && elidable2 && th.name == vx) {
+        if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable && th.name == vx) {
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: (AssemblyLine(TAY, _, _, elidable2), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: (AssemblyLine(TAY, _, _, elidability2, _), _) :: xs
         if yCandidate.isDefined =>
         // a variable cannot be inlined if there is TAY not after LDA of that variable
         // but LDA-TAY can be simplified to TYA
-        if (elidable && elidable2 && th.name == vy) {
+        if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable && th.name == vy) {
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: (AssemblyLine(TAZ, _, _, elidable2), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: (AssemblyLine(TAZ, _, _, elidability2, _), _) :: xs
         if zCandidate.isDefined =>
         // a variable cannot be inlined if there is TAZ not after LDA of that variable
         // but LDA-TAZ can be simplified to TZA
-        if (elidable && elidable2 && th.name == vy) {
+        if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable && th.name == vy) {
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
 
-      case (AssemblyLine(LDA | STA, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: xs =>
+      case (AssemblyLine(LDA | STA, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs =>
         // changing LDA->TXA, STA->TAX, INC->INX, DEC->DEX saves 2 bytes
         if (th.name == vy || th.name == vx || th.name == vz) {
-          if (elidable) {
+          if (elidability == Elidability.Elidable) {
             canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
           } else {
             None
@@ -535,10 +535,10 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
-      case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: xs =>
+      case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs =>
         // changing LDA->TXA, STA->TAX, INC->INX, DEC->DEX saves 2 bytes
         if (th.name == vy || th.name == vx || th.name == vz) {
-          if (elidable) {
+          if (elidability == Elidability.Elidable) {
             canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
           } else {
             None
@@ -547,10 +547,10 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
-      case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), elidable), _) :: xs =>
+      case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs =>
         // changing STZ->LDX saves 1 byte
         if (th.name == vy || th.name == vx) {
-          if (elidable && features.izIsAlwaysZero) {
+          if (elidability == Elidability.Elidable && features.izIsAlwaysZero) {
             canBeInlined(xCandidate, yCandidate, zCandidate, features, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
           } else {
             None
@@ -559,23 +559,23 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
         }
 
-      case (AssemblyLine(TAX, _, _, _), _) :: xs if xCandidate.isDefined =>
+      case (AssemblyLine0(TAX, _, _), _) :: xs if xCandidate.isDefined =>
         // a variable cannot be inlined if there is TAX not after LDA of that variable
         None
 
-      case (AssemblyLine(TAY, _, _, _), _) :: xs if yCandidate.isDefined =>
+      case (AssemblyLine0(TAY, _, _), _) :: xs if yCandidate.isDefined =>
         // a variable cannot be inlined if there is TAY not after LDA of that variable
         None
 
-      case (AssemblyLine(TAZ, _, _, _), _) :: xs if zCandidate.isDefined =>
+      case (AssemblyLine0(TAZ, _, _), _) :: xs if zCandidate.isDefined =>
         // a variable cannot be inlined if there is TAZ not after LDA of that variable
         None
 
-      case (AssemblyLine(LABEL, _, _, _), _) :: xs =>
+      case (AssemblyLine0(LABEL, _, _), _) :: xs =>
         // labels always end the initial section
         canBeInlined(xCandidate, yCandidate, zCandidate, features, xs)
 
-      case (AssemblyLine(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _), _) :: xs =>
+      case (AssemblyLine0(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th)), _) :: xs =>
         if (
           xCandidate.isDefined && features.functionsSafeForX(th.name) ||
           yCandidate.isDefined && features.functionsSafeForY(th.name) ||
@@ -601,75 +601,75 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
   def canBeInlinedToAccumulator(features: FeaturesForAccumulator, start: Boolean, synced: Boolean, candidate: String, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
     lines match {
 
-      case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true),_) :: xs
+      case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, _), _) :: xs
         if th.name == candidate && start || synced =>
         canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
 
-      case (AssemblyLine(op, _, _, _),_) :: xs if opcodesThatAlwaysPrecludeAAllocation(op) =>
+      case (AssemblyLine0(op, _, _),_) :: xs if opcodesThatAlwaysPrecludeAAllocation(op) =>
         None
 
-      case (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _),_) :: xs
+      case (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if th.name == candidate && opcodesThatCannotBeUsedWithAccumulatorAsParameter(op) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
         None
 
-      case (AssemblyLine(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _), _),_) :: xs
+      case (AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)), _) :: xs
         if th.name == candidate =>
         // if an address of a variable is used, then that variable cannot be assigned to a register
         None
 
-      case (AssemblyLine(_, AbsoluteX | AbsoluteY | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | Indirect | AbsoluteIndexedX, MemoryAddressConstant(th), _),_) :: xs
+      case (AssemblyLine0(_, AbsoluteX | AbsoluteY | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | Indirect | AbsoluteIndexedX, MemoryAddressConstant(th)), _) :: xs
         if th.name == candidate =>
         // if a variable is used as an array or a pointer, then it cannot be assigned to a register
         None
 
-      case (AssemblyLine(SEP | REP, Immediate, NumericConstant(nn, _), _), _) :: xs =>
+      case (AssemblyLine0(SEP | REP, Immediate, NumericConstant(nn, _)), _) :: xs =>
         if ((nn & 0x20) == 0) canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
         else None
 
-      case (AssemblyLine(SEP | REP, _, _, _), _) :: xs => None
+      case (AssemblyLine0(SEP | REP, _, _), _) :: xs => None
 
-      case (AssemblyLine(STA, _, MemoryAddressConstant(th), elidable) ,_):: xs if th.name == candidate =>
-        if (synced && elidable) {
+      case (AssemblyLine(STA, _, MemoryAddressConstant(th), elidability, _), _) :: xs if th.name == candidate =>
+        if (synced && elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
           None
         }
 
-      case (AssemblyLine(DCP, Absolute | ZeroPage, MemoryAddressConstant(th), _) ,_):: xs if th.name == candidate =>
+      case (AssemblyLine0(DCP, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs if th.name == candidate =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
           None
         }
 
-      case (AssemblyLine(STA | SAX, _, MemoryAddressConstant(th), elidable) ,_):: xs if th.name != candidate =>
+      case (AssemblyLine(STA | SAX, _, MemoryAddressConstant(th), elidability, _), _) :: xs if th.name != candidate =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
           None
         }
 
-      case (AssemblyLine(STA | SAX, _, NumericConstant(_, _), _) ,_):: xs =>
+      case (AssemblyLine0(STA | SAX, _, NumericConstant(_, _)), _) :: xs =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
           None
         }
 
-      case (AssemblyLine(SAX, _, MemoryAddressConstant(th), _) ,_):: xs if th.name == candidate =>
+      case (AssemblyLine0(SAX, _, MemoryAddressConstant(th)), _) :: xs if th.name == candidate =>
         // if XAA had stable magic $FF, then SAXv/LDAv would correspond to XAA#ff
         // but there's no point in even thinking about that
         None
 
-      case (AssemblyLine(TAX | TAY, _, _, _),_) :: xs =>
+      case (AssemblyLine0(TAX | TAY, _, _),_) :: xs =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
           None
         }
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), imp) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, _), imp) :: xs
         if th.name == candidate =>
         // removing LDA saves 3 bytes
         if (imp.z == Unimportant && imp.n == Unimportant) {
@@ -678,58 +678,58 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 1, cycles = 2))
         }
 
-      case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
+      case (AssemblyLine(LDA, _, _, elidability, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidability2, _), _) :: xs
         if opcodesCommutative(op) =>
         if (th.name == candidate) {
-          if (elidable && elidable2) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
+          if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           else None
         } else canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
 
-      case (AssemblyLine(LDA, _, _, elidable),_) :: (AssemblyLine(CLC, _, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidable2),_) :: xs
+      case (AssemblyLine(LDA, _, _, elidability, _), _) :: (AssemblyLine0(CLC, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidability2, _), _) :: xs
         if opcodesCommutative(op) =>
         if (th.name == candidate) {
-          if (elidable && elidable2) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
+          if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
           else None
         } else canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
 
-      case (AssemblyLine(LDX | LDY | LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
+      case (AssemblyLine(LDX | LDY | LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
         if th.name == candidate =>
         // converting a load into a transfer saves 2 bytes
-        if (elidable) {
+        if (elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         } else {
           None
         }
 
-      case (AssemblyLine(LDA | LAX, _, _, _),_) :: xs =>
+      case (AssemblyLine0(LDA | LAX, _, _),_) :: xs =>
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
         None
 
-      case (AssemblyLine(ASL | LSR | ROR | ROL, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
+      case (AssemblyLine(ASL | LSR | ROR | ROL, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
         if th.name == candidate =>
-        if (elidable) {
+        if (elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
           None
         }
 
-      case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidable),_) :: xs
+      case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
         if th.name == candidate =>
-        if (features.cmos && elidable) {
+        if (features.cmos && elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
           None
         }
 
-      case (AssemblyLine(TXA | TYA, _, _, elidable), imp) :: xs =>
-        if (imp.a == Unimportant && imp.c == Unimportant && imp.v == Unimportant && elidable) {
+      case (AssemblyLine(TXA | TYA, _, _, elidability, _), imp) :: xs =>
+        if (imp.a == Unimportant && imp.c == Unimportant && imp.v == Unimportant && elidability == Elidability.Elidable) {
           // TYA/TXA has to be converted to CPY#0/CPX#0
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = -1, cycles = 0))
         } else {
           None
         }
 
-      case (AssemblyLine(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _), _) :: xs =>
+      case (AssemblyLine0(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th)), _) :: xs =>
         if (features.safeFunctions(th.name)) canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
         else None
 
@@ -756,249 +756,249 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     val vz = zCandidate.getOrElse("-")
     val va = aCandidate.getOrElse("-")
     lines match {
-      case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map( AssemblyLine.implied(INX) :: _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map( AssemblyLine.implied(INX).pos(s) :: _)
 
-      case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vy =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(INY) :: _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(INY).pos(s) :: _)
 
-      case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(INC, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vz =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(INZ) :: _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(INZ).pos(s) :: _)
 
-      case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEX) :: _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEX).pos(s) :: _)
 
-      case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vy =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEY) :: _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEY).pos(s) :: _)
 
-      case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(DEC, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vz =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEZ) :: _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(DEZ).pos(s) :: _)
 
-      case (AssemblyLine(opcode@(DEC | INC | ROL | ROR | ASL | LSR), Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(opcode@(DEC | INC | ROL | ROR | ASL | LSR), Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == va =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(opcode) :: _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(opcode).pos(s) :: _)
 
-      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
+      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), imp) :: xs
         if th.name == vx =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs))
         } else {
-          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPX, 0) :: _)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPX, 0).pos(s) :: _)
         }
 
-      case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA).pos(s) ::  _)
 
-      case (l@AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (l@AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesIdentityTable(op) && th.name == vx =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l.copy(addrMode = AbsoluteX, parameter = features.identityArray) ::  _)
 
-      case (l@AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (l@AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesIdentityTable(op) && th.name == vy =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l.copy(addrMode = AbsoluteY, parameter = features.identityArray) ::  _)
 
-      case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (l@AssemblyLine0(LDA, _, _), _) ::  (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesCommutative(op) && th.name == va =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l.copy(opcode = op) ::  _)
 
-      case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (l@AssemblyLine0(LDA, _, _), _) :: (clc@AssemblyLine0(CLC, _, _), _) :: (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesCommutative(op) && th.name == va =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(clc :: l.copy(opcode = op) ::  _)
 
-      case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (l@AssemblyLine(LDA, _, _, _, s), _) ::  (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesCommutative(op) && th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) :: l.copy(opcode = op) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA).pos(s) :: l.copy(opcode = op) ::  _)
 
-      case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (l@AssemblyLine(LDA, _, _, _, s), _) :: (clc@AssemblyLine0(CLC, _, _), _) :: (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesCommutative(op) && th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) :: clc :: l.copy(opcode = op) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA).pos(s) :: clc :: l.copy(opcode = op) ::  _)
 
-      case (l@AssemblyLine(LDA, _, _, _), _) ::  (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (l@AssemblyLine(LDA, _, _, _, s), _) ::  (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesCommutative(op) && th.name == vy =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) :: l.copy(opcode = op) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA).pos(s) :: l.copy(opcode = op) ::  _)
 
-      case (l@AssemblyLine(LDA, _, _, _), _) :: (clc@AssemblyLine(CLC, _, _, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (l@AssemblyLine(LDA, _, _, _, s), _) :: (clc@AssemblyLine0(CLC, _, _), _) :: (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesCommutative(op) && th.name == vy =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) :: clc :: l.copy(opcode = op) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA).pos(s) :: clc :: l.copy(opcode = op) ::  _)
 
-      case (AssemblyLine(LDA | STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
+      case (AssemblyLine(LDA | STA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), imp) :: xs
         if th.name == va =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
         } else {
-          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CMP, 0) ::  _)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CMP, 0).pos(s) ::  _)
         }
 
-      case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LAX, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == va =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX).pos(s) ::  _)
 
-      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
+      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), imp) :: xs
         if th.name == vy =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
         } else {
-          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPY, 0) ::  _)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPY, 0).pos(s) ::  _)
         }
 
-      case (AssemblyLine(LDZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), imp) :: xs
+      case (AssemblyLine(LDZ, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), imp) :: xs
         if th.name == vz =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)
         } else {
-          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPZ, 0) ::  _)
+          tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPZ, 0).pos(s) ::  _)
         }
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TAX, _, _, true), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s), _) :: (AssemblyLine(TAX, _, _, Elidability.Elidable, _), _) :: xs
         if th.name == vx =>
         // these TXA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA).pos(s) ::  _)
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TAY, _, _, true), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s), _) :: (AssemblyLine(TAY, _, _, Elidability.Elidable, _), _) :: xs
         if th.name == vy =>
         // these TYA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA).pos(s) ::  _)
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TAZ, _, _, true), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s), _) :: (AssemblyLine(TAZ, _, _, Elidability.Elidable, _), _) :: xs
         if th.name == vz =>
         // these TZA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA).pos(s) ::  _)
 
-      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TXA, _, _, true), _) :: xs
+      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s), _) :: (AssemblyLine(TXA, _, _, Elidability.Elidable, _), _) :: xs
         if th.name == va =>
         // these TAX's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX).pos(s) ::  _)
 
-      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: (AssemblyLine(TYA, _, _, true), _) :: xs
+      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, _), _) :: (AssemblyLine(TYA, _, _, Elidability.Elidable, _), _) :: xs
         if th.name == va =>
         // these TAY's may get optimized away by a different optimization
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY) ::  _)
 
-      case (AssemblyLine(LDA, am, param, true), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
+      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
         if th.name == vx && LdxAddrModes(am) =>
         // these TXA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDX, am, param) :: AssemblyLine.implied(TXA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDX, am, param).pos(s1, s2) :: AssemblyLine.implied(TXA).pos(s1, s2) ::  _)
 
-      case (AssemblyLine(LDA, am, param, true), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
+      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
         if th.name == vy && LdyAddrModes(am) =>
         // these TYA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDY, am, param) :: AssemblyLine.implied(TYA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDY, am, param).pos(s1, s2) :: AssemblyLine.implied(TYA).pos(s1, s2) ::  _)
 
-      case (AssemblyLine(LDA, am, param, true), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
+      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
         if th.name == vz && LdzAddrModes(am) =>
         // these TZA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDZ, am, param) :: AssemblyLine.implied(TZA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDZ, am, param).pos(s1, s2) :: AssemblyLine.implied(TZA).pos(s1, s2) ::  _)
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s1), _) :: (AssemblyLine(CMP, am, param, Elidability.Elidable, s2), _) :: xs
         if th.name == vx && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) :: AssemblyLine(CPX, am, param) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA).pos(s1) :: AssemblyLine(CPX, am, param).pos(s2) ::  _)
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s1), _) :: (AssemblyLine(CMP, am, param, Elidability.Elidable, s2), _) :: xs
         if th.name == vy && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) :: AssemblyLine(CPY, am, param) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA).pos(s1) :: AssemblyLine(CPY, am, param).pos(s2) ::  _)
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: (AssemblyLine(CMP, am, param, true), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s1), _) :: (AssemblyLine(CMP, am, param, Elidability.Elidable, s2), _) :: xs
         if th.name == vy && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA) :: AssemblyLine(CPZ, am, param) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA).pos(s1) :: AssemblyLine(CPZ, am, param).pos(s2) ::  _)
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA).pos(s) ::  _)
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vy =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA).pos(s) ::  _)
 
-      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXY) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXY).pos(s) ::  _)
 
-      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vy =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYX) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYX).pos(s) ::  _)
 
-      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vz =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA).pos(s) ::  _)
 
-      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == va =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX).pos(s) ::  _)
 
-      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == va =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY).pos(s) ::  _)
 
-      case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAX).pos(s) ::  _)
 
-      case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vy =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY).pos(s) ::  _)
 
-      case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vz =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAZ) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAZ).pos(s) ::  _)
 
-      case (AssemblyLine(STX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STX, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == va =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXA).pos(s) ::  _)
 
-      case (AssemblyLine(STY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STY, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == va =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYA).pos(s) ::  _)
 
-      case (AssemblyLine(STX, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STX, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vy =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXY) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TXY).pos(s) ::  _)
 
-      case (AssemblyLine(STY, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STY, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYX) ::  _)
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TYX).pos(s) ::  _)
 
-      case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
-        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDX, 0) ::  _)
+        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDX, 0).pos(s) ::  _)
         else features.log.fatal("Unexpected STZ")
 
-      case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vy =>
-        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDY, 0) ::  _)
+        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDY, 0).pos(s) ::  _)
         else features.log.fatal("Unexpected STZ")
 
-      case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+      case (AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == va =>
-        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDA, 0) ::  _)
-        else tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA) ::  _)
+        if (features.izIsAlwaysZero) tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(LDA, 0).pos(s) ::  _)
+        else tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TZA).pos(s) ::  _)
 
-      case (AssemblyLine(TAX, _, _, _), _) :: xs if xCandidate.isDefined =>
+      case (AssemblyLine0(TAX, _, _), _) :: xs if xCandidate.isDefined =>
         features.log.fatal("Unexpected TAX")
 
-      case (AssemblyLine(TAY, _, _, _), _) :: xs if yCandidate.isDefined =>
+      case (AssemblyLine0(TAY, _, _), _) :: xs if yCandidate.isDefined =>
         features.log.fatal("Unexpected TAY")
 
-      case (AssemblyLine(TAZ, _, _, _), _) :: xs if zCandidate.isDefined =>
+      case (AssemblyLine0(TAZ, _, _), _) :: xs if zCandidate.isDefined =>
         features.log.fatal("Unexpected TAZ")
 
-      case (AssemblyLine(TXA, _, _, _), _) :: xs if aCandidate.isDefined =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPX, 0) ::  _)
+      case (AssemblyLine(TXA, _, _, _, s), _) :: xs if aCandidate.isDefined =>
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPX, 0).pos(s) ::  _)
 
-      case (AssemblyLine(TYA, _, _, _), _) :: xs if aCandidate.isDefined =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPY, 0) ::  _)
+      case (AssemblyLine(TYA, _, _, _, s), _) :: xs if aCandidate.isDefined =>
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPY, 0).pos(s) ::  _)
 
-      case (AssemblyLine(TZA, _, _, _), _) :: xs if aCandidate.isDefined =>
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPZ, 0) ::  _)
+      case (AssemblyLine(TZA, _, _, _, s), _) :: xs if aCandidate.isDefined =>
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPZ, 0).pos(s) ::  _)
 
       case (x, _) :: xs => inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs).map(x ::  _)
 

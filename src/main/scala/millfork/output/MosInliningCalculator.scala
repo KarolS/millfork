@@ -1,6 +1,7 @@
 package millfork.output
 
 import millfork.JobContext
+import millfork.assembly.Elidability
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.{AddrMode, _}
 import millfork.compiler.AbstractCompiler
@@ -23,13 +24,13 @@ object MosInliningCalculator extends AbstractInliningCalculator[AssemblyLine] {
   def codeForInlining(fname: String, functionsThatCanBeCalledFromInlinedFunctions: Set[String], code: List[AssemblyLine]): Option[List[AssemblyLine]] = {
     if (code.isEmpty) return None
     val localLabels = code.flatMap{
-      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(l)), _) => Some(l)
+      case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(l))) => Some(l)
       case _ => None
     }
     val lastLineOfCode = code.last
     lastLineOfCode match {
-      case AssemblyLine(RTS | RTL, _, _, _) =>
-      case AssemblyLine(JMP, AddrMode.Absolute, _, _) =>
+      case AssemblyLine0(RTS | RTL, _, _) =>
+      case AssemblyLine0(JMP, AddrMode.Absolute, _) =>
       case _ => return None
     }
     var result = code.init
@@ -41,20 +42,20 @@ object MosInliningCalculator extends AbstractInliningCalculator[AssemblyLine] {
     }
     if (result.head.opcode == LABEL && result.head.parameter == Label(fname).toAddress) result = result.tail
     if (result.exists{
-      case AssemblyLine(op, AddrMode.Absolute | AddrMode.Relative | AddrMode.DoesNotExist, MemoryAddressConstant(Label(l)), _) if jumpingRelatedOpcodes(op) =>
+      case AssemblyLine0(op, AddrMode.Absolute | AddrMode.Relative | AddrMode.DoesNotExist, MemoryAddressConstant(Label(l))) if jumpingRelatedOpcodes(op) =>
         if (!localLabels.contains(l) && !l.startsWith(".")) {
-          println("Bad jump " + l)
+//          println("Bad jump " + l)
           true
         } else false
-      case AssemblyLine(JSR, AddrMode.Absolute, MemoryAddressConstant(th:ExternFunction), _) =>
+      case AssemblyLine0(JSR, AddrMode.Absolute, MemoryAddressConstant(th:ExternFunction)) =>
         false
-      case AssemblyLine(JSR, AddrMode.Absolute, MemoryAddressConstant(th:NormalFunction), _) =>
+      case AssemblyLine0(JSR, AddrMode.Absolute, MemoryAddressConstant(th:NormalFunction)) =>
         if(!functionsThatCanBeCalledFromInlinedFunctions(th.name)){
-          println("Bad call " + th)
+//          println("Bad call " + th)
           true
         } else false
-      case AssemblyLine(op, _, _, _) if jumpingRelatedOpcodes(op) || badOpcodes(op) =>
-        println("Bad opcode " + op)
+      case AssemblyLine0(op, _, _) if jumpingRelatedOpcodes(op) || badOpcodes(op) =>
+//        println("Bad opcode " + op)
         true
       case _ => false
     }) return None
@@ -63,18 +64,18 @@ object MosInliningCalculator extends AbstractInliningCalculator[AssemblyLine] {
 
   def inline(code: List[AssemblyLine], inlinedFunctions: Map[String, List[AssemblyLine]], jobContext: JobContext): List[AssemblyLine] = {
     code.flatMap {
-      case AssemblyLine(Opcode.JSR, AddrMode.Absolute | AddrMode.LongAbsolute, p, true) if inlinedFunctions.contains(p.toString) =>
+      case AssemblyLine(Opcode.JSR, AddrMode.Absolute | AddrMode.LongAbsolute, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
         val labelPrefix = jobContext.nextLabel("ai")
         inlinedFunctions(p.toString).map {
-          case line@AssemblyLine(_, _, MemoryAddressConstant(Label(label)), _) =>
+          case line@AssemblyLine0(_, _, MemoryAddressConstant(Label(label))) =>
             val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
             line.copy(parameter = newLabel)
           case l => l
         }
-      case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, true) if inlinedFunctions.contains(p.toString) =>
+      case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
         val labelPrefix = jobContext.nextLabel("ai")
         inlinedFunctions(p.toString).map {
-          case line@AssemblyLine(_, _, MemoryAddressConstant(Label(label)), _) =>
+          case line@AssemblyLine0(_, _, MemoryAddressConstant(Label(label))) =>
             val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
             line.copy(parameter = newLabel)
           case l => l

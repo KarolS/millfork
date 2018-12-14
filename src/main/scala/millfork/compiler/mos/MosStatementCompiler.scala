@@ -1,7 +1,7 @@
 package millfork.compiler.mos
 
 import millfork.CompilationFlag
-import millfork.assembly.BranchingOpcodeMapping
+import millfork.assembly.{BranchingOpcodeMapping, Elidability}
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
@@ -138,7 +138,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         List(AssemblyLine.implied(RTS))
       })
     }
-    statement match {
+    (statement match {
       case EmptyStatement(stmts) =>
         stmts.foreach(s => compile(ctx, s))
         Nil
@@ -165,10 +165,10 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       case RawBytesStatement(contents) =>
         env.extractArrayContents(contents).map { expr =>
           env.eval(expr) match {
-            case Some(c) => AssemblyLine(BYTE, RawByte, c, elidable = false)
+            case Some(c) => AssemblyLine(BYTE, RawByte, c, elidability = Elidability.Fixed)
             case None =>
               ctx.log.error("Non-constant raw byte", position = statement.position)
-              AssemblyLine(BYTE, RawByte, Constant.Zero, elidable = false)
+              AssemblyLine(BYTE, RawByte, Constant.Zero, elidability = Elidability.Fixed)
           }
         }
       case Assignment(dest, source) =>
@@ -273,7 +273,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         compileBreakStatement(ctx, s)
       case s:ContinueStatement =>
         compileContinueStatement(ctx, s)
-    }
+    }).map(_.positionIfEmpty(statement.position))
   }
 
   def stackPointerFixBeforeReturn(ctx: CompilationContext): List[AssemblyLine] = {

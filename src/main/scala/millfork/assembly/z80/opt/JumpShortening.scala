@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.{CompilationFlag, CompilationOptions}
-import millfork.assembly.OptimizationContext
+import millfork.assembly.{Elidability, OptimizationContext}
 import millfork.assembly.z80.ZOpcode._
 import millfork.assembly.z80._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
@@ -30,11 +30,11 @@ object JumpShortening {
         o += line.sizeInBytes
     }
     val labelOffsets = code.zipWithIndex.flatMap {
-      case (ZLine(LABEL, _, MemoryAddressConstant(Label(label)), _), ix) => Some(label -> offsets(ix))
+      case (ZLine0(LABEL, _, MemoryAddressConstant(Label(label))), ix) => Some(label -> offsets(ix))
       case _ => None
     }.toMap
     code.zipWithIndex.map {
-      case (line@ZLine(JP, NoRegisters | IfFlagSet(ZFlag.Z | ZFlag.C) | IfFlagClear(ZFlag.Z | ZFlag.C), MemoryAddressConstant(Label(label)), true), ix) =>
+      case (line@ZLine(JP, NoRegisters | IfFlagSet(ZFlag.Z | ZFlag.C) | IfFlagClear(ZFlag.Z | ZFlag.C), MemoryAddressConstant(Label(label)), Elidability.Elidable, _), ix) =>
         labelOffsets.get(label).fold(line) { labelOffset =>
           val thisOffset = offsets(ix)
           val willBeTaken  = line.registers == NoRegisters ||

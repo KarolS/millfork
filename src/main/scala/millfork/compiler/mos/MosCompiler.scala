@@ -1,6 +1,7 @@
 package millfork.compiler.mos
 
 import millfork.CompilationFlag
+import millfork.assembly.Elidability
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
 import millfork.compiler.{AbstractCompiler, CompilationContext}
@@ -18,11 +19,11 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
     val chunk = MosStatementCompiler.compile(ctx, new MosStatementPreprocessor(ctx, ctx.function.code)())
     val zpRegisterSize = ctx.options.zpRegisterSize
 
-    val storeParamsFromRegisters = ctx.function.params match {
+    val storeParamsFromRegisters = (ctx.function.params match {
       case NormalParamSignature(List(param@MemoryVariable(_, typ, _))) if typ.size == 1 =>
         List(AssemblyLine.absolute(STA, param))
       case _ => Nil
-    }
+    }).map(_.position(ctx.function.position))
     val phReg =
       if (zpRegisterSize > 0) {
         val reg = ctx.env.get[VariableInMemory]("__reg")
@@ -30,7 +31,7 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
           List(
             AssemblyLine.zeropage(LDA, reg, i),
             AssemblyLine.implied(PHA))
-        }.toList
+        }.toList.map(_.position(ctx.function.position))
       } else Nil
 
     val prefix = storeParamsFromRegisters ++ (if (ctx.function.interrupt) {
@@ -116,8 +117,8 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
         }
         AssemblyLine.accu16 :: (initialBytes ++ lastByte)
       } else phReg
-    } else Nil) ++ stackPointerFixAtBeginning(ctx)
-    val label = AssemblyLine.label(Label(ctx.function.name)).copy(elidable = false)
+    } else Nil).map(_.position(ctx.function.position)) ++ stackPointerFixAtBeginning(ctx)
+    val label = AssemblyLine.label(Label(ctx.function.name)).copy(elidability = Elidability.Fixed)
     label :: (prefix ++ chunk)
   }
 
@@ -130,9 +131,9 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
           AssemblyLine.implied(TSX),
           AssemblyLine.immediate(LDA, 0xff),
           AssemblyLine.immediate(SBX, m.stackVariablesSize),
-          AssemblyLine.implied(TXS)) // this TXS is fine, it won't appear in 65816 code
+          AssemblyLine.implied(TXS)).map(_.position(m.position)) // this TXS is fine, it won't appear in 65816 code
     }
-    List.fill(m.stackVariablesSize)(AssemblyLine.implied(PHA))
+    List.fill(m.stackVariablesSize)(AssemblyLine.implied(PHA)).map(_.position(m.position))
   }
 
 }

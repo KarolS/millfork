@@ -233,13 +233,13 @@ object Z80Comparisons {
       import ZRegister._
       val sub = if (i == 0) SUB else SBC
       var compareBytes = (lb, rb) match {
-        case (List(ZLine(LD, TwoRegisters(A, _), _, _)),
-        List(ZLine(LD, TwoRegisters(A, IMM_8), param, _))) =>
+        case (List(ZLine0(LD, TwoRegisters(A, _), _)),
+        List(ZLine0(LD, TwoRegisters(A, IMM_8), param))) =>
           lb :+ ZLine.imm8(sub, param)
-        case (List(ZLine(LD, TwoRegisters(A, _), _, _)),
-        List(ZLine(LD, TwoRegisters(A, reg), _, _))) if reg != MEM_ABS_8 =>
+        case (List(ZLine0(LD, TwoRegisters(A, _), _)),
+        List(ZLine0(LD, TwoRegisters(A, reg), _))) if reg != MEM_ABS_8 =>
           lb :+ ZLine.register(sub, reg)
-        case (List(ZLine(LD, TwoRegisters(A, _), _, _)), _) =>
+        case (List(ZLine0(LD, TwoRegisters(A, _), _)), _) =>
           Z80ExpressionCompiler.stashAFIfChangedF(ctx, rb :+ ZLine.ld8(E, A)) ++ lb :+ ZLine.register(sub, E)
         case _ =>
           if (preserveBc || preserveHl) ??? // TODO: preserve HL/BC for the next round of comparisons
@@ -293,17 +293,17 @@ object Z80Comparisons {
         import ZOpcode._
         import ZRegister._
         (lb, rb) match {
-          case (_, List(ZLine(LD, TwoRegisters(A, IMM_8), param, _))) =>
+          case (_, List(ZLine0(LD, TwoRegisters(A, IMM_8), param))) =>
             lb :+ ZLine.imm8(CP, param)
-          case (List(ZLine(LD, TwoRegisters(A, IMM_8), param, _)), _) =>
+          case (List(ZLine0(LD, TwoRegisters(A, IMM_8), param)), _) =>
             rb :+ ZLine.imm8(CP, param)
-          case (List(ZLine(LD, TwoRegisters(A, _), _, _)),
-          List(ZLine(LD, TwoRegisters(A, reg), _, _))) if reg != MEM_ABS_8 =>
+          case (List(ZLine0(LD, TwoRegisters(A, _), _)),
+          List(ZLine0(LD, TwoRegisters(A, reg), _))) if reg != MEM_ABS_8 =>
             lb :+ ZLine.register(CP, reg)
-          case (List(ZLine(LD, TwoRegisters(A, reg), _, _)),
-          List(ZLine(LD, TwoRegisters(A, _), _, _))) if reg != MEM_ABS_8 =>
+          case (List(ZLine0(LD, TwoRegisters(A, reg), _)),
+          List(ZLine0(LD, TwoRegisters(A, _), _))) if reg != MEM_ABS_8 =>
             rb :+ ZLine.register(CP, reg)
-          case (List(ZLine(LD, TwoRegisters(A, _), _, _)), _) =>
+          case (List(ZLine0(LD, TwoRegisters(A, _), _)), _) =>
             (rb :+ ZLine.ld8(E, A)) ++ lb :+ ZLine.register(CP, E)
           case _ =>
             var actualLb = lb
@@ -322,14 +322,14 @@ object Z80Comparisons {
 
   private def isBytesFromHL(calculateLeft: List[List[ZLine]]) = {
     calculateLeft(1) match {
-      case List(ZLine(ZOpcode.LD, TwoRegisters(ZRegister.A, ZRegister.H), _, _)) => true
+      case List(ZLine0(ZOpcode.LD, TwoRegisters(ZRegister.A, ZRegister.H), _)) => true
       case _ => false
     }
   }
 
   private def isBytesFromBC(calculateLeft: List[List[ZLine]]) = {
     calculateLeft(1) match {
-      case List(ZLine(ZOpcode.LD, TwoRegisters(ZRegister.A, ZRegister.B), _, _)) => true
+      case List(ZLine0(ZOpcode.LD, TwoRegisters(ZRegister.A, ZRegister.B), _)) => true
       case _ => false
     }
   }

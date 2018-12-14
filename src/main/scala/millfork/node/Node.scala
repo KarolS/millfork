@@ -1,5 +1,6 @@
 package millfork.node
 
+import millfork.assembly.Elidability
 import millfork.assembly.mos.{AddrMode, Opcode}
 import millfork.assembly.z80.{ZOpcode, ZRegisters}
 import millfork.env.{Constant, ParamPassingConvention, Type}
@@ -345,11 +346,11 @@ case class Assignment(destination: LhsExpression, source: Expression) extends Ex
   override def getAllExpressions: List[Expression] = List(destination, source)
 }
 
-case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, expression: Expression, elidable: Boolean) extends ExecutableStatement {
+case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, expression: Expression, elidability: Elidability.Value) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
 }
 
-case class Z80AssemblyStatement(opcode: ZOpcode.Value, registers: ZRegisters, offsetExpression: Option[Expression], expression: Expression, elidable: Boolean) extends ExecutableStatement {
+case class Z80AssemblyStatement(opcode: ZOpcode.Value, registers: ZRegisters, offsetExpression: Option[Expression], expression: Expression, elidability: Elidability.Value) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
 }
 
@@ -390,7 +391,7 @@ case class ContinueStatement(label: String) extends ExecutableStatement {
 }
 
 object MosAssemblyStatement {
-  def implied(opcode: Opcode.Value, elidable: Boolean) = MosAssemblyStatement(opcode, AddrMode.Implied, LiteralExpression(0, 1), elidable)
+  def implied(opcode: Opcode.Value, elidability: Elidability.Value) = MosAssemblyStatement(opcode, AddrMode.Implied, LiteralExpression(0, 1), elidability)
 
-  def nonexistent(opcode: Opcode.Value) = MosAssemblyStatement(opcode, AddrMode.DoesNotExist, LiteralExpression(0, 1), elidable = true)
+  def nonexistent(opcode: Opcode.Value) = MosAssemblyStatement(opcode, AddrMode.DoesNotExist, LiteralExpression(0, 1), elidability = Elidability.Elidable)
 }

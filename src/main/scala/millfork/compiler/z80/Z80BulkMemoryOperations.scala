@@ -1,6 +1,7 @@
 package millfork.compiler.z80
 
 import millfork.CompilationFlag
+import millfork.assembly.Elidability
 import millfork.assembly.z80._
 import millfork.compiler.CompilationContext
 import millfork.env._
@@ -68,7 +69,7 @@ object Z80BulkMemoryOperations {
         case _ => Z80ExpressionCompiler.stashBCIfChanged(ctx, loadA)
       }
       val loadDE = calculateAddress match {
-        case List(ZLine(ZOpcode.LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), c, _)) =>
+        case List(ZLine0(ZOpcode.LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), c)) =>
           if (incOp == DEC_16) List(ZLine.ldImm16(ZRegister.DE, (c - 1).quickSimplify))
           else List(ZLine.ldImm16(ZRegister.DE, (c + 1).quickSimplify))
         case _ => List(
@@ -465,7 +466,7 @@ object Z80BulkMemoryOperations {
     }
     Z80StatementCompiler.compile(ctx, IfStatement(
       FunctionCallExpression(operator, List(f.start, f.end)),
-      List(Z80AssemblyStatement(ZOpcode.NOP, NoRegisters, None, LiteralExpression(0, 1), elidable = false)),
+      List(Z80AssemblyStatement(ZOpcode.NOP, NoRegisters, None, LiteralExpression(0, 1), elidability = Elidability.Fixed)),
       Nil))
   }
 

@@ -1,7 +1,7 @@
 package millfork.output
 
 import millfork.CompilationOptions
-import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode, OpcodeClasses}
+import millfork.assembly.mos._
 import millfork.env.{Environment, Label, MemoryAddressConstant}
 import Opcode._
 import millfork.assembly.mos.AddrMode._
@@ -13,7 +13,7 @@ import scala.collection.mutable
   */
 class MosDeduplicate(env: Environment, options: CompilationOptions) extends Deduplicate[AssemblyLine](env, options) {
   override def getJump(line: AssemblyLine): Option[String] = line match {
-    case AssemblyLine(Opcode.JMP, Absolute, MemoryAddressConstant(thing), _) => Some(thing.name)
+    case AssemblyLine0(Opcode.JMP, Absolute, MemoryAddressConstant(thing)) => Some(thing.name)
     case _ => None
   }
 
@@ -21,7 +21,7 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
 
   override def actualCode(FunctionName: String, functionCode: List[AssemblyLine]): List[AssemblyLine] = {
     functionCode match {
-      case AssemblyLine(Opcode.LABEL, _, MemoryAddressConstant(Label(FunctionName)), _) :: xs => xs
+      case AssemblyLine0(Opcode.LABEL, _, MemoryAddressConstant(Label(FunctionName))) :: xs => xs
       case xs => xs
     }
   }
@@ -63,14 +63,14 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
 
   def rtsPrecededByDiscards(xs: List[AssemblyLine]): Option[List[AssemblyLine]] = {
     xs match {
-      case AssemblyLine(op, _, _, _) :: xs if OpcodeClasses.NoopDiscardsFlags(op) => rtsPrecededByDiscards(xs)
-      case AssemblyLine(RTS, _, _, _) :: xs => Some(xs)
+      case AssemblyLine0(op, _, _) :: xs if OpcodeClasses.NoopDiscardsFlags(op) => rtsPrecededByDiscards(xs)
+      case AssemblyLine0(RTS, _, _) :: xs => Some(xs)
       case _ => None
     }
   }
 
   override def tco(code: List[AssemblyLine]): List[AssemblyLine] = code match {
-    case (call@AssemblyLine(JSR, Absolute | LongAbsolute, _, _)) :: xs => rtsPrecededByDiscards(xs) match {
+    case (call@AssemblyLine0(JSR, Absolute | LongAbsolute, _)) :: xs => rtsPrecededByDiscards(xs) match {
       case Some(rest) => call.copy(opcode = JMP) :: tco(rest)
       case _ => call :: tco(xs)
     }
@@ -82,13 +82,13 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
     val map = mutable.Map[String, String]()
     var counter = 0
     code.foreach{
-      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(x)), _) if x.startsWith(".") =>
+      case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(x))) if x.startsWith(".") =>
         map(x) = if (temporary) ".ddtmp__" + counter else env.nextLabel("dd")
         counter += 1
       case _ =>
     }
     code.map{
-      case l@AssemblyLine(_, _, MemoryAddressConstant(Label(x)), _) if map.contains(x) =>
+      case l@AssemblyLine0(_, _, MemoryAddressConstant(Label(x))) if map.contains(x) =>
         l.copy(parameter = MemoryAddressConstant(Label(map(x))))
       case l => l
     }
@@ -98,14 +98,14 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
     val myLabels = mutable.Set[String]()
     val useCount = mutable.Map[String, Int]()
     snippet.foreach{
-      case AssemblyLine(LABEL, _, MemoryAddressConstant(Label(x)), _) =>
+      case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(x))) =>
         myLabels += x
-      case AssemblyLine(_, _, MemoryAddressConstant(Label(x)), _) =>
+      case AssemblyLine0(_, _, MemoryAddressConstant(Label(x))) =>
         useCount(x) = useCount.getOrElse(x, 0) - 1
       case _ =>
     }
     wholeCode.foreach {
-      case AssemblyLine(op, _, MemoryAddressConstant(Label(x)), _) if op != LABEL && myLabels(x) =>
+      case AssemblyLine0(op, _, MemoryAddressConstant(Label(x))) if op != LABEL && myLabels(x) =>
         useCount(x) = useCount.getOrElse(x, 0) + 1
       case _ =>
     }

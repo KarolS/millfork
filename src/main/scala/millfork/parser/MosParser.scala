@@ -6,6 +6,7 @@ import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node._
 import millfork.CompilationOptions
+import millfork.assembly.Elidability
 import millfork.output.{MemoryAlignment, NoAlignment, WithinPageAlignment}
 
 /**
@@ -21,7 +22,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
   def fastAlignmentForFunctions: MemoryAlignment = WithinPageAlignment
 
   // TODO: label and instruction in one line
-  val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => MosAssemblyStatement(Opcode.LABEL, AddrMode.DoesNotExist, VariableExpression(l), elidable = true))
+  val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => MosAssemblyStatement(Opcode.LABEL, AddrMode.DoesNotExist, VariableExpression(l), Elidability.Elidable))
 
   //  def zeropageAddrModeHint: P[Option[Boolean]] = Pass
 
@@ -55,7 +56,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
   }
 
   val asmInstruction: P[ExecutableStatement] = {
-    val lineParser: P[(Boolean, Opcode.Value, (AddrMode.Value, Expression))] = !"}" ~ elidable ~/ asmOpcode ~/ asmParameter
+    val lineParser: P[(Elidability.Value, Opcode.Value, (AddrMode.Value, Expression))] = !"}" ~ elidable ~/ asmOpcode ~/ asmParameter
     lineParser.map { case (elid, op, param) =>
       (op, param._1) match {
         case (Opcode.SAX, AddrMode.Implied) => MosAssemblyStatement(Opcode.HuSAX, param._1, param._2, elid)

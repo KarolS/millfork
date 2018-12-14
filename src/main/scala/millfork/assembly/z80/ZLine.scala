@@ -1,10 +1,10 @@
 package millfork.assembly.z80
 
 import millfork.CompilationFlag
-import millfork.assembly.AbstractCode
+import millfork.assembly.{AbstractCode, Elidability, SourceLine}
 import millfork.compiler.CompilationContext
 import millfork.env.{Constant, Label, NumericConstant, ThingInMemory}
-import millfork.node.ZRegister
+import millfork.node.{Position, ZRegister}
 
 /**
   * @author Karol Stasiak
@@ -177,7 +177,24 @@ object ZLine {
   def ldViaIxy(x: Boolean, targetOffset: Int, source: ZRegister.Value): ZLine = if (x) ldViaIx(targetOffset, source) else ldViaIy(targetOffset, source)
 }
 
-case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Constant, elidable: Boolean = true) extends AbstractCode {
+object ZLine0 {
+  @inline
+  def unapply(a: ZLine): Some[(ZOpcode.Value, ZRegisters, Constant)] = Some(a.opcode, a.registers, a.parameter)
+}
+
+case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Constant, elidability: Elidability.Value = Elidability.Elidable, source: Option[SourceLine] = None) extends AbstractCode {
+
+  def pos(s: Option[SourceLine]): ZLine = if (s.isEmpty || s == source) this else this.copy(source = s)
+
+  def pos(s1: Option[SourceLine], s2: Option[SourceLine]): ZLine = pos(Seq(s1, s2))
+
+  def position(s: Option[Position]): ZLine = pos(SourceLine.of(s))
+
+  def pos(s: Seq[Option[SourceLine]]): ZLine = pos(SourceLine.merge(s))
+
+  def mergePos(s: Seq[Option[SourceLine]]): ZLine = if (s.isEmpty) this else pos(SourceLine.merge(this.source, s))
+
+  def elidable: Boolean = elidability == Elidability.Elidable
 
   override def sizeInBytes: Int = {
     import ZOpcode._
@@ -268,7 +285,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
 
   override def toString: String = {
     import ZOpcode._
-    opcode match {
+    val raw = opcode match {
       case DISCARD_A => "    ; DISCARD_A"
       case DISCARD_HL => "    ; DISCARD_HL"
       case DISCARD_F => "    ; DISCARD_F"
@@ -349,6 +366,10 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case OneRegisterOffset(r, o) => s" ${asAssemblyString(r, o)}"
         }
         s"    $os$ps"
+    }
+    source match {
+      case Some(SourceLine(_, line)) if line > 0 => f"$raw%-30s \t; @ $line%d"
+      case _ => raw
     }
   }
 

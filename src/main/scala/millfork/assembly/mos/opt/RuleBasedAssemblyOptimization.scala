@@ -63,6 +63,12 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
             case Some(rest: List[(FlowInfo, AssemblyLine)]) =>
               val matchedChunkToOptimize: List[AssemblyLine] = code.take(code.length - rest.length).map(_._2)
               val optimizedChunk: List[AssemblyLine] = rule.result(matchedChunkToOptimize, ctx)
+              val optimizedChunkWithSource =
+                if (optimizedChunk.isEmpty) optimizedChunk
+                else if (matchedChunkToOptimize.size == 1)  optimizedChunk.map(_.pos(matchedChunkToOptimize.head.source))
+                else if (optimizedChunk.size == 1) optimizedChunk.map(_.pos(SourceLine.merge(matchedChunkToOptimize.map(_.source))))
+                else if (matchedChunkToOptimize.flatMap(_.source).toSet.size == 1) optimizedChunk.map(_.pos(SourceLine.merge(matchedChunkToOptimize.map(_.source))))
+                else optimizedChunk
               log.debug(s"Applied $name ($index)")
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
                 val before = code.head._1.statusBefore
@@ -73,12 +79,12 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
               if (log.traceEnabled) {
                 matchedChunkToOptimize.filter(_.isPrintable).foreach(l => log.trace(l.toString))
                 log.trace("     ↓")
-                optimizedChunk.filter(_.isPrintable).foreach(l => log.trace(l.toString))
+                optimizedChunkWithSource.filter(_.isPrintable).foreach(l => log.trace(l.toString))
               }
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
-                return optimizedChunk ++ optimizeImpl(f, rest, optimizationContext)
+                return optimizedChunkWithSource ++ optimizeImpl(f, rest, optimizationContext)
               } else {
-                return optimize(f, optimizedChunk ++ rest.map(_._2), optimizationContext)
+                return optimize(f, optimizedChunkWithSource ++ rest.map(_._2), optimizationContext)
               }
             case None => ()
           }
@@ -191,19 +197,19 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
     val jumps = mutable.Set[String]()
     get[List[AssemblyLine]](i).foreach {
       // JSR and BSR are allowed
-      case AssemblyLine(Opcode.RTS | Opcode.RTI | Opcode.RTL | Opcode.BRK, _, _, _) =>
+      case AssemblyLine0(Opcode.RTS | Opcode.RTI | Opcode.RTL | Opcode.BRK, _, _) =>
         return false
-      case AssemblyLine(Opcode.JMP, AddrMode.Indirect | AddrMode.AbsoluteIndexedX | AddrMode.LongIndirect, _, _) =>
+      case AssemblyLine0(Opcode.JMP, AddrMode.Indirect | AddrMode.AbsoluteIndexedX | AddrMode.LongIndirect, _) =>
         return false
-      case AssemblyLine(Opcode.LABEL, _, MemoryAddressConstant(Label(l)), _) =>
+      case AssemblyLine0(Opcode.LABEL, _, MemoryAddressConstant(Label(l))) =>
         labels += l
-      case AssemblyLine(Opcode.JMP, AddrMode.Absolute, MemoryAddressConstant(Label(l)), _) =>
+      case AssemblyLine0(Opcode.JMP, AddrMode.Absolute, MemoryAddressConstant(Label(l))) =>
         jumps += l
-      case AssemblyLine(Opcode.JMP, AddrMode.Absolute | AddrMode.LongAbsolute, _, _) =>
+      case AssemblyLine0(Opcode.JMP, AddrMode.Absolute | AddrMode.LongAbsolute, _) =>
         return false
-      case AssemblyLine(_, AddrMode.Relative, MemoryAddressConstant(Label(l)), _) =>
+      case AssemblyLine0(_, AddrMode.Relative, MemoryAddressConstant(Label(l))) =>
         jumps += l
-      case AssemblyLine(br, _, _, _) if OpcodeClasses.ShortBranching(br) =>
+      case AssemblyLine0(br, _, _) if OpcodeClasses.ShortBranching(br) =>
         return false
       case _ => ()
     }
@@ -721,7 +727,7 @@ case class EitherPattern(l: AssemblyLinePattern, r: AssemblyLinePattern) extends
 
 case object Elidable extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
-    line.elidable
+    line.elidability == Elidability.Elidable
 }
 
 case object DebugMatching extends AssemblyPattern {
@@ -849,8 +855,8 @@ case object ChangesA extends AssemblyLinePattern {
     import Opcode._
     import AddrMode._
     line match {
-      case AssemblyLine(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionChangesA(th.name)
-      case AssemblyLine(_, Implied, _, _) => OpcodeClasses.ChangesAIfImplied(line.opcode) || OpcodeClasses.ChangesAAlways(line.opcode)
+      case AssemblyLine0(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionChangesA(th.name)
+      case AssemblyLine0(_, Implied, _) => OpcodeClasses.ChangesAIfImplied(line.opcode) || OpcodeClasses.ChangesAAlways(line.opcode)
       case _ => OpcodeClasses.ChangesAAlways(line.opcode)
     }
   }
@@ -861,7 +867,7 @@ case object ChangesX extends AssemblyLinePattern {
     import Opcode._
     import AddrMode._
     line match {
-      case AssemblyLine(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionChangesX(th.name)
+      case AssemblyLine0(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionChangesX(th.name)
       case _ => OpcodeClasses.ChangesX(line.opcode)
     }
   }
@@ -872,7 +878,7 @@ case object ChangesY extends AssemblyLinePattern {
     import Opcode._
     import AddrMode._
     line match {
-      case AssemblyLine(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionChangesY(th.name)
+      case AssemblyLine0(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionChangesY(th.name)
       case _ => OpcodeClasses.ChangesY(line.opcode)
     }
   }
@@ -885,7 +891,7 @@ case object ReadsC extends AssemblyLinePattern {
     import Opcode._
     import AddrMode._
     line match {
-      case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionReadsC(th.name)
+      case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionReadsC(th.name)
       case _ => OpcodeClasses.ReadsC(line.opcode)
     }
   }
@@ -896,7 +902,7 @@ case object ReadsD extends AssemblyLinePattern {
     import Opcode._
     import AddrMode._
     line match {
-      case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionReadsD(th.name)
+      case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionReadsD(th.name)
       case _ => OpcodeClasses.ReadsD(line.opcode)
     }
   }
@@ -911,7 +917,7 @@ case object ChangesC extends AssemblyLinePattern {
     import Opcode._
     import AddrMode._
     line match {
-      case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionChangesC(th.name)
+      case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionChangesC(th.name)
       case _ => OpcodeClasses.ChangesC(line.opcode)
     }
   }
@@ -950,8 +956,8 @@ case object ChangesAH extends AssemblyLinePattern {
     import Opcode._
     import AddrMode._
     line match {
-      case AssemblyLine(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionChangesAH(th.name)
-      case AssemblyLine(_, Implied, _, _) => OpcodeClasses.ChangesAHIfImplied(line.opcode) || OpcodeClasses.ChangesAHAlways(line.opcode)
+      case AssemblyLine0(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionChangesAH(th.name)
+      case AssemblyLine0(_, Implied, _) => OpcodeClasses.ChangesAHIfImplied(line.opcode) || OpcodeClasses.ChangesAHAlways(line.opcode)
       case _ => OpcodeClasses.ChangesAHAlways(line.opcode)
     }
   }
@@ -959,15 +965,15 @@ case object ChangesAH extends AssemblyLinePattern {
 
 case object ChangesM extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean = line match {
-    case AssemblyLine(Opcode.SEP | Opcode.REP, AddrMode.Immediate, NumericConstant(n, _), _) => (n & 0x20) != 0
-    case AssemblyLine(Opcode.SEP | Opcode.REP | Opcode.PLP | Opcode.XCE, _, _, _) => true
+    case AssemblyLine0(Opcode.SEP | Opcode.REP, AddrMode.Immediate, NumericConstant(n, _)) => (n & 0x20) != 0
+    case AssemblyLine0(Opcode.SEP | Opcode.REP | Opcode.PLP | Opcode.XCE, _, _) => true
     case _ => false
   }
 }
 case object ChangesW extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean = line match {
-    case AssemblyLine(Opcode.SEP | Opcode.REP, AddrMode.Immediate, NumericConstant(n, _), _) => (n & 0x10) != 0
-    case AssemblyLine(Opcode.SEP | Opcode.REP | Opcode.PLP | Opcode.XCE, _, _, _) => true
+    case AssemblyLine0(Opcode.SEP | Opcode.REP, AddrMode.Immediate, NumericConstant(n, _)) => (n & 0x10) != 0
+    case AssemblyLine0(Opcode.SEP | Opcode.REP | Opcode.PLP | Opcode.XCE, _, _) => true
     case _ => false
   }
 }
@@ -977,9 +983,9 @@ case object ChangesMemory extends AssemblyLinePattern {
     import AddrMode._
     import Opcode._
     line match {
-      case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => ctx.functionChangesMemory(th.name)
-      case AssemblyLine(op, Implied, _, _) => OpcodeClasses.ChangesMemoryAlways(op)
-      case AssemblyLine(op, _, _, _) => OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op)
+      case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionChangesMemory(th.name)
+      case AssemblyLine0(op, Implied, _) => OpcodeClasses.ChangesMemoryAlways(op)
+      case AssemblyLine0(op, _, _) => OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op)
       case _ => false
     }
   }
@@ -990,7 +996,7 @@ case class DoesntChangeMemoryAt(addrMode1: Int, param1: Int, opcode: Opcode.Valu
     import AddrMode._
     import Opcode._
     line match {
-      case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => !ctx.functionChangesMemory(th.name)
+      case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => !ctx.functionChangesMemory(th.name)
       case _ =>
         val p1 = ctx.get[Constant](param1)
         val a1 = ctx.get[AddrMode.Value](addrMode1)
@@ -1013,7 +1019,7 @@ case class DoesNotConcernMemoryAt(addrMode1: Int, param1: Int) extends AssemblyL
       import AddrMode._
       import Opcode._
       line match {
-        case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => !ctx.functionReadsMemory(th.name) && !ctx.functionChangesMemory(th.name)
+        case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => !ctx.functionReadsMemory(th.name) && !ctx.functionChangesMemory(th.name)
         case _ =>
           val p1 = ctx.get[Constant](param1)
           val a1 = ctx.get[AddrMode.Value](addrMode1)
@@ -1273,7 +1279,7 @@ case class Before(pattern: AssemblyPattern) extends AssemblyLinePattern {
 case class HasCallerCount(count: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
     line match {
-      case AssemblyLine(Opcode.LABEL, _, MemoryAddressConstant(Label(l)), _) => flowInfo.labelUseCount(l) == count
+      case AssemblyLine0(Opcode.LABEL, _, MemoryAddressConstant(Label(l))) => flowInfo.labelUseCount(l) == count
       case _ => false
     }
 }
@@ -1300,7 +1306,7 @@ case object IsZeroPage extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {
     import Opcode._
     line match {
-      case AssemblyLine(_, AddrMode.ZeroPage, _, _) => true
+      case AssemblyLine0(_, AddrMode.ZeroPage, _) => true
       case l@AssemblyLine(LDA | STA | CMP |
                           LDX | STX | CPX |
                           LDY | STY | CPY |
@@ -1308,7 +1314,7 @@ case object IsZeroPage extends AssemblyLinePattern {
                           BIT |
                           ADC | SBC | AND | ORA | EOR |
                           INC | DEC | ROL | ROR | ASL | LSR |
-                          ISC | DCP | LAX | SAX | RLA | RRA | SLO | SRE, AddrMode.Absolute, p, true) =>
+                          ISC | DCP | LAX | SAX | RLA | RRA | SLO | SRE, AddrMode.Absolute, p, Elidability.Elidable, _) =>
         p match {
           case NumericConstant(n, _) => n <= 255
           case MemoryAddressConstant(th) => ctx.labelMap.getOrElse(th.name, 0x800) < 0x100

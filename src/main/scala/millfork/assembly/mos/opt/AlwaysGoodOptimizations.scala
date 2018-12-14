@@ -943,10 +943,10 @@ object AlwaysGoodOptimizations {
       val ADDR = ctx.get[Constant](1)
       val value = code.foldLeft(oldA) { (prev, line) =>
         line match {
-          case AssemblyLine(INC, AbsoluteX, ADDR, _) => (prev + 1) & 0xff
-          case AssemblyLine(DEC, AbsoluteX, ADDR, _) => (prev - 1) & 0xff
-          case AssemblyLine(ASL, AbsoluteX, ADDR, _) => (prev << 1) & 0xff
-          case AssemblyLine(LSR, AbsoluteX, ADDR, _) => (prev >> 1) & 0xff
+          case AssemblyLine0(INC, AbsoluteX, ADDR) => (prev + 1) & 0xff
+          case AssemblyLine0(DEC, AbsoluteX, ADDR) => (prev - 1) & 0xff
+          case AssemblyLine0(ASL, AbsoluteX, ADDR) => (prev << 1) & 0xff
+          case AssemblyLine0(LSR, AbsoluteX, ADDR) => (prev >> 1) & 0xff
           case _ => prev
         }
       }
@@ -1795,7 +1795,7 @@ object AlwaysGoodOptimizations {
       List(code.head, AssemblyLine.implied(ROL))
     },
     (Elidable & HasOpcode(ADC) & HasImmediate(0) & HasClear(State.C) & DoesntMatterWhatItDoesWith(State.V, State.C, State.N, State.Z)) ~~> (_ => Nil),
-    (Elidable & HasOpcode(ROL) & HasClear(State.C)) ~ DebugMatching ~~> (code => code.map(_.copy(opcode = ASL))),
+    (Elidable & HasOpcode(ROL) & HasClear(State.C)) ~~> (code => code.map(_.copy(opcode = ASL))),
     (Elidable & HasOpcode(ROR) & HasClear(State.C)) ~~> (code => code.map(_.copy(opcode = LSR))),
     (HasOpcode(AND) & HasImmediate(1)) ~
       (Linear & Not(ChangesNAndZ) & Not(HasOpcode(CLC)) & Not(ChangesA)).* ~

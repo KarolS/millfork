@@ -75,8 +75,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
   }
 
   def fixTsx(code: List[AssemblyLine]): List[AssemblyLine] = code match {
-    case (tsx@AssemblyLine(TSX, _, _, _)) :: xs => tsx :: AssemblyLine.implied(INX) :: fixTsx(xs)
-    case (txs@AssemblyLine(TXS, _, _, _)) :: xs => ???
+    case (tsx@AssemblyLine0(TSX, _, _)) :: xs => tsx :: AssemblyLine.implied(INX) :: fixTsx(xs)
+    case (txs@AssemblyLine0(TXS, _, _)) :: xs => ???
     case x :: xs => x :: fixTsx(xs)
     case Nil => Nil
   }
@@ -95,22 +95,20 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
   def changesZpreg(code: List[AssemblyLine], Offset: Int): Boolean = {
     code.exists {
-      case AssemblyLine(op,
+      case AssemblyLine0(op,
       AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute,
-      CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(Offset, _)),
-      _) if th.name == "__reg" && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
-      case AssemblyLine(op,
+      CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(Offset, _))) if th.name == "__reg" && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
+      case AssemblyLine0(op,
       AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute,
-      MemoryAddressConstant(th),
-      _) if th.name == "__reg" && Offset == 0 && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
-      case AssemblyLine(JSR | BYTE | BSR, _, _, _) => true
+      MemoryAddressConstant(th)) if th.name == "__reg" && Offset == 0 && OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op) => true
+      case AssemblyLine0(JSR | BYTE | BSR, _, _) => true
       case _ => false
     }
   }
 
   def preserveCarryIfNeeded(ctx: CompilationContext, code: List[AssemblyLine]): List[AssemblyLine] = {
     if (code.exists {
-      case AssemblyLine(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th), _) => true
+      case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => true
       case x => OpcodeClasses.ChangesC(x.opcode)
     }) {
       AssemblyLine.implied(PHP) +: fixTsx(code) :+ AssemblyLine.implied(PLP)
@@ -751,26 +749,36 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               ctx.log.error("Invalid number of parameters", f.position)
               Nil
             } else {
-              assertAllArithmeticBytes("Nonet argument has to be a byte", ctx, params)
-              params.head match {
-                case SumExpression(addends, _) =>
-                  if (addends.exists(a => !a._1)) {
-                    ctx.log.warn("Nonet subtraction may not work as expected", expr.position)
+              env.eval(expr) match {
+                case Some(c) =>
+                  exprTypeAndVariable match {
+                    case Some((t, v)) =>
+                      compileConstant(ctx, c, v)
+                    case _ =>
+                      Nil
                   }
-                  if (addends.size > 2) {
-                    ctx.log.warn("Nonet addition works correctly only for two operands", expr.position)
+                case None =>
+                  assertAllArithmeticBytes("Nonet argument has to be a byte", ctx, params)
+                  params.head match {
+                    case SumExpression(addends, _) =>
+                      if (addends.exists(a => !a._1)) {
+                        ctx.log.warn("Nonet subtraction may not work as expected", expr.position)
+                      }
+                      if (addends.size > 2) {
+                        ctx.log.warn("Nonet addition works correctly only for two operands", expr.position)
+                      }
+                    case FunctionCallExpression("+" | "+'" | "<<" | "<<'" | "nonet", _) => // ok
+                    case _ =>
+                      ctx.log.warn("Unspecified nonet operation, results might be unpredictable", expr.position)
                   }
-                case FunctionCallExpression("+" | "+'" | "<<" | "<<'" | "nonet", _) => // ok
-                case _ =>
-                  ctx.log.warn("Unspecified nonet operation, results might be unpredictable", expr.position)
+                  val label = ctx.nextLabel("no")
+                  compile(ctx, params.head, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None) ++ List(
+                    AssemblyLine.immediate(LDX, 0),
+                    AssemblyLine.relative(BCC, label),
+                    AssemblyLine.implied(INX),
+                    AssemblyLine.label(label)
+                  )
               }
-              val label = ctx.nextLabel("no")
-              compile(ctx, params.head, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None) ++ List(
-                AssemblyLine.immediate(LDX, 0),
-                AssemblyLine.relative(BCC, label),
-                AssemblyLine.implied(INX),
-                AssemblyLine.label(label)
-              )
             }
           case "&&" =>
             assertBool(ctx, "&&", params)
@@ -1076,12 +1084,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case function: MacroFunction =>
                 val (paramPreparation, statements) = MosMacroExpander.inlineFunction(ctx, function, params, expr.position)
                 paramPreparation ++ statements.map {
-                  case MosAssemblyStatement(opcode, addrMode, expression, elidable) =>
+                  case MosAssemblyStatement(opcode, addrMode, expression, elidability) =>
                     val param = env.evalForAsm(expression).getOrElse {
                       ctx.log.error("Inlining failed due to non-constant things", expression.position)
                       Constant.Zero
                     }
-                    AssemblyLine(opcode, addrMode, param, elidable)
+                    AssemblyLine(opcode, addrMode, param, elidability)
                 }
               case function: EmptyFunction =>
                 ??? // TODO: type conversion?

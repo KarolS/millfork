@@ -298,6 +298,10 @@ object Main {
       c.changeFlag(CompilationFlag.UseIntelSyntaxForInput, v).changeFlag(CompilationFlag.UseIntelSyntaxForOutput, v)
     ).description("Select syntax for assembly input and output.")
 
+    boolean("-fline-numbers", "-fno-line-numbers").action((c,v) =>
+      c.changeFlag(CompilationFlag.LineNumbersInAssembly, v)
+    ).description("Show source line numbers in assembly.")
+
     endOfFlags("--").description("Marks the end of options.")
 
     fluff("", "Verbosity options:", "")

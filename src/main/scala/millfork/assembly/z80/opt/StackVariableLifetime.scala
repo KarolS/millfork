@@ -14,9 +14,9 @@ object StackVariableLifetime {
   // TODO: this is also probably very wrong
   def apply(variableOffset: Int, codeWithFlow: List[(FlowInfo, ZLine)]): Range = {
     val flags = codeWithFlow.map {
-      case (_, ZLine(_, OneRegisterOffset(ZRegister.MEM_IX_D, i), _, _)) => i == variableOffset
-      case (_, ZLine(_, TwoRegistersOffset(ZRegister.MEM_IX_D, _, i), _, _)) => i == variableOffset
-      case (_, ZLine(_, TwoRegistersOffset(_, ZRegister.MEM_IX_D, i), _, _)) => i == variableOffset
+      case (_, ZLine0(_, OneRegisterOffset(ZRegister.MEM_IX_D, i), _)) => i == variableOffset
+      case (_, ZLine0(_, TwoRegistersOffset(ZRegister.MEM_IX_D, _, i), _)) => i == variableOffset
+      case (_, ZLine0(_, TwoRegistersOffset(_, ZRegister.MEM_IX_D, i), _)) => i == variableOffset
       case _ => false
     }
     if (flags.forall(!_)) return Range(0, 0)

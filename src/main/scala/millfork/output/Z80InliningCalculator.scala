@@ -1,6 +1,7 @@
 package millfork.output
 
 import millfork.JobContext
+import millfork.assembly.Elidability
 import millfork.assembly.z80._
 import millfork.compiler.AbstractCompiler
 import millfork.env._
@@ -20,7 +21,7 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
   override def codeForInlining(fname: String, functionsThatCanBeCalledFromInlinedFunctions: Set[String], code: List[ZLine]): Option[List[ZLine]] = {
     if (code.isEmpty) return None
     code.last match {
-      case ZLine(RET, NoRegisters, _, _) =>
+      case ZLine0(RET, NoRegisters, _) =>
       case _ => return None
     }
     var result = code.init
@@ -29,14 +30,14 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
     }
     if (result.head.opcode == LABEL && result.head.parameter == Label(fname).toAddress) result = result.tail
     if (result.exists {
-      case ZLine(op, _, MemoryAddressConstant(Label(l)), _) if jumpingRelatedOpcodes(op) =>
+      case ZLine0(op, _, MemoryAddressConstant(Label(l))) if jumpingRelatedOpcodes(op) =>
         !l.startsWith(".")
-      case ZLine(CALL, _, MemoryAddressConstant(th: ExternFunction), _) => false
-      case ZLine(CALL, _, NumericConstant(_, _), _) => false
-      case ZLine(JP, OneRegister(_), _, _) => false
-      case ZLine(CALL, _, MemoryAddressConstant(th: NormalFunction), _) =>
+      case ZLine0(CALL, _, MemoryAddressConstant(th: ExternFunction)) => false
+      case ZLine0(CALL, _, NumericConstant(_, _)) => false
+      case ZLine0(JP, OneRegister(_), _) => false
+      case ZLine0(CALL, _, MemoryAddressConstant(th: NormalFunction)) =>
         !functionsThatCanBeCalledFromInlinedFunctions(th.name)
-      case ZLine(op, _, _, _) if jumpingRelatedOpcodes(op) || badOpcodes(op) => true
+      case ZLine0(op, _, _) if jumpingRelatedOpcodes(op) || badOpcodes(op) => true
       case _ => false
     }) return None
     Some(result)
@@ -55,20 +56,20 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
 
   override def inline(code: List[ZLine], inlinedFunctions: Map[String, List[ZLine]], jobContext: JobContext): List[ZLine] = {
     code.flatMap {
-      case ZLine(CALL, registers, p, true) if inlinedFunctions.contains(p.toString) =>
+      case ZLine(CALL, registers, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
         val labelPrefix = jobContext.nextLabel("ai")
         wrap(registers, jobContext,
           inlinedFunctions(p.toString).map {
-            case line@ZLine(_, _, MemoryAddressConstant(Label(label)), _) =>
+            case line@ZLine0(_, _, MemoryAddressConstant(Label(label))) =>
               val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
               line.copy(parameter = newLabel)
             case l => l
           })
-      case ZLine(JP | JR, registers, p, true) if inlinedFunctions.contains(p.toString) =>
+      case ZLine(JP | JR, registers, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
         val labelPrefix = jobContext.nextLabel("ai")
         wrap(registers, jobContext,
           inlinedFunctions(p.toString).map {
-            case line@ZLine(_, _, MemoryAddressConstant(Label(label)), _) =>
+            case line@ZLine0(_, _, MemoryAddressConstant(Label(label))) =>
               val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
               line.copy(parameter = newLabel)
             case l => l

@@ -2,7 +2,7 @@ package millfork.assembly.mos.opt
 
 import millfork.CompilationOptions
 import millfork.assembly.{AssemblyOptimization, OptimizationContext}
-import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.{AssemblyLine, AssemblyLine0}
 import millfork.env._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
@@ -29,12 +29,12 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[AssemblyLine] {
         return code
     }
     val stillUsedVariables = code.flatMap {
-      case AssemblyLine(_, _, MemoryAddressConstant(th), _) => Some(th.name)
-      case AssemblyLine(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _) => Some(th.name)
+      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
+      case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _))) => Some(th.name)
       case _ => None
     }.toSet
     val variablesWithAddressesTaken = code.flatMap {
-      case AssemblyLine(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _), _) =>
+      case AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)) =>
         Some(th.name)
       case _ => None
     }.toSet

@@ -76,10 +76,10 @@ object PseudoregisterBuiltIns {
       val compileRight = MosExpressionCompiler.compile(ctx, r, Some(rightType -> ctx.env.get[VariableInMemory]("__reg.b2b3")), BranchSpec.None)
       compileRight match {
             case List(
-            AssemblyLine(LDA, Immediate, NumericConstant(0, _), _),
-            AssemblyLine(STA, ZeroPage, _, _),
-            AssemblyLine(LDX | LDA, Immediate, NumericConstant(0, _), _),
-            AssemblyLine(STA | STX, ZeroPage, _, _)) => Nil
+            AssemblyLine0(LDA, Immediate, NumericConstant(0, _)),
+            AssemblyLine0(STA, ZeroPage, _),
+            AssemblyLine0(LDX | LDA, Immediate, NumericConstant(0, _)),
+            AssemblyLine0(STA | STX, ZeroPage, _)) => Nil
             case _ =>
               compileRight ++
               List(
@@ -108,16 +108,16 @@ object PseudoregisterBuiltIns {
       compileRight match {
 
         case List(
-        AssemblyLine(LDA, Immediate, NumericConstant(0, _), _),
-        AssemblyLine(STA, ZeroPage, _, _),
-        AssemblyLine(LDX | LDA, Immediate, NumericConstant(0, _), _),
-        AssemblyLine(STA | STX, ZeroPage, _, _)) => Nil
+        AssemblyLine0(LDA, Immediate, NumericConstant(0, _)),
+        AssemblyLine0(STA, ZeroPage, _),
+        AssemblyLine0(LDX | LDA, Immediate, NumericConstant(0, _)),
+        AssemblyLine0(STA | STX, ZeroPage, _)) => Nil
 
         case List(
-        l@AssemblyLine(LDA, _, _, _),
-        AssemblyLine(STA, ZeroPage, _, _),
-        h@AssemblyLine(LDX | LDA, addrMode, _, _),
-        AssemblyLine(STA | STX, ZeroPage, _, _)) if addrMode != ZeroPageY => BuiltIns.wrapInSedCldIfNeeded(decimal,
+        l@AssemblyLine0(LDA, _, _),
+        AssemblyLine0(STA, ZeroPage, _),
+        h@AssemblyLine0(LDX | LDA, addrMode, _),
+        AssemblyLine0(STA | STX, ZeroPage, _)) if addrMode != ZeroPageY => BuiltIns.wrapInSedCldIfNeeded(decimal,
           List(prepareCarry,
             AssemblyLine.zeropage(LDA, reg),
             l.copy(opcode = op),
@@ -176,24 +176,24 @@ object PseudoregisterBuiltIns {
     val compileRight = MosExpressionCompiler.compile(ctx, r, Some(MosExpressionCompiler.getExpressionType(ctx, r) -> reg), BranchSpec.None)
     compileRight match {
       case List(
-      AssemblyLine(LDA, Immediate, NumericConstant(0, _), _),
-      AssemblyLine(STA, ZeroPage, _, _),
-      AssemblyLine(LDX | LDA, Immediate, NumericConstant(0, _), _),
-      AssemblyLine(STA | STX, ZeroPage, _, _))
+      AssemblyLine0(LDA, Immediate, NumericConstant(0, _)),
+      AssemblyLine0(STA, ZeroPage, _),
+      AssemblyLine0(LDX | LDA, Immediate, NumericConstant(0, _)),
+      AssemblyLine0(STA | STX, ZeroPage, _))
         if op != AND => Nil
 
       case List(
-      AssemblyLine(LDA, Immediate, NumericConstant(0xff, _), _),
-      AssemblyLine(STA, ZeroPage, _, _),
-      AssemblyLine(LDX | LDA, Immediate, NumericConstant(0xff, _), _),
-      AssemblyLine(STA | STX, ZeroPage, _, _))
+      AssemblyLine0(LDA, Immediate, NumericConstant(0xff, _)),
+      AssemblyLine0(STA, ZeroPage, _),
+      AssemblyLine0(LDX | LDA, Immediate, NumericConstant(0xff, _)),
+      AssemblyLine0(STA | STX, ZeroPage, _))
         if op == AND => Nil
 
       case List(
-      l@AssemblyLine(LDA, _, _, _),
-      AssemblyLine(STA, ZeroPage, _, _),
-      h@AssemblyLine(LDX | LDA, addrMode, _, _),
-      AssemblyLine(STA | STX, ZeroPage, _, _)) if addrMode != ZeroPageY =>
+      l@AssemblyLine0(LDA, _, _),
+      AssemblyLine0(STA, ZeroPage, _),
+      h@AssemblyLine0(LDX | LDA, addrMode, _),
+      AssemblyLine0(STA | STX, ZeroPage, _)) if addrMode != ZeroPageY =>
         List(
           AssemblyLine.zeropage(LDA, reg),
           l.copy(opcode = op),
@@ -245,8 +245,8 @@ object PseudoregisterBuiltIns {
       case _ =>
         val compileCounter = MosExpressionCompiler.compile(ctx, r, Some(b -> RegisterVariable(MosRegister.X, b)), NoBranching)
         val compileCounterAndPrepareFirstParam = compileCounter match {
-          case List(AssemblyLine(LDX, _, _, _)) => firstParamCompiled ++ compileCounter
-          case List(AssemblyLine(LDY, _, _, _), AssemblyLine(LDX, _, _, _)) => firstParamCompiled ++ compileCounter
+          case List(AssemblyLine0(LDX, _, _)) => firstParamCompiled ++ compileCounter
+          case List(AssemblyLine0(LDY, _, _), AssemblyLine0(LDX, _, _)) => firstParamCompiled ++ compileCounter
           case _ =>
             MosExpressionCompiler.compile(ctx, r, Some(b -> RegisterVariable(MosRegister.A, b)), NoBranching) ++
               List(AssemblyLine.implied(PHA)) ++
@@ -343,14 +343,14 @@ object PseudoregisterBuiltIns {
   }
 
   def usesRegLo(code: List[AssemblyLine]): Boolean = code.forall{
-    case AssemblyLine(JSR | BSR | TCD | TDC, _, _, _) => true
-    case AssemblyLine(_, _, MemoryAddressConstant(th), _) if th.name == "__reg" => true
+    case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
+    case AssemblyLine0(_, _, MemoryAddressConstant(th)) if th.name == "__reg" => true
     case _ => false
   }
 
   def usesRegHi(code: List[AssemblyLine]): Boolean = code.forall{
-    case AssemblyLine(JSR | BSR | TCD | TDC, _, _, _) => true
-    case AssemblyLine(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) if th.name == "__reg" => true
+    case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
+    case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _))) if th.name == "__reg" => true
     case _ => false
   }
 }

@@ -16,8 +16,8 @@ object AlwaysGoodI80Optimizations {
 
   def change8BitLoadTarget(line: ZLine, newTarget: ZRegister.Value): ZLine = {
     line match {
-      case ZLine(LD, TwoRegistersOffset(_, s, o), p, _) => ZLine(LD, TwoRegistersOffset(newTarget, s, o), p)
-      case ZLine(LD, TwoRegisters(_, s), p, _) => ZLine(LD, TwoRegisters(newTarget, s), p)
+      case ZLine0(LD, TwoRegistersOffset(_, s, o), p) => line.copy(registers = TwoRegistersOffset(newTarget, s, o))
+      case ZLine0(LD, TwoRegisters(_, s), p) => line.copy(registers = TwoRegisters(newTarget, s))
     }
   }
 

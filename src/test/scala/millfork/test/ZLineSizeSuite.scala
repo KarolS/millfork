@@ -1,9 +1,10 @@
 package millfork.test
 
+import millfork.assembly.Elidability
 import millfork.{CompilationOptions, Cpu, CpuFamily, JobContext}
 import millfork.assembly.z80.{LocalVariableAddressViaIX, NoRegisters, ZLine}
 import millfork.compiler.LabelGenerator
-import millfork.env.{Constant, Environment, NumericConstant}
+import millfork.env.{Environment, NumericConstant}
 import millfork.output.Z80Assembler
 import millfork.test.emu._
 import org.scalatest.{FunSuite, Matchers}
@@ -43,7 +44,7 @@ class ZLineSizeSuite extends FunSuite with Matchers {
     runCase(ZLine.register(BIT0, E))
     runCase(ZLine.register(JP, IX))
     runCase(ZLine.register(JP, HL))
-    runCase(ZLine(IM, NoRegisters, NumericConstant(1, 1), true))
+    runCase(ZLine(IM, NoRegisters, NumericConstant(1, 1), Elidability.Elidable))
     runCase(ZLine.register(DEC, HL))
     runCase(ZLine.register(DEC, LocalVariableAddressViaIX(7)))
     runCase(ZLine.ld8(A, MEM_HL))

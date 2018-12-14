@@ -1,10 +1,11 @@
 package millfork.assembly.mos
 
-import millfork.assembly.AbstractCode
+import millfork.assembly.{AbstractCode, Elidability, SourceLine}
 import millfork.assembly.mos.Opcode._
 import millfork.compiler.CompilationContext
 import millfork.compiler.mos.MosCompiler
 import millfork.env._
+import millfork.node.Position
 import millfork.{CompilationFlag, CompilationOptions}
 
 //noinspection TypeAnnotation
@@ -475,7 +476,26 @@ object AssemblyLine {
     AssemblyLine(opcode, AddrMode.Stack, NumericConstant(addr & 0xff, 1))
 }
 
-case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var parameter: Constant, elidable: Boolean = true) extends AbstractCode {
+object AssemblyLine0 {
+  @inline
+  def unapply(a: AssemblyLine): Some[(Opcode.Value, AddrMode.Value, Constant)] = Some(a.opcode, a.addrMode, a.parameter)
+}
+
+case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var parameter: Constant, elidability: Elidability.Value = Elidability.Elidable, source: Option[SourceLine] = None) extends AbstractCode {
+
+  def pos(s: Option[SourceLine]): AssemblyLine = if (s.isEmpty || s == source) this else this.copy(source = s)
+
+  def pos(s1: Option[SourceLine], s2: Option[SourceLine]): AssemblyLine = pos(Seq(s1, s2))
+
+  def position(s: Option[Position]): AssemblyLine = pos(SourceLine.of(s))
+
+  def positionIfEmpty(s: Option[Position]): AssemblyLine = if (s.isEmpty || source.isDefined) this else pos(SourceLine.of(s))
+
+  def pos(s: Seq[Option[SourceLine]]): AssemblyLine = pos(SourceLine.merge(s))
+
+  def mergePos(s: Seq[Option[SourceLine]]): AssemblyLine = if (s.isEmpty) this else pos(SourceLine.merge(this.source, s))
+
+  def elidable: Boolean = elidability == Elidability.Elidable
 
 
   import AddrMode._
@@ -571,8 +591,8 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
 
   def isPrintable: Boolean = true //addrMode != AddrMode.DoesNotExist || opcode == LABEL
 
-  override def toString: String =
-    if (opcode == LABEL) {
+  override def toString: String = {
+    val raw = if (opcode == LABEL) {
       parameter.toString
     } else if (opcode == BYTE) {
       "    !byte " + parameter.toString
@@ -585,4 +605,9 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
       }
       s"    $op ${AddrMode.addrModeToString(addrMode, parameter.toString)}"
     }
+    source match {
+      case Some(SourceLine(_, line)) if line > 0 => f"$raw%-30s \t; @ $line%d"
+      case _ => raw
+    }
+  }
 }

@@ -55,6 +55,12 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
             case Some(rest: List[(FlowInfo, ZLine)]) =>
               val matchedChunkToOptimize: List[ZLine] = code.take(code.length - rest.length).map(_._2)
               val optimizedChunk: List[ZLine] = rule.result(matchedChunkToOptimize, ctx)
+              val optimizedChunkWithSource =
+                if (optimizedChunk.isEmpty) optimizedChunk
+                else if (matchedChunkToOptimize.size == 1)  optimizedChunk.map(_.pos(matchedChunkToOptimize.head.source))
+                else if (optimizedChunk.size == 1) optimizedChunk.map(_.pos(SourceLine.merge(matchedChunkToOptimize.map(_.source))))
+                else if (matchedChunkToOptimize.flatMap(_.source).toSet.size == 1) optimizedChunk.map(_.pos(SourceLine.merge(matchedChunkToOptimize.map(_.source))))
+                else optimizedChunk
               log.debug(s"Applied $name ($index)")
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
                 val before = code.head._1.statusBefore
@@ -67,12 +73,12 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
               if (log.traceEnabled) {
                 matchedChunkToOptimize.filter(_.isPrintable).foreach(l => log.trace(l.toString))
                 log.trace("     ↓")
-                optimizedChunk.filter(_.isPrintable).foreach(l => log.trace(l.toString))
+                optimizedChunkWithSource.filter(_.isPrintable).foreach(l => log.trace(l.toString))
               }
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
-                return optimizedChunk ++ optimizeImpl(f, rest, optimizationContext)
+                return optimizedChunkWithSource ++ optimizeImpl(f, rest, optimizationContext)
               } else {
-                return optimize(f, optimizedChunk ++ rest.map(_._2), optimizationContext)
+                return optimize(f, optimizedChunkWithSource ++ rest.map(_._2), optimizationContext)
               }
             case None => ()
           }
@@ -149,15 +155,15 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     import millfork.assembly.z80.ZOpcode._
     get[List[ZLine]](i).foreach {
       // JSR and BSR are allowed
-      case ZLine(RET | RST | RETI | RETN, _, _, _) =>
+      case ZLine0(RET | RST | RETI | RETN, _, _) =>
         return false
-      case ZLine(JP | JR, OneRegister(_), _, _) =>
+      case ZLine0(JP | JR, OneRegister(_), _) =>
         return false
-      case ZLine(JP | JR | DJNZ, _, MemoryAddressConstant(Label(l)), _) =>
+      case ZLine0(JP | JR | DJNZ, _, MemoryAddressConstant(Label(l))) =>
         jumps += l
-      case ZLine(LABEL, _, MemoryAddressConstant(Label(l)), _) =>
+      case ZLine0(LABEL, _, MemoryAddressConstant(Label(l))) =>
         labels += l
-      case ZLine(JP | JR | DJNZ, _, _, _) =>
+      case ZLine0(JP | JR | DJNZ, _, _) =>
         return false
       case _ => ()
     }
@@ -998,7 +1004,7 @@ case class Before(pattern: AssemblyPattern) extends AssemblyLinePattern {
 case class HasCallerCount(count: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line match {
-      case ZLine(ZOpcode.LABEL, _, MemoryAddressConstant(Label(l)), _) => flowInfo.labelUseCount(l) == count
+      case ZLine0(ZOpcode.LABEL, _, MemoryAddressConstant(Label(l))) => flowInfo.labelUseCount(l) == count
       case _ => false
     }
 }

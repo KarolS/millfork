@@ -1,7 +1,7 @@
 package millfork.assembly.mos.opt
 
 import millfork.assembly.OptimizationContext
-import millfork.assembly.mos.{AssemblyLine, Opcode, State}
+import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, Opcode, State}
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 
 /**
@@ -53,7 +53,7 @@ object FlowAnalyzer {
     val labelMap: () => Option[Map[String, Int]] = () => req match {
       case FlowInfoRequirement.NoRequirement => None
       case _ => Some(code.flatMap {
-        case AssemblyLine(op, _, MemoryAddressConstant(Label(l)), _) if op != Opcode.LABEL => Some(l)
+        case AssemblyLine0(op, _, MemoryAddressConstant(Label(l))) if op != Opcode.LABEL => Some(l)
         case _ => None
       }.groupBy(identity).mapValues(_.size))
     }

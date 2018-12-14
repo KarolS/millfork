@@ -3,7 +3,8 @@ package millfork.assembly.z80.opt
 import millfork.assembly.z80.ZOpcode._
 import millfork.assembly.z80._
 import millfork.env.{Constant, Label, MemoryAddressConstant}
-import millfork.{CompilationOptions}
+import millfork.CompilationOptions
+import millfork.assembly.Elidability
 
 import scala.collection.mutable
 
@@ -18,14 +19,14 @@ object JumpFollowing {
     val currentLabels = mutable.Set[String]()
     for (line <- code) {
       line match {
-        case ZLine(LABEL, _, MemoryAddressConstant(Label(label)), _) =>
+        case ZLine0(LABEL, _, MemoryAddressConstant(Label(label))) =>
           currentLabels += label
-        case ZLine(op, _, _, _) if ZOpcodeClasses.NoopDiscards(op) =>
-        case ZLine(LABEL, _, _, _) =>
-        case ZLine(RET, NoRegisters, _, _) =>
+        case ZLine0(op, _, _) if ZOpcodeClasses.NoopDiscards(op) =>
+        case ZLine0(LABEL, _, _) =>
+        case ZLine0(RET, NoRegisters, _) =>
           labelsToRet ++= currentLabels
           currentLabels.clear()
-        case ZLine(JP | JR, NoRegisters, MemoryAddressConstant(Label(label)), _) =>
+        case ZLine0(JP | JR, NoRegisters, MemoryAddressConstant(Label(label))) =>
           labelsToJumps ++= currentLabels.map(_ -> label)
           currentLabels.clear()
         case _ =>
@@ -33,7 +34,7 @@ object JumpFollowing {
       }
     }
     code.map {
-      case jump@ZLine(JR | JP, cond, MemoryAddressConstant(Label(label)), true) =>
+      case jump@ZLine(JR | JP, cond, MemoryAddressConstant(Label(label)), Elidability.Elidable, _) =>
         if (labelsToRet(label)) {
           options.log.debug(s"Optimizing ${jump.opcode} straight into RET")
           ZLine(RET, cond, Constant.Zero)

@@ -2,9 +2,9 @@ package millfork.assembly.mos.opt
 
 import millfork.Cpu
 import millfork.assembly.mos.AddrMode._
-import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.{AssemblyLine, AssemblyLine0}
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.{AssemblyOptimization, OptimizationContext}
+import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
 import millfork.env._
 import millfork.error.ConsoleLogger
 
@@ -19,8 +19,8 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val usedFunctions = code.flatMap {
-      case AssemblyLine(JSR | BSR | JMP, _, MemoryAddressConstant(th), _) => Some(th.name)
-      case AssemblyLine(JSR | BSR | JMP, _, NumericConstant(addr, _), _) => Some("$" + addr.toHexString)
+      case AssemblyLine0(JSR | BSR | JMP, _, MemoryAddressConstant(th)) => Some(th.name)
+      case AssemblyLine0(JSR | BSR | JMP, _, NumericConstant(addr, _)) => Some("$" + addr.toHexString)
       case _ => None
     }.toSet
     val foreignVariables = f.environment.root.things.values.flatMap {
@@ -50,19 +50,19 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
       case _ => Nil
     }.toSet
     val stillReadOrStoredVariables = code.flatMap {
-      case AssemblyLine(_, _, MemoryAddressConstant(th), _) => Some(th.name)
-      case AssemblyLine(_, _, CompoundConstant(_, MemoryAddressConstant(th), _), _) => Some(th.name)
-      case AssemblyLine(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
+      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
+      case AssemblyLine0(_, _, CompoundConstant(_, MemoryAddressConstant(th), _)) => Some(th.name)
+      case AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
       case _ => None
     }.toSet
     val stillReadVariables = code.flatMap {
-      case AssemblyLine(op, am, MemoryAddressConstant(th), true)
+      case AssemblyLine(op, am, MemoryAddressConstant(th), Elidability.Elidable, _)
         if storeInstructions(op) && storeAddrModes(am) => Nil
-      case AssemblyLine(op, am, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), true)
+      case AssemblyLine(op, am, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), Elidability.Elidable, _)
         if storeInstructions(op) && storeAddrModes(am) => Nil
-      case AssemblyLine(_, _, MemoryAddressConstant(th), _) => Some(th.name)
-      case AssemblyLine(_, _, CompoundConstant(_, MemoryAddressConstant(th), _), _) => Some(th.name)
-      case AssemblyLine(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
+      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
+      case AssemblyLine0(_, _, CompoundConstant(_, MemoryAddressConstant(th), _)) => Some(th.name)
+      case AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
       case _ => None
     }.toSet
 
@@ -73,10 +73,10 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
 
     optimizationContext.log.debug(s"Removing pointless store(s) to foreign variables ${unusedForeignVariables.mkString(", ")}")
     code.filterNot {
-      case AssemblyLine(op, am, MemoryAddressConstant(th), _)
+      case AssemblyLine0(op, am, MemoryAddressConstant(th))
         if storeInstructions(op) && storeAddrModes(am) =>
         unusedForeignVariables(th.name)
-      case AssemblyLine(op, am, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), true)
+      case AssemblyLine(op, am, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), Elidability.Elidable, _)
         if storeInstructions(op) && storeAddrModes(am) =>
         unusedForeignVariables(th.name)
       case _ => false

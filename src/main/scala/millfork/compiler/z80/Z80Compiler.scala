@@ -1,6 +1,7 @@
 package millfork.compiler.z80
 
 import millfork.CompilationFlag
+import millfork.assembly.Elidability
 import millfork.assembly.z80.ZLine
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env.{Label, NormalParamSignature}
@@ -14,7 +15,7 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
   override def compile(ctx: CompilationContext): List[ZLine] = {
     ctx.env.nameCheck(ctx.function.code)
     val chunk = Z80StatementCompiler.compile(ctx, new Z80StatementPreprocessor(ctx, ctx.function.code)())
-    val label = ZLine.label(Label(ctx.function.name)).copy(elidable = false)
+    val label = ZLine.label(Label(ctx.function.name)).copy(elidability = Elidability.Fixed)
     val storeParamsFromRegisters = ctx.function.params match {
       case NormalParamSignature(List(param)) if param.typ.size == 1 =>
         List(ZLine.ldAbs8(param.toAddress, ZRegister.A))
@@ -61,7 +62,7 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
         }
       case _ => Nil
     }
-    label :: (preserveRegisters(ctx) ++ stackPointerFixAtBeginning(ctx) ++ storeParamsFromRegisters ++ chunk)
+    label :: (preserveRegisters(ctx) ++ stackPointerFixAtBeginning(ctx) ++ storeParamsFromRegisters).map(_.position(ctx.function.position)) ++ chunk
   }
 
   def preserveRegisters(ctx: CompilationContext): List[ZLine] = {
@@ -103,7 +104,7 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
   def restoreRegistersAndReturn(ctx: CompilationContext): List[ZLine] = {
     import millfork.assembly.z80.ZOpcode._
     import ZRegister._
-    if (ctx.function.interrupt) {
+    (if (ctx.function.interrupt) {
       if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
         if (ctx.options.flag(CompilationFlag.UseShadowRegistersForInterrupts)) {
           List(
@@ -155,7 +156,7 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
           ZLine.register(POP, IX),
           ZLine.implied(RET))
       } else List(ZLine.implied(RET))
-    } else List(ZLine.implied(RET))
+    } else List(ZLine.implied(RET))).map(_.position(ctx.function.position))
   }
 
   def stackPointerFixAtBeginning(ctx: CompilationContext): List[ZLine] = {
@@ -172,7 +173,7 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
     import millfork.assembly.z80.ZOpcode._
     import ZRegister._
     val localVariableArea = ctx.function.stackVariablesSize.&(1).+(ctx.function.stackVariablesSize)
-    if (ctx.options.flag(CompilationFlag.UseIxForStack)) {
+    (if (ctx.options.flag(CompilationFlag.UseIxForStack)) {
       List(
         ZLine.register(PUSH, IX),
         ZLine.ldImm16(IX, 0x10000 - localVariableArea),
@@ -228,6 +229,6 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
           ZLine.registers(ADD_16, HL, SP),
           ZLine.ld16(SP, HL))
       }
-    }
+    }).map(_.position(ctx.function.position))
   }
 }

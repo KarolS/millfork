@@ -1,10 +1,10 @@
 package millfork.assembly.mos.opt
 
 import millfork.CompilationOptions
-import millfork.assembly.{AssemblyOptimization, OptimizationContext}
+import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
-import millfork.assembly.mos.{AssemblyLine, OpcodeClasses}
+import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, OpcodeClasses}
 import millfork.assembly.opt.SingleStatus
 import millfork.env._
 import millfork.error.{ConsoleLogger, Logger}
@@ -19,7 +19,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
 
     val stillUsedVariables = code.flatMap {
-      case AssemblyLine(_, _, MemoryAddressConstant(th: MemoryVariable), _) => th match {
+      case AssemblyLine0(_, _, MemoryAddressConstant(th: MemoryVariable)) => th match {
         case MemoryVariable(name, typ, VariableAllocationMethod.Auto | VariableAllocationMethod.Register)
           if typ.size == 1 => Some(name)
         case _ => None
@@ -27,7 +27,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
       case _ => None
     }.toSet
     val variablesWithAddressesTaken = code.flatMap {
-      case AssemblyLine(_, _, SubbyteConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
+      case AssemblyLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
       case _ => None
     }.toSet
     val eligibleVariables = (stillUsedVariables -- variablesWithAddressesTaken).filterNot(_.startsWith("__"))
@@ -56,11 +56,11 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
     case (AssemblyLine(op@(
       LDA | LDX | LDY | LDZ |
       ADC | ORA | EOR | AND | SBC |
-      CMP | CPX | CPY | CPZ), Absolute | ZeroPage, MemoryAddressConstant(th), true), _) :: xs
+      CMP | CPX | CPY | CPZ), Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s), _) :: xs
       if variables(th.name) && map.contains(th.name) =>
-      true -> (AssemblyLine.immediate(op, map(th.name)) :: optimizeImpl(xs, variables, map)._2)
+      true -> (AssemblyLine.immediate(op, map(th.name)).pos(s) :: optimizeImpl(xs, variables, map)._2)
 
-    case (x@AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _), status) :: xs
+    case (x@AssemblyLine0(STA, Absolute | ZeroPage, MemoryAddressConstant(th)), status) :: xs
       if variables(th.name) =>
       val newMap = status.a match {
         case SingleStatus(n) => map + (th.name -> n)
@@ -68,7 +68,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
       }
       x :: optimizeImpl(xs, variables, newMap)
 
-    case (x@AssemblyLine(STX, Absolute | ZeroPage, MemoryAddressConstant(th), _), status) :: xs
+    case (x@AssemblyLine0(STX, Absolute | ZeroPage, MemoryAddressConstant(th)), status) :: xs
       if variables(th.name) =>
       val newMap = status.x match {
         case SingleStatus(n) => map + (th.name -> n)
@@ -76,7 +76,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
       }
       x :: optimizeImpl(xs, variables, newMap)
 
-    case (x@AssemblyLine(STY, Absolute | ZeroPage, MemoryAddressConstant(th: ThingInMemory), _), status) :: xs
+    case (x@AssemblyLine0(STY, Absolute | ZeroPage, MemoryAddressConstant(th: ThingInMemory)), status) :: xs
       if variables(th.name) =>
       val newMap = status.y match {
         case SingleStatus(n) => map + (th.name -> n)
@@ -84,7 +84,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
       }
       x :: optimizeImpl(xs, variables, newMap)
 
-    case (x@AssemblyLine(STZ, Absolute | ZeroPage, MemoryAddressConstant(th), _), status) :: xs
+    case (x@AssemblyLine0(STZ, Absolute | ZeroPage, MemoryAddressConstant(th)), status) :: xs
       if variables(th.name) =>
       val newMap = status.iz match {
         case SingleStatus(n) => map + (th.name -> n)
@@ -92,7 +92,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
       }
       x :: optimizeImpl(xs, variables, newMap)
 
-    case (x@AssemblyLine(SAX, Absolute | ZeroPage, MemoryAddressConstant(th), _), status) :: xs
+    case (x@AssemblyLine0(SAX, Absolute | ZeroPage, MemoryAddressConstant(th)), status) :: xs
       if variables(th.name) =>
       val newMap = (status.a, status.x) match {
         case (SingleStatus(m), SingleStatus(n)) => map + (th.name -> (m & n))
@@ -102,28 +102,28 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
       }
       x :: optimizeImpl(xs, variables, newMap)
 
-    case (x@AssemblyLine(INC | ISC, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+    case (x@AssemblyLine0(INC | ISC, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
       if map.contains(th.name) =>
       x :: optimizeImpl(xs, variables, map + (th.name -> map(th.name).+(1).&(0xff)))
 
-    case (x@AssemblyLine(DEC | DCP, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+    case (x@AssemblyLine0(DEC | DCP, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
       if map.contains(th.name) =>
       x :: optimizeImpl(xs, variables, map + (th.name -> map(th.name).-(1).&(0xff)))
 
-    case (x@AssemblyLine(ASL | SLO, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+    case (x@AssemblyLine0(ASL | SLO, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
       if map.contains(th.name) =>
       x :: optimizeImpl(xs, variables, map + (th.name -> map(th.name).<<(1).&(0xff)))
 
-    case (x@AssemblyLine(LSR | SRE, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+    case (x@AssemblyLine0(LSR | SRE, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
       if map.contains(th.name) =>
       x :: optimizeImpl(xs, variables, map + (th.name -> map(th.name).&(0xff).>>(1)))
 
       // TODO: consider handling some more opcodes
-    case (x@AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), _), _) :: xs
+    case (x@AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
       if OpcodeClasses.ChangesMemoryAlways(op) && map.contains(th.name) =>
       x :: optimizeImpl(xs, variables, map - th.name)
 
-    case (x@AssemblyLine(LABEL, _, _, _), _) :: xs => x :: optimizeImpl(xs, variables, Map())
+    case (x@AssemblyLine0(LABEL, _, _), _) :: xs => x :: optimizeImpl(xs, variables, Map())
     case (x, _) :: xs => x :: optimizeImpl(xs, variables, map)
     case Nil => (false, Nil)
   }

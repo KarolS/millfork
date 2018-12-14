@@ -1,7 +1,7 @@
 package millfork.output
 
 import millfork.JobContext
-import millfork.assembly.AbstractCode
+import millfork.assembly.{AbstractCode, Elidability}
 import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.ZOpcode
 import millfork.compiler.AbstractCompiler
@@ -72,8 +72,8 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
     case s: ArrayContents => getAllCalledFunctions(s.getAllExpressions)
     case s: FunctionDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.statements.getOrElse(Nil))
     case Assignment(VariableExpression(_), expr) => getAllCalledFunctions(expr :: Nil)
-    case MosAssemblyStatement(Opcode.JSR, _, VariableExpression(name), true) => (name -> false) :: Nil
-    case Z80AssemblyStatement(ZOpcode.CALL, _, _, VariableExpression(name), true) => (name -> false) :: Nil
+    case MosAssemblyStatement(Opcode.JSR, _, VariableExpression(name), Elidability.Elidable) => (name -> false) :: Nil
+    case Z80AssemblyStatement(ZOpcode.CALL, _, _, VariableExpression(name), Elidability.Elidable) => (name -> false) :: Nil
     case s: Statement => getAllCalledFunctions(s.getAllExpressions)
     case s: VariableExpression => Set(
           s.name,

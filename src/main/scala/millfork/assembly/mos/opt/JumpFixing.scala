@@ -2,11 +2,12 @@ package millfork.assembly.mos.opt
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, Opcode}
 import millfork.assembly.mos.Opcode._
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 import millfork.error.ConsoleLogger
 import millfork.CompilationOptions
+import millfork.assembly.Elidability
 
 /**
   * @author Karol Stasiak
@@ -41,12 +42,12 @@ object JumpFixing {
         o += line.sizeInBytes
     }
     val labelOffsets = code.zipWithIndex.flatMap {
-      case (AssemblyLine(LABEL, _, MemoryAddressConstant(Label(label)), _), ix) => Some(label -> offsets(ix))
+      case (AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(label))), ix) => Some(label -> offsets(ix))
       case _ => None
     }.toMap
     var changed = false
     val result = code.zipWithIndex.flatMap {
-      case (line@AssemblyLine(op, AddrMode.Relative, MemoryAddressConstant(Label(label)), true), ix) =>
+      case (line@AssemblyLine(op, AddrMode.Relative, MemoryAddressConstant(Label(label)), Elidability.Elidable, _), ix) =>
         labelOffsets.get(label).fold(List(line)) { labelOffset =>
           val thisOffset = offsets(ix)
           if (invalidShortJump(thisOffset, labelOffset)) {

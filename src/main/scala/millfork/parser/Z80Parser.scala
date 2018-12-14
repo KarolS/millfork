@@ -4,7 +4,7 @@ import java.util.Locale
 
 import fastparse.all.{parserApi, _}
 import fastparse.core
-import millfork.assembly.z80
+import millfork.assembly.{Elidability, z80}
 import millfork.{CompilationFlag, CompilationOptions, node}
 import millfork.assembly.z80.{ZOpcode, _}
 import millfork.env.{ByZRegister, Constant, ParamPassingConvention}
@@ -52,7 +52,7 @@ case class Z80Parser(filename: String,
   } yield ParameterDeclaration(typ, appc).pos(p)
 
   // TODO: label and instruction in one line
-  val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => Z80AssemblyStatement(ZOpcode.LABEL, NoRegisters, None, VariableExpression(l), elidable = true))
+  val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => Z80AssemblyStatement(ZOpcode.LABEL, NoRegisters, None, VariableExpression(l), elidability = Elidability.Elidable))
 
   val asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall(false)).map(ExpressionStatement)
 

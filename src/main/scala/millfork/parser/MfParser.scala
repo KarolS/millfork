@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 import java.util
 
 import fastparse.all._
+import millfork.assembly.Elidability
 import millfork.env._
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node._
@@ -589,7 +590,10 @@ object MfParser {
   val nonStatementLevel = 1 // everything but not `=`
   val mathLevel = 4 // the `:` operator
 
-  val elidable: P[Boolean] = ("?".! ~/ HWS).?.map(_.isDefined)
+  val elidable: P[Elidability.Value] = ("?".! ~/ HWS).?.map{
+    case Some(_) => Elidability.Elidable
+    case _ => Elidability.Fixed
+  }
 
   val externFunctionBody: P[Option[List[Statement]]] = P("extern" ~/ PassWith(None))
 

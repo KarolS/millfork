@@ -74,8 +74,8 @@ object DecimalBuiltIns {
       }
       List(
         if (rotate) AssemblyLine.implied(ROR) else AssemblyLine.implied(LSR),
-        AssemblyLine(LABEL, DoesNotExist, Label(constantLabel).toAddress, elidable = cmos),
-        AssemblyLine(PHP, Implied, Constant.Zero, elidable = cmos),
+        AssemblyLine(LABEL, DoesNotExist, Label(constantLabel).toAddress, elidability = if (cmos) Elidability.Elidable else Elidability.Fixed),
+        AssemblyLine(PHP, Implied, Constant.Zero, elidability = if (cmos) Elidability.Elidable else Elidability.Fixed),
         AssemblyLine.relative(BPL, skipHiDigit),
         AssemblyLine.implied(SEC),
         AssemblyLine.immediate(SBC, 0x30),

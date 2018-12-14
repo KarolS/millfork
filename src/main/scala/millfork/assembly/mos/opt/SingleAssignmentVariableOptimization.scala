@@ -1,10 +1,9 @@
 package millfork.assembly.mos.opt
 
-import millfork.{CompilationFlag, CompilationOptions, NonOverlappingIntervals}
 import millfork.assembly._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
-import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, Opcode}
 import millfork.env._
 import millfork.error.{ConsoleLogger, Logger}
 
@@ -44,11 +43,11 @@ object SingleAssignmentVariableOptimization extends AssemblyOptimization[Assembl
         return code
     }
     val stillUsedVariables = code.flatMap {
-      case AssemblyLine(_, _, MemoryAddressConstant(th), _) => Some(th.name)
+      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
       case _ => None
     }.toSet
     val variablesWithAddressesTaken = code.flatMap {
-      case AssemblyLine(_, _, SubbyteConstant(MemoryAddressConstant(th), _), _) => Some(th.name)
+      case AssemblyLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
       case _ => None
     }.toSet
     val localVariables = f.environment.getAllLocalVariables.filter {
@@ -77,16 +76,16 @@ object SingleAssignmentVariableOptimization extends AssemblyOptimization[Assembl
 
   private def findSourceForVariable(variable: String, code:List[AssemblyLine]): Either[Boolean, List[AssemblyLine]] = code match {
     case Nil => Left(true)
-    case (load@AssemblyLine(LDA, _, _, _)) :: AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(v), true) :: xs
+    case (load@AssemblyLine0(LDA, _, _)) :: AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(v), Elidability.Elidable, _) :: xs
       if v.name == variable =>
       findSourceForVariable(variable, xs) match {
         case Left(true) => Right(List(load))
         case _ => Left(false)
       }
-    case AssemblyLine(LAX | LDX | LDY | ADC | SBC | CMP | CPX | CPY | AND | EOR | ORA, Absolute | ZeroPage, MemoryAddressConstant(v), _) :: xs
+    case AssemblyLine0(LAX | LDX | LDY | ADC | SBC | CMP | CPX | CPY | AND | EOR | ORA, Absolute | ZeroPage, MemoryAddressConstant(v)) :: xs
       if v.name == variable =>
       findSourceForVariable(variable, xs)
-    case AssemblyLine(_, _, MemoryAddressConstant(v), _) :: _
+    case AssemblyLine0(_, _, MemoryAddressConstant(v)) :: _
       if v.name == variable => Left(false)
     case x :: xs => findSourceForVariable(variable, xs)
   }
@@ -106,17 +105,17 @@ object SingleAssignmentVariableOptimization extends AssemblyOptimization[Assembl
 
   private def replaceVariable(variable: String, replacement: List[AssemblyLine], code: List[(AssemblyLine, CpuImportance)]): Option[List[AssemblyLine]] = code match {
     case Nil => Some(Nil)
-    case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(v), true), _) :: xs
+    case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(v), Elidability.Elidable, _), _) :: xs
       if v.name == variable =>
       replaceVariable(variable, replacement, xs)
-    case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(v), true), imp) :: xs
+    case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(v), Elidability.Elidable, _), imp) :: xs
       if v.name == variable =>
       replaceVariable(variable, replacement, xs).map(replacement ++ _)
-    case (AssemblyLine(op@(LAX | LDX | LDY | ADC | SBC | CMP | CPX | CPY | AND | EOR | ORA), Absolute | ZeroPage, MemoryAddressConstant(v), true), imp) :: xs
+    case (AssemblyLine(op@(LAX | LDX | LDY | ADC | SBC | CMP | CPX | CPY | AND | EOR | ORA), Absolute | ZeroPage, MemoryAddressConstant(v), Elidability.Elidable, _), imp) :: xs
       if v.name == variable =>
       if (isSingleLda(replacement, getAddrModes(op))) replaceVariable(variable, replacement, xs).map(replacement.map(_.copy(opcode = op)) ++ _)
       else None
-    case (AssemblyLine(_, _, MemoryAddressConstant(v), _), _) :: xs if v.name == variable => None
+    case (AssemblyLine0(_, _, MemoryAddressConstant(v)), _) :: xs if v.name == variable => None
     case x :: xs => replaceVariable(variable, replacement, xs).map(x._1 :: _)
   }
 

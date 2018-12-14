@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.assembly.opt.SingleStatus
-import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine}
+import millfork.assembly.z80.{OneRegister, TwoRegisters, ZLine, ZLine0}
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
@@ -15,9 +15,9 @@ object VariableLifetime {
   // TODO: this is also probably very wrong
   def apply(variableName: String, codeWithFlow: List[(FlowInfo, ZLine)]): Range = {
     val flags = codeWithFlow.map {
-      case (_, ZLine(_, _, MemoryAddressConstant(MemoryVariable(n, _, _)), _)) => n == variableName
-      case (_, ZLine(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(MemoryVariable(n, _, _)), NumericConstant(_, 1)), _)) => n == variableName
-      case (i, ZLine(_, TwoRegisters(ZRegister.MEM_HL, _) | TwoRegisters(_, ZRegister.MEM_HL) | OneRegister(ZRegister.MEM_HL), _, _)) =>
+      case (_, ZLine0(_, _, MemoryAddressConstant(MemoryVariable(n, _, _)))) => n == variableName
+      case (_, ZLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(MemoryVariable(n, _, _)), NumericConstant(_, 1)))) => n == variableName
+      case (i, ZLine0(_, TwoRegisters(ZRegister.MEM_HL, _) | TwoRegisters(_, ZRegister.MEM_HL) | OneRegister(ZRegister.MEM_HL), _)) =>
         i.statusBefore.hl match {
           case SingleStatus(MemoryAddressConstant(MemoryVariable(n, _, _))) => n == variableName
           case SingleStatus(CompoundConstant(MathOperator.Plus, MemoryAddressConstant(MemoryVariable(n, _, _)), NumericConstant(_, 1))) => n == variableName

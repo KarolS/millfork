@@ -1,8 +1,8 @@
 package millfork.assembly.z80.opt
 
 import millfork.{CompilationFlag, NonOverlappingIntervals}
-import millfork.assembly.{AssemblyOptimization, OptimizationContext}
-import millfork.assembly.z80.{TwoRegisters, ZFlag, ZLine}
+import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
+import millfork.assembly.z80.{TwoRegisters, ZFlag, ZLine, ZLine0}
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
@@ -192,21 +192,21 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       None
     }
     code match {
-      case  (_, ZLine(LD_16, TwoRegisters(BC, IMM_16), _, true))::
-        (i, ZLine(ADD_16, TwoRegisters(HL, BC), _, true)) :: xs if target == BC =>
+      case  (_, ZLine(LD_16, TwoRegisters(BC, IMM_16), _, Elidability.Elidable, _))::
+        (i, ZLine(ADD_16, TwoRegisters(HL, BC), _, Elidability.Elidable, _)) :: xs if target == BC =>
         if (i.importanceAfter.getRegister(BC) == Important) fail(22)
         else  if(i.importanceAfter.getRegister(DE) == Important) canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(-21, -2)))
         else canBeInlined(vname, synced = true, target, xs)
 
-      case  (_, ZLine(LD_16, TwoRegisters(DE, IMM_16), _, true))::
-        (i, ZLine(ADD_16, TwoRegisters(HL, DE), _, true)) :: xs if target == DE =>
+      case  (_, ZLine(LD_16, TwoRegisters(DE, IMM_16), _, Elidability.Elidable, _))::
+        (i, ZLine(ADD_16, TwoRegisters(HL, DE), _, Elidability.Elidable, _)) :: xs if target == DE =>
         if (i.importanceAfter.getRegister(DE) == Important) fail(23)
         else if (i.importanceAfter.getRegister(BC) == Important) canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(-21, -2)))
         else canBeInlined(vname, synced = true, target, xs)
 
-      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th1), true)) ::
-        (_, ZLine(ADD_16, TwoRegisters(HL, BC | DE), _, _)) ::
-        (i, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th2), true)) ::
+      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th1), Elidability.Elidable, _)) ::
+        (_, ZLine0(ADD_16, TwoRegisters(HL, BC | DE), _)) ::
+        (i, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th2), Elidability.Elidable, _)) ::
         xs if target == HL && th1.name != vname && th2.name != vname &&
         i.importanceAfter.getFlag(ZFlag.Z) != Important &&
         i.importanceAfter.getFlag(ZFlag.H) != Important &&
@@ -220,65 +220,65 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         // cycles after: 13 + 4 + 13 + 13 + 4 + 13 = 60
         canBeInlined(vname, synced = true, target, xs).map(add(CyclesAndBytes(-17, -7)))
 
-      case (_, ZLine(LD_16, TwoRegisters(t, _), _, true)) ::
-        (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), true)) ::
-        (i, ZLine(ADD_16, TwoRegisters(HL, t2), _, _)) ::
+      case (_, ZLine(LD_16, TwoRegisters(t, _), _, Elidability.Elidable, _)) ::
+        (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), Elidability.Elidable, _)) ::
+        (i, ZLine0(ADD_16, TwoRegisters(HL, t2), _)) ::
         xs if th.name == vname && t != HL && t == t2 && i.importanceAfter.getRegister(t) == Unimportant =>
         // LD PP ; LD HL,(qq) ; ADD HL,PP → LD H,P ; LD L,P ; ADD HL,QQ
         canBeInlined(vname, synced = true, target, xs).map(add(target == t, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
 
-//      case (_, ZLine(LD_16, TwoRegisters(t, _), _, true)) ::
-//        (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), true)) ::
-//        (i, ZLine(ADD_16, TwoRegisters(HL, t2), _, _)) ::
+//      case (_, ZLine(LD_16, TwoRegisters(t, _), _, true, _)) ::
+//        (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), true, _)) ::
+//        (i, ZLine0(ADD_16, TwoRegisters(HL, t2), _)) ::
 //        xs if th.name == vname && t == target && t != HL && t == t2 && i.importanceAfter.getRegister(t) == Unimportant =>
 //        canBeInlined(vname, synced = true, target, xs).map(add(CyclesAndBytes(16, 3)))
 
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), true)) ::
-        (_, ZLine(LD_16, TwoRegisters(t, _), _, true)) ::
-        (i, ZLine(ADD_16, TwoRegisters(HL, t2), _, _)) ::
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), Elidability.Elidable, _)) ::
+        (_, ZLine(LD_16, TwoRegisters(t, _), _, Elidability.Elidable, _)) ::
+        (i, ZLine0(ADD_16, TwoRegisters(HL, t2), _)) ::
         xs if th.name == vname && t != HL && t == t2 && i.importanceAfter.getRegister(t) == Unimportant =>
         // LD (vv),HL ; LD QQ,__ ; ADD HL,QQ  (vv@QQ)→  LD QQ,HL ; LD HL,__, ADD HL,QQ
         canBeInlined(vname, synced = true, target, xs).map(add(target == t, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
 
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), true)) ::
-        (_, ZLine(LD_16, TwoRegisters(t, _), _, true)) ::
-        (i, ZLine(ADD_16, TwoRegisters(HL, t2), _, _)) ::
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), Elidability.Elidable, _)) ::
+        (_, ZLine(LD_16, TwoRegisters(t, _), _, Elidability.Elidable, _)) ::
+        (i, ZLine0(ADD_16, TwoRegisters(HL, t2), _)) ::
         xs if t == target && th.name == vname && t != HL && t == t2 && i.importanceAfter.getRegister(t) == Unimportant =>
         // LD (vv),HL ; LD QQ,__ ; ADD HL,QQ  (vv@QQ)→  LD QQ,HL ; LD PP,__, ADD HL,PP
         canBeInlined(vname, synced = true, target, xs).map(add(CyclesAndBytes(16, 3)))
 
-      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
+      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced = true, target, xs).map(add(target == HL, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced = true, target, xs).map(add(target == HL, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
-      case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
+      case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced = true, target, xs).map(add(target == DE, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced = true, target, xs).map(add(target == DE, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
-      case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
+      case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced = true, target, xs).map(add(target == BC, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced = true, target, xs).map(add(target == BC, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
 
-      case (_, x) :: (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, t), MemoryAddressConstant(th), true)) :: xs
+      case (_, x) :: (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, t), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs
         if th.name == vname && t == target && x.changesRegister(t) =>
         canBeInlined(vname, synced = true, target, xs).map(add(CyclesAndBytes(16, 3)))
 
 
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
+      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(9, 2)))
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), true)) :: xs if th.name == vname =>
-        canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(9, 2)))
-
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1,_)), true)) :: xs if th.name == vname =>
-        canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(9, 2)))
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), true)) :: xs if th.name == vname =>
+      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(9, 2)))
 
-      case (_, ZLine(_, _, MemoryAddressConstant(th), _)) :: _ if th.name == vname => fail(4)
-      case (_, ZLine(_, _, CompoundConstant(_, MemoryAddressConstant(th), _), _)) :: _ if th.name == vname => fail(5)
-      case (_, ZLine(_, _, SubbyteConstant(MemoryAddressConstant(th), _), _)) :: _ if th.name == vname => fail(6)
-      case (_, ZLine(CALL, _, _, _)) :: xs => target match {
+      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), Elidability.Elidable, _)) :: xs if th.name == vname =>
+        canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(9, 2)))
+      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), Elidability.Elidable, _)) :: xs if th.name == vname =>
+        canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(9, 2)))
+
+      case (_, ZLine0(_, _, MemoryAddressConstant(th))) :: _ if th.name == vname => fail(4)
+      case (_, ZLine0(_, _, CompoundConstant(_, MemoryAddressConstant(th), _))) :: _ if th.name == vname => fail(5)
+      case (_, ZLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _))) :: _ if th.name == vname => fail(6)
+      case (_, ZLine0(CALL, _, _)) :: xs => target match {
           // TODO: check return type and allow HL sometimes
         case BC | DE =>
           canBeInlined(vname, synced, target, xs).map(add(CyclesAndBytes(-21, -2)))
@@ -286,8 +286,8 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       }
       case (_, x) :: xs if x.changesRegister(target) => fail(1)
       case (_, x) :: xs if x.readsRegister(target) && !synced => fail(2)
-      case (_, ZLine(LABEL, _, _, _)) :: xs => canBeInlined(vname, synced = false, target, xs)
-      case (_, ZLine(CALL, _, _, _)) :: xs => fail(3)
+      case (_, ZLine0(LABEL, _, _)) :: xs => canBeInlined(vname, synced = false, target, xs)
+      case (_, ZLine0(CALL, _, _)) :: xs => fail(3)
       case _ :: xs => canBeInlined(vname, synced, target, xs)
       case _ => Some(CyclesAndBytes.Zero)
     }
@@ -297,31 +297,31 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     //    if (code.nonEmpty) println(code.head)
     code match {
 
-      case (_, load@ZLine(LD_16, TwoRegisters(BC, IMM_16), _, _)) ::
-        (f, add@ZLine(ADD_16, TwoRegisters(HL, BC), _, _)) ::
+      case (_, load@ZLine(LD_16, TwoRegisters(BC, IMM_16), _, _, s1)) ::
+        (f, add@ZLine(ADD_16, TwoRegisters(HL, BC), _, _, s2)) ::
         xs if bc != "" =>
         if (f.importanceAfter.getRegister(DE) == Important) {
-          ZLine.register(PUSH, BC) :: load :: add :: ZLine.register(POP, BC) :: inlineVars(hl, bc, de, xs)
+          ZLine.register(PUSH, BC).pos(s1) :: load :: add :: ZLine.register(POP, BC).pos(s2) :: inlineVars(hl, bc, de, xs)
         } else {
           load.copy(registers = TwoRegisters(DE, IMM_16)) ::
-            ZLine.registers(ADD_16, HL, DE) ::
+            ZLine.registers(ADD_16, HL, DE).pos(s2) ::
             inlineVars(hl, bc, de, xs)
         }
 
-      case (_, load@ZLine(LD_16, TwoRegisters(DE, IMM_16), _, _)) ::
-        (f, add@ZLine(ADD_16, TwoRegisters(HL, DE), _, _)) ::
+      case (_, load@ZLine(LD_16, TwoRegisters(DE, IMM_16), _, _, s1)) ::
+        (f, add@ZLine(ADD_16, TwoRegisters(HL, DE), _, _, s2)) ::
         xs if de != "" =>
         if (f.importanceAfter.getRegister(BC) == Important) {
-          ZLine.register(PUSH, DE) :: load :: add :: ZLine.register(POP, DE) :: inlineVars(hl, bc, de, xs)
+          ZLine.register(PUSH, DE).pos(s1) :: load :: add :: ZLine.register(POP, DE).pos(s2) :: inlineVars(hl, bc, de, xs)
         } else {
           load.copy(registers = TwoRegisters(BC, IMM_16)) ::
-            ZLine.registers(ADD_16, HL, BC) ::
+            ZLine.registers(ADD_16, HL, BC).pos(s2) ::
             inlineVars(hl, bc, de, xs)
         }
 
-      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), a1@MemoryAddressConstant(th1), _)) ::
-        (_, ZLine(ADD_16, TwoRegisters(HL, reg@(DE | BC)), _, _)) ::
-        (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), a2@MemoryAddressConstant(th2), _)) ::
+      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), a1@MemoryAddressConstant(th1), _, s1)) ::
+        (_, ZLine(ADD_16, TwoRegisters(HL, reg@(DE | BC)), _, _, s2)) ::
+        (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), a2@MemoryAddressConstant(th2), _, s3)) ::
         xs if hl != "" && th1.name != hl && th2.name != hl=>
         // bytes before: 3 + 1 + 3 = 7
         // cycles before: 16 + 11 + 16 = 43
@@ -331,127 +331,127 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
           case BC => (B,C)
           case DE => (D, E)
         }
-        ZLine.ldAbs8(A, a1) ::
-          ZLine.register(ADD, l) ::
-          ZLine.ldAbs8(a2, A) ::
-          ZLine.ldAbs8(A, a1 + 1) ::
-          ZLine.register(ADC, h) ::
-          ZLine.ldAbs8(a2 + 1, A) ::
+        ZLine.ldAbs8(A, a1).pos(s1) ::
+          ZLine.register(ADD, l).pos(s2) ::
+          ZLine.ldAbs8(a2, A).pos(s3) ::
+          ZLine.ldAbs8(A, a1 + 1).pos(s1) ::
+          ZLine.register(ADC, h).pos(s2) ::
+          ZLine.ldAbs8(a2 + 1, A).pos(s3) ::
           inlineVars(hl, bc, de, xs)
 
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _)) ::
-        (_, loadConst@ZLine(LD_16, TwoRegisters(BC, constSource), _, _)) ::
-        (_, add@ZLine(ADD_16, TwoRegisters(HL, BC), _, _)) :: xs if th.name == bc =>
-        ZLine.ld8(B, H) :: ZLine.ld8(C, L) ::
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s1)) ::
+        (_, loadConst@ZLine(LD_16, TwoRegisters(BC, constSource), _, _, s2)) ::
+        (_, add@ZLine(ADD_16, TwoRegisters(HL, BC), _, _, s3)) :: xs if th.name == bc =>
+        ZLine.ld8(B, H).pos(s1) :: ZLine.ld8(C, L).pos(s1) ::
           loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
           add.copy(registers = TwoRegisters(HL, BC)) :: inlineVars(hl, bc, de, xs)
 
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _)) ::
-        (_, loadConst@ZLine(LD_16, TwoRegisters(DE, constSource), _, _)) ::
-        (_, add@ZLine(ADD_16, TwoRegisters(HL, DE), _, _)) :: xs if th.name == de =>
-        ZLine.ld8(D, H) :: ZLine.ld8(E, L) ::
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s1)) ::
+        (_, loadConst@ZLine0(LD_16, TwoRegisters(DE, constSource), _)) ::
+        (_, add@ZLine0(ADD_16, TwoRegisters(HL, DE), _)) :: xs if th.name == de =>
+        ZLine.ld8(D, H).pos(s1) :: ZLine.ld8(E, L).pos(s1) ::
           loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
           add.copy(registers = TwoRegisters(HL, DE)) :: inlineVars(hl, bc, de, xs)
       // TODO: above with regs swapped
 
-      case (_, loadConst@ZLine(LD_16, TwoRegisters(t, constSource), _, _)) ::
-        (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _)) ::
-        (_, add@ZLine(ADD_16, TwoRegisters(HL, t2), _, _)) :: xs if th.name == bc && t == t2 && t != HL =>
+      case (_, loadConst@ZLine0(LD_16, TwoRegisters(t, constSource), _)) ::
+        (_, ZLine0(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th))) ::
+        (_, add@ZLine0(ADD_16, TwoRegisters(HL, t2), _)) :: xs if th.name == bc && t == t2 && t != HL =>
         loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
           add.copy(registers = TwoRegisters(HL, BC)) :: inlineVars(hl, bc, de, xs)
 
-      case (_, loadConst@ZLine(LD_16, TwoRegisters(t, constSource),_,_)) ::
-        (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _)) ::
-        (_, add@ZLine(ADD_16, TwoRegisters(HL, t2), _, _)) :: xs if th.name == de && t == t2 && t != HL =>
+      case (_, loadConst@ZLine0(LD_16, TwoRegisters(t, constSource),_)) ::
+        (_, ZLine0(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th))) ::
+        (_, add@ZLine0(ADD_16, TwoRegisters(HL, t2), _)) :: xs if th.name == de && t == t2 && t != HL =>
         loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
           add.copy(registers = TwoRegisters(HL, DE)) :: inlineVars(hl, bc, de, xs)
 
-      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == hl =>
+      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
         inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _) ) :: xs if th.name == hl =>
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
         inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == bc =>
-        ZLine.ld8(H, B) :: ZLine.ld8(L, C) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _) ) :: xs if th.name == bc =>
-        ZLine.ld8(B, H) :: ZLine.ld8(C, L) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == de =>
-        ZLine.ld8(H, D) :: ZLine.ld8(L, E) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _) ) :: xs if th.name == de =>
-        ZLine.ld8(D, H) :: ZLine.ld8(E, L) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
+        ZLine.ld8(H, B).pos(s) :: ZLine.ld8(L, C).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
+        ZLine.ld8(B, H).pos(s) :: ZLine.ld8(C, L).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
+        ZLine.ld8(H, D).pos(s) :: ZLine.ld8(L, E).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
+        ZLine.ld8(D, H).pos(s) :: ZLine.ld8(E, L).pos(s) :: inlineVars(hl, bc, de, xs)
 
-      case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == de =>
+      case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
         inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _) ) :: xs if th.name == de =>
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
         inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == bc =>
-        ZLine.ld8(D, B) :: ZLine.ld8(E, C) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _) ) :: xs if th.name == bc =>
-        ZLine.ld8(B, D) :: ZLine.ld8(C, E) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == hl =>
-        ZLine.ld8(D, H) :: ZLine.ld8(E, L) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _) ) :: xs if th.name == hl =>
-        ZLine.ld8(H, D) :: ZLine.ld8(L, E) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
+        ZLine.ld8(D, B).pos(s) :: ZLine.ld8(E, C).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
+        ZLine.ld8(B, D).pos(s) :: ZLine.ld8(C, E).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
+        ZLine.ld8(D, H).pos(s) :: ZLine.ld8(E, L).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
+        ZLine.ld8(H, D).pos(s) :: ZLine.ld8(L, E).pos(s) :: inlineVars(hl, bc, de, xs)
 
-      case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == bc =>
+      case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
         inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _) ) :: xs if th.name == bc =>
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
         inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == hl =>
-        ZLine.ld8(B, H) :: ZLine.ld8(C, L) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _) ) :: xs if th.name == hl =>
-        ZLine.ld8(H, B) :: ZLine.ld8(L, C) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _) ) :: xs if th.name == de =>
-        ZLine.ld8(B, D) :: ZLine.ld8(C, E) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _) ) :: xs if th.name == de =>
-        ZLine.ld8(D, B) :: ZLine.ld8(E, C) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
+        ZLine.ld8(B, H).pos(s) :: ZLine.ld8(C, L).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
+        ZLine.ld8(H, B).pos(s) :: ZLine.ld8(L, C).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
+        ZLine.ld8(B, D).pos(s) :: ZLine.ld8(C, E).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
+        ZLine.ld8(D, B).pos(s) :: ZLine.ld8(E, C).pos(s) :: inlineVars(hl, bc, de, xs)
 
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _) ) :: xs if th.name == hl =>
-        ZLine.ld8(A, L) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _) ) :: xs if th.name == hl =>
-        ZLine.ld8(L, A) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _) ) :: xs if th.name == bc =>
-        ZLine.ld8(A, C) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _) ) :: xs if th.name == bc =>
-        ZLine.ld8(C, A) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _) ) :: xs if th.name == de =>
-        ZLine.ld8(A, E) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _) ) :: xs if th.name == de =>
-        ZLine.ld8(E, A) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
+        ZLine.ld8(A, L).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
+        ZLine.ld8(L, A).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
+        ZLine.ld8(A, C).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
+        ZLine.ld8(C, A).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
+        ZLine.ld8(A, E).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
+        ZLine.ld8(E, A).pos(s) :: inlineVars(hl, bc, de, xs)
 
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) ) :: xs if th.name == hl =>
-        ZLine.ld8(A, H) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) ) :: xs if th.name == hl =>
-        ZLine.ld8(H, A) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) ) :: xs if th.name == bc =>
-        ZLine.ld8(A, B) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) ) :: xs if th.name == bc =>
-        ZLine.ld8(B, A) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) ) :: xs if th.name == de =>
-        ZLine.ld8(A, D) :: inlineVars(hl, bc, de, xs)
-      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _) ) :: xs if th.name == de =>
-        ZLine.ld8(D, A) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == hl =>
+        ZLine.ld8(A, H).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == hl =>
+        ZLine.ld8(H, A).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == bc =>
+        ZLine.ld8(A, B).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == bc =>
+        ZLine.ld8(B, A).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == de =>
+        ZLine.ld8(A, D).pos(s) :: inlineVars(hl, bc, de, xs)
+      case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == de =>
+        ZLine.ld8(D, A).pos(s) :: inlineVars(hl, bc, de, xs)
 
-      case (_, l1@ZLine(LD_16, TwoRegisters(BC, IMM_16), _, _)) :: (_, l2@ZLine(ADD_16, TwoRegisters(HL, BC), _, _)) :: xs if bc != "" =>
-        ZLine.register(PUSH, BC) :: l1 :: l2 :: ZLine.register(POP, BC) :: inlineVars(hl, bc, de, xs)
+      case (_, l1@ZLine(LD_16, TwoRegisters(BC, IMM_16), _, _, s1)) :: (_, l2@ZLine(ADD_16, TwoRegisters(HL, BC), _, _, s2)) :: xs if bc != "" =>
+        ZLine.register(PUSH, BC).pos(s1) :: l1 :: l2 :: ZLine.register(POP, BC).pos(s2) :: inlineVars(hl, bc, de, xs)
 
-      case (_, l1@ZLine(LD_16, TwoRegisters(DE, IMM_16), _, _)) :: (_, l2@ZLine(ADD_16, TwoRegisters(HL, DE), _, _)) :: xs if de != "" =>
-        ZLine.register(PUSH, DE) :: l1 :: l2 :: ZLine.register(POP, DE) :: inlineVars(hl, bc, de, xs)
+      case (_, l1@ZLine(LD_16, TwoRegisters(DE, IMM_16), _, _, s1)) :: (_, l2@ZLine(ADD_16, TwoRegisters(HL, DE), _, _, s2)) :: xs if de != "" =>
+        ZLine.register(PUSH, DE).pos(s1) :: l1 :: l2 :: ZLine.register(POP, DE).pos(s2) :: inlineVars(hl, bc, de, xs)
 
-      case (_, x@ZLine(CALL, _, _, _)) :: xs =>
+      case (_, x@ZLine(CALL, _, _, _, s)) :: xs =>
         if (bc != "") {
-          ZLine.register(PUSH, BC) :: x :: ZLine.register(POP, BC) :: inlineVars(hl, bc, de, xs)
+          ZLine.register(PUSH, BC).pos(s) :: x :: ZLine.register(POP, BC).pos(s) :: inlineVars(hl, bc, de, xs)
         } else if (de != "") {
-          ZLine.register(PUSH, DE) :: x :: ZLine.register(POP, DE) :: inlineVars(hl, bc, de, xs)
+          ZLine.register(PUSH, DE).pos(s) :: x :: ZLine.register(POP, DE).pos(s) :: inlineVars(hl, bc, de, xs)
         } else {
           throw new IllegalStateException()
         }
 
 
-      case x :: (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _)) :: xs if x._2.changesRegister(HL) && th.name == hl =>
+      case x :: (_, ZLine0(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th))) :: xs if x._2.changesRegister(HL) && th.name == hl =>
         x._2 :: inlineVars(hl, bc, de, xs)
-      case x :: (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _)) :: xs if x._2.changesRegister(BC) && th.name == bc =>
+      case x :: (_, ZLine0(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th))) :: xs if x._2.changesRegister(BC) && th.name == bc =>
         x._2 :: inlineVars(hl, bc, de, xs)
-      case x :: (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _)) :: xs if x._2.changesRegister(DE) && th.name == de =>
+      case x :: (_, ZLine0(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th))) :: xs if x._2.changesRegister(DE) && th.name == de =>
         x._2 :: inlineVars(hl, bc, de, xs)
 
       case x :: _ if bc != "" && x._2.changesRegister(BC) => throw new IllegalStateException()
