@@ -282,9 +282,9 @@ object Z80Comparisons {
       case (NotEqual, BranchIfFalse(label)) =>
         ZLine.jump(innerLabel, IfFlagClear(ZFlag.Z)) -> ZLine.jump(label, IfFlagSet(ZFlag.Z))
       case (Equal, BranchIfFalse(label)) =>
-        ZLine.jump(innerLabel, IfFlagSet(ZFlag.Z)) -> ZLine.jump(label, IfFlagClear(ZFlag.Z))
+        ZLine.jump(label, IfFlagClear(ZFlag.Z)) -> ZLine.jump(label, IfFlagClear(ZFlag.Z))
       case (NotEqual, BranchIfTrue(label)) =>
-        ZLine.jump(innerLabel, IfFlagSet(ZFlag.Z)) -> ZLine.jump(label, IfFlagClear(ZFlag.Z))
+        ZLine.jump(label, IfFlagClear(ZFlag.Z)) -> ZLine.jump(label, IfFlagClear(ZFlag.Z))
       case (_, NoBranching) => ZLine.implied(ZOpcode.NOP) -> ZLine.implied(ZOpcode.NOP)
       case _ => throw new IllegalArgumentException
     }
