@@ -41,7 +41,7 @@ object Preprocessor {
     def evalParam(param: String, pos: Some[Position]): Long = {
       new PreprocessorParser(options).expression.parse(param) match {
         case Success(q, _) =>
-          val value = q.apply(platform.features).getOrElse(0L)
+          val value = q.apply(options.features).getOrElse(0L)
 //          log.trace(param + " ===> " + value)
           value
         case Failure(_, _, _) =>
