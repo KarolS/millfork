@@ -549,9 +549,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 constantOperation(MathOperator.Shl9, ps)
               case List(FunctionCallExpression("<<'", ps@List(_, _))) =>
                 constantOperation(MathOperator.DecimalShl9, ps)
-              case List(SumExpression(ps@List((true,_),(true,_)), false)) =>
+              case List(SumExpression(ps@List((false,_),(false,_)), false)) =>
                 constantOperation(MathOperator.Plus9, ps.map(_._2))
-              case List(SumExpression(ps@List((true,_),(true,_)), true)) =>
+              case List(SumExpression(ps@List((false,_),(false,_)), true)) =>
                 constantOperation(MathOperator.DecimalPlus9, ps.map(_._2))
               case List(_) =>
                 None

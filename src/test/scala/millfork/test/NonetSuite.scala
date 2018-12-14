@@ -102,4 +102,45 @@ class NonetSuite extends FunSuite with Matchers {
       m.readWord(0xc006) should equal(0x8080)
     }
   }
+
+  test("Nonet shift right") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output0 @$c000
+        | byte output1 @$c002
+        | byte output2 @$c004
+        | noinline void perform(byte x) {
+        |   output0 = nonet(150+160) >>>> 1
+        |   output1 = nonet(153+output0) >>>> 1
+        |   output2 = nonet(150+x) >>>> 1
+        | }
+        | void main () {
+        |   perform(200)
+        | }
+        | noinline byte three() { return 3 }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(155)
+      m.readByte(0xc002) should equal(154)
+      m.readByte(0xc004) should equal(175)
+    }
+  }
+
+  test("Nonet shift right 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output0 @$c000
+        | byte output1 @$c002
+        | noinline void perform(byte x) {
+        |   output0 = nonet(180 << 1) >>>> 1
+        |   output1 = nonet(output0 << 1) >>>> 1
+        | }
+        | void main () {
+        |   perform(200)
+        | }
+        | noinline byte three() { return 3 }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(180)
+      m.readByte(0xc002) should equal(180)
+    }
+  }
 }

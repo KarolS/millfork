@@ -192,6 +192,10 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
         FunctionCallExpression("nonet", args.map(arg => optimizeExpr(arg, Map()))).pos(pos)
       case FunctionCallExpression(name, args) =>
         FunctionCallExpression(name, args.map(arg => optimizeExpr(arg, currentVarValues))).pos(pos)
+      case SumExpression(expressions, decimal) =>
+        // don't collapse additions, let the later stages deal with it
+        // expecially important when inside a nonet operation
+        SumExpression(expressions.map{case (minus, arg) => minus -> optimizeExpr(arg, currentVarValues)}, decimal)
       case _ => expr // TODO
     }
   }

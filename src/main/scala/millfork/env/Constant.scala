@@ -361,7 +361,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case _ => return this
         }
         operator match {
-          case MathOperator.Plus9 | MathOperator.DecimalPlus9 =>
+          case MathOperator.Plus9 | MathOperator.DecimalPlus9 | MathOperator.Shl9 | MathOperator.DecimalShl9 =>
             size = 2
           case MathOperator.Times | MathOperator.Shl =>
             val mask = (1 << (size * 8)) - 1

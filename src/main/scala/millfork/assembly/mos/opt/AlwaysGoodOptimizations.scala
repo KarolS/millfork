@@ -94,6 +94,18 @@ object AlwaysGoodOptimizations {
       HasOpcode(LSR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> { (code, ctx) =>
       AssemblyLine.immediate(LDA, (ctx.get[Int](0) & 0xff) >> 1) :: Nil
     },
+
+    (Elidable & MatchA(0) &
+      HasOpcode(ASL) & HasAddrMode(Implied)) ~~> { (code, ctx) =>
+      val v = ctx.get[Int](0)
+      AssemblyLine.immediate(LDA, (v << 1) & 0xff) :: AssemblyLine.implied(if(v.&(0x80) != 0) SEC else CLC) :: Nil
+    },
+    (Elidable & MatchA(0) &
+      HasOpcode(LSR) & HasAddrMode(Implied)) ~~> { (code, ctx) =>
+      val v = ctx.get[Int](0)
+      AssemblyLine.immediate(LDA, (v & 0xff) >> 1) :: AssemblyLine.implied(if(v.&(1) != 0) SEC else CLC) :: Nil
+    },
+
     (Elidable & MatchA(0) &
       HasClear(State.C) & HasOpcode(ROL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> { (code, ctx) =>
       AssemblyLine.immediate(LDA, ctx.get[Int](0) << 1) :: Nil
@@ -110,6 +122,28 @@ object AlwaysGoodOptimizations {
       HasSet(State.C) & HasOpcode(ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> { (code, ctx) =>
       AssemblyLine.immediate(LDA, 0x80 + (ctx.get[Int](0) & 0xff) / 2) :: Nil
     },
+
+    (Elidable & MatchA(0) &
+      HasClear(State.C) & HasOpcode(ROL) & HasAddrMode(Implied)) ~~> { (code, ctx) =>
+      val v = ctx.get[Int](0)
+      AssemblyLine.immediate(LDA, v << 1) :: AssemblyLine.implied(if(v.&(0x80) != 0) SEC else CLC) :: Nil
+    },
+    (Elidable & MatchA(0) &
+      HasClear(State.C) & HasOpcode(ROR) & HasAddrMode(Implied)) ~~> { (code, ctx) =>
+      val v = ctx.get[Int](0)
+      AssemblyLine.immediate(LDA, (ctx.get[Int](0) & 0xff) >> 1) :: AssemblyLine.implied(if(v.&(1) != 0) SEC else CLC) :: Nil
+    },
+    (Elidable & MatchA(0) &
+      HasSet(State.C) & HasOpcode(ROL) & HasAddrMode(Implied)) ~~> { (code, ctx) =>
+      val v = ctx.get[Int](0)
+      AssemblyLine.immediate(LDA, (v * 2 + 1) & 0xff) :: AssemblyLine.implied(if(v.&(0x80) != 0) SEC else CLC) :: Nil
+    },
+    (Elidable & MatchA(0) &
+      HasSet(State.C) & HasOpcode(ROR) & HasAddrMode(Implied)) ~~> { (code, ctx) =>
+      val v = ctx.get[Int](0)
+      AssemblyLine.immediate(LDA, 0x80 + (v & 0xff) / 2) :: AssemblyLine.implied(if(v.&(1) != 0) SEC else CLC) :: Nil
+    },
+
     (Elidable &
       MatchA(0) & MatchParameter(1) &
       HasOpcode(ADC) & HasAddrMode(Immediate) &
@@ -535,6 +569,19 @@ object AlwaysGoodOptimizations {
       LAX, DoesntMatterWhatItDoesWith(State.N, State.Z),
       Not(ConcernsX) & Not(ConcernsA),
       SAX, DoesntMatterWhatItDoesWith(State.A, State.X)),
+
+    (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Linear & Not(ConcernsA) & Not(ConcernsC) & Not(ReadsNOrZ)).* ~
+      (Elidable & HasOpcode(ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.init.tail),
+    (Elidable & HasOpcode(LSR) & HasAddrMode(Implied)) ~
+      (Linear & Not(ConcernsA) & Not(ConcernsC) & Not(ReadsNOrZ)).* ~
+      (Elidable & HasOpcode(ROL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z)) ~~> (_.init.tail),
+    (Elidable & HasOpcode(ROL) & HasAddrMode(Implied)) ~
+      (Linear & Not(ConcernsA) & Not(ConcernsC) & Not(ReadsNOrZ)).* ~
+      (Elidable & HasOpcode(ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init.tail),
+    (Elidable & HasOpcode(ROR) & HasAddrMode(Implied)) ~
+      (Linear & Not(ConcernsA) & Not(ConcernsC) & Not(ReadsNOrZ)).* ~
+      (Elidable & HasOpcode(ROL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init.tail),
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",

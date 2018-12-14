@@ -260,6 +260,18 @@ object BuiltIns {
 
   def compileNonetOps(ctx: CompilationContext, lhs: Expression, rhs: Expression): List[AssemblyLine] = {
     val env = ctx.env
+    lhs match {
+      case FunctionCallExpression("nonet", List(lparam)) =>
+        (env.eval(lhs), env.eval(rhs)) match {
+          case (None, Some(NumericConstant(0, _))) =>
+            return MosExpressionCompiler.compile(ctx, lparam, None, NoBranching)
+          case (None, Some(NumericConstant(n, _))) if n > 0 =>
+            return MosExpressionCompiler.compile(ctx, lparam, None, NoBranching) ++
+              (AssemblyLine.implied(ROR) :: List.fill(n.toInt - 1)(AssemblyLine.implied(LSR)))
+          case _ =>
+        }
+      case _ =>
+    }
     val b = env.get[Type]("byte")
     val (ldaHi, ldaLo) = env.eval(lhs) match {
       case Some(c) =>
