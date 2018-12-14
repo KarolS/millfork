@@ -16,6 +16,10 @@
 
 * Added `align` keyword for choosing data and code alignment.
 
+* Added original line numbers in assembler output.
+
+* Added multiplication of a 16-bit number by an unsigned 8-bit number.
+
 * Automatic selection of text encoding based on target platform.
 
 * Text literals can be now used as expressions of type `pointer`.
@@ -31,7 +35,9 @@ Code that uses both a custom platform definition and the `scr` encoding needs at
 * **Potentially breaking change!** Platform definitions now need appropriate feature definitions. 
 Code that uses a custom platform definitions will cause extra warnings until fixed.
 
-* Optimizations for stack variables.
+* Software variable stack for 6502.
+
+* Other optimizations and fixes for stack variables.
 
 * Various code deduplication optimizations.
 
@@ -40,6 +46,12 @@ Code that uses a custom platform definitions will cause extra warnings until fix
 * Fixed decimal subtraction.
 
 * Fixed signed comparison.
+
+* Fixed `for`...`downto` loops.
+
+* Fixed invalid optimization of loads before `BEQ` and similar
+
+* Fixed miscompiled `nonet` calls.
 
 * Parser performance improvement.
 
