@@ -2569,4 +2569,18 @@ object AlwaysGoodOptimizations {
     },
 
   )
+
+  val SimplifiableComparison = new RuleBasedAssemblyOptimization("Simplifiable comparison",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+
+    (Elidable & HasOpcode(LDA)) ~
+      (Elidable & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.A, State.N)) ~
+      (Elidable & HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(BEQ) & DoesntMatterWhatItDoesWith(State.C) & MatchParameter(1)) ~~> { code =>
+      List(
+        code(1).copy(opcode = LDA),
+        code(0).copy(opcode = CMP),
+        code(2).copy(opcode = BCS))
+    }
+  )
 }

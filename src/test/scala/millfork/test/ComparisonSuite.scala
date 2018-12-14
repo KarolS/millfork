@@ -396,4 +396,28 @@ class ComparisonSuite extends FunSuite with Matchers {
       """.stripMargin
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(src)(_.readByte(0xc000) should equal(1))
   }
+
+  test("Compare beyond 2.2") {
+    // see: http://www.6502.org/tutorials/compare_beyond.html
+    EmuBenchmarkRun(
+      """
+        | array output [7] @$c000
+        | inline void fastCompare(byte x, byte y, byte i) {
+        |   if x > y {
+        |     output[i] = 0
+        |   } else {
+        |     output[i] = 1
+        |   }
+        | }
+        | void main() {
+        |   fastCompare(1,2, 0)
+        |   fastCompare(2,2, 1)
+        |   fastCompare(2,1, 2)
+        | }
+      """.stripMargin) {m =>
+      m.readByte(0xc000) should equal(1)
+      m.readByte(0xc001) should equal(1)
+      m.readByte(0xc002) should equal(0)
+    }
+  }
 }
