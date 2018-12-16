@@ -742,6 +742,17 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 } else compilation
               }
             }
+          case "sizeof" =>
+            env.eval(expr) match {
+              case Some(c) =>
+                exprTypeAndVariable match {
+                  case Some((t, v)) =>
+                    compileConstant(ctx, c, v)
+                  case _ =>
+                    Nil
+                }
+              case None => Nil
+            }
           case "nonet" =>
             if (params.length != 1) {
               ctx.log.error("Invalid number of parameters", f.position)

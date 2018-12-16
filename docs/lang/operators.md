@@ -238,5 +238,7 @@ but not
 `word` → `byte`  
 some enum → `word`
 
+* `sizeof`: size of the argument in bytes; the argument can be an expression or a type,
+and the result is a constant of either `byte` or `word` type, depending on situation
 
 

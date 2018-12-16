@@ -4,7 +4,7 @@ import millfork.assembly.BranchingOpcodeMapping
 import millfork.{env, _}
 import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
-import millfork.compiler.LabelGenerator
+import millfork.compiler.{AbstractExpressionCompiler, LabelGenerator}
 import millfork.error.Logger
 import millfork.node._
 import millfork.output._
@@ -266,17 +266,18 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (things.contains(name)) {
       val t: Thing = things(name)
       val clazz = implicitly[Manifest[T]].runtimeClass
-      if ((t ne null) && clazz.isInstance(t)) {
-        Some(t.asInstanceOf[T])
-      } else {
-        t match {
-          case Alias(_, target, deprectated) =>
-            if (deprectated) {
-              log.warn(s"Alias `$name` is deprecated, use `$target` instead")
-            }
-            root.maybeGet[T](target)
-          case _ => None
-        }
+      t match {
+        case Alias(_, target, deprectated) =>
+          if (deprectated) {
+            log.warn(s"Alias `$name` is deprecated, use `$target` instead")
+          }
+          root.maybeGet[T](target)
+        case _ =>
+          if ((t ne null) && clazz.isInstance(t)) {
+            Some(t.asInstanceOf[T])
+          } else {
+            None
+          }
       }
     } else parent.flatMap {
       _.maybeGet[T](name)
@@ -453,6 +454,29 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       }
     }
 
+  def evalSizeof(expr: Expression): Constant = {
+    val size: Int = expr match {
+      case VariableExpression(name) =>
+        maybeGet[Thing](name) match {
+          case None =>
+            log.error(s"`$name` is not defined")
+            1
+          case Some(thing) => thing match {
+            case t: Type => t.size
+            case v: Variable => v.typ.size
+            case a: InitializedArray => a.elementType.size * a.contents.length
+            case a: UninitializedArray => a.sizeInBytes
+            case x =>
+              log.error("Invalid parameter for expr: " + name)
+              1
+          }
+        }
+      case _ =>
+        AbstractExpressionCompiler.getExpressionType(this, log, expr).size
+    }
+    NumericConstant(size, Constant.minimumSize(size))
+  }
+
   def eval(e: Expression, vars: Map[String, Constant]): Option[Constant] = evalImpl(e, Some(vars))
 
   def eval(e: Expression): Option[Constant] = evalImpl(e, None)
@@ -493,6 +517,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       } yield hc.asl(8) + lc
       case FunctionCallExpression(name, params) =>
         name match {
+          case "sizeof" =>
+            if (params.size == 1) {
+              Some(evalSizeof(params.head))
+            } else {
+              log.error("Invalid number of parameters for `sizeof`", e.position)
+              Some(Constant.One)
+            }
           case "hi" =>
             if (params.size == 1) {
               eval(params.head).map(_.hiByte.quickSimplify)
@@ -1282,6 +1313,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       nameCheck(l)
     case SumExpression(params, _) =>
       nameCheck(params.map(_._2))
+    case FunctionCallExpression("sizeof", List(ve@VariableExpression(e))) =>
+      checkName[Thing]("Type, variable or constant", e, ve.position)
     case FunctionCallExpression(name, params) =>
       if (name.exists(_.isLetter) && !Environment.predefinedFunctions(name)) {
         checkName[CallableThing]("Function or type", name, node.position)
@@ -1291,5 +1324,5 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 }
 
 object Environment {
-  val predefinedFunctions = Set("not", "hi", "lo", "nonet")
+  val predefinedFunctions = Set("not", "hi", "lo", "nonet", "sizeof")
 }

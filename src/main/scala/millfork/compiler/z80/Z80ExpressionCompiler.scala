@@ -501,6 +501,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     case ZExpressionTarget.DEHL => List(ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm16(ZRegister.DE, 0))
                   })
                 }
+              case "sizeof" =>
+                ctx.log.fatal("Unreachable branch: 8080 sizeof")
+                Nil
               case "nonet" =>
                 if (params.length != 1) {
                   ctx.log.error("Invalid number of parameters", f.position)

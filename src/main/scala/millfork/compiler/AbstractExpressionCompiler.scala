@@ -2,7 +2,7 @@ package millfork.compiler
 
 import millfork.env._
 import millfork.node._
-import millfork.error.ConsoleLogger
+import millfork.error.{ConsoleLogger, Logger}
 import millfork.assembly.AbstractCode
 
 /**
@@ -21,7 +21,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
      }
   }
 
-  def lookupFunction(ctx: CompilationContext, f: FunctionCallExpression): MangledFunction = AbstractExpressionCompiler.lookupFunction(ctx, f)
+  def lookupFunction(ctx: CompilationContext, f: FunctionCallExpression): MangledFunction = AbstractExpressionCompiler.lookupFunction(ctx.env, ctx.log, f)
 
   def assertCompatible(exprType: Type, variableType: Type): Unit = {
     // TODO
@@ -168,8 +168,12 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 }
 
 object AbstractExpressionCompiler {
+  @inline
   def getExpressionType(ctx: CompilationContext, expr: Expression): Type = {
-    val env = ctx.env
+    getExpressionType(ctx.env, ctx.log, expr)
+  }
+
+  def getExpressionType(env: Environment, log: Logger, expr: Expression): Type = {
     val b = env.get[Type]("byte")
     val bool = env.get[Type]("bool$")
     val v = env.get[Type]("void")
@@ -187,35 +191,39 @@ object AbstractExpressionCompiler {
       case VariableExpression(name) =>
         env.get[TypedThing](name, expr.position).typ
       case HalfWordExpression(param, _) =>
-        getExpressionType(ctx, param)
+        getExpressionType(env, log, param)
         b
       case IndexedExpression(name, _) =>
         env.getPointy(name).elementType
       case SeparateBytesExpression(hi, lo) =>
-        if (getExpressionType(ctx, hi).size > 1) ctx.log.error("Hi byte too large", hi.position)
-        if (getExpressionType(ctx, lo).size > 1) ctx.log.error("Lo byte too large", lo.position)
+        if (getExpressionType(env, log, hi).size > 1) log.error("Hi byte too large", hi.position)
+        if (getExpressionType(env, log, lo).size > 1) log.error("Lo byte too large", lo.position)
         w
-      case SumExpression(params, _) => params.map { case (_, e) => getExpressionType(ctx, e).size }.max match {
+      case SumExpression(params, _) => params.map { case (_, e) => getExpressionType(env, log, e).size }.max match {
         case 1 => b
         case 2 => w
-        case _ => ctx.log.error("Adding values bigger than words", expr.position); w
+        case _ => log.error("Adding values bigger than words", expr.position); w
       }
       case FunctionCallExpression("nonet", params) => w
       case FunctionCallExpression("not", params) => bool
       case FunctionCallExpression("hi", params) => b
       case FunctionCallExpression("lo", params) => b
-      case FunctionCallExpression("*", params) => b
-      case FunctionCallExpression("|" | "&" | "^", params) => params.map { e => getExpressionType(ctx, e).size }.max match {
+      case FunctionCallExpression("sizeof", params) => env.evalSizeof(params.head).requiredSize match {
         case 1 => b
         case 2 => w
-        case _ => ctx.log.error("Adding values bigger than words", expr.position); w
+      }
+      case FunctionCallExpression("*", params) => b
+      case FunctionCallExpression("|" | "&" | "^", params) => params.map { e => getExpressionType(env, log, e).size }.max match {
+        case 1 => b
+        case 2 => w
+        case _ => log.error("Adding values bigger than words", expr.position); w
       }
       case FunctionCallExpression("<<", List(a1, a2)) =>
-        if (getExpressionType(ctx, a2).size > 1) ctx.log.error("Shift amount too large", a2.position)
-        getExpressionType(ctx, a1)
+        if (getExpressionType(env, log, a2).size > 1) log.error("Shift amount too large", a2.position)
+        getExpressionType(env, log, a1)
       case FunctionCallExpression(">>", List(a1, a2)) =>
-        if (getExpressionType(ctx, a2).size > 1) ctx.log.error("Shift amount too large", a2.position)
-        getExpressionType(ctx, a1)
+        if (getExpressionType(env, log, a2).size > 1) log.error("Shift amount too large", a2.position)
+        getExpressionType(env, log, a1)
       case FunctionCallExpression("<<'", params) => b
       case FunctionCallExpression(">>'", params) => b
       case FunctionCallExpression(">>>>", params) => b
@@ -242,11 +250,11 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression("<<'=", params) => v
       case FunctionCallExpression(">>'=", params) => v
       case f@FunctionCallExpression(name, params) =>
-        ctx.env.maybeGet[Type](name) match {
+        env.maybeGet[Type](name) match {
           case Some(typ) =>
             typ
           case None =>
-            lookupFunction(ctx, f).returnType
+            lookupFunction(env, log, f).returnType
         }
     }
   }
@@ -274,9 +282,9 @@ object AbstractExpressionCompiler {
     }
   }
 
-  def lookupFunction(ctx: CompilationContext, f: FunctionCallExpression): MangledFunction = {
-    val paramsWithTypes = f.expressions.map(x => getExpressionType(ctx, x) -> x)
-    ctx.env.lookupFunction(f.functionName, paramsWithTypes).getOrElse(
-      ctx.log.fatal(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position))
+  def lookupFunction(env: Environment, log: Logger, f: FunctionCallExpression): MangledFunction = {
+    val paramsWithTypes = f.expressions.map(x => getExpressionType(env, log, x) -> x)
+    env.lookupFunction(f.functionName, paramsWithTypes).getOrElse(
+      log.fatal(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position))
   }
 }

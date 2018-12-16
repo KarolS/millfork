@@ -222,6 +222,6 @@ object AbstractStatementPreprocessor {
     "<<", "<<'", ">>", ">>'", ">>>>",
     "&", "&&", "||", "|", "^",
     "==", "!=", "<", ">", ">=", "<=",
-    "not", "hi", "lo", "nonet"
+    "not", "hi", "lo", "nonet", "sizeof"
   )
 }
