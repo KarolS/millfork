@@ -24,15 +24,15 @@ byte vic_spr7_x     @$D00E
 byte vic_spr7_y     @$D00F
 byte vic_spr_hi_x   @$D010
 byte vic_cr1        @$D011
-byte vic_raster     @$D012
+volatile byte vic_raster     @$D012
 byte vic_lp_x       @$D013
 byte vic_lp_y       @$D014
 byte vic_spr_ena    @$D015
 byte vic_cr2        @$D016
 byte vic_spr_exp_y  @$D017
 byte vic_mem        @$D018
-byte vic_irq        @$D019
-byte vic_irq_ena    @$D01A
+volatile byte vic_irq        @$D019
+volatile byte vic_irq_ena    @$D01A
 byte vic_spr_dp     @$D01B
 byte vic_spr_mcolor @$D01C
 byte vic_spr_exp_x  @$D01D

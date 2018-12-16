@@ -2,58 +2,58 @@
 #warn nes_hardware module should be only used on NES/Famicom targets
 #endif
 
-byte ppu_ctrl   @$2000
-byte ppu_mask   @$2001
-byte ppu_status @$2002
-byte oam_addr   @$2003
-byte oam_data   @$2004
-byte ppu_scroll @$2005
-byte ppu_addr   @$2006
-byte ppu_data   @$2007
-byte oam_dma    @$4014
+volatile byte ppu_ctrl   @$2000
+volatile byte ppu_mask   @$2001
+volatile byte ppu_status @$2002
+volatile byte oam_addr   @$2003
+volatile byte oam_data   @$2004
+volatile byte ppu_scroll @$2005
+volatile byte ppu_addr   @$2006
+volatile byte ppu_data   @$2007
+volatile byte oam_dma    @$4014
 
 // TODO: better names
 
-byte apu_pulse1_ctrl       @$4000
-byte apu_pulse1_sweep      @$4001
-word apu_pulse1_period     @$4002
+volatile byte apu_pulse1_ctrl       @$4000
+volatile byte apu_pulse1_sweep      @$4001
+volatile word apu_pulse1_period     @$4002
 
-byte apu_pulse2_ctrl       @$4004
-byte apu_pulse2_sweep      @$4005
-word apu_pulse2_period     @$4006
+volatile byte apu_pulse2_ctrl       @$4004
+volatile byte apu_pulse2_sweep      @$4005
+volatile word apu_pulse2_period     @$4006
 
-byte apu_triangle_unmute   @$4008
-word apu_triangle_period   @$400A
+volatile byte apu_triangle_unmute   @$4008
+volatile word apu_triangle_period   @$400A
 
-byte apu_noise_ctrl        @$400C
-byte apu_noise_period      @$400E
+volatile byte apu_noise_ctrl        @$400C
+volatile byte apu_noise_period      @$400E
 
-byte apu_dmc_ctrl          @$4010
-byte apu_dmc_load          @$4011
-byte apu_dmc_sample_addr   @$4012
-byte apu_dmc_sample_length @$4013
+volatile byte apu_dmc_ctrl          @$4010
+volatile byte apu_dmc_load          @$4011
+volatile byte apu_dmc_sample_addr   @$4012
+volatile byte apu_dmc_sample_length @$4013
 
-byte apu_status            @$4015
-byte apu_frame_counter     @$4017
+volatile byte apu_status            @$4015
+volatile byte apu_frame_counter     @$4017
 
-byte joypad1_ctrl @$4016
-byte joypad2_ctrl @$4017
+volatile byte joypad1_ctrl @$4016
+volatile byte joypad2_ctrl @$4017
 
 inline asm byte strobe_joypad() {
     ? LDA #1
-    STA joypad1_ctrl
-    LSR
-    STA joypad1_ctrl
+    ! STA joypad1_ctrl
+    ? LSR
+    ! STA joypad1_ctrl
     ? RTS
 }
 
 inline asm byte read_joypad1() {
-    LDA joypad1_ctrl
+    ! LDA joypad1_ctrl
     ? RTS
 }
 
 inline asm byte read_joypad2() {
-    LDA joypad2_ctrl
+    ! LDA joypad2_ctrl
     ? RTS
 }
 
@@ -62,29 +62,29 @@ macro asm void simulate_reset() {
 }
 
 inline asm void ppu_set_addr(word ax) {
-    STX ppu_addr
-    STA ppu_addr
+    ! STX ppu_addr
+    ! STA ppu_addr
     ?RTS
 }
 
 inline asm byte read_ppu_status() {
-    LDA ppu_status
+    ! LDA ppu_status
     ? RTS
 }
 
 inline asm void ppu_set_scroll(word a, word x) {
-    STA ppu_scroll
-    STX ppu_scroll
-    ?RTS
+    ! STA ppu_scroll
+    ! STX ppu_scroll
+    ? RTS
 }
 
 inline asm void ppu_write_data(byte a) {
-    STA ppu_data
-    ?RTS
+    ! STA ppu_data
+    ? RTS
 }
 
 inline asm void ppu_oam_dma_write(byte a) {
-    STA oam_dma
-    ?RTS
+    ! STA oam_dma
+    ? RTS
 }
 

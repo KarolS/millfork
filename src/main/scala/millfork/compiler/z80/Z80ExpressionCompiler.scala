@@ -1,6 +1,7 @@
 package millfork.compiler.z80
 
 import millfork.CompilationFlag
+import millfork.assembly.Elidability
 import millfork.assembly.z80._
 import millfork.compiler._
 import millfork.env._
@@ -248,7 +249,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 import ZRegister._
                 v.typ.size match {
                   case 0 => ???
-                  case 1 => loadByte(v.toAddress, target)
+                  case 1 => loadByte(v.toAddress, target, v.isVolatile)
                   case 2 => target match {
                     case ZExpressionTarget.NOTHING => Nil
                     case ZExpressionTarget.HL =>
@@ -256,7 +257,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(ZLine.ldAbs16(HL, v))
                       } else {
                         // TODO: is it optimal?
-                        List(ZLine.ldAbs8(A, v), ZLine.ld8(L, A), ZLine.ldAbs8(A, v.toAddress + 1), ZLine.ld8(H, A))
+                        List(ZLine.ldAbs8(A, v), ZLine.ld8(L, A), ZLine.ldAbs8(A, v, 1), ZLine.ld8(H, A))
                       }
                     case ZExpressionTarget.EHL =>
                       // TODO: signed words
@@ -264,7 +265,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(ZLine.ldAbs16(HL, v), ZLine.ldImm8(E, 0))
                       } else {
                         // TODO: is it optimal?
-                        List(ZLine.ldAbs8(A, v), ZLine.ld8(L, A), ZLine.ldAbs8(A, v.toAddress + 1), ZLine.ld8(H, A), ZLine.ldImm8(E, 0))
+                        List(ZLine.ldAbs8(A, v), ZLine.ld8(L, A), ZLine.ldAbs8(A, v, 1), ZLine.ld8(H, A), ZLine.ldImm8(E, 0))
                       }
                     case ZExpressionTarget.DEHL =>
                       // TODO: signed words
@@ -272,7 +273,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(ZLine.ldAbs16(HL, v), ZLine.ldImm16(DE, 0))
                       } else {
                         // TODO: is it optimal?
-                        List(ZLine.ldAbs8(A, v), ZLine.ld8(L, A), ZLine.ldAbs8(A, v.toAddress + 1), ZLine.ld8(H, A), ZLine.ldImm16(DE, 0))
+                        List(ZLine.ldAbs8(A, v), ZLine.ld8(L, A), ZLine.ldAbs8(A, v, 1), ZLine.ld8(H, A), ZLine.ldImm16(DE, 0))
                       }
                     case ZExpressionTarget.BC =>
                       if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
@@ -281,7 +282,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(ZLine.ldAbs16(HL, v), ZLine.ld8(B, H), ZLine.ld8(C, L))
                       } else {
                         // TODO: is it optimal?
-                        List(ZLine.ldAbs8(A, v), ZLine.ld8(C, A), ZLine.ldAbs8(A, v.toAddress + 1), ZLine.ld8(B, A))
+                        List(ZLine.ldAbs8(A, v), ZLine.ld8(C, A), ZLine.ldAbs8(A, v, 1), ZLine.ld8(B, A))
                       }
                     case ZExpressionTarget.DE =>
                       if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
@@ -290,31 +291,31 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(ZLine.ldAbs16(HL, v), ZLine.ld8(D, H), ZLine.ld8(E, L))
                       } else {
                         // TODO: is it optimal?
-                        List(ZLine.ldAbs8(A, v), ZLine.ld8(E, A), ZLine.ldAbs8(A, v.toAddress + 1), ZLine.ld8(D, A))
+                        List(ZLine.ldAbs8(A, v), ZLine.ld8(E, A), ZLine.ldAbs8(A, v, 1), ZLine.ld8(D, A))
                       }
                   }
                   case 3 => target match {
                     case ZExpressionTarget.NOTHING => Nil
                     case ZExpressionTarget.EHL =>
                       if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
-                        List(ZLine.ldAbs16(HL, v), ZLine.ldAbs8(A, v.toAddress + 2), ZLine.ld8(E, A))
+                        List(ZLine.ldAbs16(HL, v), ZLine.ldAbs8(A, v, 2), ZLine.ld8(E, A))
                       } else {
                         // TODO: is it optimal?
                         List(
                           ZLine.ldAbs8(A, v), ZLine.ld8(L, A),
-                          ZLine.ldAbs8(A, v.toAddress + 1), ZLine.ld8(H, A),
-                          ZLine.ldAbs8(A, v.toAddress + 2), ZLine.ld8(E, A))
+                          ZLine.ldAbs8(A, v, 1), ZLine.ld8(H, A),
+                          ZLine.ldAbs8(A, v, 2), ZLine.ld8(E, A))
                       }
                     case ZExpressionTarget.DEHL =>
                       // TODO: signed farwords
                       if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
-                        List(ZLine.ldAbs16(HL, v), ZLine.ldAbs8(A, v.toAddress + 2), ZLine.ld8(E, A), ZLine.ldImm8(D, 0))
+                        List(ZLine.ldAbs16(HL, v), ZLine.ldAbs8(A, v, 2), ZLine.ld8(E, A), ZLine.ldImm8(D, 0))
                       } else {
                         // TODO: is it optimal?
                         List(
                           ZLine.ldAbs8(A, v), ZLine.ld8(L, A),
-                          ZLine.ldAbs8(A, v.toAddress + 1), ZLine.ld8(H, A),
-                          ZLine.ldAbs8(A, v.toAddress + 2), ZLine.ld8(E, A), ZLine.ldImm8(D, 0))
+                          ZLine.ldAbs8(A, v, 1), ZLine.ld8(H, A),
+                          ZLine.ldAbs8(A, v, 2), ZLine.ld8(E, A), ZLine.ldImm8(D, 0))
                       }
                   }
                   case 4 => target match {
@@ -330,9 +331,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         // TODO: is it optimal?
                         List(
                           ZLine.ldAbs8(A, v), ZLine.ld8(L, A),
-                          ZLine.ldAbs8(A, v.toAddress + 1), ZLine.ld8(H, A),
-                          ZLine.ldAbs8(A, v.toAddress + 2), ZLine.ld8(E, A),
-                          ZLine.ldAbs8(A, v.toAddress + 3), ZLine.ld8(D, A))
+                          ZLine.ldAbs8(A, v, 1), ZLine.ld8(H, A),
+                          ZLine.ldAbs8(A, v, 2), ZLine.ld8(E, A),
+                          ZLine.ldAbs8(A, v, 3), ZLine.ld8(D, A))
                       }
                   }
                 }
@@ -438,7 +439,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             }
           case i: IndexedExpression =>
             calculateAddressToHL(ctx, i) match {
-              case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)) => loadByte(addr, target)
+              case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)) => loadByte(addr, target, volatile = false)
               case code => code ++ loadByteViaHL(target)
             }
           case SumExpression(params, decimal) =>
@@ -985,15 +986,16 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def loadByte(sourceAddr: Constant, target: ZExpressionTarget.Value): List[ZLine] = {
+  def loadByte(sourceAddr: Constant, target: ZExpressionTarget.Value, volatile: Boolean): List[ZLine] = {
+    val elidability = if (volatile) Elidability.Volatile else Elidability.Elidable
     target match {
       case ZExpressionTarget.NOTHING => Nil
-      case ZExpressionTarget.A => List(ZLine.ldAbs8(ZRegister.A, sourceAddr))
-      case ZExpressionTarget.HL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0))
-      case ZExpressionTarget.BC => List(ZLine.ldAbs8(ZRegister.A, sourceAddr), ZLine.ld8(ZRegister.C, ZRegister.A), ZLine.ldImm8(ZRegister.B, 0))
-      case ZExpressionTarget.DE => List(ZLine.ldAbs8(ZRegister.A, sourceAddr), ZLine.ld8(ZRegister.E, ZRegister.A), ZLine.ldImm8(ZRegister.D, 0))
-      case ZExpressionTarget.EHL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm8(ZRegister.E, 0))
-      case ZExpressionTarget.DEHL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm16(ZRegister.DE, 0))
+      case ZExpressionTarget.A => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability))
+      case ZExpressionTarget.HL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0))
+      case ZExpressionTarget.BC => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.C, ZRegister.A), ZLine.ldImm8(ZRegister.B, 0))
+      case ZExpressionTarget.DE => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.E, ZRegister.A), ZLine.ldImm8(ZRegister.D, 0))
+      case ZExpressionTarget.EHL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm8(ZRegister.E, 0))
+      case ZExpressionTarget.DEHL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm16(ZRegister.DE, 0))
     }
   }
 

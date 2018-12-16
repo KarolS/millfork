@@ -24,5 +24,5 @@ byte sid_v3_cr    @$D412
 byte sid_v3_ad    @$D413
 byte sid_v3_sr    @$D414
 
-byte sid_paddle_x @$D419
-byte sid_paddle_y @$D41A
+volatile byte sid_paddle_x @$D419
+volatile byte sid_paddle_y @$D41A

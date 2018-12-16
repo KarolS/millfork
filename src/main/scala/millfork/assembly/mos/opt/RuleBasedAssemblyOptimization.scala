@@ -744,7 +744,12 @@ case class EitherPattern(l: AssemblyLinePattern, r: AssemblyLinePattern) extends
 
 case object Elidable extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
-    line.elidability == Elidability.Elidable
+    line.elidable
+}
+
+case object NotFixed extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    line.notFixed
 }
 
 case object DebugMatching extends AssemblyPattern {

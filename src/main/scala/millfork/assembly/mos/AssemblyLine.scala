@@ -414,12 +414,13 @@ object AssemblyLine {
         ???
       }
     } else {
+      val elidability = if (variable.isVolatile) Elidability.Volatile else Elidability.Elidable
       variable match {
         case v@MemoryVariable(_, _, VariableAllocationMethod.Zeropage) =>
-          List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
-        case v@RelativeVariable(_, _, _, true, None) =>
-          List(AssemblyLine.zeropage(opcode, v.toAddress + offset))
-        case v: VariableInMemory => List(AssemblyLine.absolute(opcode, v.toAddress + offset))
+          List(AssemblyLine.zeropage(opcode, v.toAddress + offset).copy(elidability = elidability))
+        case v@RelativeVariable(_, _, _, true, None, _) =>
+          List(AssemblyLine.zeropage(opcode, v.toAddress + offset).copy(elidability = elidability))
+        case v: VariableInMemory => List(AssemblyLine.absolute(opcode, v.toAddress + offset).copy(elidability = elidability))
         case v: StackVariable =>
           AssemblyLine.tsx(ctx) :+ AssemblyLine.dataStackX(ctx, opcode, v, offset)
       }
@@ -520,8 +521,11 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
 
   def mergePos(s: Seq[Option[SourceLine]]): AssemblyLine = if (s.isEmpty) this else pos(SourceLine.merge(this.source, s))
 
+  @inline
   def elidable: Boolean = elidability == Elidability.Elidable
 
+  @inline
+  def notFixed: Boolean = elidability != Elidability.Fixed
 
   import AddrMode._
   import OpcodeClasses._

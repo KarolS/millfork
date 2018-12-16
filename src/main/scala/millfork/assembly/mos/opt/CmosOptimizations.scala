@@ -16,13 +16,13 @@ object CmosOptimizations {
 
   val ZeroStoreAsStz = new RuleBasedAssemblyOptimization("Zero store",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
-    (HasA(0) & HasZ(0) & HasOpcode(STA) & Elidable & HasAddrModeIn(StzAddrModes)) ~~> {code =>
+    (HasA(0) & HasZ(0) & HasOpcode(STA) & NotFixed & HasAddrModeIn(StzAddrModes)) ~~> {code =>
       code.head.copy(opcode = STZ) :: Nil
     },
-    (HasX(0) & HasZ(0) & HasOpcode(STX) & Elidable & HasAddrModeIn(StzAddrModes)) ~~> {code =>
+    (HasX(0) & HasZ(0) & HasOpcode(STX) & NotFixed & HasAddrModeIn(StzAddrModes)) ~~> {code =>
       code.head.copy(opcode = STZ) :: Nil
     },
-    (HasY(0) & HasZ(0) & HasOpcode(STY) & Elidable & HasAddrModeIn(StzAddrModes)) ~~> {code =>
+    (HasY(0) & HasZ(0) & HasOpcode(STY) & NotFixed & HasAddrModeIn(StzAddrModes)) ~~> {code =>
       code.head.copy(opcode = STZ) :: Nil
     },
   )

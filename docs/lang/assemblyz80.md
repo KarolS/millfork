@@ -70,6 +70,9 @@ but you need to be careful with using absolute vs immediate addressing:
 Any assembly opcode can be prefixed with `?`, which allows the optimizer change it or elide it if needed.
 Opcodes without that prefix will be always compiled as written.
 
+The '!' prefix marks the statement as volatile, which means it will be a subject to certain, but not all optimizations,
+in order to preserve its semantics.
+
 You can insert macros into assembly, by prefixing them with `+` and using the same syntax as in Millfork:
 
     macro void run(byte x) {

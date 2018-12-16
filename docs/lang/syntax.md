@@ -20,9 +20,13 @@ or a top level of a function (*local* variables).
 
 Syntax:
 
-`[segment(<segment>)] [<storage>] <type> <name> [@<address>] [= <initial_value>]`
+`[segment(<segment>)] [volatile] [<storage>] <type> <name> [@<address>] [= <initial_value>]`
 
 * `<segment>`: segment name; if absent, then defaults to `default`.
+
+* `volatile` means that the variable is volatile.
+The optimizer shouldn't remove or reorder accesses to volatile variables.
+Volatile variables cannot be declared as `register` or `stack.  
 
 * `<storage>` can be only specified for local variables. It can be either `stack`, `static`, `register` or nothing.
 `register` is only a hint for the optimizer. 

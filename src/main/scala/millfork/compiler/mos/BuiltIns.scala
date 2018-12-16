@@ -7,7 +7,6 @@ import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
 import millfork.compiler._
 import millfork.env._
-import millfork.error.ConsoleLogger
 import millfork.node._
 
 import scala.collection.mutable

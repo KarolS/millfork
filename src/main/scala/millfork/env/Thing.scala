@@ -105,6 +105,8 @@ sealed trait ThingInMemory extends Thing {
 
   def isFar(compilationOptions: CompilationOptions): Boolean
   def bank(compilationOptions: CompilationOptions): String
+
+  def isVolatile: Boolean
 }
 
 sealed trait PreallocableThing extends ThingInMemory {
@@ -129,9 +131,13 @@ case class Label(name: String) extends ThingInMemory {
   override val declaredBank: Option[String] = None
 
   override def zeropage: Boolean = false
+
+  override def isVolatile: Boolean = false
 }
 
-sealed trait Variable extends TypedThing with VariableLikeThing
+sealed trait Variable extends TypedThing with VariableLikeThing {
+  def isVolatile: Boolean
+}
 
 sealed trait VariableInMemory extends Variable with ThingInMemory with IndexableThing {
 
@@ -144,13 +150,18 @@ sealed trait VariableInMemory extends Variable with ThingInMemory with Indexable
 
 case class RegisterVariable(register: MosRegister.Value, typ: Type) extends Variable {
   def name: String = register.toString
+
+  override def isVolatile: Boolean = false
 }
 
 case class ZRegisterVariable(register: ZRegister.Value, typ: Type) extends Variable {
   def name: String = register.toString
+  override def isVolatile: Boolean = false
 }
 
-case class Placeholder(name: String, typ: Type) extends Variable
+case class Placeholder(name: String, typ: Type) extends Variable {
+  override def isVolatile: Boolean = false
+}
 
 sealed trait UninitializedMemory extends ThingInMemory {
   def sizeInBytes: Int
@@ -166,6 +177,7 @@ object VariableAllocationMethod extends Enumeration {
 
 case class StackVariable(name: String, typ: Type, baseOffset: Int) extends Variable {
   def sizeInBytes: Int = typ.size
+  override def isVolatile: Boolean = false
 }
 
 object MemoryVariable {
@@ -176,7 +188,14 @@ abstract class MemoryVariable extends VariableInMemory {
   def alloc: VariableAllocationMethod.Value
 }
 
-case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableAllocationMethod.Value, declaredBank: Option[String], override val alignment: MemoryAlignment) extends MemoryVariable with UninitializedMemory {
+case class UninitializedMemoryVariable(
+                                        name: String,
+                                        typ: Type,
+                                        alloc:
+                                        VariableAllocationMethod.Value,
+                                        declaredBank: Option[String],
+                                        override val alignment: MemoryAlignment,
+                                        override val isVolatile: Boolean) extends MemoryVariable with UninitializedMemory {
   override def sizeInBytes: Int = typ.size
 
   override def zeropage: Boolean = alloc == VariableAllocationMethod.Zeropage
@@ -184,7 +203,14 @@ case class UninitializedMemoryVariable(name: String, typ: Type, alloc: VariableA
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 }
 
-case class InitializedMemoryVariable(name: String, address: Option[Constant], typ: Type, initialValue: Expression, declaredBank: Option[String], override val alignment: MemoryAlignment) extends MemoryVariable with PreallocableThing {
+case class InitializedMemoryVariable(
+                                      name: String,
+                                      address: Option[Constant],
+                                      typ: Type,
+                                      initialValue: Expression,
+                                      declaredBank: Option[String],
+                                      override val alignment: MemoryAlignment,
+                                      override val isVolatile: Boolean) extends MemoryVariable with PreallocableThing {
   override def zeropage: Boolean = false
 
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
@@ -197,6 +223,7 @@ case class InitializedMemoryVariable(name: String, address: Option[Constant], ty
 trait MfArray extends ThingInMemory with IndexableThing {
   def indexType: VariableType
   def elementType: VariableType
+  override def isVolatile: Boolean = false
 }
 
 case class UninitializedArray(name: String, /* TODO: what if larger elements? */ sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
@@ -231,7 +258,7 @@ case class InitializedArray(name: String, address: Option[Constant], contents: L
   override def zeropage: Boolean = false
 }
 
-case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean, declaredBank: Option[String]) extends VariableInMemory {
+case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean, declaredBank: Option[String], override val isVolatile: Boolean) extends VariableInMemory {
   override def toAddress: Constant = address
 }
 
@@ -282,6 +309,8 @@ case class ExternFunction(name: String,
   override def interrupt = false
 
   override def zeropage: Boolean = false
+
+  override def isVolatile: Boolean = false
 }
 
 case class NormalFunction(name: String,
@@ -300,6 +329,8 @@ case class NormalFunction(name: String,
   override def shouldGenerate = true
 
   override def zeropage: Boolean = false
+
+  override def isVolatile: Boolean = false
 }
 
 case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing {

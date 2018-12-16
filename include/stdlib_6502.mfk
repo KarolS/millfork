@@ -9,11 +9,11 @@ word reset_routine_addr @$FFFC
 word irq_routine_addr   @$FFFE
 
 macro asm void poke(word const addr, byte a) {
-    STA addr
+    ! STA addr
 }
 
 macro asm byte peek(word const addr) {
-    LDA addr
+    ! LDA addr
 }
 
 macro asm void disable_irq() {
@@ -33,7 +33,7 @@ asm byte hi_nibble_to_hex(byte a) {
 }
 
 asm byte lo_nibble_to_hex(byte a) {
-    AND #$F
+    ! AND #$F
     CLC
     ADC #$30
     CMP #$3A
@@ -44,7 +44,7 @@ _lo_nibble_to_hex_lbl:
 }
 
 macro asm void panic() {
-    JSR _panic
+    ? JSR _panic
 }
 
 array __constant8 = [8]

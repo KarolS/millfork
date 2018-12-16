@@ -592,8 +592,9 @@ object MfParser {
   val nonStatementLevel = 1 // everything but not `=`
   val mathLevel = 4 // the `:` operator
 
-  val elidable: P[Elidability.Value] = ("?".! ~/ HWS).?.map{
-    case Some(_) => Elidability.Elidable
+  val elidable: P[Elidability.Value] = (("!" | "?").! ~/ HWS).?.map{
+    case Some("?") => Elidability.Elidable
+    case Some("!") => Elidability.Volatile
     case _ => Elidability.Fixed
   }
 

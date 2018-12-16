@@ -88,6 +88,10 @@ object ZLine {
   import ZOpcode._
   import ZRegister._
 
+  private def elidability(source: ThingInMemory): Elidability.Value = {
+    if (source.isVolatile) Elidability.Volatile else Elidability.Elidable
+  }
+
   def label(label: String): ZLine = ZLine.label(Label(label))
 
   def label(label: Label): ZLine = ZLine(LABEL, NoRegisters, label.toAddress)
@@ -148,21 +152,49 @@ object ZLine {
 
   def ldImm16(target: ZRegister.Value, source: Constant): ZLine = ZLine(LD_16, TwoRegisters(target, IMM_16), source)
 
-  def ldAbs8(target: ZRegister.Value, source: ThingInMemory): ZLine = ZLine(LD, TwoRegisters(target, MEM_ABS_8), source.toAddress)
+  def ldAbs8(target: ZRegister.Value, source: ThingInMemory): ZLine =
+    ZLine(LD, TwoRegisters(target, MEM_ABS_8), source.toAddress, elidability = elidability(source))
 
-  def ldAbs16(target: ZRegister.Value, source: ThingInMemory): ZLine = ZLine(LD_16, TwoRegisters(target, MEM_ABS_16), source.toAddress)
+  def ldAbs16(target: ZRegister.Value, source: ThingInMemory): ZLine =
+    ZLine(LD_16, TwoRegisters(target, MEM_ABS_16), source.toAddress, elidability = elidability(source))
+
+  def ldAbs8(target: ZRegister.Value, source: ThingInMemory, offset: Int): ZLine =
+    ZLine(LD, TwoRegisters(target, MEM_ABS_8), source.toAddress + offset, elidability = elidability(source))
+
+  def ldAbs16(target: ZRegister.Value, source: ThingInMemory, offset: Int): ZLine =
+    ZLine(LD_16, TwoRegisters(target, MEM_ABS_16), source.toAddress + offset, elidability = elidability(source))
 
   def ldAbs8(target: ZRegister.Value, source: Constant): ZLine = ZLine(LD, TwoRegisters(target, MEM_ABS_8), source)
 
   def ldAbs16(target: ZRegister.Value, source: Constant): ZLine = ZLine(LD_16, TwoRegisters(target, MEM_ABS_16), source)
 
-  def ldAbs8(target: ThingInMemory, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegisters(MEM_ABS_8, source), target.toAddress)
+  def ldAbs8(target: ZRegister.Value, source: Constant, elidability: Elidability.Value): ZLine =
+    ZLine(LD, TwoRegisters(target, MEM_ABS_8), source, elidability = elidability)
 
-  def ldAbs16(target: ThingInMemory, source: ZRegister.Value): ZLine = ZLine(LD_16, TwoRegisters(MEM_ABS_16, source), target.toAddress)
+  def ldAbs16(target: ZRegister.Value, source: Constant, elidability: Elidability.Value): ZLine =
+    ZLine(LD_16, TwoRegisters(target, MEM_ABS_16), source, elidability = elidability)
+
+  def ldAbs8(target: ThingInMemory, source: ZRegister.Value): ZLine =
+    ZLine(LD, TwoRegisters(MEM_ABS_8, source), target.toAddress, elidability = elidability(target))
+
+  def ldAbs16(target: ThingInMemory, source: ZRegister.Value): ZLine =
+    ZLine(LD_16, TwoRegisters(MEM_ABS_16, source), target.toAddress, elidability = elidability(target))
+
+  def ldAbs8(target: ThingInMemory, source: ZRegister.Value, offset: Int): ZLine =
+    ZLine(LD, TwoRegisters(MEM_ABS_8, source), target.toAddress + offset, elidability = elidability(target))
+
+  def ldAbs16(target: ThingInMemory, source: ZRegister.Value, offset: Int): ZLine =
+    ZLine(LD_16, TwoRegisters(MEM_ABS_16, source), target.toAddress + offset, elidability = elidability(target))
 
   def ldAbs8(target: Constant, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegisters(MEM_ABS_8, source), target)
 
   def ldAbs16(target: Constant, source: ZRegister.Value): ZLine = ZLine(LD_16, TwoRegisters(MEM_ABS_16, source), target)
+
+  def ldAbs8(target: Constant, source: ZRegister.Value, elidability: Elidability.Value): ZLine =
+    ZLine(LD, TwoRegisters(MEM_ABS_8, source), target, elidability = elidability)
+
+  def ldAbs16(target: Constant, source: ZRegister.Value, elidability: Elidability.Value): ZLine =
+    ZLine(LD_16, TwoRegisters(MEM_ABS_16, source), target, elidability = elidability)
 
   def ldViaIx(target: ZRegister.Value, sourceOffset: Int): ZLine = ZLine(LD, TwoRegistersOffset(target, ZRegister.MEM_IX_D, sourceOffset), Constant.Zero)
 
@@ -194,7 +226,11 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
 
   def mergePos(s: Seq[Option[SourceLine]]): ZLine = if (s.isEmpty) this else pos(SourceLine.merge(this.source, s))
 
+  @inline
   def elidable: Boolean = elidability == Elidability.Elidable
+
+  @inline
+  def notFixed: Boolean = elidability != Elidability.Fixed
 
   override def sizeInBytes: Int = {
     import ZOpcode._

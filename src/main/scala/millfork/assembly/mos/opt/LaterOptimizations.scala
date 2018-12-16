@@ -86,17 +86,17 @@ object LaterOptimizations {
 
   val DoubleLoadToTwoRegistersWhenOneWillBeTrashed = new RuleBasedAssemblyOptimization("Double load to two registers when one will be trashed",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
-    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
-      (Elidable & HasOpcode(STA) & HasAddrModeIn(StxAddrModes) & DoesNotConcernMemoryAt(0, 1) & Not(ConcernsX)).+ ~
+    (NotFixed & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) ~
+      (NotFixed & HasOpcode(STA) & HasAddrModeIn(StxAddrModes) & DoesNotConcernMemoryAt(0, 1) & Not(ConcernsX)).+ ~
       (Elidable & (HasOpcode(TAX) | HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsX)) & DoesntMatterWhatItDoesWith(State.A)) ~~> (_.init.map(a2x)),
-    (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsY)) ~
-      (Elidable & HasOpcode(STA) & HasAddrModeIn(StyAddrModes) & DoesNotConcernMemoryAt(0, 1) & Not(ConcernsY)).+ ~
+    (NotFixed & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsY)) ~
+      (NotFixed & HasOpcode(STA) & HasAddrModeIn(StyAddrModes) & DoesNotConcernMemoryAt(0, 1) & Not(ConcernsY)).+ ~
       (Elidable & (HasOpcode(TAY) | HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & Not(ConcernsY)) & DoesntMatterWhatItDoesWith(State.A)) ~~> (_.init.map(a2y)),
-    (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Elidable & HasOpcode(STX) & HasAddrModeIn(StaAddrModes) & DoesNotConcernMemoryAt(0, 1)).+ ~
+    (NotFixed & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (NotFixed & HasOpcode(STX) & HasAddrModeIn(StaAddrModes) & DoesNotConcernMemoryAt(0, 1)).+ ~
       (Elidable & (HasOpcode(TXA) | HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) & DoesntMatterWhatItDoesWith(State.X)) ~~> (_.init.map(x2a)),
-    (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Elidable & HasOpcode(STY) & HasAddrModeIn(StaAddrModes) & DoesNotConcernMemoryAt(0, 1)).+ ~
+    (NotFixed & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (NotFixed & HasOpcode(STY) & HasAddrModeIn(StaAddrModes) & DoesNotConcernMemoryAt(0, 1)).+ ~
       (Elidable & (HasOpcode(TYA) | HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) & DoesntMatterWhatItDoesWith(State.Y)) ~~> (_.init.map(y2a)),
   )
 

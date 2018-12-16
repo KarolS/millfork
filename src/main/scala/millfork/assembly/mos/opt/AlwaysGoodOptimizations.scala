@@ -198,16 +198,16 @@ object AlwaysGoodOptimizations {
       HasOpcode(ANC) & HasAddrMode(Immediate) & DoesntMatterWhatItDoesWith(State.C)) ~~> { (code, ctx) =>
       AssemblyLine.immediate(LDA, CompoundConstant(MathOperator.And, NumericConstant(ctx.get[Int](0), 1), ctx.get[Constant](1)).quickSimplify) :: Nil
     },
-    (Elidable & HasA(0) & HasOpcodeIn(ORA, EOR)) ~~> (code => code.map(_.copy(opcode = LDA))),
-    (Elidable & HasA(0) & HasOpcode(ADC) &
+    (NotFixed & HasA(0) & HasOpcodeIn(ORA, EOR)) ~~> (code => code.map(_.copy(opcode = LDA))),
+    (NotFixed & HasA(0) & HasOpcode(ADC) &
       HasClear(State.D) & HasClear(State.C) &
       // C stays cleared!
       DoesntMatterWhatItDoesWith(State.V)) ~~> (code => code.map(_.copy(opcode = LDA))),
-    (Elidable & HasA(0) & HasOpcode(ADC) &
+    (NotFixed & HasA(0) & HasOpcode(ADC) &
       HasClear(State.C) &
       // C stays cleared!
       DoesntMatterWhatItDoesWith(State.N, State.Z, State.V)) ~~> (code => code.map(_.copy(opcode = LDA))),
-    (Elidable & HasA(0xff) & HasOpcode(AND)) ~~> (code => code.map(_.copy(opcode = LDA))),
+    (NotFixed & HasA(0xff) & HasOpcode(AND)) ~~> (code => code.map(_.copy(opcode = LDA))),
     (Elidable & HasA(0) & HasOpcode(AND)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
     (Elidable & HasX(0) & HasOpcode(XAA)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
     (Elidable & HasImmediate(0) & HasOpcode(AND)) ~~> (code => List(AssemblyLine.immediate(LDA, 0))),
@@ -454,6 +454,21 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcodeIn(LDA, STA) & IsZeroPage & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(TAZ) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
       (Linear & Not(ConcernsIZ) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(TZA) & DoesntMatterWhatItDoesWith(State.IZ)) ~~> (code => code.head :: (code.drop(2).init :+ code.head.copy(opcode = LDA))),
+
+    (NotFixed & HasOpcodeIn(LDA, STA) & IsZeroPage & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Elidable & Linear & Not(ConcernsX) & DoesNotConcernMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.X)) ~~> (code => code.head :: (code.drop(2).init :+ code.head.copy(opcode = LDA))),
+
+    (NotFixed & HasOpcodeIn(LDA, STA) & IsZeroPage & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Elidable & Linear & Not(ConcernsY) & DoesNotConcernMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.Y)) ~~> (code => code.head :: (code.drop(2).init :+ code.head.copy(opcode = LDA))),
+
+    (NotFixed & HasOpcodeIn(LDA, STA) & IsZeroPage & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(TAZ) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Elidable & Linear & Not(ConcernsIZ) & DoesNotConcernMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(TZA) & DoesntMatterWhatItDoesWith(State.IZ)) ~~> (code => code.head :: (code.drop(2).init :+ code.head.copy(opcode = LDA))),
   )
 

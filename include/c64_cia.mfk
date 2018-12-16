@@ -5,21 +5,21 @@
 #endif
 
 //   CIA1
-byte cia1_pra       @$DC00
-byte cia1_prb       @$DC01
+volatile byte cia1_pra       @$DC00
+volatile byte cia1_prb       @$DC01
 byte cia1_ddra      @$DC02
 byte cia1_ddrb      @$DC03
-byte cia2_pra       @$DD00
-byte cia2_prb       @$DD01
+volatile byte cia2_pra       @$DD00
+volatile byte cia2_prb       @$DD01
 byte cia2_ddra      @$DD02
 byte cia2_ddrb      @$DD03
 
 macro asm void cia_disable_irq() {
-    LDA #$7f
-    LDA $dc0d
-    LDA $dd0d
-    LDA $dc0d
-    LDA $dd0d
+    ? LDA #$7f
+    ! LDA $dc0d
+    ! LDA $dd0d
+    ! LDA $dc0d
+    ! LDA $dd0d
 }
 
 

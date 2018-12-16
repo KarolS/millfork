@@ -34,7 +34,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
   }
   protected val reentrantVars: Set[String] = trackableVars.filter(v => env.get[Variable](v) match {
     case _: StackVariable => true
-    case UninitializedMemoryVariable(_, _, VariableAllocationMethod.Auto, _, _) => ctx.options.flag(CompilationFlag.DangerousOptimizations)
+    case v:UninitializedMemoryVariable if v.alloc == VariableAllocationMethod.Auto => ctx.options.flag(CompilationFlag.DangerousOptimizations)
     case _ => false
   })
   protected val nonreentrantVars: Set[String] = trackableVars -- reentrantVars

@@ -9,11 +9,11 @@
 import i80_math
 
 macro asm void poke(word const addr, byte a) {
-    LD (addr), A
+    ! LD (addr), A
 }
 
 macro asm byte peek(word const addr) {
-    LD A, (addr)
+    ! LD A, (addr)
 }
 
 macro asm void disable_irq() {
@@ -51,5 +51,5 @@ _lo_nibble_to_hex_lbl:
 }
 
 macro asm void panic() {
-    CALL _panic
+    ? CALL _panic
 }

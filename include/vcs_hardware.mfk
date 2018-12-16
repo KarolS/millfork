@@ -3,75 +3,75 @@
 #warn vcs_hardware module should be only used on Atari 2600-compatible targets
 #endif
 
-byte VSYNC @$00
-byte VBLANK @$01
-byte WSYNC @$02
-byte RSYNC @$03
-byte NUSIZ0 @$04
-byte NUSIZ1 @$05
-byte COLUP0 @$06
-byte COLUP1 @$07
-byte COLUPF @$08
-byte COLUBK @$09
-byte CTRLPF @$0A
-byte REFP0 @$0B
-byte REFP1 @$0C
-byte PF0 @$0D
-byte PF1 @$0E
-byte PF2 @$0F
-byte RESP0 @$10
-byte RESP1 @$11
-byte RESM0 @$12
-byte RESM1 @$13
-byte RESBL @$14
-byte AUDC0 @$15
-byte AUDC1 @$16
-byte AUDF0 @$17
-byte AUDF1 @$18
-byte AUDV0 @$19
-byte AUDV1 @$1A
-byte GRP0 @$1B
-byte GRP1 @$1C
-byte ENAM0 @$1D
-byte ENAM1 @$1E
-byte ENABL @$1F
-byte HMP0 @$20
-byte HMP1 @$21
-byte HMM0 @$22
-byte HMM1 @$23
-byte HMBL @$24
-byte VDELP0 @$25
-byte VDELP1 @$26
-byte VDELBL @$27
-byte RESMP0 @$28
-byte RESMP1 @$29
-byte HMOVE @$2A
-byte HMCLR @$2B
-byte CXCLR @$2C
-byte CXM0P @$30
-byte CXM1P @$31
-byte CXP0FB @$32
-byte CXP1FB @$33
-byte CXM0FB @$34
-byte CXM1FB @$35
-byte CXBLPF @$36
-byte CXPPMM @$37
-byte INPT0 @$38
-byte INPT1 @$39
-byte INPT2 @$3A
-byte INPT3 @$3B
-byte INPT4 @$3C
-byte INPT5 @$3D
-byte SWCHA @$0280
-byte SWACNT @$0281
-byte SWCHB @$0282
-byte SWBCNT @$0283
-byte INTIM @$0284
-byte INSTAT @$0285
-byte TIM1T @$0294
-byte TIM8T @$0295
-byte TIM64T @$0296
-byte T1024T @$0297
+volatile byte VSYNC @$00
+volatile byte VBLANK @$01
+volatile byte WSYNC @$02
+volatile byte RSYNC @$03
+volatile byte NUSIZ0 @$04
+volatile byte NUSIZ1 @$05
+volatile byte COLUP0 @$06
+volatile byte COLUP1 @$07
+volatile byte COLUPF @$08
+volatile byte COLUBK @$09
+volatile byte CTRLPF @$0A
+volatile byte REFP0 @$0B
+volatile byte REFP1 @$0C
+volatile byte PF0 @$0D
+volatile byte PF1 @$0E
+volatile byte PF2 @$0F
+volatile byte RESP0 @$10
+volatile byte RESP1 @$11
+volatile byte RESM0 @$12
+volatile byte RESM1 @$13
+volatile byte RESBL @$14
+volatile byte AUDC0 @$15
+volatile byte AUDC1 @$16
+volatile byte AUDF0 @$17
+volatile byte AUDF1 @$18
+volatile byte AUDV0 @$19
+volatile byte AUDV1 @$1A
+volatile byte GRP0 @$1B
+volatile byte GRP1 @$1C
+volatile byte ENAM0 @$1D
+volatile byte ENAM1 @$1E
+volatile byte ENABL @$1F
+volatile byte HMP0 @$20
+volatile byte HMP1 @$21
+volatile byte HMM0 @$22
+volatile byte HMM1 @$23
+volatile byte HMBL @$24
+volatile byte VDELP0 @$25
+volatile byte VDELP1 @$26
+volatile byte VDELBL @$27
+volatile byte RESMP0 @$28
+volatile byte RESMP1 @$29
+volatile byte HMOVE @$2A
+volatile byte HMCLR @$2B
+volatile byte CXCLR @$2C
+volatile byte CXM0P @$30
+volatile byte CXM1P @$31
+volatile byte CXP0FB @$32
+volatile byte CXP1FB @$33
+volatile byte CXM0FB @$34
+volatile byte CXM1FB @$35
+volatile byte CXBLPF @$36
+volatile byte CXPPMM @$37
+volatile byte INPT0 @$38
+volatile byte INPT1 @$39
+volatile byte INPT2 @$3A
+volatile byte INPT3 @$3B
+volatile byte INPT4 @$3C
+volatile byte INPT5 @$3D
+volatile byte SWCHA @$0280
+volatile byte SWACNT @$0281
+volatile byte SWCHB @$0282
+volatile byte SWBCNT @$0283
+volatile byte INTIM @$0284
+volatile byte INSTAT @$0285
+volatile byte TIM1T @$0294
+volatile byte TIM8T @$0295
+volatile byte TIM64T @$0296
+volatile byte T1024T @$0297
 
 
 macro asm void wsync() {
@@ -79,28 +79,28 @@ macro asm void wsync() {
 }
 
 macro asm void start_frame() {
-    LDA #0
-    STA VBLANK
-    LDA #2
-    STA VSYNC
-    STA WSYNC
-    STA WSYNC
-    STA WSYNC
-    LDA #0
-    STA VSYNC
-    LDX #37
+    ? LDA #0
+    ! STA VBLANK
+    ? LDA #2
+    ! STA VSYNC
+    ! STA WSYNC
+    ! STA WSYNC
+    ! STA WSYNC
+    ! LDA #0
+    ! STA VSYNC
+    ? LDX #37
     start_frame_loop:
-    STA WSYNC
-    DEX
+    ! STA WSYNC
+    ? DEX
     BNE start_frame_loop
 }
 macro asm void end_frame() {
-    LDA #%01000010
-    STA VBLANK
-    LDX #30
+    ? LDA #%01000010
+    ! STA VBLANK
+    ? LDX #30
     end_frame_loop:
-    STA WSYNC
-    DEX
+    ! STA WSYNC
+    ? DEX
     BNE end_frame_loop
 }
 

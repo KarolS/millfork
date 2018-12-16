@@ -722,6 +722,11 @@ case object Elidable extends AssemblyLinePattern {
     line.elidable
 }
 
+case object NotFixed extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.notFixed
+}
+
 case object DebugMatching extends AssemblyPattern {
   override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, ZLine)]): Option[List[(FlowInfo, ZLine)]] = {
     println(ctx)
