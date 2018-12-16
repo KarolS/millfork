@@ -21,7 +21,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Cast word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen/*, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp*/)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
         | word a
         | void main () {
@@ -58,7 +58,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word subtraction 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen/*, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp*/)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | word a
         | void main () {
@@ -185,7 +185,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen/*, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp*/)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   word v
