@@ -123,6 +123,9 @@ object EmuCrossPlatformBenchmarkRun {
     if (platforms.contains(millfork.Cpu.Cmos)) {
       EmuCmosBenchmarkRun.apply(source)(verifier)
     }
+    if (platforms.contains(millfork.Cpu.Sixteen)) {
+      EmuNative65816BenchmarkRun.apply(source)(verifier)
+    }
     if (platforms.contains(millfork.Cpu.Z80)) {
       EmuZ80BenchmarkRun.apply(source)(verifier)
     }

@@ -12,6 +12,10 @@ object EmuUnoptimizedRicohRun extends EmuRun(Cpu.Ricoh, Nil, Nil)
 
 object EmuUnoptimizedCmosRun extends EmuRun(Cpu.Cmos, Nil, Nil)
 
+object EmuUnoptimizedNative65816Run extends EmuRun(Cpu.Sixteen, Nil, Nil) {
+  override def native16: Boolean = true
+}
+
 object EmuUnoptimizedZ80Run extends EmuZ80Run(Cpu.Z80, Nil, Nil)
 
 object EmuUnoptimizedIntel8080Run extends EmuZ80Run(Cpu.Intel8080, Nil, Nil)

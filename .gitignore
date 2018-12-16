@@ -16,7 +16,6 @@ examples/lunix/
 *.jar
 *.class
 *.zip
-*.js
 
 # compiled Millfork files
 *.prg

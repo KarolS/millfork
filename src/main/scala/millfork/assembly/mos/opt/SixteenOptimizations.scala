@@ -14,19 +14,22 @@ object SixteenOptimizations {
   val AccumulatorSwapping = new RuleBasedAssemblyOptimization("Accumulator swapping",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasOpcode(PHA) & HasAccu8 & DoesntMatterWhatItDoesWith(State.AH, State.A, State.N, State.Z)) ~
-      (Linear & Not(ConcernsStack)) ~
+      (Linear & Not(ConcernsStack)).* ~
       (Elidable & HasOpcode(PLA) & DoesntMatterWhatItDoesWith(State.AH)) ~~> { code =>
       AssemblyLine.implied(XBA) :: (code.tail.init :+ AssemblyLine.implied(XBA))
     },
     (Elidable & HasOpcode(TAX) & HasAccu8 & HasIndex8 & DoesntMatterWhatItDoesWith(State.AH, State.A, State.N, State.Z)) ~
-      (Linear & Not(ConcernsX)) ~
+      (Linear & Not(ConcernsX)).* ~
       (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.AH, State.X)) ~~> { code =>
       AssemblyLine.implied(XBA) :: (code.tail.init :+ AssemblyLine.implied(XBA))
     },
     (Elidable & HasOpcode(TAY) & HasAccu8 & HasIndex8 & DoesntMatterWhatItDoesWith(State.AH, State.A, State.N, State.Z)) ~
-      (Linear & Not(ConcernsY)) ~
+      (Linear & Not(ConcernsY)).* ~
       (Elidable & HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.AH, State.Y)) ~~> { code =>
       AssemblyLine.implied(XBA) :: (code.tail.init :+ AssemblyLine.implied(XBA))
+    },
+    (Elidable & HasOpcode(XBA) & DoesntMatterWhatItDoesWith(State.A, State.AH, State.N, State.Z)) ~~> { code =>
+      Nil
     },
   )
 
@@ -121,6 +124,7 @@ object SixteenOptimizations {
 
   val PointlessLoadAfterLoadOrStore = new RuleBasedAssemblyOptimization("Pointless 16-bit load after load or store",
     needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    // TODO: flags!
 
     (HasOpcodeIn(LDA_W, STA_W) & HasAddrMode(WordImmediate) & MatchParameter(1)) ~
       (Linear & Not(ChangesA) & Not(ChangesAH)).* ~

@@ -65,6 +65,8 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
   def softwareStack = false
 
+  def native16 = false
+
   private val timingNmos = Array[Int](
     7, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
     2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
@@ -136,6 +138,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.SoftwareStack -> softwareStack,
       CompilationFlag.EmitCmosOpcodes -> millfork.Cpu.CmosCompatible.contains(platform.cpu),
       CompilationFlag.EmitEmulation65816Opcodes -> (platform.cpu == millfork.Cpu.Sixteen),
+      CompilationFlag.EmitNative65816Opcodes -> (platform.cpu == millfork.Cpu.Sixteen && native16),
       CompilationFlag.Emit65CE02Opcodes -> (platform.cpu == millfork.Cpu.CE02),
       CompilationFlag.EmitHudsonOpcodes -> (platform.cpu == millfork.Cpu.HuC6280),
       CompilationFlag.OptimizeForSize -> optimizeForSize,
@@ -145,8 +148,18 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     ), None, 4, Map(), JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
+    if (native16 && platform.cpu != millfork.Cpu.Sixteen) throw new IllegalStateException
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
+    if (native16) effectiveSource +=
+      """
+        |
+        |asm void __init_16bit() @$200 {
+        |    clc
+        |    xce
+        |    sep #$30
+        |}
+      """.stripMargin
     log.setSource(Some(effectiveSource.lines.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = MosParser("", preprocessedSource, "", options, features)
@@ -216,6 +229,8 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         val timings = platform.cpu match {
           case millfork.Cpu.Cmos =>
             runViaSymon(log, memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.CMOS_6502)
+          case millfork.Cpu.Sixteen =>
+            runViaJs(log, memoryBank, platform.codeAllocators("default").startAt)
           case millfork.Cpu.Ricoh =>
             runViaHalfnes(log, memoryBank, platform.codeAllocators("default").startAt)
           case millfork.Cpu.Mos =>
@@ -300,4 +315,9 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     Timings(countNmos, countCmos) -> memoryBank
   }
 
+  def runViaJs(log: Logger, memoryBank: MemoryBank, org: Int): (Timings, MemoryBank) = {
+    val (cycles, newOutput) = NashornEmulator.run(memoryBank.output, 80, 0x200)
+    System.arraycopy(newOutput, 0, memoryBank.output, 0, 1 << 16)
+    Timings(cycles, cycles) -> memoryBank
+  }
 }

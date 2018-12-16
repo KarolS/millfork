@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
 class WordMathSuite extends FunSuite with Matchers {
 
   test("Word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | word a
         | void main () {
@@ -21,7 +21,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Cast word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen/*, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp*/)("""
         | byte output @$c000
         | word a
         | void main () {
@@ -34,7 +34,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | word a
         | void main () {
@@ -46,7 +46,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word subtraction 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | word a
         | void main () {
@@ -58,7 +58,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word subtraction 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen/*, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp*/)("""
         | word output @$c000
         | word a
         | void main () {
@@ -73,7 +73,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Byte-to-word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | word pair
         | void main () {
@@ -86,7 +86,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Literal addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |  output = 640
@@ -96,7 +96,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Array element addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | word pair
         | array b[2]
@@ -113,7 +113,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("nesdev.com example") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
         | byte tile @$C3A6
         | array map [256] @$c300
@@ -135,7 +135,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("nesdev.com example 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | byte output @$c000
         | byte tile @$C3A6
         | array map [256] @$c300
@@ -153,7 +153,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("hi()/lo()") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | array output [7] @$c000
         | void main () {
         |   output[0] = lo(33)
@@ -185,7 +185,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen/*, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp*/)("""
         | word output @$c000
         | void main () {
         |   word v
@@ -201,7 +201,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word addition 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   byte c
@@ -217,7 +217,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word addition 4") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   word v
@@ -237,7 +237,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word bit ops 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   word v
@@ -253,7 +253,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word shift") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   word v
@@ -271,7 +271,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word shift 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   output = five()
@@ -286,7 +286,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word shift 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   output = five()
@@ -301,7 +301,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word shift 4") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   output = five()
@@ -316,7 +316,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word shift 5") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   output = five()
@@ -332,7 +332,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   test("Word multiplication 5") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | word output @$c000
         | void main () {
         |   output = alot()
@@ -369,7 +369,7 @@ class WordMathSuite extends FunSuite with Matchers {
   }
 
   private def multiplyCase1(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80)(
       s"""
          | import zp_reg
          | word output @$$c000

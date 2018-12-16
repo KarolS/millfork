@@ -152,6 +152,13 @@ object Opcode extends Enumeration {
     case ASL => Some(ASL_W)
     case LSR => Some(LSR_W)
 
+    case PHA => Some(PHA_W)
+    case PLA => Some(PLA_W)
+    case PHX => Some(PHX_W)
+    case PLX => Some(PLX_W)
+    case PHY => Some(PHY_W)
+    case PLY => Some(PLY_W)
+
     case _ => None
   }
 

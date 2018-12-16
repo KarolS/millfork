@@ -16,5 +16,17 @@ object EmuOptimized65816Run extends EmuRun(
     CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good ++
     CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good)
 
+object EmuOptimizedNative65816Run extends EmuRun(
+  Cpu.Sixteen,
+  OptimizationPresets.NodeOpt,
+  OptimizationPresets.AssOpt ++
+    CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good ++
+    CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good ++
+    CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good ++
+    CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good ++
+    CmosOptimizations.All ++ SixteenOptimizations.All ++ OptimizationPresets.Good) {
+  override def native16: Boolean = true
+}
+
 
 

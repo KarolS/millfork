@@ -45,7 +45,7 @@ object PseudoregisterBuiltIns {
     if (params.isEmpty) {
       return List(AssemblyLine.immediate(LDA, 0), AssemblyLine.immediate(LDX, 0))
     }
-    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val reg = ctx.env.get[VariableInMemory]("__reg.loword")
     val head = params.head match {
       case (false, e) => MosExpressionCompiler.compile(ctx, e, Some(MosExpressionCompiler.getExpressionType(ctx, e) -> reg), BranchSpec.None)
       case (true, e) => ???
@@ -53,6 +53,37 @@ object PseudoregisterBuiltIns {
     params.tail.foldLeft[List[AssemblyLine]](head){case (code, (sub, param)) => code ++ addToReg(ctx, param, sub, decimal)} ++ List(
       AssemblyLine.zeropage(LDA, reg),
       AssemblyLine.zeropage(LDX, reg, 1),
+    )
+  }
+
+  def compileWordAdditionToAW(ctx: CompilationContext, params: List[(Boolean, Expression)], decimal: Boolean): List[AssemblyLine] = {
+    // assume native16 is enabled and accu16 mode is disabled
+    val b = ctx.env.get[Type]("byte")
+    val w = ctx.env.get[Type]("word")
+    if (!decimal) {
+      val (variablePart, constPart) = ctx.env.evalVariableAndConstantSubParts(SumExpression(params, decimal = false))
+      variablePart match {
+        case None =>
+          return MosExpressionCompiler.compileConstant(ctx, constPart, RegisterVariable(MosRegister.AW, w))
+        case Some(v) =>
+      }
+    }
+    if (ctx.options.zpRegisterSize < 2) {
+      ctx.log.error("Word addition or subtraction requires the zeropage pseudoregister", params.headOption.flatMap(_._2.position))
+      return Nil
+    }
+    if (params.isEmpty) {
+      return List(AssemblyLine.accu16, AssemblyLine.immediate(LDA_W, 0), AssemblyLine.accu8)
+    }
+    val reg = ctx.env.get[VariableInMemory]("__reg.loword")
+    val head = params.head match {
+      case (false, e) => MosExpressionCompiler.compile(ctx, e, Some(MosExpressionCompiler.getExpressionType(ctx, e) -> reg), BranchSpec.None)
+      case (true, e) => ???
+    }
+    params.tail.foldLeft[List[AssemblyLine]](head){case (code, (sub, param)) => code ++ addToReg(ctx, param, sub, decimal)} ++ List(
+      AssemblyLine.accu16,
+      AssemblyLine.zeropage(LDA_W, reg),
+      AssemblyLine.accu8
     )
   }
 
@@ -65,11 +96,13 @@ object PseudoregisterBuiltIns {
       ctx.log.error("Unsupported decimal operation. Consider increasing the size of the zeropage register.", r.position)
       return Nil
     }
+    val native16 = ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg.loword")
     // TODO: smarter on 65816
     val op = if (subtract) SBC else ADC
+    val op16 = if (subtract) SBC_W else ADC_W
     val prepareCarry = AssemblyLine.implied(if (subtract) SEC else CLC)
     val rightType = MosExpressionCompiler.getExpressionType(ctx, r)
     if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode)) {
@@ -112,6 +145,11 @@ object PseudoregisterBuiltIns {
         AssemblyLine0(STA, ZeroPage, _),
         AssemblyLine0(LDX | LDA, Immediate, NumericConstant(0, _)),
         AssemblyLine0(STA | STX, ZeroPage, _)) => Nil
+        case List(
+        AssemblyLine0(REP, Immediate, NumericConstant(0x20, _)),
+        AssemblyLine0(LDA_W, WordImmediate, NumericConstant(0, _)),
+        AssemblyLine0(STA_W, ZeroPage, _),
+        AssemblyLine0(SEP, Immediate, NumericConstant(0x20, _))) => Nil
 
         case List(
         l@AssemblyLine0(LDA, _, _),
@@ -126,9 +164,25 @@ object PseudoregisterBuiltIns {
             h.copy(opcode = op),
             AssemblyLine.zeropage(STA, reg, 1),
             AssemblyLine.zeropage(LDA, reg)))
+        case List(
+        AssemblyLine0(REP, Immediate, NumericConstant(0x20, _)),
+        l@AssemblyLine0(LDA_W, addrMode, _),
+        AssemblyLine0(STA_W, ZeroPage, _),
+        AssemblyLine0(SEP, Immediate, NumericConstant(0x20, _))) if addrMode != ZeroPageY =>
+          BuiltIns.wrapInSedCldIfNeeded(decimal, List(
+            AssemblyLine.accu16,
+            prepareCarry,
+            AssemblyLine.zeropage(LDA_W, reg),
+            l.copy(opcode = op16),
+            AssemblyLine.zeropage(STA_W, reg),
+            AssemblyLine.accu8))
 
         case _ =>
-          List(
+          if (native16) {
+            List(AssemblyLine.accu16, AssemblyLine.zeropage(LDA_W, reg), AssemblyLine.implied(PHA_W), AssemblyLine.accu8) ++
+              MosExpressionCompiler.fixTsx(MosExpressionCompiler.fixTsx(compileRight)) ++
+              List(AssemblyLine.accu16, prepareCarry, AssemblyLine.implied(PLA_W), AssemblyLine.zeropage(op16, reg), AssemblyLine.zeropage(STA_W, reg), AssemblyLine.accu8)
+          } else List(
             AssemblyLine.zeropage(LDA, reg, 1),
             AssemblyLine.implied(PHA),
             AssemblyLine.zeropage(LDA, reg),
