@@ -2,7 +2,6 @@ package millfork.compiler
 
 import millfork.CompilationFlag
 import millfork.env._
-import millfork.error.ConsoleLogger
 import millfork.node._
 import AbstractExpressionCompiler.getExpressionType
 import millfork.compiler.AbstractStatementPreprocessor.hiddenEffectFreeFunctions
@@ -60,6 +59,20 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
   def optimizeStmt(stmt: ExecutableStatement, currentVarValues: VV): (ExecutableStatement, VV) = {
     var cv = currentVarValues
     val pos = stmt.position
+    // generic warnings:
+    stmt match {
+      case ExpressionStatement(expr@FunctionCallExpression("strzlen" | "putstrz", List(TextLiteralExpression(ch)))) =>
+        ch.last match {
+          case LiteralExpression(0, _) => //ok
+          case _ => ctx.log.warn("Passing a non-null-terminated string to a function that expects a null-terminated string.", stmt.position)
+        }
+      case ExpressionStatement(VariableExpression(v)) =>
+        val volatile = ctx.env.maybeGet[ThingInMemory](v).fold(false)(_.isVolatile)
+        if (!volatile) ctx.log.warn("Pointless expression.", stmt.position)
+      case ExpressionStatement(LiteralExpression(_, _)) =>
+        ctx.log.warn("Pointless expression.", stmt.position)
+      case _ =>
+    }
     stmt match {
       case Assignment(ve@VariableExpression(v), arg) if trackableVars(v) =>
         cv = search(arg, cv)
@@ -164,6 +177,17 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
 
   def optimizeExpr(expr: Expression, currentVarValues: VV): Expression = {
     val pos = expr.position
+    // generic warnings:
+    expr match {
+      case FunctionCallExpression("*" | "*=", params) =>
+        if (params.exists {
+          case LiteralExpression(0, _) => true
+          case _ => false
+        }) ctx.log.warn("Multiplication by zero.", params.head.position)
+      case FunctionCallExpression("<<" | ">>" | "<<'" | "<<=" | ">>=" | "<<'=" | ">>>>", List(lhs@_, LiteralExpression(0, _))) =>
+        ctx.log.warn("Shift by zero.", lhs.position)
+      case _ =>
+    }
     expr match {
       case FunctionCallExpression("->", List(handle, VariableExpression(field))) =>
         expr

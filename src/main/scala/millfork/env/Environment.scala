@@ -712,6 +712,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val w = get[Type]("word")
     val name = stmt.name
     val resultType = get[Type](stmt.resultType)
+    if (stmt.name == "main") {
+      if (stmt.resultType != "void") {
+        log.warn("`main` should return `void`.", stmt.position)
+      }
+      if (stmt.params.nonEmpty) {
+        log.warn("`main` shouldn't have parameters.", stmt.position)
+      }
+    }
 
     if (stmt.reentrant && stmt.interrupt) log.error(s"Reentrant function `$name` cannot be an interrupt handler", stmt.position)
     if (stmt.reentrant && stmt.params.nonEmpty) log.error(s"Reentrant function `$name` cannot have parameters", stmt.position)
@@ -812,7 +820,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             env,
             stackVariablesSize,
             stmt.address.map(a => this.eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant"))),
-            executableStatements ++ (if (needsExtraRTS) List(ReturnStatement(None)) else Nil),
+            executableStatements ++ (if (needsExtraRTS) List(ReturnStatement(None).pos(executableStatements.lastOption.fold(stmt.position)(_.position))) else Nil),
             interrupt = stmt.interrupt,
             kernalInterrupt = stmt.kernalInterrupt,
             reentrant = stmt.reentrant,
