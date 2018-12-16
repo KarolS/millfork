@@ -307,7 +307,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
     if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
       env.allThings.things.foreach {
-        case (_, m@UninitializedMemoryVariable(name, typ, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
+        case (_, m@UninitializedMemoryVariable(name, typ, _, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
           val isUsed = compiledFunctions.values.exists{
             case NormalCompiledFunction(_, code, _, _)  => code.exists(_.parameter.isRelatedTo(m))
             case _ => false
@@ -367,7 +367,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
         initializedVariablesSize += items.length
         justAfterCode += bank -> index
-      case m@InitializedMemoryVariable(name, None, typ, value, _, alignment)  =>
+      case m@InitializedMemoryVariable(name, None, typ, value, _, alignment, _)  =>
         val bank = m.bank(options)
         val bank0 = mem.banks(bank)
         var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
