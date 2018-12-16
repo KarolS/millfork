@@ -18,7 +18,13 @@
 
 * Added original line numbers in assembler output.
 
+* Added `sizeof` operator.
+
+* Added preliminary support for `volatile` keyword.
+
 * Added multiplication of a 16-bit number by an unsigned 8-bit number.
+
+* Added more warnings.
 
 * Automatic selection of text encoding based on target platform.
 
