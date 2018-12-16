@@ -465,11 +465,14 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         inlinedFunctions,
         options.jobContext))
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
-    val code = optimizations.foldLeft(unoptimized) { (c, opt) =>
-      opt.optimize(f, c, OptimizationContext(options, labelMap, env.maybeGet[ThingInMemory]("__reg"), niceFunctionProperties))
+    val code = optimizations.foldLeft(quickSimplify(unoptimized)) { (c, opt) =>
+      val code = opt.optimize(f, c, OptimizationContext(options, labelMap, env.maybeGet[ThingInMemory]("__reg"), niceFunctionProperties))
+      if (code eq c) code else quickSimplify(code)
     }
     performFinalOptimizationPass(f, optimizations.nonEmpty, options, code)
   }
+
+  def quickSimplify(code: List[T]): List[T]
 
   def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[T]): Unit
 

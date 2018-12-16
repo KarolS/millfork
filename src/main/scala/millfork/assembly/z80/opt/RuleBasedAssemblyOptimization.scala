@@ -1,6 +1,6 @@
 package millfork.assembly.z80.opt
 
-import millfork.CompilationOptions
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly._
 import millfork.assembly.opt.{AnyStatus, SingleStatus}
 import millfork.assembly.z80._
@@ -39,15 +39,15 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
   actualRules.foreach(_.pattern.validate(needsFlowInfo))
 
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
-    val effectiveCode = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
-    val taggedCode = FlowAnalyzer.analyze(f, effectiveCode, optimizationContext.options, needsFlowInfo)
-    optimizeImpl(f, taggedCode, optimizationContext)
+    val taggedCode = FlowAnalyzer.analyze(f, code, optimizationContext.options, needsFlowInfo)
+    val (changed, optimized) = optimizeImpl(f, taggedCode, optimizationContext)
+    if (changed) optimized else code
   }
 
-  def optimizeImpl(f: NormalFunction, code: List[(FlowInfo, ZLine)], optimizationContext: OptimizationContext): List[ZLine] = {
+  def optimizeImpl(f: NormalFunction, code: List[(FlowInfo, ZLine)], optimizationContext: OptimizationContext): (Boolean, List[ZLine]) = {
     val log = optimizationContext.log
     code match {
-      case Nil => Nil
+      case Nil => (false, Nil)
       case head :: tail =>
         for ((rule, index) <- actualRules.zipWithIndex) {
           val ctx = new AssemblyMatchingContext(optimizationContext.options)
@@ -56,8 +56,9 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
               val matchedChunkToOptimize: List[ZLine] = code.take(code.length - rest.length).map(_._2)
               val optimizedChunk: List[ZLine] = rule.result(matchedChunkToOptimize, ctx)
               val optimizedChunkWithSource =
-                if (optimizedChunk.isEmpty) optimizedChunk
-                else if (matchedChunkToOptimize.size == 1)  optimizedChunk.map(_.pos(matchedChunkToOptimize.head.source))
+                if (!ctx.compilationOptions.flag(CompilationFlag.LineNumbersInAssembly)) optimizedChunk
+                else if (optimizedChunk.isEmpty) optimizedChunk
+                else if (matchedChunkToOptimize.size == 1) optimizedChunk.map(_.pos(matchedChunkToOptimize.head.source))
                 else if (optimizedChunk.size == 1) optimizedChunk.map(_.pos(SourceLine.merge(matchedChunkToOptimize.map(_.source))))
                 else if (matchedChunkToOptimize.flatMap(_.source).toSet.size == 1) optimizedChunk.map(_.pos(SourceLine.merge(matchedChunkToOptimize.map(_.source))))
                 else optimizedChunk
@@ -76,20 +77,21 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
                 optimizedChunkWithSource.filter(_.isPrintable).foreach(l => log.trace(l.toString))
               }
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
-                return optimizedChunkWithSource ++ optimizeImpl(f, rest, optimizationContext)
+                return true -> (optimizedChunkWithSource ++ optimizeImpl(f, rest, optimizationContext)._2)
               } else {
-                return optimize(f, optimizedChunkWithSource ++ rest.map(_._2), optimizationContext)
+                return true -> optimize(f, optimizedChunkWithSource ++ rest.map(_._2), optimizationContext)
               }
             case None => ()
           }
         }
-        head._2 :: optimizeImpl(f, tail, optimizationContext)
+        val (changedTail, optimizedTail) = optimizeImpl(f, tail, optimizationContext)
+        (changedTail, head._2 :: optimizedTail)
     }
   }
 }
 
 class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
-  private val map = mutable.Map[Int, Any]()
+  private val map = new mutable.HashMap[Int, Any]()
 
   def log: Logger = compilationOptions.log
 
@@ -697,6 +699,8 @@ case class Both(l: AssemblyLinePattern, r: AssemblyLinePattern) extends Assembly
     l.matchLineTo(ctx, flowInfo, line) && r.matchLineTo(ctx, flowInfo, line)
 
   override def toString: String = l + " ∧ " + r
+
+  override def &(x: AssemblyLinePattern): AssemblyLinePattern = Both(l, Both(r, x))
 }
 
 case class EitherPattern(l: AssemblyLinePattern, r: AssemblyLinePattern) extends AssemblyLinePattern {
@@ -709,6 +713,8 @@ case class EitherPattern(l: AssemblyLinePattern, r: AssemblyLinePattern) extends
     l.matchLineTo(ctx, flowInfo, line) || r.matchLineTo(ctx, flowInfo, line)
 
   override def toString: String = s"($l ∨ $r)"
+
+  override def |(x: AssemblyLinePattern): AssemblyLinePattern = EitherPattern(l, EitherPattern(r, x))
 }
 
 case object Elidable extends AssemblyLinePattern {

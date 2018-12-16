@@ -1,13 +1,10 @@
 package millfork.assembly.mos.opt
 
-import millfork.CompilationOptions
 import millfork.assembly._
 import millfork.assembly.mos._
+import millfork.assembly.opt.FlowCache
 import millfork.env._
-import millfork.error.ConsoleLogger
 import millfork.node.MosRegister
-
-import scala.collection.immutable
 
 /**
   * @author Karol Stasiak
@@ -51,6 +48,22 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          r2: Importance = UnknownImportance,
                          r3: Importance = UnknownImportance,
                         ) {
+
+  def setPseudoRegister(regOffset: Int, importance: Importance): CpuImportance = regOffset match {
+    case 0 => this.copy(r0 = importance)
+    case 1 => this.copy(r1 = importance)
+    case 2 => this.copy(r2 = importance)
+    case 3 => this.copy(r3 = importance)
+    case _ => this
+  }
+  def setPseudoRegisterWord(regOffset: Int, importance: Importance): CpuImportance = regOffset match {
+    case 0 => this.copy(r0 = importance, r1 = importance)
+    case 1 => this.copy(r1 = importance, r2 = importance)
+    case 2 => this.copy(r2 = importance, r3 = importance)
+    case 3 => this.copy(r3 = importance)
+    case _ => this
+  }
+
   override def toString: String = s"A=$a,B=$ah,X=$x,Y=$y,Z=$iz; Z=$z,N=$n,C=$c,V=$v,D=$d,M=$m,X=$w; R0=$r0,R1=$r1,R2=$r2,R3=$r3"
 
   def ~(that: CpuImportance) = new CpuImportance(
@@ -98,9 +111,11 @@ case class CpuImportance(a: Importance = UnknownImportance,
 
 object ReverseFlowAnalyzer {
 
+  val cache = new FlowCache[AssemblyLine, CpuImportance]("mos reverse")
+
   val functionsThatReadC = Set("__adc_decimal", "__sbc_decimal")
   private val aluAdders = Set(Opcode.ADC, Opcode.SBC, Opcode.ISC, Opcode.DCP, Opcode.ADC_W, Opcode.SBC_W)
-  private val actuallyRead = Set(AddrMode.IndexedZ, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.LongIndexedZ, AddrMode.IndexedX, AddrMode.Indirect, AddrMode.AbsoluteIndexedX)
+  private val readAsPointer = Set(AddrMode.IndexedZ, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.LongIndexedZ, AddrMode.IndexedX, AddrMode.Indirect, AddrMode.AbsoluteIndexedX)
   private val absoluteLike = Set(AddrMode.ZeroPage, AddrMode.Absolute, AddrMode.LongAbsolute)
   private val importanceBeforeJsr: CpuImportance = CpuImportance(
     a = Unimportant,
@@ -128,6 +143,7 @@ object ReverseFlowAnalyzer {
 
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[CpuImportance] = {
+    cache.get(code).foreach(return _)
     val niceFunctionProperties = optimizationContext.niceFunctionProperties
     val importanceArray = Array.fill[CpuImportance](code.length)(new CpuImportance())
     val codeArray = code.toArray
@@ -297,65 +313,38 @@ object ReverseFlowAnalyzer {
             else if (addrMode == IndexedZ /*|| addrMode == LongIndexedZ*/ )
               currentImportance = currentImportance.copy(iz = Important)
         }
-        if (absoluteLike(currentLine.addrMode)) {
-          if (OpcodeClasses.StoresByte(currentLine.opcode)) {
-            currentLine.parameter match {
-              case MemoryAddressConstant(th: Thing)
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Unimportant)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Unimportant)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Unimportant)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(3, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r3 = Unimportant)
-              case _ => ()
-            }
-          }
-          if (OpcodeClasses.StoresWord(currentLine.opcode)) {
-            currentLine.parameter match {
-              case MemoryAddressConstant(th: Thing)
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Unimportant, r1 = Unimportant)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Unimportant, r2 = Unimportant)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Unimportant, r3 = Unimportant)
-              case _ => ()
-            }
-          }
-        }
-        if (actuallyRead(currentLine.addrMode)) {
-          currentLine.parameter match {
+        val isAbsoluteLike = absoluteLike(currentLine.addrMode)
+        val isReadAsPointer = readAsPointer(currentLine.addrMode)
+        if (isAbsoluteLike || isReadAsPointer) {
+          (currentLine.parameter match {
             case MemoryAddressConstant(th: Thing)
-              if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Important, r1 = Important)
-            case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
-              if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Important, r2 = Important)
-            case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
-              if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Important, r3 = Important)
-            case _ => ()
-          }
-        } else if (OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(currentLine.opcode)) {
-          if (OpcodeClasses.AccessesWordInMemory(currentLine.opcode)) {
-            currentLine.parameter match {
-              case MemoryAddressConstant(th: Thing)
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Important, r1 = Important)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Important, r2 = Important)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Important, r3 = Important)
-              case _ => ()
-            }
-          } else {
-            currentLine.parameter match {
-              case MemoryAddressConstant(th: Thing)
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r0 = Important)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(1, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r1 = Important)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(2, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r2 = Important)
-              case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(3, _))
-                if th.name == "__reg" => currentImportance = currentImportance.copy(r3 = Important)
-              case _ => ()
-            }
+              if th.name == "__reg" =>
+              Some(0)
+            case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(n, _))
+              if th.name == "__reg" =>
+              Some(n.toInt)
+            case _ =>
+              None
+          }) match {
+            case None =>
+            case Some(regOffset) =>
+              if (isAbsoluteLike) {
+                if (OpcodeClasses.StoresByte(currentLine.opcode)) {
+                  currentImportance = currentImportance.setPseudoRegister(regOffset, Unimportant)
+                } else if (OpcodeClasses.StoresWord(currentLine.opcode)) {
+                  currentImportance = currentImportance.setPseudoRegisterWord(regOffset, Unimportant)
+                }
+                if (OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(currentLine.opcode)) {
+                  if (OpcodeClasses.AccessesWordInMemory(currentLine.opcode)) {
+                    currentImportance = currentImportance.setPseudoRegisterWord(regOffset, Important)
+                  } else {
+                    currentImportance = currentImportance.setPseudoRegister(regOffset, Important)
+                  }
+                }
+              }
+              if (isReadAsPointer) {
+                currentImportance = currentImportance.setPseudoRegisterWord(regOffset, Important)
+              }
           }
         }
       }
@@ -365,6 +354,6 @@ object ReverseFlowAnalyzer {
 //            }
 //            println("---------------------")
 
-    importanceArray.toList
+    cache.put(code, importanceArray.toList)
   }
 }

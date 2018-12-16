@@ -1,5 +1,6 @@
 package millfork.assembly.z80.opt
 
+import millfork.assembly.opt.FlowCache
 import millfork.assembly.z80._
 import millfork.env._
 import millfork.node.ZRegister
@@ -175,6 +176,8 @@ case class CpuImportance(a: Importance = UnknownImportance,
 
 object ReverseFlowAnalyzer {
 
+  val cache = new FlowCache[ZLine, CpuImportance]("z80 reverse")
+
   val readsA = Set("__mul_u8u8u8", "__mul_u16u8u16")
   val readsB = Set("")
   val readsC = Set("")
@@ -185,6 +188,7 @@ object ReverseFlowAnalyzer {
 
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[ZLine]): List[CpuImportance] = {
+    cache.get(code).foreach(return _)
     val importanceArray = Array.fill[CpuImportance](code.length)(new CpuImportance())
     val codeArray = code.toArray
 
@@ -460,7 +464,7 @@ object ReverseFlowAnalyzer {
 //            }
 //            println("---------------------")
 
-    importanceArray.toList
+    cache.put(code, importanceArray.toList)
   }
 
   private def getLabelIndex(codeArray: Array[ZLine], L: String) = {

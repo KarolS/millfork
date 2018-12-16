@@ -57,7 +57,7 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case ZRegister.BC => this.copy(b = value.hi, c = value.lo)
     case ZRegister.DE => this.copy(d = value.hi, e = value.lo)
     case ZRegister.HL => this.copy(h = value.hi, l = value.lo, hl = value.map(NumericConstant(_, 2)))
-    case ZRegister.IX => this.copy(ixh = value.hi, ixl = value.lo)
+    case ZRegister.IX => this.copy(ixh = value.hi, ixl = value.lo, memIx = Map())
     case ZRegister.IY => this.copy(iyh = value.hi, iyl = value.lo)
     case ZRegister.AF => this.copy(a = value.hi, cf = AnyStatus, zf = AnyStatus, hf = AnyStatus, pf = AnyStatus, sf = AnyStatus)
   }
@@ -103,6 +103,18 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case ZFlag.Z => zf
     case ZFlag.S => sf
     case ZFlag.N => nf
+  }
+
+  def setFlag(register: ZFlag.Value, newStatus: Boolean): CpuStatus = {
+    val st = if (newStatus) Status.SingleTrue else Status.SingleFalse
+    register match {
+      case ZFlag.C => copy(cf = st)
+      case ZFlag.H => copy(hf = st)
+      case ZFlag.P => copy(pf = st)
+      case ZFlag.Z => copy(zf = st)
+      case ZFlag.S => copy(sf = st)
+      case ZFlag.N => copy(nf = st)
+    }
   }
   def ~(that: CpuStatus) = new CpuStatus(
     a = this.a ~ that.a,

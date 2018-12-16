@@ -12,6 +12,8 @@ import millfork.node._
 import millfork.output.{DivisibleAlignment, MemoryAlignment, NoAlignment}
 import millfork.{CompilationFlag, CompilationOptions, SeparatedList}
 
+import scala.collection.immutable.BitSet
+
 /**
   * @author Karol Stasiak
   */
@@ -90,13 +92,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val textLiteralAtom: P[TextLiteralExpression] = textLiteral.map(TextLiteralExpression)
 
-  val literalAtom: P[LiteralExpression] = charAtom | binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom
+  val literalAtom: P[LiteralExpression] = binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom | charAtom
 
-  val literalAtomWithIntel: P[LiteralExpression] = charAtom | binaryAtom | hexAtom | octalAtom | quaternaryAtom | intelHexAtom | decimalAtom
+  val literalAtomWithIntel: P[LiteralExpression] = binaryAtom | hexAtom | octalAtom | quaternaryAtom | intelHexAtom | decimalAtom | charAtom
 
-  val atom: P[Expression] = P(position() ~ (literalAtom | variableAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
+  val atom: P[Expression] = P(position() ~ (variableAtom | literalAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
-  val atomWithIntel: P[Expression] = P(position() ~ (literalAtomWithIntel | variableAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
+  val atomWithIntel: P[Expression] = P(position() ~ (variableAtom | literalAtomWithIntel | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
   val globalVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)
@@ -500,7 +502,7 @@ object MfParser {
 
   def sign(abs: Long, minus: Boolean): Long = if (minus) -abs else abs
 
-  val invalidCharLiteralTypes: Set[Int] = Set[Int](
+  val invalidCharLiteralTypes: BitSet = BitSet(
     Character.LINE_SEPARATOR,
     Character.PARAGRAPH_SEPARATOR,
     Character.CONTROL,

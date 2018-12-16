@@ -3,7 +3,7 @@ package millfork.assembly.mos.opt
 import millfork.assembly.OptimizationContext
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, OpcodeClasses}
-import millfork.assembly.opt.AnyStatus
+import millfork.assembly.opt.{AnyStatus, FlowCache}
 import millfork.env._
 
 /**
@@ -11,7 +11,10 @@ import millfork.env._
   */
 object CoarseFlowAnalyzer {
 
+  val cache = new FlowCache[AssemblyLine, CpuStatus]("mos forward")
+
   def analyze(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[CpuStatus] = {
+    cache.get(code).foreach(return _)
     val compilationOptions = optimizationContext.options
     val niceFunctionProperties = optimizationContext.niceFunctionProperties
     val ceFlag = compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
@@ -124,6 +127,6 @@ object CoarseFlowAnalyzer {
 //                  println("---------------------")
     }
 
-    flagArray.toList
+    cache.put(code, flagArray.toList)
   }
 }

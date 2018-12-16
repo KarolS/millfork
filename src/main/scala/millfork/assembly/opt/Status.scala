@@ -79,7 +79,7 @@ object Status {
   val SingleFF: Status[Int] = SingleStatus(0xff)
 
   @inline
-  private def wrapBool(b: Boolean) = if (b) SingleTrue else SingleFalse
+  private def wrapBool(b: Boolean): Status[Boolean] = if (b) SingleTrue else SingleFalse
 
   def flatMap2[T, U, R](a: Status[T], b: Status[U])(f: (T, U) => Status[R]): Status[R] = (a, b) match {
     case (SingleStatus(t), SingleStatus(u)) => f(t, u)
@@ -202,6 +202,23 @@ object Status {
         }
         case _ => AnyStatus -> AnyStatus
       }
+      case _ => AnyStatus -> AnyStatus
+    }
+
+    def adc(value: Status[Int], carry: Status[Boolean]): (Status[Int], Status[Boolean]) = (inner, value, carry) match {
+      case (SingleStatus(x), SingleStatus(y), SingleStatus(false)) =>
+        SingleStatus((x + y) & 0xff) -> SingleStatus((x.&(0xff) + y.&(0xff)) > 0xff)
+      case (SingleStatus(x), SingleStatus(y), SingleStatus(true)) =>
+        SingleStatus((x + y + 1) & 0xff) -> SingleStatus((x.&(0xff) + y.&(0xff) + 1) > 0xff)
+      case (SingleStatus(x), SingleStatus(y), AnyStatus) => x + y match {
+        case 255 => AnyStatus -> AnyStatus
+        case z if z < 255 => AnyStatus -> SingleFalse
+        case z if z > 255 => AnyStatus -> SingleTrue
+      }
+      case (SingleStatus(0), AnyStatus, SingleStatus(false))
+           | (AnyStatus, SingleStatus(0), SingleStatus(false)) => AnyStatus -> SingleFalse
+      case (SingleStatus(0xff), AnyStatus, SingleStatus(true))
+           | (AnyStatus, SingleStatus(0xff), SingleStatus(true)) => AnyStatus -> SingleTrue
       case _ => AnyStatus -> AnyStatus
     }
 

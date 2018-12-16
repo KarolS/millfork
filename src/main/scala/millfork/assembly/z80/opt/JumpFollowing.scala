@@ -14,9 +14,9 @@ import scala.collection.mutable
 object JumpFollowing {
 
   def apply(options: CompilationOptions, code: List[ZLine]): List[ZLine] = {
-    val labelsToRet = mutable.Set[String]()
-    val labelsToJumps = mutable.Map[String, String]()
-    val currentLabels = mutable.Set[String]()
+    val labelsToRet = new mutable.HashSet[String]()
+    val labelsToJumps = new mutable.HashMap[String, String]()
+    val currentLabels = new mutable.HashSet[String]()
     for (line <- code) {
       line match {
         case ZLine0(LABEL, _, MemoryAddressConstant(Label(label))) =>

@@ -626,6 +626,8 @@ class Z80Assembler(program: Program,
 
   override def injectLabels(labelMap: Map[String, Int], code: List[ZLine]): List[ZLine] = code // TODO
 
+  override def quickSimplify(code: List[ZLine]): List[ZLine] = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
+
   override def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[ZLine]): Unit = {
     // do nothing yet
   }

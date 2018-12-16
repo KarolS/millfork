@@ -15,11 +15,11 @@ import scala.collection.mutable
 object JumpFollowing {
 
   def apply(options: CompilationOptions, code: List[AssemblyLine]): List[AssemblyLine] = {
-    val labelsToRts = mutable.Set[String]()
-    val labelsToRti = mutable.Set[String]()
-    val labelsToRtl = mutable.Set[String]()
-    val labelsToJumps = mutable.Map[String, String]()
-    val currentLabels = mutable.Set[String]()
+    val labelsToRts = new mutable.HashSet[String]()
+    val labelsToRti = new mutable.HashSet[String]()
+    val labelsToRtl = new mutable.HashSet[String]()
+    val labelsToJumps = new mutable.HashMap[String, String]()
+    val currentLabels = new mutable.HashSet[String]()
     for (line <- code) {
       line match {
         case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(label))) =>

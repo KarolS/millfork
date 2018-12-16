@@ -102,6 +102,8 @@ class MosAssembler(program: Program,
     }
   }
 
+  override def quickSimplify(code: List[AssemblyLine]): List[AssemblyLine] = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
+
   override def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[AssemblyLine]): Unit = {
     import Opcode._
     import AddrMode._
