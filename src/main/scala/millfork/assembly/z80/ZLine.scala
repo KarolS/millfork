@@ -222,6 +222,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
 
   def position(s: Option[Position]): ZLine = pos(SourceLine.of(s))
 
+  def positionIfEmpty(s: Option[Position]): ZLine = if (s.isEmpty || source.isDefined) this else pos(SourceLine.of(s))
+
   def pos(s: Seq[Option[SourceLine]]): ZLine = pos(SourceLine.merge(s))
 
   def mergePos(s: Seq[Option[SourceLine]]): ZLine = if (s.isEmpty) this else pos(SourceLine.merge(this.source, s))

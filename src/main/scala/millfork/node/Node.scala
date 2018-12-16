@@ -82,7 +82,7 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
   def replaceVariable(variable: String, actualParam: Expression): Expression =
     SeparateBytesExpression(
       hi.replaceVariable(variable, actualParam),
-      lo.replaceVariable(variable, actualParam))
+      lo.replaceVariable(variable, actualParam)).pos(position)
   override def containsVariable(variable: String): Boolean = hi.containsVariable(variable) || lo.containsVariable(variable)
   override def isPure: Boolean = hi.isPure && lo.isPure
   override def getAllIdentifiers: Set[String] = hi.getAllIdentifiers ++ lo.getAllIdentifiers
@@ -90,7 +90,7 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
 
 case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
-    SumExpression(expressions.map { case (n, e) => n -> e.replaceVariable(variable, actualParam) }, decimal)
+    SumExpression(expressions.map { case (n, e) => n -> e.replaceVariable(variable, actualParam) }, decimal).pos(position)
   override def containsVariable(variable: String): Boolean = expressions.exists(_._2.containsVariable(variable))
   override def isPure: Boolean = expressions.forall(_._2.isPure)
   override def getAllIdentifiers: Set[String] = expressions.map(_._2.getAllIdentifiers).fold(Set[String]())(_ ++ _)
@@ -100,7 +100,7 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     FunctionCallExpression(functionName, expressions.map {
       _.replaceVariable(variable, actualParam)
-    })
+    }).pos(position)
   override def containsVariable(variable: String): Boolean = expressions.exists(_.containsVariable(variable))
   override def isPure: Boolean = false // TODO
   override def getAllIdentifiers: Set[String] = expressions.map(_.getAllIdentifiers).fold(Set[String]())(_ ++ _) + functionName
@@ -108,7 +108,7 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
 
 case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
-    HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte)
+    HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte).pos(position)
   override def containsVariable(variable: String): Boolean = expression.containsVariable(variable)
   override def isPure: Boolean = expression.isPure
   override def getAllIdentifiers: Set[String] = expression.getAllIdentifiers
@@ -178,10 +178,11 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     if (name == variable) {
       actualParam match {
-        case VariableExpression(actualVariable) => IndexedExpression(actualVariable, index.replaceVariable(variable, actualParam))
+        case VariableExpression(actualVariable) =>
+          IndexedExpression(actualVariable, index.replaceVariable(variable, actualParam)).pos(position)
         case _ => ??? // TODO
       }
-    } else IndexedExpression(name, index.replaceVariable(variable, actualParam))
+    } else IndexedExpression(name, index.replaceVariable(variable, actualParam)).pos(position)
   override def containsVariable(variable: String): Boolean = name == variable || index.containsVariable(variable)
   override def isPure: Boolean = index.isPure
   override def getAllIdentifiers: Set[String] = index.getAllIdentifiers + name

@@ -25,7 +25,7 @@ abstract class MacroExpander[T <: AbstractCode] {
 
     def h(s: String) = if (s == paramName) target.asInstanceOf[VariableExpression].name else s
 
-    stmt match {
+    (stmt match {
       case RawBytesStatement(contents) => RawBytesStatement(contents.replaceVariable(paramName, target))
       case ExpressionStatement(e) => ExpressionStatement(e.replaceVariable(paramName, target))
       case ReturnStatement(e) => ReturnStatement(e.map(f))
@@ -45,7 +45,7 @@ abstract class MacroExpander[T <: AbstractCode] {
       case _ =>
         println(stmt)
         ???
-    }
+    }).pos(stmt.position)
   }
 
   def inlineFunction(ctx: CompilationContext, i: MacroFunction, params: List[Expression], position: Option[Position]): (List[T], List[ExecutableStatement]) = {

@@ -64,17 +64,25 @@ object MosInliningCalculator extends AbstractInliningCalculator[AssemblyLine] {
 
   def inline(code: List[AssemblyLine], inlinedFunctions: Map[String, List[AssemblyLine]], jobContext: JobContext): List[AssemblyLine] = {
     code.flatMap {
-      case AssemblyLine(Opcode.JSR, AddrMode.Absolute | AddrMode.LongAbsolute, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
+      case callInstr@AssemblyLine(Opcode.JSR, AddrMode.Absolute | AddrMode.LongAbsolute, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
         val labelPrefix = jobContext.nextLabel("ai")
-        inlinedFunctions(p.toString).map {
+        var inlinedCode = inlinedFunctions(p.toString)
+        if (inlinedCode.forall(_.source.isEmpty)) {
+          inlinedCode = inlinedCode.map(_.copy(source = callInstr.source))
+        }
+        inlinedCode.map {
           case line@AssemblyLine0(_, _, MemoryAddressConstant(Label(label))) =>
             val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
             line.copy(parameter = newLabel)
           case l => l
         }
-      case AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
+      case callInstr@AssemblyLine(Opcode.JMP, AddrMode.Absolute, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
         val labelPrefix = jobContext.nextLabel("ai")
-        inlinedFunctions(p.toString).map {
+        var inlinedCode = inlinedFunctions(p.toString)
+        if (inlinedCode.forall(_.source.isEmpty)) {
+          inlinedCode = inlinedCode.map(_.copy(source = callInstr.source))
+        }
+        inlinedCode.map {
           case line@AssemblyLine0(_, _, MemoryAddressConstant(Label(label))) =>
             val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
             line.copy(parameter = newLabel)

@@ -304,7 +304,7 @@ object Cpu extends Enumeration {
 object CompilationFlag extends Enumeration {
   val
   // common compilation options:
-  EmitIllegals, DecimalMode, ReadOnlyArrays, LenientTextEncoding, LineNumbersInAssembly,
+  EmitIllegals, DecimalMode, ReadOnlyArrays, LenientTextEncoding, LineNumbersInAssembly, SourceInAssembly,
   // compilation options for MOS:
   EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
   PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, SoftwareStack,

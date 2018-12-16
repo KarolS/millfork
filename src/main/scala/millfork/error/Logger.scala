@@ -1,5 +1,6 @@
 package millfork.error
 
+import millfork.assembly.SourceLine
 import millfork.node.Position
 
 /**
@@ -28,4 +29,6 @@ trait Logger {
   def assertNoErrors(msg: String): Unit
 
   def addSource(filename: String, lines: IndexedSeq[String]): Unit
+
+  def getLine(line: SourceLine): Option[String]
 }

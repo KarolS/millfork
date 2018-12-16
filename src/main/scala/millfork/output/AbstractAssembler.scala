@@ -482,7 +482,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   private def outputFunction(bank: String, code: List[T], startFrom: Int, assOut: mutable.ArrayBuffer[String], options: CompilationOptions): Int = {
     val printLineNumbers = options.flag(CompilationFlag.LineNumbersInAssembly)
+    val sourceInAssembly = options.flag(CompilationFlag.SourceInAssembly)
     var index = startFrom
+    assOut.append(" ")
     assOut.append("* = $" + startFrom.toHexString)
     var lastSource = Option.empty[SourceLine]
     for (instr <- code) {
@@ -491,9 +493,18 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           lastSource = instr.source
           if (printLineNumbers) {
             lastSource match {
-              case Some(SourceLine(moduleName, line)) if line > 0 =>
+              case Some(sl@SourceLine(moduleName, line)) if line > 0 =>
+                if (sourceInAssembly) {
+                  assOut.append("; ")
+                }
                 assOut.append(s";line:$line:$moduleName")
+                if (sourceInAssembly) {
+                  log.getLine(sl).foreach(l => assOut.append(";   " + l))
+                }
               case _ =>
+                if (sourceInAssembly) {
+                  assOut.append("; ")
+                }
                 assOut.append(s";line")
             }
           }
@@ -517,6 +528,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       index = emitInstruction(bank, options, index, instr)
     }
     if (printLineNumbers && lastSource.isDefined){
+      if (sourceInAssembly) assOut.append("; ")
       assOut.append(s";line")
     }
     index

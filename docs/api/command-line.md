@@ -49,6 +49,8 @@ Choose syntax for assembly output on 8080-like targets.
 
 * `-fline-numbers`, `-fno-line-numbers` – Whether should show source line numbers in assembly output.
 
+* `-fline-numbers`, `-fno-line-numbers` – Whether should show the original source in assembly output. Implies `-fline-numbers`
+
 ## Verbosity options
 
  * `-q` – Suppress all messages except for errors.

@@ -50,6 +50,8 @@ You may be also interested in the following:
 * `-s` – additionally generate assembly output
 (if targeting Intel 8080, use `--syntax=intel` or `--syntax=zilog` to choose the preferred assembly syntax)
 
+* `-fsource-in-asm` – show original Millfork source in the assembly output
+
 * `-g` – additionally generate a label file, in format compatible with VICE emulator
 
 * `-r PROGRAM` – automatically launch given program after successful compilation

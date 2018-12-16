@@ -56,24 +56,34 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
 
   override def inline(code: List[ZLine], inlinedFunctions: Map[String, List[ZLine]], jobContext: JobContext): List[ZLine] = {
     code.flatMap {
-      case ZLine(CALL, registers, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
+      case callInstr@ZLine(CALL, registers, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
         val labelPrefix = jobContext.nextLabel("ai")
-        wrap(registers, jobContext,
-          inlinedFunctions(p.toString).map {
+        wrap(registers, jobContext, {
+          var inlinedCode = inlinedFunctions(p.toString)
+          if (inlinedCode.forall(_.source.isEmpty)) {
+            inlinedCode = inlinedCode.map(_.copy(source = callInstr.source))
+          }
+          inlinedCode.map {
             case line@ZLine0(_, _, MemoryAddressConstant(Label(label))) =>
               val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
               line.copy(parameter = newLabel)
             case l => l
-          })
-      case ZLine(JP | JR, registers, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
+          }
+        })
+      case callInstr@ZLine(JP | JR, registers, p, Elidability.Elidable, _) if inlinedFunctions.contains(p.toString) =>
         val labelPrefix = jobContext.nextLabel("ai")
-        wrap(registers, jobContext,
-          inlinedFunctions(p.toString).map {
+        wrap(registers, jobContext, {
+          var inlinedCode = inlinedFunctions(p.toString)
+          if (inlinedCode.forall(_.source.isEmpty)) {
+            inlinedCode = inlinedCode.map(_.copy(source = callInstr.source))
+          }
+          inlinedCode.map {
             case line@ZLine0(_, _, MemoryAddressConstant(Label(label))) =>
               val newLabel = MemoryAddressConstant(Label(labelPrefix + label))
               line.copy(parameter = newLabel)
             case l => l
-          } :+ ZLine.implied(RET))
+          } :+ ZLine.implied(RET)
+        })
       case x => List(x)
     }
   }

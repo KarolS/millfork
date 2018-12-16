@@ -1,5 +1,6 @@
 package millfork.error
 
+import millfork.assembly.SourceLine
 import millfork.node.Position
 
 import scala.collection.mutable
@@ -117,4 +118,8 @@ class ConsoleLogger extends Logger {
     sourceLines(filename) = lines
   }
 
+  override def getLine(line: SourceLine): Option[String] = for {
+    file <- sourceLines.get(line.moduleName)
+    line <- file.lift(line.line - 1)
+  } yield line
 }

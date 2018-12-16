@@ -1,5 +1,6 @@
 package millfork.error
 
+import millfork.assembly.SourceLine
 import millfork.node.Position
 
 /**
@@ -27,4 +28,6 @@ class ErrorsOnlyLogger(inner: Logger) extends Logger {
   override def assertNoErrors(msg: String): Unit = inner.assertNoErrors(msg)
 
   override def addSource(filename: String, lines: IndexedSeq[String]): Unit = ()
+
+  override def getLine(line: SourceLine): Option[String] = None
 }

@@ -239,6 +239,7 @@ object Main {
     result
   }
 
+  //noinspection NameBooleanParameters
   private def parser(errorReporting: Logger): CliParser[Context] = new CliParser[Context] {
 
     fluff("Main options:", "")
@@ -301,6 +302,14 @@ object Main {
     boolean("-fline-numbers", "-fno-line-numbers").action((c,v) =>
       c.changeFlag(CompilationFlag.LineNumbersInAssembly, v)
     ).description("Show source line numbers in assembly.")
+
+    boolean("-fsource-in-asm", "-fno-source-in-asm").action((c,v) =>
+      if (v) {
+        c.changeFlag(CompilationFlag.SourceInAssembly, true).changeFlag(CompilationFlag.LineNumbersInAssembly, true)
+      } else {
+        c.changeFlag(CompilationFlag.LineNumbersInAssembly, false)
+      }
+    ).description("Show source in assembly.")
 
     endOfFlags("--").description("Marks the end of options.")
 

@@ -192,7 +192,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
           case _ => reg
         }
         List(ZLine(op, registers, param, elidability))
-    }).map(_.position(statement.position))
+    }).map(_.positionIfEmpty(statement.position))
   }
 
   private def fixStackOnReturn(ctx: CompilationContext): List[ZLine] = {
