@@ -14,4 +14,14 @@ trait NodeOptimization {
 
   def optimizeStatements(nodes: List[Statement], options: CompilationOptions): List[Statement] =
     optimize(nodes, options).asInstanceOf[List[Statement]]
+
+  def resolveAliases(aliases: Map[String, String], set: Set[String]):Set[String] = {
+    var result = set
+    var lastSize = set.size
+    do {
+      lastSize = set.size
+      result = result.flatMap(name => aliases.get(name).fold(Set(name))(Set(_, name)))
+    } while(lastSize != set.size)
+    result
+  }
 }

@@ -28,12 +28,16 @@ object UnusedFunctions extends NodeOptimization {
   )
 
   override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
+    val aliases = nodes.flatMap{
+      case AliasDefinitionStatement(source, target) => Some(source -> target)
+      case _ => None
+    }.toMap
     val panicRequired = options.flags(CompilationFlag.CheckIndexOutOfBounds)
     val allNormalFunctions = nodes.flatMap {
       case v: FunctionDeclarationStatement => if (v.address.isDefined && v.statements.isDefined || v.interrupt || v.name == "main" || panicRequired && v.name == "_panic") Nil else List(v.name)
       case _ => Nil
     }.toSet
-    val allCalledFunctions = getAllCalledFunctions(nodes).toSet
+    val allCalledFunctions = resolveAliases(aliases, getAllCalledFunctions(nodes).toSet)
     var unusedFunctions = allNormalFunctions -- allCalledFunctions
     val effectiveZpSize = options.platform.cpuFamily match {
       case CpuFamily.M6502 => options.zpRegisterSize

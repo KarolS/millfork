@@ -11,14 +11,17 @@ import millfork.node._
 object UnusedGlobalVariables extends NodeOptimization {
 
   override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
-
+    val aliases = nodes.flatMap{
+      case AliasDefinitionStatement(source, target) => Some(source -> target)
+      case _ => None
+    }.toMap
     // TODO: volatile
     val allNonvolatileGlobalVariables = nodes.flatMap {
       case v: VariableDeclarationStatement => if (v.address.isDefined) Nil else List(v.name)
       case v: ArrayDeclarationStatement => if (v.address.isDefined) Nil else List(v.name)
       case _ => Nil
     }.toSet
-    val allReadVariables = getAllReadVariables(nodes).toSet
+    val allReadVariables = resolveAliases(aliases, getAllReadVariables(nodes).toSet)
     val unusedVariables = allNonvolatileGlobalVariables -- allReadVariables
     if (unusedVariables.nonEmpty) {
       options.log.debug("Removing unused global variables: " + unusedVariables.mkString(", "))
