@@ -56,17 +56,17 @@ class TextCodec(val name: String,
     if (s.forall(isPrintable)) f"`$s%s` ($u%s)"
     else u
   }
-  private def encodeChar(options: CompilationOptions, position: Option[Position], c: Char, lenient: Boolean): Option[List[Int]] = {
+  private def encodeChar(log: Logger, position: Option[Position], c: Char, lenient: Boolean): Option[List[Int]] = {
       if (decompositions.contains(c)) {
-        Some(decompositions(c).toList.flatMap(x => encodeChar(options, position, x, lenient).getOrElse(Nil)))
+        Some(decompositions(c).toList.flatMap(x => encodeChar(log, position, x, lenient).getOrElse(Nil)))
       } else if (extra.contains(c)) Some(List(extra(c))) else {
         val index = map.indexOf(c)
         if (index >= 0) {
           Some(List(index))
         } else if (lenient) {
-          val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeChar(options, position, alt, lenient = false).isDefined)).getOrElse("")
-          options.log.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", position)
-          Some(alternative.toList.flatMap(encodeChar(options, position, _, lenient = false).get))
+          val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeChar(log, position, alt, lenient = false).isDefined)).getOrElse("")
+          log.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", position)
+          Some(alternative.toList.flatMap(encodeChar(log, position, _, lenient = false).get))
         } else {
           None
         }
@@ -74,27 +74,27 @@ class TextCodec(val name: String,
     }
 
 
-  def encode(options: CompilationOptions, position: Option[Position], s: List[Char], lenient: Boolean): List[Int] = s match {
+  def encode(log: Logger, position: Option[Position], s: List[Char], lenient: Boolean): List[Int] = s match {
     case '{' :: tail =>
       val (escSeq, closingBrace) = tail.span(_ != '}')
       closingBrace match {
         case '}' :: xs =>
-          encodeEscapeSequence(options, escSeq.mkString(""), position, lenient) ++ encode(options, position, xs, lenient)
+          encodeEscapeSequence(log, escSeq.mkString(""), position, lenient) ++ encode(log, position, xs, lenient)
         case _ =>
-          options.log.error(f"Unclosed escape sequence", position)
+          log.error(f"Unclosed escape sequence", position)
           Nil
       }
     case head :: tail =>
-      (encodeChar(options, position, head, lenient) match {
+      (encodeChar(log, position, head, lenient) match {
         case Some(x) => x
         case None =>
-          options.log.error(f"Invalid character ${format(head)} in string", position)
+          log.error(f"Invalid character ${format(head)} in string", position)
           Nil
-      }) ++ encode(options, position, tail, lenient)
+      }) ++ encode(log, position, tail, lenient)
     case Nil => Nil
   }
 
-  private def encodeEscapeSequence(options: CompilationOptions, escSeq: String, position: Option[Position], lenient: Boolean): List[Int] = {
+  private def encodeEscapeSequence(log: Logger, escSeq: String, position: Option[Position], lenient: Boolean): List[Int] = {
     if (escSeq.length == 3 && (escSeq(0) == 'X' || escSeq(0) == 'x')){
       try {
         return List(Integer.parseInt(escSeq.tail, 16))
@@ -104,9 +104,9 @@ class TextCodec(val name: String,
     }
     escapeSequences.getOrElse(escSeq, {
       if (lenient) {
-        options.log.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", position)
+        log.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", position)
       } else {
-        options.log.error(s"Invalid escape sequence {$escSeq} for encoding `$name`", position)
+        log.error(s"Invalid escape sequence {$escSeq} for encoding `$name`", position)
       }
       Nil
     })
@@ -115,6 +115,10 @@ class TextCodec(val name: String,
   def decode(by: Int): Char = {
     val index = by & 0xff
     if (index < map.length) map(index) else TextCodec.NotAChar
+  }
+
+  def dump(): Unit = {
+    (0 until 256).map(decode).zipWithIndex.grouped(32).map(row => row.head._2.toHexString + "\t" + row.map(_._1).mkString("")).foreach(println(_))
   }
 }
 
@@ -155,7 +159,7 @@ object TextCodec {
 
   //noinspection ScalaUnusedSymbol
   private val AsciiEscapeSequences: Map[String, List[Int]] = Map(
-    "n" -> List(13),
+    "n" -> List(13, 10),
     "t" -> List(9),
     "b" -> List(8),
     "q" -> List('\"'.toInt),
@@ -165,13 +169,11 @@ object TextCodec {
 
   //noinspection ScalaUnusedSymbol
   private val MinimalEscapeSequencesWithoutBraces: Map[String, List[Int]] = Map(
-    "n" -> List(13),
     "apos" -> List('\''.toInt),
     "q" -> List('\"'.toInt))
 
   //noinspection ScalaUnusedSymbol
   private val MinimalEscapeSequencesWithBraces: Map[String, List[Int]] = Map(
-    "n" -> List(13),
     "apos" -> List('\''.toInt),
     "q" -> List('\"'.toInt),
     "lbrace" -> List('{'.toInt),
@@ -179,7 +181,11 @@ object TextCodec {
 
   val Ascii = new TextCodec("ASCII", 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty, AsciiEscapeSequences)
 
-  val Apple2 = new TextCodec("APPLE-II", 0.until(255).map { i => if (i < 160) NotAChar else (i - 128).toChar }.mkString, Map.empty, Map.empty, MinimalEscapeSequencesWithBraces)
+  val Apple2 = new TextCodec("APPLE-II", 0.until(255).map { i =>
+    if (i < 0xa0) NotAChar
+    else if (i < 0xe0) (i - 128).toChar
+    else NotAChar
+  }.mkString, Map.empty, Map.empty, MinimalEscapeSequencesWithBraces)
 
   val IsoIec646De = new TextCodec("ISO-IEC-646-DE",
     "\ufffd" * 32 +
@@ -295,14 +301,14 @@ object TextCodec {
     "\ufffd" * 11 +
       0x20.to(0x5f).map(_.toChar).mkString +
       "♢abcdefghijklmnopqrstuvwxyz♠|",
-    Map('♥' -> 0, '·' -> 0x14), Map.empty, MinimalEscapeSequencesWithBraces
+    Map('♥' -> 0, '·' -> 0x14), Map.empty, MinimalEscapeSequencesWithBraces + ("n" -> List(0x9b))
   )
 
   val Bbc = new TextCodec("BBC",
     "\ufffd" * 32 +
       0x20.to(0x5f).map(_.toChar).mkString +
       "£" + 0x61.to(0x7E).map(_.toChar).mkString + "©",
-    Map('↑' -> '^'.toInt), Map.empty, MinimalEscapeSequencesWithBraces
+    Map('↑' -> '^'.toInt), Map.empty, MinimalEscapeSequencesWithBraces + ("n" -> List(13))
   )
 
   val Sinclair = new TextCodec("Sinclair",
@@ -363,7 +369,7 @@ object TextCodec {
       1.to(0x3F).map(i => (i + 0xff60).toChar -> (i + 0xA1)).toMap,
       (("カキクケコサシスセソタチツテトハヒフヘホ")).zip(
         "ガギグゲゴザジズゼゾダヂヅデドバビブベボ").map { case (u, v) => v -> (u + "゛") }.toMap ++
-      "ハヒフヘホ".zip("パピプペポ").map { case (h, p) => p -> (h + "゜") }.toMap, MinimalEscapeSequencesWithBraces
+      "ハヒフヘホ".zip("パピプペポ").map { case (h, p) => p -> (h + "゜") }.toMap, MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
   )
 
   val lossyAlternatives: Map[Char, List[String]] = {

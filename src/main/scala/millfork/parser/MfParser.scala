@@ -66,7 +66,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (zt) {
       log.error("Zero-terminated encoding is not a valid encoding for a character literal", Some(p))
     }
-    co.encode(options, Some(p), c.toList, lenient = lenient) match {
+    co.encode(options.log, Some(p), c.toList, lenient = lenient) match {
       case List(value) =>
         LiteralExpression(value, 1)
       case _ =>
@@ -85,7 +85,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val textLiteral: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
       case (p, s, ((co, zt), lenient)) =>
-        val characters = co.encode(options, None, s.toList, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
+        val characters = co.encode(options.log, None, s.toList, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
         if (zt) characters :+ LiteralExpression(0,1)
         else characters
     }

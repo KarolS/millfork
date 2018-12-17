@@ -15,7 +15,7 @@
 
 * `cbmscr` or `petscr` – Commodore screencodes
 
-* `apple2` – Apple II charset ($A0–$FE)
+* `apple2` – Apple II charset ($A0–$CF)
 
 * `bbc` – BBC Micro character set
 
@@ -35,8 +35,6 @@ and `petscr` for strings you're copying to screen memory directly.
 
 ##### Available everywhere
 
-* `{n}` – new line
-
 * `{q}` – double quote symbol
 
 * `{apos}` – apostrophe/single quote
@@ -44,6 +42,8 @@ and `petscr` for strings you're copying to screen memory directly.
 * `{x00}`–`{xff}` – a character of the given hexadecimal value
 
 ##### Available only in some encodings
+
+* `{n}` – new line
 
 * `{b}` – backspace
 
@@ -61,10 +61,11 @@ control codes for changing the text background color
 
 ##### Escape sequence availability
 
-Encoding | braces | backspace | cursor movement | text colour and reverse | background colour
---|--|--|--|--
-`pet`              | no  | no  | yes | yes | no
-`petscr`           | no  | no  | no  | no  | no
-`sinclair`         | yes | no  | yes | yes | yes
-`ascii`, `iso_*`   | yes | yes | no  | no  | no
-all the rest       | yes | no  | no  | no  | no
+Encoding | new line | braces | backspace | cursor movement | text colour and reverse | background colour
+--|--|--|--|--|--|--
+`pet`              | yes | no  | no  | yes | yes | no
+`petscr`           | no  | no  | no  | no  | no  | no
+`sinclair`         | yes | yes | no  | yes | yes | yes
+`ascii`, `iso_*`   | yes | yes | yes | no  | no  | no
+`apple2`           | no  | yes | no  | no  | no  | no
+all the rest       | yes | yes | no  | no  | no  | no

@@ -110,7 +110,7 @@ This may cause problems if the parameter table is stored next to a hardware regi
 
 * `-flenient-encoding`, `-fno-lenient-encoding` – 
 Whether the compiler should allow for invalid characters in string/character literals that use the default encodings and replace them with alternatives.
-`.ini` equivalent: `lenient_encoding`. Default: no.
+`.ini` equivalent: `lenient_encoding`. Default: yes on Apple II, no otherwise.
 
 * `-fshadow-irq`, `-fno-shadow-irq` –
 Whether the interrupt routines should make use of Z80 shadow registers.
