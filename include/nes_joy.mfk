@@ -1,0 +1,47 @@
+// standard joystick driver for NES
+
+import joy
+import nes_hardware
+
+alias input_a = input_btn
+byte input_b
+byte input_select
+byte input_start
+
+macro void read_joy1() {
+    nes_reset_joy()
+    read_also_joy2()
+}
+
+macro void read_joy2() {
+    nes_reset_joy()
+    read_also_joy1()
+}
+
+void nes_reset_joy() {
+	input_b = 0
+	input_select = 0
+	input_start = 0
+	reset_joy()
+}
+
+inline void read_also_joy1() {
+    strobe_joypad()
+    __parse_nes_joypad(read_joypad1())
+}
+
+inline void read_also_joy2() {
+    strobe_joypad()
+    __parse_nes_joypad(read_joypad2())
+}
+
+void __parse_nes_joypad(byte b) {
+    if read_joypad1() & 1 != 0 { input_a += 1 }
+    if read_joypad1() & 1 != 0 { input_b += 1 }
+    if read_joypad1() & 1 != 0 { input_select += 1 }
+    if read_joypad1() & 1 != 0 { input_start += 1 }
+    if read_joypad1() & 1 != 0 { input_dy -= 1 }
+    if read_joypad1() & 1 != 0 { input_dy += 1 }
+    if read_joypad1() & 1 != 0 { input_dx -= 1 }
+    if read_joypad1() & 1 != 0 { input_dx += 1 }
+}

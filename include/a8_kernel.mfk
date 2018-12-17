@@ -4,11 +4,15 @@
 #endif
 
 asm void putchar(byte a) {
-    tax
+    ? tax
     lda $347
     pha
     lda $346
     pha
-    txa
+    ? txa
     rts
+}
+
+inline void new_line() {
+    putchar($9b)
 }

@@ -10,8 +10,19 @@ inline asm void putchar(byte a) {
     ? ret
 }
 
+inline void new_line() {
+    putchar(13)
+}
+
 inline asm void set_border(byte a) {
     out (254),a
+    ? ret
+}
+
+inline asm void bell() {
+    ? ld hl,$6A
+    ? ld de,$105
+    ? call $3B5
     ? ret
 }
 

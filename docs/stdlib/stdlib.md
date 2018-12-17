@@ -1,6 +1,6 @@
 [< back to index](../index.md)
 
-## `stdlib` module
+## stdlib
 
 The `stdlib` module is automatically imported on most targets.
 

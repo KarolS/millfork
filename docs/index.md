@@ -39,7 +39,11 @@
 
 * [`stdlib` module](stdlib/stdlib.md)
 
+* [Modules for reading input devices](stdlib/input.md)
+
 * [Other cross-platform modules](stdlib/other.md)
+
+* [Definitions available on only some platforms](stdlib/frequent.md)
 
 * [C64-only modules](stdlib/c64.md)
 

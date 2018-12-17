@@ -1,0 +1,3 @@
+import c1541
+
+alias read_mouse = c1531_mouse

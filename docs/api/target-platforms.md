@@ -3,8 +3,8 @@
 # Target platforms
 
 Currently, Millfork supports creating disk- or tape-based programs
-for Commodore, Apple, BBC and Atari 8-bit computers, NEC PC-88, ZX Spectrum 48k,
-and cartridge-based programs for Famicom/NES and Atari 2600,
+for Commodore, Apple, BBC and Atari 8-bit computers, NEC PC-88, ZX Spectrum 48k, CP/M,
+and cartridge-based programs for Commodore 64, VIC-20, Famicom/NES and Atari 2600,
 but it may be expanded to support other 6502-based and Z80-based platforms in the future.
 
 To add a custom platform yourself, see [the custom platform adding guide](./custom-platform.md).
@@ -14,6 +14,10 @@ To add a custom platform yourself, see [the custom platform adding guide](./cust
 The following platforms are currently supported:
 
 * `c64` – Commodore 64
+
+* `c64_crt8k` – Commodore 64, 8K ROM cartridge
+
+* `c64_crt16k` – Commodore 64, 16K ROM cartridge
 
 * `c64_scpu` – Commodore 64 with SuperCPU in emulation mode
 
@@ -32,6 +36,8 @@ Read [the LUnix programming guide](./lunix-programming-guide.md) for more info.
 * `vic20_3k` – Commodore VIC-20 with 3K memory expansion
 
 * `vic20_8k` – Commodore VIC-20 with 8K or 16K memory expansion
+
+* `vic20_a000` – Commodore VIC-20, 8K ROM cartridge at $A000
 
 * `c128` – Commodore 128 in its native mode
 
@@ -55,7 +61,7 @@ Read [the BBC Micro programming guide](./bbcmicro-programming-guide.md) for more
 The compiler only emits raw binaries, not disk images.
 Read [the Apple 2 programming guide](./apple2-programming-guide.md) for more info.
 
-* `pc88` – NEC PC-88 (no ROM routines are mapped yet)
+* `pc88` – NEC PC-88
 
 * `zxspectrum` – Sinclair ZX Spectrum 48k
 

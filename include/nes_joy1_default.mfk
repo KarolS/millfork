@@ -1,0 +1,5 @@
+// set NES joypad in port 1 as the default
+
+import nes_joy
+
+alias read_joy = read_joy1

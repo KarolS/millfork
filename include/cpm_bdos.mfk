@@ -8,8 +8,13 @@ inline asm void exit() {
 }
 inline asm void putchar (byte e) {
 	? mvi c, 2
-	call 5	
+	call 5
 	? ret
+}
+
+inline void new_line() {
+	putchar(13)
+	putchar(10)
 }
 
 inline asm byte getchar() {

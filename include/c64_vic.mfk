@@ -131,6 +131,14 @@ macro void vic_bitmap_2000() {
     vic_mem |= 8
 }
 
+macro void set_bg_color(byte color) {
+    vic_bg_color0 = color
+}
+
+macro void set_border(byte color) {
+    vic_border = color
+}
+
 // x, y < 8
 // default: x=0, y=3
 void vic_set_scroll(byte x, byte y) {

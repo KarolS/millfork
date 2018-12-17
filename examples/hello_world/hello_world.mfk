@@ -5,9 +5,21 @@ import stdio
 
 array hello_world = "hello world"
 
-void main(){
+void main() {
+
+#if CBM_64 || CBM_264
+    set_bg_color(green)
+#endif
+#if CBM_64 || CBM_264 || ZX_SPECTRUM
+    set_border(red)
+#endif
+
     putstr(hello_world, hello_world.length)
-    putchar(13)
+    new_line()
     putstrz("hello world again"z)
+
+#if not(CPM)
     while(true){}
+#endif
+
 }

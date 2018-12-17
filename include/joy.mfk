@@ -1,0 +1,16 @@
+// Generic module for joystick/gamepad support
+
+// Horizontal movement: -1 for left, 1 for right
+sbyte input_dx
+
+// Vertical movement: -1 for up, 1 for down
+sbyte input_dy
+
+// Main button: 1 pressed, 0 not pressed
+byte input_btn
+
+void reset_joy() {
+	input_dx = 0
+	input_dy = 0
+	input_btn = 0
+}

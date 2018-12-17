@@ -4,6 +4,10 @@
 // Input: A = Byte to write.
 asm void putchar(byte a) @$FFD2 extern
 
+inline void new_line() {
+    putchar(13)
+}
+
 // OPEN. Open file. (Must call SETLFS and SETNAM beforehands.)
 asm void open() @$FFC0 extern
 

@@ -7,3 +7,7 @@
 // CHROUT. Write byte to default output. (If not screen, must call OPEN and CHKOUT beforehands.)
 // Input: A = Byte to write.
 asm void putchar(byte a) @$FFD2 extern
+
+inline void new_line() {
+    putchar(13)
+}

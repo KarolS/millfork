@@ -2,6 +2,35 @@
 #warn c264_ted module should be only used on C264-compatible targets
 #endif
 
+byte ted_cursor_hi @$FF0C
+byte ted_cursor_lo @$FF0D
+byte ted_color0    @$FF15
+byte ted_color1    @$FF16
+byte ted_color2    @$FF17
+byte ted_color3    @$FF18
+byte ted_border    @$FF19
+byte ted_raster_y  @$FF1D
+byte ted_raster_x  @$FF1E
+
+alias ted_bg_color = ted_color0
+
+macro void set_bg_color(byte color) {
+    ted_color0 = color
+}
+
+macro void set_border(byte color) {
+    ted_border = color
+}
+
+inline void set_ted_cursor(word position) {
+    ted_cursor_hi = position.hi
+    ted_cursor_lo = position.lo
+}
+
+inline word get_ted_cursor() {
+    return ted_cursor_hi:position.lo
+}
+
 const byte black = 0
 const byte white = $71
 const byte red = $22

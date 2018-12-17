@@ -1,0 +1,10 @@
+// set no mouse as the default
+
+import mouse
+
+void read_mouse() {
+    mouse_x = 0
+    mouse_y = 0
+    mouse_lbm = 0
+    mouse_rbm = 0
+}

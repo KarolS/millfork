@@ -1,6 +1,8 @@
 // Based upon the example code from NES 101 tutorial by Michael Martin
 // compile with -t nes_small
 
+import nes_joy1_default
+
 void main() {
     init_graphics()
     init_input()
@@ -99,17 +101,14 @@ void update_sprite() {
 }
 
 void react_to_input() {
-    strobe_joypad()
-    if read_joypad1() & 1 != 0 { // A button
+    read_joy()
+    if input_a != 0 { // A button
         reverse_dx()
     }
-    read_joypad1() // B button
-    read_joypad1() // Select button
-    read_joypad1() // Start button
-    if read_joypad1() & 1 != 0 { // Up button
+    if input_dy < 0 { // Up button
         if oam_buffer[0] > 7 { oam_buffer[0] -= 1}
     }
-    if read_joypad1() & 1 != 0 { // Down button
+    if input_dy > 0 { // Down button
         if oam_buffer[0] < 223 { oam_buffer[0] += 1}
     }
 }

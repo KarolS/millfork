@@ -1,0 +1,38 @@
+// standard joystick driver for Commodore 64
+
+#if not(CBM_64)
+#warn c64_joy module should be only used on C64-compatible targets
+#endif
+
+import joy
+import c64_cia
+
+inline void read_joy2 () {
+    reset_joy()
+    read_also_joy2()
+}
+inline void read_joy1 () {
+    reset_joy()
+    read_also_joy1()
+}
+void read_also_joy2() {
+	poke($dc02, 0)
+	byte value
+	value = peek($dc00)
+	if value & 1 == 0 { input_dy -= 1 }
+	if value & 2 == 0 { input_dy += 1 }
+	if value & 4 == 0 { input_dx -= 1 }
+	if value & 8 == 0 { input_dx += 1 }
+	if value & 16 == 0 { input_btn += 1 }
+}
+
+void read_also_joy1() {
+	poke($dc03, 0)
+	byte value
+	value = peek($dc01)
+	if value & 1 == 0 { input_dy -= 1 }
+	if value & 2 == 0 { input_dy += 1 }
+	if value & 4 == 0 { input_dx -= 1 }
+	if value & 8 == 0 { input_dx += 1 }
+	if value & 16 == 0 { input_btn += 1 }
+}

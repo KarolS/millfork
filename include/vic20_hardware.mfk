@@ -1,0 +1,42 @@
+#if not(CBM_VIC)
+#warn vic20_hardware module should be only used on VIC-20-compatible targets
+#endif
+
+volatile byte vic_raster @$9004
+byte vic_freq1  @$900a
+byte vic_freq2  @$900b
+byte vic_freq3  @$900c
+byte vic_volume @$9003
+byte vic_colors @$900f
+
+macro void set_volume(byte volume) {
+    vic_volume &= $f0
+    vic_volume |= volume & $f
+}
+
+macro void set_bg_color(byte color) {
+    vic_colors &= $f
+    vic_colors |= color << 4
+}
+
+macro void set_border(byte color) {
+    vic_colors &= $f8
+    vic_colors |= color & 7
+}
+
+const byte black = 0
+const byte white = 1
+const byte red = 2
+const byte cyan = 3
+const byte purple = 4
+const byte green  = 5
+const byte blue = 6
+const byte yellow = 7
+const byte orange = 8
+const byte light_orange = 9
+const byte light_red = 10
+const byte light_cyan = 11
+const byte light_purple = 12
+const byte light_green = 13
+const byte light_blue = 14
+const byte light_yellow = 15
