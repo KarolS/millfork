@@ -176,7 +176,7 @@ object Platform {
       }))
 
     val os = conf.getSection("output")
-    val outputPackager = SequenceOutput(os.get(classOf[String], "format", "").split("[, ]+").filter(_.nonEmpty).map {
+    val outputPackager = SequenceOutput(os.get(classOf[String], "format", "").split("[, \n\t\r]+").filter(_.nonEmpty).map {
       case "startaddr" => StartAddressOutput
       case "startpage" => StartPageOutput
       case "endaddr" => EndAddressOutput

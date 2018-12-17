@@ -4,6 +4,9 @@
 
 Every platform is defined in an `.ini` file with an appropriate name.
 
+As an extension, multiline entries are supported:
+if a line ends with a backslash character, the value continues to the next line. 
+
 #### `[compilation]` section
 
 * `arch` – CPU architecture. It defines which instructions are available. Available values: 
