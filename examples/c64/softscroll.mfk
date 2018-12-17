@@ -5,6 +5,13 @@ const byte row = 15
 byte letter_index
 
 void main () {
+#if CBM_64_CRT
+    vic_bg_color0 = blue
+    vic_border = light_blue
+    vic_cr1 = $9b
+    vic_mem = $15
+    vic_cr2 = $c8
+#endif
     letter_index = 0
     disable_irq()
     init_screen()

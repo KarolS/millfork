@@ -70,6 +70,8 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `CBM_64` – 1 if the target is an 8-bit Commodore computer compatible with Commodore 64, 0 otherwise
 
+* `CBM_64_CRT` – 1 if the target is a cartridge for Commodore 64, 0 otherwise
+
 * `CBM_264` – 1 if the target is an 8-bit Commodore computer from the 264 line, 0 otherwise
 
 * `KEYBOARD` – 1 if the target has a keyboard, 0 otherwise

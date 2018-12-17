@@ -19,6 +19,7 @@ examples/lunix/
 
 # compiled Millfork files
 *.prg
+*.crt
 *.seq
 *.asm
 *.lbl

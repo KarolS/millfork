@@ -1,0 +1,10 @@
+segment(prgrom)
+array __vectors @$8000 = [
+    main.addr.lo,
+    main.addr.hi,
+    main.addr.lo,
+    main.addr.hi
+]
+
+segment(prgrom)
+array __boot_signature @$8004 = [$C3, $C2, $CD, $38, $30]
