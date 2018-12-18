@@ -43,6 +43,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          iyh: Importance = UnknownImportance,
                          iyl: Importance = UnknownImportance,
                          memIx: Map[Int, Importance] = Map(),
+                         memIy: Map[Int, Importance] = Map(),
                          zf: Importance = UnknownImportance,
                          nf: Importance = UnknownImportance,
                          cf: Importance = UnknownImportance,
@@ -51,8 +52,9 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          hf: Importance = UnknownImportance
                         ) {
   override def toString: String = {
-    val memRepr = if (memIx.isEmpty) "" else (0 to memIx.keys.max).map(i => memIx.getOrElse(i, UnknownImportance)).mkString("")
-    s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,IY=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf; HL=$hlNumeric; M=" ++ memRepr.padTo(4, ' ')
+    val memIxRepr = if (memIx.isEmpty) "" else (0 to memIx.keys.max).map(i => memIx.getOrElse(i, UnknownImportance)).mkString("")
+    val memIyRepr = if (memIy.isEmpty) "" else (0 to memIx.keys.max).map(i => memIx.getOrElse(i, UnknownImportance)).mkString("")
+    s"A=$a,B=$b,C=$c,D=$d,E=$e,H=$h,L=$l,IX=$ixh$ixl,IY=$iyh$iyl; Z=$zf,C=$cf,N=$nf,S=$sf,P=$pf,H=$hf; HL=$hlNumeric; MIX=" ++ memIxRepr.padTo(4, ' ') ++ " MIY=" ++ memIyRepr.padTo(4, ' ')
   }
 
   def ~(that: CpuImportance) = new CpuImportance(
@@ -69,6 +71,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     iyh = this.iyh ~ that.iyh,
     iyl = this.iyl ~ that.iyl,
     memIx = (this.memIx.keySet | that.memIx.keySet).map(k => k -> (this.memIx.getOrElse(k, UnknownImportance) ~ that.memIx.getOrElse(k, UnknownImportance))).toMap,
+    memIy = (this.memIy.keySet | that.memIy.keySet).map(k => k -> (this.memIy.getOrElse(k, UnknownImportance) ~ that.memIy.getOrElse(k, UnknownImportance))).toMap,
     zf = this.zf ~ that.zf,
     nf = this.nf ~ that.nf,
     cf = this.cf ~ that.cf,
@@ -90,6 +93,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.IYH => iyh
     case ZRegister.IYL => iyl
     case ZRegister.MEM_IX_D => if (offset < 0) ??? else memIx.getOrElse(offset, UnknownImportance)
+    case ZRegister.MEM_IY_D => if (offset < 0) ??? else memIy.getOrElse(offset, UnknownImportance)
     case ZRegister.HL => h ~ l
     case ZRegister.BC => b ~ c
     case ZRegister.DE => d ~ e
@@ -125,6 +129,7 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.IYL => this.copy(iyl = Important)
     case ZRegister.IX => this.copy(ixh = Important, ixl = Important)
     case ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important, memIx = if (offset < 0) memIx.mapValues(_ => Important) else memIx + (offset -> Important))
+    case ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important, memIy = if (offset < 0) memIy.mapValues(_ => Important) else memIy + (offset -> Important))
     case ZRegister.IY | ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important)
     case _ => this
   }
@@ -150,8 +155,8 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.IYL => this.copy(iyl = Unimportant)
     case ZRegister.IX => this.copy(ixh = Unimportant, ixl = Unimportant, memIx = memIx.mapValues(_ => Unimportant))
     case ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important, memIx = if (offset < 0) Map() else memIx + (offset -> Unimportant))
-    case ZRegister.IY => this.copy(iyh = Important, iyl = Important)
-    case ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important)
+    case ZRegister.IY => this.copy(iyh = Important, iyl = Important, memIy = memIy.mapValues(_ => Unimportant))
+    case ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important, memIy = if (offset < 0) Map() else memIy + (offset -> Unimportant))
     case _ => this
   }
 
@@ -229,9 +234,9 @@ object ReverseFlowAnalyzer {
           case ZLine0(DISCARD_BC, _, _) =>
             currentImportance = currentImportance.copy(b = Unimportant, c = Unimportant)
           case ZLine0(DISCARD_IX, _, _) =>
-            currentImportance = currentImportance.copy(ixh = Unimportant, ixl = Unimportant)
+            currentImportance = currentImportance.copy(ixh = Unimportant, ixl = Unimportant, memIx = Map())
           case ZLine0(DISCARD_IY, _, _) =>
-            currentImportance = currentImportance.copy(iyh = Unimportant, iyl = Unimportant)
+            currentImportance = currentImportance.copy(iyh = Unimportant, iyl = Unimportant, memIy = Map())
           case ZLine0(DISCARD_A, _, _) =>
             currentImportance = currentImportance.copy(a = Unimportant)
           case ZLine0(DISCARD_F, _, _) =>
@@ -441,7 +446,7 @@ object ReverseFlowAnalyzer {
                   hf = Unimportant
                 )
               case _ =>
-                currentImportance = finalImportance.copy(memIx = currentImportance.memIx)
+                currentImportance = finalImportance.copy(memIx = currentImportance.memIx, memIy = currentImportance.memIy)
             }
 
           case ZLine0(SLA | SRL, OneRegister(r), _) =>
