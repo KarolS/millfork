@@ -1,5 +1,14 @@
 import stdio
-import c64_basic
+
+#if CBM_64
+    import c64_basic
+#elseif CBM_264
+    import c264_basic
+#elseif ZX_SPECTRUM
+    // no imports needed
+#else
+    #error Unsupported platform
+#endif
 
 void main() {
     word a

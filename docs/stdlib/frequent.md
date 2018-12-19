@@ -21,13 +21,19 @@ Available for: all computer targets.
 Reads a line from the console and returns a pointer to a null-terminated string.
 The string is valid only until next read from the console.
 
-Available for: Commodore 64 with `c64_basic` module.
+Available for:
+ZX Spectrum,
+Commodore 64 with `c64_basic` module,
+Commodore 16 or Plus/4 with `c264_basic`.
 
 #### `word readword()`
 
 Reads a 16-bit unsigned integer from the console.
 
-Available for: Commodore 64 with `c64_basic` module.
+Available for:
+ZX Spectrum,
+Commodore 64 with `c64_basic` module,
+Commodore 16 or Plus/4 with `c264_basic`.
 
 #### `void bell()`
 
