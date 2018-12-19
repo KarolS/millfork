@@ -1,12 +1,12 @@
 package millfork.test
 import millfork.Cpu
 import millfork.test.emu.{EmuBenchmarkRun, EmuCmosBenchmarkRun, EmuCrossPlatformBenchmarkRun}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class WordMathSuite extends FunSuite with Matchers {
+class WordMathSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Word addition") {
     EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
@@ -401,7 +401,7 @@ class WordMathSuite extends FunSuite with Matchers {
          |  output *= $y
          | }
           """.
-        stripMargin)(_.readWord(0xc000) should equal(x * y))
+        stripMargin)(_.readWord(0xc000) should equal(x * y) withClue s"$x * $y")
   }
 
   test("Not-in-place word/byte multiplication") {
@@ -420,23 +420,31 @@ class WordMathSuite extends FunSuite with Matchers {
     multiplyCase2(2, 100)
     multiplyCase2(500, 50)
     multiplyCase2(4, 54)
+    multiplyCase2(1, 10)
+    multiplyCase2(12, 10)
+    multiplyCase2(123, 10)
+    multiplyCase2(1234, 10)
   }
 
   private def multiplyCase2(x: Int, y: Int): Unit = {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
       s"""
          | import zp_reg
-         | word output @$$c000
+         | word output1 @$$c000
+         | word output2 @$$c004
          | word tmp
          | noinline void init() {
          |  tmp = $x
          | }
          | void main () {
          |  init()
-         |  output = $y * tmp
-         |  output = tmp * $y
+         |  output1 = $y * tmp
+         |  output2 = tmp * $y
          | }
           """.
-        stripMargin)(_.readWord(0xc000) should equal(x * y))
+        stripMargin) { m =>
+      m.readWord(0xc000) should equal(x * y) withClue s"$y * $x"
+      m.readWord(0xc004) should equal(x * y) withClue s"$x * $y"
+    }
   }
 }

@@ -2,12 +2,12 @@ package millfork.test
 
 import millfork.Cpu
 import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUltraBenchmarkRun}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class ByteMathSuite extends FunSuite with Matchers {
+class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Complex expression") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
@@ -174,7 +174,7 @@ class ByteMathSuite extends FunSuite with Matchers {
          |  output = a * $y
          | }
           """.
-        stripMargin)(_.readByte(0xc000) should equal(x * y))
+        stripMargin)(_.readByte(0xc000) should equal(x * y) withClue s"$x * $y")
   }
 
   test("Byte multiplication 2") {
@@ -264,6 +264,6 @@ class ByteMathSuite extends FunSuite with Matchers {
          | byte f() {return $x}
          | byte g() {return $y}
           """.
-        stripMargin)(_.readByte(0xc000) should equal(x * y))
+        stripMargin)(_.readByte(0xc000) should equal(x * y) withClue s"$x * $y")
   }
 }
