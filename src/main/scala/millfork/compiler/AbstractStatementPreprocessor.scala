@@ -61,11 +61,8 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
     val pos = stmt.position
     // generic warnings:
     stmt match {
-      case ExpressionStatement(expr@FunctionCallExpression("strzlen" | "putstrz", List(TextLiteralExpression(ch)))) =>
-        ch.last match {
-          case LiteralExpression(0, _) => //ok
-          case _ => ctx.log.warn("Passing a non-null-terminated string to a function that expects a null-terminated string.", stmt.position)
-        }
+      case ExpressionStatement(expr@FunctionCallExpression("strzlen" | "putstrz" | "strzcmp" | "strzcopy", params)) =>
+        for (param <- params) checkIfNullTerminated(stmt, param)
       case ExpressionStatement(VariableExpression(v)) =>
         val volatile = ctx.env.maybeGet[ThingInMemory](v).fold(false)(_.isVolatile)
         if (!volatile) ctx.log.warn("Pointless expression.", stmt.position)
@@ -130,6 +127,17 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
             ForStatement(v, s, e, dir, b).pos(pos) -> Map()
         }
       case _ => stmt -> Map()
+    }
+  }
+
+  private def checkIfNullTerminated(stmt: ExecutableStatement, param: Expression): Unit = {
+    param match {
+      case TextLiteralExpression(ch) =>
+        ch.last match {
+          case LiteralExpression(0, _) => //ok
+          case _ => ctx.log.warn("Passing a non-null-terminated string to a function that expects a null-terminated string.", stmt.position)
+        }
+      case _ =>
     }
   }
 

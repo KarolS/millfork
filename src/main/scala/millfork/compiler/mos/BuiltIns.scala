@@ -613,7 +613,7 @@ object BuiltIns {
           AssemblyLine.variable(ctx, CMP, rva, 0))
       case _ =>
         // TODO comparing expressions
-        ctx.log.error("Too complex expressions in comparison", lhs.position)
+        ctx.log.error("Too complex expressions in comparison", lhs.position.orElse(rhs.position))
         (Nil, Nil, Nil, Nil)
     }
     val lType = MosExpressionCompiler.getExpressionType(ctx, lhs)

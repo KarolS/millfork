@@ -798,7 +798,26 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case e: ExecutableStatement => Some(e)
           case _ => None
         }
-        val needsExtraRTS = !stmt.isMacro && !stmt.assembly && (statements.isEmpty || !statements.last.isInstanceOf[ReturnStatement])
+        val paramForAutomaticReturn: List[Option[Expression]] = if (stmt.isMacro || stmt.assembly) {
+          Nil
+        } else if (statements.isEmpty) {
+          List(None)
+        } else {
+          statements.last match {
+            case _: ReturnStatement => Nil
+            case WhileStatement(VariableExpression(tr), _, _, _) =>
+              if (resultType.size > 0 && env.getBooleanConstant(tr).contains(true)) {
+                List(Some(LiteralExpression(0, 1))) // TODO: what if the loop is breakable?
+              } else List(None)
+            case DoWhileStatement(_, _, VariableExpression(tr), _) =>
+              if (resultType.size > 0 && env.getBooleanConstant(tr).contains(true)) {
+                List(Some(LiteralExpression(0, 1))) // TODO: what if the loop is breakable?
+              } else List(None)
+            case _ =>
+              // None so the compiler warns
+              List(None)
+          }
+        }
         if (stmt.isMacro) {
           if (stmt.bank.isDefined) {
             log.error("Macro functions cannot be in a defined segment", stmt.position)
@@ -823,7 +842,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             env,
             stackVariablesSize,
             stmt.address.map(a => this.eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant"))),
-            executableStatements ++ (if (needsExtraRTS) List(ReturnStatement(None).pos(executableStatements.lastOption.fold(stmt.position)(_.position))) else Nil),
+            executableStatements ++ paramForAutomaticReturn.map(param => ReturnStatement(param).pos(executableStatements.lastOption.fold(stmt.position)(_.position))),
             interrupt = stmt.interrupt,
             kernalInterrupt = stmt.kernalInterrupt,
             reentrant = stmt.reentrant,
