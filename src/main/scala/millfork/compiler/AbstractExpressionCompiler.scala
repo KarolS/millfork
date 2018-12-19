@@ -45,20 +45,39 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     params.map { case (_, expr) => getExpressionType(ctx, expr).size}.max
   }
 
-  def assertSizesForMultiplication(ctx: CompilationContext, params: List[Expression]): Unit = {
+  def assertSizesForMultiplication(ctx: CompilationContext, params: List[Expression], inPlace: Boolean): Unit = {
     assertAllArithmetic(ctx, params)
     //noinspection ZeroIndexToHead
-    val lSize = getExpressionType(ctx, params(0)).size
+    val lType = getExpressionType(ctx, params(0))
+    val lSize = lType.size
     val rType = getExpressionType(ctx, params(1))
     val rSize = rType.size
-    if (lSize != 1 && lSize != 2) {
-      ctx.log.fatal("Long multiplication not supported", params.head.position)
-    }
-    if (rSize != 1) {
-      ctx.log.fatal("Long multiplication not supported", params.head.position)
-    }
-    if (rType.isSigned) {
-      ctx.log.fatal("Signed multiplication not supported", params.head.position)
+    if (inPlace) {
+      if (lSize != 1 && lSize != 2) {
+        ctx.log.error("Long multiplication not supported", params.head.position)
+      }
+      if (rSize != 1) {
+        ctx.log.error("Long multiplication not supported", params.head.position)
+      }
+      if (lSize == 2 && rType.isSigned) {
+        ctx.log.error("Signed multiplication not supported", params.head.position)
+      }
+    } else {
+      if (lSize > 2 || rSize > 2 || lSize + rSize > 3) {
+        ctx.log.error("Signed multiplication not supported", params.head.position)
+      }
+      if (lSize == 2 && rType.isSigned) {
+        ctx.log.error("Signed multiplication not supported", params.head.position)
+      }
+      if (rSize == 2 && lType.isSigned) {
+        ctx.log.error("Signed multiplication not supported", params.head.position)
+      }
+      if (lSize + rSize > 2) {
+        if (params.size != 2) {
+          ctx.log.error("Cannot multiply more than 2 large numbers at once", params.headOption.flatMap(_.position))
+          return
+        }
+      }
     }
   }
 
@@ -212,11 +231,10 @@ object AbstractExpressionCompiler {
         case 1 => b
         case 2 => w
       }
-      case FunctionCallExpression("*", params) => b
-      case FunctionCallExpression("|" | "&" | "^", params) => params.map { e => getExpressionType(env, log, e).size }.max match {
+      case FunctionCallExpression("*" | "|" | "&" | "^", params) => params.map { e => getExpressionType(env, log, e).size }.max match {
         case 1 => b
         case 2 => w
-        case _ => log.error("Adding values bigger than words", expr.position); w
+        case _ => log.error("Combining values bigger than words", expr.position); w
       }
       case FunctionCallExpression("<<", List(a1, a2)) =>
         if (getExpressionType(env, log, a2).size > 1) log.error("Shift amount too large", a2.position)

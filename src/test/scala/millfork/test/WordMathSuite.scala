@@ -350,6 +350,29 @@ class WordMathSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Word multiplication optimization") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Sharp)("""
+        | word output @$c000
+        | void main () {
+        |   output = alot()
+        |   output *= two()
+        |   output *= four()
+        | }
+        | noinline word alot() {
+        |   return 4532
+        | }
+        | inline byte four() {
+        |   return 4
+        | }
+        | inline byte two() {
+        |   return 2
+        | }
+        | import zp_reg
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(4532 * 8)
+    }
+  }
+
   test("In-place word/byte multiplication") {
     multiplyCase1(0, 0)
     multiplyCase1(0, 1)
@@ -376,6 +399,42 @@ class WordMathSuite extends FunSuite with Matchers {
          | void main () {
          |  output = $x
          |  output *= $y
+         | }
+          """.
+        stripMargin)(_.readWord(0xc000) should equal(x * y))
+  }
+
+  test("Not-in-place word/byte multiplication") {
+    multiplyCase2(0, 0)
+    multiplyCase2(0, 1)
+    multiplyCase2(0, 2)
+    multiplyCase2(0, 5)
+    multiplyCase2(1, 0)
+    multiplyCase2(5, 0)
+    multiplyCase2(7, 0)
+    multiplyCase2(2, 5)
+    multiplyCase2(7, 2)
+    multiplyCase2(100, 2)
+    multiplyCase2(1000, 2)
+    multiplyCase2(54, 4)
+    multiplyCase2(2, 100)
+    multiplyCase2(500, 50)
+    multiplyCase2(4, 54)
+  }
+
+  private def multiplyCase2(x: Int, y: Int): Unit = {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      s"""
+         | import zp_reg
+         | word output @$$c000
+         | word tmp
+         | noinline void init() {
+         |  tmp = $x
+         | }
+         | void main () {
+         |  init()
+         |  output = $y * tmp
+         |  output = tmp * $y
          | }
           """.
         stripMargin)(_.readWord(0xc000) should equal(x * y))

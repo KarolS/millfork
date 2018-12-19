@@ -876,7 +876,15 @@ object BuiltIns {
     val constant = constants.map(_._2.get.asInstanceOf[NumericConstant].value).foldLeft(1L)(_ * _).toInt
     variables.length match {
       case 0 => List(AssemblyLine.immediate(LDA, constant & 0xff))
-      case 1 => compileByteMultiplication(ctx, variables.head._1, constant)
+      case 1 =>
+        val sim = simplicity(ctx.env, variables.head._1)
+        if (sim >= 'I') {
+          compileByteMultiplication(ctx, variables.head._1, constant)
+        } else {
+          MosExpressionCompiler.compileToA(ctx, variables.head._1) ++
+            List(AssemblyLine.zeropage(STA, ctx.env.get[ThingInMemory]("__reg.b0"))) ++
+            compileByteMultiplication(ctx, VariableExpression("__reg.b0"), constant)
+        }
       case 2 =>
         if (constant == 1)
           PseudoregisterBuiltIns.compileByteMultiplication(ctx, Some(variables(0)._1), variables(1)._1, storeInRegLo = false)

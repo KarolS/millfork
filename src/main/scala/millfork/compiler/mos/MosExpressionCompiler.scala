@@ -841,9 +841,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, AND)
             }
           case "*" =>
-            zeroExtend = true
-            assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
-            BuiltIns.compileByteMultiplication(ctx, params)
+            assertSizesForMultiplication(ctx, params, inPlace = false)
+            getArithmeticParamMaxSize(ctx, params) match {
+              case 1 =>
+                zeroExtend = true
+                BuiltIns.compileByteMultiplication(ctx, params)
+              case 2 =>
+                //noinspection ZeroIndexToHead
+                PseudoregisterBuiltIns.compileWordMultiplication(ctx, Some(params(0)), params(1), storeInRegLo = false)
+            }
           case "|" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 =>
@@ -1061,7 +1067,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
             }
           case "*=" =>
-            assertSizesForMultiplication(ctx, params)
+            assertSizesForMultiplication(ctx, params, inPlace = true)
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 =>

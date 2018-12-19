@@ -586,8 +586,14 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 2 => targetifyHL(ctx, target, ZBuiltIns.compile16BitOperation(ctx, AND, params))
                 }
               case "*" =>
-                assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
-                targetifyA(ctx, target, Z80Multiply.compile8BitMultiply(ctx, params), isSigned = false)
+                assertSizesForMultiplication(ctx, params, inPlace = false)
+                getArithmeticParamMaxSize(ctx, params) match {
+                  case 1 =>
+                    targetifyA(ctx, target, Z80Multiply.compile8BitMultiply(ctx, params), isSigned = false)
+                  case 2 =>
+                    //noinspection ZeroIndexToHead
+                    targetifyHL(ctx, target, Z80Multiply.compile16And8BitMultiplyToHL(ctx, params(0), params(1)))
+                }
               case "|" =>
                 getArithmeticParamMaxSize(ctx, params) match {
                   case 1 => targetifyA(ctx, target, ZBuiltIns.compile8BitOperation(ctx, OR, params), isSigned = false)
@@ -750,7 +756,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case _ => Z80DecimalBuiltIns.compileInPlaceShiftRight(ctx, l, r, size)
                 }
               case "*=" =>
-                assertSizesForMultiplication(ctx, params)
+                assertSizesForMultiplication(ctx, params, inPlace = true)
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 =>

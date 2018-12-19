@@ -79,7 +79,9 @@ If and only if both `h` and `l` are assignable expressions, then `h:l` is also a
 `constant byte * byte`  
 `constant word * constant word`  
 `constant long * constant long`  
-`byte * byte` (zpreg)
+`byte * byte` (zpreg)  
+`word * byte` (zpreg)  
+`byte * word` (zpreg)
 
 There are no division, remainder or modulo operators.
 

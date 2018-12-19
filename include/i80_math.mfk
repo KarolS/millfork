@@ -7,7 +7,7 @@
 
 #if CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
 
-inline asm byte __mul_u8u8u8() {
+noinline asm byte __mul_u8u8u8() {
     ? LD E,A
     ? LD A, 0
     ? JR __mul_u8u8u8_start
@@ -24,7 +24,7 @@ inline asm byte __mul_u8u8u8() {
 
 #else
 
-inline asm byte __mul_u8u8u8() {
+noinline asm byte __mul_u8u8u8() {
     ? LD E,A
     ? LD C, 0
     ? JP __mul_u8u8u8_start

@@ -3,8 +3,9 @@ package millfork.assembly.mos.opt
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.AssemblyOptimization
-import millfork.assembly.mos.{AssemblyLine, Opcode, State}
+import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, Opcode, State}
 import millfork.DecimalUtils.asDecimal
+import millfork.error.FatalErrorReporting
 /**
   * @author Karol Stasiak
   */
@@ -36,6 +37,16 @@ object ZeropageRegisterOptimizations {
     },
   )
 
+  private def compileMultiply[T](multiplicand: Int, add1:List[T], asl: List[T]): List[T] = {
+    if (multiplicand == 0) FatalErrorReporting.reportFlyingPig("Trying to optimize multiplication by 0 in a wrong way!")
+    def impl(m: Int): List[List[T]] = {
+      if (m == 1) Nil
+      else if (m % 2 == 0) asl :: impl(m / 2)
+      else add1 :: asl :: impl(m / 2)
+    }
+    impl(multiplicand).reverse.flatten
+  }
+
   val ConstantMultiplication = new RuleBasedAssemblyOptimization("Constant multiplication",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
     (HasOpcode(STA) & RefersTo("__reg", 0) & MatchAddrMode(0) & MatchParameter(1) & MatchA(4)) ~
@@ -56,16 +67,12 @@ object ZeropageRegisterOptimizations {
     (Elidable & HasOpcode(STA) & RefersTo("__reg", 0) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Linear & Not(RefersToOrUses("__reg", 1)) & DoesntChangeMemoryAt(0, 1)).* ~
       (HasOpcode(STA) & RefersTo("__reg", 1) & MatchA(4)) ~
-      Where(ctx => {
-        val constant = ctx.get[Int](4)
-        (constant & (constant - 1)) == 0
-      }) ~
       (Elidable & HasOpcode(JSR) & RefersTo("__mul_u8u8u8", 0)) ~~> { (code, ctx) =>
       val constant = ctx.get[Int](4)
       if (constant == 0) {
           code.init :+ AssemblyLine.immediate(LDA, 0)
       } else {
-        code.init ++ (code.head.copy(opcode = LDA) :: List.fill(Integer.numberOfTrailingZeros(constant))(AssemblyLine.implied(ASL)))
+        code.init ++ (code.head.copy(opcode = LDA) :: compileMultiply(constant, List(AssemblyLine.implied(CLC), code.head.copy(opcode = ADC)), List(AssemblyLine.implied(ASL))))
       }
     },
 
@@ -81,7 +88,25 @@ object ZeropageRegisterOptimizations {
       if (constant == 0) {
           code.init :+ AssemblyLine.immediate(LDA, 0)
       } else {
-        code.init ++ List.fill(Integer.numberOfTrailingZeros(constant))(AssemblyLine.implied(ASL))
+        code.init ++ compileMultiply(constant, List(AssemblyLine.implied(CLC), code.init.last.copy(opcode = ADC)), List(AssemblyLine.implied(ASL)))
+      }
+    },
+
+    (Elidable & HasOpcode(STA) & RefersTo("__reg", 2) & MatchAddrMode(0) & MatchParameter(1) & MatchA(4)) ~
+      Where(ctx => {
+        val constant = ctx.get[Int](4)
+        (constant & (constant - 1)) == 0
+      }) ~
+      (Linear & Not(RefersToOrUses("__reg", 2)) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(JSR) & RefersTo("__mul_u16u8u16", 0)) ~~> { (code, ctx) =>
+      val constant = ctx.get[Int](4)
+      if (constant == 0) {
+          code.init :+ AssemblyLine.immediate(LDA, 0)
+      } else {
+        val loAsl = code.head.copy(opcode = ASL, parameter = (code.head.parameter - 2).quickSimplify)
+        val hiRol = code.head.copy(opcode = ROL, parameter = (code.head.parameter - 1).quickSimplify)
+        val shift = List(loAsl, hiRol)
+        code.init ++ List.fill(Integer.numberOfTrailingZeros(constant))(shift).flatten ++ List(loAsl.copy(opcode = LDA), hiRol.copy(opcode = LDX))
       }
     },
   )

@@ -7,6 +7,7 @@ import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
 import millfork.node.ZRegister
 import ZRegister._
 import millfork.DecimalUtils._
+import millfork.error.FatalErrorReporting
 
 /**
   * Optimizations valid for Intel8080, Z80, EZ80 and Sharp
@@ -1056,6 +1057,17 @@ object AlwaysGoodI80Optimizations {
     (Elidable & HasOpcode(DAA) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A)) ~~> (_ => Nil),
   )
 
+  private def compileMultiply[T](multiplicand: Int, add1:List[T], asl: List[T]): List[T] = {
+    if (multiplicand == 0) FatalErrorReporting.reportFlyingPig("Trying to optimize multiplication by 0 in a wrong way!")
+    def impl(m: Int): List[List[T]] = {
+      if (m == 1) Nil
+      else if (m % 2 == 0) asl :: impl(m / 2)
+      else add1 :: asl :: impl(m / 2)
+    }
+
+    impl(multiplicand).reverse.flatten
+  }
+
   val ConstantMultiplication = new RuleBasedAssemblyOptimization("Constant multiplication",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasOpcode(CALL)
@@ -1066,98 +1078,68 @@ object AlwaysGoodI80Optimizations {
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
       val product = ctx.get[Int](4) * ctx.get[Int](5)
-      List(ZLine.ldImm8(ZRegister.A, product))
+      List(ZLine.ldImm8(ZRegister.A, product & 0xff))
+    },
+
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__mul_u16u8u16", 0)
+      & MatchRegister(ZRegister.A, 4)
+      & MatchRegister(ZRegister.DE, 5)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C, ZRegister.B, ZRegister.A)) ~~> { (code, ctx) =>
+      val product = ctx.get[Int](4) * ctx.get[Int](5)
+      List(ZLine.ldImm16(ZRegister.HL, product & 0xffff))
     },
 
     (Elidable & HasOpcode(CALL)
       & IsUnconditional
       & RefersTo("__mul_u8u8u8", 0)
-      & (HasRegister(ZRegister.D, 0) | HasRegister(ZRegister.A, 0))
+      & MatchRegister(ZRegister.D, 1)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.ldImm8(ZRegister.A, 0))
+      val multiplicand = ctx.get[Int](1)
+      if (multiplicand == 0) List(ZLine.ldImm8(A, 0))
+      else ZLine.ld8(ZRegister.D, ZRegister.A) :: compileMultiply(multiplicand, List(ZLine.register(ADD, ZRegister.D)), List(ZLine.register(ADD, ZRegister.A)))
     },
 
     (Elidable & HasOpcode(CALL)
       & IsUnconditional
       & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.D, 1)
+      & MatchRegister(ZRegister.A, 1)
       & DoesntMatterWhatItDoesWithFlags
       & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      Nil
-    },
-    (Elidable & HasOpcode(CALL)
-      & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.D, 2)
-      & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.register(ADD, ZRegister.A))
-    },
-    (Elidable & HasOpcode(CALL)
-      & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.D, 4)
-      & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
-    },
-    (Elidable & HasOpcode(CALL)
-      & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.D, 8)
-      & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
-    },
-    (Elidable & HasOpcode(CALL)
-      & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.D, 16)
-      & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
+      val multiplicand = ctx.get[Int](1)
+      if (multiplicand == 0) List(ZLine.ldImm8(A, 0))
+      else ZLine.ld8(ZRegister.A, ZRegister.D) :: compileMultiply(multiplicand, List(ZLine.register(ADD, ZRegister.D)), List(ZLine.register(ADD, ZRegister.A)))
     },
 
     (Elidable & HasOpcode(CALL)
       & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.A, 1)
+      & RefersTo("__mul_u16u8u16", 0)
+      & MatchRegister(ZRegister.A, 1)
       & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.ld8(ZRegister.A, ZRegister.D))
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C, ZRegister.B, ZRegister.A)) ~~> { (code, ctx) =>
+      val multiplicand = ctx.get[Int](1)
+      if (multiplicand == 0) List(ZLine.ldImm16(HL, 0))
+      else ZLine.ld8(ZRegister.L, ZRegister.E) ::
+        ZLine.ld8(ZRegister.H, ZRegister.D) ::
+        compileMultiply(multiplicand, List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE)), List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.HL)))
     },
+
     (Elidable & HasOpcode(CALL)
       & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.A, 2)
+      & RefersTo("__mul_u16u8u16", 0)
+      & MatchRegister(ZRegister.DE, 1)
       & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A))
-    },
-    (Elidable & HasOpcode(CALL)
-      & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.A, 4)
-      & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
-    },
-    (Elidable & HasOpcode(CALL)
-      & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.A, 8)
-      & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
-    },
-    (Elidable & HasOpcode(CALL)
-      & IsUnconditional
-      & RefersTo("__mul_u8u8u8", 0)
-      & HasRegister(ZRegister.A, 16)
-      & DoesntMatterWhatItDoesWithFlags
-      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C)) ~~> { (code, ctx) =>
-      List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A), ZLine.register(ADD, ZRegister.A))
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C, ZRegister.B, ZRegister.A)) ~~> { (code, ctx) =>
+      val multiplicand = ctx.get[Int](1)
+      if (multiplicand == 0) List(ZLine.ldImm16(HL, 0))
+      else ZLine.ld8(ZRegister.L, ZRegister.A) ::
+        ZLine.ldImm8(ZRegister.H, 0) ::
+        ZLine.ld8(ZRegister.E, ZRegister.A) ::
+        ZLine.ldImm8(ZRegister.D, 0) ::
+        compileMultiply(multiplicand, List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE)), List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.HL)))
     },
 
     (Elidable & Is8BitLoad(D, A)) ~

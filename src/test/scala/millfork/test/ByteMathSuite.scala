@@ -183,6 +183,7 @@ class ByteMathSuite extends FunSuite with Matchers {
         | import zp_reg
         | byte output1 @$c001
         | byte output2 @$c002
+        | byte output3 @$c003
         | void main () {
         |   calc1()
         |   crash_if_bad()
@@ -199,30 +200,36 @@ class ByteMathSuite extends FunSuite with Matchers {
         | noinline void calc1() {
         |   output1 = five() * four()
         |   output2 = 3 * three() * three()
+        |   output3 = five() * three()
         | }
         |
         | noinline void calc2() {
         |   output2 = 3 * three() * three()
         |   output1 = five() * four()
+        |   output3 = three() * five()
         | }
         |
         | noinline void calc3() {
         |   output2 = 3 * three() * three()
         |   output1 = four() * five()
+        |   output3 = 3 * five()
         | }
         |
         | noinline void crash_if_bad() {
         | #if ARCH_6502
         |   if output1 != 20 { asm { lda $bfff }}
         |   if output2 != 27 { asm { lda $bfff }}
+        |   if output3 != 15 { asm { lda $bfff }}
         | #elseif ARCH_I80
         |   if output1 != 20 { asm { ld a,($bfff) }}
         |   if output2 != 27 { asm { ld a,($bfff) }}
+        |   if output3 != 15 { asm { ld a,($bfff) }}
         | #else
         | #error unsupported architecture
         | #endif
         | }
       """.stripMargin){m =>
+      m.readByte(0xc003) should equal(15)
       m.readByte(0xc002) should equal(27)
       m.readByte(0xc001) should equal(20)
     }

@@ -4,7 +4,7 @@ import millfork.CompilationFlag
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
-import millfork.compiler.{BranchSpec, CompilationContext, NoBranching}
+import millfork.compiler.{AbstractExpressionCompiler, BranchSpec, CompilationContext, NoBranching}
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node._
@@ -384,6 +384,12 @@ object PseudoregisterBuiltIns {
     if (ctx.options.zpRegisterSize < 3) {
       ctx.log.error("Variable word multiplication requires the zeropage pseudoregister of size at least 3", param1OrRegister.flatMap(_.position))
       return Nil
+    }
+    (param1OrRegister.fold(2)(e => AbstractExpressionCompiler.getExpressionType(ctx, e).size),
+      AbstractExpressionCompiler.getExpressionType(ctx, param2).size) match {
+      case (1, 2) => return compileWordMultiplication(ctx, Some(param2), param1OrRegister.get, storeInRegLo)
+      case (2 | 1, 1) => // ok
+      case _ => ctx.log.fatal("Invalid code path", param2.position)
     }
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")

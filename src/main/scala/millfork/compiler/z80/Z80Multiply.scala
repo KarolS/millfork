@@ -1,7 +1,7 @@
 package millfork.compiler.z80
 
 import millfork.assembly.z80._
-import millfork.compiler.CompilationContext
+import millfork.compiler.{AbstractExpressionCompiler, CompilationContext}
 import millfork.env._
 import millfork.node.{ConstantArrayElementExpression, Expression, LhsExpression, ZRegister}
 
@@ -19,7 +19,7 @@ object Z80Multiply {
   }
 
   /**
-    * Compiles A = A * DE
+    * Compiles HL = A * DE
     */
   private def multiplication16And8(ctx: CompilationContext): List[ZLine] = {
     List(ZLine(ZOpcode.CALL, NoRegisters,
@@ -101,18 +101,31 @@ object Z80Multiply {
   }
 
   /**
-    * Calculate A = l * r
+    * Calculate HL = l * r
     */
-  def compile16And8BitInPlaceMultiply(ctx: CompilationContext, l: LhsExpression, r: Expression): List[ZLine] = {
+  def compile16And8BitMultiplyToHL(ctx: CompilationContext, l: Expression, r: Expression): List[ZLine] = {
+    (AbstractExpressionCompiler.getExpressionType(ctx, l).size,
+      AbstractExpressionCompiler.getExpressionType(ctx, r).size) match {
+      case (1, 2) => return compile16And8BitMultiplyToHL(ctx, r, l)
+      case (2 | 1, 1) => // ok
+      case _ => ctx.log.fatal("Invalid code path", l.position)
+    }
     ctx.env.eval(r) match {
       case Some(c) =>
-        Z80ExpressionCompiler.compileToDE(ctx, l) ++ List(ZLine.ldImm8(ZRegister.A, c)) ++ multiplication16And8(ctx) ++ Z80ExpressionCompiler.storeHL(ctx, l, signedSource = false)
+        Z80ExpressionCompiler.compileToDE(ctx, l) ++ List(ZLine.ldImm8(ZRegister.A, c)) ++ multiplication16And8(ctx)
       case _ =>
         val lw = Z80ExpressionCompiler.compileToDE(ctx, l)
         val rb = Z80ExpressionCompiler.compileToA(ctx, r)
         val loadRegisters = lw ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, rb)
-        loadRegisters ++ multiplication16And8(ctx) ++ Z80ExpressionCompiler.storeHL(ctx, l, signedSource = false)
+        loadRegisters ++ multiplication16And8(ctx)
     }
+  }
+
+  /**
+    * Calculate l = l * r
+    */
+  def compile16And8BitInPlaceMultiply(ctx: CompilationContext, l: LhsExpression, r: Expression): List[ZLine] = {
+    compile16And8BitMultiplyToHL(ctx, l, r) ++ Z80ExpressionCompiler.storeHL(ctx, l, signedSource = false)
   }
 
   /**
