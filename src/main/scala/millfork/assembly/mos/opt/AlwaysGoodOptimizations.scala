@@ -8,6 +8,7 @@ import millfork.assembly.mos.OpcodeClasses._
 import millfork.assembly.mos.{AddrMode, opt, _}
 import millfork.assembly.mos.AddrMode._
 import millfork.env._
+import millfork.error.FatalErrorReporting
 
 /**
   * These optimizations should not remove opportunities for more complex optimizations to trigger.
@@ -1598,18 +1599,18 @@ object AlwaysGoodOptimizations {
 
     val originalStart = if (shiftBeforeStore) {
       (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
-        (Elidable & HasOpcode(STA) & HasAddrMode(Absolute) & MatchParameter(0)) ~
+        (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(0)) ~
         (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
         (Elidable & HasOpcode(ROL) & HasAddrMode(Implied)) ~
-        (Elidable & HasOpcode(STA) & HasAddrMode(Absolute) & MatchParameter(1))
+        (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(1))
     } else {
-      (Elidable & HasOpcode(STA) & HasAddrMode(Absolute) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(0)) ~
         (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
-        (Elidable & HasOpcode(STA) & HasAddrMode(Absolute) & MatchParameter(1))
+        (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(1))
     }
     val shifting = (0 until shiftAmountAfterStore).map(_ =>
-      (Elidable & HasOpcode(ASL) & HasAddrMode(Absolute) & MatchParameter(0)) ~
-        (Elidable & HasOpcode(ROL) & HasAddrMode(Absolute) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.A))
+      (Elidable & HasOpcode(ASL) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(0)) ~
+        (Elidable & HasOpcode(ROL) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.A))
     ).reduce(_ ~ _)
 
     val rightShiftCount = 8 - (if (shiftBeforeStore) shiftAmountAfterStore + 1 else shiftAmountAfterStore)
@@ -2053,6 +2054,24 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcodeIn(ORA, EOR) & HasImmediate(1)) ~~> { code =>
       List(AssemblyLine.implied(SEC), code.head.copy(opcode = ROL))
     },
+
+    (Elidable & HasOpcode(BIT) & DoesntMatterWhatItDoesWith(State.V, State.C, State.Z) & HasAddrModeIn(Absolute, ZeroPage) & MatchAddrMode(2) & MatchParameter(3)) ~
+      DebugMatching ~
+      (Elidable & HasOpcodeIn(BPL, BMI) & MatchParameter(1)) ~
+      DebugMatching ~
+      (Linear & DoesNotConcernMemoryAt(2, 3)).* ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(ASL) & MatchAddrMode(2) & MatchParameter(3)) ~~> { code =>
+      List(code.last, remapN2C(code(1))) ++ (code.drop(2).init)
+    },
+
+    (Elidable & HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.A, State.C, State.Z) & HasAddrModeIn(Absolute, ZeroPage) & MatchAddrMode(2) & MatchParameter(3)) ~
+      (Elidable & HasOpcodeIn(BPL, BMI) & MatchParameter(1)) ~
+      (Linear & DoesNotConcernMemoryAt(2, 3) & Not(ConcernsA)).* ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(ASL) & MatchAddrMode(2) & MatchParameter(3)) ~~> { code =>
+      List(code.last, remapN2C(code(1))) ++ (code.drop(2) :+ code.init.last)
+    },
   )
 
   private def blockIsIdempotentWhenItComesToIndexRegisters(i: Int) = Where(ctx => {
@@ -2233,18 +2252,39 @@ object AlwaysGoodOptimizations {
     },
   )
 
-  private def remapZ2N(line: AssemblyLine) = line.opcode match {
+  private def remapZ2N(line: AssemblyLine): AssemblyLine = line.opcode match {
     case BNE => line.copy(opcode = BMI)
     case BEQ => line.copy(opcode = BPL)
+    case _ => FatalErrorReporting.reportFlyingPig(s"Tried to treat ${line.opcode} as a branch on Z")
   }
-  private def remapZ2V(line: AssemblyLine) = line.opcode match {
+
+  private def remapC2N(line: AssemblyLine): AssemblyLine = line.opcode match {
+    case BCS => line.copy(opcode = BMI)
+    case BCC => line.copy(opcode = BPL)
+    case _ => FatalErrorReporting.reportFlyingPig(s"Tried to treat ${line.opcode} as a branch on C")
+  }
+
+  private def remapN2C(line: AssemblyLine): AssemblyLine = line.opcode match {
+    case BMI => line.copy(opcode = BCS)
+    case BPL => line.copy(opcode = BCC)
+    case _ => FatalErrorReporting.reportFlyingPig(s"Tried to treat ${line.opcode} as a branch on N")
+  }
+
+  private def remapZ2CInverse(line: AssemblyLine): AssemblyLine = line.opcode match {
+    case BNE => line.copy(opcode = BCS)
+    case BEQ => line.copy(opcode = BCC)
+    case _ => FatalErrorReporting.reportFlyingPig(s"Tried to treat ${line.opcode} as a branch on C")
+  }
+
+  private def remapZ2V(line: AssemblyLine): AssemblyLine = line.opcode match {
     case BNE => line.copy(opcode = BVS)
     case BEQ => line.copy(opcode = BVC)
+    case _ => FatalErrorReporting.reportFlyingPig(s"Tried to treat ${line.opcode} as a branch on Z")
   }
 
   val SimplifiableCondition = new RuleBasedAssemblyOptimization("Simplifiable condition",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
-    HasOpcode(LDA) ~
+    HasOpcodeIn(LDA, TXA, TYA, TZA, ADC, SBC, AND, ORA, EOR) ~
       (Elidable & HasOpcode(AND) & HasImmediate(0x80)) ~
       (Elidable & HasOpcodeIn(BNE, BEQ) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)) ~~> {code =>
       List(code(0), remapZ2N(code(2)))
@@ -2253,6 +2293,16 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(AND)) ~
       (Elidable & HasOpcodeIn(BNE, BEQ) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)) ~~> {code =>
       List(code(1).copy(opcode = LDA), remapZ2N(code(2)))
+    },
+    HasOpcodeIn(LDA, TXA, TYA, TZA, ADC, SBC, AND, ORA, EOR) ~
+      (Elidable & HasOpcode(ASL)) ~
+      (Elidable & HasOpcodeIn(BCS, BCC) & DoesntMatterWhatItDoesWith(State.A, State.N, State.C, State.Z)) ~~> {code =>
+      List(code(0), remapC2N(code(2)))
+    },
+    (HasOpcodeIn(LDA, AND) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(ROL)) ~
+      (Elidable & HasOpcodeIn(BEQ, BNE) & DoesntMatterWhatItDoesWith(State.A, State.N, State.C, State.Z)) ~~> {code =>
+      List(code(0), remapZ2CInverse(code(2)))
     },
   )
 

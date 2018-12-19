@@ -824,7 +824,7 @@ case object ReadsY extends TrivialAssemblyLinePattern {
 
 case object ConcernsC extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean =
-    OpcodeClasses.ReadsC(line.opcode) && OpcodeClasses.ChangesC(line.opcode)
+    OpcodeClasses.ReadsC(line.opcode) || OpcodeClasses.ChangesC(line.opcode)
 }
 
 case object ConcernsA extends TrivialAssemblyLinePattern {

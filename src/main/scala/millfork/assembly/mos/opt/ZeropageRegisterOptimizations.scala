@@ -307,6 +307,33 @@ object ZeropageRegisterOptimizations {
     })
   )
 
+  val SimplifiableAddingOfOneBit = new RuleBasedAssemblyOptimization("Simplifiable adding of one bit",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(AND) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(STA) & RefersTo("__reg", 0) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C)) ~
+      (Linear & Not(ConcernsC) & DoesNotConcernMemoryAt(0, 1)).*.capture(5) ~
+      (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasClear(State.D) & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.V)) ~~> { (code, ctx) =>
+      AssemblyLine.implied(ROR) :: (ctx.get[List[AssemblyLine]](5) :+ AssemblyLine.implied(ROL))
+    },
+    (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(STA) & RefersTo("__reg", 0) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C)) ~
+      (Linear & Not(HasOpcode(AND)) & Not(ConcernsC) & DoesNotConcernMemoryAt(0, 1)).*.capture(5) ~
+      (Elidable & HasOpcode(AND) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasClear(State.D) & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.V)) ~~> { (code, ctx) =>
+      code(1) :: (ctx.get[List[AssemblyLine]](5) ++ List(AssemblyLine.implied(ROR), code(1).copy(opcode = LDA), AssemblyLine.implied(ROL)))
+    },
+    (Elidable & HasOpcode(ASL) & HasAddrMode(Implied)) ~
+      (Elidable & HasOpcode(STA) & RefersTo("__reg", 0) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z, State.C)) ~
+      (Linear & Not(HasOpcode(ANC)) & Not(ConcernsC) & DoesNotConcernMemoryAt(0, 1)).*.capture(5) ~
+      (Elidable & HasOpcode(ANC) & HasImmediate(1)) ~
+      (Elidable & HasClear(State.D) & HasOpcode(ADC) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.V)) ~~> { (code, ctx) =>
+      code(1) :: (ctx.get[List[AssemblyLine]](5) ++ List(AssemblyLine.implied(ROR), code(1).copy(opcode = LDA), AssemblyLine.implied(ROL)))
+    },
+  )
+
   val All: List[AssemblyOptimization[AssemblyLine]] = List(
     ConstantDecimalMath,
     ConstantMultiplication,
@@ -315,6 +342,7 @@ object ZeropageRegisterOptimizations {
     DeadRegStore,
     DeadRegStoreFromFlow,
     PointlessLoad,
+    SimplifiableAddingOfOneBit,
     StashInRegInsteadOfStack,
   )
 

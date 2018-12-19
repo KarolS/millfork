@@ -562,4 +562,55 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       }
     }
 
+  test("Shift, mask and increase 1") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+      """
+        | byte output @$c000
+        | void main() {
+        |   output = twicePlusLowBit(5, 5)
+        | }
+        | noinline byte twicePlusLowBit (byte x, byte y) {
+        |   return (y & 1) + x * 2
+        | }
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(11)
+    }
+  }
+
+  test("Shift, mask and increase 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+      """
+        | byte output @$c000
+        | void main() {
+        |   output = twicePlusLowBit(5, 5)
+        | }
+        | noinline byte twicePlusLowBit (byte x, byte y) {
+        |   return x * 2 + (y & 1)
+        | }
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(11)
+    }
+  }
+
+  test("Shift, mask, increase and test") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+      """
+        | byte output @$c000
+        | void main() {
+        |   stuff(0, 4)
+        | }
+        | inline void stuff (byte x, byte y) {
+        |   if ((f(y) & 1) + x * 2) == 0 {
+        |     output = 11
+        |   }
+        | }
+        | noinline byte f(byte y) { return y }
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(11)
+    }
+  }
+
 }

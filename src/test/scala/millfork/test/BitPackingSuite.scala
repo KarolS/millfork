@@ -39,6 +39,26 @@ class BitPackingSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Population count") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)("""
+        | byte output @$c000
+        | noinline byte popcnt(byte x) {
+        |   byte result
+        |   result = 0
+        |   while x != 0 {
+        |     if x & $80 != 0 { result += 1 }
+        |     x <<= 1
+        |   }
+        |   return result
+        | }
+        | void main () {
+        |   output = popcnt(5)
+        | }
+      """.stripMargin){m =>
+      m.readByte(0xc000) should equal(2)
+    }
+  }
+
   test("Unpack bits from a word") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
         | array output[16]
