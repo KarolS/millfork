@@ -84,6 +84,10 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `CPM` – 1 if the target is CP/M, 0 otherwise
 
+* `NTSC` – 1 if the target is NTSC, 0 otherwise
+
+* `PAL` – 1 if the target is PAL, 0 otherwise
+
 ### Built-in preprocessor functions and operators
 
 The `defined` function returns 1 if the feature is defined, 0 otherwise.  

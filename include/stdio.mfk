@@ -27,3 +27,28 @@ void putstrz(pointer str) {
 
 #endif
 
+void putword(word w) {
+    byte digits
+    byte lastdigit
+    digits = 0
+    word mask
+    for mask:[40000,4000,400,40,4] {
+        lastdigit = 0
+        while w >= mask {
+            w -= mask
+            lastdigit += 4
+        }
+        mask >>= 2
+        while w >= mask {
+            w -= mask
+            lastdigit += 1
+        }
+        if digits != 0 || lastdigit != 0 {
+            putchar('0' + lastdigit)
+            digits += 1
+        }
+    }
+    if digits == 0 {
+        putchar('0')
+    }
+}

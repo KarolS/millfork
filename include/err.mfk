@@ -1,0 +1,11 @@
+enum error_number {
+    err_ok
+    err_fail
+    err_numberformat
+    err_outofmemory
+    err_domain
+    err_range
+}
+
+
+error_number errno

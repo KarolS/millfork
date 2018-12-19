@@ -1,23 +1,39 @@
+import err
 
 #if ARCH_I80
-
-byte strzlen(pointer str) {
-    pointer end
-    end = str
-    while end[0] != 0 {
-        end += 1
-    }
-    return lo(end - str)
-}
-
+import string_fastpointers
 #else
-
-byte strzlen(pointer str) {
-    byte index
-    index = 0
-    while str[index] != 0 {
-        index += 1
-    }
-    return index
-}
+import string_fastindices
 #endif
+
+
+word strz2word(pointer str) {
+    byte i
+    byte char
+    word next
+    word result
+    result = 0
+    i = 0
+    errno = err_ok
+    while true {
+        char = str[i]
+        if char == 0 {
+            if i == 0 {
+                errno = err_numberformat
+            }
+            return result
+        }
+        if '0' <= char <= '0' + 9 {
+            next = result * 10
+            next += char - '0'
+            if next < result {
+                errno = err_range
+            }
+            result = next
+        } else {
+            errno = err_numberformat
+            return result
+        }
+        i += 1
+    }
+}

@@ -29,7 +29,7 @@ asm byte hi_nibble_to_hex(byte a) {
     LSR
     LSR
     LSR
-    JMP lo_nibble_to_hex
+    ? JMP lo_nibble_to_hex
 }
 
 asm byte lo_nibble_to_hex(byte a) {
@@ -40,7 +40,7 @@ asm byte lo_nibble_to_hex(byte a) {
     BCC _lo_nibble_to_hex_lbl
     ADC #$6 // carry is set
 _lo_nibble_to_hex_lbl:
-    RTS
+    ? RTS
 }
 
 macro asm void panic() {

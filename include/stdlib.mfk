@@ -7,3 +7,7 @@ import stdlib_i80
 #else
 #warn Unsupported architecture
 #endif
+
+#if PAL && NTSC
+#warn PAL and NTSC enabled simultaneously
+#endif

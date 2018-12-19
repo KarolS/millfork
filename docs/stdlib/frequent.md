@@ -16,6 +16,19 @@ Moves the cursor to the next line.
 
 Available for: all computer targets.
 
+#### `pointer readline()`
+
+Reads a line from the console and returns a pointer to a null-terminated string.
+The string is valid only until next read from the console.
+
+Available for: Commodore 64 with `c64_basic` module.
+
+#### `word readword()`
+
+Reads a 16-bit unsigned integer from the console.
+
+Available for: Commodore 64 with `c64_basic` module.
+
 #### `void bell()`
 
 Beeps.

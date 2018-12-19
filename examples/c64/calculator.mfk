@@ -5,22 +5,25 @@ void main() {
     word a
     word b
 
-    putstrz("enter first number:{n}"z)
+    putstrz("enter first number:"z)
+    new_line()
     a = readword()
-    while readword_err != 0 {
-        putstrz("that wasn't a number, try again:{n}"z)
+    while errno != err_ok {
+        putstrz("that wasn't a number, try again:"z)
+        new_line()
         a = readword()
     }
 
     putstrz("enter second number:{n}"z)
     b = readword()
-    while readword_err != 0 {
-        putstrz("that wasn't a number, try again:{n}"z)
+    while errno != err_ok {
+        putstrz("that wasn't a number, try again:"z)
+        new_line()
         b = readword()
     }
 
-    putstrz("the sum is:{n}"z)
-    a += b
-    putword(a)
-    putchar(13)
+    putstrz("the sum is:"z)
+    new_line()
+    putword(a + b)
+    new_line()
 }

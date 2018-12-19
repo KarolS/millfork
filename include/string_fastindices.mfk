@@ -1,0 +1,37 @@
+byte strzlen(pointer str) {
+    byte index
+    index = 0
+    while str[index] != 0 {
+        index += 1
+    }
+    return index
+}
+
+sbyte strzcmp(pointer str1, pointer str2) {
+    byte i1
+    byte i2
+    i1 = 0
+    i2 = 0
+    while true {
+        if str1[i1] != str2[i2] {
+            if str1[i1] < str2[i2] { return -1 }
+            return 1
+        }
+        if str1[i1] == 0 {
+            return 0
+        }
+        i1 += 1
+        i2 += 1
+    }
+}
+
+void strzcopy(pointer dest, pointer src) {
+    byte i
+    byte c
+    i = 0
+    do {
+        c = src[i]
+        dest[i] = c
+        i += 1
+    } while c != 0
+}

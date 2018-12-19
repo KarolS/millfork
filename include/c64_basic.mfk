@@ -5,41 +5,26 @@
 #endif
 
 import c64_kernal
+import err
 
 // print a 16-bit number on the standard output
-asm void putword(word xa) @$BDCD extern
-asm void readline() @$A560 extern
+asm void putword_basic(word xa) @$BDCD extern
+
+//alias putword = putword_basic!
+
+asm void __readline_basic() @$A560 extern
+
+pointer readline_basic() {
+    __readline_basic()
+    return readline_out
+}
+
+alias readline = readline_basic!
+
 const pointer readline_out = $200
 
-byte readword_err
-
-word readword() {
-    readline()
-    readword_err = 0
-    word result
-    word four
-    result = 0
-    byte char
-    byte i
-    i = 0
-    while true {
-        char = readline_out[i]
-        if char == 0 {
-            if i == 0 {
-                readword_err = 1
-            }
-            return result
-        }
-        if 48 <= char <= 48+9 {
-            four = result
-            four <<= 2
-            result += four
-            result <<= 1
-            result += char - 48
-        } else {
-            readword_err = 1
-            return result
-        }
-        i += 1
-    }
+inline word readword_basic() {
+    return strz2word(readline_basic())
 }
+
+alias readword = readword_basic!

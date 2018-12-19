@@ -39,9 +39,11 @@
 
 * [`stdlib` module](stdlib/stdlib.md)
 
+* [`string` module](stdlib/string.md)
+
 * [Modules for reading input devices](stdlib/input.md)
 
-* [Other cross-platform modules](stdlib/other.md)
+* [Other cross-platform modules (`err`, `stdio`)](stdlib/other.md)
 
 * [Definitions available on only some platforms](stdlib/frequent.md)
 
