@@ -31,7 +31,7 @@ For binary releases, see: https://github.com/KarolS/millfork/releases
     
     * NEC PC-88
     
-    * Armstrad CPC
+    * Amstrad CPC
     
     * CP/M
     

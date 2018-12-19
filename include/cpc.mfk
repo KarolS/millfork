@@ -1,6 +1,6 @@
 
-#if not(ARMSTRAD_CPC)
-#warn cpc module should be only used on Armstrad CPC-compatible targets
+#if not(AMSTRAD_CPC)
+#warn cpc module should be only used on Amstrad CPC-compatible targets
 #endif
 
 asm void putchar(byte a) @$BB5A extern

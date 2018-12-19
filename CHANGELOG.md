@@ -4,7 +4,7 @@
 
 * Almost complete support for the Zilog Z80, Intel 8080 and Sharp LR35902 microprocessors.
 
-* A very incomplete support for NEC PC-88, ZX Spectrum, CP/M and Armstrad CPC.
+* A very incomplete support for NEC PC-88, ZX Spectrum, CP/M and Amstrad CPC.
 
 * Unified the syntax of commandline switches.
 

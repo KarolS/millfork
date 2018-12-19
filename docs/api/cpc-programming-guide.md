@@ -1,6 +1,6 @@
 [< back to index](../index.md)
 
-### A note about Armstrad CPC
+### A note about Amstrad CPC
 
 The compiler output is a raw machine code file, which then has to be put on a disk. 
 You can do it using [CPCDiskXP](http://www.cpcwiki.eu/index.php/CPCDiskXP), 
