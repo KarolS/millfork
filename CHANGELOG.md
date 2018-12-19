@@ -4,7 +4,7 @@
 
 * Almost complete support for the Zilog Z80, Intel 8080 and Sharp LR35902 microprocessors.
 
-* A very incomplete support for NEC PC-88 and ZX Spectrum.
+* A very incomplete support for NEC PC-88, ZX Spectrum, CP/M and Armstrad CPC.
 
 * Unified the syntax of commandline switches.
 
@@ -12,7 +12,9 @@
 
 * Added enumeration types.
 
-* Added preprocessor
+* Added preprocessor.
+
+* Added `for` loops over arrays, enum types and in-place lists
 
 * Added `align` keyword for choosing data and code alignment.
 
@@ -33,6 +35,8 @@
 * Extra `z` at the name of the encoding means that the string is zero-terminated.
 
 * **Potentially breaking change!** Curly braces in text literals are now used for escape sequences.
+
+* **Potentially breaking change!** Changed the `c64_basic` module.
 
 * **Potentially breaking change!** `scr` now refers to the default screencodes as defined for the platform.
 Code that uses both a custom platform definition and the `scr` encoding needs attention

@@ -2,12 +2,14 @@
 
 # Millfork
 
-A middle-level programming language targeting 6502-based and Z80-based microcomputers. 
+A middle-level programming language targeting 6502-based, 8080-based and Z80-based microcomputers. 
 
 For binary releases, see: https://github.com/KarolS/millfork/releases
-(latest: 0.3.0, doesn't support Z80 yet)
+(latest: 0.3.0, only for 6502)
 
 ## Features
+
+* high performance, due to being designed and optimized for 8-bit microprocessors
 
 * multiple targets:
 
@@ -15,19 +17,9 @@ For binary releases, see: https://github.com/KarolS/millfork/releases
     
     * Commodore 64 with SuperCPU (experimental, incomplete and very buggy)
     
-    * Commodore 16 and Plus/4
-    
-    * Commodore 128
-    
-    * Commodore 64/128 running LUnix/LNG 0.21 (experimental)
-    
-    * Commodore PET
-    
-    * Commodore Vic-20 (stock or with RAM extensions)
+    * other Commodore computers: C16, Plus/4, C128, PET, VIC-20 (stock or with RAM extensions)
     
     * Famicom/NES (the second most important target)
-    
-    * Atari 2600 (experimental)
     
     * Atari 8-bit computers
     
@@ -39,7 +31,11 @@ For binary releases, see: https://github.com/KarolS/millfork/releases
     
     * NEC PC-88
     
+    * Armstrad CPC
+    
     * CP/M
+    
+    * Atari 2600 (experimental)
 
 * inline assembly
 
@@ -49,7 +45,7 @@ For binary releases, see: https://github.com/KarolS/millfork/releases
 
 * simple memory model that avoids using the stack
 
-* multi-pass optimizer (that will even optimize your hand-written assembly if you ask it to)
+* multi-pass whole-program optimizer (that will even optimize your hand-written assembly if you ask it to)
 
 ## Licensing
 
@@ -70,8 +66,8 @@ Therefore, no attribution is needed if you are developing and distributing Millf
 
 * more 6502 targets: Oric computers, PC-Engine/Turbografx-16, Atari Lynx
 
-* more Z80 targets: Armstrad CPC, MSX, TI-83, Sega Master System
+* more Z80 targets: MSX, TI-83, Sega Master System
  
 * better support for 65816, Intel 8080, Sharp LR35902 and eZ80
 
-* support for CP/M, Gameboy, SuperFamicom/SNES and Apple IIgs
+* support for Gameboy, SuperFamicom/SNES and Apple IIgs
