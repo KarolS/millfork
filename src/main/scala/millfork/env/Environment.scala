@@ -350,7 +350,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val falseType = ConstantBooleanType("false$", value = false)
     addThing(trueType, None)
     addThing(falseType, None)
-    addThing(ConstantThing("true", NumericConstant(0, 0), trueType), None)
+    addThing(ConstantThing("true", NumericConstant(1, 0), trueType), None)
     addThing(ConstantThing("false", NumericConstant(0, 0), falseType), None)
     addThing(ConstantThing("__zeropage_usage", UnexpandedConstant("__zeropage_usage", 1), b), None)
     addThing(ConstantThing("__heap_start", UnexpandedConstant("__heap_start", 1), b), None)
