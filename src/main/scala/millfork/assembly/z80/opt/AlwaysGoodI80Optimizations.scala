@@ -300,6 +300,19 @@ object AlwaysGoodI80Optimizations {
     },
   )
 
+  val PointlessStackStashingFromFlow = new RuleBasedAssemblyOptimization("Pointless stack stashing from flow",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    // 0-4
+    for5LargeRegisters(register => {
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(register) & MatchRegister(register, 1)) ~
+        ((Linear | HasOpcode(CALL)) & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+        (Elidable & HasOpcode(POP) & HasRegisterParam(register)) ~~> { (code, ctx) =>
+        val i = ctx.get[Int](1)
+        code.tail.init :+ ZLine.ldImm16(register, i)
+      }
+    }),
+  )
+
   private def simplifiable16BitAddWithSplitTarget(targetH: ZRegister.Value, targetL: ZRegister.Value, target: ZRegister.Value, source: ZRegister.Value) = MultipleAssemblyRules(List(
     (Is8BitLoad(targetH, ZRegister.IMM_8) & MatchImmediate(1)) ~
       (Linear & Not(Changes(target))).* ~
@@ -1000,7 +1013,7 @@ object AlwaysGoodI80Optimizations {
 
     (Elidable & HasOpcode(RRCA)) ~
       (Elidable & HasOpcode(RLCA) & DoesntMatterWhatItDoesWithFlags) ~~> ( _ => Nil),
-  
+
   )
 
   val PointlessExdehl = new RuleBasedAssemblyOptimization("Pointless EX DE,HL",
@@ -1261,6 +1274,7 @@ object AlwaysGoodI80Optimizations {
     PointlessFlagChange,
     PointlessLoad,
     PointlessStackStashing,
+    PointlessStackStashingFromFlow,
     ReloadingKnownValueFromMemory,
     ShiftingKnownValue,
     SimplifiableMaths,
