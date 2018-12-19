@@ -197,8 +197,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val compiledFunctions = mutable.Map[String, CompiledFunction[T]]()
     val recommendedCompilationOrder = callGraph.recommendedCompilationOrder
     val niceFunctionProperties = mutable.Set[(NiceFunctionProperty, String)]()
+    val aliases = env.getAliases
     recommendedCompilationOrder.foreach { f =>
-      env.maybeGet[NormalFunction](f).foreach { function =>
+      if (!env.isAlias(f)) env.maybeGet[NormalFunction](f).foreach { function =>
         val code = compileFunction(function, optimizations, options, inlinedFunctions, labelMap.toMap, niceFunctionProperties.toSet)
         val strippedCodeForInlining = for {
           limit <- potentiallyInlineable.get(f)

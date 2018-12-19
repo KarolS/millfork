@@ -29,7 +29,7 @@ object UnusedFunctions extends NodeOptimization {
 
   override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
     val aliases = nodes.flatMap{
-      case AliasDefinitionStatement(source, target) => Some(source -> target)
+      case AliasDefinitionStatement(source, target, _) => Some(source -> target)
       case _ => None
     }.toMap
     val panicRequired = options.flags(CompilationFlag.CheckIndexOutOfBounds)

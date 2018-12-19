@@ -37,7 +37,7 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
       }
     }
     options.log.assertNoErrors("Parse failed")
-    parsedModules.values.reduce(_ + _)
+    parsedModules.values.reduce(_ + _).applyImportantAliases
   }
 
   def lookupModuleFile(includePath: List[String], moduleName: String, position: Option[Position]): String = {

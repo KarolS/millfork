@@ -213,7 +213,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     p <- position()
     name <- "alias" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
     target <- "=" ~/ HWS ~/ identifier ~/ HWS
-  } yield Seq(AliasDefinitionStatement(name, target).pos(p))
+    important <- "!".!.? ~/ HWS
+  } yield Seq(AliasDefinitionStatement(name, target, important.isDefined).pos(p))
 
   def fastAlignmentForArrays: MemoryAlignment
   def fastAlignmentForFunctions: MemoryAlignment

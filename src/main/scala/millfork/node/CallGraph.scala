@@ -33,14 +33,18 @@ abstract class CallGraph(program: Program, log: Logger) {
   protected val multiaccessibleFunctions = mutable.Set[String]()
   protected val everCalledFunctions = mutable.Set[String]()
   protected val allFunctions = mutable.Set[String]()
+  protected val aliases = mutable.Map[String, String]()
 
   entryPoints += "main"
   program.declarations.foreach(s => add(None, Nil, s))
+  everCalledFunctions ++= everCalledFunctions.flatMap(aliases.get)
   everCalledFunctions.retain(allFunctions)
   fillOut()
 
   def add(currentFunction: Option[String], callingFunctions: List[String], node: Node): Unit = {
     node match {
+      case AliasDefinitionStatement(name, target, _) =>
+        aliases += name -> target
       case f: FunctionDeclarationStatement =>
         allFunctions += f.name
         if (f.address.isDefined || f.interrupt) entryPoints += f.name
@@ -67,6 +71,14 @@ abstract class CallGraph(program: Program, log: Logger) {
 
 
   def fillOut(): Unit = {
+
+    callEdges ++= callEdges.flatMap {
+      case (a,b) => aliases.get(b).map(a -> _)
+    }
+    paramEdges ++= paramEdges.flatMap {
+      case (a,b) => aliases.get(b).map(a -> _)
+    }
+
     var changed = true
     while (changed) {
       changed = false

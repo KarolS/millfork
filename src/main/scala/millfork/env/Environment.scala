@@ -1331,6 +1331,24 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       }
       nameCheck(params)
   }
+
+  def getBooleanConstant(literal: String): Option[Boolean] =
+    maybeGet[TypedThing](literal).flatMap(_.typ match {
+      case ConstantBooleanType(_, x) => Some(x)
+      case _ => None
+    })
+
+  def isAlias(name: String): Boolean = {
+    things.get(name).map(_.isInstanceOf[Alias]).orElse(parent.map(_.isAlias(name))).getOrElse(false)
+  }
+
+  def getAliases: Map[String, String] = {
+    things.values.flatMap {
+      case Alias(a, b, _) => Some(a -> b)
+      case _ => None
+    }.toMap ++ parent.map(_.getAliases).getOrElse(Map.empty)
+  }
+
 }
 
 object Environment {

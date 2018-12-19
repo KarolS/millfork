@@ -66,7 +66,7 @@ TODO
 
 ### Alias definitions
 
-`alias <alias> = <name>`
+`alias <alias> = <name> [!]`
 
 Sets an alias for a global name.
 Unless shadowed by a local name, the alias will point to the given global object:
@@ -85,6 +85,14 @@ Unless shadowed by a local name, the alias will point to the given global object
 
 Aliases can be used for variables, arrays, constants, functions, and types,
 but not for text encodings, array formats or keywords.
+
+If the alias definition is followed by a `!`, then the alias overrides any other definition of that name.
+This allows for overriding definitions of library functions by another library:
+
+    void f() {}
+    void g() {}
+    alias f = g!
+    // now the original f is removed and all calls to f will call g instead
 
 ### Array declarations
 

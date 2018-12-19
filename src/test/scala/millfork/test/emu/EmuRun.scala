@@ -176,7 +176,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
             tmp += EmuRun.cachedBcd
           tmp
         }
-        val program = nodeOptimizations.foldLeft(withLibraries)((p, opt) => p.applyNodeOptimization(opt, options))
+        val program = nodeOptimizations.foldLeft(withLibraries.applyImportantAliases)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program, log)
         val env = new Environment(None, "", CpuFamily.M6502, options.jobContext)
         env.collectDeclarations(program, options)

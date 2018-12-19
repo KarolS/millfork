@@ -192,7 +192,9 @@ sealed trait Statement extends Node {
   def getAllExpressions: List[Expression]
 }
 
-sealed trait DeclarationStatement extends Statement
+sealed trait DeclarationStatement extends Statement {
+  def name: String
+}
 
 case class TypeDefinitionStatement(name: String, parent: String) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
@@ -261,7 +263,7 @@ case class ProcessedContents(processor: String, values: ArrayContents) extends A
     ProcessedContents(processor, values.replaceVariable(variableToReplace, expression))
 }
 
-case class AliasDefinitionStatement(name: String, target: String) extends DeclarationStatement {
+case class AliasDefinitionStatement(name: String, target: String, important: Boolean) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
 }
 
@@ -283,6 +285,8 @@ case class ParameterDeclaration(typ: String,
 
 case class ImportStatement(filename: String) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
+
+  override def name: String = ""
 }
 
 case class FunctionDeclarationStatement(name: String,
