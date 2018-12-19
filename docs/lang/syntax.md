@@ -255,7 +255,11 @@ do {
 Syntax:
 
 ```
-for <variable>,<start>,<direction>,<end> {
+for <variable> , <start> , <direction> , <end> {
+}
+for <variable> : <array,enum type or expression> {
+}
+for <variable> : [ <comma separated expressions> ]  {
 }
 ```
 
@@ -277,7 +281,15 @@ for <variable>,<start>,<direction>,<end> {
     * `paralleluntil` – the same as `until`, but the iterations may be executed in any order
     
     There is no `paralleldownto`, because it would do the same as `parallelto`.
-    
+
+* `<array>` – traverse indices of an array, from 0 to length–1
+
+* `<enum type>` – traverse enum constants of given type, in arbitrary order
+
+* `<expression>` – traverse from 0 to `expression` – 1
+
+* `<comma separated expressions>` – traverse every value in the list
+
 ### `break` and `continue` statements
 
 Syntax:

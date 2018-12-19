@@ -34,6 +34,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `fi` – end of an `if` statement
 
+* `fe` – body of an `for` statement over a list
+
 * `he` – beginning of the body of a `while` statement
 
 * `in` – increment for larger types

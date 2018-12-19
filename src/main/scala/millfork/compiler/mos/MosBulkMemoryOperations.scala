@@ -17,7 +17,7 @@ object MosBulkMemoryOperations {
       target.name != f.variable ||
       target.index.containsVariable(f.variable) ||
       !target.index.isPure ||
-      f.direction == ForDirection.DownTo) return MosStatementCompiler.compileForStatement(ctx, f)
+      f.direction == ForDirection.DownTo) return MosStatementCompiler.compileForStatement(ctx, f)._1
     ctx.env.getPointy(target.name)
     val sizeExpr = f.direction match {
       case ForDirection.DownTo =>
@@ -31,7 +31,7 @@ object MosBulkMemoryOperations {
     val w = ctx.env.get[Type]("word")
     val size = ctx.env.eval(sizeExpr) match {
       case Some(c) => c.quickSimplify
-      case _ => return MosStatementCompiler.compileForStatement(ctx, f)
+      case _ => return MosStatementCompiler.compileForStatement(ctx, f)._1
     }
     val useTwoRegs = ctx.options.flag(CompilationFlag.OptimizeForSpeed) && ctx.options.zpRegisterSize >= 4
     val loadReg = MosExpressionCompiler.compile(ctx, SumExpression(List(false -> f.start, false -> target.index), decimal = false), Some(w -> reg), BranchSpec.None) ++ (

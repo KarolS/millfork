@@ -114,6 +114,21 @@ class ForLoopSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(15))
   }
+
+  test("For-until 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | word output @$c000
+        | void main () {
+        |   byte i
+        |   output = 0
+        |   for i : 6 {
+        |     output += i
+        |   }
+        | }
+      """.stripMargin)(_.readByte(0xc000) should equal(15))
+  }
+
   test("For-parallelto") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
@@ -127,6 +142,7 @@ class ForLoopSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(15))
   }
+
   test("For-paralleluntil") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
@@ -198,6 +214,24 @@ class ForLoopSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Memcpy 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | array output[5]@$c001
+        | array input = [0,1,4,9,16,25,36,49]
+        | void main () {
+        |   byte i
+        |   for i : output {
+        |     output[i] = input[i+1]
+        |   }
+        | }
+        | void _panic(){while(true){}}
+      """.stripMargin){ m=>
+      m.readByte(0xc001) should equal (1)
+      m.readByte(0xc005) should equal (25)
+    }
+  }
+
   test("Memset with index") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
@@ -205,6 +239,23 @@ class ForLoopSuite extends FunSuite with Matchers {
         | void main () {
         |   byte i
         |   for i,0,until,output.length {
+        |     output[i] = 22
+        |   }
+        | }
+        | void _panic(){while(true){}}
+      """.stripMargin){ m=>
+      m.readByte(0xc001) should equal (22)
+      m.readByte(0xc005) should equal (22)
+    }
+  }
+
+  test("Memset with index 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | array output[5]@$c001
+        | void main () {
+        |   byte i
+        |   for i : output {
         |     output[i] = 22
         |   }
         | }
@@ -339,4 +390,30 @@ class ForLoopSuite extends FunSuite with Matchers {
       """.stripMargin)
   }
 
+
+  test("For each") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | array output[$400]@$c000
+        | void main () {
+        |   pointer p
+        |   for p:[$c000, $c003, $c005, $c007]{
+        |     p[0] = 34
+        |   }
+        |   for p:[$c001, $c004, $c006, $c008]{
+        |     p[0] = 42
+        |   }
+        | }
+        | void _panic(){while(true){}}
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(34)
+      m.readByte(0xc003) should equal(34)
+      m.readByte(0xc005) should equal(34)
+      m.readByte(0xc007) should equal(34)
+      m.readByte(0xc001) should equal(42)
+      m.readByte(0xc004) should equal(42)
+      m.readByte(0xc006) should equal(42)
+      m.readByte(0xc008) should equal(42)
+    }
+  }
 }

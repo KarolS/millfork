@@ -1,7 +1,7 @@
 package millfork.compiler.z80
 
 import millfork.CompilationFlag
-import millfork.assembly.BranchingOpcodeMapping
+import millfork.assembly.{BranchingOpcodeMapping, Elidability}
 import millfork.assembly.z80._
 import millfork.compiler._
 import millfork.env._
@@ -15,14 +15,14 @@ import millfork.error.ConsoleLogger
 object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
 
 
-  def compile(ctx: CompilationContext, statement: ExecutableStatement): List[ZLine] = {
+  def compile(ctx: CompilationContext, statement: ExecutableStatement): (List[ZLine], List[ZLine])= {
     val options = ctx.options
     val env = ctx.env
     val ret = Z80Compiler.restoreRegistersAndReturn(ctx)
-    (statement match {
+    val code: (List[ZLine], List[ZLine]) = statement match {
       case EmptyStatement(stmts) =>
         stmts.foreach(s => compile(ctx, s))
-        Nil
+        Nil -> Nil
       case ReturnStatement(None) =>
         fixStackOnReturn(ctx) ++ (ctx.function.returnType match {
           case _: BooleanType =>
@@ -34,9 +34,9 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
               ctx.log.warn("Returning without a value", statement.position)
               List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE)) ++ ret
           }
-        })
+        }) -> Nil
       case ReturnStatement(Some(e)) =>
-        ctx.function.returnType match {
+        (ctx.function.returnType match {
           case t: BooleanType => t.size match {
             case 0 =>
               ctx.log.error("Cannot return anything from a void function", statement.position)
@@ -76,15 +76,15 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
                   List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
 
             }
-        }
+        }) -> Nil
       case Assignment(destination, source) =>
         val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
-        sourceType.size match {
+        (sourceType.size match {
           case 0 => ???
           case 1 => Z80ExpressionCompiler.compileToA(ctx, source) ++ Z80ExpressionCompiler.storeA(ctx, destination, sourceType.isSigned)
           case 2 => Z80ExpressionCompiler.compileToHL(ctx, source) ++ Z80ExpressionCompiler.storeHL(ctx, destination, sourceType.isSigned)
           case s => Z80ExpressionCompiler.storeLarge(ctx, destination, source)
-        }
+        }) -> Nil
       case s: IfStatement =>
         compileIfStatement(ctx, s)
       case s: WhileStatement =>
@@ -92,19 +92,19 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       case s: DoWhileStatement =>
         compileDoWhileStatement(ctx, s)
       case s: ReturnDispatchStatement =>
-        Z80ReturnDispatch.compile(ctx, s)
+        Z80ReturnDispatch.compile(ctx, s) -> Nil
 
       case f@ForStatement(_, _, _, _, List(Assignment(target: IndexedExpression, source: IndexedExpression))) =>
-        Z80BulkMemoryOperations.compileMemcpy(ctx, target, source, f)
+        Z80BulkMemoryOperations.compileMemcpy(ctx, target, source, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if !source.containsVariable(variable) =>
-        Z80BulkMemoryOperations.compileMemset(ctx, target, source, f)
+        Z80BulkMemoryOperations.compileMemset(ctx, target, source, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(ExpressionStatement(FunctionCallExpression(
       operator@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
       List(target: IndexedExpression, source: Expression)
       )))) =>
-        Z80BulkMemoryOperations.compileMemtransform(ctx, target, operator, source, f)
+        Z80BulkMemoryOperations.compileMemtransform(ctx, target, operator, source, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(
       ExpressionStatement(FunctionCallExpression(
@@ -116,7 +116,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       List(target2: IndexedExpression, source2: Expression)
       ))
       )) =>
-        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, operator1, source1, target2, operator2, source2, f)
+        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, operator1, source1, target2, operator2, source2, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(
       Assignment(target1: IndexedExpression, source1: Expression),
@@ -125,7 +125,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       List(target2: IndexedExpression, source2: Expression)
       ))
       )) =>
-        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, "=", source1, target2, operator2, source2, f)
+        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, "=", source1, target2, operator2, source2, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(
       ExpressionStatement(FunctionCallExpression(
@@ -134,30 +134,33 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       )),
       Assignment(target2: IndexedExpression, source2: Expression)
       )) =>
-        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, operator1, source1, target2, "=", source2, f)
+        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, operator1, source1, target2, "=", source2, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(
       Assignment(target1: IndexedExpression, source1: Expression),
       Assignment(target2: IndexedExpression, source2: Expression)
       )) =>
-        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, "=", source1, target2, "=", source2, f)
+        Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, "=", source1, target2, "=", source2, f) -> Nil
 
       case f: ForStatement =>
         compileForStatement(ctx, f)
+      case f:ForEachStatement =>
+        compileForEachStatement(ctx, f)
       case s: BreakStatement =>
-        compileBreakStatement(ctx, s)
+        compileBreakStatement(ctx, s) -> Nil
       case s: ContinueStatement =>
-        compileContinueStatement(ctx, s)
+        compileContinueStatement(ctx, s) -> Nil
       case ExpressionStatement(e@FunctionCallExpression(name, params)) =>
         env.lookupFunction(name, params.map(p => Z80ExpressionCompiler.getExpressionType(ctx, p) -> p)) match {
           case Some(i: MacroFunction) =>
             val (paramPreparation, inlinedStatements) = Z80MacroExpander.inlineFunction(ctx, i, params, e.position)
-            paramPreparation ++ compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)
+            val (main, extra) = compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)
+            paramPreparation ++ main -> extra
           case _ =>
-            Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING)
+            Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING) -> Nil
         }
       case ExpressionStatement(e) =>
-        Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING)
+        Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING) -> Nil
       case Z80AssemblyStatement(op, reg, offset, expression, elidability) =>
         val param: Constant = expression match {
           // TODO: hmmm
@@ -191,8 +194,9 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
           }
           case _ => reg
         }
-        List(ZLine(op, registers, param, elidability))
-    }).map(_.positionIfEmpty(statement.position))
+        List(ZLine(op, registers, param, elidability)) -> Nil
+    }
+    code._1.map(_.positionIfEmpty(statement.position)) -> code._2.map(_.positionIfEmpty(statement.position))
   }
 
   private def fixStackOnReturn(ctx: CompilationContext): List[ZLine] = {
@@ -265,4 +269,13 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
 
   override def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[ZLine] =
     Z80ExpressionCompiler.compile(ctx, expr, ZExpressionTarget.NOTHING, branching)
+
+  override def replaceLabel(ctx: CompilationContext, line: ZLine, from: String, to: String): ZLine = line.parameter match {
+    case MemoryAddressConstant(Label(l)) if l == from => line.copy(parameter = MemoryAddressConstant(Label(to)))
+    case _ => line
+  }
+
+  override def returnAssemblyStatement: ExecutableStatement = Z80AssemblyStatement(RET, NoRegisters, None, LiteralExpression(0,1), Elidability.Elidable)
+
+  override def callChunk(label: ThingInMemory): List[ZLine] = List(ZLine(CALL, NoRegisters, label.toAddress))
 }

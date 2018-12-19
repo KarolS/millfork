@@ -313,6 +313,10 @@ case class RawBytesStatement(contents: ArrayContents) extends ExecutableStatemen
 
 sealed trait CompoundStatement extends ExecutableStatement {
   def getChildStatements: Seq[Statement]
+
+  def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement]
+
+  def loopVariable: String
 }
 
 case class ExpressionStatement(expression: Expression) extends ExecutableStatement {
@@ -363,12 +367,30 @@ case class IfStatement(condition: Expression, thenBranch: List[ExecutableStateme
   override def getAllExpressions: List[Expression] = condition :: (thenBranch ++ elseBranch).flatMap(_.getAllExpressions)
 
   override def getChildStatements: Seq[Statement] = thenBranch ++ elseBranch
+
+  override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {
+    val t = thenBranch.map(f)
+    val e = elseBranch.map(f)
+    if (t.forall(_.isDefined) && e.forall(_.isDefined)) Some(IfStatement(condition, t.map(_.get), e.map(_.get)).pos(this.position))
+    else None
+  }
+
+  override def loopVariable: String = "-none-"
 }
 
 case class WhileStatement(condition: Expression, body: List[ExecutableStatement], increment: List[ExecutableStatement], labels: Set[String] = Set("", "while")) extends CompoundStatement {
   override def getAllExpressions: List[Expression] = condition :: body.flatMap(_.getAllExpressions)
 
   override def getChildStatements: Seq[Statement] = body ++ increment
+
+  override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {
+    val b = body.map(f)
+    val i = increment.map(f)
+    if (b.forall(_.isDefined) && i.forall(_.isDefined)) Some(WhileStatement(condition, b.map(_.get), i.map(_.get), labels).pos(this.position))
+    else None
+  }
+
+  override def loopVariable: String = "-none-"
 }
 
 object ForDirection extends Enumeration {
@@ -379,12 +401,42 @@ case class ForStatement(variable: String, start: Expression, end: Expression, di
   override def getAllExpressions: List[Expression] = VariableExpression(variable) :: start :: end :: body.flatMap(_.getAllExpressions)
 
   override def getChildStatements: Seq[Statement] = body
+
+  override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {
+    val b = body.map(f)
+    if (b.forall(_.isDefined)) Some(ForStatement(variable, start, end, direction, b.map(_.get)).pos(this.position))
+    else None
+  }
+
+  override def loopVariable: String = variable
+}
+
+case class ForEachStatement(variable: String, values: Either[Expression, List[Expression]], body: List[ExecutableStatement]) extends CompoundStatement {
+  override def getAllExpressions: List[Expression] = VariableExpression(variable) :: (values.fold(List(_), identity) ++ body.flatMap(_.getAllExpressions))
+
+  override def getChildStatements: Seq[Statement] = body
+  override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {
+    val b = body.map(f)
+    if (b.forall(_.isDefined)) Some(ForEachStatement(variable,values, b.map(_.get)).pos(this.position))
+    else None
+  }
+
+  override def loopVariable: String = variable
 }
 
 case class DoWhileStatement(body: List[ExecutableStatement], increment: List[ExecutableStatement], condition: Expression, labels: Set[String] = Set("", "do")) extends CompoundStatement {
   override def getAllExpressions: List[Expression] = condition :: body.flatMap(_.getAllExpressions)
 
   override def getChildStatements: Seq[Statement] = body ++ increment
+
+  override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {
+    val b = body.map(f)
+    val i = increment.map(f)
+    if (b.forall(_.isDefined) && i.forall(_.isDefined)) Some(DoWhileStatement(b.map(_.get), i.map(_.get), condition, labels).pos(this.position))
+    else None
+  }
+
+  override def loopVariable: String = "-none-"
 }
 
 case class BreakStatement(label: String) extends ExecutableStatement {

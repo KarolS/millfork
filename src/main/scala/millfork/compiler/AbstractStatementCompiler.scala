@@ -1,9 +1,8 @@
 package millfork.compiler
 
-import millfork.CpuFamily
+import millfork.CompilationFlag
 import millfork.assembly.{AbstractCode, BranchingOpcodeMapping}
 import millfork.env._
-import millfork.error.ConsoleLogger
 import millfork.node._
 
 /**
@@ -11,11 +10,12 @@ import millfork.node._
   */
 abstract class AbstractStatementCompiler[T <: AbstractCode] {
 
-  def compile(ctx: CompilationContext, statements: List[ExecutableStatement]): List[T] = {
-    statements.flatMap(s => compile(ctx, s))
+  def compile(ctx: CompilationContext, statements: List[ExecutableStatement]): (List[T], List[T]) = {
+    val chunks = statements.map(s => compile(ctx, s))
+    chunks.flatMap(_._1) -> chunks.flatMap(_._2)
   }
 
-  def compile(ctx: CompilationContext, statement: ExecutableStatement): List[T]
+  def compile(ctx: CompilationContext, statement: ExecutableStatement): (List[T], List[T])
 
   def labelChunk(labelName: String): List[T]
 
@@ -27,18 +27,24 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
 
   def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[T]
 
+  def replaceLabel(ctx: CompilationContext, line: T, from: String, to: String): T
+
+  def returnAssemblyStatement: ExecutableStatement
+
+  def callChunk(label: ThingInMemory): List[T]
+
   def areBlocksLarge(blocks: List[T]*): Boolean
 
-  def compileWhileStatement(ctx: CompilationContext, s: WhileStatement): List[T] = {
+  def compileWhileStatement(ctx: CompilationContext, s: WhileStatement): (List[T], List[T]) = {
     val start = ctx.nextLabel("wh")
     val middle = ctx.nextLabel("he")
     val inc = ctx.nextLabel("fp")
     val end = ctx.nextLabel("ew")
     val condType = AbstractExpressionCompiler.getExpressionType(ctx, s.condition)
-    val bodyBlock = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.body)
-    val incrementBlock = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.increment)
+    val (bodyBlock, extraBlock) = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.body)
+    val (incrementBlock, extraBlock2) = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.increment)
     val largeBodyBlock = areBlocksLarge(bodyBlock, incrementBlock)
-    condType match {
+    (condType match {
       case ConstantBooleanType(_, true) =>
         List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
       case ConstantBooleanType(_, false) => Nil
@@ -63,18 +69,18 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
       case _ =>
         ctx.log.error(s"Illegal type for a condition: `$condType`", s.condition.position)
         Nil
-    }
+    }) -> (extraBlock ++ extraBlock2)
   }
 
-  def compileDoWhileStatement(ctx: CompilationContext, s: DoWhileStatement): List[T] = {
+  def compileDoWhileStatement(ctx: CompilationContext, s: DoWhileStatement): (List[T], List[T]) = {
     val start = ctx.nextLabel("do")
     val inc = ctx.nextLabel("fp")
     val end = ctx.nextLabel("od")
     val condType = AbstractExpressionCompiler.getExpressionType(ctx, s.condition)
-    val bodyBlock = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.body)
-    val incrementBlock = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.increment)
+    val (bodyBlock, extraBlock) = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.body)
+    val (incrementBlock, extraBlock2) = compile(ctx.addLabels(s.labels, Label(end), Label(inc)), s.increment)
     val largeBodyBlock = areBlocksLarge(bodyBlock, incrementBlock)
-    condType match {
+    (condType match {
       case ConstantBooleanType(_, true) =>
         val conditionBlock = compileExpressionForBranching(ctx, s.condition, NoBranching)
         List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
@@ -98,10 +104,10 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
       case _ =>
         ctx.log.error(s"Illegal type for a condition: `$condType`", s.condition.position)
         Nil
-    }
+    }) -> (extraBlock ++ extraBlock2)
   }
 
-  def compileForStatement(ctx: CompilationContext, f: ForStatement): List[T] = {
+  def compileForStatement(ctx: CompilationContext, f: ForStatement): (List[T], List[T]) = {
     // TODO: check sizes
     // TODO: special faster cases
     val p = f.position
@@ -133,15 +139,17 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
 
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e - 1 =>
         val end = ctx.nextLabel("of")
-        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body) ++ labelChunk(end)
+        val (main, extra) = compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body)
+        main ++ labelChunk(end) -> extra
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s >= e =>
-        Nil
+        Nil -> Nil
 
       case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e =>
         val end = ctx.nextLabel("of")
-        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body) ++ labelChunk(end)
+        val (main, extra) = compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body)
+        main ++ labelChunk(end) -> extra
       case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s > e =>
-        Nil
+        Nil -> Nil
 
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(c), Some(NumericConstant(256, _)))
         if variable.map(_.typ.size).contains(1) && c.requiredSize == 1 && c.isProvablyNonnegative =>
@@ -163,9 +171,10 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
 
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s == e =>
         val end = ctx.nextLabel("of")
-        compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)).pos(p) :: f.body) ++ labelChunk(end)
+        val (main, extra) = compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)).pos(p) :: f.body)
+        main ++ labelChunk(end) -> extra
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s < e =>
-        Nil
+        Nil -> Nil
       case (ForDirection.DownTo, Some(NumericConstant(s, 1)), Some(NumericConstant(0, _))) if s > 0 =>
         compile(ctx, List(
           Assignment(
@@ -246,6 +255,131 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
     }
   }
 
+  private def tryExtractForEachBodyToNewFunction(variable: String, stmts: List[ExecutableStatement]): (Boolean, List[ExecutableStatement]) = {
+    def inner2(stmt: ExecutableStatement): Option[ExecutableStatement] = stmt match {
+      case s: CompoundStatement => s.flatMap(inner2)
+      case _: BreakStatement => None
+      case _: ReturnStatement => None
+      case _: ContinueStatement => None
+      case s => Some(s)
+    }
+    def inner(stmt: ExecutableStatement): Option[ExecutableStatement] = stmt match {
+      case s: CompoundStatement => if (s.loopVariable == variable) s.flatMap(inner2) else s.flatMap(inner)
+      case _: BreakStatement => None
+      case _: ReturnStatement => None
+      case s@ContinueStatement(l) if l == variable => Some(returnAssemblyStatement.pos(s.position))
+      case _: ContinueStatement => None
+      case s => Some(s)
+    }
+    def toplevel(stmt: ExecutableStatement): Option[ExecutableStatement] = stmt match {
+      case s: IfStatement => s.flatMap(toplevel)
+      case s: CompoundStatement => s.flatMap(inner)
+      case _: BreakStatement => None
+      case _: ReturnStatement => None
+      case s@ContinueStatement(l) if l == variable => Some(returnAssemblyStatement.pos(s.position))
+      case s@ContinueStatement("") => Some(returnAssemblyStatement.pos(s.position))
+      case s => Some(s)
+    }
+    val list = stmts.map(toplevel)
+    if (list.forall(_.isDefined)) true -> list.map(_.get)
+    else false -> stmts
+  }
+
+  def compileForEachStatement(ctx: CompilationContext, f: ForEachStatement): (List[T], List[T]) = {
+    val values = f.values match {
+      case Left(expr) =>
+        expr match {
+          case VariableExpression(id) =>
+            ctx.env.maybeGet[Thing](id + ".array") match {
+              case Some(arr:MfArray) =>
+                return compile(ctx, ForStatement(
+                  f.variable,
+                  LiteralExpression(0, 1),
+                  LiteralExpression(arr.sizeInBytes, Constant.minimumSize(arr.sizeInBytes - 1)),
+                  ForDirection.Until,
+                  f.body
+                ))
+              case _ =>
+            }
+            ctx.env.get[Thing](id) match {
+              case EnumType(_, Some(count)) =>
+                return compile(ctx, ForStatement(
+                  f.variable,
+                  FunctionCallExpression(id, List(LiteralExpression(0, 1))),
+                  FunctionCallExpression(id, List(LiteralExpression(count, 1))),
+                  ForDirection.ParallelUntil,
+                  f.body
+                ))
+              case _ =>
+            }
+          case _ =>
+        }
+
+        return compile(ctx, ForStatement(
+          f.variable,
+          LiteralExpression(0, 1),
+          expr,
+          ForDirection.Until,
+          f.body
+        ))
+      case Right(vs) => vs
+    }
+    val endLabel = ctx.nextLabel("fe")
+    val continueLabelPlaceholder = ctx.nextLabel("fe")
+    val (inlinedBody, extra) = compile(ctx.addLabels(Set("", f.variable), Label(endLabel), Label(continueLabelPlaceholder)), f.body)
+    values.size match {
+      case 0 => Nil -> Nil
+      case 1 =>
+        val tuple = compile(ctx,
+          Assignment(
+            VariableExpression(f.variable).pos(f.position),
+            values.head
+          ).pos(f.position)
+        )
+        tuple._1 ++ inlinedBody -> tuple._2
+      case valueCount =>
+        val (extractable, extracted) = tryExtractForEachBodyToNewFunction(f.variable, f.body)
+        val (extractedBody, extra2) = compile(ctx.addStack(2), extracted :+ returnAssemblyStatement)
+        val inlinedBodySize = inlinedBody.map(_.sizeInBytes).sum
+        val extractedBodySize = extractedBody.map(_.sizeInBytes).sum
+        val sizeIfInlined = inlinedBodySize * valueCount
+        val sizeIfExtracted = extractedBodySize + 3 * valueCount
+        val expectedOptimizationPotentialFromInlining = valueCount * 2
+        val shouldExtract = true
+          if (ctx.options.flag(CompilationFlag.OptimizeForSonicSpeed)) false
+          else sizeIfInlined - expectedOptimizationPotentialFromInlining > sizeIfExtracted
+        if (shouldExtract) {
+          if (extractable) {
+            val callLabel = ctx.nextLabel("fe")
+            val calls = values.flatMap(expr => compile(ctx,
+              Assignment(
+                VariableExpression(f.variable).pos(f.position),
+                expr
+              )
+            )._1 ++ callChunk(Label(callLabel)))
+            return calls -> (labelChunk(callLabel) ++ extractedBody ++ extra ++ extra2)
+          } else {
+            ctx.log.warn("For loop too complex to extract, inlining", f.position)
+          }
+        }
+
+        val inlinedEverything = values.flatMap { expr =>
+          val tuple = compile(ctx,
+            Assignment(
+              VariableExpression(f.variable).pos(f.position),
+              expr
+            )
+          )
+          if (tuple._2.nonEmpty) ???
+          val compiled = tuple._1 ++ inlinedBody
+          val continueLabel = ctx.nextLabel("fe")
+          compiled.map(replaceLabel(ctx, _, continueLabelPlaceholder, continueLabel)) ++ labelChunk(continueLabel)
+        } ++ labelChunk(endLabel)
+
+        inlinedEverything -> extra
+    }
+  }
+
   def compileBreakStatement(ctx: CompilationContext, s: BreakStatement) :List[T] = {
     ctx.breakLabels.get(s.label) match {
       case None =>
@@ -268,13 +402,13 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
     }
   }
 
-  def compileIfStatement(ctx: CompilationContext, s: IfStatement): List[T] = {
+  def compileIfStatement(ctx: CompilationContext, s: IfStatement): (List[T], List[T]) = {
     val condType = AbstractExpressionCompiler.getExpressionType(ctx, s.condition)
-    val thenBlock = compile(ctx, s.thenBranch)
-    val elseBlock = compile(ctx, s.elseBranch)
+    val (thenBlock, extra1) = compile(ctx, s.thenBranch)
+    val (elseBlock, extra2) = compile(ctx, s.elseBranch)
     val largeThenBlock = areBlocksLarge(thenBlock)
     val largeElseBlock = areBlocksLarge(elseBlock)
-    condType match {
+    val mainCode: List[T] = condType match {
       case ConstantBooleanType(_, true) =>
         compileExpressionForBranching(ctx, s.condition, NoBranching) ++ thenBlock
       case ConstantBooleanType(_, false) =>
@@ -373,6 +507,6 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         ctx.log.error(s"Illegal type for a condition: `$condType`", s.condition.position)
         Nil
     }
-
+    mainCode -> (extra1 ++ extra2)
   }
 }

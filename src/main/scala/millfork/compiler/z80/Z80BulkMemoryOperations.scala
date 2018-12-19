@@ -20,8 +20,8 @@ object Z80BulkMemoryOperations {
     * Compiles loops like <code>for i,a,until,b { p[i] = q[i] }</code>
     */
   def compileMemcpy(ctx: CompilationContext, target: IndexedExpression, source: IndexedExpression, f: ForStatement): List[ZLine] = {
-    val sourceOffset = removeVariableOnce(f.variable, source.index).getOrElse(return compileForStatement(ctx, f))
-    if (!sourceOffset.isPure) return compileForStatement(ctx, f)
+    val sourceOffset = removeVariableOnce(f.variable, source.index).getOrElse(return compileForStatement(ctx, f)._1)
+    if (!sourceOffset.isPure) return compileForStatement(ctx, f)._1
     val sourceIndexExpression = SumExpression(List(false -> sourceOffset, false -> f.start), decimal = false)
     val calculateSource = Z80ExpressionCompiler.calculateAddressToHL(ctx, IndexedExpression(source.name, sourceIndexExpression))
     compileMemoryBulk(ctx, target, f,
@@ -106,7 +106,7 @@ object Z80BulkMemoryOperations {
     */
   def compileMemtransform(ctx: CompilationContext, target: IndexedExpression, operator: String, source: Expression, f: ForStatement): List[ZLine] = {
     val c = determineExtraLoopRegister(ctx, f, source.containsVariable(f.variable))
-    val load = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator, source, c.loopRegister).getOrElse(return compileForStatement(ctx, f))
+    val load = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator, source, c.loopRegister).getOrElse(return compileForStatement(ctx, f)._1)
     import scala.util.control.Breaks._
     breakable{
       return compileMemoryBulk(ctx, target, f,
@@ -117,7 +117,7 @@ object Z80BulkMemoryOperations {
         _ => None
       )
     }
-    compileForStatement(ctx, f)
+    compileForStatement(ctx, f)._1
   }
 
   /**
@@ -131,8 +131,8 @@ object Z80BulkMemoryOperations {
                            f: ForStatement): List[ZLine] = {
     import scala.util.control.Breaks._
     val c = determineExtraLoopRegister(ctx, f, source1.containsVariable(f.variable) || source2.containsVariable(f.variable))
-    val target1Offset = removeVariableOnce(f.variable, target2.index).getOrElse(return compileForStatement(ctx, f))
-    val target2Offset = removeVariableOnce(f.variable, target2.index).getOrElse(return compileForStatement(ctx, f))
+    val target1Offset = removeVariableOnce(f.variable, target2.index).getOrElse(return compileForStatement(ctx, f)._1)
+    val target2Offset = removeVariableOnce(f.variable, target2.index).getOrElse(return compileForStatement(ctx, f)._1)
     val target1IndexExpression = if (c.countDownDespiteSyntax) {
       SumExpression(List(false -> target1Offset, false -> f.end, true -> LiteralExpression(1, 1)), decimal = false)
     } else {
@@ -148,8 +148,8 @@ object Z80BulkMemoryOperations {
       case _ => false
     })
     if (fused) {
-      val load1 = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator1, source1, c.loopRegister).getOrElse(return compileForStatement(ctx, f))
-      val load2 = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator2, source2, c.loopRegister).getOrElse(return compileForStatement(ctx, f))
+      val load1 = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator1, source1, c.loopRegister).getOrElse(return compileForStatement(ctx, f)._1)
+      val load2 = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator2, source2, c.loopRegister).getOrElse(return compileForStatement(ctx, f)._1)
       val loads = load1 ++ load2
       breakable{
         return compileMemoryBulk(ctx, target1, f,
@@ -164,12 +164,12 @@ object Z80BulkMemoryOperations {
       val goodness1 = goodnessForHL(ctx, operator1, source1)
       val goodness2 = goodnessForHL(ctx, operator2, source2)
       val loads = if (goodness1 <= goodness2) {
-        val load1 = buildMemtransformLoader(ctx, ZRegister.MEM_DE, f.variable, operator1, source1, c.loopRegister).getOrElse(return compileForStatement(ctx, f))
-        val load2 = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator2, source2, c.loopRegister).getOrElse(return compileForStatement(ctx, f))
+        val load1 = buildMemtransformLoader(ctx, ZRegister.MEM_DE, f.variable, operator1, source1, c.loopRegister).getOrElse(return compileForStatement(ctx, f)._1)
+        val load2 = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator2, source2, c.loopRegister).getOrElse(return compileForStatement(ctx, f)._1)
         load1 ++ load2
       } else {
-        val load1 = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator1, source1, c.loopRegister).getOrElse(return compileForStatement(ctx, f))
-        val load2 = buildMemtransformLoader(ctx, ZRegister.MEM_DE, f.variable, operator2, source2, c.loopRegister).getOrElse(return compileForStatement(ctx, f))
+        val load1 = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator1, source1, c.loopRegister).getOrElse(return compileForStatement(ctx, f)._1)
+        val load2 = buildMemtransformLoader(ctx, ZRegister.MEM_DE, f.variable, operator2, source2, c.loopRegister).getOrElse(return compileForStatement(ctx, f)._1)
         load1 ++ load2
       }
       val targetForDE = if (goodness1 <= goodness2) target1 else target2
@@ -187,7 +187,7 @@ object Z80BulkMemoryOperations {
         )
       }
     }
-    compileForStatement(ctx, f)
+    compileForStatement(ctx, f)._1
   }
 
   private case class ExtraLoopRegister(loopRegister: ZRegister.Value, initC: List[ZLine], nextC: List[ZLine], countDownDespiteSyntax: Boolean)
@@ -398,8 +398,8 @@ object Z80BulkMemoryOperations {
                         loadA: ZOpcode.Value => List[ZLine],
                         z80Bulk: Boolean => Option[ZOpcode.Value]): List[ZLine] = {
     val one = LiteralExpression(1, 1)
-    val targetOffset = removeVariableOnce(f.variable, target.index).getOrElse(return compileForStatement(ctx, f))
-    if (!targetOffset.isPure) return compileForStatement(ctx, f)
+    val targetOffset = removeVariableOnce(f.variable, target.index).getOrElse(return compileForStatement(ctx, f)._1)
+    if (!targetOffset.isPure) return compileForStatement(ctx, f)._1
     val indexVariableSize = ctx.env.get[Variable](f.variable).typ.size
     val wrapper = createForLoopPreconditioningIfStatement(ctx, f)
     val decreasingDespiteSyntax = preferDecreasing && (f.direction == ForDirection.ParallelTo || f.direction == ForDirection.ParallelUntil)
@@ -467,7 +467,7 @@ object Z80BulkMemoryOperations {
     Z80StatementCompiler.compile(ctx, IfStatement(
       FunctionCallExpression(operator, List(f.start, f.end)),
       List(Z80AssemblyStatement(ZOpcode.NOP, NoRegisters, None, LiteralExpression(0, 1), elidability = Elidability.Fixed)),
-      Nil))
+      Nil))._1
   }
 
   private def removeVariableOnce(variable: String, expr: Expression): Option[Expression] = {

@@ -28,7 +28,16 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     MosExpressionCompiler.compile(ctx, expr, Some(b, RegisterVariable(MosRegister.A, b)), branching)
   }
 
-  def compile(ctx: CompilationContext, statement: ExecutableStatement): List[AssemblyLine] = {
+  override def replaceLabel(ctx: CompilationContext, line: AssemblyLine, from: String, to: String): AssemblyLine = line.parameter match {
+    case MemoryAddressConstant(Label(l)) if l == from => line.copy(parameter = MemoryAddressConstant(Label(to)))
+    case _ => line
+  }
+
+  override def returnAssemblyStatement: ExecutableStatement = MosAssemblyStatement(RTS, AddrMode.Implied, LiteralExpression(0,1), Elidability.Elidable)
+
+  override def callChunk(label: ThingInMemory): List[AssemblyLine] = List(AssemblyLine.absolute(JSR, label.toAddress))
+
+  def compile(ctx: CompilationContext, statement: ExecutableStatement): (List[AssemblyLine], List[AssemblyLine]) = {
     val env = ctx.env
     val m = ctx.function
     val b = env.get[Type]("byte")
@@ -142,10 +151,10 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         List(AssemblyLine.implied(RTS))
       })
     }
-    (statement match {
+    val code: (List[AssemblyLine], List[AssemblyLine]) = statement match {
       case EmptyStatement(stmts) =>
         stmts.foreach(s => compile(ctx, s))
-        Nil
+        Nil -> Nil
       case MosAssemblyStatement(o, a, x, e) =>
         val c: Constant = x match {
           // TODO: hmmm
@@ -165,7 +174,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           case Indirect if o != JMP => IndexedZ
           case _ => a
         }
-        List(AssemblyLine(o, actualAddrMode, c, e))
+        List(AssemblyLine(o, actualAddrMode, c, e)) -> Nil
       case RawBytesStatement(contents) =>
         env.extractArrayContents(contents).map { expr =>
           env.eval(expr) match {
@@ -174,16 +183,16 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
               ctx.log.error("Non-constant raw byte", position = statement.position)
               AssemblyLine(BYTE, RawByte, Constant.Zero, elidability = Elidability.Fixed)
           }
-        }
+        } -> Nil
       case Assignment(dest, source) =>
-        MosExpressionCompiler.compileAssignment(ctx, source, dest)
+        MosExpressionCompiler.compileAssignment(ctx, source, dest) -> Nil
       case ExpressionStatement(e@FunctionCallExpression(name, params)) =>
         env.lookupFunction(name, params.map(p => MosExpressionCompiler.getExpressionType(ctx, p) -> p)) match {
           case Some(i: MacroFunction) =>
             val (paramPreparation, inlinedStatements) = MosMacroExpander.inlineFunction(ctx, i, params, e.position)
-            paramPreparation ++ compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)
+            paramPreparation ++  compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)._1 -> Nil
           case _ =>
-            MosExpressionCompiler.compile(ctx, e, None, NoBranching)
+            MosExpressionCompiler.compile(ctx, e, None, NoBranching) -> Nil
         }
       case ExpressionStatement(e) =>
         e match {
@@ -191,11 +200,11 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
             ctx.log.warn("Pointless expression statement", statement.position)
           case _ =>
         }
-        MosExpressionCompiler.compile(ctx, e, None, NoBranching)
+        MosExpressionCompiler.compile(ctx, e, None, NoBranching) -> Nil
       case ReturnStatement(None) =>
         // TODO: return type check
         // TODO: better stackpointer fix
-        ctx.function.returnType match {
+        (ctx.function.returnType match {
           case _: BooleanType =>
             stackPointerFixBeforeReturn(ctx) ++ returnInstructions
           case t => t.size match {
@@ -221,11 +230,11 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
           }
-        }
+        }) -> Nil
       case s : ReturnDispatchStatement =>
-        MosReturnDispatch.compile(ctx, s)
+        MosReturnDispatch.compile(ctx, s) -> Nil
       case ReturnStatement(Some(e)) =>
-        m.returnType match {
+        (m.returnType match {
           case _: BooleanType =>
             m.returnType.size match {
               case 0 =>
@@ -262,7 +271,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + ".return")) ++
                   stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
             }
-        }
+        }) -> Nil
       case s: IfStatement =>
         compileIfStatement(ctx, s)
       case s: WhileStatement =>
@@ -270,14 +279,17 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       case s: DoWhileStatement =>
         compileDoWhileStatement(ctx, s)
       case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if !source.containsVariable(variable) =>
-        MosBulkMemoryOperations.compileMemset(ctx, target, source, f)
+        MosBulkMemoryOperations.compileMemset(ctx, target, source, f) -> Nil
       case f:ForStatement =>
         compileForStatement(ctx,f)
+      case f:ForEachStatement =>
+        compileForEachStatement(ctx, f)
       case s:BreakStatement =>
-        compileBreakStatement(ctx, s)
+        compileBreakStatement(ctx, s) -> Nil
       case s:ContinueStatement =>
-        compileContinueStatement(ctx, s)
-    }).map(_.positionIfEmpty(statement.position))
+        compileContinueStatement(ctx, s) -> Nil
+    }
+    code._1.map(_.positionIfEmpty(statement.position)) -> code._2.map(_.positionIfEmpty(statement.position))
   }
 
   private def stackPointerFixBeforeReturn(ctx: CompilationContext, preserveA: Boolean = false, preserveX: Boolean = false, preserveY: Boolean = false): List[AssemblyLine] = {

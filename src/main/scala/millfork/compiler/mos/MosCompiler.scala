@@ -16,7 +16,7 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
 
   override def compile(ctx: CompilationContext): List[AssemblyLine] = {
     ctx.env.nameCheck(ctx.function.code)
-    val chunk = MosStatementCompiler.compile(ctx, new MosStatementPreprocessor(ctx, ctx.function.code)())
+    val chunk = packHalves(MosStatementCompiler.compile(ctx, new MosStatementPreprocessor(ctx, ctx.function.code)()))
     val zpRegisterSize = ctx.options.zpRegisterSize
 
     val storeParamsFromRegisters = (ctx.function.params match {

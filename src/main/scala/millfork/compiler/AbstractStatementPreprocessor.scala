@@ -115,6 +115,11 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
         val (b, _) = optimizeStmts(body, Map())
         val (i, _) = optimizeStmts(inc, Map())
         DoWhileStatement(b, i, c, labels).pos(pos) -> Map()
+      case f@ForEachStatement(v, arr, body) =>
+        for (a <- arr.right.getOrElse(Nil)) cv = search(a, cv)
+        val a = arr.map(_.map(optimizeExpr(_, Map())))
+        val (b, _) = optimizeStmts(body, Map())
+        ForEachStatement(v, a, b).pos(pos) -> Map()
       case f@ForStatement(v, st, en, dir, body) =>
         maybeOptimizeForStatement(f) match {
           case Some(x) => x

@@ -7,4 +7,5 @@ import millfork.assembly.AbstractCode
   */
 abstract class AbstractCompiler[T <: AbstractCode] {
   def compile(ctx: CompilationContext): List[T]
+  def packHalves(tuple: (List[T], List[T])): List[T] = tuple._1 ++ tuple._2
 }

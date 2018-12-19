@@ -224,6 +224,8 @@ trait MfArray extends ThingInMemory with IndexableThing {
   def indexType: VariableType
   def elementType: VariableType
   override def isVolatile: Boolean = false
+  /* TODO: what if larger elements? */
+  def sizeInBytes: Int
 }
 
 case class UninitializedArray(name: String, /* TODO: what if larger elements? */ sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
@@ -256,6 +258,8 @@ case class InitializedArray(name: String, address: Option[Constant], contents: L
   override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
 
   override def zeropage: Boolean = false
+
+  override def sizeInBytes: Int = contents.size
 }
 
 case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean, declaredBank: Option[String], override val isVolatile: Boolean) extends VariableInMemory {
