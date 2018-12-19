@@ -60,7 +60,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val charAtom: P[LiteralExpression] = for {
     p <- position()
-    c <- "'" ~/ CharPred(c => c >= ' ' && !invalidCharLiteralTypes(Character.getType(c))).! ~/ "'"
+    c <- "'" ~/ CharPred(c => c >= ' ' && c != '\'' && !invalidCharLiteralTypes(Character.getType(c))).rep.! ~/ "'"
     ((co, zt), lenient) <- HWS ~ codec
   } yield {
     if (zt) {

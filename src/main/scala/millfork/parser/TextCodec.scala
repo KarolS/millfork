@@ -95,7 +95,7 @@ class TextCodec(val name: String,
   }
 
   private def encodeEscapeSequence(log: Logger, escSeq: String, position: Option[Position], lenient: Boolean): List[Int] = {
-    if (escSeq.length == 3 && (escSeq(0) == 'X' || escSeq(0) == 'x')){
+    if (escSeq.length == 3 && (escSeq(0) == 'X' || escSeq(0) == 'x' || escSeq(0) == '$')){
       try {
         return List(Integer.parseInt(escSeq.tail, 16))
       } catch {
@@ -326,7 +326,7 @@ object TextCodec {
       "left" -> List(8),
       "right" -> List(9),
       "white" -> List(0x10, 7),
-      "black" -> List(0x10, 0),
+      "black" -> List(0x10, 8),
       "red" -> List(0x10, 2),
       "blue" -> List(0x10, 1),
       "green" -> List(0x10, 4),
@@ -334,7 +334,7 @@ object TextCodec {
       "purple" -> List(0x10, 3),
       "yellow" -> List(0x10, 6),
       "bgwhite" -> List(0x11, 7),
-      "bgblack" -> List(0x11, 0),
+      "bgblack" -> List(0x11, 8),
       "bgred" -> List(0x11, 2),
       "bgblue" -> List(0x11, 1),
       "bggreen" -> List(0x11, 4),
