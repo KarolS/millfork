@@ -451,21 +451,60 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             val hi = compileToA(ctx, h)
             val lo = compileToA(ctx, l)
 
-            def xxx(hr: ZRegister.Value, lr: ZRegister.Value): List[ZLine] = {
+            def xxx(hr: ZRegister.Value, lr: ZRegister.Value, allowRedirect: Boolean = false): List[ZLine] = {
               if (!lo.exists(x => x.changesRegister(hr) || x.readsRegister(hr))) {
                 hi ++ List(ZLine.ld8(hr, ZRegister.A)) ++
                   lo ++ List(ZLine.ld8(lr, ZRegister.A))
               } else if (!hi.exists(x => x.changesRegister(lr) || x.readsRegister(lr))) {
                 lo ++ List(ZLine.ld8(lr, ZRegister.A)) ++
                   hi ++ List(ZLine.ld8(hr, ZRegister.A))
-              } else ???
+              } else if (allowRedirect) {
+                hr match {
+                  case ZRegister.H =>
+                    val viaDe = xxx(ZRegister.D, ZRegister.E)
+                    if (viaDe.nonEmpty) {
+                      viaDe ++ List(ZLine.ld8(ZRegister.L, ZRegister.E), ZLine.ld8(ZRegister.H, ZRegister.D))
+                    } else {
+                      val viaBc = xxx(ZRegister.B, ZRegister.C)
+                      if (viaBc.nonEmpty) {
+                        viaBc ++ List(ZLine.ld8(ZRegister.L, ZRegister.C), ZLine.ld8(ZRegister.H, ZRegister.B))
+                      } else {
+                        ???
+                      }
+                    }
+                  case ZRegister.B =>
+                    val viaHl = xxx(ZRegister.H, ZRegister.L)
+                    if (viaHl.nonEmpty) {
+                      viaHl ++ List(ZLine.ld8(ZRegister.C, ZRegister.L), ZLine.ld8(ZRegister.B, ZRegister.H))
+                    } else {
+                      val viaDe = xxx(ZRegister.D, ZRegister.E)
+                      if (viaDe.nonEmpty) {
+                        viaDe ++ List(ZLine.ld8(ZRegister.C, ZRegister.E), ZLine.ld8(ZRegister.B, ZRegister.D))
+                      } else {
+                        ???
+                      }
+                    }
+                  case ZRegister.D =>
+                    val viaHl = xxx(ZRegister.H, ZRegister.L)
+                    if (viaHl.nonEmpty) {
+                      viaHl ++ List(ZLine.ld8(ZRegister.E, ZRegister.L), ZLine.ld8(ZRegister.D, ZRegister.H))
+                    } else {
+                      val viaBc = xxx(ZRegister.B, ZRegister.C)
+                      if (viaBc.nonEmpty) {
+                        viaBc ++ List(ZLine.ld8(ZRegister.E, ZRegister.C), ZLine.ld8(ZRegister.D, ZRegister.B))
+                      } else {
+                        ???
+                      }
+                    }
+                }
+              } else Nil
             }
 
             target match {
               case ZExpressionTarget.NOTHING => hi ++ lo
-              case ZExpressionTarget.HL => xxx(ZRegister.H, ZRegister.L)
-              case ZExpressionTarget.DE => xxx(ZRegister.D, ZRegister.E)
-              case ZExpressionTarget.BC => xxx(ZRegister.B, ZRegister.C)
+              case ZExpressionTarget.HL => xxx(ZRegister.H, ZRegister.L, allowRedirect = true)
+              case ZExpressionTarget.DE => xxx(ZRegister.D, ZRegister.E, allowRedirect = true)
+              case ZExpressionTarget.BC => xxx(ZRegister.B, ZRegister.C, allowRedirect = true)
             }
           case f@FunctionCallExpression(name, params) =>
             name match {
