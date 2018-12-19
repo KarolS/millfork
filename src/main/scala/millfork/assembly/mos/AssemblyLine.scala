@@ -622,7 +622,7 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
 
   override def toString: String = {
     val raw = if (opcode == LABEL) {
-      parameter.toString
+      parameter.toString + ':'
     } else if (opcode == BYTE) {
       "    !byte " + parameter.toString
     } else if (addrMode == DoesNotExist) {
