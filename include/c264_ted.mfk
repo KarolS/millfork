@@ -28,7 +28,7 @@ inline void set_ted_cursor(word position) {
 }
 
 inline word get_ted_cursor() {
-    return ted_cursor_hi:position.lo
+    return ted_cursor_hi:ted_cursor_lo
 }
 
 const byte black = 0

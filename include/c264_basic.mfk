@@ -1,18 +1,18 @@
-// Routines from C64 BASIC ROM
+// Routines from C264 BASIC ROM
 
-#if not(CBM_64)
-#warn c64_basic module should be only used on C64-compatible targets
+#if not(CBM_264)
+#warn c264_basic module should be only used on C264-compatible targets
 #endif
 
-import c64_kernal
+import c264_kernal
 import err
 
 // print a 16-bit number on the standard output
-asm void putword_basic(word xa) @$BDCD extern
+asm void putword_basic(word xa) @$A45F extern
 
 alias putword = putword_basic!
 
-asm void __readline_basic() @$A560 extern
+asm void __readline_basic() @$885A extern
 
 pointer readline_basic() {
     __readline_basic()
