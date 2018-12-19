@@ -195,15 +195,18 @@ return [i] (param1, param2) {
 Return dispatch calculates the value of an index, picks the correct branch, 
 assigns some global variables and jumps to another function.
 
-The index has to evaluate to a byte. The functions cannot be `macro` and shouldn't have parameters. 
+The index has to evaluate to a byte or to an enum. The functions cannot be `macro` and shouldn't have parameters. 
 Jumping to a function with parameters gives those parameters undefined values.
 
 The functions are not called, so they don't return to the function the return dispatch statement is in, but to its caller.
 The return values are passed along. If the dispatching function has a non-`void` return type different that the type 
 of the function dispatched to, the return value is undefined. 
 
-If the `default` branch exists, then it is used for every missing index value between other supported values. 
-Optional parameters to `default` specify the maximum, or both the minimum and maximum supported index value.
+If the `default` branch exists, then it is used for every missing index.
+If the index type is an non-empty enum, then the default branch supports all the other values.
+Otherwise, the `default` branch handles only the missing values between other supported values.
+In this case, you can override it with optional parameters to `default`.
+They specify the maximum, or both the minimum and maximum supported index value.
 In the above examples: the first example supports values 0–255, second 1–5, and third 0–20.
 
 If the index has an unsupported value, the behaviour is formally undefined, but in practice the program will simply crash.  

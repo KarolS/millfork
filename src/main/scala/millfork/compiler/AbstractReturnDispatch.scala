@@ -66,6 +66,19 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
     var max = Option.empty[Int]
     var default = Option.empty[(Option[ThingInMemory], List[Expression])]
     stmt.branches.foreach { branch =>
+      branch.label match {
+        case s: StandardReturnDispatchLabel =>
+          for (label <- s.labels) {
+            verifyLabelCompatibility(ctx, indexerType, s, label)
+          }
+        case s@DefaultReturnDispatchLabel(start, end) =>
+          for (label <- start) {
+            verifyLabelCompatibility(ctx, indexerType, s, label)
+          }
+          for (label <- end) {
+            verifyLabelCompatibility(ctx, indexerType, s, label)
+          }
+      }
       val function: String = ctx.env.evalForAsm(branch.function) match {
         case Some(MemoryAddressConstant(f: FunctionInMemory)) =>
           if (f.returnType.name != returnType.name) {
@@ -82,12 +95,21 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
         ctx.log.error("Too many parameters for dispatch branch", branch.params.head.position)
       }
       branch.label match {
-        case DefaultReturnDispatchLabel(start, end) =>
+        case s@DefaultReturnDispatchLabel(start, end) =>
           if (default.isDefined) {
             ctx.log.error(s"Duplicate default dispatch label", branch.position)
           }
-          min = start.map(toInt)
-          max = end.map(toInt)
+          indexerType match {
+            case EnumType(_, Some(count)) =>
+              if (start.isDefined || end.isDefined) {
+                ctx.log.error("Return dispatch over non-empty enum cannot have a different default range", s.position)
+              }
+              min = Some(0)
+              max = Some(count - 1)
+            case _ =>
+              min = start.map(toInt)
+              max = end.map(toInt)
+          }
           default = Some(Some(ctx.env.get[FunctionInMemory](function)) -> params)
         case StandardReturnDispatchLabel(labels) =>
           labels.foreach { label =>
@@ -140,14 +162,31 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
     compileImpl(ctx, stmt, label, actualMin, actualMax, paramArrays, paramMins, map)
   }
 
+  private def verifyLabelCompatibility(ctx: CompilationContext, indexerType: Type, s: ReturnDispatchLabel, label: Expression): Unit = {
+    val labelType = AbstractExpressionCompiler.getExpressionType(ctx, label)
+    val bad = areIncompatible(indexerType, labelType)
+    if (bad) {
+      ctx.log.error(s"Incompatible return dispatch label type: expected `${indexerType.name}`, got `${labelType.name}`", label.position.orElse(s.position))
+    }
+  }
+
+  private def areIncompatible(indexerType: Type, labelType: Type) = {
+    (indexerType, labelType) match {
+      case (EnumType(n1, _), EnumType(n2, _)) => n1 != n2
+      case (_, EnumType(n2, _)) => true
+      case (EnumType(n1, _), _) => true
+      case _ => false
+    }
+  }
+
   def compileImpl(ctx: CompilationContext,
-                           stmt: ReturnDispatchStatement,
-                           label: String,
-                           actualMin: Int,
-                           actualMax: Int,
-                           paramArrays: IndexedSeq[InitializedArray],
-                           paramMins: IndexedSeq[Int],
-                           map: mutable.Map[Int, (Option[ThingInMemory], List[Expression])]): List[T]
+                  stmt: ReturnDispatchStatement,
+                  label: String,
+                  actualMin: Int,
+                  actualMax: Int,
+                  paramArrays: IndexedSeq[InitializedArray],
+                  paramMins: IndexedSeq[Int],
+                  map: mutable.Map[Int, (Option[ThingInMemory], List[Expression])]): List[T]
 
   protected def zeroOr(function: Option[ThingInMemory])(F: ThingInMemory => Constant): Expression =
     function.fold[Expression](LiteralExpression(0, 1))(F andThen ConstantArrayElementExpression)
