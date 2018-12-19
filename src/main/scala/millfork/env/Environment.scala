@@ -694,6 +694,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addThing(ConstantThing(stmt.name + ".count", NumericConstant(size, 1), get[Type]("byte")), stmt.position)
       Some(size)
     } else None
+    if (count.exists(_ > 256)) {
+      log.error(s"Enum `${stmt.name} has more than 256 constants.", stmt.position)
+    }
     val t = EnumType(stmt.name, count)
     addThing(t, stmt.position)
     var value = Constant.Zero
