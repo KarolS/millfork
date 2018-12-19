@@ -648,11 +648,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
   }
 
   def canBeInlinedToAccumulator(features: FeaturesForAccumulator, start: Boolean, synced: Boolean, candidate: String, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
-    def fail(i: Int): Option[Nothing] = {
-      //println(s"candidate: $candidate features: $features, fail: $i")
-      //lines.take(3).foreach(println(_))
-      None
-    }
     lines match {
 
       case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, _), _) :: xs
@@ -668,10 +663,10 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
             if (isNice) {
               canBeInlinedToAccumulator(features, start = start, synced = synced, candidate, tail)
             } else {
-              fail(101)
+              None
             }
           } else {
-            fail(100)
+            None
           }
         }
 
@@ -684,78 +679,78 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
             if (isNice) {
               canBeInlinedToAccumulator(features, start = start, synced = synced, candidate, tail)
             } else {
-              fail(103)
+              None
             }
           } else {
-            fail(102)
+            None
           }
         }
 
       case (AssemblyLine0(LABEL, _, _), _) :: xs =>
-        fail(0)
+        None
 
       case (AssemblyLine0(op, _, _),_) :: xs if opcodesThatAlwaysPrecludeAAllocation(op) =>
-        fail(1)
+        None
 
       case (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if th.name == candidate && opcodesThatCannotBeUsedWithAccumulatorAsParameter(op) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
-        fail(2)
+        None
 
       case (AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)), _) :: xs
         if th.name == candidate =>
         // if an address of a variable is used, then that variable cannot be assigned to a register
-        fail(3)
+        None
 
       case (AssemblyLine0(_, AbsoluteX | AbsoluteY | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | Indirect | AbsoluteIndexedX, MemoryAddressConstant(th)), _) :: xs
         if th.name == candidate =>
         // if a variable is used as an array or a pointer, then it cannot be assigned to a register
-        fail(4)
+        None
 
       case (AssemblyLine0(SEP | REP, Immediate, NumericConstant(nn, _)), _) :: xs =>
         if ((nn & 0x20) == 0) canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
-        else fail(5)
+        else None
 
-      case (AssemblyLine0(SEP | REP, _, _), _) :: xs => fail(6)
+      case (AssemblyLine0(SEP | REP, _, _), _) :: xs => None
 
       case (AssemblyLine(STA, _, MemoryAddressConstant(th), elidability, _), _) :: xs if th.name == candidate =>
         if (synced && elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
-          fail(7)
+          None
         }
 
       case (AssemblyLine0(DCP, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs if th.name == candidate =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
-          fail(8)
+          None
         }
 
       case (AssemblyLine(STA | SAX, _, MemoryAddressConstant(th), elidability, _), _) :: xs if th.name != candidate =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
-          fail(9)
+          None
         }
 
       case (AssemblyLine0(STA | SAX, _, NumericConstant(_, _)), _) :: xs =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
-          fail(10)
+          None
         }
 
       case (AssemblyLine0(SAX, _, MemoryAddressConstant(th)), _) :: xs if th.name == candidate =>
         // if XAA had stable magic $FF, then SAXv/LDAv would correspond to XAA#ff
         // but there's no point in even thinking about that
-        fail(11)
+        None
 
       case (AssemblyLine0(TAX | TAY, _, _),_) :: xs =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
-          fail(12)
+          None
         }
 
       case (AssemblyLine0(LDA | TYA | TXA | TZA | CLA, _, _), _) :: xs if isReturn(xs) =>
@@ -774,14 +769,14 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if opcodesCommutative(op) && synced =>
         if (th.name == candidate) {
           if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
-          else fail(13)
+          else None
         } else canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDA, _, _, elidability, _), _) :: (AssemblyLine0(CLC, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidability2, _), _) :: xs
         if opcodesCommutative(op) && synced =>
         if (th.name == candidate) {
           if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
-          else fail(14)
+          else None
         } else canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDX | LDY | LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
@@ -790,19 +785,19 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if (elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         } else {
-          fail(15)
+          None
         }
 
       case (AssemblyLine0(LDA | LAX, _, _),_) :: xs =>
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
-        fail(16)
+        None
 
       case (AssemblyLine(ASL | LSR | ROR | ROL, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
         if th.name == candidate =>
         if (elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
-          fail(17)
+          None
         }
 
       case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
@@ -810,7 +805,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if (features.cmos && elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
-          fail(18)
+          None
         }
 
       case (AssemblyLine(TXA | TYA, _, _, elidability, _), imp) :: xs =>
@@ -818,12 +813,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           // TYA/TXA has to be converted to CPY#0/CPX#0
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = -1, cycles = 0))
         } else {
-          fail(19)
+          None
         }
 
       case (AssemblyLine0(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th)), _) :: xs =>
         if (features.safeFunctions(th.name)) canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
-        else fail(20)
+        else None
 
       case (x, _) :: xs => canBeInlinedToAccumulator(features, start = false, synced = synced && OpcodeClasses.AllLinear(x.opcode), candidate, xs)
 
