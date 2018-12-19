@@ -26,6 +26,49 @@ inline asm void bell() {
     ? ret
 }
 
+array __readline_out[45]
+const pointer readline_out = __readline_out.addr
+
+pointer readline() {
+    asm {
+        ld a, 1
+        call $1601
+        ld hl, $5c71
+        set 7, (hl)
+        set 5, (hl)
+        call $16b0
+        ld bc, 1
+        rst $30
+        ld (hl), 13
+        ld ($5c5b), hl
+        ld hl, __readline_exit
+        push hl
+        ld ($5c2d), sp
+        call $0f2c
+        pop hl
+        ld hl, ($5c61)
+        ld de, __readline_out.addr
+        ld b, __readline_out.length - 1
+__readline_copy:
+        ld a, (hl)
+        cp 13
+        jr z, __readline_exit
+        ld (de), a
+        inc hl
+        inc de
+        djnz __readline_copy
+__readline_exit:
+        ld a, 0
+        ld (de), a
+        ld a,2
+        call $1601
+        call $16b0
+    }
+    putstrz(__readline_out)
+    new_line()
+    return __readline_out.addr
+}
+
 const byte black = 0
 const byte blue = 1
 const byte red = 2
