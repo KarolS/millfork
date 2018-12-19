@@ -37,7 +37,13 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
   case class FeaturesForAccumulator(
                      cmos: Boolean,
                      safeFunctions: Set[String],
-                     log: Logger)
+                     labelsUsedOnce: Set[String],
+                     labelsSyncedAt: Set[String],
+                     log: Logger) {
+    override def toString: String = s"{cmos=$cmos, safeFunctions=[${safeFunctions.mkString(",")}], labelsSyncedAt=[${safeFunctions.mkString(",")}]}"
+
+    def addSafeLabel(label: String): FeaturesForAccumulator = copy(labelsSyncedAt = this.labelsSyncedAt + label)
+  }
 
   // If any of these opcodes is present within a method,
   // then it's too hard to assign any variable to a register.
@@ -74,7 +80,16 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     AHX, SHX, SHY, LAS, TAS,
     HuSAX, SAY,
     TCD, TDC, TSC, TCS, XBA,
-    LABEL, BYTE,
+    BYTE,
+  )
+
+  private val opcodesThatNeverPrecludeAAllocation = Set(
+    INX, INY, DEX, DEY,
+    CLC, SEC, CLV, SED, CLD, CLI, SEI, NOP, BRK,
+    INX_W, DEX_W, INY_W, DEY_W,
+    PHX, PHY, PHZ, PHX_W, PHY_W,
+    PLX, PLY, PLZ, PLX_W, PLY_W,
+    TXY, TYX, TXS, TSX,
   )
 
   // If any of these opcodes is used on a variable
@@ -169,9 +184,17 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       identityArray = identityArray,
       log = log
     )
+
+    val labelsUsedOnce: Set[String] = code.flatMap {
+      case AssemblyLine0(op, _, MemoryAddressConstant(Label(l))) if op != Opcode.LABEL => Some(l)
+      case _ => None
+    }.groupBy(identity).filter(_._2.size == 1).keySet
+
     val featuresForAcc = FeaturesForAccumulator(
       cmos = options.flag(CompilationFlag.EmitCmosOpcodes),
       safeFunctions = optimizationContext.niceFunctionProperties.filter(x => x._1 == MosNiceFunctionProperty.DoesntChangeA).map(_._2),
+      labelsUsedOnce = labelsUsedOnce,
+      labelsSyncedAt = Set(),
       log = log
     )
 
@@ -324,7 +347,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
               log.debug(s"Inlining $v to register A")
               val oldCode = code.zip(importances).slice(range.start, range.end)
               val newCode = inlineVars(None, None, None, Some(v), featuresForIndices, oldCode).result
-              reportOptimizedBlock(oldCode, newCode)
+              reportOptimizedBlock(code.zip(importances), newCode)
               output ++= newCode
               i = range.end
               if (removeVariablesForReal && contains(range, variablesWithLifetimes(v))) {
@@ -598,76 +621,145 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     }
   }
 
+  private def isReturn(code: List[(AssemblyLine, CpuImportance)], allowLdx: Boolean = true): Boolean = {
+    import Opcode._
+    code match {
+      case (AssemblyLine0(LDX, Immediate, _), _) :: xs => allowLdx && isReturn(xs, allowLdx = false)
+      case (AssemblyLine0(RTS | RTI | RTL, _, _), _) :: _ => true
+      case (AssemblyLine0(op, _, _), _) :: xs if OpcodeClasses.NoopDiscardsFlags(op) => isReturn(xs, allowLdx = false)
+      case _ => false
+    }
+  }
+
+  def isAllVeryNiceForA(label: String, code: List[(AssemblyLine, CpuImportance)]): (Boolean, List[(AssemblyLine, CpuImportance)]) = {
+    code match {
+      case (AssemblyLine0(op, _, MemoryAddressConstant(Label(l))), _) :: xs if l == label => (true, xs)
+      case (AssemblyLine0(op, _, _), _) :: xs if opcodesThatNeverPrecludeAAllocation(op) => isAllVeryNiceForA(label, xs)
+      case _ => (false, Nil)
+    }
+  }
+
+  def syncsSoon(candidate: String, code: List[(AssemblyLine, CpuImportance)]): Boolean = {
+    code match {
+      case (AssemblyLine0(op, _, _), _) :: xs if opcodesThatNeverPrecludeAAllocation(op) => syncsSoon(candidate, xs)
+      case (AssemblyLine0(LDA, ZeroPage | Absolute | LongAbsolute, MemoryAddressConstant(th)), _) :: xs if th.name == candidate => true
+      case _ => false
+    }
+  }
+
   def canBeInlinedToAccumulator(features: FeaturesForAccumulator, start: Boolean, synced: Boolean, candidate: String, lines: List[(AssemblyLine, CpuImportance)]): Option[CyclesAndBytes] = {
+    def fail(i: Int): Option[Nothing] = {
+      //println(s"candidate: $candidate features: $features, fail: $i")
+      //lines.take(3).foreach(println(_))
+      None
+    }
     lines match {
 
       case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, _), _) :: xs
         if th.name == candidate && start || synced =>
         canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
 
+      case (AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(l))), _) :: xs =>
+        if ((synced || features.labelsSyncedAt(l)) && syncsSoon(candidate, xs)) {
+          canBeInlinedToAccumulator(features, start = start, synced = synced, candidate, xs)
+        } else {
+          if (features.labelsUsedOnce(l)) {
+            val (isNice, tail) = isAllVeryNiceForA(l, xs)
+            if (isNice) {
+              canBeInlinedToAccumulator(features, start = start, synced = synced, candidate, tail)
+            } else {
+              fail(101)
+            }
+          } else {
+            fail(100)
+          }
+        }
+
+      case (AssemblyLine0(op, Absolute | Relative | LongRelative, MemoryAddressConstant(Label(l))), _) :: xs if OpcodeClasses.AllDirectJumps(op) =>
+        if (synced) {
+          canBeInlinedToAccumulator(features.addSafeLabel(l), start = start, synced = synced, candidate, xs)
+        } else {
+          if (features.labelsUsedOnce(l)) {
+            val (isNice, tail) = isAllVeryNiceForA(l, xs)
+            if (isNice) {
+              canBeInlinedToAccumulator(features, start = start, synced = synced, candidate, tail)
+            } else {
+              fail(103)
+            }
+          } else {
+            fail(102)
+          }
+        }
+
+      case (AssemblyLine0(LABEL, _, _), _) :: xs =>
+        fail(0)
+
       case (AssemblyLine0(op, _, _),_) :: xs if opcodesThatAlwaysPrecludeAAllocation(op) =>
-        None
+        fail(1)
 
       case (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if th.name == candidate && opcodesThatCannotBeUsedWithAccumulatorAsParameter(op) =>
         // if a variable is used by some opcodes, then it cannot be assigned to a register
-        None
+        fail(2)
 
       case (AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)), _) :: xs
         if th.name == candidate =>
         // if an address of a variable is used, then that variable cannot be assigned to a register
-        None
+        fail(3)
 
       case (AssemblyLine0(_, AbsoluteX | AbsoluteY | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | Indirect | AbsoluteIndexedX, MemoryAddressConstant(th)), _) :: xs
         if th.name == candidate =>
         // if a variable is used as an array or a pointer, then it cannot be assigned to a register
-        None
+        fail(4)
 
       case (AssemblyLine0(SEP | REP, Immediate, NumericConstant(nn, _)), _) :: xs =>
         if ((nn & 0x20) == 0) canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
-        else None
+        else fail(5)
 
-      case (AssemblyLine0(SEP | REP, _, _), _) :: xs => None
+      case (AssemblyLine0(SEP | REP, _, _), _) :: xs => fail(6)
 
       case (AssemblyLine(STA, _, MemoryAddressConstant(th), elidability, _), _) :: xs if th.name == candidate =>
         if (synced && elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
         } else {
-          None
+          fail(7)
         }
 
       case (AssemblyLine0(DCP, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs if th.name == candidate =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
-          None
+          fail(8)
         }
 
       case (AssemblyLine(STA | SAX, _, MemoryAddressConstant(th), elidability, _), _) :: xs if th.name != candidate =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
-          None
+          fail(9)
         }
 
       case (AssemblyLine0(STA | SAX, _, NumericConstant(_, _)), _) :: xs =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
-          None
+          fail(10)
         }
 
       case (AssemblyLine0(SAX, _, MemoryAddressConstant(th)), _) :: xs if th.name == candidate =>
         // if XAA had stable magic $FF, then SAXv/LDAv would correspond to XAA#ff
         // but there's no point in even thinking about that
-        None
+        fail(11)
 
       case (AssemblyLine0(TAX | TAY, _, _),_) :: xs =>
         if (synced) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs)
         } else {
-          None
+          fail(12)
         }
+
+      case (AssemblyLine0(LDA | TYA | TXA | TZA | CLA, _, _), _) :: xs if isReturn(xs) =>
+        canBeInlinedToAccumulator(features, start = start, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, _), imp) :: xs
         if th.name == candidate =>
@@ -679,38 +771,38 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         }
 
       case (AssemblyLine(LDA, _, _, elidability, _), _) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidability2, _), _) :: xs
-        if opcodesCommutative(op) =>
+        if opcodesCommutative(op) && synced =>
         if (th.name == candidate) {
           if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
-          else None
+          else fail(13)
         } else canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDA, _, _, elidability, _), _) :: (AssemblyLine0(CLC, _, _),_) :: (AssemblyLine(op, Absolute | ZeroPage, MemoryAddressConstant(th), elidability2, _), _) :: xs
-        if opcodesCommutative(op) =>
+        if opcodesCommutative(op) && synced =>
         if (th.name == candidate) {
           if (elidability == Elidability.Elidable && elidability2 == Elidability.Elidable) canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 3, cycles = 4))
-          else None
+          else fail(14)
         } else canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
 
       case (AssemblyLine(LDX | LDY | LAX, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
-        if th.name == candidate =>
+        if th.name == candidate && synced =>
         // converting a load into a transfer saves 2 bytes
         if (elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = true, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
         } else {
-          None
+          fail(15)
         }
 
       case (AssemblyLine0(LDA | LAX, _, _),_) :: xs =>
         // if a register is populated with something else than a variable, then no variable cannot be assigned to that register
-        None
+        fail(16)
 
       case (AssemblyLine(ASL | LSR | ROR | ROL, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
         if th.name == candidate =>
         if (elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
-          None
+          fail(17)
         }
 
       case (AssemblyLine(INC | DEC, Absolute | ZeroPage, MemoryAddressConstant(th), elidability, _), _) :: xs
@@ -718,7 +810,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if (features.cmos && elidability == Elidability.Elidable) {
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 4))
         } else {
-          None
+          fail(18)
         }
 
       case (AssemblyLine(TXA | TYA, _, _, elidability, _), imp) :: xs =>
@@ -726,12 +818,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           // TYA/TXA has to be converted to CPY#0/CPX#0
           canBeInlinedToAccumulator(features, start = false, synced = false, candidate, xs).map(_ + CyclesAndBytes(bytes = -1, cycles = 0))
         } else {
-          None
+          fail(19)
         }
 
       case (AssemblyLine0(JSR, Absolute | LongAbsolute, MemoryAddressConstant(th)), _) :: xs =>
         if (features.safeFunctions(th.name)) canBeInlinedToAccumulator(features, start = false, synced = synced, candidate, xs)
-        else None
+        else fail(20)
 
       case (x, _) :: xs => canBeInlinedToAccumulator(features, start = false, synced = synced && OpcodeClasses.AllLinear(x.opcode), candidate, xs)
 
@@ -803,6 +895,9 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       case (l@AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesIdentityTable(op) && th.name == vy =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l.copy(addrMode = AbsoluteY, parameter = features.identityArray) ::  _)
+
+      case (l@AssemblyLine0(LDA | TYA | TXA | TZA | CLA, _, _), _) :: xs if va != "" && isReturn(xs) =>
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l ::  _)
 
       case (l@AssemblyLine0(LDA, _, _), _) ::  (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
         if opcodesCommutative(op) && th.name == va =>
