@@ -1,0 +1,11 @@
+
+#if not(ARMSTRAD_CPC)
+#warn cpc module should be only used on Armstrad CPC-compatible targets
+#endif
+
+asm void putchar(byte a) @$BB5A extern
+
+inline void new_line() {
+    putchar(13)
+    putchar(10)
+}

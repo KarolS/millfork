@@ -2,7 +2,7 @@
 
 ## Cross-platform examples
 
-* [Hello world](hello_world/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro/PC-88) – simple text output
+* [Hello world](hello_world/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro/PC-88/Armstrad CPC) – simple text output
 
 * [Text encodings](c64/text_encodings.mfk) (C64/ZX Spectrum) – examples of text encoding features
 

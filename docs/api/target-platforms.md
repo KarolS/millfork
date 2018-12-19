@@ -3,7 +3,7 @@
 # Target platforms
 
 Currently, Millfork supports creating disk- or tape-based programs
-for Commodore, Apple, BBC and Atari 8-bit computers, NEC PC-88, ZX Spectrum 48k, CP/M,
+for Commodore, Apple, BBC and Atari 8-bit computers, NEC PC-88, ZX Spectrum 48k, Armstrad CPC, CP/M,
 and cartridge-based programs for Commodore 64, VIC-20, Famicom/NES and Atari 2600,
 but it may be expanded to support other 6502-based and Z80-based platforms in the future.
 
@@ -13,7 +13,8 @@ To add a custom platform yourself, see [the custom platform adding guide](./cust
 
 The following platforms are currently supported:
 
-* `c64` – Commodore 64
+* `c64` – Commodore 64.
+The compiler emits PRG files, not disk or tape images.
 
 * `c64_crt8k` – Commodore 64, 8K ROM cartridge
 
@@ -43,7 +44,8 @@ Read [the LUnix programming guide](./lunix-programming-guide.md) for more info.
 
 * `pet` – Commodore PET
 
-* `nes_small` – a tiny 32K PRGROM + 8K CHRROM Famicom/NES program, using iNES mapper 0 (NROM)
+* `nes_small` – a tiny 32K PRGROM + 8K CHRROM Famicom/NES program, using iNES mapper 0 (NROM).
+The compiler emits NES files.
 
 * `nes_mcc4` – a 128K PRGROM + 128K CHRROM + extra 8KRAM Famicom/NES program, using iNES mapper 10 (MMC4)  
 For more complex programs, you need to create your own "platform" definition.  
@@ -51,9 +53,10 @@ Read [the NES programming guide](./famicom-programming-guide.md) for more info.
 
 * `vcs` – Atari VCS (also known as Atari 2600), 4K cartridge (experimental)
 
-* `a8` – Atari 8-bit computers
+* `a8` – Atari 8-bit computers.
+The compiler emits XEX files, not disk or tape images.
 
-* `bbcmicro` – BBC Micro model B (32k RAM)
+* `bbcmicro` – BBC Micro model B (32k RAM).
 The compiler only emits raw binaries, not disk images.
 Read [the BBC Micro programming guide](./bbcmicro-programming-guide.md) for more info.
 
@@ -61,13 +64,20 @@ Read [the BBC Micro programming guide](./bbcmicro-programming-guide.md) for more
 The compiler only emits raw binaries, not disk images.
 Read [the Apple 2 programming guide](./apple2-programming-guide.md) for more info.
 
-* `pc88` – NEC PC-88
+* `pc88` – NEC PC-88.
+The compiler emits bootable disk images.
 
-* `zxspectrum` – Sinclair ZX Spectrum 48k
+* `cpc464` – Armstrad CPC 464.
+The compiler only emits raw binaries, not disk images.
+Read [the Armstrad CPC programming guide](./cpc-programming-guide.md) for more info.
+
+* `zxspectrum` – Sinclair ZX Spectrum 48k.
+The compiler emits tape images.
 
 * `zxspectrum_8080` – Sinclair ZX Spectrum 48k, using only Intel 8080 instructions
 
-* `cpm` – CP/M on Intel 8080
+* `cpm` – CP/M on Intel 8080.
+The compiler emits COM files.
 
 * `cpm_z80` – CP/M on Z80
 
