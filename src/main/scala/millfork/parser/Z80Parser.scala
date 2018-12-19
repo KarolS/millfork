@@ -138,6 +138,12 @@ case class Z80Parser(filename: String,
     case (reg, addr) => (op, OneRegister(reg), None, addr.getOrElse(zero))
   }
 
+  def one8Or16Register(op8: ZOpcode.Value, op16: ZOpcode.Value): P[(ZOpcode.Value, OneRegister, Option[Expression], Expression)] = param(allowAbsolute = false).map{
+    case (reg@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), Some(e)) => (op8, OneRegister(reg), Some(e), zero)
+    case (reg@(ZRegister.HL | ZRegister.DE | ZRegister.AF | ZRegister.SP | ZRegister.BC | ZRegister.IX | ZRegister.IY), addr) => (op16, OneRegister(reg), None, addr.getOrElse(zero))
+    case (reg, addr) => (op8, OneRegister(reg), None, addr.getOrElse(zero))
+  }
+
   def one16Register(op: ZOpcode.Value): P[(ZOpcode.Value, OneRegister, Option[Expression], Expression)] = param(allowAbsolute = false).map{
     case (reg@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), Some(e)) => (op, OneRegister(reg), Some(e), zero)
     case (ZRegister.MEM_ABS_8, addr) => (op, OneRegister(ZRegister.MEM_ABS_16), None, addr.getOrElse(zero))
@@ -250,8 +256,8 @@ case class Z80Parser(filename: String,
         case "OR" => one8Register(OR)
         case "XOR" => one8Register(XOR)
         case "SUB" => one8Register(SUB)
-        case "DEC" => one8Register(DEC)
-        case "INC" => one8Register(INC)
+        case "DEC" => one8Or16Register(DEC, INC_16)
+        case "INC" => one8Or16Register(INC, INC_16)
 
         case "RLA" => imm(RLA)
         case "RRA" => imm(RRA)

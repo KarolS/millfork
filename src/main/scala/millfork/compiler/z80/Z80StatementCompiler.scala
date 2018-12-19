@@ -168,7 +168,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
             if (Seq(JP, JR, DJNZ, LABEL).contains(op)) {
               MemoryAddressConstant(Label(name))
             } else {
-              env.evalForAsm(expression).getOrElse(env.get[ThingInMemory](name, expression.position).toAddress)
+              env.evalForAsm(expression).orElse(env.maybeGet[ThingInMemory](name).map(_.toAddress)).getOrElse(MemoryAddressConstant(Label(name)))
             }
           case _ =>
             env.evalForAsm(expression).getOrElse(env.errorConstant(s"`$expression` is not a constant", expression.position))
