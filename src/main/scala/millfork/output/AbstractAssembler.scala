@@ -240,7 +240,16 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
     }
 
-    env.allPreallocatables.foreach {
+    val unusedRuntimeObjects = Set("__mul_u8u8u8", "__constant8", "identity$", "__mul_u16u8u16").filterNot(name =>{
+      compiledFunctions.exists{
+        case (fname, compiled) => fname != name && (compiled match {
+          case f:NormalCompiledFunction[_] => f.code.exists(_.refersTo(name))
+          case _ => false
+        })
+      }
+    })
+
+    env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
       case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, _) =>
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)
@@ -289,7 +298,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     var justAfterCode = platform.codeAllocators.mapValues(a => a.startAt)
 
     val sortedCompilerFunctions = compiledFunctions.toList.sortBy { case (name, cf) => if (name == "main") 0 -> "" else cf.orderKey }
-    sortedCompilerFunctions.foreach {
+    sortedCompilerFunctions.filterNot(o => unusedRuntimeObjects(o._1)).foreach {
       case (_, NormalCompiledFunction(_, _, true, _)) =>
         // already done before
       case (name, NormalCompiledFunction(bank, code, false, alignment)) =>
@@ -344,7 +353,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       assembly.append("    " + bytePseudoopcode + " 2 ;; end of LUnix relocatable segment")
       justAfterCode += "default" -> (index + 1)
     }
-    env.allPreallocatables.foreach {
+    env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
       case thing@InitializedArray(name, None, items, _, _, _, alignment) =>
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)

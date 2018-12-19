@@ -95,6 +95,8 @@ sealed trait Constant {
 
   def isRelatedTo(v: Thing): Boolean
 
+  def refersTo(name: String): Boolean
+
   def fitsInto(typ: Type): Boolean = true // TODO
 }
 
@@ -109,6 +111,8 @@ case class AssertByte(c: Constant) extends Constant {
 
   override def isRelatedTo(v: Thing): Boolean = c.isRelatedTo(v)
 
+  override def refersTo(name: String): Boolean = c.refersTo(name)
+
   override def quickSimplify: Constant = AssertByte(c.quickSimplify)
 
   override def fitsInto(typ: Type): Boolean = true
@@ -121,6 +125,8 @@ case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant 
   override def toString: String = name
 
   override def toIntelString: String = name
+
+  override def refersTo(name: String): Boolean = name == this.name
 }
 
 case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
@@ -161,6 +167,8 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   } else value.toString
 
   override def isRelatedTo(v: Thing): Boolean = false
+
+  override def refersTo(name: String): Boolean = false
 
   override def fitsInto(typ: Type): Boolean = {
     if (typ.isSigned) {
@@ -207,6 +215,8 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
   override def toIntelString: String = thing.name
 
   override def isRelatedTo(v: Thing): Boolean = thing.name == v.name
+
+  override def refersTo(name: String): Boolean = name == thing.name
 }
 
 case class SubbyteConstant(base: Constant, index: Int) extends Constant {
@@ -241,6 +251,8 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
     }
 
   override def isRelatedTo(v: Thing): Boolean = base.isRelatedTo(v)
+
+  override def refersTo(name: String): Boolean = base.refersTo(name)
 }
 
 object MathOperator extends Enumeration {
@@ -483,4 +495,6 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
   }
 
   override def isRelatedTo(v: Thing): Boolean = lhs.isRelatedTo(v) || rhs.isRelatedTo(v)
+
+  override def refersTo(name: String): Boolean = lhs.refersTo(name) || rhs.refersTo(name)
 }

@@ -527,6 +527,8 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
   @inline
   def notFixed: Boolean = elidability != Elidability.Fixed
 
+  def refersTo(name: String): Boolean = parameter.refersTo(name)
+
   import AddrMode._
   import OpcodeClasses._
   import State._

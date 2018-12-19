@@ -7,6 +7,8 @@ import millfork.node.Position
   * @author Karol Stasiak
   */
 trait AbstractCode {
+  def refersTo(name: String): Boolean
+
   def sizeInBytes: Int
 
   def isPrintable: Boolean

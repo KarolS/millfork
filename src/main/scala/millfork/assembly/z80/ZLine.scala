@@ -234,6 +234,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
   @inline
   def notFixed: Boolean = elidability != Elidability.Fixed
 
+  def refersTo(name: String): Boolean = parameter.refersTo(name)
+
   override def sizeInBytes: Int = {
     import ZOpcode._
     import ZRegister._
