@@ -1,3 +1,4 @@
+#pragma zilog_syntax
 
 #if not(NEC_PC_88)
 #warn pc88 module should be only used on PC-88 targets
@@ -8,4 +9,11 @@ asm void putchar(byte a) @$3e0d extern
 inline void new_line() {
     putchar(13)
     putchar(10)
+}
+
+asm pointer readline() {
+    call $5f92
+    // TODO: if carry set, then STOP was pressed; should we care?
+    ? inc hl
+    ? ret
 }

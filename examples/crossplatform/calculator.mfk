@@ -4,7 +4,7 @@ import stdio
     import c64_basic
 #elseif CBM_264
     import c264_basic
-#elseif ZX_SPECTRUM
+#elseif ZX_SPECTRUM || NEC_PC_88
     // no imports needed
 #else
     #error Unsupported platform

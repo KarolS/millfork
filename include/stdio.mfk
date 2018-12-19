@@ -16,6 +16,13 @@ void putstr(pointer str, byte len) {
         index += 1
     }
 }
+#endif
+
+#if NEC_PC_88
+asm void putstrz(pointer hl) @$5550 extern
+#endif
+
+#if not(ZX_SPECTRUM) && not(NEC_PC_88)
 void putstrz(pointer str) {
     byte index
     index = 0

@@ -8,7 +8,7 @@
 
 * [Echo](crossplatform/echo.mfk) (C64/C16/ZX Spectrum)– simple text input and output
 
-* [Calculator](crossplatform/calculator.mfk) (C64/C16/ZX Spectrum) – simple numeric input and output
+* [Calculator](crossplatform/calculator.mfk) (C64/C16/ZX Spectrum/PC-88) – simple numeric input and output
 
 * [Bell](crossplatform/bell.mfk) (Apple II/ZX Spectrum) – a program that goes \*ding!\*
 
