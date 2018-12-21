@@ -499,7 +499,7 @@ object MfParser {
 
   val identifier: P[String] = P((letter ~ lettersOrDigits).map { case (a, b) => a + b }).opaque("<identifier>")
 
-  val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').! ~ "\"").map(_.toList)
+  val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').?.! ~ "\"").map(_.toList)
 
   def size(value: Long, wordLiteral: Boolean, farwordLiteral: Boolean, longLiteral: Boolean): Int = {
     val w = value > 255 || value < -0x80 || wordLiteral
