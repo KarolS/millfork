@@ -30,6 +30,7 @@ object Node {
 sealed trait Expression extends Node {
   def replaceVariable(variable: String, actualParam: Expression): Expression
   def containsVariable(variable: String): Boolean
+  def getPointies: Seq[String]
   def isPure: Boolean
   def getAllIdentifiers: Set[String]
 }
@@ -37,6 +38,7 @@ sealed trait Expression extends Node {
 case class ConstantArrayElementExpression(constant: Constant) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
+  override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
 }
@@ -44,6 +46,7 @@ case class ConstantArrayElementExpression(constant: Constant) extends Expression
 case class LiteralExpression(value: Long, requiredSize: Int) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
+  override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
 }
@@ -51,6 +54,7 @@ case class LiteralExpression(value: Long, requiredSize: Int) extends Expression 
 case class TextLiteralExpression(characters: List[Expression]) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
+  override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
 }
@@ -58,6 +62,7 @@ case class TextLiteralExpression(characters: List[Expression]) extends Expressio
 case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
+  override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
 }
@@ -65,6 +70,7 @@ case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expre
 case class BooleanLiteralExpression(value: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
+  override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
 }
@@ -74,6 +80,7 @@ sealed trait LhsExpression extends Expression
 case object BlackHoleExpression extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): LhsExpression = this
   override def containsVariable(variable: String): Boolean = false
+  override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
 }
@@ -84,6 +91,7 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
       hi.replaceVariable(variable, actualParam),
       lo.replaceVariable(variable, actualParam)).pos(position)
   override def containsVariable(variable: String): Boolean = hi.containsVariable(variable) || lo.containsVariable(variable)
+  override def getPointies: Seq[String] = hi.getPointies ++ lo.getPointies
   override def isPure: Boolean = hi.isPure && lo.isPure
   override def getAllIdentifiers: Set[String] = hi.getAllIdentifiers ++ lo.getAllIdentifiers
 }
@@ -92,6 +100,7 @@ case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Bool
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     SumExpression(expressions.map { case (n, e) => n -> e.replaceVariable(variable, actualParam) }, decimal).pos(position)
   override def containsVariable(variable: String): Boolean = expressions.exists(_._2.containsVariable(variable))
+  override def getPointies: Seq[String] = expressions.flatMap(_._2.getPointies)
   override def isPure: Boolean = expressions.forall(_._2.isPure)
   override def getAllIdentifiers: Set[String] = expressions.map(_._2.getAllIdentifiers).fold(Set[String]())(_ ++ _)
 }
@@ -102,6 +111,7 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
       _.replaceVariable(variable, actualParam)
     }).pos(position)
   override def containsVariable(variable: String): Boolean = expressions.exists(_.containsVariable(variable))
+  override def getPointies: Seq[String] = expressions.flatMap(_.getPointies)
   override def isPure: Boolean = false // TODO
   override def getAllIdentifiers: Set[String] = expressions.map(_.getAllIdentifiers).fold(Set[String]())(_ ++ _) + functionName
 }
@@ -110,6 +120,7 @@ case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends E
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte).pos(position)
   override def containsVariable(variable: String): Boolean = expression.containsVariable(variable)
+  override def getPointies: Seq[String] = expression.getPointies
   override def isPure: Boolean = expression.isPure
   override def getAllIdentifiers: Set[String] = expression.getAllIdentifiers
 }
@@ -170,6 +181,7 @@ case class VariableExpression(name: String) extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     if (name == variable) actualParam else this
   override def containsVariable(variable: String): Boolean = name == variable
+  override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set(name)
 }
@@ -184,12 +196,14 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
       }
     } else IndexedExpression(name, index.replaceVariable(variable, actualParam)).pos(position)
   override def containsVariable(variable: String): Boolean = name == variable || index.containsVariable(variable)
+  override def getPointies: Seq[String] = Seq(name)
   override def isPure: Boolean = index.isPure
   override def getAllIdentifiers: Set[String] = index.getAllIdentifiers + name
 }
 
 sealed trait Statement extends Node {
   def getAllExpressions: List[Expression]
+  def getAllPointies: Seq[String] = getAllExpressions.flatMap(_.getPointies)
 }
 
 sealed trait DeclarationStatement extends Statement {
@@ -357,6 +371,12 @@ case class Assignment(destination: LhsExpression, source: Expression) extends Ex
 
 case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, expression: Expression, elidability: Elidability.Value) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
+  override def getAllPointies: Seq[String] = addrMode match {
+    case AddrMode.IndexedY | AddrMode.IndexedX | AddrMode.LongIndexedY | AddrMode.IndexedZ | AddrMode.LongIndexedZ |
+         AddrMode.ZeroPage | AddrMode.ZeroPageX | AddrMode.ZeroPageY =>
+      expression.getAllIdentifiers.toSeq.map(_.takeWhile(_ != '.'))
+    case _ => Seq.empty
+  }
 }
 
 case class Z80AssemblyStatement(opcode: ZOpcode.Value, registers: ZRegisters, offsetExpression: Option[Expression], expression: Expression, elidability: Elidability.Value) extends ExecutableStatement {

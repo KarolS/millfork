@@ -27,12 +27,13 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     // TODO
   }
 
-  def callingContext(ctx: CompilationContext, v: MemoryVariable): CompilationContext = {
+  def callingContext(ctx: CompilationContext, callee: String, v: MemoryVariable): CompilationContext = {
     val result = new Environment(Some(ctx.env), "", ctx.options.platform.cpuFamily, ctx.jobContext)
+    val isPointy = ctx.env.isKnownPointy(callee, v.name.stripPrefix(callee + '$'))
     result.registerVariable(VariableDeclarationStatement(
       v.name, v.typ.name,
       stack = false, global = false, constant = false, volatile = false, register = false,
-      initialValue = None, address = None, bank = v.declaredBank, alignment = None), ctx.options)
+      initialValue = None, address = None, bank = v.declaredBank, alignment = None), ctx.options, isPointy = isPointy)
     ctx.copy(env = result)
   }
 

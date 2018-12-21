@@ -210,8 +210,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   private def addThing(t: Thing, position: Option[Position]): Unit = {
     if (assertNotDefined(t.name, position)) {
-    things(t.name.stripPrefix(prefix)) = t
-  }
+      things(t.name.stripPrefix(prefix)) = t
+    }
   }
 
   def removeVariable(str: String): Unit = {
@@ -726,7 +726,17 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  def collectPointies(stmts: Seq[Statement]): Set[String] = {
+    val pointies: mutable.Set[String] = new mutable.HashSet()
+        pointies ++= stmts.flatMap(_.getAllPointies)
+        pointies ++ getAliases.filterKeys(pointies).values
+    log.trace("Collected pointies: " + pointies)
+    pointies.toSet
+  }
+
   def registerFunction(stmt: FunctionDeclarationStatement, options: CompilationOptions): Unit = {
+    val pointies = collectPointies(stmt.statements.getOrElse(Seq.empty))
+    pointiesUsed(stmt.name) = pointies
     val w = get[Type]("word")
     val name = stmt.name
     val resultType = get[Type](stmt.resultType)
@@ -782,7 +792,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       })
     }
     if (resultType.size > Cpu.getMaxSizeReturnableViaRegisters(options.platform.cpu, options)) {
-      registerVariable(VariableDeclarationStatement(stmt.name + ".return", stmt.resultType, None, global = true, stack = false, constant = false, volatile = false, register = false, None, None, None), options)
+      registerVariable(VariableDeclarationStatement(stmt.name + ".return", stmt.resultType, None, global = true, stack = false, constant = false, volatile = false, register = false, None, None, None), options, isPointy = false)
     }
     stmt.statements match {
       case None =>
@@ -806,7 +816,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
       case Some(statements) =>
         statements.foreach {
-          case v: VariableDeclarationStatement => env.registerVariable(v, options)
+          case v: VariableDeclarationStatement => env.registerVariable(v, options, pointies(v.name))
           case _ => ()
         }
         val executableStatements = statements.flatMap {
@@ -1108,7 +1118,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
-  def registerVariable(stmt: VariableDeclarationStatement, options: CompilationOptions): Unit = {
+  def registerVariable(stmt: VariableDeclarationStatement, options: CompilationOptions, isPointy: Boolean): Unit = {
     val name = stmt.name
     val position = stmt.position
     if (stmt.stack && parent.isEmpty) {
@@ -1160,7 +1170,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
           val alloc =
-            if (typ.name == "pointer" || typ.name == "__reg$type") VariableAllocationMethod.Zeropage
+            if (isPointy || typ.name == "__reg$type") VariableAllocationMethod.Zeropage
             else if (stmt.global) VariableAllocationMethod.Static
             else if (stmt.register) VariableAllocationMethod.Register
             else VariableAllocationMethod.Auto
@@ -1280,9 +1290,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case e: EnumDefinitionStatement => registerEnum(e)
       case _ =>
     }
+    val pointies = collectPointies(program.declarations)
+    pointiesUsed("") = pointies
     program.declarations.foreach {
       case f: FunctionDeclarationStatement => registerFunction(f, options)
-      case v: VariableDeclarationStatement => registerVariable(v, options)
+      case v: VariableDeclarationStatement => registerVariable(v, options, pointies(v.name))
       case a: ArrayDeclarationStatement => registerArray(a, options)
       case _ =>
     }
@@ -1299,7 +1311,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         register = false,
         initialValue = None,
         address = None,
-        alignment = None), options)
+        alignment = None), options, isPointy = true)
     }
     if (CpuFamily.forType(options.platform.cpu) == CpuFamily.M6502) {
       if (!things.contains("__constant8")) {

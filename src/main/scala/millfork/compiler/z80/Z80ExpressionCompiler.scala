@@ -895,7 +895,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                       case NormalParamSignature(paramVars) =>
                         params.zip(paramVars).flatMap {
                           case (paramExpr, paramVar) =>
-                            val callCtx = callingContext(ctx, paramVar)
+                            val callCtx = callingContext(ctx, function.name, paramVar)
                             paramVar.typ.size match {
                               case 1 =>
                                 compileToA(ctx, paramExpr) ++ storeA(callCtx, VariableExpression(paramVar.name), paramVar.typ.isSigned)
