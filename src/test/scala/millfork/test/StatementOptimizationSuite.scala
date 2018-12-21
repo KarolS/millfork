@@ -55,4 +55,23 @@ class StatementOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc009) should equal(56)
     }
   }
+
+
+  test("Stdlib optimization 1") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | import stdio
+        | byte output @$c000
+        | void main() {
+        |   output = strzlen("test"z)
+        |   putstrz(""z)
+        |   putstrz("a"z)
+        |   putstrz("bc"z)
+        |   putstrz("def"z)
+        | }
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(4)
+    }
+  }
 }

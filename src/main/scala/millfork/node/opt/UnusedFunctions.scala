@@ -27,6 +27,10 @@ object UnusedFunctions extends NodeOptimization {
     ("*'=", 4, "__adc_decimal"),
   )
 
+  private val functionsThatShouldBeKeptConditionally: List[(String, String)] = List(
+    "putstrz" -> "putchar"
+  )
+
   override def optimize(nodes: List[Node], options: CompilationOptions): List[Node] = {
     val aliases = nodes.flatMap{
       case AliasDefinitionStatement(source, target, _) => Some(source -> target)
@@ -37,7 +41,10 @@ object UnusedFunctions extends NodeOptimization {
       case v: FunctionDeclarationStatement => if (v.address.isDefined && v.statements.isDefined || v.interrupt || v.name == "main" || panicRequired && v.name == "_panic") Nil else List(v.name)
       case _ => Nil
     }.toSet
-    val allCalledFunctions = resolveAliases(aliases, getAllCalledFunctions(nodes).toSet)
+    var allCalledFunctions = resolveAliases(aliases, getAllCalledFunctions(nodes).toSet)
+    for((original, replacement) <- functionsThatShouldBeKeptConditionally) {
+      if (allCalledFunctions(original)) allCalledFunctions += replacement
+    }
     var unusedFunctions = allNormalFunctions -- allCalledFunctions
     val effectiveZpSize = options.platform.cpuFamily match {
       case CpuFamily.M6502 => options.zpRegisterSize

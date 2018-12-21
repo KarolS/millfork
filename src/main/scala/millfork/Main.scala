@@ -449,6 +449,9 @@ object Main {
     boolean("-fipo", "-fno-ipo").action { (c, v) =>
       c.changeFlag(CompilationFlag.InterproceduralOptimization, v)
     }.description("Interprocedural optimization.")
+    boolean("-foptimize-stdlib", "-fno-optimize-stdlib").action { (c, v) =>
+      c.changeFlag(CompilationFlag.OptimizeStdlib, v)
+    }.description("Optimize standard library calls.")
     flag("-Os", "--size").action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, true).
         changeFlag(CompilationFlag.OptimizeForSpeed, false).
@@ -468,9 +471,9 @@ object Main {
     flag("--dangerous-optimizations").action { c =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, true)
     }.description("Use dangerous optimizations (experimental).").hidden()
-    boolean("-fdangerous-optimizations", "-fnodangerous-optimizations").action { (c, v) =>
+    boolean("-fdangerous-optimizations", "-fno-dangerous-optimizations").action { (c, v) =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, v)
-    }.description("Use dangerous optimizations (experimental).")
+    }.description("Use dangerous optimizations (experimental). Implies -fipo.")
 
     fluff("", "Warning options:", "")
 

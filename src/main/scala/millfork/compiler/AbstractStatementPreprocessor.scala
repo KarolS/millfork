@@ -1,6 +1,6 @@
 package millfork.compiler
 
-import millfork.CompilationFlag
+import millfork.{CompilationFlag, CpuFamily, node}
 import millfork.env._
 import millfork.node._
 import AbstractExpressionCompiler.getExpressionType
@@ -38,6 +38,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
   })
   protected val nonreentrantVars: Set[String] = trackableVars -- reentrantVars
 
+  protected val optimizeStdlib: Boolean = ctx.options.flag(CompilationFlag.OptimizeStdlib)
 
   def apply(): List[ExecutableStatement] = {
     optimizeStmts(statements, Map())._1
@@ -59,6 +60,33 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
   def optimizeStmt(stmt: ExecutableStatement, currentVarValues: VV): (ExecutableStatement, VV) = {
     var cv = currentVarValues
     val pos = stmt.position
+    // stdlib:
+    if (optimizeStdlib) {
+      stmt match {
+        case ExpressionStatement(FunctionCallExpression("putstrz", List(TextLiteralExpression(text)))) =>
+          text.lastOption match {
+            case Some(LiteralExpression(0, _)) =>
+              text.size match {
+                case 1 =>
+                  ctx.log.debug("Removing putstrz with empty argument", stmt.position)
+                  return EmptyStatement(Nil) -> currentVarValues
+                case 2 =>
+                  ctx.log.debug("Replacing putstrz with putchar", stmt.position)
+                  return ExpressionStatement(FunctionCallExpression("putchar", List(text.head))) -> currentVarValues
+                case 3 =>
+                  if (ctx.options.platform.cpuFamily == CpuFamily.M6502) {
+                    ctx.log.debug("Replacing putstrz with putchar", stmt.position)
+                    return IfStatement(FunctionCallExpression("==", List(LiteralExpression(1, 1), LiteralExpression(1, 1))), List(
+                      ExpressionStatement(FunctionCallExpression("putchar", List(text.head))),
+                      ExpressionStatement(FunctionCallExpression("putchar", List(text(1))))
+                    ), Nil) -> currentVarValues
+                  }
+                case _ =>
+              }
+          }
+        case _ =>
+      }
+    }
     // generic warnings:
     stmt match {
       case ExpressionStatement(expr@FunctionCallExpression("strzlen" | "putstrz" | "strzcmp" | "strzcopy", params)) =>
@@ -190,6 +218,19 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
 
   def optimizeExpr(expr: Expression, currentVarValues: VV): Expression = {
     val pos = expr.position
+    // stdlib:
+    if (optimizeStdlib) {
+      expr match {
+        case FunctionCallExpression("strzlen", List(TextLiteralExpression(text))) =>
+          text.lastOption match {
+            case Some(LiteralExpression(0, _)) if text.size <= 256 =>
+              ctx.log.debug("Replacing strzlen with constant argument", expr.position)
+              return LiteralExpression(text.size - 1, 1)
+            case _ =>
+          }
+        case _ =>
+      }
+    }
     // generic warnings:
     expr match {
       case FunctionCallExpression("*" | "*=", params) =>

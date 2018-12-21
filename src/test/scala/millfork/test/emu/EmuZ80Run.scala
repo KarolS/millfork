@@ -51,9 +51,12 @@ object EmuZ80Run {
     }
   }
 
-  private lazy val cache: mutable.Map[millfork.Cpu.Value, Option[Program]] = mutable.Map[millfork.Cpu.Value, Option[Program]]()
+  private lazy val cache: mutable.Map[(millfork.Cpu.Value, String), Option[Program]] = mutable.Map[(millfork.Cpu.Value, String), Option[Program]]()
+  private def get(cpu: millfork.Cpu.Value, path: String): Program =
+    synchronized { cache.getOrElseUpdate(cpu->path, preload(cpu, path)).getOrElse(throw new IllegalStateException()) }
 
-  def cachedMath(cpu: millfork.Cpu.Value): Program = synchronized { cache.getOrElseUpdate(cpu, preload(cpu, "include/i80_math.mfk")).getOrElse(throw new IllegalStateException()) }
+  def cachedMath(cpu: millfork.Cpu.Value): Program = get(cpu, "include/i80_math.mfk")
+  def cachedStdio(cpu: millfork.Cpu.Value): Program = get(cpu, "src/test/resources/include/dummy_stdio.mfk")
 }
 
 class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[ZLine]]) extends Matchers {
@@ -75,6 +78,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     val platform = EmuPlatform.get(cpu)
     val extraFlags = Map(
       CompilationFlag.InlineFunctions -> this.inline,
+      CompilationFlag.OptimizeStdlib -> this.inline,
       CompilationFlag.OptimizeForSize -> this.optimizeForSize,
       CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80),
       CompilationFlag.LenientTextEncoding -> true)
@@ -96,6 +100,9 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         val withLibraries = {
           var tmp = unoptimized
           tmp += EmuZ80Run.cachedMath(cpu)
+          if (source.contains("import stdio")) {
+            tmp += EmuZ80Run.cachedStdio(cpu)
+          }
           tmp
         }
         val program = nodeOptimizations.foldLeft(withLibraries.applyImportantAliases)((p, opt) => p.applyNodeOptimization(opt, options))

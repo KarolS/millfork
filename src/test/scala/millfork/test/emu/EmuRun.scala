@@ -45,7 +45,9 @@ object EmuRun {
 
   private lazy val cachedZpregO:  Option[Program]= preload("include/zp_reg.mfk")
   private lazy val cachedBcdO:  Option[Program] = preload("include/bcd_6502.mfk")
+  private lazy val cachedStdioO:  Option[Program] = preload("src/test/resources/include/dummy_stdio.mfk")
   def cachedZpreg: Program = synchronized { cachedZpregO.getOrElse(throw new IllegalStateException()) }
+  def cachedStdio: Program = synchronized { cachedStdioO.getOrElse(throw new IllegalStateException()) }
   def cachedBcd: Program = synchronized { cachedBcdO.getOrElse(throw new IllegalStateException()) }
 }
 
@@ -133,6 +135,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.LenientTextEncoding -> true,
       CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.InlineFunctions -> this.inline,
+      CompilationFlag.OptimizeStdlib -> this.inline,
       CompilationFlag.InterproceduralOptimization -> true,
       CompilationFlag.CompactReturnDispatchParams -> true,
       CompilationFlag.SoftwareStack -> softwareStack,
@@ -172,6 +175,8 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
           var tmp = unoptimized
           if(source.contains("import zp_reg"))
             tmp += EmuRun.cachedZpreg
+          if(source.contains("import stdio"))
+            tmp += EmuRun.cachedStdio
           if(!options.flag(CompilationFlag.DecimalMode) && (source.contains("+'") || source.contains("-'") || source.contains("<<'") || source.contains("*'")))
             tmp += EmuRun.cachedBcd
           tmp

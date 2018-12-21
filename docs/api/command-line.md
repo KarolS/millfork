@@ -148,6 +148,11 @@ See the [documentation about inlining](../abi/inlining.md). Computationally easy
 It enables certain optimization similar to what inlining would enable, but without actual inlining.
 `.ini` equivalent: `ipo`.
 
+* `-foptimize-stdlib`, `-fno-optimize-stdlib` – 
+Whether should replace some standard library calls with constant parameters with more efficient variants.
+Currently affects `putstrz` and `strzlen`, but may affect more functions in the future.
+`.ini` equivalent: `optimize_stdlib`.
+
 * `-Os`, `--size` – Optimize for size, sacrificing some speed (experimental).
 
 * `-Of`, `--fast` – Optimize for speed, even if it increases the size a bit (experimental).

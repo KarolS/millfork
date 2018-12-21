@@ -316,7 +316,9 @@ object CompilationFlag extends Enumeration {
   UseIntelSyntaxForInput,
   UseIntelSyntaxForOutput,
   // optimization options:
-  DangerousOptimizations, InlineFunctions, InterproceduralOptimization, OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
+  OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
+  DangerousOptimizations, InlineFunctions, InterproceduralOptimization,
+  OptimizeStdlib,
   // memory allocation options
   VariableOverlap, CompactReturnDispatchParams, LUnixRelocatableCode,
   // runtime check options
@@ -353,6 +355,7 @@ object CompilationFlag extends Enumeration {
     "output_intel_syntax" -> UseIntelSyntaxForOutput,
     "input_intel_syntax" -> UseIntelSyntaxForInput,
     "ipo" -> InterproceduralOptimization,
+    "optimize_stdlib" -> OptimizeStdlib,
     "inline" -> InlineFunctions,
     "dangerous_optimizations" -> DangerousOptimizations,
     "decimal_mode" -> DecimalMode,
