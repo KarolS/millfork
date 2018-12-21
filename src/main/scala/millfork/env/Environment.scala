@@ -199,12 +199,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     things ++= tagged
   }
 
+  var builtinsAdded: Boolean = false
   val things: mutable.Map[String, Thing] = mutable.Map()
+  val pointiesUsed: mutable.Map[String, Set[String]] = mutable.Map()
   val removedThings: mutable.Set[String] = mutable.Set()
 
+  def isKnownPointy(callee: String, variable: String): Boolean = {
+    root.pointiesUsed.get(callee).exists(_.contains(variable))
+  }
+
   private def addThing(t: Thing, position: Option[Position]): Unit = {
-    assertNotDefined(t.name, position)
+    if (assertNotDefined(t.name, position)) {
     things(t.name.stripPrefix(prefix)) = t
+  }
   }
 
   def removeVariable(str: String): Unit = {
@@ -387,11 +394,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S)),
       BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S))),
       None)
+    builtinsAdded = true
   }
 
-  def assertNotDefined(name: String, position: Option[Position]): Unit = {
-    if (things.contains(name) || parent.exists(_.things.contains(name)))
-      log.fatal(s"`$name` is already defined", position)
+  def assertNotDefined(name: String, position: Option[Position]): Boolean = {
+    if (builtinsAdded && Environment.keywords(name)) {
+      log.error(s"Cannot redefine a builtin keyword `$name`", position)
+      false
+    } else if (things.contains(name) || parent.exists(_.things.contains(name))) {
+      log.error(s"`$name` is already defined", position)
+      false
+    } else {
+      true
+    }
   }
 
   def registerType(stmt: TypeDefinitionStatement): Unit = {
@@ -1372,4 +1387,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
 object Environment {
   val predefinedFunctions = Set("not", "hi", "lo", "nonet", "sizeof")
+  val keywords: Set[String] = Set(
+    "true", "false",
+    "byte", "sbyte", "word", "pointer", "void", "long",
+    "array", "const", "alias", "import", "static", "register", "stack", "volatile", "asm", "extern", "kernal_interrupt", "interrupt",
+    "for", "if", "do", "while", "else", "return", "default", "to", "until", "paralleluntil", "parallelto", "downto",
+    "inline", "noinline"
+  ) ++ predefinedFunctions
 }

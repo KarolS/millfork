@@ -34,6 +34,8 @@
 
 * Extra `z` at the name of the encoding means that the string is zero-terminated.
 
+* **Potentially breaking change!** No longer allowed to define things with names that are keywords or builtins.
+
 * **Potentially breaking change!** Curly braces in text literals are now used for escape sequences.
 
 * **Potentially breaking change!** Changed the `c64_basic` module.

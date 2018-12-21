@@ -75,8 +75,8 @@ class SeparateBytesSuite extends FunSuite with Matchers {
 
   test("Magic split array") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
-        | array hi [16] @$c000
-        | array lo [16] @$c010
+        | array high [16] @$c000
+        | array low [16] @$c010
         | void main () {
         |  word a
         |  word b
@@ -86,7 +86,7 @@ class SeparateBytesSuite extends FunSuite with Matchers {
         |  byte i
         |  i = 0
         |  while i < 16 {
-        |    hi[i]:lo[i] = a
+        |    high[i]:low[i] = a
         |    tmp = a
         |    tmp += b
         |    a = b
