@@ -865,9 +865,16 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, EOR)
             }
           case ">>>>" =>
-            val (l, r, 2) = assertArithmeticBinary(ctx, params)
-            zeroExtend = true
-            BuiltIns.compileNonetOps(ctx, l, r)
+            val (l, r, size) = assertArithmeticBinary(ctx, params)
+            size match {
+              case 2 =>
+                zeroExtend = true
+                BuiltIns.compileNonetOps(ctx, l, r)
+              case 1 =>
+                zeroExtend = true
+                BuiltIns.compileShiftOps(LSR, ctx, l ,r)
+              case _ => ???
+            }
           case "<<" =>
             val (l, r, size) = assertArithmeticBinary(ctx, params)
             size match {

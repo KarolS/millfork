@@ -29,6 +29,21 @@ class NonetSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Nonet operations on bytes") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | byte output @$c000
+        |
+        | noinline byte five() { return 5}
+        | noinline byte one() { return 1 }
+        | void main () {
+        |   output = five() >>>> one()
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(2)
+    }
+  }
+
   test("Nonet left shift") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """

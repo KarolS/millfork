@@ -644,8 +644,14 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 2 => targetifyHL(ctx, target, ZBuiltIns.compile16BitOperation(ctx, XOR, params))
                 }
               case ">>>>" =>
-                val (l, r, 2) = assertArithmeticBinary(ctx, params)
-                targetifyA(ctx, target, compileToHL(ctx, l) ++ Z80Shifting.compileNonetShiftRight(ctx, r), isSigned = false)
+                val (l, r, size) = assertArithmeticBinary(ctx, params)
+                size match {
+                  case 2 =>
+                    targetifyA (ctx, target, compileToHL (ctx, l) ++ Z80Shifting.compileNonetShiftRight (ctx, r), isSigned = false)
+                  case 1 =>
+                    targetifyA(ctx, target, Z80Shifting.compile8BitShift(ctx, l, r, left = false), isSigned = false)
+                  case _ => ???
+                }
               case "<<" =>
                 val (l, r, size) = assertArithmeticBinary(ctx, params)
                 size match {
