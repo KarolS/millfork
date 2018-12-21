@@ -73,22 +73,35 @@ object BuiltIns {
           }
         case FunctionCallExpression(name, List(param)) if env.maybeGet[Type](name).isDefined =>
           return simpleOperation(opcode, ctx, param, indexChoice, preserveA, commutative, decimal)
-        case _: FunctionCallExpression | _:SumExpression if commutative =>
+        case _: FunctionCallExpression | _: SumExpression if commutative =>
           // TODO: is it ok?
-          if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
-            return List(AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.compile(ctx.addStack(1), source, Some(b -> RegisterVariable(MosRegister.A, b)), NoBranching) ++ wrapInSedCldIfNeeded(decimal, List(
+          if (ctx.options.zpRegisterSize >= 1) {
+            val reg = ctx.env.get[ThingInMemory]("__reg")
+            return List(AssemblyLine.implied(PHA)) ++
+              MosExpressionCompiler.compileToA(ctx, source) ++
+              List(AssemblyLine.zeropage(STA, reg), AssemblyLine.implied(PLA)) ++
+              wrapInSedCldIfNeeded(decimal, List(AssemblyLine.zeropage(opcode, reg)))
+          } else if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+            return List(AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.compileToA(ctx.addStack(1), source) ++ wrapInSedCldIfNeeded(decimal, List(
               AssemblyLine.stackRelative(opcode, 1),
               AssemblyLine.implied(PHX)))
           } else {
-            return List(AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.compile(ctx.addStack(1), source, Some(b -> RegisterVariable(MosRegister.A, b)), NoBranching) ++ wrapInSedCldIfNeeded(decimal, List(
+            return List(AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.compileToA(ctx.addStack(1), source) ++ wrapInSedCldIfNeeded(decimal, List(
               AssemblyLine.implied(TSX),
               AssemblyLine.absoluteX(opcode, 0x101),
               AssemblyLine.implied(INX),
               AssemblyLine.implied(TXS))) // this TXS is fine, it won't appear in 65816 code
           }
         case _ =>
-          ctx.log.error("Right-hand-side expression is too complex", source.position)
-          return Nil
+          if (ctx.options.zpRegisterSize < 1) {
+            ctx.log.error("Right-hand-side expression requires a zero-page register", source.position)
+            return Nil
+          }
+          val reg = ctx.env.get[ThingInMemory]("__reg")
+          return List(AssemblyLine.implied(PHA)) ++
+            MosExpressionCompiler.compileToA(ctx, source) ++
+            List(AssemblyLine.zeropage(STA, reg), AssemblyLine.implied(PLA)) ++
+            wrapInSedCldIfNeeded(decimal, List(AssemblyLine.zeropage(opcode, reg)))
       }
     } {
       const =>

@@ -22,6 +22,24 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
       """.stripMargin)(_.readByte(0xc000) should equal(2))
   }
 
+  test("Complex expression 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | byte output @$c000
+        | void main () {
+        |  output = 50
+        |  f()
+        | }
+        | noinline void f() {
+        |   byte a
+        |   a = g()
+        |   output -= a >> 1
+        | }
+        | noinline byte g() { return 3 }
+        |
+      """.stripMargin)(_.readByte(0xc000) should equal(49))
+  }
+
   test("Byte addition") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
