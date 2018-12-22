@@ -112,9 +112,34 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
     // TODO: special faster cases
     val p = f.position
     val vex = VariableExpression(f.variable)
+    val indexType = ctx.env.get[Variable](f.variable).typ
+    val arithmetic = indexType.isArithmetic
+    if (!arithmetic && f.direction != ForDirection.ParallelUntil) {
+      ctx.log.error("Invalid direction for enum iteration", p)
+      compile(ctx, f.body)
+      return Nil -> Nil
+    }
     val one = LiteralExpression(1, 1).pos(p)
-    val increment = ExpressionStatement(FunctionCallExpression("+=", List(vex, one)).pos(p)).pos(p)
-    val decrement = ExpressionStatement(FunctionCallExpression("-=", List(vex, one)).pos(p)).pos(p)
+    val increment = if (arithmetic) {
+      ExpressionStatement(FunctionCallExpression("+=", List(vex, one)).pos(p)).pos(p)
+    } else {
+      Assignment(vex, FunctionCallExpression(indexType.name, List(
+        SumExpression(List(
+          false -> FunctionCallExpression("byte", List(vex)).pos(p),
+          false -> LiteralExpression(1,1).pos(p),
+        ), decimal = false).pos(p)
+      )).pos(p)).pos(p)
+    }
+    val decrement = if (arithmetic) {
+          ExpressionStatement(FunctionCallExpression("-=", List(vex, one)).pos(p)).pos(p)
+        } else {
+          Assignment(vex, FunctionCallExpression(indexType.name, List(
+            SumExpression(List(
+              false -> FunctionCallExpression("byte", List(vex)).pos(p),
+              true -> LiteralExpression(1,1).pos(p),
+            ), decimal = false).pos(p)
+          )).pos(p)).pos(p)
+        }
     val names = Set("", "for", f.variable)
 
     val startEvaluated = ctx.env.eval(f.start)

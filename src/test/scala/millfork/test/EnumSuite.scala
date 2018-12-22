@@ -66,6 +66,22 @@ class EnumSuite extends FunSuite with Matchers {
       """.stripMargin){_=>}
   }
 
+  test("Loops over enums") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | enum ugly {
+        |   a
+        |   b,c,
+        |   d
+        | }
+        | void main() {
+        |   ugly u
+        |   for u:ugly {
+        |   }
+        | }
+      """.stripMargin){_=>}
+  }
+
   test("Enum-byte incompatibility test") {
     ShouldNotCompile(
       """
@@ -149,6 +165,16 @@ class EnumSuite extends FunSuite with Matchers {
         | array arr[ugly]
         | ugly main() {
         |     return a[0]
+        | }
+      """.stripMargin)
+
+    ShouldNotCompile(
+      """
+        | enum ugly { a }
+        | array arr[ugly]
+        | void main() {
+        |     byte x
+        |     for x: ugly {}
         | }
       """.stripMargin)
   }
