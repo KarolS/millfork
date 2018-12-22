@@ -315,17 +315,6 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
       case Left(expr) =>
         expr match {
           case VariableExpression(id) =>
-            ctx.env.maybeGet[Thing](id + ".array") match {
-              case Some(arr:MfArray) =>
-                return compile(ctx, ForStatement(
-                  f.variable,
-                  LiteralExpression(0, 1),
-                  LiteralExpression(arr.sizeInBytes, Constant.minimumSize(arr.sizeInBytes - 1)),
-                  ForDirection.Until,
-                  f.body
-                ))
-              case _ =>
-            }
             ctx.env.get[Thing](id) match {
               case EnumType(_, Some(count)) =>
                 return compile(ctx, ForStatement(
@@ -339,14 +328,9 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
             }
           case _ =>
         }
-
-        return compile(ctx, ForStatement(
-          f.variable,
-          LiteralExpression(0, 1),
-          expr,
-          ForDirection.Until,
-          f.body
-        ))
+        ctx.log.error("Not a valid enum type or an inline array", expr.position)
+        compile(ctx, f.body)
+        return Nil -> Nil
       case Right(vs) => vs
     }
     val endLabel = ctx.nextLabel("fe")

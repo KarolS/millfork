@@ -115,20 +115,6 @@ class ForLoopSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readByte(0xc000) should equal(15))
   }
 
-  test("For-until 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
-      """
-        | word output @$c000
-        | void main () {
-        |   byte i
-        |   output = 0
-        |   for i : 6 {
-        |     output += i
-        |   }
-        | }
-      """.stripMargin)(_.readByte(0xc000) should equal(15))
-  }
-
   test("For-parallelto") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
@@ -214,24 +200,6 @@ class ForLoopSuite extends FunSuite with Matchers {
     }
   }
 
-  test("Memcpy 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
-      """
-        | array output[5]@$c001
-        | array input = [0,1,4,9,16,25,36,49]
-        | void main () {
-        |   byte i
-        |   for i : output {
-        |     output[i] = input[i+1]
-        |   }
-        | }
-        | void _panic(){while(true){}}
-      """.stripMargin){ m=>
-      m.readByte(0xc001) should equal (1)
-      m.readByte(0xc005) should equal (25)
-    }
-  }
-
   test("Memset with index") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
@@ -239,23 +207,6 @@ class ForLoopSuite extends FunSuite with Matchers {
         | void main () {
         |   byte i
         |   for i,0,until,output.length {
-        |     output[i] = 22
-        |   }
-        | }
-        | void _panic(){while(true){}}
-      """.stripMargin){ m=>
-      m.readByte(0xc001) should equal (22)
-      m.readByte(0xc005) should equal (22)
-    }
-  }
-
-  test("Memset with index 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
-      """
-        | array output[5]@$c001
-        | void main () {
-        |   byte i
-        |   for i : output {
         |     output[i] = 22
         |   }
         | }

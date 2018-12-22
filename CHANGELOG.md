@@ -14,7 +14,7 @@
 
 * Added preprocessor.
 
-* Added `for` loops over arrays, enum types and in-place lists
+* Added `for` loops over enum types and in-place lists
 
 * Added `align` keyword for choosing data and code alignment.
 
