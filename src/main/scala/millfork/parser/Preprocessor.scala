@@ -18,12 +18,12 @@ object Preprocessor {
   private val Regex = raw"\A\s*#\s*([a-z]+)\s*(.*?)\s*\z".r
 
   def preprocessForTest(options: CompilationOptions, code: String): PreprocessingResult = {
-    apply(options, code.lines.toSeq)
+    apply(options, "", code.lines.toSeq)
   }
 
   case class IfContext(hadEnabled: Boolean, hadElse: Boolean, enabledBefore: Boolean)
 
-  def apply(options: CompilationOptions, lines: Seq[String]): PreprocessingResult = {
+  def apply(options: CompilationOptions, shortFileName: String, lines: Seq[String]): PreprocessingResult = {
     val platform = options.platform
     val log = options.log
 //    if (log.traceEnabled) {
@@ -55,7 +55,7 @@ object Preprocessor {
       var resulting = ""
       line match {
         case Regex(keyword, param) =>
-          val pos = Some(Position("", lineNo, 0, 0))
+          val pos = Some(Position(shortFileName, lineNo, 0, 0))
           keyword match {
             case "use" => if (enabled) {
               if (param == "") log.error("#use should have a parameter", pos)

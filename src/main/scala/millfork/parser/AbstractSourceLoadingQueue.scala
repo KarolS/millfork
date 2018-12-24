@@ -60,13 +60,13 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     options.log.debug(s"Parsing $filename")
     val path = Paths.get(filename)
     val parentDir = path.toFile.getAbsoluteFile.getParent
-    val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
+    val shortFileName = path.getFileName.toString
+    val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, shortFileName, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
     for (pragma <- pragmas) {
       if (!supportedPragmas(pragma._1)) {
         options.log.warn(s"Unsupported pragma: #pragma $pragma", Some(Position(moduleName, pragma._2, 1, 0)))
       }
     }
-    val shortFileName = path.getFileName.toString
     val parser = createParser(shortFileName, src, parentDir, featureConstants, pragmas.keySet)
     options.log.addSource(shortFileName, src.lines.toIndexedSeq)
     parser.toAst match {
