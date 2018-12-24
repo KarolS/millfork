@@ -1,5 +1,6 @@
 package millfork
 
+import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util.Locale
@@ -58,7 +59,7 @@ object Main {
     }
 
     val startTime = System.nanoTime()
-    val (status, c) = parser(errorReporting).parse(Context(errorReporting, Nil), args.toList)
+    val (status, c0) = parser(errorReporting).parse(Context(errorReporting, Nil), args.toList)
     status match {
       case CliStatus.Quit => return
       case CliStatus.Failed =>
@@ -66,18 +67,22 @@ object Main {
       case CliStatus.Ok => ()
     }
     errorReporting.assertNoErrors("Invalid command line")
-    if (c.inputFileNames.isEmpty) {
+    errorReporting.verbosity = c0.verbosity.getOrElse(0)
+    if (c0.inputFileNames.isEmpty) {
       errorReporting.fatalQuit("No input files")
     }
-    errorReporting.verbosity = c.verbosity.getOrElse(0)
 
     errorReporting.debug("millfork version " + BuildInfo.version)
     errorReporting.trace(s"Copyright (C) $copyrightYears  Karol Stasiak")
     errorReporting.trace("This program comes with ABSOLUTELY NO WARRANTY.")
     errorReporting.trace("This is free software, and you are welcome to redistribute it under certain conditions")
     errorReporting.trace("You should have received a copy of the GNU General Public License along with this program. If not, see https://www.gnu.org/licenses/")
+    val c = fixMissingIncludePath(c0)
+    if (c.includePath.isEmpty) {
+      errorReporting.warn("Failed to detect the default include directory, consider using the -I option")
+    }
 
-    val platform = Platform.lookupPlatformFile(c.includePath, c.platform.getOrElse {
+    val platform = Platform.lookupPlatformFile("." :: c.includePath, c.platform.getOrElse {
       errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     })
@@ -147,6 +152,55 @@ object Main {
       Files.write(Paths.get(defaultPrgOutput+".inf"),
         s"$defaultPrgOutput ${start.toHexString} ${start.toHexString} ${codeLength.toHexString}".getBytes(StandardCharsets.UTF_8))
     }
+  }
+
+  private def getDefaultIncludePath: Either[String, String] = {
+    try {
+      var where = new File(getClass.getProtectionDomain.getCodeSource.getLocation.toURI).getParentFile
+      if ((where.getName == "scala-2.12" || where.getName == "scala-2.13") && where.getParentFile.getName == "target") {
+        where = where.getParentFile.getParentFile
+      }
+      val dir = new File(where.getAbsolutePath + File.separatorChar + "include")
+      if (dir.exists()) {
+        Right(dir.getAbsolutePath)
+      } else {
+        Left(s"The ${dir.getAbsolutePath} directory doesn't exist")
+      }
+    } catch {
+      case  e: Exception => Left(e.getMessage)
+    }
+  }
+
+  private def getAllDefaultPlatforms: Seq[String] = {
+    (getDefaultIncludePath match {
+      case Left(_) => Seq(
+        "c64", "c64_scpu", "c64_scpu16", "c64_crt9k", "c64_crt16k", "lunix",
+        "vic20", "vic20_3k", "vic20_8k", "vic20_a000",
+        "c16", "plus4", "pet", "c128",
+        "a8", "bbcmicro", "apple2",
+        "nes_mmc4", "nes_small", "vcs",
+        "zxspectrum", "zxspectrum_8080", "pc88", "cpc464",
+        "cpm", "cpm_z80")
+      case Right(path) =>
+        Seq(new File(".").list(), new File(path).list())
+          .filter(_ ne null)
+          .flatMap(_.toSeq)
+          .filter(_.endsWith(".ini"))
+          .map(_.stripSuffix(".ini"))
+    }).sorted
+  }
+
+  private def fixMissingIncludePath(c: Context)(implicit log: Logger): Context = {
+    if (c.includePath.isEmpty) {
+      getDefaultIncludePath match {
+        case Left(err) =>
+          log.debug(s"Failed to find the default include path: $err")
+        case Right(path) =>
+          log.debug(s"Automatically detected include path: $path")
+          return c.copy(includePath = List(path))
+      }
+    }
+    c
   }
 
   private def assembleForMos(c: Context, platform: Platform, options: CompilationOptions): AssemblerOutput = {
@@ -260,12 +314,12 @@ object Main {
     parameter("-t", "--target").placeholder("<platform>").action { (p, c) =>
       assertNone(c.platform, "Platform already defined")
       c.copy(platform = Some(p))
-    }.description("Target platform, any of: c64, c16, plus4, vic20, vic20_3k, vic20_8k, pet, c128, a8, bbc, apple2, nes_mmc4, nes_small, c64_scpu, c64_scpu16, vcs.")
+    }.description(s"Target platform, any of:\n${getAllDefaultPlatforms.grouped(10).map(_.mkString(", ")).mkString(",\n")}.")
 
     parameter("-I", "--include-dir").repeatable().placeholder("<dir>;<dir>;...").action { (paths, c) =>
       val n = paths.split(";")
       c.copy(includePath = c.includePath ++ n)
-    }.description("Include paths for modules.")
+    }.description("Include paths for modules. If not given, the default path is used: " + getDefaultIncludePath.fold(identity, identity))
 
     parameter("-r", "--run").placeholder("<program>").action { (p, c) =>
       assertNone(c.runFileName, "Run program already defined")
@@ -432,7 +486,7 @@ object Main {
         assertNone(c.optimizationLevel, "Optimization level already defined")
         c.copy(optimizationLevel = Some(i))
       }.description("Optimize code even more.")
-      if (i == 1 || i > 3) f.hidden()
+      if (i == 1 || i > 4) f.hidden()
     }
     flag("--inline").action { c =>
       c.changeFlag(CompilationFlag.InlineFunctions, true)

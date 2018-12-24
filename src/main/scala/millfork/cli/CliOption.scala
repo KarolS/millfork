@@ -6,13 +6,17 @@ package millfork.cli
 trait CliOption[T, O <: CliOption[T, O]] {
   this: O =>
   def toStrings(firstTab: Int): List[String] = {
+    @inline
+    def indent(s: String):String = "".padTo(firstTab, ' ') + s
     val fl = firstLine
     if (_description == "") {
-      List(fl)
-    } else if (fl.length < firstTab) {
-      List(fl.padTo(firstTab, ' ') + _description)
+      return List(fl)
+    }
+    val descriptionLines = _description.split("\n")
+    if (fl.length < firstTab) {
+      (fl.padTo(firstTab, ' ') + descriptionLines.head) :: descriptionLines.tail.map(indent).toList
     } else {
-      List(fl, "".padTo(firstTab, ' ') + _description)
+      fl :: descriptionLines.map(indent).toList
     }
   }
 

@@ -28,7 +28,12 @@ no extension for BBC micro program file,
 
 * `-g` – Generate also the label file. The label file contains labels with their addresses, with duplicates removed. It can be loaded into the monitor of the Vice emulator for debugging purposes. The file has the same name as the output file and the extension is `.lbl`.
 
-* `-I  <dir>;<dir>` – The include directories. The current working directory is also an include directory. Those directories are searched for modules and platform definitions.
+* `-I  <dir>;<dir>` – The include directories.
+Those directories are searched for modules and platform definitions.
+When searching for modules, the directory containing the file currently being compiled is also searched.
+When searching for platform definitions, the current working directory is also searched.
+If not given, the compiler will try to detect the default include directory.
+If given, then the compiler will NOT try to detect the default include directory and you will have to add it to the list yourself.
  
 * `-t <platform>` – Target platform. It is loaded from an `.ini` file found in any of the include directories. See also [this document](target-platforms.md).
 

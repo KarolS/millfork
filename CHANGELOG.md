@@ -8,6 +8,8 @@
 
 * Unified the syntax of commandline switches.
 
+* Automatic detection of the standard include path.
+
 * Added aliases.
 
 * Added enumeration types.
