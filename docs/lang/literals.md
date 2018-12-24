@@ -40,7 +40,6 @@ Most characters between the quotes are interpreted literally.
 To allow characters that cannot be inserted normally,
 each encoding may define escape sequences.
 Every encoding is guaranteed to support at least 
-`{n}` for new line, 
 `{q}` for double quote 
 and `{apos}` for single quote/apostrophe.
 
@@ -53,7 +52,7 @@ If the characters in the literal cannot be encoded in particular encoding, an er
 However, if the command-line option `-flenient-encoding` is used,
 then literals using `default` and `scr` encodings replace unsupported characters with supported ones, 
 skip unsupported escape sequences, and a warning is issued.
-For example, if `-flenient-encoding` is enabled, then a literal `"£¥↑ž©ß{lbrace}"` is equivalent to:
+For example, if `-flenient-encoding` is enabled, then a literal `"£¥↑ž©ß"` is equivalent to:
 
 * `"£Y↑z(C)ss"` if the default encoding is `pet`
 

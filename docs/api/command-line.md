@@ -47,9 +47,9 @@ Choose syntax for assembly output on 8080-like targets.
 
 * `--syntax=intel`, `--syntax=zilog` – sets both previous options at once
 
-* `-fline-numbers`, `-fno-line-numbers` – Whether should show source line numbers in assembly output.
+* `-fline-numbers`, `-fno-line-numbers` – Whether should show source line numbers in assembly output. Slightly slows down the compilation. Default: false.
 
-* `-fline-numbers`, `-fno-line-numbers` – Whether should show the original source in assembly output. Implies `-fline-numbers`
+* `-fsource-in-asm`, `-fno-source-in-asm` – Whether should show the original source in assembly output. Implies `-fline-numbers`. Default: false.
 
 ## Verbosity options
 
@@ -140,7 +140,7 @@ Use a software stack for stack variables.
 
 * `-O9` – Optimize code using superoptimizer (experimental). Computationally expensive, decent results.
 
-* `-finline`, `-fno-inline` – Whether should inline functions automatically (experimental).
+* `-finline`, `-fno-inline` – Whether should inline functions automatically.
 See the [documentation about inlining](../abi/inlining.md). Computationally easy, can give decent gains.
 `.ini` equivalent: `inline`.
 

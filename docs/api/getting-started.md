@@ -9,15 +9,13 @@ Save the following as `hello_world.mfk`:
 ```
 import stdio
 
-array hello_world = "hello world" petscii
-
 void main(){
-    putstr(hello_world, hello_world.length)
+    putstrz("hello world"z)
     while(true){}
 }
 ```
 
-Compile is using the following commandline:
+Compile it using the following commandline:
 
 ```
 java -jar millfork.jar hello_world.mfk -o hello_world -t c64 -I path_to_millfork\include
@@ -33,7 +31,7 @@ x64 hello_world.prg
 
 The following options are crucial when compiling your sources:
 
-* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended (`prg` for Commodore, `xex` for Atari, `a2` for Apple, `asm` for assembly output, `lbl` for label file, `inf` for BBC file metadata)
+* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended (`prg` for Commodore, `xex` for Atari computers, `a2` for Apple, `asm` for assembly output, `lbl` for label file, `inf` for BBC file metadata, `dsk` for PC-88, `tap` for ZX Spectrum, `nes` for Famicom, `bin` for Atari 2600)
 
 * `-I DIR;DIR;DIR;...` – specifies the paths to directories with modules to include.  
 
