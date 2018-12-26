@@ -194,6 +194,7 @@ object AbstractExpressionCompiler {
   }
 
   def getExpressionType(env: Environment, log: Logger, expr: Expression): Type = {
+    if (expr.typeCache ne null) expr.typeCache
     val b = env.get[Type]("byte")
     val bool = env.get[Type]("bool$")
     val boolTrue = env.get[Type]("true$")
@@ -236,7 +237,7 @@ object AbstractExpressionCompiler {
 
     val v = env.get[Type]("void")
     val w = env.get[Type]("word")
-    expr match {
+    val t = expr match {
       case LiteralExpression(value, size) =>
         size match {
           case 1 => b
@@ -330,6 +331,8 @@ object AbstractExpressionCompiler {
             lookupFunction(env, log, f).returnType
         }
     }
+    expr.typeCache = t
+    t
   }
 
   def checkIndexType(ctx: CompilationContext, pointy: Pointy, index: Expression): Unit = {

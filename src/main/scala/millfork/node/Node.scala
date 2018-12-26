@@ -33,6 +33,7 @@ sealed trait Expression extends Node {
   def getPointies: Seq[String]
   def isPure: Boolean
   def getAllIdentifiers: Set[String]
+  @transient var typeCache: Type = _
 }
 
 case class ConstantArrayElementExpression(constant: Constant) extends Expression {
