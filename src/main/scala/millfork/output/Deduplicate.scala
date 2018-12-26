@@ -144,7 +144,8 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
   def deduplicateIdenticalFunctions(segmentName: String, segContents: Map[String, Either[String, CodeAndAlignment[T]]]): Seq[(String, CompiledFunction[T])] = {
     var result = ListBuffer[(String, CompiledFunction[T])]()
     val identicalFunctions = segContents.flatMap{
-      case (name, code) => code.toOption.map(c => name -> actualCode(name, c.code))
+      case (name, code) =>
+        code.toOption.map(c => name -> removePositionInfo(actualCode(name, c.code)))
     }.filter{
       case (_, code) => checkIfLabelsAreInternal(code, code)
     }.groupBy{
@@ -294,6 +295,10 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
 
   def renumerateLabels(code: List[T], temporary: Boolean): List[T]
 
+  def removePositionInfo(line: T): T
+
+  def removePositionInfo(code: List[T]): List[T] = code.map((t:T) => removePositionInfo(t))
+
   def checkIfLabelsAreInternal(snippet: List[T], code: List[T]): Boolean
 
   def bySegment(compiledFunctions: mutable.Map[String, CompiledFunction[T]]): Map[String, Map[String, Either[String, CodeAndAlignment[T]]]] = {
@@ -319,7 +324,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
       val (good, rest2) = mutCode.span(l => isExtractable(l))
       mutCode = rest2
       if (good.nonEmpty) {
-        result += CodeChunk(functionName, cursor, cursor + good.length)(good)
+        result += CodeChunk(functionName, cursor, cursor + good.length)(removePositionInfo(good))
         cursor += good.length
       } else {
         //println(s"Snippets in $functionName: $result")

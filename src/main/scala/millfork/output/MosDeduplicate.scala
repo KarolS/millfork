@@ -112,4 +112,6 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
     useCount.values.forall(_ == 0)
   }
 
+  override def removePositionInfo(line: AssemblyLine): AssemblyLine = line.copy(source = None)
+
 }

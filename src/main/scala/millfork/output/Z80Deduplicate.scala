@@ -120,4 +120,7 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
     }
     useCount.values.forall(_ == 0)
   }
+
+  override def removePositionInfo(line: ZLine): ZLine = line.copy(source = None)
+
 }
