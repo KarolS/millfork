@@ -631,15 +631,34 @@ object BuiltIns {
     }
     val lType = MosExpressionCompiler.getExpressionType(ctx, lhs)
     val rType = MosExpressionCompiler.getExpressionType(ctx, rhs)
-    val compactEqualityComparison = if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) {
-      None
-    } else if (lType.size == 1 && !lType.isSigned) {
-      Some(cmpTo(LDA, ll) ++ cmpTo(EOR, rl) ++ cmpTo(ORA, rh))
-    } else if (rType.size == 1 && !rType.isSigned) {
-      Some(cmpTo(LDA, rl) ++ cmpTo(EOR, ll) ++ cmpTo(ORA, lh))
-    } else {
-      None
+    def isConstant(h: List[AssemblyLine], l: List[AssemblyLine], value: Int): Boolean = {
+      (h,l) match {
+        case (
+          List(AssemblyLine0(CMP, Immediate, NumericConstant(vh, _))),
+          List(AssemblyLine0(CMP, Immediate, NumericConstant(vl, _)))
+          ) if vh.&(0xff).<<(8) + vl.&(0xff) == value => true
+        case _ => false
+      }
     }
+
+    val compactEqualityComparison =
+      if (isConstant(rh, rl, 0)) {
+        Some(cmpTo(LDA, ll) ++ cmpTo(ORA, lh))
+      } else if (isConstant(lh, ll, 0)) {
+        Some(cmpTo(LDA, rl) ++ cmpTo(ORA, rh))
+      } else if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) {
+        None
+      } else if (isConstant(rh, rl, 0xffff)) {
+          Some(cmpTo(LDA, ll) ++ cmpTo(AND, lh) ++ List(AssemblyLine.immediate(CMP, 0xff)))
+      } else if (isConstant(lh, ll, 0xffff)) {
+        Some(cmpTo(LDA, rl) ++ cmpTo(AND, rh) ++ List(AssemblyLine.immediate(CMP, 0xff)))
+      } else if (lType.size == 1 && !lType.isSigned) {
+        Some(cmpTo(LDA, ll) ++ cmpTo(EOR, rl) ++ cmpTo(ORA, rh))
+      } else if (rType.size == 1 && !rType.isSigned) {
+        Some(cmpTo(LDA, rl) ++ cmpTo(EOR, ll) ++ cmpTo(ORA, lh))
+      } else {
+        None
+      }
     effectiveComparisonType match {
       case ComparisonType.Equal =>
         compactEqualityComparison match {

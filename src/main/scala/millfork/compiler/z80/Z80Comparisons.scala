@@ -123,8 +123,34 @@ object Z80Comparisons {
         return compile16BitComparison(ctx, ComparisonType.flip(compType), r, l, branches)
       case _ => ()
     }
+    import ZRegister._
+    import ZOpcode._
     val calculateLeft = Z80ExpressionCompiler.compileToHL(ctx, l)
     val calculateRight = Z80ExpressionCompiler.compileToHL(ctx, r)
+    val fastEqualityComparison: Option[List[ZLine]] = (calculateLeft, calculateRight) match {
+      case (List(ZLine0(LD_16, TwoRegisters(HL, IMM_16), NumericConstant(0, _))), _) =>
+        Some(calculateRight ++ List(ZLine.ld8(A, H), ZLine.register(OR, L)))
+      case (List(ZLine0(LD_16, TwoRegisters(HL, IMM_16), NumericConstant(0xffff, _))), _) =>
+        Some(calculateRight ++ List(ZLine.ld8(A, H), ZLine.register(AND, L), ZLine.imm8(CP, 0xff)))
+      case (_, List(ZLine0(LD_16, TwoRegisters(HL, IMM_16), NumericConstant(0, _)))) =>
+        Some(calculateLeft ++ List(ZLine.ld8(A, H), ZLine.register(OR, L)))
+      case (_, List(ZLine0(LD_16, TwoRegisters(HL, IMM_16), NumericConstant(0xffff, _)))) =>
+        Some(calculateLeft ++ List(ZLine.ld8(A, H), ZLine.register(AND, L), ZLine.imm8(CP, 0xff)))
+      case _ =>
+        None
+    }
+    fastEqualityComparison match {
+      case Some(code) =>
+        (compType, branches) match {
+          case (ComparisonType.Equal, BranchIfTrue(lbl)) => return code :+ ZLine.jumpR(ctx, lbl, IfFlagSet(ZFlag.Z))
+          case (ComparisonType.Equal, BranchIfFalse(lbl)) => return code :+ ZLine.jumpR(ctx, lbl, IfFlagClear(ZFlag.Z))
+          case (ComparisonType.NotEqual, BranchIfTrue(lbl)) => return code :+ ZLine.jumpR(ctx, lbl, IfFlagClear(ZFlag.Z))
+          case (ComparisonType.NotEqual, BranchIfFalse(lbl)) => return code :+ ZLine.jumpR(ctx, lbl, IfFlagSet(ZFlag.Z))
+          case _ =>
+        }
+      case _ =>
+    }
+
     val (calculated, useBC) = if (calculateLeft.exists(Z80ExpressionCompiler.changesBC)) {
       if (calculateLeft.exists(Z80ExpressionCompiler.changesDE)) {
         calculateRight ++ List(ZLine.register(ZOpcode.PUSH, ZRegister.HL)) ++ Z80ExpressionCompiler.fixTsx(ctx, calculateLeft) ++ List(ZLine.register(ZOpcode.POP, ZRegister.BC)) -> false
@@ -152,8 +178,6 @@ object Z80Comparisons {
       }
       calculateFlags :+ jump
     } else if (compType == Equal || compType == NotEqual) {
-      import ZRegister._
-      import ZOpcode._
       val calculateFlags = calculated ++ List(
         ZLine.ld8(A, L),
         ZLine.register(XOR, if (useBC) C else E),
@@ -169,8 +193,6 @@ object Z80Comparisons {
       }
       calculateFlags :+ jump
     } else {
-      import ZRegister._
-      import ZOpcode._
       val calculateFlags = calculated ++ List(
               ZLine.ld8(A, L),
               ZLine.register(SUB, if (useBC) C else E),

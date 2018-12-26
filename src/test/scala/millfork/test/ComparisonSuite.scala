@@ -420,4 +420,44 @@ class ComparisonSuite extends FunSuite with Matchers {
       m.readByte(0xc002) should equal(0)
     }
   }
+  
+  test("Compare to $ffff") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output @$c000
+        | void main() {
+        |   stuff($ffff)
+        |   barrier()
+        | }
+        | noinline void stuff (word x) {
+        |   if x == $ffff {
+        |     output = 11
+        |   }
+        | }
+        | noinline void barrier() {}
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(11)
+    }
+  }
+
+  test("Compare to 0") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output @$c000
+        | void main() {
+        |   stuff(0)
+        |   barrier()
+        | }
+        | noinline void stuff (word x) {
+        |   if x == 0 {
+        |     output = 11
+        |   }
+        | }
+        | noinline void barrier() {}
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(11)
+    }
+  }
 }
