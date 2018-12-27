@@ -1,7 +1,7 @@
 package millfork.compiler.mos
 
 import millfork.CompilationFlag
-import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.{AssemblyLine, AssemblyLine0}
 import millfork.compiler.{BranchSpec, CompilationContext}
 import millfork.env.{NumericConstant, Type, VariableInMemory}
 import millfork.node._
@@ -34,10 +34,31 @@ object MosBulkMemoryOperations {
       case _ => return MosStatementCompiler.compileForStatement(ctx, f)._1
     }
     val useTwoRegs = ctx.options.flag(CompilationFlag.OptimizeForSpeed) && ctx.options.zpRegisterSize >= 4
-    val loadReg = MosExpressionCompiler.compile(ctx, SumExpression(List(false -> f.start, false -> target.index), decimal = false), Some(w -> reg), BranchSpec.None) ++ (
-      if (useTwoRegs) List(AssemblyLine.zeropage(LDA, reg), AssemblyLine.zeropage(STA, reg,2), AssemblyLine.zeropage(LDA, reg,1), AssemblyLine.zeropage(STA, reg,3))
-      else Nil
-    )
+    val loadReg =
+      if (useTwoRegs) {
+        import millfork.assembly.mos.AddrMode._
+        val first = MosExpressionCompiler.compile(ctx, SumExpression(List(false -> f.start, false -> target.index), decimal = false), Some(w -> reg), BranchSpec.None)
+        first ++ (first match {
+          case List(AssemblyLine0(LDA, Immediate, l), AssemblyLine0(LDA, ZeroPage, r0), AssemblyLine0(LDA, Immediate, h), AssemblyLine0(LDA, ZeroPage, r1))
+            if (r1-r0).quickSimplify.isProvably(1) =>
+            val c = (h.asl(8) + l+ 0x80).quickSimplify
+            List(
+              AssemblyLine.immediate(LDA, c.loByte),
+              AssemblyLine.zeropage(STA, reg, 2),
+              AssemblyLine.immediate(LDA, c.subbyte(1)),
+              AssemblyLine.zeropage(STA, reg, 3))
+          case _ =>
+            List(
+              AssemblyLine.zeropage(LDA, reg),
+              AssemblyLine.implied(CLC),
+              AssemblyLine.immediate(ADC, 0x80),
+              AssemblyLine.zeropage(STA, reg, 2),
+              AssemblyLine.zeropage(LDA, reg, 1),
+              AssemblyLine.immediate(ADC, 0),
+              AssemblyLine.zeropage(STA, reg, 3))
+        })
+      }else MosExpressionCompiler.compile(ctx, SumExpression(List(false -> f.start, false -> target.index), decimal = false), Some(w -> reg), BranchSpec.None)
+
     val loadSource = MosExpressionCompiler.compileToA(ctx, source)
     val loadAll = if (MosExpressionCompiler.changesZpreg(loadSource, 0) || MosExpressionCompiler.changesZpreg(loadSource, 1)) {
       loadSource ++ MosExpressionCompiler.preserveRegisterIfNeeded(ctx, MosRegister.A, loadReg)
@@ -53,20 +74,20 @@ object MosBulkMemoryOperations {
           List(
             AssemblyLine.immediate(LDY, 0x80),
             AssemblyLine.label(label),
+            AssemblyLine.implied(DEY),
             AssemblyLine.indexedY(STA, reg),
             AssemblyLine.indexedY(STA, reg, 2),
-            AssemblyLine.implied(INY),
+            AssemblyLine.implied(DEY),
             AssemblyLine.indexedY(STA, reg),
             AssemblyLine.indexedY(STA, reg, 2),
-            AssemblyLine.implied(INY),
             AssemblyLine.relative(BNE, label))
         } else if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) {
           List(
             AssemblyLine.immediate(LDY, 0x80),
             AssemblyLine.label(label),
+            AssemblyLine.implied(DEY),
             AssemblyLine.indexedY(STA, reg),
             AssemblyLine.indexedY(STA, reg, 2),
-            AssemblyLine.implied(INY),
             AssemblyLine.relative(BNE, label))
         } else ???
       } else {
@@ -113,7 +134,8 @@ object MosBulkMemoryOperations {
         List(
           AssemblyLine.immediate(LDX, wholePageCount),
           AssemblyLine.relative(BEQ, labelXSkip),
-          AssemblyLine.label(labelX)) ++ fillOnePage ++ List(
+          AssemblyLine.label(labelX)) ++ fillOnePage ++
+          (if (useTwoRegs) List(AssemblyLine.zeropage(INC, reg, 3)) else Nil) ++ List(
           AssemblyLine.zeropage(INC, reg, 1),
           AssemblyLine.implied(DEX),
           AssemblyLine.relative(BNE, labelX),

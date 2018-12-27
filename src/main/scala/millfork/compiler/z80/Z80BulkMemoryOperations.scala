@@ -54,11 +54,11 @@ object Z80BulkMemoryOperations {
       val calculateAddress = Z80ExpressionCompiler.calculateAddressToHL(ctx, IndexedExpression(array, targetIndexExpression))
       val calculateSize = f.direction match {
         case ForDirection.DownTo =>
-          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.start, true -> f.end, false -> LiteralExpression(1, 1)), decimal = false)))
+          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.start, true -> f.end), decimal = false)))
         case ForDirection.To | ForDirection.ParallelTo =>
-          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.end, true -> f.start, false -> LiteralExpression(1, 1)), decimal = false)))
-        case ForDirection.Until | ForDirection.ParallelUntil =>
           Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.end, true -> f.start), decimal = false)))
+        case ForDirection.Until | ForDirection.ParallelUntil =>
+          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.end, true -> f.start, true -> LiteralExpression(1, 1)), decimal = false)))
       }
       val (incOp, ldOp) = f.direction match {
         case ForDirection.DownTo => DEC_16 -> LDDR
