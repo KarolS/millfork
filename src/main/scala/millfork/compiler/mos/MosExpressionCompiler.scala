@@ -791,7 +791,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   assertAllArithmeticBytes("Nonet argument has to be a byte", ctx, params)
                   params.head match {
                     case SumExpression(addends, _) =>
-                      if (addends.exists(a => !a._1)) {
+                      if (addends.exists(a => a._1)) {
                         ctx.log.warn("Nonet subtraction may not work as expected", expr.position)
                       }
                       if (addends.size > 2) {
