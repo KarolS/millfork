@@ -1923,25 +1923,25 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.JustLabels,
     (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & IsNonvolatile) ~
-      (Linear & Not(ChangesA) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesA) & DoesntChangeMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
       (ShortConditionalBranching & MatchParameter(2)) ~~> { code =>
       code(1) :: code(0) :: code.drop(2)
     },
     (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
       (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1) & IsNonvolatile) ~
-      (Linear & Not(ChangesX) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesX) & DoesntChangeMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
       (ShortConditionalBranching & MatchParameter(2)) ~~> { code =>
       code(1) :: code(0) :: code.drop(2)
     },
     (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1) & IsNonvolatile) ~
-      (Linear & Not(ChangesY) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesY) & DoesntChangeMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
       (ShortConditionalBranching & MatchParameter(2)) ~~> { code =>
       code(1) :: code(0) :: code.drop(2)
     },
     (HasOpcode(LABEL) & MatchParameter(2) & HasCallerCount(1)) ~
       (Elidable & HasOpcode(LDZ) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesIZ) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesIZ) & DoesntChangeMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).* ~
       (ShortConditionalBranching & MatchParameter(2)) ~~> { code =>
       code(1) :: code(0) :: code.drop(2)
     },
@@ -2657,6 +2657,16 @@ object AlwaysGoodOptimizations {
         code(1).copy(opcode = LDA),
         code(0).copy(opcode = CMP),
         code(3).copy(opcode = BCC))
+    },
+
+    (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.A) & HasAddrModeIn(Absolute, ZeroPage, Immediate)) ~~> { code =>
+      List(code.last.copy(opcode = CPX))
+    },
+
+    (Elidable & HasOpcode(TYA)) ~
+      (Elidable & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.A) & HasAddrModeIn(Absolute, ZeroPage, Immediate)) ~~> { code =>
+      List(code.last.copy(opcode = CPY))
     },
 
   )
