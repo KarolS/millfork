@@ -344,6 +344,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
   def compile(ctx: CompilationContext, expr: Expression, exprTypeAndVariable: Option[(Type, Variable)], branches: BranchSpec): List[AssemblyLine] = {
     val env = ctx.env
+    env.eval(expr) match {
+      case Some(value) =>
+        return exprTypeAndVariable.fold(noop) { case (exprType, target) =>
+          assertCompatible(exprType, target.typ)
+          compileConstant(ctx, value, target)
+        }
+      case _ =>
+    }
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")
     expr match {
