@@ -17,6 +17,8 @@ import scala.util.control.TailCalls.{TailRec, done, tailcall}
   */
 object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine] {
 
+  override def requiredFlags: Set[CompilationFlag.Value] = Set(CompilationFlag.RegisterVariables)
+
   object CyclesAndBytes {
     val Zero = CyclesAndBytes(0, 0)
   }

@@ -58,7 +58,7 @@ Default: the same as `encoding`.
     * `prevent_jmp_indirect_bug` – whether the compiler should try to avoid the indirect JMP bug, 
     default is `false` on 65C02-compatible or non-6502 processors and `true` elsewhere
     
-    * `compact_dispatch_params` – whether parameter values in return dispatch statements may overlap other objects, default is `true`  
+    * `compact_dispatch_params` – whether parameter values in return dispatch statements may overlap other objects, default is `true`.  
     This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.
     
     * `lunix` – generate relocatable code for LUnix/LNG, default is `false`
@@ -70,6 +70,12 @@ Default: the same as `encoding`.
     * `inline` - inline functions automatically by default, default is `false`.
     
     * `ipo` - enable interprocedural optimization, default is `false`.
+    
+    * `function_fallthrough` – whether should replace a tail call by simply putting one function after another, default is `true`.
+
+    * `function_deduplication` – whether identical functions should be merged into one function, default is `true`.
+
+    * `subroutine_extraction` – whether identical fragments of functions should be extracted into subroutines, default is `false`.    
     
     * `lenient_encoding` - allow for automatic substitution of invalid characters in string literals using the default encodings, default is `false`.
     

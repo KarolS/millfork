@@ -139,35 +139,68 @@ Use a software stack for stack variables.
 
 ## Optimization options
 
-* `-O0` – Disable all optimizations.
+* `-O0` – Disable all optimizations except unused global symbol removal.
 
 * `-O`, `-O2` ... `-O8` – Optimize code, various levels. For most code, anything above `-O4` doesn't improve it anymore. 
 
-* `-O9` – Optimize code using superoptimizer (experimental). Computationally expensive, decent results.
+* `-O9` – Optimize code using superoptimizer (experimental). Computationally very expensive, decent results.
 
 * `-finline`, `-fno-inline` – Whether should inline functions automatically.
 See the [documentation about inlining](../abi/inlining.md). Computationally easy, can give decent gains.
 `.ini` equivalent: `inline`.
+Default: no
 
 * `-fipo`, `-fno-ipo` – Whether should perform interprocedural optimization.
 It enables certain optimization similar to what inlining would enable, but without actual inlining.
 `.ini` equivalent: `ipo`.
+Default: no. 
+
+* `-fregister-variables`, `-fno-register-variables` – Whether should allow moving local variables into CPU registers.
+Default: yes. 
 
 * `-foptimize-stdlib`, `-fno-optimize-stdlib` – 
 Whether should replace some standard library calls with constant parameters with more efficient variants.
 Currently affects `putstrz` and `strzlen`, but may affect more functions in the future.
 `.ini` equivalent: `optimize_stdlib`.
+Default: no.
+
+* `-ffunction-fallthrough`, `-fno-function-fallthrough` – 
+Whether should replace a tail call by simply putting one function after another.
+`.ini` equivalent: `function_fallthrough`.
+Default: yes. 
+
+* `-ffunction-deduplication`, `-fno-function-deduplication` – 
+Whether identical functions should be merged into one function.
+`.ini` equivalent: `function_deduplication`.
+Default: yes. 
+
+* `-fsubroutine-extraction`, `-fno-subroutine-extraction` – 
+Whether identical fragments of functions should be extracted into subroutines.
+`.ini` equivalent: `subroutine_extraction`.
+Default: no. 
 
 * `-Os`, `--size` – Optimize for size, sacrificing some speed (experimental).
+Also enables `-fcode-deduplication`.
 
 * `-Of`, `--fast` – Optimize for speed, even if it increases the size a bit (experimental).
+Also enables `-finline`. 
 
 * `-Ob`, `--blast-processing` – Optimize for speed, even if it increases the size a lot (experimental).
-Enables `-finline` automatically. 
+Also enables `-finline`. 
+
+* `-Og`, `--optimize-debugging` – Disables optimizations that make debugging harder.
+Sets 
+`-fno-optimize-stdlib`,
+`-fno-variable-overlap`,
+`-fno-register-variables`,
+`-fno-function-fallthrough`,
+`-fno-function-deduplication`,
+`-fno-subroutine-extraction`
+ automatically. 
 
 * `-fdangerous-optimizations` – Use dangerous optimizations (experimental).
 Dangerous optimizations are more likely to result in broken code.
-Enables `-fipo` automatically.
+Also enables `-fipo` and `-foptimize-stdlib` automatically.
 `.ini` equivalent: `dangerous_optimizations`. 
 
 Note: for compatibility with versions 0.3.0 and earlier,

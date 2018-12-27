@@ -163,7 +163,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   def deduplicate(options: CompilationOptions, compiledFunctions: mutable.Map[String, CompiledFunction[T]]): Unit
 
-  def assemble(callGraph: CallGraph, optimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions): AssemblerOutput = {
+  def assemble(callGraph: CallGraph, unfilteredOptimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions): AssemblerOutput = {
     mem.programName = options.outputFileName.getOrElse("MILLFORK")
     val platform = options.platform
     val variableAllocators = platform.variableAllocators
@@ -173,6 +173,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       zpOccupied(i) = false
       zpOccupied(i + 1) = false
     }
+
+    val optimizations = unfilteredOptimizations.filter(_.requiredFlags.forall(options.flag))
 
     val assembly = mutable.ArrayBuffer[String]()
 

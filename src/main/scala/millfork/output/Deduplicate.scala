@@ -13,16 +13,20 @@ import scala.collection.mutable.ListBuffer
 abstract class Deduplicate[T <: AbstractCode](env: Environment, options: CompilationOptions) {
 
   def apply(compiledFunctions: mutable.Map[String, CompiledFunction[T]]): Unit = {
-    if (options.flag(CompilationFlag.OptimizeForSize)) {
+    if (options.flag(CompilationFlag.SubroutineExtraction)) {
       runStage(compiledFunctions, extractCommonCode)
     }
-    runStage(compiledFunctions, deduplicateIdenticalFunctions)
-    runStage(compiledFunctions, eliminateTailJumps)
-    runStage(compiledFunctions, eliminateTailJumps)
-    runStage(compiledFunctions, eliminateTailJumps)
-    runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
-    runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
-    runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
+    if (options.flag(CompilationFlag.FunctionDeduplication)) {
+      runStage(compiledFunctions, deduplicateIdenticalFunctions)
+    }
+    if (options.flag(CompilationFlag.FunctionFallthrough)) {
+      runStage(compiledFunctions, eliminateTailJumps)
+      runStage(compiledFunctions, eliminateTailJumps)
+      runStage(compiledFunctions, eliminateTailJumps)
+      runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
+      runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
+      runStage(compiledFunctions, eliminateRemainingTrivialTailJumps)
+    }
     fixDoubleRedirects(compiledFunctions)
 //    println(compiledFunctions.map {
 //      case (k, v) => k + " " + (v match {

@@ -144,6 +144,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.EmitNative65816Opcodes -> (platform.cpu == millfork.Cpu.Sixteen && native16),
       CompilationFlag.Emit65CE02Opcodes -> (platform.cpu == millfork.Cpu.CE02),
       CompilationFlag.EmitHudsonOpcodes -> (platform.cpu == millfork.Cpu.HuC6280),
+      CompilationFlag.SubroutineExtraction -> optimizeForSize,
       CompilationFlag.OptimizeForSize -> optimizeForSize,
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing

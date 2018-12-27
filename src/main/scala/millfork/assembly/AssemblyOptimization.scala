@@ -1,6 +1,6 @@
 package millfork.assembly
 
-import millfork.CompilationOptions
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.compiler.LabelGenerator
 import millfork.env.{NormalFunction, ThingInMemory}
 import millfork.error.Logger
@@ -23,4 +23,6 @@ trait AssemblyOptimization[T <: AbstractCode] {
   def name: String
 
   def optimize(f: NormalFunction, code: List[T], context: OptimizationContext): List[T]
+
+  def requiredFlags: Set[CompilationFlag.Value] = Set.empty
 }

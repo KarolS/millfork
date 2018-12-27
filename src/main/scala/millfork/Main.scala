@@ -18,34 +18,7 @@ import millfork.node.StandardCallGraph
 import millfork.output._
 import millfork.parser.{MosSourceLoadingQueue, ZSourceLoadingQueue}
 
-/**
-  * @author Karol Stasiak
-  */
 
-case class Context(errorReporting: Logger,
-                   inputFileNames: List[String],
-                   outputFileName: Option[String] = None,
-                   runFileName: Option[String] = None,
-                   optimizationLevel: Option[Int] = None,
-                   zpRegisterSize: Option[Int] = None,
-                   platform: Option[String] = None,
-                   outputAssembly: Boolean = false,
-                   outputLabels: Boolean = false,
-                   includePath: List[String] = Nil,
-                   flags: Map[CompilationFlag.Value, Boolean] = Map(),
-                   features: Map[String, Long] = Map(),
-                   verbosity: Option[Int] = None) {
-  def changeFlag(f: CompilationFlag.Value, b: Boolean): Context = {
-    if (flags.contains(f)) {
-      if (flags(f) != b) {
-        errorReporting.error("Conflicting flags")
-      }
-      this
-    } else {
-      copy(flags = this.flags + (f -> b))
-    }
-  }
-}
 
 object Main {
 
@@ -77,7 +50,7 @@ object Main {
     errorReporting.trace("This program comes with ABSOLUTELY NO WARRANTY.")
     errorReporting.trace("This is free software, and you are welcome to redistribute it under certain conditions")
     errorReporting.trace("You should have received a copy of the GNU General Public License along with this program. If not, see https://www.gnu.org/licenses/")
-    val c = fixMissingIncludePath(c0)
+    val c = fixMissingIncludePath(c0).filloutFlags()
     if (c.includePath.isEmpty) {
       errorReporting.warn("Failed to detect the default include directory, consider using the -I option")
     }
@@ -213,7 +186,7 @@ object Main {
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
     } else {
-      unoptimized
+      OptimizationPresets.NodeOpt0.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
     }
     val callGraph = new StandardCallGraph(program, options.log)
 
@@ -265,7 +238,7 @@ object Main {
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
     } else {
-      unoptimized
+      OptimizationPresets.NodeOpt0.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
     }
     val callGraph = new StandardCallGraph(program, options.log)
 
@@ -430,10 +403,10 @@ object Main {
     }.description("Whether hardware decimal mode should be used (6502 only).")
     boolean("-fvariable-overlap", "-fno-variable-overlap").action { (c, v) =>
       c.changeFlag(CompilationFlag.VariableOverlap, v)
-    }.description("Whether variables should overlap if their scopes do not intersect.")
+    }.description("Whether variables should overlap if their scopes do not intersect. Enabled by default.")
     boolean("-fcompact-dispatch-params", "-fno-compact-dispatch-params").action { (c, v) =>
       c.changeFlag(CompilationFlag.CompactReturnDispatchParams, v)
-    }.description("Whether parameter values in return dispatch statements may overlap other objects.")
+    }.description("Whether parameter values in return dispatch statements may overlap other objects. Enabled by default.")
     boolean("-fbounds-checking", "-fno-bounds-checking").action { (c, v) =>
       c.changeFlag(CompilationFlag.VariableOverlap, v)
     }.description("Whether should insert bounds checking on array access.")
@@ -506,28 +479,42 @@ object Main {
     boolean("-foptimize-stdlib", "-fno-optimize-stdlib").action { (c, v) =>
       c.changeFlag(CompilationFlag.OptimizeStdlib, v)
     }.description("Optimize standard library calls.")
+    boolean("-fsubroutine-extraction", "-fno-subroutine-extraction").action { (c, v) =>
+      c.changeFlag(CompilationFlag.SubroutineExtraction, v)
+    }.description("Extract identical code fragments into subroutines.")
+    boolean("-ffunction-fallthrough", "-fno-function-fallthrough").action { (c, v) =>
+      c.changeFlag(CompilationFlag.FunctionFallthrough, v)
+    }.description("Replace tail calls by simply putting one function after another. Enabled by default.")
+    boolean("-ffunction-deduplication", "-fno-function-deduplication").action { (c, v) =>
+      c.changeFlag(CompilationFlag.FunctionDeduplication, v)
+    }.description("Merge identical functions into one function. Enabled by default.")
+    boolean("-fregister-variables", "-fno-register-variables").action { (c, v) =>
+      c.changeFlag(CompilationFlag.RegisterVariables, v)
+    }.description("Allow moving local variables into CPU registers. Enabled by default.")
     flag("-Os", "--size").action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, true).
         changeFlag(CompilationFlag.OptimizeForSpeed, false).
         changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
-    }.description("Prefer smaller code even if it is slightly slower (experimental).")
+    }.description("Prefer smaller code even if it is slightly slower (experimental). Implies -fsubroutine-extraction.")
     flag("-Of", "--fast").action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, false).
         changeFlag(CompilationFlag.OptimizeForSpeed, true).
         changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
-    }.description("Prefer faster code even if it is slightly bigger (experimental).")
+    }.description("Prefer faster code even if it is slightly bigger (experimental). Implies -finline.")
     flag("-Ob", "--blast-processing").action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, false).
         changeFlag(CompilationFlag.OptimizeForSpeed, true).
-        changeFlag(CompilationFlag.OptimizeForSonicSpeed, true).
-        changeFlag(CompilationFlag.InlineFunctions, true)
+        changeFlag(CompilationFlag.OptimizeForSonicSpeed, true)
     }.description("Prefer faster code even if it is much bigger (experimental). Implies -finline.")
     flag("--dangerous-optimizations").action { c =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, true)
     }.description("Use dangerous optimizations (experimental).").hidden()
     boolean("-fdangerous-optimizations", "-fno-dangerous-optimizations").action { (c, v) =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, v)
-    }.description("Use dangerous optimizations (experimental). Implies -fipo.")
+    }.description("Use dangerous optimizations (experimental). Implies -fipo and -foptimize-stdlib.")
+    flag("-Og", "--optimize-debugging").action { c =>
+      c.changeFlag(CompilationFlag.OptimizeForDebugging, true)
+    }.description("Disable optimizations that make debugging harder (experimental).")
 
     fluff("", "Warning options:", "")
 

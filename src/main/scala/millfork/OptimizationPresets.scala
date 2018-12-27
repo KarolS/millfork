@@ -15,6 +15,10 @@ object OptimizationPresets {
     UnusedLocalVariables,
     UnusedGlobalVariables,
   )
+  val NodeOpt0 = List(
+    UnusedFunctions,
+    UnusedGlobalVariables,
+  )
   val AssOpt: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](
     UnusedLabelRemoval,
     AlwaysGoodOptimizations.NonetAddition,

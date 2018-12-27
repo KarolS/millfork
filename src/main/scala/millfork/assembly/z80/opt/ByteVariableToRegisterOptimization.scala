@@ -13,6 +13,8 @@ import scala.collection.mutable.ListBuffer
   */
 object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
 
+  override def requiredFlags: Set[CompilationFlag.Value] = Set(CompilationFlag.RegisterVariables)
+
   override def name = "Allocating variables to single registers"
 
   object CyclesAndBytes {

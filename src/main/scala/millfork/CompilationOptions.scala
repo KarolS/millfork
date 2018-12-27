@@ -218,13 +218,13 @@ object Cpu extends Enumeration {
 
   import CompilationFlag._
 
-  private val mosAlwaysDefaultFlags = Set(
-    VariableOverlap, CompactReturnDispatchParams
+  private val alwaysDefaultFlags = Set(
+    VariableOverlap, CompactReturnDispatchParams, FunctionFallthrough, RegisterVariables, FunctionDeduplication
   )
 
-  private val i80AlwaysDefaultFlags = Set(
-    VariableOverlap, CompactReturnDispatchParams
-  )
+  private val mosAlwaysDefaultFlags = alwaysDefaultFlags
+
+  private val i80AlwaysDefaultFlags = alwaysDefaultFlags
 
   def defaultFlags(x: Cpu.Value): Set[CompilationFlag.Value] = x match {
     case StrictMos =>
@@ -316,8 +316,9 @@ object CompilationFlag extends Enumeration {
   UseIntelSyntaxForInput,
   UseIntelSyntaxForOutput,
   // optimization options:
-  OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed,
+  OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed, OptimizeForDebugging,
   DangerousOptimizations, InlineFunctions, InterproceduralOptimization,
+  FunctionFallthrough, RegisterVariables, FunctionDeduplication, SubroutineExtraction,
   OptimizeStdlib,
   // memory allocation options
   VariableOverlap, CompactReturnDispatchParams, LUnixRelocatableCode,
@@ -356,6 +357,9 @@ object CompilationFlag extends Enumeration {
     "input_intel_syntax" -> UseIntelSyntaxForInput,
     "ipo" -> InterproceduralOptimization,
     "optimize_stdlib" -> OptimizeStdlib,
+    "function_fallthrough" -> FunctionFallthrough,
+    "function_deduplication" -> FunctionDeduplication,
+    "subroutine_extraction" -> SubroutineExtraction,
     "inline" -> InlineFunctions,
     "dangerous_optimizations" -> DangerousOptimizations,
     "decimal_mode" -> DecimalMode,
