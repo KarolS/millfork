@@ -40,6 +40,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessOperationAfterLoad,
     AlwaysGoodOptimizations.PointlessLoadBeforeTransfer,
     VariableToRegisterOptimization,
+    TwoVariablesToIndexRegistersOptimization,
     AlwaysGoodOptimizations.RearrangableLoadFromTheSameLocation,
     AlwaysGoodOptimizations.PoinlessLoadBeforeAnotherLoad,
     AlwaysGoodOptimizations.CommonIndexSubexpressionElimination,
@@ -60,10 +61,13 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessOperationFromFlow,
     AlwaysGoodOptimizations.SimplifiableComparison,
     VariableToRegisterOptimization,
+    TwoVariablesToIndexRegistersOptimization,
     ChangeIndexRegisterOptimizationPreferringX2Y,
     VariableToRegisterOptimization,
+    TwoVariablesToIndexRegistersOptimization,
     ChangeIndexRegisterOptimizationPreferringY2X,
     VariableToRegisterOptimization,
+    TwoVariablesToIndexRegistersOptimization,
     AlwaysGoodOptimizations.ConstantFlowAnalysis,
     LaterOptimizations.DoubleLoadToDifferentRegisters,
     LaterOptimizations.DoubleLoadToTheSameRegister,
@@ -250,6 +254,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.UnusedCodeRemoval,
     AlwaysGoodOptimizations.UnusedLabelRemoval,
     VariableToRegisterOptimization,
+    TwoVariablesToIndexRegistersOptimization,
   )
 
   val QuickPreset: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](
@@ -267,6 +272,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.ReverseFlowAnalysis,
     AlwaysGoodOptimizations.SimplifiableCondition,
     VariableToRegisterOptimization,
+    TwoVariablesToIndexRegistersOptimization,
     AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
     LaterOptimizations.DoubleLoadToTheSameRegister
   )

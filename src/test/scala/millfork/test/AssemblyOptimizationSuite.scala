@@ -613,4 +613,28 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Double indices") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+      """
+        | array output[1000] @$c000
+        | array xbuf[40]
+        | array ybuf[25]
+        | void main() {
+        |   stuff(output.addr)
+        | }
+        | noinline void stuff (pointer scrn) {
+        |   byte j
+        |   byte jj
+        |   for jj,0,until,25 {
+        |    for j,0,until,40 {
+        |       scrn[j] = xbuf[j] + ybuf[jj]
+        |     }
+        |    scrn += 40
+        |   }
+        | }
+      """.stripMargin
+    ) { m =>
+    }
+  }
+
 }
