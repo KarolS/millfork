@@ -211,4 +211,18 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
     }
   }
 
+  test("Constants") {
+    EmuBenchmarkRun(
+      """
+        | const word COUNT = $400
+        | array a[COUNT]@$c000
+        | asm void main () {
+        |   LDA #hi(a.addr+COUNT)
+        |   RTS
+        | }
+      """.stripMargin){m =>
+
+    }
+  }
+
 }

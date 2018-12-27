@@ -684,6 +684,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             constantOperationForAsm(MathOperator.Exor, params)
           case "||" | "|" =>
             constantOperationForAsm(MathOperator.Or, params)
+          case "hi" =>
+            oneArgFunctionForAsm(_.hiByte, params)
+          case "lo" =>
+            oneArgFunctionForAsm(_.loByte, params)
+          case "nonet" | "sin" | "cos" | "tan" =>
+            log.error("Function not supported in inline assembly", e.position)
+            None
           case _ =>
             None
         }
@@ -697,6 +704,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         m <- om
       } yield CompoundConstant(op, c, m)
     }
+  }
+
+  private def oneArgFunctionForAsm(f: Constant => Constant, params: List[Expression]): Option[Constant] = {
+    if (params.size != 1) {
+      log.error("Too many arguments", params.headOption.flatMap(_.position))
+      return None
+    }
+    evalForAsm(params.head).map(f).map(_.quickSimplify)
   }
 
   def registerAlias(stmt: AliasDefinitionStatement): Unit = {
