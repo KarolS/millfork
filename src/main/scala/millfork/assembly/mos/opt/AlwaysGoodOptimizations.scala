@@ -2056,9 +2056,7 @@ object AlwaysGoodOptimizations {
     },
 
     (Elidable & HasOpcode(BIT) & DoesntMatterWhatItDoesWith(State.V, State.C, State.Z) & HasAddrModeIn(Absolute, ZeroPage) & MatchAddrMode(2) & MatchParameter(3)) ~
-      DebugMatching ~
       (Elidable & HasOpcodeIn(BPL, BMI) & MatchParameter(1)) ~
-      DebugMatching ~
       (Linear & DoesNotConcernMemoryAt(2, 3)).* ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(1) & HasCallerCount(1)) ~
       (Elidable & HasOpcode(ASL) & MatchAddrMode(2) & MatchParameter(3)) ~~> { code =>
