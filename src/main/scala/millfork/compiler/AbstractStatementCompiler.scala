@@ -194,6 +194,12 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           DoWhileStatement(Nil, decrement :: f.body, FunctionCallExpression("!=", List(vex, f.start)), names).pos(p)
         ))
 
+      case (ForDirection.Until, Some(NumericConstant(s, _)), Some(NumericConstant(e, _))) if s >= 0 && e > 0 && s < e =>
+        compile(ctx, List(
+          Assignment(vex, f.start).pos(p),
+          DoWhileStatement(f.body, increment::Nil, FunctionCallExpression("!=", List(vex, f.end)).pos(p), names).pos(p)
+        ))
+
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s == e =>
         val end = ctx.nextLabel("of")
         val (main, extra) = compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)).pos(p) :: f.body)
