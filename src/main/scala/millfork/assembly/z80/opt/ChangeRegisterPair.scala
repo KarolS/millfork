@@ -1,6 +1,6 @@
 package millfork.assembly.z80.opt
 
-import millfork.assembly.{AssemblyOptimization, OptimizationContext}
+import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
 import millfork.assembly.z80._
 import millfork.env.{AssemblyParamSignature, NormalFunction, NormalParamSignature}
 import millfork.error.Logger
@@ -48,11 +48,11 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
     if (f.params.isInstanceOf[AssemblyParamSignature]) return code
     val usesBC = code.exists(l => (l.readsRegister(BC) || l.changesRegister(BC)) && l.opcode != CALL)
     val usesDE = code.exists(l => (l.readsRegister(DE) || l.changesRegister(DE)) && l.opcode != CALL)
-    val canDE2BC = f.returnType.size < 3 && canOptimize(code, DE2BC, Loaded()) && (f.params match {
+    val canDE2BC = f.returnType.size < 3 && canOptimize(code, DE2BC, Loaded()) && canOptimize2(code, DE2BC) && (f.params match {
       case NormalParamSignature(List(p)) => p.typ.size < 3
       case _ => true
     })
-    val canBC2DE = canOptimize(code, BC2DE, Loaded())
+    val canBC2DE = canOptimize(code, BC2DE, Loaded()) && canOptimize2(code, BC2DE)
     implicit val log: Logger = optimizationContext.log
     (canDE2BC, canBC2DE) match {
       case (false, false) => code
@@ -122,6 +122,16 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
     case x :: xs if !loaded.e && (x.readsRegister(E) || x.changesRegister(E)) => false
     case x :: xs => canOptimize(xs, dir, loaded)
     case _ => true
+  }
+
+  private def canOptimize2(code: List[ZLine], dir: PairDirection): Boolean = code match {
+    case ZLine0(CALL, _, _) :: xs => canOptimize2(xs, dir)
+    case x :: xs if dir == DE2BC && (x.readsRegister(DE) || x.changesRegister(DE)) =>
+      (x.elidability == Elidability.Elidable || x.elidability == Elidability.Volatile) && canOptimize2(xs, dir)
+    case x :: xs if dir == BC2DE && (x.readsRegister(BC) || x.changesRegister(BC)) =>
+      (x.elidability == Elidability.Elidable || x.elidability == Elidability.Volatile) && canOptimize2(xs, dir)
+    case x :: xs => canOptimize2(xs, dir)
+    case Nil => true
   }
 
   private def switchBC2DE(code: List[ZLine]): List[ZLine] = {
