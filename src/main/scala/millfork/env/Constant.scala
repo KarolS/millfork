@@ -201,7 +201,11 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
   }
 
   override def isProvablyDivisibleBy256: Boolean = thing match {
-    case t:PreallocableThing => t.alignment match {
+    case t: PreallocableThing => t.alignment match {
+      case DivisibleAlignment(divisor) => divisor.&(0xff) == 0
+      case _ => false
+    }
+    case t: UninitializedMemory => t.alignment match {
       case DivisibleAlignment(divisor) => divisor.&(0xff) == 0
       case _ => false
     }
@@ -228,7 +232,9 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
       } else {
         NumericConstant((x >> (index * 8)) & 0xff, 1)
       }
-      case _ => SubbyteConstant(simplified, index)
+      case _ =>
+        if (index == 0 && simplified.isProvablyDivisibleBy256) Constant.Zero
+        else SubbyteConstant(simplified, index)
     }
   }
 

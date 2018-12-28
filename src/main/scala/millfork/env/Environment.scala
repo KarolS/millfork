@@ -1002,6 +1002,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def registerArray(stmt: ArrayDeclarationStatement, options: CompilationOptions): Unit = {
+    if (options.flag(CompilationFlag.LUnixRelocatableCode) && stmt.alignment.exists(_.isMultiplePages)) {
+      log.error("Invalid alignment for LUnix code", stmt.position)
+    }
     val b = get[VariableType]("byte")
     val w = get[VariableType]("word")
     val p = get[Type]("pointer")
@@ -1036,7 +1039,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                               declaredBank = stmt.bank, indexType, b)
                 }
                 addThing(array, stmt.position)
-                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank, NoAlignment, isVolatile = false), stmt.position, options)
+                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank, alignment, isVolatile = false), stmt.position, options)
                 val a = address match {
                   case None => array.toAddress
                   case Some(aa) => aa
