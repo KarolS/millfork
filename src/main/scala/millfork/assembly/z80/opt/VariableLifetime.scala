@@ -50,6 +50,8 @@ object VariableLifetime {
       }
     }
 
+//    val log = new ConsoleLogger
+//    log.verbosity = 3
 //    log.trace("Lifetime for " + variableName)
 //    codeWithFlow.zipWithIndex.foreach {
 //      case ((_, line), index) =>
