@@ -90,7 +90,7 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
     }.map(_.name).toSet
 
     val variablesWithLifetimes = localVariables.map(v =>
-      v.name -> VariableLifetime.apply(v.name, code)
+      v.name -> VariableLifetime.apply(v.name, code, expandToIncludeIndexing = true)
     ).toMap
 
     val removeVariablesForReal = !options.flag(CompilationFlag.InternalCurrentlyOptimizingForMeasurement)
@@ -196,7 +196,7 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
       case (AssemblyLine0(LDY, _, _), _) :: xs if "--" == vy =>
         canBeInlined(vx, vy, loadedX, "-", xs)
 
-      case (AssemblyLine0(_, AbsoluteX, _), _) :: xs if loadedX == vx || vx == "--" =>
+      case (AssemblyLine0(_, AbsoluteX, _), _) :: xs if loadedX == vx || vx == "--" && loadedX == "-" =>
           canBeInlined(vx, vy, loadedX, loadedY, xs)
 
       case (AssemblyLine0(op, AbsoluteX, _), _) :: xs if loadedX == vy =>
@@ -204,7 +204,7 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
           canBeInlined(vx, vy, loadedX, loadedY, xs)
         } else fail(4)
 
-      case (AssemblyLine0(_, AbsoluteY, _), _) :: xs if loadedY == vy || vy == "--" =>
+      case (AssemblyLine0(_, AbsoluteY, _), _) :: xs if loadedY == vy || vy == "--" && loadedY == "-" =>
           canBeInlined(vx, vy, loadedX, loadedY, xs)
 
       case (AssemblyLine0(op, AbsoluteY, _), _) :: xs if loadedY == vx =>
@@ -212,10 +212,10 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
           canBeInlined(vx, vy, loadedX, loadedY, xs)
         } else fail(5)
 
-      case (AssemblyLine0(op, IndexedY | IndexedSY | ZeroPageY, _), _) :: xs if loadedY == vy || vy == "--" =>
+      case (AssemblyLine0(op, IndexedY | IndexedSY | ZeroPageY, _), _) :: xs if loadedY == vy || vy == "--" && loadedY == "-" =>
           canBeInlined(vx, vy, loadedX, loadedY, xs)
 
-      case (AssemblyLine0(op, IndexedX | ZeroPageX | LongAbsoluteX, _), _) :: xs if loadedX == vx || vx == "--" =>
+      case (AssemblyLine0(op, IndexedX | ZeroPageX | LongAbsoluteX, _), _) :: xs if loadedX == vx || vx == "--" && loadedX == "-" =>
           canBeInlined(vx, vy, loadedX, loadedY, xs)
 
       case (AssemblyLine0(_, IndexedX | ZeroPageX | LongAbsoluteX | IndexedY | IndexedSY | ZeroPageY | AbsoluteX | AbsoluteY, _), _) :: xs =>

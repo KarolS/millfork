@@ -1,6 +1,6 @@
 package millfork.assembly.mos.opt
 
-import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.{AssemblyLine, OpcodeClasses}
 import millfork.env._
 import millfork.error.ConsoleLogger
 
@@ -10,7 +10,7 @@ import millfork.error.ConsoleLogger
 object VariableLifetime {
 
   // This only works for non-stack variables.
-  def apply(variableName: String, code: List[AssemblyLine]): Range = {
+  def apply(variableName: String, code: List[AssemblyLine], expandToIncludeIndexing: Boolean = false): Range = {
     val flags = code.map(_.parameter match {
       case MemoryAddressConstant(MemoryVariable(n, _, _)) if n == variableName => true
       case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(MemoryVariable(n, _, _)), NumericConstant(_, 1)) if n == variableName => true
@@ -41,6 +41,27 @@ object VariableLifetime {
       }
     }
 
+    if (expandToIncludeIndexing) {
+      import millfork.assembly.mos.Opcode._
+      import millfork.assembly.mos.AddrMode._
+      val linearChuckAfter = code.drop(max).takeWhile{ line => line.opcode match {
+        case LABEL | JSR | BSR | RTS | RTI => false
+        case op if OpcodeClasses.AllDirectJumps(op) => false
+        case _ => true
+      }}
+      val lastIndexing = linearChuckAfter.lastIndexWhere(line => line.addrMode match {
+        case IndexedY | IndexedX | IndexedSY => true
+        case AbsoluteY | AbsoluteX | LongAbsoluteX => true
+        case ZeroPageX | ZeroPageY => true
+        case _ => false
+      })
+      if (lastIndexing >= 0) {
+        max += lastIndexing + 1
+      }
+    }
+
+//    val log = new ConsoleLogger
+//    log.verbosity = 3
 //    log.trace("Lifetime for " + variableName)
 //    code.zipWithIndex.foreach {
 //      case (line, index) =>
