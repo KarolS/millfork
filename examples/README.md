@@ -10,6 +10,8 @@
 
 * [Calculator](crossplatform/calculator.mfk) (C64/C16/ZX Spectrum/PC-88) – simple numeric input and output
 
+* [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
+
 * [Bell](crossplatform/bell.mfk) (Apple II/ZX Spectrum) – a program that goes \*ding!\*
 
 ## Commodore 64 examples

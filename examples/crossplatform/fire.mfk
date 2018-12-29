@@ -1,0 +1,171 @@
+
+array reverse_palette[256] align(256)
+
+#if CBM
+const byte COLUMN_COUNT = 40
+const byte ROW_COUNT = 25
+array palette align(fast) = [black, red, orange, yellow, white]
+void cls() {
+    byte i
+    for i,0,paralleluntil,250 {
+        screen[000+i] = 160
+        screen[250+i] = 160
+        screen[500+i] = 160
+        screen[750+i] = 160
+    }
+    for i,0,paralleluntil,250 {
+        colors[000+i] = black
+        colors[250+i] = black
+        colors[500+i] = black
+        colors[750+i] = black
+    }    
+}
+#endif
+
+#if CBM_64
+array colors[1000] @$d800
+array screen[1000] @$400
+#elseif CBM_264
+array colors[1000] @$800
+array screen[1000] @$c00
+#endif
+
+
+#if ZX_SPECTRUM
+#pragma zilog_syntax
+array palette align(fast) = [black*9, red*9, red*9+$40, yellow*9+$40, white*9+$40]
+array colors[$300] @$5800
+const byte COLUMN_COUNT = 32
+const byte ROW_COUNT = 24
+
+void cls() {
+    pointer p
+    for p,$4000,paralleluntil,$5800 {
+        p[0] = $f7
+    }
+    for p,$5800,paralleluntil,$5b00 {
+        p[0] = black*9
+    }
+}
+#endif
+
+void build_reverse_palette () {
+    byte i
+#if CBM_64
+    byte j
+    for i,0,paralleluntil,palette.length {
+        for j,0,parallelto,$f {
+            reverse_palette[palette[i] | (j<<4)] = i
+        }
+    }
+#else 
+    for i,0,paralleluntil,palette.length {
+        reverse_palette[palette[i]] = i
+    }
+#endif
+}
+
+void main() {
+    set_border(black)
+    init_rand_seed()
+    build_reverse_palette()
+    cls()
+    byte i
+    const word LAST_ROW_START = COLUMN_COUNT * word(ROW_COUNT-1)
+    for i,0,paralleluntil,COLUMN_COUNT {
+        colors[LAST_ROW_START+i] = palette[palette.length - 1]
+    }
+    while true { 
+        wait_frame()
+        fire()
+    }
+}
+
+void wait_frame() {
+#if CBM_64
+    while vic_raster != $ff {}
+#elseif CBM_264
+    while ted_raster_y != $ff {}
+#elseif ZX_SPECTRUM
+    asm { halt }
+#else 
+    // TODO
+#endif
+}
+
+void fire() {
+    byte noise    
+    byte row
+    byte column
+    pointer p
+    byte heat
+    byte entropy    
+    entropy = 0
+    p = colors.addr
+    for row,0,paralleluntil,ROW_COUNT-1 {
+        for column,0,paralleluntil,COLUMN_COUNT {
+            if entropy == 0 {
+                noise = rand()
+                entropy = 8
+            }
+            heat = reverse_palette[p[column+COLUMN_COUNT]]
+            if noise & 1 != 0 {
+                if heat != 0 { heat -= 1 }
+            }
+            noise >>= 1
+            entropy -= 1
+            p[column] = palette[heat]
+        }
+        p += COLUMN_COUNT
+    }
+}
+
+word rand_seed
+
+#if CPU_6502
+asm byte rand() {
+    ldx #8   
+    lda rand_seed+0
+__rand_loop:
+    asl     
+    rol rand_seed+1
+    bcc __no_eor
+    eor #$2D 
+__no_eor:
+    dex
+    bne __rand_loop
+    sta rand_seed+0
+    ? rts
+}
+#elseif CPU_Z80
+inline asm byte rand() {
+    ld b,8
+    ld hl,(rand_seed)
+__rand_loop:
+    add hl,hl
+    jp nc, __no_eor
+    ld a,l
+    xor $2D
+    ld l,a
+__no_eor:
+    djnz __rand_loop
+    ld (rand_seed),hl
+    ? ret
+}
+#endif
+
+#if CBM_64
+inline void init_rand_seed() {
+    poke($D40E, $ff)
+    poke($D40F, $ff)
+    poke($D412, $80)
+    while vic_raster != $70 {}
+    rand_seed.hi = peek($D41B)
+    while vic_raster != $40 {}
+    rand_seed.lo = peek($D41B)
+}
+#else
+inline void init_rand_seed() {
+    rand_seed = 1
+}
+#endif
