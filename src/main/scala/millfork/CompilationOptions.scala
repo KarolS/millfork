@@ -1,5 +1,6 @@
 package millfork
 
+import millfork.buildinfo.BuildInfo
 import millfork.compiler.LabelGenerator
 import millfork.error.{ConsoleLogger, Logger}
 
@@ -164,10 +165,24 @@ case class CompilationOptions(platform: Platform,
     }
   }
 
+  private def parseVersion(): Long = {
+    val tokens = BuildInfo.version.split("[.-]")
+
+    def extract(ix: Int):Int = {
+      tokens.lift(ix).filter(_ != "SNAPSHOT").getOrElse("0").toInt
+    }
+
+    val major = extract(0)
+    val minor = extract(1)
+    val patch = extract(2)
+    major * 10000 + minor * 100 + patch
+  }
+
   def features: Map[String, Long] = {
     @inline
     def toLong(b: Boolean): Long = if (b) 1L else 0L
     val featuresFromOptions = Map[String, Long](
+      "MILLFORK_VERSION" -> parseVersion(),
       "OPTIMIZE_FOR_SIZE" -> toLong(flag(CompilationFlag.OptimizeForSize)),
       "OPTIMIZE_FOR_SPEED" -> toLong(flag(CompilationFlag.OptimizeForSpeed)),
       "OPTIMIZE_INLINE" -> toLong(flag(CompilationFlag.InlineFunctions)),
