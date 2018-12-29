@@ -100,6 +100,11 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
 
   //noinspection OptionEqualsSome
   private def canOptimize(code: List[AssemblyLine], dir: IndexDirection, loaded: Option[IndexReg]): Boolean = code match {
+
+    case AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | STZ | LDZ | BIT, AbsoluteX | ZeroPageX, _) :: xs if dir == X2Y => false
+    case AssemblyLine0(LDY | STY, AbsoluteX | ZeroPageX, _) :: xs => false
+    case AssemblyLine0(LDX | STX, AbsoluteY | ZeroPageY, _) :: xs => false
+
     case AssemblyLine0(_, AbsoluteY, _) :: xs if loaded != Some(Y) => false
     case AssemblyLine0(_, ZeroPageY, _) :: xs if loaded != Some(Y) => false
     case AssemblyLine0(_, IndexedY, _) :: xs if dir == Y2X || loaded != Some(Y) => false
@@ -118,17 +123,14 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
       canOptimize(xs, dir, None)
     case AssemblyLine0(LDX | TAX, _, _) :: AssemblyLine0(_, IndexedX, _) :: xs if dir == X2Y =>
       canOptimize(xs, dir, None)
-    case AssemblyLine0(LDX | TAX, _, _) :: AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _) :: xs if dir == X2Y =>
+    case AssemblyLine0(LDX | TAX, _, _) :: AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | STZ, AbsoluteX | ZeroPageX, _) :: xs if dir == X2Y =>
       canOptimize(xs, dir, None)
     case AssemblyLine0(LDY | TAY, _, _) :: AssemblyLine0(INY | DEY, _, _) :: AssemblyLine0(_, IndexedY, _) :: xs if dir == Y2X =>
       canOptimize(xs, dir, None)
     case AssemblyLine0(LDX | TAX, _, _) :: AssemblyLine0(INX | DEX, _, _) :: AssemblyLine0(_, IndexedX, _) :: xs if dir == X2Y =>
       canOptimize(xs, dir, None)
-    case AssemblyLine0(LDX | TAX, _, _) :: AssemblyLine0(INX | DEX, _, _) :: AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _) :: xs if dir == X2Y =>
+    case AssemblyLine0(LDX | TAX, _, _) :: AssemblyLine0(INX | DEX, _, _) :: AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | STZ, AbsoluteX | ZeroPageX, _) :: xs if dir == X2Y =>
       canOptimize(xs, dir, None)
-
-    case AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | STZ | LDZ | LDY | STY | BIT, AbsoluteX | ZeroPageX, _) :: xs if dir == X2Y => false
-    case AssemblyLine0(LDX | STX, AbsoluteY | ZeroPageY, _) :: xs if dir == Y2X => false
 
     case AssemblyLine0(LAX, _, _) :: xs => false
     case AssemblyLine0(JSR | BSR, _, _) :: xs => false // TODO

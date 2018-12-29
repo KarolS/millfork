@@ -379,9 +379,23 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
     val vy = yCandidate.getOrElse("-")
     val vz = zCandidate.getOrElse("-")
     lines match {
+      case (AssemblyLine0(_, Immediate, MemoryAddressConstant(th)), _) :: xs
+        if th.name == vx || th.name == vy || th.name == vz =>
+        // if an address of a variable is used, then that variable cannot be assigned to a register
+        None
+
       case (AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)), _) :: xs
         if th.name == vx || th.name == vy || th.name == vz =>
         // if an address of a variable is used, then that variable cannot be assigned to a register
+        None
+
+      case (AssemblyLine0(LDX | STX, AbsoluteY | ZeroPageY | IndexedY | IndexedSY | IndexedZ, _), _) :: xs if xCandidate.isDefined =>
+        None
+
+      case (AssemblyLine0(LDY | STY, AbsoluteX | ZeroPageX | IndexedX | LongAbsoluteX | IndexedZ, _), _) :: xs if yCandidate.isDefined =>
+        None
+
+      case (AssemblyLine0(LDZ | STZ, AbsoluteX | ZeroPageX | IndexedX | LongAbsoluteX | AbsoluteY | ZeroPageY | IndexedY | IndexedSY, _), _) :: xs if zCandidate.isDefined =>
         None
 
       case (AssemblyLine0(_, AbsoluteX | AbsoluteY | LongAbsoluteX |

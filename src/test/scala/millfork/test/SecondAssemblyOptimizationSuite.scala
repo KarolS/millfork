@@ -66,4 +66,41 @@ class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
         | }
       """.stripMargin) { m => m.readByte(0xc000) should equal(4) }
   }
+
+  test("Index register usage") {
+    EmuBenchmarkRun(
+      """
+        | array palette = [0, 2, 8, 7, 1]
+        | array reverse_palette [16] @$c000
+        | array __screen[1000]
+        | array c64_color_ram[1000]
+        | void main () {
+        |    byte i
+        |    for i,0,paralleluntil,palette.length {
+        |        reverse_palette[palette[i]] = i
+        |    }
+        |    for i,0,paralleluntil,250 {
+        |        __screen[000+i] = 160
+        |        __screen[250+i] = 160
+        |        __screen[500+i] = 160
+        |        __screen[750+i] = 160
+        |    }
+        |    for i,0,paralleluntil,250 {
+        |        c64_color_ram[000+i] = 0
+        |        c64_color_ram[250+i] = 0
+        |        c64_color_ram[500+i] = 0
+        |        c64_color_ram[750+i] = 0
+        |    }
+        |    for i,0,paralleluntil,40 {
+        |        c64_color_ram[960+i] = 1
+        |    }
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(0)
+      m.readByte(0xc002) should equal(1)
+      m.readByte(0xc008) should equal(2)
+      m.readByte(0xc007) should equal(3)
+      m.readByte(0xc001) should equal(4)
+    }
+  }
 }
