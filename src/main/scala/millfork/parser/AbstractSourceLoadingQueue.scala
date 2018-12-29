@@ -64,7 +64,7 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, shortFileName, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
     for (pragma <- pragmas) {
       if (!supportedPragmas(pragma._1)) {
-        options.log.warn(s"Unsupported pragma: #pragma $pragma", Some(Position(moduleName, pragma._2, 1, 0)))
+        options.log.warn(s"Unsupported pragma: #pragma ${pragma._1}", Some(Position(moduleName, pragma._2, 1, 0)))
       }
     }
     val parser = createParser(shortFileName, src, parentDir, featureConstants, pragmas.keySet)

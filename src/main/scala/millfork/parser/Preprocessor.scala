@@ -59,7 +59,7 @@ object Preprocessor {
           keyword match {
             case "use" => if (enabled) {
               if (param == "") log.error("#use should have a parameter", pos)
-              featureConstants += param -> platform.features.getOrElse(param, {
+              featureConstants += param -> options.features.getOrElse(param, {
                 log.warn(s"Undefined parameter $param, assuming 0", pos)
                 0L
               })
@@ -115,8 +115,10 @@ object Preprocessor {
                 ifStack.push(ifStack.pop().copy(hadEnabled = true, hadElse = true))
               }
             case "pragma" =>
-              if (param == "") log.error("#pragma should", pos)
-              pragmas += param -> lineNo
+              if (enabled) {
+                if (param == "") log.error("#pragma should have a parameter", pos)
+                pragmas += param -> lineNo
+              }
             case _ =>
               log.error("Invalid preprocessor directive: #" + keyword, pos)
 
