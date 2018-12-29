@@ -32,6 +32,8 @@ You can also define feature values using the `-D` command line option.
 
 The following features are defined based on the chosen CPU and compilation options:
 
+* `MILLFORK_VERSION` – defined since 0.3.4, contains the version of the compiler: for version x.y.z, the value is 10000x+100y+z
+
 * `ARCH_6502` – 1 if compiling for 6502, 0 otherwise
 
 * `ARCH_I80` – 1 if compiling for Intel 8080-like processor, 0 otherwise

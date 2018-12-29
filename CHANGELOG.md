@@ -2,6 +2,16 @@
 
 ## Current version
 
+* Added `MILLFORK_VERSION` preprocessor parameter.
+
+* 6502: Fixed optimizations using index registers.
+
+* Fixed optimizations removing pointless stores to local variables.
+
+* Fixed `#use` not accessing all preprocessor parameters.
+
+* Fixed `#pragma` not respecting `#if`
+
 ## 0.3.2
 
 * Almost complete support for the Zilog Z80, Intel 8080 and Sharp LR35902 microprocessors.
