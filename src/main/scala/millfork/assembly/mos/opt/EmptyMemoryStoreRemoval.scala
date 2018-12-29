@@ -17,6 +17,10 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[AssemblyLine] {
   override def name = "Removing pointless stores to automatic variables"
 
   private val storeAddrModes = Set(Absolute, ZeroPage, AbsoluteX, AbsoluteY, ZeroPageX, ZeroPageY)
+  private val directStorageOpcodes = Set(
+    STA, STX, STY, SAX, STZ, SHX, SHY, AHX,
+    STA_W, STX_W, STY_W, STZ_W
+  )
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val paramVariables = f.params match {
@@ -55,20 +59,26 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[AssemblyLine] {
 
     for(v <- localVariables) {
       val lifetime = VariableLifetime.apply(v.name, code)
+      val firstaccess = lifetime.head
       val lastaccess = lifetime.last
-      if (lastaccess >= 0) {
+      if (firstaccess >= 0 && lastaccess >= 0) {
+        val firstVariableAccess = code(firstaccess)
         val lastVariableAccess = code(lastaccess)
-        if (lastVariableAccess.elidable && storeAddrModes(lastVariableAccess.addrMode) && (lastVariableAccess.opcode match {
-          case STA | STX | STY | SAX | STZ | SHX | SHY | AHX =>
+        if (lastVariableAccess.elidable &&
+          storeAddrModes(lastVariableAccess.addrMode) &&
+          storeAddrModes(firstVariableAccess.addrMode) &&
+          directStorageOpcodes(firstVariableAccess.opcode) &&
+          (lastVariableAccess.opcode match {
+          case op if directStorageOpcodes(op) =>
             true
           case TSB | TRB =>
             if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important
-          case INC | DEC =>
+          case INC | DEC | INC_W | DEC_W =>
             if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important
-          case ASL | LSR | ROL | ROR | DCP =>
+          case ASL | LSR | ROL | ROR | DCP | ASL_W | LSR_W | ROL_W | ROR_W =>
             if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important &&
@@ -78,7 +88,7 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[AssemblyLine] {
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important &&
               importances(lastaccess).a != Important
-          case DCP | SLO | SRE | RLA =>
+          case SLO | SRE | RLA =>
             if (importances eq null) importances = ReverseFlowAnalyzer.analyze(f, code, optimizationContext)
             importances(lastaccess).z != Important &&
               importances(lastaccess).n != Important &&

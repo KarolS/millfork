@@ -25,11 +25,17 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[ZLine] {
     val badVariables = mutable.Set[String]()
 
     for((v, lifetime) <- vs.variablesWithLifetimes if lifetime.nonEmpty) {
+      val firstaccess = lifetime.head
       val lastaccess = lifetime.last
-      if (lastaccess >= 0) {
+      if (firstaccess >= 0 && lastaccess >= 0) {
+        val firstVariableAccess = code(firstaccess)
         val lastVariableAccess = code(lastaccess)
         import millfork.assembly.z80.ZOpcode._
-        if (lastVariableAccess match {
+        if ((firstVariableAccess match {
+          case ZLine(LD, TwoRegisters(MEM_HL, _), _, Elidability.Elidable, _) => true
+          case ZLine(LD | LD_16, TwoRegisters(MEM_ABS_8 | MEM_ABS_16, _), _, Elidability.Elidable, _) => true
+          case _ => false
+        }) && (lastVariableAccess match {
           case ZLine(LD, TwoRegisters(MEM_HL, _), _, Elidability.Elidable, _) => true
           case ZLine(LD | LD_16, TwoRegisters(MEM_ABS_8 | MEM_ABS_16, _), _, Elidability.Elidable, _) => true
           case ZLine(INC | DEC, OneRegister(MEM_HL), _, Elidability.Elidable, _) =>
@@ -39,7 +45,7 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[ZLine] {
             val importances = vs.codeWithFlow(lastaccess)._1.importanceAfter
             Seq(importances.sf, importances.zf, importances.cf).forall(_ == Unimportant)
           case _ => false
-        }) {
+        })) {
           badVariables += v.name
           toRemove += lastaccess
         }

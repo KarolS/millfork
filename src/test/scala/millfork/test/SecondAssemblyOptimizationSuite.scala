@@ -103,4 +103,45 @@ class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc001) should equal(4)
     }
   }
+
+  test("Conditional variable initialization") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | array output [16] @$c000
+        | void main () {
+        |    byte entropy
+        |    byte noise
+        |    byte i
+        |    entropy = 0
+        |    for i,0,until,output.length {
+        |      if entropy == 0 {
+        |        entropy = 8
+        |        noise = rand()
+        |      }
+        |      output[i] = noise & 1
+        |      noise >>= 1
+        |      entropy -= 1
+        |    }
+        | }
+        | noinline byte rand() { return $42 }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(0)
+      m.readByte(0xc001) should equal(1)
+      m.readByte(0xc002) should equal(0)
+      m.readByte(0xc003) should equal(0)
+      m.readByte(0xc004) should equal(0)
+      m.readByte(0xc005) should equal(0)
+      m.readByte(0xc006) should equal(1)
+      m.readByte(0xc007) should equal(0)
+      m.readByte(0xc008) should equal(0)
+      m.readByte(0xc009) should equal(1)
+      m.readByte(0xc00a) should equal(0)
+      m.readByte(0xc00b) should equal(0)
+      m.readByte(0xc00c) should equal(0)
+      m.readByte(0xc00d) should equal(0)
+      m.readByte(0xc00e) should equal(1)
+      m.readByte(0xc00f) should equal(0)
+
+    }
+  }
 }
