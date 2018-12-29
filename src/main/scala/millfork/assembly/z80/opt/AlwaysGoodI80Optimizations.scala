@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.assembly.AssemblyOptimization
-import millfork.assembly.z80._
+import millfork.assembly.z80.{opt, _}
 import millfork.assembly.z80.ZOpcode._
 import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
 import millfork.node.ZRegister
@@ -821,6 +821,14 @@ object AlwaysGoodI80Optimizations {
       List(ZLine.ldImm16(ZRegister.BC, (ctx.get[Constant](0) + ctx.get[Constant](1).asl(8)).quickSimplify))
     },
 
+    (Elidable & Is8BitLoad(A, MEM_ABS_8) & MatchParameter(1)) ~
+      (Not(Concerns(ZRegister.HL)) & IsNotALabelUsedManyTimes).*.capture(5) ~
+      Where(ctx => ctx.isExternallyLinearBlock(5)) ~
+      (Elidable & HasOpcode(LD_16) & opt.HasRegisters(TwoRegisters(HL, IMM_16)) & MatchParameter(1)) ~~> (code =>
+      code.last ::
+        code.head.copy(registers = TwoRegisters(A, MEM_HL), parameter = Constant.Zero) ::
+        code.tail.init),
+
     // TODO: this is a bit controversial
     // 41 cycles 6 bytes → 24 cycles 8 bytes
     MultipleAssemblyRules(Seq(BC, DE).map{ reg =>
@@ -1263,6 +1271,8 @@ object AlwaysGoodI80Optimizations {
     (Elidable & HasOpcode(SCF) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
     (Elidable & HasOpcode(CCF) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
     (Elidable & HasOpcodeIn(Set(OR, AND)) & HasRegisterParam(ZRegister.A) & DoesntMatterWhatItDoesWithFlags) ~~> (_ => Nil),
+    HasOpcodeIn(Set(OR, AND, XOR)) ~
+      (Elidable & HasOpcodeIn(Set(OR, AND)) & HasRegisterParam(ZRegister.A)) ~~> (_.init),
   )
 
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](

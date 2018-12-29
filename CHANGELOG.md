@@ -12,6 +12,8 @@
 
 * Fixed `#pragma` not respecting `#if`
 
+* Optimization improvements.
+
 ## 0.3.2
 
 * Almost complete support for the Zilog Z80, Intel 8080 and Sharp LR35902 microprocessors.

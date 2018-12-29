@@ -87,7 +87,7 @@ object LoopUnrolling {
     (Elidable & HasOpcode(LDX) & MatchNumericImmediate(Start) & Not(HasImmediate(0))).capture(Initialization) ~
       (Elidable & HasOpcode(BEQ) & MatchParameter(Skip)) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(Back)) ~
-      ((Elidable & Not(HasOpcodeIn(RTS, JSR, RTI, RTL)) & Not(ChangesX)).*.capture(Body) ~
+      ((IsNotALabelUsedManyTimes & Elidable & Not(HasOpcodeIn(RTS, JSR, RTI, RTL)) & Not(ChangesX)).*.capture(Body) ~
         (Elidable & HasOpcodeIn(DEX, INX)).capture(Step)
         ).capture(BodyWithStep) ~
       (Elidable & HasOpcode(CPX) & MatchNumericImmediate(End)).? ~

@@ -241,7 +241,7 @@ object LaterOptimizations {
   val UseXInsteadOfStack = new RuleBasedAssemblyOptimization("Using X instead of stack",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     (Elidable & HasOpcode(PHA) & DoesntMatterWhatItDoesWith(State.X)) ~
-      (Not(ConcernsStack) & Not(ConcernsX)).capture(1) ~
+      (IsNotALabelUsedManyTimes & Not(ConcernsStack) & Not(ConcernsX)).capture(1) ~
       Where(_.isExternallyLinearBlock(1)) ~
       (Elidable & HasOpcode(PLA)) ~~> (c =>
       AssemblyLine.implied(TAX) :: (c.tail.init :+ AssemblyLine.implied(TXA))
@@ -251,7 +251,7 @@ object LaterOptimizations {
   val UseYInsteadOfStack = new RuleBasedAssemblyOptimization("Using Y instead of stack",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     (Elidable & HasOpcode(PHA) & DoesntMatterWhatItDoesWith(State.Y)) ~
-      (Not(ConcernsStack) & Not(ConcernsY)).capture(1) ~
+      (IsNotALabelUsedManyTimes & Not(ConcernsStack) & Not(ConcernsY)).capture(1) ~
       Where(_.isExternallyLinearBlock(1)) ~
       (Elidable & HasOpcode(PLA)) ~~> (c =>
       AssemblyLine.implied(TAY) :: (c.tail.init :+ AssemblyLine.implied(TYA))

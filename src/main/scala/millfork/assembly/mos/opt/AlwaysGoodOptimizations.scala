@@ -505,7 +505,7 @@ object AlwaysGoodOptimizations {
 
   private def operationPairBuilder3(op1: Opcode.Value, op1extra: AssemblyLinePattern, op2: Opcode.Value, middle: AssemblyLinePattern, discardToRemove: Option[Opcode.Value]) = {
     (HasOpcode(op1) & Elidable & op1extra) ~
-      middle.*.capture(1) ~
+      (middle & IsNotALabelUsedManyTimes).*.capture(1) ~
       Where(_.isExternallyLinearBlock(1)) ~
       (HasOpcode(op2) & Elidable) ~~> { (_, ctx) =>
       ctx.get[List[AssemblyLine]](1).filter(l => !discardToRemove.contains(l.opcode))
@@ -514,7 +514,7 @@ object AlwaysGoodOptimizations {
 
   private def operationPairBuilder4(op1: Opcode.Value, op1extra: AssemblyLinePattern, middle: AssemblyLinePattern, op2: Opcode.Value, op2extra: AssemblyLinePattern) = {
     (HasOpcode(op1) & op1extra  & Elidable & HasAddrModeIn(Absolute, ZeroPage, LongAbsolute) & MatchParameter(3)) ~
-      middle.*.capture(1) ~
+      (middle & IsNotALabelUsedManyTimes).*.capture(1) ~
       Where(_.isExternallyLinearBlock(1)) ~
       (HasOpcode(op2) & op2extra & Elidable & HasAddrModeIn(Absolute, ZeroPage, LongAbsolute) & MatchParameter(3)) ~~> { (_, ctx) =>
       ctx.get[List[AssemblyLine]](1)
@@ -640,7 +640,7 @@ object AlwaysGoodOptimizations {
     },
     (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
       (Elidable & HasOpcode(PHA)) ~
-      (Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).*.capture(2) ~
+      (IsNotALabelUsedManyTimes & Not(ConcernsStack) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).*.capture(2) ~
       Where(ctx => ctx.isExternallyLinearBlock(2))~
       (Elidable & HasOpcode(PLA)) ~~> { code =>
       code.head :: (code.drop(2).init :+ code.head)
@@ -2161,13 +2161,13 @@ object AlwaysGoodOptimizations {
       code.tail.init :+ code.head
     },
     (Elidable & HasOpcodeIn(DEX, INX) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
-      (Not(ConcernsX)).*.capture(1) ~
+      (IsNotALabelUsedManyTimes & Not(ConcernsX)).*.capture(1) ~
       Where(ctx => ctx.isExternallyLinearBlock(1)) ~
       (Elidable & (HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.A) | HasOpcode(CPX) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
       code.tail.init :+ code.head
     },
     (Elidable & HasOpcodeIn(DEY, INY) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
-      (Not(ConcernsY)).*.capture(1) ~
+      (IsNotALabelUsedManyTimes & Not(ConcernsY)).*.capture(1) ~
       Where(ctx => ctx.isExternallyLinearBlock(1)) ~
       (Elidable & (HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.A) | HasOpcode(CPY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C, State.V))) ~~> { code =>
       code.tail.init :+ code.head
@@ -2307,9 +2307,9 @@ object AlwaysGoodOptimizations {
   val PointlessSignCheck: RuleBasedAssemblyOptimization = {
     def loadOldSignedVariable: AssemblyPattern = (
       (HasOpcodeIn(AND, ANC) & HasImmediateWhere(i => (i & 0x80) == 0)) ~
-      (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchAddrMode(0) & MatchParameter(1)) ~
-      DoesNotConcernMemoryAt(0, 1).* ~
-      (HasOpcode(LDA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(1))
+        (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchAddrMode(0) & MatchParameter(1)) ~
+        (IsNotALabelUsedManyTimes & DoesNotConcernMemoryAt(0, 1)).* ~
+        (HasOpcode(LDA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(1))
       ).capture(10) ~ Where(_.isExternallyLinearBlock(10))
 
     val isNonnegative: Int => Boolean = i => (i & 0x80) == 0

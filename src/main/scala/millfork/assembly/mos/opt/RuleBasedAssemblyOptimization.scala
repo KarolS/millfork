@@ -28,6 +28,11 @@ object FlowInfoRequirement extends Enumeration {
     case BothFlows | BackwardFlow => ()
     case NoRequirement | JustLabels | ForwardFlow => FatalErrorReporting.reportFlyingPig("Backward flow info required")
   }
+
+  def assertLabels(x: FlowInfoRequirement.Value): Unit = x match {
+    case NoRequirement => FatalErrorReporting.reportFlyingPig("Backward flow info required")
+    case _ => ()
+  }
 }
 
 trait AssemblyRuleSet{
@@ -1364,5 +1369,18 @@ case object IsZeroPage extends AssemblyLinePattern {
         }
       case _ => false
     }
+  }
+}
+
+case object IsNotALabelUsedManyTimes extends AssemblyLinePattern {
+
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit = FlowInfoRequirement.assertLabels(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = line.opcode match {
+    case Opcode.LABEL => line.parameter match {
+      case MemoryAddressConstant(Label(l)) => flowInfo.labelUseCount(l) <= 1
+      case _ => false
+    }
+    case _ => true
   }
 }
