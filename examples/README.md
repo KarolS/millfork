@@ -2,13 +2,15 @@
 
 ## Cross-platform examples
 
-* [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC) – simple text output
+* [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC) – simple text output
 
 * [Text encodings](crossplatform/text_encodings.mfk) (C64/ZX Spectrum) – examples of text encoding features
 
-* [Echo](crossplatform/echo.mfk) (C64/C16/ZX Spectrum)– simple text input and output
+* [Echo](crossplatform/echo.mfk) (C64/C16/ZX Spectrum/PC-88)– simple text input and output
 
 * [Calculator](crossplatform/calculator.mfk) (C64/C16/ZX Spectrum/PC-88) – simple numeric input and output
+
+* [Guessing game](crossplatform/guess.mfk) (C64/C16/ZX Spectrum/PC-88) – a guess-a-number game
 
 * [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
 

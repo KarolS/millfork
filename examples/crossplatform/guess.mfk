@@ -1,0 +1,64 @@
+import random
+import stdio
+import err
+
+#if CBM_64
+import c64_basic
+#endif
+
+#if CBM_264
+import c264_basic
+#endif
+
+void main () {
+    init_rand_seed()
+    ensure_mixedcase()
+    putstrz("Welcome to the guessing game."z)
+    new_line()
+    while true {
+        play_round()
+    }
+
+}
+
+void play_round() {
+    word guess
+    word answer
+    word guess_count
+    do {
+        answer.hi = rand()
+        answer.lo = rand()
+    } while answer > 999
+    answer += 1
+    guess_count = 0
+
+    putstrz("I picked a number between 1 and 1000."z)
+    new_line()
+    while true {
+        putstrz("Your guess?"z)
+        new_line()
+        guess = readword()
+        while errno != err_ok {
+            putstrz("That wasn't a number! Try again."z)
+            new_line()
+            guess = readword()
+        }
+        guess_count += 1
+        if guess == answer { break }
+        if answer < guess {
+            putstrz("My number is smaller!"z)
+            new_line()
+        }
+        if answer > guess {
+            putstrz("My number is bigger!"z)
+            new_line()
+        }
+    }
+    putstrz("Congratulations! You guessed my number!"z)
+    new_line()
+    putstrz("It took you only "z)
+    putword(guess_count)
+    putstrz(" attempts!"z)
+    new_line()
+    new_line()
+}

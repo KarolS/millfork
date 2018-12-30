@@ -3,7 +3,7 @@
     import c64_basic
 #elseif CBM_264
     import c264_basic
-#elseif ZX_SPECTRUM
+#elseif ZX_SPECTRUM || NEC_PC_88
     // no imports needed
 #else
     #error Unsupported platform
@@ -12,11 +12,12 @@
 import stdio
 
 void main() {
+    pointer line
     while true {
-        readline()
+        line = readline()
         // empty line is read as a single space
-        if readline_out[0] == 32 && readline_out[1] == 0 { return }
-        putstrz(readline_out)
-        putchar(13)
+        if line[0] == 32 && line[1] == 0 { return }
+        putstrz(line)
+        new_line()
     }
 }
