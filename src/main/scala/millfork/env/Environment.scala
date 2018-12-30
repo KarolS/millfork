@@ -8,6 +8,7 @@ import millfork.compiler.{AbstractExpressionCompiler, LabelGenerator}
 import millfork.error.Logger
 import millfork.node._
 import millfork.output._
+import org.apache.commons.lang3.StringUtils
 
 import scala.collection.mutable
 
@@ -261,6 +262,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
       }
     } else parent.fold {
+      hintTypo(name)
       log.fatal(s"${clazz.getSimpleName} `$name` is not defined", position)
     } {
       _.get[T](name, position)
@@ -475,6 +477,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         maybeGet[Thing](name) match {
           case None =>
             log.error(s"`$name` is not defined")
+            hintTypo(name)
             1
           case Some(thing) => thing match {
             case t: Type => t.size
@@ -1344,9 +1347,18 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  def hintTypo(name: String): Unit = {
+    val realThings = this.things.keySet ++ parent.map(_.things.keySet).getOrElse(Set())
+    val matchingThings = realThings.filter(thing => !thing.contains("$") && StringUtils.getJaroWinklerDistance(thing,name) > 0.9)
+    if (matchingThings.nonEmpty) {
+      log.info("Did you mean: " + matchingThings.mkString(", "))
+    }
+  }
+
   private def checkName[T <: Thing : Manifest](objType: String, name: String, pos: Option[Position]): Unit = {
     if (maybeGet[T](name).isEmpty) {
       log.error(s"$objType `$name` is not defined", pos)
+      hintTypo(name)
     }
   }
 
