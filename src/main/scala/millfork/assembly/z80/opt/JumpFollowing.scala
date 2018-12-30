@@ -40,7 +40,7 @@ object JumpFollowing {
           ZLine(RET, cond, Constant.Zero)
         } else if (labelsToJumps.contains(label)) {
           options.log.debug(s"Optimizing ${jump.opcode} straight into a jump")
-          ZLine.jump(labelsToJumps(label))
+          ZLine.jump(labelsToJumps(label), cond)
         } else jump
       case x => x
     }
