@@ -131,6 +131,10 @@ object TextCodec {
       case (_, "ascii") => TextCodec.Ascii
       case (_, "petscii") => TextCodec.Petscii
       case (_, "pet") => TextCodec.Petscii
+      case (_, "oldpetscii") => TextCodec.OldPetscii
+      case (_, "oldpet") => TextCodec.OldPetscii
+      case (_, "origpetscii") => TextCodec.OriginalPetscii
+      case (_, "origpet") => TextCodec.OriginalPetscii
       case (_, "cbmscr") => TextCodec.CbmScreencodes
       case (_, "petscr") => TextCodec.CbmScreencodes
       case (_, "atascii") => TextCodec.Atascii
@@ -289,6 +293,48 @@ object TextCodec {
       "cyan" -> List(0x9f),
       "purple" -> List(0x9c),
       "yellow" -> List(0x9e),
+      "reverse" -> List(0x12),
+      "reverseoff" -> List(0x92)
+    )
+  )
+
+  val OldPetscii = new TextCodec("Old PETSCII",
+    "\ufffd" * 32 +
+      0x20.to(0x3f).map(_.toChar).mkString +
+      "@abcdefghijklmnopqrstuvwxyz[\\]↑←" +
+      "\ufffd" * 32 +
+      "\ufffd" * 32 +
+      "\ufffd" * 32 +
+      "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ",
+    Map('^' -> 0x5E, '♥' -> 0xD3, '♡' -> 0xD3, '♠' -> 0xC1, '♣' -> 0xC8, '♢' -> 0xDA, '•' -> 0xD1), Map.empty, Map(
+      "n" -> List(13),
+      "q" -> List('\"'.toInt),
+      "apos" -> List('\''.toInt),
+      "up" -> List(0x91),
+      "down" -> List(0x11),
+      "left" -> List(0x9d),
+      "right" -> List(0x1d),
+      "reverse" -> List(0x12),
+      "reverseoff" -> List(0x92)
+    )
+  )
+
+  val OriginalPetscii = new TextCodec("Original PETSCII",
+    "\ufffd" * 32 +
+      0x20.to(0x3f).map(_.toChar).mkString +
+      "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]↑←" +
+      "\ufffd" * 32 +
+      "\ufffd" * 32 +
+      "\ufffd" * 32 +
+      "–abcdefghijklmnopqrstuvwxyz\ufffd\ufffd\ufffdπ",
+    Map('^' -> 0x5E, '♥' -> 0xD3, '♡' -> 0xD3, '♠' -> 0xC1, '♣' -> 0xC8, '♢' -> 0xDA, '•' -> 0xD1), Map.empty, Map(
+      "n" -> List(13),
+      "q" -> List('\"'.toInt),
+      "apos" -> List('\''.toInt),
+      "up" -> List(0x91),
+      "down" -> List(0x11),
+      "left" -> List(0x9d),
+      "right" -> List(0x1d),
       "reverse" -> List(0x12),
       "reverseoff" -> List(0x92)
     )

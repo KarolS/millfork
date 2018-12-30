@@ -11,7 +11,11 @@
 
 * `ascii` – standard ASCII
 
-* `pet` or `petscii` – PETSCII (ASCII-like character set used by Commodore machines)
+* `pet` or `petscii` – PETSCII (ASCII-like character set used by Commodore machines from VIC-20 onward)
+
+* `origpet` or `origpetscii` – old PETSCII (Commodore PET with original ROMs)
+
+* `oldpet` or `oldpetscii` – old PETSCII (Commodore PET with newer ROMs)
 
 * `cbmscr` or `petscr` – Commodore screencodes
 
