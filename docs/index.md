@@ -43,7 +43,7 @@
 
 * [Modules for reading input devices](stdlib/input.md)
 
-* [Other cross-platform modules (`err`, `stdio`)](stdlib/other.md)
+* [Other cross-platform modules (`err`, `stdio`, `random`)](stdlib/other.md)
 
 * [Definitions available on only some platforms](stdlib/frequent.md)
 

@@ -1,0 +1,43 @@
+
+import random
+
+#if not(ARCH_6502)
+#warn random_6502 module should be only used on 6502-compatible targets
+#endif
+
+asm byte rand() {
+    ? ldx #8
+    ? lda rand_seed+0
+__rand_loop:
+    asl
+    ? rol rand_seed+1
+    bcc __no_eor
+    eor #$2D
+__no_eor:
+    dex
+    bne __rand_loop
+    ? sta rand_seed+0
+    ? rts
+}
+
+
+#if CBM_64
+
+void init_rand_seed() {
+    poke($D40E, $ff)
+    poke($D40F, $ff)
+    poke($D412, $80)
+    while vic_raster != $70 {}
+    rand_seed.hi = peek($D41B)
+    while vic_raster != $40 {}
+    rand_seed.lo = peek($D41B)
+}
+
+#else
+
+inline void init_rand_seed() {
+    // TODO: find a better source of randomness
+    rand_seed = 1
+}
+
+#endif

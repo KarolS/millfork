@@ -3,9 +3,10 @@
 
 import stdio
 
-array hello_world = "hello world"
+array hello_world = "Hello world"
 
 void main() {
+    ensure_mixedcase()
 
 #if CBM_64 || CBM_264
     set_bg_color(green)
@@ -16,7 +17,7 @@ void main() {
 
     putstr(hello_world, hello_world.length)
     new_line()
-    putstrz("hello world again"z)
+    putstrz("Hello world again"z)
 
 #if not(CPM)
     while(true){}

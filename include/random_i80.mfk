@@ -1,0 +1,47 @@
+
+import random
+
+#if not(ARCH_I80)
+#warn stdlib_i80 module should be only used on Intel 8080-like targets
+#endif
+
+#pragma zilog_syntax
+
+asm byte rand() {
+    ld b,8
+    ld hl,(rand_seed)
+__rand_loop:
+    add hl,hl
+    ? jp nc, __no_eor
+    ld a,l
+    xor $2D
+    ld l,a
+__no_eor:
+#if CPUFEATURE_Z80
+    djnz __rand_loop
+#else
+    dec b
+    ? jp nz, __rand_loop
+#endif
+    ld (rand_seed),hl
+    ? ret
+}
+
+#if CPUFEATURE_Z80
+
+inline asm void init_rand_seed() {
+    ld a,r
+    ld (rand_seed), a
+    ld a,r
+    ld (rand_seed+1), a
+    ? ret
+}
+
+#else
+
+inline void init_rand_seed() {
+    // TODO: find a better source of randomness
+    rand_seed = 1
+}
+
+#endif

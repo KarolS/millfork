@@ -59,3 +59,18 @@ void putword(word w) {
         putchar('0')
     }
 }
+
+#if CBM_PET
+inline asm void ensure_mixedcase() {
+    ? lda #14
+    ! sta 59468
+    ? rts
+}
+#elseif CBM
+inline void ensure_mixedcase() {
+    putchar(14)
+}
+#else
+inline void ensure_mixedcase() {
+}
+#endif
