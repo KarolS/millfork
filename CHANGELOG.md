@@ -2,9 +2,17 @@
 
 ## Current version
 
+* Added `random` module.
+
+* Added `ensure_mixedcase` function and `oldpet` and `origpet` text encodings.
+
 * Added `MILLFORK_VERSION` preprocessor parameter.
 
+* Added hint for identifiers with typos.
+
 * 6502: Fixed optimizations using index registers.
+
+* Fixed optimizations removing jumps to jumps.
 
 * Fixed optimizations removing pointless stores to local variables.
 
