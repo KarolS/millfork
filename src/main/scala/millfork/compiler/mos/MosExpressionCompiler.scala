@@ -1,6 +1,7 @@
 package millfork.compiler.mos
 
 import millfork.CompilationFlag
+import millfork.assembly.Elidability
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
@@ -38,23 +39,24 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         AssemblyLine(LDA, Immediate, expr.hiByte),
         AssemblyLine(LDY, Immediate, expr.loByte))
       case m: VariableInMemory =>
+        val elidability = if (m.isVolatile) Elidability.Volatile else Elidability.Elidable
         val addrMode = if (m.zeropage) ZeroPage else Absolute
         val addr = m.toAddress
         m.typ.size match {
           case 0 => Nil
           case 1 => List(
             AssemblyLine(LDA, Immediate, expr.loByte),
-            AssemblyLine(STA, addrMode, addr))
+            AssemblyLine(STA, addrMode, addr, elidability = elidability))
           case 2 => if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
             AssemblyLine.accu16 :: AssemblyLine(LDA_W, WordImmediate, expr) ::(AssemblyLine.variable(ctx, STA_W, m) :+ AssemblyLine.accu8)
           } else List(
             AssemblyLine(LDA, Immediate, expr.loByte),
-            AssemblyLine(STA, addrMode, addr),
+            AssemblyLine(STA, addrMode, addr, elidability = elidability),
             AssemblyLine(LDA, Immediate, expr.hiByte),
-            AssemblyLine(STA, addrMode, addr + 1))
+            AssemblyLine(STA, addrMode, addr + 1, elidability = elidability))
           case s => List.tabulate(s)(i => List(
             AssemblyLine(LDA, Immediate, expr.subbyte(i)),
-            AssemblyLine(STA, addrMode, addr + i))).flatten
+            AssemblyLine(STA, addrMode, addr + i, elidability = elidability))).flatten
         }
       case m@StackVariable(_, t, offset) =>
         t.size match {

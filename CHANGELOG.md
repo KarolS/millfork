@@ -12,6 +12,8 @@
 
 * 6502: Fixed optimizations using index registers.
 
+* Fixed volatile-related bugs.
+
 * Fixed optimizations removing jumps to jumps.
 
 * Fixed optimizations removing pointless stores to local variables.

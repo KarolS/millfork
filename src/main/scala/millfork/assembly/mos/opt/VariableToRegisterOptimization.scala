@@ -987,21 +987,6 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         // these TAY's may get optimized away by a different optimization
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY) ::  _)
 
-      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
-        if th.name == vx && LdxAddrModes(am) =>
-        // these TXA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDX, am, param).pos(s1, s2) :: AssemblyLine.implied(TXA).pos(s1, s2) ::  _)
-
-      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
-        if th.name == vy && LdyAddrModes(am) =>
-        // these TYA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDY, am, param).pos(s1, s2) :: AssemblyLine.implied(TYA).pos(s1, s2) ::  _)
-
-      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
-        if th.name == vz && LdzAddrModes(am) =>
-        // these TZA's may get optimized away by a different optimization
-        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDZ, am, param).pos(s1, s2) :: AssemblyLine.implied(TZA).pos(s1, s2) ::  _)
-
       case (AssemblyLine(LDA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s1), _) :: (AssemblyLine(CMP, am, param, Elidability.Elidable, s2), _) :: xs
         if th.name == vx && CpxyzAddrModes(am) && isNot(vx, param) =>
         // ditto
@@ -1044,6 +1029,21 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == va =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.implied(TAY).pos(s) ::  _)
+
+      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
+        if th.name == vx && LdxAddrModes(am) =>
+        // these TXA's may get optimized away by a different optimization
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDX, am, param).pos(s1, s2) :: AssemblyLine.implied(TXA).pos(s1, s2) ::  _)
+
+      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
+        if th.name == vy && LdyAddrModes(am) =>
+        // these TYA's may get optimized away by a different optimization
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDY, am, param).pos(s1, s2) :: AssemblyLine.implied(TYA).pos(s1, s2) ::  _)
+
+      case (AssemblyLine(LDA, am, param, Elidability.Elidable, s1), _) :: (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), Elidability.Elidable, s2), _) :: xs
+        if th.name == vz && LdzAddrModes(am) =>
+        // these TZA's may get optimized away by a different optimization
+        tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine(LDZ, am, param).pos(s1, s2) :: AssemblyLine.implied(TZA).pos(s1, s2) :: _)
 
       case (AssemblyLine(STA, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), _) :: xs
         if th.name == vx =>
