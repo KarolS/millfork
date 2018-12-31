@@ -61,3 +61,11 @@ Various colour constants.
 
 Available for: VIC-20, C64, C264 series, ZX Spectrum.
 
+#### `macro void memory_barrier()`
+
+Informs the optimizer that at this point arbitrary memory has been accessed and either read or written by an external device.
+The optimizer should not optimize any memory accesses across that macro.
+
+Available for: all targets.
+
+

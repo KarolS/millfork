@@ -868,6 +868,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     import ZOpcode._
     import ZRegister._
     opcode match {
+      case CHANGED_MEM => true
       case POP => true
       case LD | LD_16 | ADC_16 | ADD_16 | SBC_16 => registers match {
         case TwoRegisters(MEM_IX_D | MEM_ABS_16 | MEM_ABS_8 | MEM_DE | MEM_BC | MEM_IY_D | MEM_HL, _) => true

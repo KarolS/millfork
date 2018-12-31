@@ -196,6 +196,7 @@ object HelperCheckers {
         case OneRegister(MEM_HL | MEM_IX_D | MEM_IY_D | MEM_BC | MEM_DE) => true
         case OneRegister(_) => false
       }
+      case CHANGED_MEM => true
       case POP | PUSH => false
       case _ => true // TODO
     }

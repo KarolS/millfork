@@ -142,6 +142,7 @@ object OpcodeClasses {
     SLO, RLA, SRE, RRA,
     AHX, SHY, SHX, TAS, LAS,
     COP,
+    CHANGED_MEM,
   )
   val ChangesMemoryIfNotImplied = Set(
     DEC, INC, ASL, ROL, LSR, ROR,
@@ -158,6 +159,7 @@ object OpcodeClasses {
     LAS,
     TRB, TSB,
     TRB_W, TSB_W,
+    CHANGED_MEM,
   )
 
   val AccessesWordInMemory = Set(
@@ -332,7 +334,7 @@ object OpcodeClasses {
     CSH, CSL,
     TXY, TYX, XBA,
     PHD, PHB, PHK,
-    DISCARD_AF, DISCARD_XF, DISCARD_YF)
+    DISCARD_AF, DISCARD_XF, DISCARD_YF, CHANGED_MEM)
 
   val NoopDiscardsFlags = Set(DISCARD_AF, DISCARD_XF, DISCARD_YF)
   val DiscardsV = NoopDiscardsFlags | OverwritesV

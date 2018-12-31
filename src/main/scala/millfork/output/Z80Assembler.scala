@@ -74,9 +74,9 @@ class Z80Assembler(program: Program,
       case ZLine0(BYTE, NoRegisters, param) =>
         writeByte(bank, index, param)
         index + 1
-      case ZLine0(DISCARD_F | DISCARD_HL | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_A, NoRegisters, _) =>
+      case ZLine0(DISCARD_F | DISCARD_HL | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_A | CHANGED_MEM, NoRegisters, _) =>
         index
-      case ZLine0(LABEL | BYTE | DISCARD_F | DISCARD_HL | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_A, _, _) =>
+      case ZLine0(LABEL | BYTE | DISCARD_F | DISCARD_HL | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_A | CHANGED_MEM, _, _) =>
         ???
       case ZLine0(RST, NoRegisters, param) =>
         val opcode = param.quickSimplify match {

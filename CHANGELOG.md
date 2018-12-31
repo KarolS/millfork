@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Added `memory_barrier` macro.
+
 * Added `random` module.
 
 * Added `ensure_mixedcase` function and `oldpet` and `origpet` text encodings.

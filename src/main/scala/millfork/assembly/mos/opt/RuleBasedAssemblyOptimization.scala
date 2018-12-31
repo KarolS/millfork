@@ -268,6 +268,7 @@ object HelperCheckers {
     val a2 = l2.addrMode
     if (goodAddrModes(a1) || goodAddrModes(a2)) return true
     if (badAddrModes(a1) || badAddrModes(a2)) return false
+    if (l1.opcode == Opcode.CHANGED_MEM || l2.opcode == Opcode.CHANGED_MEM) return false
     if ((a1 == IndexedSY) != (a2 == IndexedSY)) return true // bold assertion, but usually true
     val p1 = l1.parameter
     val p2 = l2.parameter

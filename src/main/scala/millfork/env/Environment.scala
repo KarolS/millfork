@@ -1,9 +1,9 @@
 package millfork.env
 
-import millfork.assembly.BranchingOpcodeMapping
+import millfork.assembly.{BranchingOpcodeMapping, Elidability}
 import millfork.{env, _}
-import millfork.assembly.mos.Opcode
-import millfork.assembly.z80.{IfFlagClear, IfFlagSet, ZFlag}
+import millfork.assembly.mos.{AddrMode, Opcode}
+import millfork.assembly.z80._
 import millfork.compiler.{AbstractExpressionCompiler, LabelGenerator}
 import millfork.error.Logger
 import millfork.node._
@@ -1300,6 +1300,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
     val b = get[VariableType]("byte")
+    val v = get[Type]("void")
     if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) {
       addThing(InitializedArray("identity$", None, List.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None, b, b, defaultArrayAlignment(options, 256)), None)
     }
@@ -1344,6 +1345,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           things("__stack") = UninitializedArray("__stack", 256, None, b, b, WithinPageAlignment)
         }
       }
+    }
+
+    if (!things.contains("memory_barrier")) {
+      things("memory_barrier") = MacroFunction("memory_barrier", v, NormalParamSignature(Nil), this, CpuFamily.forType(options.platform.cpu) match {
+        case CpuFamily.M6502 => List(MosAssemblyStatement(Opcode.CHANGED_MEM, AddrMode.DoesNotExist, LiteralExpression(0, 1), Elidability.Fixed))
+        case CpuFamily.I80 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
+        case _ => ???
+      })
     }
   }
 

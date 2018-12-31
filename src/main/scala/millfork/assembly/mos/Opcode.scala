@@ -120,7 +120,7 @@ object Opcode extends Enumeration {
   PHA_W, PLA_W,
   PHX_W, PHY_W, PLY_W, PLX_W,
 
-  DISCARD_AF, DISCARD_XF, DISCARD_YF,
+  DISCARD_AF, DISCARD_XF, DISCARD_YF, CHANGED_MEM,
   BYTE, LABEL = Value
 
   def widen(opcode: Opcode.Value): Option[Opcode.Value] = opcode match {
