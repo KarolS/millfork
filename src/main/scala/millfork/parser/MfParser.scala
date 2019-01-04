@@ -382,7 +382,10 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   def ifStatement: P[Seq[ExecutableStatement]] = for {
     condition <- "if" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel, false)
     thenBranch <- AWS ~/ executableStatements
-    elseBranch <- (AWS ~ "else" ~/ AWS ~/ (ifStatement | executableStatements)).?
+    elseBranch <- (AWS ~ "else" ~/ AWS ~/ ((for{
+      p <- position()
+      s <- ifStatement
+    } yield s.map(_.pos(p))) | executableStatements)).?
   } yield Seq(IfStatement(condition, thenBranch.toList, elseBranch.getOrElse(Nil).toList))
 
   def whileStatement: P[Seq[ExecutableStatement]] = for {
