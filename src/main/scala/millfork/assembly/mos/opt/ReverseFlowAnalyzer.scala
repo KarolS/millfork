@@ -259,7 +259,7 @@ object ReverseFlowAnalyzer {
             }
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex)
 
-          case AssemblyLine0(JMP, Indirect | AbsoluteIndexedX | LongIndirect, _) =>
+          case AssemblyLine0(JMP, _, _) =>
             currentImportance = finalImportance
 
           case AssemblyLine0(REP | SEP, _, NumericConstant(n, _)) =>

@@ -424,16 +424,16 @@ object AlwaysGoodOptimizations {
     (HasOpcodeIn(LDX, TAX, TSX, INX, DEX) & Elidable) ~ (LinearOrLabel & Not(ConcernsX) & Not(ReadsNOrZ) & Not(HasOpcode(DISCARD_XF))).* ~ HasOpcode(DISCARD_XF) ~~> (_.tail),
     (HasOpcodeIn(LDY, TAY, INY, DEY) & Elidable) ~ (LinearOrLabel & Not(ConcernsY) & Not(ReadsNOrZ) & Not(HasOpcode(DISCARD_YF))).* ~ HasOpcode(DISCARD_YF) ~~> (_.tail),
     (HasOpcode(LDX) & Elidable & MatchAddrMode(3) & MatchParameter(4)) ~
-      (LinearOrLabel & Not(ConcernsX) & Not(ReadsNOrZ) & DoesntChangeMemoryAtAssumingNonchangingIndices(3, 4) & DoesntChangeIndexingInAddrMode(3)).*.capture(1) ~
+      (Linear & Not(ConcernsX) & Not(ReadsNOrZ) & DoesntChangeMemoryAtAssumingNonchangingIndices(3, 4) & DoesntChangeIndexingInAddrMode(3)).*.capture(1) ~
       (HasOpcode(TXA) & Elidable) ~
-      ((LinearOrLabel & Not(ConcernsX) & Not(HasOpcode(DISCARD_XF))).* ~
+      ((Linear & Not(ConcernsX) & Not(HasOpcode(DISCARD_XF))).* ~
         HasOpcode(DISCARD_XF)).capture(2) ~~> { (c, ctx) =>
       ctx.get[List[AssemblyLine]](1) ++ (c.head.copy(opcode = LDA) :: ctx.get[List[AssemblyLine]](2))
     },
     (HasOpcode(LDY) & Elidable & MatchAddrMode(3) & MatchParameter(4)) ~
-      (LinearOrLabel & Not(ConcernsY) & Not(ReadsNOrZ) & DoesntChangeMemoryAtAssumingNonchangingIndices(3, 4) & DoesntChangeIndexingInAddrMode(3)).*.capture(1) ~
+      (Linear & Not(ConcernsY) & Not(ReadsNOrZ) & DoesntChangeMemoryAtAssumingNonchangingIndices(3, 4) & DoesntChangeIndexingInAddrMode(3)).*.capture(1) ~
       (HasOpcode(TYA) & Elidable) ~
-      ((LinearOrLabel & Not(ConcernsY) & Not(HasOpcode(DISCARD_YF))).* ~
+      ((Linear & Not(ConcernsY) & Not(HasOpcode(DISCARD_YF))).* ~
         HasOpcode(DISCARD_YF)).capture(2) ~~> { (c, ctx) =>
       ctx.get[List[AssemblyLine]](1) ++ (c.head.copy(opcode = LDA) :: ctx.get[List[AssemblyLine]](2))
     },
