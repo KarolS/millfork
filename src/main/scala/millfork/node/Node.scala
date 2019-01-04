@@ -182,7 +182,7 @@ case class VariableExpression(name: String) extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     if (name == variable) actualParam else this
   override def containsVariable(variable: String): Boolean = name == variable
-  override def getPointies: Seq[String] = Seq.empty
+  override def getPointies: Seq[String] = if (name.endsWith(".addr.lo")) Seq(name.takeWhile(_ != '.')) else Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set(name)
 }
@@ -376,6 +376,8 @@ case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, 
     case AddrMode.IndexedY | AddrMode.IndexedX | AddrMode.LongIndexedY | AddrMode.IndexedZ | AddrMode.LongIndexedZ |
          AddrMode.ZeroPage | AddrMode.ZeroPageX | AddrMode.ZeroPageY =>
       expression.getAllIdentifiers.toSeq.map(_.takeWhile(_ != '.'))
+    case AddrMode.Immediate =>
+      expression.getAllIdentifiers.toSeq.filter(i => !i.contains('.') || i.endsWith(".addr") || i.endsWith(".addr.lo")).map(_.takeWhile(_ != '.'))
     case _ => Seq.empty
   }
 }
