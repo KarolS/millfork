@@ -426,6 +426,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       case 2 =>
                         AssemblyLine.variable(ctx, LDX, source) ++ AssemblyLine.variable(ctx,LDA, source, 1)
                     }
+                  case RegisterVariable(MosRegister.XY, _) =>
+                    exprType.size match {
+                      case 1 => if (exprType.isSigned) {
+                        AssemblyLine.variable(ctx, LDX, source) ++ List(AssemblyLine.implied(TXA)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(TAY))
+                      } else
+                        AssemblyLine.variable(ctx, LDX, source) :+ AssemblyLine.immediate(LDY, 0)
+                      case 2 =>
+                        AssemblyLine.variable(ctx, LDX, source) ++ AssemblyLine.variable(ctx, LDY, source, 1)
+                    }
                   case RegisterVariable(MosRegister.YA, _) =>
                     exprType.size match {
                       case 1 => if (exprType.isSigned) {
@@ -434,6 +443,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                         AssemblyLine.variable(ctx, LDY, source) :+ AssemblyLine.immediate(LDA, 0)
                       case 2 =>
                         AssemblyLine.variable(ctx, LDY, source) ++ AssemblyLine.variable(ctx, LDA, source, 1)
+                    }
+                  case RegisterVariable(MosRegister.YX, _) =>
+                    exprType.size match {
+                      case 1 => if (exprType.isSigned) {
+                        AssemblyLine.variable(ctx, LDY, source) ++ List(AssemblyLine.implied(TYA)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(TAX))
+                      } else
+                        AssemblyLine.variable(ctx, LDY, source) :+ AssemblyLine.immediate(LDX, 0)
+                      case 2 =>
+                        AssemblyLine.variable(ctx, LDY, source) ++ AssemblyLine.variable(ctx, LDX, source, 1)
                     }
                   case target: VariableInMemory =>
                     if (exprType.size > target.typ.size) {
@@ -497,8 +515,11 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   case RegisterVariable(MosRegister.AY, _) =>
                     AssemblyLine.tsx(ctx) ++ (exprType.size match {
                       case 1 => if (exprType.isSigned) {
-                        val label = ctx.nextLabel("sx")
-                        ??? // TODO
+                        List(
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
+                          AssemblyLine.implied(PHA)) ++
+                          signExtendA(ctx) ++
+                          List(AssemblyLine.implied(PLA))
                       } else {
                         List(
                           AssemblyLine.dataStackX(ctx, LDA, offset),
@@ -509,12 +530,30 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                         AssemblyLine.dataStackX(ctx, LDY, offset + 1))
                     })
                   case RegisterVariable(MosRegister.XA, _) =>
-                    ??? // TODO
+                    AssemblyLine.tsx(ctx) ++ (exprType.size match {
+                      case 1 => if (exprType.isSigned) {
+                        List(
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
+                          AssemblyLine.implied(TAX)) ++
+                          signExtendA(ctx)
+                      } else {
+                        List(
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
+                          AssemblyLine.implied(TAX),
+                          AssemblyLine.immediate(LDA, 0))
+                      }
+                      case 2 => List(
+                        AssemblyLine.dataStackX(ctx, LDA, offset),
+                        AssemblyLine.dataStackX(ctx, LDY, offset + 1),
+                        AssemblyLine.implied(TAX),
+                        AssemblyLine.implied(TYA))
+                    })
                   case RegisterVariable(MosRegister.YA, _) =>
                     AssemblyLine.tsx(ctx) ++ (exprType.size match {
                       case 1 => if (exprType.isSigned) {
-                        val label = ctx.nextLabel("sx")
-                        ??? // TODO
+                        List(
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
+                          AssemblyLine.implied(TAY)) ++ signExtendA(ctx)
                       } else {
                         List(
                           AssemblyLine.dataStackX(ctx, LDY, offset),
@@ -523,6 +562,43 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       case 2 => List(
                         AssemblyLine.dataStackX(ctx, LDY, offset),
                         AssemblyLine.dataStackX(ctx, LDA, offset + 1))
+                    })
+                  case RegisterVariable(MosRegister.YX, _) =>
+                    AssemblyLine.tsx(ctx) ++ (exprType.size match {
+                      case 1 => if (exprType.isSigned) {
+                        List(
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
+                          AssemblyLine.implied(TAY)) ++
+                          signExtendA(ctx) ++
+                          List(AssemblyLine.implied(TAX))
+                      } else {
+                        List(
+                          AssemblyLine.dataStackX(ctx, LDY, offset),
+                          AssemblyLine.immediate(LDX, 0))
+                      }
+                      case 2 => List(
+                        AssemblyLine.dataStackX(ctx, LDY, offset),
+                        AssemblyLine.dataStackX(ctx, LDA, offset + 1),
+                        AssemblyLine.implied(TAX))
+                    })
+                  case RegisterVariable(MosRegister.XY, _) =>
+                    AssemblyLine.tsx(ctx) ++ (exprType.size match {
+                      case 1 => if (exprType.isSigned) {
+                        List(
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
+                          AssemblyLine.implied(TAX)) ++
+                          signExtendA(ctx) ++
+                          List(AssemblyLine.implied(TAY))
+                      } else {
+                        List(
+                          AssemblyLine.dataStackX(ctx, LDA, offset),
+                          AssemblyLine.implied(TAX),
+                          AssemblyLine.immediate(LDY, 0))
+                      }
+                      case 2 => List(
+                        AssemblyLine.dataStackX(ctx, LDA, offset),
+                        AssemblyLine.dataStackX(ctx, LDY, offset + 1),
+                        AssemblyLine.implied(TAX))
                     })
                   case target: VariableInMemory =>
                     if (exprType.size > target.typ.size) {
@@ -714,11 +790,17 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               compile(ctx, l, Some(b -> RegisterVariable(MosRegister.A, b)), branches) ++
                 preserveRegisterIfNeeded(ctx, MosRegister.A, compile(ctx, h, Some(b -> RegisterVariable(MosRegister.Y, b)), branches))
             case RegisterVariable(MosRegister.XA, _) =>
-              compile(ctx, l, Some(b -> RegisterVariable(MosRegister.X, b)), branches) ++
-                compile(ctx, h, Some(b -> RegisterVariable(MosRegister.A, b)), branches)
+              compile(ctx, h, Some(b -> RegisterVariable(MosRegister.A, b)), branches) ++
+                preserveRegisterIfNeeded(ctx, MosRegister.A, compile(ctx, l, Some(b -> RegisterVariable(MosRegister.X, b)), branches))
             case RegisterVariable(MosRegister.YA, _) =>
+              compile(ctx, h, Some(b -> RegisterVariable(MosRegister.A, b)), branches) ++
+                preserveRegisterIfNeeded(ctx, MosRegister.A, compile(ctx, l, Some(b -> RegisterVariable(MosRegister.Y, b)), branches))
+            case RegisterVariable(MosRegister.XY, _) =>
+              compile(ctx, l, Some(b -> RegisterVariable(MosRegister.X, b)), branches) ++
+                preserveRegisterIfNeeded(ctx, MosRegister.X, compile(ctx, h, Some(b -> RegisterVariable(MosRegister.Y, b)), branches))
+            case RegisterVariable(MosRegister.YX, _) =>
               compile(ctx, l, Some(b -> RegisterVariable(MosRegister.Y, b)), branches) ++
-                compile(ctx, h, Some(b -> RegisterVariable(MosRegister.A, b)), branches)
+                preserveRegisterIfNeeded(ctx, MosRegister.Y, compile(ctx, h, Some(b -> RegisterVariable(MosRegister.X, b)), branches))
             case target: VariableInMemory =>
               target.typ.size match {
                 case 1 =>
@@ -1172,10 +1254,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     }
                     val thirdViaRegisters = pairs.flatMap {
                       case (paramExpr, AssemblyParam(typ, paramVar@RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy)) =>
-                        compile(ctx, paramExpr, Some(typ -> paramVar), NoBranching)
-
-                      // TODO: fix
+                        Some(register -> compile(ctx, paramExpr, Some(typ -> paramVar), NoBranching))
                       case _ => Nil
+                    } match {
+                      case Seq() => Nil
+                      case Seq((_, param)) => param
+                      case Seq((MosRegister.A, pa), (_, pxy)) => pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, pxy)
+                      case Seq((_, pxy), (MosRegister.A, pa)) => pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, pxy)
+                      case other => other.flatMap(_._2) // TODO : make sure all registers are passed in correctly
                     }
                     secondViaMemory ++ thirdViaRegisters :+ AssemblyLine.absoluteOrLongAbsolute(JSR, function, ctx.options)
                   case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
