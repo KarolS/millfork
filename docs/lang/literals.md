@@ -21,6 +21,9 @@ It is not allowed in any other places.
 
 String literals can be used as either array initializers or expressions of type `pointer`.
 
+If a string literal is used as an expression, then the text data will be located in the default code segment,
+regardless of which code segment the current function is located it. This may be subject to change in future releases.
+
 String literals are surrounded with double quotes and optionally followed by the name of the encoding:
 
     "this is a string" ascii
@@ -101,6 +104,10 @@ An array is initialized with either:
    
    *   `@word_be` – like the above, but opposite:  
        `@word_be [$1122]` is equivalent to `[$11, $22]`
+       
+   *   `@long` (=`@long_le`), `@long_be`: similar, but with four bytes      
+       `@long [$11223344]` is equivalent to `[$44, $33, $22, $11]`  
+       `@long_be [$11223344]` is equivalent to `[$11, $22, $33, $44]`
    
 
 * a list of byte literals and/or other array initializers, surrounded by brackets:

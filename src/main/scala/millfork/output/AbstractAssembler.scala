@@ -262,7 +262,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         for (item <- items) {
           env.eval(item) match {
             case Some(c) => writeByte(bank, index, c)
-            case None => log.error(s"Non-constant contents of array `$name`")
+            case None => log.error(s"Non-constant contents of array `$name`", item.position)
           }
           bank0.occupied(index) = true
           bank0.initialized(index) = true
@@ -367,7 +367,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         for (item <- items) {
           env.eval(item) match {
             case Some(c) => writeByte(bank, index, c)
-            case None => log.error(s"Non-constant contents of array `$name`")
+            case None => log.error(s"Non-constant contents of array `$name`", item.position)
           }
           index += 1
         }

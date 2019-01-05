@@ -38,6 +38,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case RegisterVariable(MosRegister.YA, _) => List(
         AssemblyLine(LDA, Immediate, expr.hiByte),
         AssemblyLine(LDY, Immediate, expr.loByte))
+      case RegisterVariable(MosRegister.XY, _) => List(
+        AssemblyLine(LDY, Immediate, expr.hiByte),
+        AssemblyLine(LDX, Immediate, expr.loByte))
+      case RegisterVariable(MosRegister.YX, _) => List(
+        AssemblyLine(LDX, Immediate, expr.hiByte),
+        AssemblyLine(LDY, Immediate, expr.loByte))
       case m: VariableInMemory =>
         val elidability = if (m.isVolatile) Elidability.Volatile else Elidability.Elidable
         val addrMode = if (m.zeropage) ZeroPage else Absolute

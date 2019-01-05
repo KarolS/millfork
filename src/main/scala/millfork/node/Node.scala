@@ -264,13 +264,27 @@ case class ProcessedContents(processor: String, values: ArrayContents) extends A
   override def getAllExpressions: List[Expression] = processor match {
     case "word" | "word_le" =>
       values.getAllExpressions.flatMap(expr => List(
-        FunctionCallExpression("lo", List(expr)),
-        FunctionCallExpression("hi", List(expr))
+        FunctionCallExpression("lo", List(expr)).pos(expr.position),
+        FunctionCallExpression("hi", List(expr)).pos(expr.position)
       ))
     case "word_be" =>
       values.getAllExpressions.flatMap(expr => List(
-        FunctionCallExpression("hi", List(expr)),
-        FunctionCallExpression("lo", List(expr))
+        FunctionCallExpression("hi", List(expr)).pos(expr.position),
+        FunctionCallExpression("lo", List(expr)).pos(expr.position)
+      ))
+    case "long" | "long_le" =>
+      values.getAllExpressions.flatMap(expr => List(
+        FunctionCallExpression("byte", List(expr)).pos(expr.position),
+        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(16, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(24, 1))).pos(expr.position))).pos(expr.position)
+      ))
+    case "long_be" =>
+      values.getAllExpressions.flatMap(expr => List(
+        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(24, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(16, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("byte", List(expr)).pos(expr.position)
       ))
   }
 
