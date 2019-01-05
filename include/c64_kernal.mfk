@@ -4,6 +4,25 @@
 // Input: A = Byte to write.
 asm void putchar(byte a) @$FFD2 extern
 
+// CHRIN. Read byte from default input (for keyboard, read a line from the screen). (If not keyboard, must call OPEN and CHKIN beforehands.)
+// Output: A = Byte read.
+asm byte getchar() @$FFCF extern
+
+// CHKIN. Define file as default input. (Must call OPEN beforehands.)
+// Input: X = Logical number.
+asm void chkin(byte x) @$FFC6 extern
+
+// CHKOUT. Define file as default output. (Must call OPEN beforehands.)
+// Input: X = Logical number.
+asm void chkout(byte x) @$FFC9 extern
+
+// CLRCHN. Close default input/output files (for serial bus, send UNTALK and/or UNLISTEN); restore default input/output to keyboard/screen.
+asm void clrchn() @$FFCC extern
+
+// READST. Fetch status of current input/output device, value of ST variable. (For RS232, status is cleared.)
+// Output: A = Device status.
+asm byte readst() @$FFB7 extern
+
 inline void new_line() {
     putchar(13)
 }

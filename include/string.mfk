@@ -6,6 +6,14 @@ import string_fastpointers
 import string_fastindices
 #endif
 
+void strzappend(pointer buffer, pointer str) {
+    strzcopy(buffer + strzlen(buffer), str)
+}
+void strzappendchar(pointer buffer, byte char) {
+   buffer += strzlen(buffer)
+   buffer[0] = char
+   buffer[1] = 0
+}
 
 word strz2word(pointer str) {
     byte i

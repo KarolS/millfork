@@ -15,6 +15,8 @@ The following platforms are currently supported:
 
 * `c64` – Commodore 64.
 The compiler emits PRG files, not disk or tape images.
+If you want to create a program consisting of multiple PRG files,
+see [the Commodore programming guide](./commodore-programming-guide.md) for more info. 
 
 * `c64_crt8k` – Commodore 64, 8K ROM cartridge
 

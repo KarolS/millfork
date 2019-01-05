@@ -1,0 +1,23 @@
+// compile with
+// millfork -t multifile -o multifile multifile.mfk
+// build a disk image with
+// c1541 -format "multifile,11" d64 multifile.d64 -write multifile.prg start -write multifile.extra.prg extra
+
+import stdio
+import cbm_file
+
+void main() {
+    load_file(last_used_device(), "extra"z)
+    if errno == err_ok {
+        extra()
+    } else {
+        putstrz("failed to load file"z)
+        new_line()
+    }
+}
+
+segment(extra)
+void extra() {
+    putstrz("hello from loaded file!"z)
+    new_line()
+}

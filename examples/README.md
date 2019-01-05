@@ -28,6 +28,9 @@
 
 ### Other examples
 
+* Multifile ([source code](c64/multifile.mfk), [platform definition](c64/multifile.ini)) –
+how to create a program made of multiple files loaded on demand 
+
 * [Panic](c64/panic_test.mfk) – how panic works on C64, showing the address of where it happened
 
 ## Famicom/NES examples

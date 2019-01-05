@@ -49,6 +49,8 @@
 
 * [C64-only modules](stdlib/c64.md)
 
+* [`cbm_file` module](stdlib/cbm_file.md)
+
 * [NES-only modules](stdlib/nes.md)
 
 ## Implementation details

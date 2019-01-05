@@ -5,6 +5,9 @@ enum error_number {
     err_outofmemory
     err_domain
     err_range
+    err_nofile
+    err_nodevice
+    err_eof
 }
 
 

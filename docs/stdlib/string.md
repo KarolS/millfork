@@ -23,3 +23,8 @@ If the source string is longer than 255 bytes, then the behaviour is undefined (
 
 Converts a null-terminated string to a number.
 Sets `errno`.
+
+#### `void strzappend(pointer buffer, pointer str)`
+#### `void strzappendchar(pointer buffer, byte char)`
+
+Modifies the given null-terminated buffer by appending a null-terminated string or s single character respectively.

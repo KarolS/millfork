@@ -1,0 +1,219 @@
+#if not(CBM)
+#warn cbm_file module should be only used on Commodore targets
+#endif
+
+import string
+import err
+
+byte __last_used_device @$ba
+inline byte last_used_device() {
+    byte device
+    device = __last_used_device
+    if device == 0 { device = 8 }
+    return device
+}
+
+void load_file(byte device, pointer name) {
+    setnamz(name)
+    setlfs(1, device, 1)
+    asm {
+        lda #0
+        jsr load
+        ? jmp __handle_disk_err
+    }
+}
+
+void load_file_at(byte device, pointer name, pointer at) {
+    setnamz(name)
+    setlfs(1, device, 0)
+    asm {
+        lda #0
+        ? ldx at
+        ? ldy at+1
+        jsr load
+        ? jmp __handle_disk_err
+    }
+}
+
+asm void __handle_disk_err() {
+    bcs __handle_disk_err_failed
+    lda #err_ok
+    ? jmp __handle_disk_err_store
+    __handle_disk_err_failed:
+    ora #$40
+    jsr $FFD2
+    and #$BF
+    lsr
+    eor #2
+    bne __handle_disk_err_not_4_or_5
+    lda #err_nofile
+    bcc __handle_disk_err_store
+    lda #err_nodevice
+    [ $2c ]
+    __handle_disk_err_not_4_or_5:
+    lda #err_fail
+    __handle_disk_err_store:
+    ? sta errno
+    ? rts
+}
+
+void save_file(byte device, pointer name, pointer start, word length) {
+    setnamz(name)
+    setlfs(1, device, 0)
+    word end
+    end = start + length
+    asm {
+        lda #start
+        ? ldx end
+        ? ldy end+1
+        jsr save
+        ? jmp __handle_disk_err
+    }
+}
+
+inline void setnamz(pointer name) {
+    setnam(name, strzlen(name))
+}
+
+array __cbm_cmd_buffer[64]
+
+void exec_disk(byte device, pointer command) {
+    setnamz(command)
+    setlfs(1, device, 15)
+    open()
+    close(1)
+}
+
+void __exec_disk(byte device) {
+    setnamz(__cbm_cmd_buffer)
+    setlfs(1, device, 15)
+    open()
+    close(1)
+}
+
+void delete_file(byte device, pointer name) {
+    byte i
+    byte length
+    __cbm_cmd_buffer[0] = 's'
+    __cbm_cmd_buffer[1] = '0'
+    __cbm_cmd_buffer[2] = ':'
+    length = strzlen(name)
+    for i,0,parallelto,length {
+    __cbm_cmd_buffer[i + 3] = name[i]
+    }
+    __exec_disk(device)
+}
+
+void initialize_disk(byte device) {
+    __cbm_cmd_buffer[0] = 'i'
+    __cbm_cmd_buffer[1] = '0'
+    __cbm_cmd_buffer[2] = 0
+    __exec_disk(device)
+}
+
+void validate_disk(byte device) {
+    __cbm_cmd_buffer[0] = 'v'
+    __cbm_cmd_buffer[1] = '0'
+    __cbm_cmd_buffer[2] = 0
+    __exec_disk(device)
+}
+
+void format_disk(byte device) {
+    setnam(__cmd_format_disk, __cmd_format_disk.length)
+    setlfs(1, device, 15)
+    open()
+    close(1)
+}
+
+const byte MODE_READ = 0
+const byte MODE_WRITE = 1
+// const byte MODE_OVERWRITE = 3 // TODO: SAVE@ bug?
+
+void open_file(byte device, pointer name, byte fd, byte mode) {
+    byte length
+    byte i
+    __cbm_cmd_buffer[0] = '0'
+    __cbm_cmd_buffer[1] = ':'
+    length = strzlen(name)
+    for i,0,parallelto,length {
+        __cbm_cmd_buffer[i + 2] = name[i]
+    }
+    if length < 3 || __cbm_cmd_buffer[length] != ',' || (__cbm_cmd_buffer[length+1] != 'r' && __cbm_cmd_buffer[length+1] != 'w') {
+        strzappendchar(__cbm_cmd_buffer, ',')
+        if mode & MODE_WRITE != 0 {
+            strzappendchar(__cbm_cmd_buffer, 'w')
+        } else {
+            strzappendchar(__cbm_cmd_buffer, 'r')
+        }
+        length += 2
+    }
+    setnam(__cbm_cmd_buffer, length + 2)
+    setlfs(fd, device, fd)
+    asm {
+        jsr open
+        ? jmp __handle_disk_err
+    }
+}
+
+void close_file(byte fd) {
+    asm {
+        ? lda fd
+        ? jsr close
+        ? jmp __handle_disk_err
+    }
+}
+
+void __translate_st_to_errno() {
+    byte st
+    st = readst()
+    if st == 0 {
+        errno = err_ok
+    } else if st & 0x80 != 0 {
+        errno = err_nodevice
+    } else if st & 0x40 != 0 {
+        errno = err_eof
+    } else {
+        errno = err_fail
+    }
+}
+
+byte getbyte_safe() {
+    byte b
+    b = getchar()
+    garbage[garbage_index] = b
+    garbage_index += 1
+    __translate_st_to_errno()
+    return b
+}
+
+void putbyte_safe(byte b) {
+    putchar(b)
+    garbage[garbage_index] = b
+    garbage_index += 1
+    __translate_st_to_errno()
+}
+
+array __cmd_format_disk = "n0:disk,01"z
+
+
+void rename_file(byte device, pointer old_name, pointer new_name) {
+    __cbm_cmd_buffer[0]='r'
+    __cmd_rename_copy_common(device, old_name, new_name)
+}
+
+void copy_file(byte device, pointer old_name, pointer new_name) {
+    __cbm_cmd_buffer[0]='c'
+    __cmd_rename_copy_common(device, old_name, new_name)
+}
+
+void __cmd_rename_copy_common(byte device, pointer old_name, pointer new_name) {
+    __cbm_cmd_buffer[1]='0'
+    __cbm_cmd_buffer[2]=':'
+    __cbm_cmd_buffer[3]=0
+    strzappend(__cbm_cmd_buffer, new_name)
+    strzappendchar(__cbm_cmd_buffer, '=')
+    strzappend(__cbm_cmd_buffer, old_name)
+    __exec_disk(device)
+}
+
+
