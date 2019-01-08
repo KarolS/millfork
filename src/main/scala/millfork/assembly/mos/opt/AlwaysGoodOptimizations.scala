@@ -1140,7 +1140,7 @@ object AlwaysGoodOptimizations {
     HasOpcode(TXS) ~ (Not(ChangesX) & Not(ChangesS) & Linear).* ~ (Elidable & HasOpcodeIn(TXS, TSX)) ~~> (_.init),
   )
 
-  val PointlessRegisterTransfersBeforeStore = new RuleBasedAssemblyOptimization("Pointless register transfers before store",
+  lazy val PointlessRegisterTransfersBeforeStore = new RuleBasedAssemblyOptimization("Pointless register transfers from flow",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     (Elidable & HasOpcode(TXA)) ~
       (Linear & Not(ConcernsA) & Not(ConcernsX)).* ~
@@ -1148,6 +1148,23 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcode(TYA)) ~
       (Linear & Not(ConcernsA) & Not(ConcernsY)).* ~
       (Elidable & HasOpcode(STA) & HasAddrModeIn(ZeroPage, ZeroPageX, Absolute) & DoesntMatterWhatItDoesWith(State.A, State.N, State.Z)) ~~> (code => code.tail.init :+ code.last.copy(opcode = STY)),
+
+    (Elidable & HasOpcode(TYA)) ~
+      (HasOpcodeIn(OpcodeClasses.ShortBranching) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(LDY)) ~
+      (HasOpcode(LABEL) & MatchParameter(0) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.Y, State.N, State.Z)) ~~> (code => List(code.head, code(1), code(2).copy(opcode = LDA), code(3))),
+
+    (Elidable & HasOpcode(TXA)) ~
+      (HasOpcodeIn(OpcodeClasses.ShortBranching) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(LDX) & Not(HasAddrMode(ZeroPageY))) ~
+      (HasOpcode(LABEL) & MatchParameter(0) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.X, State.N, State.Z)) ~~> (code => List(code.head, code(1), code(2).copy(opcode = LDA), code(3))),
+
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdyAddrModes)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A)) ~~> (code => List(code.head.copy(opcode = LDY))),
+    (Elidable & HasOpcode(LDA) & HasAddrModeIn(LdxAddrModes)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A)) ~~> (code => List(code.head.copy(opcode = LDX))),
   )
 
 
@@ -2143,8 +2160,39 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(JMP) & MatchParameter(1)) ~
       Not(MatchParameter(1)).* ~
       (HasOpcode(LABEL) & MatchParameter(1)) ~
-      (HasOpcode(JMP) & MatchParameter(1)) ~~> { (code, ctx) =>
+      (HasOpcode(JMP) & MatchParameter(0)) ~~> { (code, ctx) =>
       code.head :: code.drop(2)
+    },
+
+    (Elidable & HasOpcode(BEQ) & MatchParameter(0)) ~
+      (Elidable & HasOpcodeIn(JMP, BNE) & MatchParameter(1)) ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
+      code(1).copy(opcode = BNE, addrMode = Relative) :: code.drop(2)
+    },
+    (Elidable & HasOpcode(BNE) & MatchParameter(0)) ~
+      (Elidable & HasOpcodeIn(JMP, BEQ) & MatchParameter(1)) ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
+      code(1).copy(opcode = BEQ, addrMode = Relative) :: code.drop(2)
+    },
+    (Elidable & HasOpcode(BCC) & MatchParameter(0)) ~
+      (Elidable & HasOpcodeIn(JMP, BCS) & MatchParameter(1)) ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
+      code(1).copy(opcode = BCS, addrMode = Relative) :: code.drop(2)
+    },
+    (Elidable & HasOpcode(BCS) & MatchParameter(0)) ~
+      (Elidable & HasOpcodeIn(JMP, BCC) & MatchParameter(1)) ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
+      code(1).copy(opcode = BCC) :: code.drop(2)
+    },
+    (Elidable & HasOpcode(BMI) & MatchParameter(0)) ~
+      (Elidable & HasOpcodeIn(JMP, BPL) & MatchParameter(1)) ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
+      code(1).copy(opcode = BPL) :: code.drop(2)
+    },
+    (Elidable & HasOpcode(BPL) & MatchParameter(0)) ~
+      (Elidable & HasOpcodeIn(JMP, BMI) & MatchParameter(1)) ~
+      (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
+      code(1).copy(opcode = BMI) :: code.drop(2)
     },
   )
 
