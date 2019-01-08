@@ -283,6 +283,8 @@ case class CaptureLine(i: Int, pattern: AssemblyLinePattern) extends AssemblyLin
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
     pattern.matchLineTo(ctx, flowInfo, line) && ctx.addObject(i, line)
   }
+
+  override def hitRate: Double = 0.025
 }
 
 case class CaptureLength(i: Int, pattern: AssemblyPattern) extends AssemblyPattern {
@@ -427,9 +429,15 @@ trait AssemblyLinePattern extends AssemblyPattern {
 
   def + : AssemblyPattern = this ~ Many(this)
 
-  def |(x: AssemblyLinePattern): AssemblyLinePattern = EitherPattern(this, x)
+  def |(x: AssemblyLinePattern): AssemblyLinePattern =
+    if (this.hitRate >= x.hitRate) EitherPattern(this, x)
+    else EitherPattern(x, this)
 
-  def &(x: AssemblyLinePattern): AssemblyLinePattern = Both(this, x)
+  def &(x: AssemblyLinePattern): AssemblyLinePattern =
+    if (this.hitRate <= x.hitRate) Both(this, x)
+    else Both(x, this)
+
+  def hitRate: Double
 }
 
 trait TrivialAssemblyLinePattern extends AssemblyLinePattern with (ZLine => Boolean) {
@@ -440,6 +448,8 @@ case class Match(predicate: (AssemblyMatchingContext => Boolean)) extends Assemb
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = predicate(ctx)
 
   override def toString: String = "Match(...)"
+
+  override def hitRate: Double = 0.5 // ?
 }
 
 //noinspection LanguageFeature
@@ -456,6 +466,8 @@ case class MatchRegister(register: ZRegister.Value, i: Int) extends AssemblyLine
       case SingleStatus(value) => ctx.addObject(i, value)
       case _ => false
     }
+
+  override def hitRate: Double = 0.216
 }
 
 case class MatchValueAtIxOffset(offset: Int, i: Int) extends AssemblyLinePattern {
@@ -467,6 +479,8 @@ case class MatchValueAtIxOffset(offset: Int, i: Int) extends AssemblyLinePattern
       case SingleStatus(value) => ctx.addObject(i, value)
       case _ => false
     }
+
+  override def hitRate: Double = 0.06 // ?
 }
 
 case class MatchValueAtMatchedIxOffset(oi: Int, vi: Int) extends AssemblyLinePattern {
@@ -480,6 +494,8 @@ case class MatchValueAtMatchedIxOffset(oi: Int, vi: Int) extends AssemblyLinePat
       case _ => false
     }
   }
+
+  override def hitRate: Double = 0.04
 }
 
 case class MatchImmediate(i: Int) extends AssemblyLinePattern {
@@ -488,6 +504,8 @@ case class MatchImmediate(i: Int) extends AssemblyLinePattern {
       case TwoRegisters(_, ZRegister.IMM_16 | ZRegister.IMM_8) | OneRegister(ZRegister.IMM_8 | ZRegister.IMM_16) => ctx.addObject(i, line.parameter.quickSimplify)
       case _ => false
     }
+
+  override def hitRate: Double = 0.829
 }
 
 case class RegisterAndOffset(register: ZRegister.Value, offset: Int) {
@@ -506,6 +524,8 @@ case class MatchSourceRegisterAndOffset(i: Int) extends AssemblyLinePattern {
       case TwoRegistersOffset(_, s, o) => ctx.addObject(i, RegisterAndOffset(s, o))
       case _ => false
     }
+
+  override def hitRate: Double = 0.931
 }
 
 case class MatchTargetRegisterAndOffset(i: Int) extends AssemblyLinePattern {
@@ -515,6 +535,8 @@ case class MatchTargetRegisterAndOffset(i: Int) extends AssemblyLinePattern {
       case TwoRegistersOffset(t, _, o) => ctx.addObject(i, RegisterAndOffset(t, o))
       case _ => false
     }
+
+  override def hitRate: Double = 0.879
 }
 
 case class MatchSoleRegisterAndOffset(i: Int) extends AssemblyLinePattern {
@@ -524,6 +546,8 @@ case class MatchSoleRegisterAndOffset(i: Int) extends AssemblyLinePattern {
       case OneRegisterOffset(t, o) => ctx.addObject(i, RegisterAndOffset(t, o))
       case _ => false
     }
+
+  override def hitRate: Double = 0.999
 }
 
 case class DoesntChangeMatchedRegisterAndOffset(i: Int) extends AssemblyLinePattern {
@@ -539,6 +563,8 @@ case class DoesntChangeMatchedRegisterAndOffset(i: Int) extends AssemblyLinePatt
       case _ => !line.changesRegisterAndOffset(ro.register, ro.offset)
     }
   }
+
+  override def hitRate: Double = 0.812
 }
 
 
@@ -555,6 +581,8 @@ case class DoesntConcernMatchedRegisterAndOffset(i: Int) extends AssemblyLinePat
       case _ => !line.changesRegisterAndOffset(ro.register, ro.offset) && !line.readsRegisterAndOffset(ro.register, ro.offset)
     }
   }
+
+  override def hitRate: Double = 0.577
 }
 
 case class MatchParameter(i: Int) extends AssemblyLinePattern {
@@ -565,16 +593,22 @@ case class MatchParameter(i: Int) extends AssemblyLinePattern {
            OneRegister(ZRegister.IMM_8 | ZRegister.IMM_16 | ZRegister.MEM_ABS_8 | ZRegister.MEM_ABS_16) => ctx.addObject(i, line.parameter.quickSimplify)
       case _ => false
     }
+
+  override def hitRate: Double = 0.929
 }
 
 case class IsLabelMatching(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.opcode == ZOpcode.LABEL && ctx.addObject(i, line.parameter.quickSimplify)
+
+  override def hitRate: Double = 0.104
 }
 
 case class MatchParameterOrNothing(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     ctx.addObject(i, line.parameter.quickSimplify)
+
+  override def hitRate: Double = 0.999
 }
 
 case class MatchJumpTarget(i: Int) extends AssemblyLinePattern {
@@ -583,11 +617,15 @@ case class MatchJumpTarget(i: Int) extends AssemblyLinePattern {
       case NoRegisters | IfFlagClear(_) | IfFlagSet(_) => ctx.addObject(i, line.parameter.quickSimplify)
       case _ => false
     }
+
+  override def hitRate: Double = 0.435
 }
 
 case object IsUnconditional extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.registers == NoRegisters
+
+  override def hitRate: Double = 0.212
 }
 
 case class MatchConstantInHL(i: Int) extends AssemblyLinePattern {
@@ -598,11 +636,15 @@ case class MatchConstantInHL(i: Int) extends AssemblyLinePattern {
       case SingleStatus(value) => ctx.addObject(i, value)
       case _ => false
     }
+
+  override def hitRate: Double = 0.138
 }
 
 case class MatchOpcode(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     ctx.addObject(i, line.opcode)
+
+  override def hitRate: Double = 0.1 // ?
 }
 
 case class HasRegister(register: ZRegister.Value, value: Int) extends AssemblyLinePattern {
@@ -611,6 +653,8 @@ case class HasRegister(register: ZRegister.Value, value: Int) extends AssemblyLi
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     flowInfo.statusBefore.getRegister(register).contains(value)
+
+  override def hitRate: Double = 0.00044
 }
 
 case class DoesntMatterWhatItDoesWith(registers: ZRegister.Value*) extends AssemblyLinePattern {
@@ -621,6 +665,8 @@ case class DoesntMatterWhatItDoesWith(registers: ZRegister.Value*) extends Assem
     registers.forall(r => flowInfo.importanceAfter.getRegister(r) != Important)
 
   override def toString: String = registers.mkString("[¯\\_(ツ)_/¯:", ",", "]")
+
+  override def hitRate: Double = 0.058
 }
 
 case object DoesntMatterWhatItDoesWithFlags extends AssemblyLinePattern {
@@ -632,6 +678,8 @@ case object DoesntMatterWhatItDoesWithFlags extends AssemblyLinePattern {
     ZFlag.values.forall(r => flowInfo.importanceAfter.getFlag(r) != Important)
 
   override def toString: String = "[¯\\_(ツ)_/¯:F]"
+
+  override def hitRate: Double = 0.477
 }
 
 case object DoesntMatterWhatItDoesWithFlagsOtherThanSZ extends AssemblyLinePattern {
@@ -643,6 +691,8 @@ case object DoesntMatterWhatItDoesWithFlagsOtherThanSZ extends AssemblyLinePatte
     ZFlag.AllButSZ.forall(r => flowInfo.importanceAfter.getFlag(r) != Important)
 
   override def toString: String = "[¯\\_(ツ)_/¯:NPVH]"
+
+  override def hitRate: Double = 0.543
 }
 
 case object DoesntMatterWhatItDoesWithFlagsExceptZero extends AssemblyLinePattern {
@@ -654,6 +704,8 @@ case object DoesntMatterWhatItDoesWithFlagsExceptZero extends AssemblyLinePatter
     ZFlag.AllButZ.forall(r => flowInfo.importanceAfter.getFlag(r) != Important)
 
   override def toString: String = "[¯\\_(ツ)_/¯:NPVHS]"
+
+  override def hitRate: Double = 0.5 // ?
 }
 
 case object DoesntMatterWhatItDoesWithFlagsExceptCarry extends AssemblyLinePattern {
@@ -664,6 +716,8 @@ case object DoesntMatterWhatItDoesWithFlagsExceptCarry extends AssemblyLinePatte
     ZFlag.values.forall(r => r == ZFlag.C || flowInfo.importanceAfter.getFlag(r) != Important)
 
   override def toString: String = "[¯\\_(ツ)_/¯:F\\C]"
+
+  override def hitRate: Double = 0.384
 }
 
 case class HasSet(flag: ZFlag.Value) extends AssemblyLinePattern {
@@ -672,6 +726,8 @@ case class HasSet(flag: ZFlag.Value) extends AssemblyLinePattern {
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     flowInfo.statusBefore.getFlag(flag).exists(_ == true)
+
+  override def hitRate: Double = 0.008
 }
 
 case class HasClear(flag: ZFlag.Value) extends AssemblyLinePattern {
@@ -680,10 +736,14 @@ case class HasClear(flag: ZFlag.Value) extends AssemblyLinePattern {
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     flowInfo.statusBefore.getFlag(flag).exists(_ == false)
+
+  override def hitRate: Double = 0.153
 }
 
 case object Anything extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = true
+
+  override def hitRate: Double = 1
 }
 
 case class Not(inner: AssemblyLinePattern) extends AssemblyLinePattern {
@@ -693,6 +753,8 @@ case class Not(inner: AssemblyLinePattern) extends AssemblyLinePattern {
     !inner.matchLineTo(ctx, flowInfo, line)
 
   override def toString: String = "¬" + inner
+
+  override def hitRate: Double = 1 - inner.hitRate
 }
 
 case class Both(l: AssemblyLinePattern, r: AssemblyLinePattern) extends AssemblyLinePattern {
@@ -706,7 +768,11 @@ case class Both(l: AssemblyLinePattern, r: AssemblyLinePattern) extends Assembly
 
   override def toString: String = l + " ∧ " + r
 
-  override def &(x: AssemblyLinePattern): AssemblyLinePattern = Both(l, Both(r, x))
+  override def &(x: AssemblyLinePattern): AssemblyLinePattern =
+    if (x.hitRate < l.hitRate) Both(x, this)
+    else Both(l, r & x)
+
+  override def hitRate: Double = l.hitRate min r.hitRate
 }
 
 case class EitherPattern(l: AssemblyLinePattern, r: AssemblyLinePattern) extends AssemblyLinePattern {
@@ -720,17 +786,25 @@ case class EitherPattern(l: AssemblyLinePattern, r: AssemblyLinePattern) extends
 
   override def toString: String = s"($l ∨ $r)"
 
-  override def |(x: AssemblyLinePattern): AssemblyLinePattern = EitherPattern(l, EitherPattern(r, x))
+  override def |(x: AssemblyLinePattern): AssemblyLinePattern =
+    if (x.hitRate > l.hitRate) EitherPattern(x, this)
+    else EitherPattern(l, r | x)
+
+  override def hitRate: Double = l.hitRate max r.hitRate
 }
 
 case object Elidable extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.elidable
+
+  override def hitRate: Double = 0.6
 }
 
 case object NotFixed extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.notFixed
+
+  override def hitRate: Double = 0.6
 }
 
 case object DebugMatching extends AssemblyPattern {
@@ -744,15 +818,21 @@ case object DebugMatching extends AssemblyPattern {
 case object Linear extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     !ZOpcodeClasses.NonLinear(line.opcode)
+
+  override def hitRate: Double = 0.856
 }
 
 case object LinearOrLabel extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean =
     line.opcode == ZOpcode.LABEL || !ZOpcodeClasses.NonLinear(line.opcode)
+
+  override def hitRate: Double = 0.9 // ?
 }
 
 case class Reads(register: ZRegister.Value) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = line.readsRegister(register)
+
+  override def hitRate: Double = 0.5 // ?
 }
 
 case object ReadsStackPointer extends TrivialAssemblyLinePattern {
@@ -774,32 +854,46 @@ case object ReadsStackPointer extends TrivialAssemblyLinePattern {
       case _ => false
     }
   }
+
+  override def hitRate: Double = 0.2 // ?
 }
 
 case class Changes(register: ZRegister.Value) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = line.changesRegister(register)
+
+  override def hitRate: Double = 0.212
 }
 
 case class Concerns(register: ZRegister.Value) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = line.readsRegister(register) || line.changesRegister(register)
+
+  override def hitRate: Double = 0.089
 }
 
 case object ReadsMemory extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = line.readsMemory
+
+  override def hitRate: Double = 0.2 //?
 }
 
 case object ChangesMemory extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = line.changesMemory
+
+  override def hitRate: Double = 0.07
 }
 
 case class DoesntChangeMemoryAt(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
     HelperCheckers.memoryAccessDoesntOverlap(ctx.get[ZLine](i), line)
   }
+
+  override def hitRate: Double = 0.94
 }
 
 case object ConcernsMemory extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = line.readsMemory || line.changesMemory
+
+  override def hitRate: Double = 0.175
 }
 
 case class HasOpcode(op: ZOpcode.Value) extends TrivialAssemblyLinePattern {
@@ -807,6 +901,8 @@ case class HasOpcode(op: ZOpcode.Value) extends TrivialAssemblyLinePattern {
     line.opcode == op
 
   override def toString: String = op.toString
+
+  override def hitRate: Double = 0.032
 }
 
 case class Is8BitLoad(target:ZRegister.Value, source: ZRegister.Value) extends TrivialAssemblyLinePattern {
@@ -814,6 +910,8 @@ case class Is8BitLoad(target:ZRegister.Value, source: ZRegister.Value) extends T
     line.opcode == ZOpcode.LD && line.registers == TwoRegisters(target, source)
 
   override def toString: String = s"LD $target,$source"
+
+  override def hitRate: Double = 0.008
 }
 
 case class Is16BitLoad(target:ZRegister.Value, source: ZRegister.Value) extends TrivialAssemblyLinePattern {
@@ -821,6 +919,8 @@ case class Is16BitLoad(target:ZRegister.Value, source: ZRegister.Value) extends 
     line.opcode == ZOpcode.LD_16 && line.registers == TwoRegisters(target, source)
 
   override def toString: String = s"LD $target,$source"
+
+  override def hitRate: Double = 0.009
 }
 
 case class IsRegular8BitLoadFrom(source: ZRegister.Value) extends TrivialAssemblyLinePattern {
@@ -833,6 +933,8 @@ case class IsRegular8BitLoadFrom(source: ZRegister.Value) extends TrivialAssembl
     })
 
   override def toString: String = "LD _," + source
+
+  override def hitRate: Double = 0.012
 }
 
 object NoOffset extends TrivialAssemblyLinePattern {
@@ -842,6 +944,8 @@ object NoOffset extends TrivialAssemblyLinePattern {
       case _:OneRegisterOffset => false
       case _ => true
     }
+
+  override def hitRate: Double = 0.997
 }
 
 case class Is8BitLoadTo(target: ZRegister.Value) extends TrivialAssemblyLinePattern {
@@ -855,6 +959,8 @@ case class Is8BitLoadTo(target: ZRegister.Value) extends TrivialAssemblyLinePatt
     })
 
   override def toString: String = s"LD $target,_"
+
+  override def hitRate: Double = 0.053
 }
 
 case class MatchSourceIxOffsetOf8BitLoad(i: Int) extends AssemblyLinePattern {
@@ -866,6 +972,8 @@ case class MatchSourceIxOffsetOf8BitLoad(i: Int) extends AssemblyLinePattern {
   }
 
   override def toString: String = "LD (IX,!),_"
+
+  override def hitRate: Double = 0.00048
 }
 
 case class MatchIxOffset(i: Int) extends AssemblyLinePattern {
@@ -877,6 +985,8 @@ case class MatchIxOffset(i: Int) extends AssemblyLinePattern {
   }
 
   override def toString: String = "LD (IX,!),_"
+
+  override def hitRate: Double = 0.001
 }
 
 case class MatchTargetIxOffsetOf8BitLoad(i: Int) extends AssemblyLinePattern {
@@ -888,6 +998,8 @@ case class MatchTargetIxOffsetOf8BitLoad(i: Int) extends AssemblyLinePattern {
   }
 
   override def toString: String = "LD (IX,!),_"
+
+  override def hitRate: Double = 0.001 // ?
 }
 
 case class MatchUnimportantIxOffset(i: Int) extends AssemblyLinePattern {
@@ -898,6 +1010,8 @@ case class MatchUnimportantIxOffset(i: Int) extends AssemblyLinePattern {
     val offset = ctx.get[Int](i)
     flowInfo.importanceAfter.memIx.getOrElse(offset, Unimportant) == Unimportant
   }
+
+  override def hitRate: Double = 0.001 // ?
 }
 
 case class Is16BitLoadTo(target: ZRegister.Value) extends TrivialAssemblyLinePattern {
@@ -908,6 +1022,8 @@ case class Is16BitLoadTo(target: ZRegister.Value) extends TrivialAssemblyLinePat
     })
 
   override def toString: String = s"LD_16 $target,_"
+
+  override def hitRate: Double = 0.008
 }
 
 case class HasRegisterParam(register: ZRegister.Value) extends TrivialAssemblyLinePattern {
@@ -916,10 +1032,14 @@ case class HasRegisterParam(register: ZRegister.Value) extends TrivialAssemblyLi
       case OneRegister(r) => r == register
       case _ => false
     }
+
+  override def hitRate: Double = 0.015
 }
 
 case class HasRegisters(registers: ZRegisters) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = line.registers == registers
+
+  override def hitRate: Double = 0.148
 }
 
 case class RefersTo(identifier: String, offset: Int = 999) extends TrivialAssemblyLinePattern {
@@ -936,6 +1056,8 @@ case class RefersTo(identifier: String, offset: Int = 999) extends TrivialAssemb
   }
 
   override def toString: String = s"<$identifier+$offset>"
+
+  override def hitRate: Double = 0.039
 }
 
 case class CallsAnyOf(identifiers: Set[String]) extends TrivialAssemblyLinePattern {
@@ -947,6 +1069,8 @@ case class CallsAnyOf(identifiers: Set[String]) extends TrivialAssemblyLinePatte
   }
 
   override def toString: String = identifiers.mkString("(CALL {", ",", "})")
+
+  override def hitRate: Double = 0.005 // ?
 }
 
 case class CallsAnyExcept(identifiers: Set[String]) extends TrivialAssemblyLinePattern {
@@ -958,6 +1082,8 @@ case class CallsAnyExcept(identifiers: Set[String]) extends TrivialAssemblyLineP
   }
 
   override def toString: String = identifiers.mkString("(JSR ¬{", ",", "})")
+
+  override def hitRate: Double = 0.01 // ?
 }
 
 case class HasOpcodeIn(ops: Set[ZOpcode.Value]) extends TrivialAssemblyLinePattern {
@@ -965,6 +1091,8 @@ case class HasOpcodeIn(ops: Set[ZOpcode.Value]) extends TrivialAssemblyLinePatte
     ops(line.opcode)
 
   override def toString: String = ops.mkString("{", ",", "}")
+
+  override def hitRate: Double = 0.052
 }
 
 case class Has8BitImmediate(i: Int) extends TrivialAssemblyLinePattern {
@@ -978,6 +1106,8 @@ case class Has8BitImmediate(i: Int) extends TrivialAssemblyLinePattern {
   })
 
   override def toString: String = "#" + i
+
+  override def hitRate: Double = 0.006
 }
 
 
@@ -988,6 +1118,8 @@ case class Match8BitImmediate(i: Int) extends AssemblyLinePattern {
     case OneRegister(ZRegister.IMM_8) => ctx.addObject(i, line.parameter)
     case _ => false
   }
+
+  override def hitRate: Double = 0.119
 }
 
 case class HasImmediateWhere(predicate: Int => Boolean) extends TrivialAssemblyLinePattern {
@@ -1000,6 +1132,8 @@ case class HasImmediateWhere(predicate: Int => Boolean) extends TrivialAssemblyL
       case NumericConstant(j, _) => predicate(j.toInt & 0xff)
       case _ => false
     })
+
+  override def hitRate: Double = 0.05 // ?
 }
 
 case class Before(pattern: AssemblyPattern) extends AssemblyLinePattern {
@@ -1016,6 +1150,8 @@ case class Before(pattern: AssemblyPattern) extends AssemblyLinePattern {
   }
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = ???
+
+  override def hitRate: Double = 0.2 // ?
 }
 
 case class HasCallerCount(count: Int) extends AssemblyLinePattern {
@@ -1024,6 +1160,8 @@ case class HasCallerCount(count: Int) extends AssemblyLinePattern {
       case ZLine0(ZOpcode.LABEL, _, MemoryAddressConstant(Label(l))) => flowInfo.labelUseCount(l) == count
       case _ => false
     }
+
+  override def hitRate: Double = 0.056
 }
 
 case class MatchElidableCopyOf(i: Int, firstLinePattern: AssemblyLinePattern, lastLinePattern: AssemblyLinePattern) extends AssemblyPattern {
@@ -1055,4 +1193,6 @@ case object IsNotALabelUsedManyTimes extends AssemblyLinePattern {
     }
     case _ => true
   }
+
+  override def hitRate: Double = 0.999
 }
