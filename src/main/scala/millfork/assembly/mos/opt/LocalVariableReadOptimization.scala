@@ -120,7 +120,7 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
 
       // TODO: consider handling some more opcodes
     case (x@AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
-      if OpcodeClasses.ChangesMemoryAlways(op) && map.contains(th.name) =>
+      if (OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op)) && map.contains(th.name) =>
       x :: optimizeImpl(xs, variables, map - th.name)
 
     case (x@AssemblyLine0(LABEL, _, _), _) :: xs => x :: optimizeImpl(xs, variables, Map())
