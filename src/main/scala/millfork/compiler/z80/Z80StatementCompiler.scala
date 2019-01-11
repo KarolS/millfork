@@ -80,7 +80,10 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       case Assignment(destination, source) =>
         val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
         (sourceType.size match {
-          case 0 => ???
+          case 0 =>
+            ctx.log.error("Cannot assign a void expression", statement.position)
+            Z80ExpressionCompiler.compile(ctx, source, ZExpressionTarget.NOTHING, BranchSpec.None) ++
+              Z80ExpressionCompiler.compile(ctx, destination, ZExpressionTarget.NOTHING, BranchSpec.None)
           case 1 => Z80ExpressionCompiler.compileToA(ctx, source) ++ Z80ExpressionCompiler.storeA(ctx, destination, sourceType.isSigned)
           case 2 => Z80ExpressionCompiler.compileToHL(ctx, source) ++ Z80ExpressionCompiler.storeHL(ctx, destination, sourceType.isSigned)
           case s => Z80ExpressionCompiler.storeLarge(ctx, destination, source)
