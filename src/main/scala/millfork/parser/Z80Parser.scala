@@ -256,7 +256,7 @@ case class Z80Parser(filename: String,
         case "OR" => one8Register(OR)
         case "XOR" => one8Register(XOR)
         case "SUB" => one8Register(SUB)
-        case "DEC" => one8Or16Register(DEC, INC_16)
+        case "DEC" => one8Or16Register(DEC, DEC_16)
         case "INC" => one8Or16Register(INC, INC_16)
 
         case "RLA" => imm(RLA)
