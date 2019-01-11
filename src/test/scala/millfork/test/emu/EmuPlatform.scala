@@ -26,6 +26,7 @@ object EmuPlatform {
     pointers,
     ".bin",
     false,
+    false,
     Map("default" -> 0),
     "default",
     OutputStyle.Single

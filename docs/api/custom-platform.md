@@ -162,3 +162,5 @@ Default: `after_code`.
 * `extension` – target file extension, with or without the dot
 
 * `bbc_inf` – should the `.inf` file with file metadata for BBC Micro be created
+
+* `gb_checksum` – should the main output file be patched with Game Boy-compatible checksums

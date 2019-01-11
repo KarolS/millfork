@@ -106,6 +106,12 @@ object Main {
     result.code.foreach{
       case (bankName, code) =>
         val prgOutput = if (bankName == "default") {
+          if (platform.generateGameBoyChecksums) {
+            code(0x14d) = (0x0134 to 0x14c).map(code).map(_^0xff).sum.toByte
+            val globalChecksum = code.map(_&0xff).sum
+            code(0x14f) = globalChecksum.toByte
+            code(0x14e) = globalChecksum.>>(8).toByte
+          }
           defaultPrgOutput
         } else {
           s"${output.stripSuffix(platform.fileExtension)}.$bankName${platform.fileExtension}"

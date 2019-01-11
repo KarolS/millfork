@@ -31,6 +31,7 @@ class Platform(
                 val freeZpPointers: List[Int],
                 val fileExtension: String,
                 val generateBbcMicroInfFile: Boolean,
+                val generateGameBoyChecksums: Boolean,
                 val bankNumbers: Map[String, Int],
                 val defaultCodeBank: String,
                 val outputStyle: OutputStyle.Value
@@ -193,6 +194,7 @@ object Platform {
     }.toList)
     val fileExtension = os.get(classOf[String], "extension", ".bin")
     val generateBbcMicroInfFile = os.get(classOf[Boolean], "bbc_inf", false)
+    val generateGameBoyChecksums = os.get(classOf[Boolean], "gb_checksum", false)
     val outputStyle = os.get(classOf[String], "style", "single") match {
       case "" | "single" => OutputStyle.Single
       case "per_bank" | "per_segment" => OutputStyle.PerBank
@@ -227,6 +229,7 @@ object Platform {
       freePointers,
       if (fileExtension == "" || fileExtension.startsWith(".")) fileExtension else "." + fileExtension,
       generateBbcMicroInfFile,
+      generateGameBoyChecksums,
       bankNumbers,
       defaultCodeBank,
       outputStyle)
