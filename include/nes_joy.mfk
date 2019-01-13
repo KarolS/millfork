@@ -10,12 +10,12 @@ byte input_start
 
 macro void read_joy1() {
     nes_reset_joy()
-    read_also_joy2()
+    read_also_joy1()
 }
 
 macro void read_joy2() {
     nes_reset_joy()
-    read_also_joy1()
+    read_also_joy2()
 }
 
 void nes_reset_joy() {
