@@ -118,6 +118,19 @@ object AlwaysGoodI80Optimizations {
       (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16) & MatchParameter(0)) ~~> { (code, ctx) =>
       code.init :+ ZLine.ldImm16(ZRegister.HL, ctx.get[Constant](2))
     },
+
+    for5LargeRegisters(register =>
+      (Is8BitLoad(MEM_ABS_8, ZRegister.A) & MatchParameter(0) & MatchRegister(A, 2)).captureLine(1) ~
+        (Linear & DoesntChangeMemoryAt(1) & Not(Is8BitLoad(MEM_ABS_8, ZRegister.A))).* ~
+        (Is8BitLoad(MEM_ABS_8, ZRegister.A) & MatchParameter(10) & MatchRegister(A, 12)).captureLine(11) ~
+        Where(ctx => ctx.get[Constant](0).succ == ctx.get[Constant](10)) ~
+        (Linear & DoesntChangeMemoryAt(1) & DoesntChangeMemoryAt(11)).* ~
+        (Elidable & Is16BitLoad(register, MEM_ABS_16) & MatchParameter(0) & MatchRegister(A, 12)) ~~> { (code, ctx) =>
+        val hi = ctx.get[Int](12)
+        val lo = ctx.get[Int](2)
+        code.init :+ ZLine.ldImm16(register, hi.<<(8) + lo)
+      }
+    ),
   )
 
   val PointlessLoad = new RuleBasedAssemblyOptimization("Pointless load",
