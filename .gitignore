@@ -36,6 +36,7 @@ examples/lunix/
 *.tap
 *.d88
 *.com
+*.gb
 HELLO
 HELLOCPC
 

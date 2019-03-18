@@ -1,0 +1,47 @@
+#if not(GAMEBOY)
+#warn gb_joy module should be only used on NES/Famicom targets
+#endif
+
+import gb_hardware
+
+#pragma zilog_syntax
+
+// standard joystick driver for Game Boy
+
+import joy
+
+alias input_a = input_btn
+byte input_b
+byte input_select
+byte input_start
+
+void read_joy() {
+    byte tmp
+    reg_joypad = $20
+    asm {
+        ld a,(reg_joypad)
+        ld a,(reg_joypad)
+        ld a,(reg_joypad)
+        ld a,(reg_joypad)
+    }
+    tmp = reg_joypad
+    input_dx = 0
+    input_dy = 0
+    if tmp & 1 == 0 { input_dx += 1 }
+    if tmp & 2 == 0 { input_dx -= 1 }
+    if tmp & 4 == 0 { input_dy -= 1 }
+    if tmp & 8 == 0 { input_dy += 1 }
+    reg_joypad = $10
+    asm {
+        ld a,(reg_joypad)
+        ld a,(reg_joypad)
+        ld a,(reg_joypad)
+        ld a,(reg_joypad)
+    }
+    byte tmp
+    tmp = reg_joypad ^ $ff
+    input_a = (tmp & 1) >> 0
+    input_b = (tmp & 2) >> 1
+    input_select = (tmp & 4) >> 2
+    input_start = (tmp & 8) >> 3
+}

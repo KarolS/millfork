@@ -39,6 +39,10 @@ how to create a program made of multiple files loaded on demand
 
 * [MMC4 example](nes/nestest_mmc4.mfk) – the same thing as above, but uses a MMC4 mapper just to test bankswitching
 
+## Game Boy examples
+
+* [GB test example](gb/gbtest.mfk) – a partial port of the NES example, with a rudimentary experimental text output implementation
+
 ## Atari 2600 examples
 
 * [Colors](vcs/colors.mfk) – simple static rasterbars

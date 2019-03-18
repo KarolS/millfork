@@ -1,0 +1,171 @@
+#if not(GAMEBOY)
+#warn gb_hardware module should be only used on NES/Famicom targets
+#endif
+
+#pragma zilog_syntax
+
+// TODO: optimize?
+array __vectors @ $40 = [
+    $c3, __on_vblank.addr.lo, __on_vblank.addr.hi, 0,0,0,0,0,
+    $c3, __on_lcdc.addr.lo, __on_lcdc.addr.hi, 0,0,0,0,0,
+    $c3, __on_timer.addr.lo, __on_timer.addr.hi, 0,0,0,0,0,
+    $c3, __on_serial.addr.lo, __on_serial.addr.hi, 0,0,0,0,0,
+    $c3, __on_joypad.addr.lo, __on_joypad.addr.hi, 0,0,0,0,0
+]
+
+
+asm void __start() @ $150 {
+    di
+
+    ld sp, $DFFF
+    xor a
+    ldh (reg_irq_flag), a
+    ? ld a,ief_vblank
+    ldh (reg_irq_enable), a
+
+
+    ? call disable_lcd
+    ? call clear_ram
+
+    // copy the DMA routine to hi RAM
+    ld hl, __sprite_dma_template
+    ld de, __sprite_dma_actual
+    ld c, __sprite_dma_actual.length
+    __copy_sprite_dma_template:
+    ld a,(hli)
+    ld (de),a
+    inc de
+    dec c
+    jr nz, __copy_sprite_dma_template
+
+
+    ? jp main
+    ? jp __start
+}
+
+asm void clear_ram() {
+    ? xor a
+    ? ld hl,$c000
+    ? ld bc,$1ff0
+    ? call memset
+    ? ld hl,$8000
+    ? ld bc,$2000
+    ? call memset
+    ? ld hl,$fe00
+    ? ld bc,$a0
+    ? call memset
+    ? ld hl,$ff80
+    ? ld bc,$7f
+    ? call memset
+    ? ret
+}
+
+inline asm void memset(word hl, word bc) {
+    ? inc c
+    ? inc b
+    ? jr __memzero_start
+    __memzero_loop:
+    ld (hli), a
+    __memzero_start:
+    dec c
+    jr nz, __memzero_loop
+    dec b
+    jr nz, __memzero_loop
+    ? ret
+}
+
+interrupt void __on_vblank(){
+    on_vblank()
+}
+interrupt void __on_lcdc(){
+    on_lcdc()
+}
+interrupt void __on_timer(){
+    on_timer()
+}
+interrupt void __on_serial(){
+    on_serial()
+}
+interrupt void __on_joypad(){
+    on_joypad()
+}
+
+array oam[$a0] @$fe00
+
+volatile byte reg_joypad @$ff00
+volatile byte reg_irq_flag @$ff0f
+volatile byte reg_lcd_ctrl @$ff40
+volatile byte reg_lcd_status @$ff41
+volatile byte reg_scroll_y @$ff42
+volatile byte reg_scroll_x @$ff43
+volatile byte reg_dma @$ff46
+volatile byte reg_bg_palette @$ff47
+volatile byte reg_obj0_palette @$ff48
+volatile byte reg_obj1_palette @$ff49
+volatile byte reg_window_y @$ff4A
+volatile byte reg_window_x @$ff4B
+volatile byte reg_vram_bank @$ff4f
+volatile byte reg_irq_enable @$ffff
+
+const byte lcd_on = $80
+const byte lcd_off = 0
+const byte lcd_win_9c00 = $40
+const byte lcd_win_9800 = 0
+const byte lcd_win_on = $20
+const byte lcd_win_off = 0
+const byte lcd_tile_8000 = $10
+const byte lcd_tile_8800 = 0
+const byte lcd_map_9c00 = 8
+const byte lcd_map_9800 = 0
+const byte lcd_obj_16 = 4
+const byte lcd_obj_8 = 0
+const byte lcd_obj_on = 2
+const byte lcd_obj_off = 0
+const byte lcd_bg_on = 1
+const byte lcd_bg_off = 1
+
+const byte ief_vblank = 1
+
+segment(hiram)
+array __sprite_dma_actual[8]
+
+asm void __sprite_dma_template() {
+    ldh (reg_dma),a
+    ld a, $28
+__sprite_dma_wait:
+    dec a
+    jr nz, __sprite_dma_wait
+    ret
+    __sprite_dma_end:
+}
+
+asm void sprite_dma(byte a) {
+    jp __sprite_dma_actual
+}
+
+asm byte wait_for_vblank() {
+    ld hl, reg_irq_flag
+    __wait_for_vblank_loop:
+    ld a, ief_vblank
+    halt
+    and (hl)
+    jr z, __wait_for_vblank_loop
+    ? ld a, $ff ^ ief_vblank
+    ? and (hl)
+    ? ret
+}
+
+asm void disable_lcd() {
+    ? call wait_for_vblank
+    ldh a,(reg_lcd_ctrl)
+    res 7,a
+    ldh (reg_lcd_ctrl),a
+    ? ret
+}
+asm void enable_lcd() {
+    ? call wait_for_vblank
+    ldh a,(reg_lcd_ctrl)
+    set 7,a
+    ldh (reg_lcd_ctrl),a
+    ? ret
+}

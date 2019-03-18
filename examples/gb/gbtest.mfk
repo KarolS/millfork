@@ -1,0 +1,250 @@
+// compile with -t gb_small
+
+import gb_hardware
+import gb_joy
+import stdio
+
+array oam_buffer[$a0] align(256)
+
+sbyte sprite_direction
+byte old_a
+
+void on_vblank(){
+    flush_putchar_buffer()
+    sprite_dma(oam_buffer.addr.hi)
+    oam_buffer[1] += sprite_direction
+    react_to_input()
+    if oam_buffer[1] == 160 { sprite_direction = -1 }
+    if oam_buffer[1] == 8 { sprite_direction = 1 }
+}
+void on_lcdc(){
+
+}
+void on_timer(){
+
+}
+void on_serial(){
+
+}
+void on_joypad(){
+
+}
+
+void react_to_input() {
+    read_joy()
+    if old_a == 0 && input_a != 0 { // A button
+        sprite_direction = 0 - sprite_direction
+        low_c()
+    }
+    old_a = input_a
+    if input_dy < 0 { // Up button
+        if oam_buffer[0] > 16 { oam_buffer[0] -= 1}
+    }
+    if input_dy > 0 { // Down button
+        if oam_buffer[0] < 152 { oam_buffer[0] += 1}
+    }
+}
+
+void low_c() {
+}
+
+void high_c() {
+}
+
+
+void main() {
+    byte i
+    for i,0,paralleluntil,$a0 {
+        oam_buffer[i] = 0
+    }
+    reg_obj0_palette = 0q2222
+    load_charset()
+    init_putchar()
+    reg_lcd_ctrl = lcd_tile_8000 | lcd_bg_on | lcd_obj_on | lcd_win_off | lcd_map_9800
+    enable_lcd()
+    enable_irq()
+    putstrz("HELLO WORLD"z)
+    new_line()
+    sprite_direction = 1
+    oam_buffer[0] = 50
+    oam_buffer[1] = 8
+    oam_buffer[2] = '@'
+    oam_buffer[3] = 0
+    while(true){}
+}
+
+void load_charset() {
+    pointer s
+    pointer d
+    s = charset.addr
+    d = $8200
+    while s < charset.addr + $300 {
+        d[0] = s[0]
+        d += 1
+        d[0] = s[0]
+        d += 1
+        s += 1
+    }
+}
+
+array charset = [
+		$00,$00,$00,$00,$00,$00,$00,$00,
+		$18,$18,$18,$18,$00,$00,$18,$00,
+		$66,$66,$66,$00,$00,$00,$00,$00,
+		$66,$66,$FF,$66,$FF,$66,$66,$00,
+		$18,$3E,$60,$3C,$06,$7C,$18,$00,
+		$62,$66,$0C,$18,$30,$66,$46,$00,
+		$3C,$66,$3C,$38,$67,$66,$3F,$00,
+		$06,$0C,$18,$00,$00,$00,$00,$00,
+		$0C,$18,$30,$30,$30,$18,$0C,$00,
+		$30,$18,$0C,$0C,$0C,$18,$30,$00,
+		$00,$66,$3C,$FF,$3C,$66,$00,$00,
+		$00,$18,$18,$7E,$18,$18,$00,$00,
+		$00,$00,$00,$00,$00,$18,$18,$30,
+		$00,$00,$00,$7E,$00,$00,$00,$00,
+		$00,$00,$00,$00,$00,$18,$18,$00,
+		$00,$03,$06,$0C,$18,$30,$60,$00,
+		$3C,$66,$6E,$76,$66,$66,$3C,$00,
+		$18,$18,$38,$18,$18,$18,$7E,$00,
+		$3C,$66,$06,$0C,$30,$60,$7E,$00,
+		$3C,$66,$06,$1C,$06,$66,$3C,$00,
+		$06,$0E,$1E,$66,$7F,$06,$06,$00,
+		$7E,$60,$7C,$06,$06,$66,$3C,$00,
+		$3C,$66,$60,$7C,$66,$66,$3C,$00,
+		$7E,$66,$0C,$18,$18,$18,$18,$00,
+		$3C,$66,$66,$3C,$66,$66,$3C,$00,
+		$3C,$66,$66,$3E,$06,$66,$3C,$00,
+		$00,$00,$18,$00,$00,$18,$00,$00,
+		$00,$00,$18,$00,$00,$18,$18,$30,
+		$0E,$18,$30,$60,$30,$18,$0E,$00,
+		$00,$00,$7E,$00,$7E,$00,$00,$00,
+		$70,$18,$0C,$06,$0C,$18,$70,$00,
+		$3C,$66,$06,$0C,$18,$00,$18,$00,
+		$3C,$66,$6E,$6E,$60,$62,$3C,$00,
+		$18,$3C,$66,$7E,$66,$66,$66,$00,
+		$7C,$66,$66,$7C,$66,$66,$7C,$00,
+		$3C,$66,$60,$60,$60,$66,$3C,$00,
+		$78,$6C,$66,$66,$66,$6C,$78,$00,
+		$7E,$60,$60,$78,$60,$60,$7E,$00,
+		$7E,$60,$60,$78,$60,$60,$60,$00,
+		$3C,$66,$60,$6E,$66,$66,$3C,$00,
+		$66,$66,$66,$7E,$66,$66,$66,$00,
+		$3C,$18,$18,$18,$18,$18,$3C,$00,
+		$1E,$0C,$0C,$0C,$0C,$6C,$38,$00,
+		$66,$6C,$78,$70,$78,$6C,$66,$00,
+		$60,$60,$60,$60,$60,$60,$7E,$00,
+		$63,$77,$7F,$6B,$63,$63,$63,$00,
+		$66,$76,$7E,$7E,$6E,$66,$66,$00,
+		$3C,$66,$66,$66,$66,$66,$3C,$00,
+		$7C,$66,$66,$7C,$60,$60,$60,$00,
+		$3C,$66,$66,$66,$66,$3C,$0E,$00,
+		$7C,$66,$66,$7C,$78,$6C,$66,$00,
+		$3C,$66,$60,$3C,$06,$66,$3C,$00,
+		$7E,$18,$18,$18,$18,$18,$18,$00,
+		$66,$66,$66,$66,$66,$66,$3C,$00,
+		$66,$66,$66,$66,$66,$3C,$18,$00,
+		$63,$63,$63,$6B,$7F,$77,$63,$00,
+		$66,$66,$3C,$18,$3C,$66,$66,$00,
+		$66,$66,$66,$3C,$18,$18,$18,$00,
+		$7E,$06,$0C,$18,$30,$60,$7E,$00,
+		$3C,$30,$30,$30,$30,$30,$3C,$00,
+		$0C,$12,$30,$7C,$30,$62,$FC,$00,
+		$3C,$0C,$0C,$0C,$0C,$0C,$3C,$00,
+		$00,$18,$3C,$7E,$18,$18,$18,$18,
+		$00,$10,$30,$7F,$7F,$30,$10,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+]
+
+
+
+
+// the following is an experimental implementation of text output for Game Boy
+// if it matures, it might get mainlined into the standard distribution
+
+array putchar_buffer[256]
+byte putchar_buffer_start
+byte putchar_buffer_size
+byte putchar_column
+byte putchar_row
+volatile byte putchar_lock
+
+void init_putchar() {
+    putchar_buffer_start = 0
+    putchar_buffer_size = 0
+    putchar_column = 0
+    putchar_row = 0
+    putchar_lock = 0
+}
+
+asm void putchar(byte e) {
+    ld a,(putchar_buffer_size)
+    cp $ff
+    jr nz, __putchar_do
+    halt
+    jr putchar
+    __putchar_do:
+    ld b,a
+    ld a,1
+    ld (putchar_lock),a
+    ld a,(putchar_buffer_start)
+    add a,b
+    ld c,a
+    ld b,0
+    ld hl,putchar_buffer.addr
+    add hl,bc
+    ld (hl),e
+    ld hl,putchar_buffer_size.addr
+    inc (hl)
+    xor a
+    ld (putchar_lock),a
+    ret
+}
+
+
+// TODO: ???
+noinline pointer calculate_cursor() {
+    pointer p
+    p = putchar_column
+    p <<= 5
+    p += putchar_row
+    p += $9800
+    return p
+}
+
+void new_line() {
+    putchar(13)
+    putchar(10)
+}
+
+void flush_putchar_buffer() {
+    pointer dest
+    pointer src
+    if putchar_lock != 0 { return }
+    if putchar_buffer_size == 0 { return }
+    src = putchar_buffer.addr + putchar_buffer_start
+    dest = calculate_cursor()
+    byte i
+    byte c
+    for i,0,paralleluntil,putchar_buffer_size {
+        c = src[0]
+        src += 1
+        if c == 13 {
+            putchar_column = 0
+            dest.lo &= $E0
+        } else if c == 10 {
+            putchar_row += 1
+            dest += 32
+        } else {
+            dest[0] = c
+            dest += 1
+            putchar_column += 1
+            if putchar_column == 20 {
+                putchar_column = 0
+                putchar_row += 1
+                dest.lo &= $E0
+                dest += 32
+            }
+        }
+    }
+    putchar_buffer_start += putchar_buffer_size
+    putchar_buffer_size = 0
+}
