@@ -253,6 +253,8 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.TailCallOptimization,
     AlwaysGoodOptimizations.UnusedCodeRemoval,
     AlwaysGoodOptimizations.UnusedLabelRemoval,
+    UseAccumulatorInsteadOfXRegister,
+    UseAccumulatorInsteadOfYRegister,
     VariableToRegisterOptimization,
     TwoVariablesToIndexRegistersOptimization,
   )

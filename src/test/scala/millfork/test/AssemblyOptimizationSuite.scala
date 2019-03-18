@@ -637,4 +637,25 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Using accumulator") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+      """
+        |
+        |byte __last_used_device @$ba
+        |noinline byte last_used_device() {
+        |    byte device
+        |    device = __last_used_device
+        |    if device == 0 { device = 8 }
+        |    return device
+        |}
+        |
+        |
+        |void main() {
+        |    last_used_device()
+        |}
+      """.stripMargin
+    ) { m =>
+    }
+  }
+
 }

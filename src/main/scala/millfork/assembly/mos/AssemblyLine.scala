@@ -553,7 +553,7 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
 
   def concernsX: Boolean = addrMode == AbsoluteX || addrMode == LongAbsoluteX || addrMode == ZeroPageX || addrMode == IndexedX || ConcernsXAlways(opcode)
 
-  def concernsY: Boolean = addrMode == AbsoluteY || addrMode == ZeroPageY || addrMode == IndexedY || addrMode == LongIndexedY || ConcernsYAlways(opcode)
+  def concernsY: Boolean = addrMode == AbsoluteY || addrMode == ZeroPageY || addrMode == IndexedY || addrMode == IndexedSY || addrMode == LongIndexedY || ConcernsYAlways(opcode)
 
   def treatment(state: State.Value): Treatment.Value = opcode match {
     case LABEL => Unchanged // TODO: ???
