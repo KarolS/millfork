@@ -7,7 +7,7 @@
 Original 6502 processors accidentally supported a bunch of extra undocumented instructions.
 Millfork can emit them if so desired.
 
-## Mnemonics
+#### Mnemonics
 
 Since various assemblers use different mnemonics for undocumented opcodes, 
 Millfork supports multiple mnemonics per opcode. The default one is given first:
@@ -55,7 +55,7 @@ but Millfork can distinguish between them and the NMOS illegal instructions base
 
 \*\* AXS is also used for SAX in some assemblers. Millfork interprets AXS based on the addressing mode.
 
-## Generation
+#### Generation
 
 In order for the compiler to emit one of those opcodes, 
 an appropriate CPU architecture must be chosen (`nmos` or `ricoh`)

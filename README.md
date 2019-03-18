@@ -36,6 +36,8 @@ For binary releases, see: https://github.com/KarolS/millfork/releases
     * CP/M
     
     * Atari 2600 (experimental)
+    
+    * Game Boy (experimental)
 
 * inline assembly
 

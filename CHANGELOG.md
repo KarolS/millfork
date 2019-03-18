@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Preliminary experimental Game Boy support.
+
 * Added `memory_barrier` macro.
 
 * Added `random` module.
@@ -11,6 +13,8 @@
 * Added `MILLFORK_VERSION` preprocessor parameter.
 
 * Added hint for identifiers with typos.
+
+* Aliases now also support subfields.
 
 * 6502: Fixed optimizations using index registers.
 

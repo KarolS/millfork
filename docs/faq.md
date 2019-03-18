@@ -18,7 +18,7 @@ The goal of Millfork is to succeed where Atalan failed.
 Large programs in Millfork have been developed for Commodore 64.
 
 Millfork was also tested (via emulators) to run trivial programs on other 8-bit Commodore computers, 
-Atari 8-bit computers, Apple II, BBC Micro, ZX Spectrum 48k, NEC PC-88, CP/M, NES, and Atari 2600.
+Atari 8-bit computers, Apple II, BBC Micro, ZX Spectrum 48k, NEC PC-88, CP/M, NES, Game Boy and Atari 2600.
 
 Support for other devices using supported processors can be easily added, usually without even modifying the compiler.
 

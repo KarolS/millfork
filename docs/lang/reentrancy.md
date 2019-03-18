@@ -52,7 +52,7 @@ Since most automatic variables will be overwritten by the inner call, the functi
 In all other cases, the recursive call may cause undefined behaviour.
 
 The easiest, but suboptimal way to make a function recursion-safe is to make all local variables stack-allocated
-and assigning all parameters to variables as soon as possible. This is slow though, so don't do it unless really necessary.
+and assign all parameters to variables as soon as possible. This is slow though, so don't do it unless really necessary.
 
 ## Interrupt safety
 

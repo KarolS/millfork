@@ -119,6 +119,10 @@ If the declared size and the size deduced from the `<initial_values>` don't matc
     * on 6502, it means that the array will not cross a page boundary
     * on Z80, it means that the array will not cross a page boundary
 
+* `<address>` is a constant expression that defines where in the memory the array is or will be located.
+
+* `<initial_values>` is an array literal, see [Literals](./literals.md)
+
 TODO
 
 ### Function declarations
@@ -305,6 +309,7 @@ continue <variable>
     
 ### `asm` statements
 
-See [Using assembly within Millfork programs](./assembly.md).
+See [Using 6502 assembly within Millfork programs](./assembly.md)  
+or [Using 8080/LR35902/Z80 assembly within Millfork programs](./assemblyz80.md).
 
   

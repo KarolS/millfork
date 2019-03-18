@@ -78,6 +78,10 @@ The compiler emits tape images.
 
 * `zxspectrum_8080` – Sinclair ZX Spectrum 48k, using only Intel 8080 instructions
 
+* `gb_small` – a tiny 32K Game Boy program. (experimental)
+The compiler emits GB files.
+Read [the Game Boy programming guide](./gb-programming-guide.md) for more info.
+
 * `cpm` – CP/M on Intel 8080.
 The compiler emits COM files.
 

@@ -53,6 +53,8 @@
 
 * [NES-only modules](stdlib/nes.md)
 
+* [Game Boy–only modules](stdlib/gb.md)
+
 ## Implementation details
 
 * [Variable storage](abi/variable-storage.md)
