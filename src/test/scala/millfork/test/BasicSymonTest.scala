@@ -173,6 +173,20 @@ class BasicSymonTest extends FunSuite with Matchers {
       """.stripMargin){ m => () }
   }
 
+  test("Deep alias test") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | word output @$c000
+        | alias a = output
+        | void main () {
+        |   a.hi = 2
+        |   a.lo = $55
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(0x255)
+    }
+  }
+
   test("Preprocessor test") {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """

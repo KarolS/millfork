@@ -1298,6 +1298,22 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  private def expandAliases(): Unit = {
+    val aliasesToAdd = mutable.ListBuffer[Alias]()
+    things.values.foreach{
+      case Alias(aliasName, target, deprecated) =>
+        val prefix = target + "."
+        things.foreach{
+          case (thingName, thing) =>
+            if (thingName.startsWith(prefix)) {
+              aliasesToAdd += Alias(aliasName + "." + thingName.stripPrefix(prefix), thingName, deprecated)
+            }
+        }
+      case _ => ()
+    }
+    aliasesToAdd.foreach(a => things += a.name -> a)
+  }
+
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
     val b = get[VariableType]("byte")
     val v = get[Type]("void")
@@ -1320,6 +1336,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case a: ArrayDeclarationStatement => registerArray(a, options)
       case _ =>
     }
+    expandAliases()
     if (options.zpRegisterSize > 0 && !things.contains("__reg")) {
       addThing(BasicPlainType("__reg$type", options.zpRegisterSize), None)
       registerVariable(VariableDeclarationStatement(
