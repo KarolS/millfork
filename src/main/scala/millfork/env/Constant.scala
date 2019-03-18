@@ -98,6 +98,9 @@ sealed trait Constant {
   def refersTo(name: String): Boolean
 
   def fitsInto(typ: Type): Boolean = true // TODO
+
+  final def succ: Constant = (this + 1).quickSimplify
+
 }
 
 case class AssertByte(c: Constant) extends Constant {

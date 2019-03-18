@@ -380,6 +380,8 @@ object PseudoregisterBuiltIns {
     load ++ calculate
   }
 
+  private def isPowerOfTwoUpTo15(n: Long): Boolean = if (n <= 0 || n >= 0x8000) false else 0 == ((n-1) & n)
+
   def compileWordMultiplication(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean): List[AssemblyLine] = {
     if (ctx.options.zpRegisterSize < 3) {
       ctx.log.error("Variable word multiplication requires the zeropage pseudoregister of size at least 3", param1OrRegister.flatMap(_.position))
@@ -390,6 +392,18 @@ object PseudoregisterBuiltIns {
       case (1, 2) => return compileWordMultiplication(ctx, Some(param2), param1OrRegister.get, storeInRegLo)
       case (2 | 1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", param2.position)
+    }
+    if (!storeInRegLo && param1OrRegister.isDefined) {
+      (ctx.env.eval(param1OrRegister.get), ctx.env.eval(param2)) match {
+        case (Some(l), Some(r)) =>
+          val product = CompoundConstant(MathOperator.Times, l, r).quickSimplify
+          return List(AssemblyLine.immediate(LDA, product.loByte), AssemblyLine.immediate(LDX, product.hiByte))
+        case (Some(NumericConstant(c, _)), _) if isPowerOfTwoUpTo15(c)=>
+          return compileWordShiftOps(left = true, ctx, param2, LiteralExpression(java.lang.Long.bitCount(c - 1), 1))
+        case (_, Some(NumericConstant(c, _))) if isPowerOfTwoUpTo15(c)=>
+          return compileWordShiftOps(left = true, ctx, param1OrRegister.get, LiteralExpression(java.lang.Long.bitCount(c - 1), 1))
+        case _ =>
+      }
     }
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")

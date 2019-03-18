@@ -862,6 +862,8 @@ object BuiltIns {
     }
   }
 
+  private def isPowerOfTwoUpTo15(n: Long): Boolean = if (n <= 0 || n >= 0x8000) false else 0 == ((n-1) & n)
+
   def compileInPlaceWordMultiplication(ctx: CompilationContext, v: LhsExpression, addend: Expression): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
@@ -870,6 +872,8 @@ object BuiltIns {
         MosExpressionCompiler.compile(ctx, v, None, NoBranching) ++ MosExpressionCompiler.compileAssignment(ctx, LiteralExpression(0, 2), v)
       case Some(NumericConstant(1, _)) =>
         MosExpressionCompiler.compile(ctx, v, None, NoBranching)
+      case Some(NumericConstant(n, _)) if isPowerOfTwoUpTo15(n) =>
+        BuiltIns.compileInPlaceWordOrLongShiftOps(ctx, v, LiteralExpression(java.lang.Long.bitCount(n - 1), 1), aslRatherThanLsr = true)
       case _ =>
         // TODO: optimize?
         PseudoregisterBuiltIns.compileWordMultiplication(ctx, Some(v), addend, storeInRegLo = true) ++
