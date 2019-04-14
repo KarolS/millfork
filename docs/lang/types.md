@@ -87,3 +87,31 @@ Plain enumerations have their variants equal to `byte(0)` to `byte(<name>.count 
     
 Tip: You can use an enumeration with no variants as a strongly checked alternative byte type,
 as there are no checks no values when converting bytes to enumeration values and vice versa.
+
+## Structs
+
+Struct is a compound type containing multiple fields of various types:
+
+    struct <name> { <field definitions (type and name), separated by commas or newlines>}
+
+A struct is represented in memory as a contiguous area of variables laid out one after another.
+
+Struct can have a maximum size of 255 bytes. Larger structs are not supported.
+
+You can access a field of a struct with the dot:
+
+    struct point { word x, word y }
+    
+    point p
+    p.x = 3
+    p.y.lo = 4
+
+Offsets are available as `structname.fieldname.offset`:
+
+    pointer ptr
+    ptr = p.addr
+    ptr += point.y.offset
+    // ptr points now at p.y
+    
+    // alternatively:
+    ptr = p.y.addr

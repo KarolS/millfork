@@ -57,6 +57,12 @@ For every variable `x` larger than a byte, extra subvariables are defined:
     * constituent bytes, from low to high: `x.b0`, `x.b1`, `x.b2`, `x.b3`
     
     * partial words: `x.loword` (=`x.b1:x.b0`), `x.hiword` (=`x.b3:x.b2`)
+    
+* if `x` is of a larger integral type:
+
+    * constituent bytes, from low to high: `x.b0`, `x.b1`, `x.b2`, etc.
+    
+    * the lowest word: `x.loword` (=`x.b1:x.b0`)
 
 ### Constant declarations
 
@@ -100,11 +106,15 @@ An array is a continuous sequence of bytes in memory.
 
 Syntax:
 
-`[segment(<segment>)] array <name> [[<size>]] [align ( <alignment> )] [@<address>] [= <initial_values>]`
+`[segment(<segment>)] array [(<element type>)] <name> [[<size>]] [align ( <alignment> )] [@<address>] [= <initial_values>]`
 
 * `<segment>`: segment name; if absent,
 then defaults to `default_code_segment` as defined for the platform if the array has initial values,
 or to `default` if it doesn't.
+
+* `<element type>`: type of the elements of the array.
+It must be of size 1 byte.
+If omitted, the default is `byte`.
 
 * `<size>`: either a constant number, which then defines the size of the array,
 or a name of a plain enumeration type, in which case changes the type of the index to that enumeration

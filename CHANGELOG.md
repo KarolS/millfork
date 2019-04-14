@@ -12,6 +12,12 @@
 
 * Added `MILLFORK_VERSION` preprocessor parameter.
 
+* Added structs.
+
+* Pointers can now be allocated anywhere.
+
+* Arrays can now have elements of types other than `byte` (still limited in size to 1 byte though).
+
 * Added hint for identifiers with typos.
 
 * Aliases now also support subfields.
