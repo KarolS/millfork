@@ -11,6 +11,7 @@ import millfork.output._
 import org.apache.commons.lang3.StringUtils
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 
 /**
@@ -749,6 +750,45 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  def registerStruct(stmt: StructDefinitionStatement): Unit = {
+    stmt.fields.foreach{ f =>
+      if (Environment.invalidFieldNames.contains(f._2)) {
+        log.error(s"Invalid field name: `${f._2}`", stmt.position)
+      }
+    }
+    addThing(StructType(stmt.name, stmt.fields), stmt.position)
+  }
+
+  def getTypeSize(name: String, path: Set[String]): Int = {
+    if (path.contains(name)) return -1
+    val t = get[Type](name)
+    t match {
+      case s: StructType =>
+        if (s.mutableSize >= 0) s.mutableSize
+        else {
+          val newPath = path + name
+          var sum = 0
+          for( (fieldType, _) <- s.fields) {
+            val fieldSize = getTypeSize(fieldType, newPath)
+            if (fieldSize < 0) return -1
+            sum += fieldSize
+          }
+          s.mutableSize = sum
+          if (sum > 0xff) {
+            log.error(s"Struct `$name` is larger than 255 bytes")
+          }
+          val b = get[Type]("byte")
+          var offset = 0
+          for( (fieldType, fieldName) <- s.fields) {
+            addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(offset, 1), b), None)
+            offset += getTypeSize(fieldType, newPath)
+          }
+          sum
+        }
+      case _ => t.size
+    }
+  }
+
   def collectPointies(stmts: Seq[Statement]): Set[String] = {
     val pointies: mutable.Set[String] = new mutable.HashSet()
         pointies ++= stmts.flatMap(_.getAllPointies)
@@ -941,7 +981,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         registerAddressConstant(v, stmt.position, options)
         val addr = v.toAddress
         for((suffix, offset, t) <- getSubvariables(typ)) {
-          addThing(RelativeVariable(v.name + suffix, addr + offset, t, zeropage = zp, None, isVolatile = v.isVolatile), stmt.position)
+          val subv = RelativeVariable(v.name + suffix, addr + offset, t, zeropage = zp, None, isVolatile = v.isVolatile)
+          addThing(subv, stmt.position)
+          registerAddressConstant(subv, stmt.position, options)
         }
       case ByMosRegister(_) => ()
       case ByZRegister(_) => ()
@@ -1218,7 +1260,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           addThing(ConstantThing(v.name + "`", addr, b), stmt.position)
         }
         for((suffix, offset, t) <- getSubvariables(typ)) {
-          addThing(RelativeVariable(prefix + name + suffix, addr + offset, t, zeropage = v.zeropage, declaredBank = stmt.bank, isVolatile = v.isVolatile), stmt.position)
+          val subv = RelativeVariable(prefix + name + suffix, addr + offset, t, zeropage = v.zeropage, declaredBank = stmt.bank, isVolatile = v.isVolatile)
+          addThing(subv, stmt.position)
+          registerAddressConstant(subv, stmt.position, options)
         }
       }
     }
@@ -1231,7 +1275,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       return (".lo", 0, b) ::
         (".hi", 1, b) ::
         (".loword", 0, w) ::
+        (".loword.lo", 0, b) ::
+        (".loword.hi", 1, b) ::
         (".b2b3", 2, w) ::
+        (".b2b3.lo", 2, b) ::
+        (".b2b3.hi", 3, b) ::
         List.tabulate(typ.size) { i => (".b" + i, i, b) }
     }
     typ match {
@@ -1241,20 +1289,46 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           (".hi", 1, b))
         case 3 => List(
           (".loword", 0, w),
+          (".loword.lo", 0, b),
+          (".loword.hi", 1, b),
           (".hiword", 1, w),
+          (".hiword.lo", 1, b),
+          (".hiword.hi", 2, b),
           (".b0", 0, b),
           (".b1", 1, b),
           (".b2", 2, b))
         case 4 => List(
           (".loword", 0, w),
           (".hiword", 2, w),
+          (".loword.lo", 0, b),
+          (".loword.hi", 1, b),
+          (".hiword.lo", 2, b),
+          (".hiword.hi", 3, b),
           (".b0", 0, b),
           (".b1", 1, b),
           (".b2", 2, b),
           (".b3", 3, b))
-        case sz if sz > 4 => (".lo", 0, b) :: (".loword", 0, w) :: List.tabulate(sz){ i => (".b" + i, i, b) }
+        case sz if sz > 4 =>
+          (".lo", 0, b) ::
+            (".loword", 0, w) ::
+            (".loword.lo", 0, b) ::
+            (".loword.hi", 1, b) ::
+            List.tabulate(sz){ i => (".b" + i, i, b) }
         case _ => Nil
       }
+      case s: StructType =>
+        val builder = new ListBuffer[(String, Int, VariableType)]
+        var offset = 0
+        for((typeName, fieldName) <- s.fields) {
+          val typ = get[VariableType](typeName)
+          val suffix = "." + fieldName
+          builder += ((suffix, offset, typ))
+          builder ++= getSubvariables(typ).map {
+            case (innerSuffix, innerOffset, innerType) => (suffix + innerSuffix, offset + innerOffset, innerType)
+          }
+          offset += typ.size
+        }
+        builder.toList
       case _ => Nil
     }
   }
@@ -1309,6 +1383,23 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     aliasesToAdd.foreach(a => things += a.name -> a)
   }
 
+  def fixStructSizes(): Unit = {
+    val allStructTypes = things.values.flatMap {
+      case StructType(name, _) => Some(name)
+      case _ => None
+    }
+    var iterations = allStructTypes.size
+    while (iterations >= 0) {
+      var ok = true
+      for (t <- allStructTypes) {
+        if (getTypeSize(t, Set()) < 0) ok = false
+      }
+      if (ok) return
+      iterations -= 1
+    }
+    log.error("Cycles in struct definitions found")
+  }
+
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
     val b = get[VariableType]("byte")
     val v = get[Type]("void")
@@ -1323,6 +1414,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case e: EnumDefinitionStatement => registerEnum(e)
       case _ =>
     }
+    program.declarations.foreach {
+      case s: StructDefinitionStatement => registerStruct(s)
+      case _ =>
+    }
+    fixStructSizes()
     val pointies = collectPointies(program.declarations)
     pointiesUsed("") = pointies
     program.declarations.foreach {
@@ -1457,4 +1553,5 @@ object Environment {
     "for", "if", "do", "while", "else", "return", "default", "to", "until", "paralleluntil", "parallelto", "downto",
     "inline", "noinline"
   ) ++ predefinedFunctions
+  val invalidFieldNames: Set[String] = Set("addr")
 }

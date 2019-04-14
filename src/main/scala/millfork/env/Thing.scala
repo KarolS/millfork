@@ -76,6 +76,12 @@ case class EnumType(name: String, count: Option[Int]) extends VariableType {
   override def isSigned: Boolean = false
 }
 
+case class StructType(name: String, fields: List[(String, String)]) extends VariableType {
+  override def size: Int = mutableSize
+  var mutableSize: Int = -1
+  override def isSigned: Boolean = false
+}
+
 sealed trait BooleanType extends Type {
   def size = 0
 

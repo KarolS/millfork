@@ -472,9 +472,25 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     variants <- enumVariants ~/ Pass
   } yield Seq(EnumDefinitionStatement(name, variants).pos(p))
 
+  val structField: P[(String, String)] = for {
+    typ <- identifier ~/ HWS
+    name <- identifier ~ HWS
+  } yield typ -> name
+
+  val structFields: P[List[(String, String)]] =
+    ("{" ~/ AWS ~ structField.rep(sep = NoCut(EOLOrComma) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
+
+  val structDefinition: P[Seq[StructDefinitionStatement]] = for {
+    p <- position()
+    _ <- "struct" ~ !letterOrDigit ~/ SWS ~ position("struct name")
+      name <- identifier ~/ HWS
+      _ <- position("struct defintion block")
+    fields <- structFields ~/ Pass
+  } yield Seq(StructDefinitionStatement(name, fields).pos(p))
+
   val program: Parser[Program] = for {
     _ <- Start ~/ AWS ~/ Pass
-    definitions <- (importStatement | arrayDefinition | aliasDefinition | enumDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
+    definitions <- (importStatement | arrayDefinition | aliasDefinition | enumDefinition | structDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
     _ <- AWS ~ End
   } yield Program(definitions.flatten.toList)
 

@@ -300,6 +300,10 @@ case class EnumDefinitionStatement(name: String, variants: List[(String, Option[
   override def getAllExpressions: List[Expression] = variants.flatMap(_._2)
 }
 
+case class StructDefinitionStatement(name: String, fields: List[(String, String)]) extends DeclarationStatement {
+  override def getAllExpressions: List[Expression] = Nil
+}
+
 case class ArrayDeclarationStatement(name: String,
                                      bank: Option[String],
                                      length: Option[Expression],
