@@ -307,6 +307,7 @@ case class StructDefinitionStatement(name: String, fields: List[(String, String)
 case class ArrayDeclarationStatement(name: String,
                                      bank: Option[String],
                                      length: Option[Expression],
+                                     elementType: String,
                                      address: Option[Expression],
                                      elements: Option[ArrayContents],
                                      alignment: Option[MemoryAlignment]) extends DeclarationStatement {

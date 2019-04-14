@@ -358,6 +358,13 @@ object AbstractExpressionCompiler {
     }
   }
 
+  def checkAssignmentType(env: Environment, source: Expression, targetType: Type): Unit = {
+    val sourceType = getExpressionType(env, env.log, source)
+    if (!sourceType.isAssignableTo(targetType)) {
+      env.log.error(s"Cannot assign `$sourceType` to `$targetType`", source.position)
+    }
+  }
+
   def lookupFunction(env: Environment, log: Logger, f: FunctionCallExpression): MangledFunction = {
     val paramsWithTypes = f.expressions.map(x => getExpressionType(env, log, x) -> x)
     env.lookupFunction(f.functionName, paramsWithTypes).getOrElse(

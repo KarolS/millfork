@@ -1058,6 +1058,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val b = get[VariableType]("byte")
     val w = get[VariableType]("word")
     val p = get[Type]("pointer")
+    val e = get[VariableType](stmt.elementType)
+    if (e.size != 1) {
+      log.error(s"Array elements should be of size 1, `${e.name}` is of size ${e.size}", stmt.position)
+    }
     stmt.elements match {
       case None =>
         stmt.length match {
@@ -1084,9 +1088,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
                 val array = address match {
                   case None => UninitializedArray(stmt.name + ".array", length.toInt,
-                              declaredBank = stmt.bank, indexType, b, alignment)
+                              declaredBank = stmt.bank, indexType, e, alignment)
                   case Some(aa) => RelativeArray(stmt.name + ".array", aa, length.toInt,
-                              declaredBank = stmt.bank, indexType, b)
+                              declaredBank = stmt.bank, indexType, e)
                 }
                 addThing(array, stmt.position)
                 registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank, alignment, isVolatile = false), stmt.position, options)
@@ -1155,7 +1159,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
         val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
         val address = stmt.address.map(a => eval(a).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant address", stmt.position)))
-        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, b, alignment)
+        for (element <- contents) {
+          AbstractExpressionCompiler.checkAssignmentType(this, element, e)
+        }
+        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, e, alignment)
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
                     declaredBank = stmt.bank, alignment, isVolatile = false), stmt.position, options)
@@ -1163,7 +1170,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case None => array.toAddress
           case Some(aa) => aa
         }
-        addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false,
+        addThing(RelativeVariable(stmt.name + ".first", a, e, zeropage = false,
                     declaredBank = stmt.bank, isVolatile = false), stmt.position)
         if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
           val b = get[Type]("byte")

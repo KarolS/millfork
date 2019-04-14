@@ -236,12 +236,14 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val arrayDefinition: P[Seq[ArrayDeclarationStatement]] = for {
     p <- position()
     bank <- bankDeclaration
-    name <- "array" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
+    _ <- "array" ~ !letterOrDigit
+    elementType <- ("(" ~/ AWS ~/ identifier ~ AWS ~ ")").? ~/ HWS
+    name <- identifier ~ HWS
     length <- ("[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]").? ~ HWS
     alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
     contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
-  } yield Seq(ArrayDeclarationStatement(name, bank, length, addr, contents, alignment).pos(p))
+  } yield Seq(ArrayDeclarationStatement(name, bank, length, elementType.getOrElse("byte"), addr, contents, alignment).pos(p))
 
   def tightMfExpression(allowIntelHex: Boolean): P[Expression] = {
     val a = if (allowIntelHex) atomWithIntel else atom
