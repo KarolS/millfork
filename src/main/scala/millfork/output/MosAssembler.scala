@@ -50,7 +50,7 @@ class MosAssembler(program: Program,
         writeByte(bank, index, MosAssembler.opcodeFor(op, Relative, options))
         writeByte(bank, index + 1, AssertByte(param - (index + 2)))
         index + 2
-      case AssemblyLine0(op, am@(Immediate | ZeroPage | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | LongIndexedY | LongIndexedZ | Stack), param) =>
+      case AssemblyLine0(op, am@(Immediate | ZeroPage | ZeroPageX | ZeroPageY | IndexedY | IndexedX | IndexedZ | IndexedSY | LongIndexedY | LongIndexedZ | Stack), param) =>
         writeByte(bank, index, MosAssembler.opcodeFor(op, am, options))
         writeByte(bank, index + 1, param)
         index + 2

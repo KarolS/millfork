@@ -38,14 +38,14 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
         OpcodeClasses.ReadsYAlways(l.opcode) ||
         OpcodeClasses.ChangesX(l.opcode) ||
         OpcodeClasses.ChangesY(l.opcode) ||
-        Set(AbsoluteX, AbsoluteY, ZeroPageY, ZeroPageX, IndexedX, IndexedY)(l.addrMode)
+        Set(AbsoluteX, AbsoluteY, ZeroPageY, ZeroPageX, IndexedX, IndexedY, LongIndexedY, IndexedSY)(l.addrMode)
     )
     val usesY = code.exists(l =>
       OpcodeClasses.ReadsXAlways(l.opcode) ||
         OpcodeClasses.ReadsYAlways(l.opcode) ||
         OpcodeClasses.ChangesX(l.opcode) ||
         OpcodeClasses.ChangesY(l.opcode) ||
-        Set(AbsoluteX, AbsoluteY, ZeroPageY, ZeroPageX, IndexedX, IndexedY)(l.addrMode)
+        Set(AbsoluteX, AbsoluteY, ZeroPageY, ZeroPageX, IndexedX, IndexedY, LongIndexedY, IndexedSY)(l.addrMode)
     )
     if (!usesX && !usesY) {
       return code
@@ -109,6 +109,7 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case AssemblyLine0(_, ZeroPageY, _) :: xs if loaded != Some(Y) => false
     case AssemblyLine0(_, IndexedY, _) :: xs if dir == Y2X || loaded != Some(Y) => false
     case AssemblyLine0(_, LongIndexedY, _) :: xs if dir == Y2X || loaded != Some(Y) => false
+    case AssemblyLine0(_, IndexedSY, _) :: xs if dir == Y2X || loaded != Some(Y) => false
     case AssemblyLine0(_, AbsoluteX, _) :: xs if loaded != Some(X) => false
     case AssemblyLine0(_, LongAbsoluteX, _) :: xs if loaded != Some(X) => false
     case AssemblyLine0(_, ZeroPageX, _) :: xs if loaded != Some(X) => false
@@ -225,6 +226,8 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case (x@AssemblyLine0(_, AbsoluteY, _)) :: xs => x.copy(addrMode = AbsoluteX) :: switchY2X(xs)
     case (x@AssemblyLine0(_, ZeroPageY, _)) :: xs => x.copy(addrMode = ZeroPageX) :: switchY2X(xs)
     case AssemblyLine0(_, IndexedY, _) :: xs => log.fatal("Unexpected IndexedY")
+    case AssemblyLine0(_, LongIndexedY, _) :: xs => log.fatal("Unexpected LongIndexedY")
+    case AssemblyLine0(_, IndexedSY, _) :: xs => log.fatal("Unexpected IndexedSY")
 
     case x::xs => x :: switchY2X(xs)
     case Nil => Nil

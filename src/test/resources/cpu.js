@@ -2898,6 +2898,7 @@ var STA_stack_relative_indirect_indexed_y= {
   execute:function(cpu, bytes) {
     cpu.cycle_count+=7;
 
+    // TODO: fixes below are not well-tested!
     if(cpu.p.e) {
       var location_loc = 0x100 | ((cpu.r.s + bytes[0]) & 0xff),
           low_byte =  cpu.mmu.read_byte(location_loc),
@@ -2907,41 +2908,16 @@ var STA_stack_relative_indirect_indexed_y= {
       } else {
         high_byte = cpu.mmu.read_byte(location_loc+1);
       }
-      var absolute_location = ((high_byte<<8)|low_byte)+cpu.r.y,
-          b;
-      if(absolute_location>=0x10000) {
-        b = cpu.mmu.read_byte_long(absolute_location, cpu.r.dbr+1);
-      } else {
-        b = cpu.mmu.read_byte(absolute_location);
-      }
-      cpu.mmu.store_byte(b, cpu.r.a);
+      var absolute_location = ((high_byte<<8)|low_byte)+cpu.r.y;
+      cpu.mmu.store_byte(absolute_location, cpu.r.a);
     } else {
       var location_loc = cpu.r.s + bytes[0],
           absolute_location = cpu.mmu.read_word(location_loc)+cpu.r.y;
       if(cpu.p.m) {
-        var b;
-        if(absolute_location>=0x10000) {
-          b = cpu.mmu.read_byte_long(absolute_location, cpu.r.dbr+1);
-        } else {
-          b = cpu.mmu.read_byte(absolute_location);
-        }
-        cpu.mmu.store_byte(b, cpu.r.a);
+        cpu.mmu.store_byte(absolute_location, cpu.r.a);
       } else {
         cpu.cycle_count++;
-
-        var low_byte, high_byte;
-        if(absolute_location>=0x10000) {
-          low_byte = cpu.mmu.read_byte_long(absolute_location, cpu.r.dbr+1);
-          high_byte = cpu.mmu.read_byte_long(absolute_location+1, cpu.r.dbr+1);
-        } else {
-          low_byte = cpu.mmu.read_byte(absolute_location);
-          if(absolute_location===0xffff) {
-            high_byte = cpu.mmu.read_byte_long(0, cpu.r.dbr+1);
-          } else {
-            high_byte = cpu.mmu.read_byte(absolute_location);
-          }
-        }
-        cpu.mmu.store_word((high_byte<<8)|low_byte, cpu.r.a);
+        cpu.mmu.store_word(absolute_location, cpu.r.a);
       }
     }
   }

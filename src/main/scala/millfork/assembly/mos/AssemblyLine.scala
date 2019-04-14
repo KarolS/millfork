@@ -494,11 +494,17 @@ object AssemblyLine {
   def absoluteX(opcode: Opcode.Value, thing: ThingInMemory, offset: Int = 0) =
     AssemblyLine(opcode, AddrMode.AbsoluteX, thing.toAddress + offset)
 
+  def indexedY(opcode: Opcode.Value, addr: Int) =
+    AssemblyLine(opcode, AddrMode.IndexedY, NumericConstant(addr & 0xff, 1))
+
   def indexedY(opcode: Opcode.Value, addr: Constant) =
     AssemblyLine(opcode, AddrMode.IndexedY, addr)
 
   def indexedY(opcode: Opcode.Value, thing: ThingInMemory, offset: Int = 0) =
     AssemblyLine(opcode, AddrMode.IndexedY, thing.toAddress + offset)
+
+  def indexedSY(opcode: Opcode.Value, offset: Int = 0) =
+    AssemblyLine(opcode, AddrMode.IndexedSY, NumericConstant(offset & 0xff, 1))
 
   def stackRelative(opcode: Opcode.Value, addr: Int) =
     AssemblyLine(opcode, AddrMode.Stack, NumericConstant(addr & 0xff, 1))
