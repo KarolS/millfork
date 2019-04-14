@@ -215,6 +215,8 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
     case _ => false
   }
 
+  override def fitsProvablyIntoByte: Boolean = thing.zeropage
+
   override def requiredSize = 2
 
   override def toString: String = thing.name

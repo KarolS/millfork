@@ -175,7 +175,7 @@ object VariableAllocationMethod extends Enumeration {
   val Auto, Register, Static, Zeropage, None = Value
 }
 
-case class StackVariable(name: String, typ: Type, baseOffset: Int) extends Variable {
+case class StackVariable(name: String, typ: Type, baseOffset: Int) extends Variable with IndexableThing {
   def sizeInBytes: Int = typ.size
   override def isVolatile: Boolean = false
 }

@@ -294,7 +294,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def getArrayOrPointer(arrayName: String): Thing = {
-    maybeGet[ThingInMemory](arrayName).
+    maybeGet[StackVariable](arrayName).
+      orElse(maybeGet[ThingInMemory](arrayName)).
       orElse(maybeGet[ThingInMemory](arrayName + ".array")).
       orElse(maybeGet[ConstantThing](arrayName)).
       getOrElse(log.fatal(s"`$arrayName` is not an array or a pointer"))
@@ -314,7 +315,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case th:VariableInMemory if th.typ.isPointy=>
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
-        VariablePointy(th.toAddress, w, b)
+        VariablePointy(th.toAddress, w, b, th.zeropage)
+      case th:StackVariable if th.typ.isPointy =>
+        val b = get[VariableType]("byte")
+        val w = get[VariableType]("word")
+        StackVariablePointy(th.baseOffset, w, b)
       case _ =>
         log.error(s"$name is not a valid pointer or array")
         val b = get[VariableType]("byte")
@@ -1148,17 +1153,6 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val b = get[Type]("byte")
     val w = get[Type]("word")
     val typ = get[VariableType](stmt.typ)
-    if (stmt.typ == "pointer" || stmt.typ == "farpointer") {
-      //      if (stmt.constant) {
-      //        log.error(s"Pointer `${stmt.name}` cannot be constant")
-      //      }
-      stmt.address.flatMap(eval) match {
-        case Some(NumericConstant(a, _)) =>
-          if ((a & 0xff00) != 0)
-            log.error(s"Pointer `${stmt.name}` cannot be located outside the zero page")
-        case _ => ()
-      }
-    }
     val alignment = stmt.alignment.getOrElse(defaultVariableAlignment(options, typ.size))
     if (stmt.constant) {
       if (stmt.stack) log.error(s"`$name` is a constant and cannot be on stack", position)
@@ -1191,7 +1185,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
           val alloc =
-            if (isPointy || typ.name == "__reg$type") VariableAllocationMethod.Zeropage
+            if (isPointy && stmt.bank.isEmpty) VariableAllocationMethod.Zeropage
+            else if (typ.name == "__reg$type") VariableAllocationMethod.Zeropage
             else if (stmt.global) VariableAllocationMethod.Static
             else if (stmt.register) VariableAllocationMethod.Register
             else VariableAllocationMethod.Auto
@@ -1257,7 +1252,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           (".b1", 1, b),
           (".b2", 2, b),
           (".b3", 3, b))
-        case sz if sz > 4 => List.tabulate(sz){ i => (".b" + i, i, b) }
+        case sz if sz > 4 => (".lo", 0, b) :: (".loword", 0, w) :: List.tabulate(sz){ i => (".b" + i, i, b) }
         case _ => Nil
       }
       case _ => Nil

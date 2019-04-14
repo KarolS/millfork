@@ -8,7 +8,11 @@ trait Pointy {
   def elementType: VariableType
 }
 
-case class VariablePointy(addr: Constant, indexType: VariableType, elementType: VariableType) extends Pointy {
+case class StackVariablePointy(offset: Int, indexType: VariableType, elementType: VariableType) extends Pointy {
+  override def name: Option[String] = None
+}
+
+case class VariablePointy(addr: Constant, indexType: VariableType, elementType: VariableType, zeropage: Boolean) extends Pointy {
   override def name: Option[String] = None
 }
 

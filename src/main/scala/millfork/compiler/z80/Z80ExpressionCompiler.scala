@@ -1004,7 +1004,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
             }
         }
-      case VariablePointy(varAddr, _, _) =>
+      case VariablePointy(varAddr, _, _, _) =>
         env.eval(i.index) match {
           case Some(NumericConstant(0, _)) =>
             if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
@@ -1034,6 +1034,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
             }
         }
+      case _: StackVariablePointy =>
+        compileToHL(ctx, VariableExpression(i.name).pos(i.position)) ++
+          stashHLIfChanged(ctx, compileToBC(ctx, i.index)) ++
+          List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
     }
   }
 

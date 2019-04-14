@@ -198,13 +198,37 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           AssemblyLine.zeropage(STA, reg, 1),
           AssemblyLine.immediate(LDA, addr.loByte),
           AssemblyLine.zeropage(STA, reg))
-      case VariablePointy(addr, _, _) =>
+      case VariablePointy(addr, _, _, true) =>
         List(
           AssemblyLine.implied(CLC),
           AssemblyLine.zeropage(ADC, addr + 1),
           AssemblyLine.zeropage(STA, reg, 1),
           AssemblyLine.zeropage(LDA, addr),
           AssemblyLine.zeropage(STA, reg))
+      case VariablePointy(addr, _, _, false) =>
+        List(
+          AssemblyLine.implied(CLC),
+          AssemblyLine.absolute(ADC, addr + 1),
+          AssemblyLine.zeropage(STA, reg, 1),
+          AssemblyLine.absolute(LDA, addr),
+          AssemblyLine.zeropage(STA, reg))
+      case StackVariablePointy(offset, _, _) =>
+        if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
+          List(
+            AssemblyLine.implied(CLC),
+            AssemblyLine.stackRelative(ADC, offset + 1 + ctx.extraStackOffset),
+            AssemblyLine.zeropage(STA, reg, 1),
+            AssemblyLine.stackRelative(LDA, offset + ctx.extraStackOffset),
+            AssemblyLine.zeropage(STA, reg))
+        } else {
+          List(
+            AssemblyLine.implied(CLC),
+            AssemblyLine.implied(TSX),
+            AssemblyLine.absoluteX(ADC, offset + 1 + ctx.extraStackOffset),
+            AssemblyLine.zeropage(STA, reg, 1),
+            AssemblyLine.absoluteX(LDA, offset + ctx.extraStackOffset),
+            AssemblyLine.zeropage(STA, reg))
+        }
     }
     compileIndex ++ prepareRegister
   }
@@ -279,21 +303,21 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           val cmos = ctx.options.flag(CompilationFlag.EmitCmosOpcodes)
           register match {
             case MosRegister.A =>
-              List(AssemblyLine.implied(PHA)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+              List(AssemblyLine.implied(PHA)) ++ fixTsx(code) ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
             case MosRegister.X =>
               if (code.exists(l => OpcodeClasses.ChangesX(l.opcode))) {
                 if (cmos)
-                  List(AssemblyLine.implied(PHX)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+                  List(AssemblyLine.implied(PHX)) ++ fixTsx(code) ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
                 else
-                  List(AssemblyLine.implied(TXA), AssemblyLine.implied(PHA)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+                  List(AssemblyLine.implied(TXA), AssemblyLine.implied(PHA)) ++ fixTsx(code) ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
               } else {
                 code ++ List(AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, reg))
               }
             case MosRegister.Y =>
               if (cmos)
-                List(AssemblyLine.implied(PHY)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+                List(AssemblyLine.implied(PHY)) ++ fixTsx(code) ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
               else
-                List(AssemblyLine.implied(TYA), AssemblyLine.implied(PHA)) ++ code ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
+                List(AssemblyLine.implied(TYA), AssemblyLine.implied(PHA)) ++ fixTsx(code) ++ List(AssemblyLine.implied(PLA), AssemblyLine.indexedY(STA, reg))
           }
         }
 
@@ -302,13 +326,16 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             List(AssemblyLine.absolute(store, env.genRelativeVariable(p.value + constIndex, b, zeropage = false)))
           case (p: VariablePointy, _, _, 2) =>
             wrapWordIndexingStorage(prepareWordIndexing(ctx, p, indexExpr))
+          case (p: VariablePointy, _, 0 | 1, _) if !p.zeropage =>
+            // TODO: optimize?
+            wrapWordIndexingStorage(prepareWordIndexing(ctx, p, indexExpr))
           case (p: ConstantPointy, Some(v), 2, _) =>
             val w = env.get[VariableType]("word")
             wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, None, if (constIndex.isProvablyZero) p.size else None, w, p.elementType, NoAlignment), v))
           case (p: ConstantPointy, Some(v), 1, _) =>
             storeToArrayAtUnknownIndex(v, p.value)
           //TODO: should there be a type check or a zeropage check?
-          case (pointerVariable:VariablePointy, None, _, 0 | 1) =>
+          case (pointerVariable@VariablePointy(varAddr, _, _, true), None, _, 0 | 1) =>
             register match {
               case MosRegister.A =>
                 List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.indexedY(STA, pointerVariable.addr))
@@ -320,21 +347,51 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 ctx.log.error("Cannot store a word in an array", target.position)
                 Nil
             }
-          case (pointerVariable:VariablePointy, Some(_), _, 0 | 1) =>
+          case (p@VariablePointy(varAddr, _, _, true), Some(_), _, 0 | 1) =>
             val calculatingIndex = compile(ctx, indexExpr, Some(b, RegisterVariable(MosRegister.Y, b)), NoBranching)
             register match {
               case MosRegister.A =>
-                preserveRegisterIfNeeded(ctx, MosRegister.A, calculatingIndex) :+ AssemblyLine.indexedY(STA, pointerVariable.addr)
+                preserveRegisterIfNeeded(ctx, MosRegister.A, calculatingIndex) :+ AssemblyLine.indexedY(STA, varAddr)
               case MosRegister.X =>
-                preserveRegisterIfNeeded(ctx, MosRegister.X, calculatingIndex) ++ List(AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, pointerVariable.addr))
+                preserveRegisterIfNeeded(ctx, MosRegister.X, calculatingIndex) ++ List(AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, varAddr))
               case MosRegister.Y =>
                 AssemblyLine.implied(TYA) :: preserveRegisterIfNeeded(ctx, MosRegister.A, calculatingIndex) ++ List(
-                  AssemblyLine.indexedY(STA, pointerVariable.addr), AssemblyLine.implied(TAY)
+                  AssemblyLine.indexedY(STA, varAddr), AssemblyLine.implied(TAY)
                 )
               case _ =>
                 ctx.log.error("Cannot store a word in an array", target.position)
                 Nil
             }
+          case (StackVariablePointy(offset, _, _), None, _, 0 | 1) if ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes) =>
+            register match {
+              case MosRegister.A =>
+                List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.indexedSY(STA, offset))
+              case MosRegister.Y =>
+                List(AssemblyLine.implied(TYA), AssemblyLine.immediate(LDY, constIndex), AssemblyLine.indexedSY(STA, offset), AssemblyLine.implied(TAY))
+              case MosRegister.X =>
+                List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.implied(TXA), AssemblyLine.indexedSY(STA, offset))
+              case _ =>
+                ctx.log.error("Cannot store a word in an array", target.position)
+                Nil
+            }
+          case (p@StackVariablePointy(offset, _, _), Some(_), _, 0 | 1) if ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes) =>
+            val calculatingIndex = compile(ctx, indexExpr, Some(b, RegisterVariable(MosRegister.Y, b)), NoBranching)
+            register match {
+              case MosRegister.A =>
+                preserveRegisterIfNeeded(ctx, MosRegister.A, calculatingIndex) :+ AssemblyLine.indexedSY(STA, offset)
+              case MosRegister.X =>
+                preserveRegisterIfNeeded(ctx, MosRegister.X, calculatingIndex) ++ List(AssemblyLine.implied(TXA), AssemblyLine.indexedSY(STA, offset))
+              case MosRegister.Y =>
+                AssemblyLine.implied(TYA) :: preserveRegisterIfNeeded(ctx, MosRegister.A, calculatingIndex) ++ List(
+                  AssemblyLine.indexedSY(STA, offset), AssemblyLine.implied(TAY)
+                )
+              case _ =>
+                ctx.log.error("Cannot store a word in an array", target.position)
+                Nil
+            }
+          case (p: StackVariablePointy, _, _, _) =>
+            // TODO: optimize?
+            wrapWordIndexingStorage(prepareWordIndexing(ctx, p, indexExpr))
           case _ =>
             ctx.log.error("Invalid index for writing", indexExpr.position)
             Nil
@@ -716,6 +773,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 a.elementType, NoAlignment), v) ++ loadFromReg()
             case (a: VariablePointy, _, 2, _) =>
               prepareWordIndexing(ctx, a, indexExpr) ++ loadFromReg()
+            case (p: VariablePointy, _, 0 | 1, _) if !p.zeropage =>
+              prepareWordIndexing(ctx, p, indexExpr) ++ loadFromReg()
             case (p:VariablePointy, None, 0 | 1, _) =>
               register match {
                 case MosRegister.A =>
@@ -735,6 +794,17 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 case MosRegister.Y =>
                   calculatingIndex ++ List(AssemblyLine.indexedY(LDA, p.addr), AssemblyLine.implied(TAY))
               }
+            case (p: StackVariablePointy, _, 0 | 1, _) if ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes) =>
+              register match {
+                case MosRegister.A =>
+                  List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedSY(LDA, p.offset))
+                case MosRegister.Y =>
+                  List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedSY(LDA, p.offset), AssemblyLine.implied(TAY))
+                case MosRegister.X =>
+                  List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedSY(LDA, p.offset), AssemblyLine.implied(TAX))
+              }
+            case (p: StackVariablePointy, _, _, _) =>
+              prepareWordIndexing(ctx, p, indexExpr) ++ loadFromReg()
             case _ =>
               ctx.log.error("Invalid index for reading", indexExpr.position)
               Nil
