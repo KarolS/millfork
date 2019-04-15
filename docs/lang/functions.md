@@ -6,6 +6,8 @@ Syntax:
 
 `[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [align ( <alignment> )] [@ <address>] { <body> }`
 
+`[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [align ( <alignment> )] [@ <address>] = <expression>`
+
 `[segment (<segment>)] asm <return_type> <name> ( <params> ) @ <address> extern`
 
 * `<segment>`: segment name; if absent, then defaults to `default_code_segment` as defined for the platform (usually `default`)
@@ -52,4 +54,6 @@ but are likely to be available at certain address in memory.
 Such functions should be marked as written in assembly and should have their parameters passed through registers.
 
 * `<body>` is a newline-separated list of either Millfork or assembly statements
+
+* `<expression>` is an expression. It is equivalent to a function body of form `{ return <expression> }`.  
 

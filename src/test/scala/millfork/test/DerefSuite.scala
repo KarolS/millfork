@@ -51,7 +51,7 @@ class DerefSuite extends FunSuite with Matchers {
         |   ¥(q) = ¥(p) + ¥(q)
         | }
         |
-        | noinline pointer id(pointer x) { return x }
+        | noinline pointer id(pointer x) = x
       """.stripMargin){m =>
       m.readByte(0xc000) should equal (3)
       m.readByte(0xc001) should equal (6)

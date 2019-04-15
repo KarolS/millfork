@@ -372,6 +372,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def statements: P[List[Statement]] = ("{" ~/ AWS ~ statement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.flatten.toList)
 
+  def mfFunctionSmallBody: P[List[Statement]] = for {
+    _ <- "=" ~/ AWS
+    expression <- mfExpression(nonStatementLevel, false)
+  } yield List(ReturnStatement(Some(expression)).pos(expression.position))
+
+  def mfFunctionBody: P[List[Statement]] = statements | mfFunctionSmallBody
+
   def executableStatements: P[Seq[ExecutableStatement]] = ("{" ~/ AWS ~/ executableStatement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~ "}").map(_.flatten)
 
   val dispatchLabel: P[ReturnDispatchLabel] =
@@ -449,7 +456,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
     alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ AWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~/ AWS
-    statements <- (externFunctionBody | (if (flags("asm")) asmStatements else statements).map(l => Some(l))) ~/ Pass
+    statements <- (externFunctionBody | (if (flags("asm")) asmStatements else mfFunctionBody).map(l => Some(l))) ~/ Pass
   } yield {
     if (flags("interrupt") && flags("macro")) log.error(s"Interrupt function `$name` cannot be macros", Some(p))
     if (flags("kernal_interrupt") && flags("macro")) log.error(s"Kernal interrupt function `$name` cannot be macros", Some(p))

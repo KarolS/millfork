@@ -135,9 +135,7 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         | void main () {
         |   output = f(5)
         | }
-        | byte f(byte x) {
-        |   return ((x & $1E) >> 1) + 3
-        | }
+        | byte f(byte x) = ((x & $1E) >> 1) + 3
         |
       """.stripMargin)(_.readByte(0xc000) should equal(5))
   }

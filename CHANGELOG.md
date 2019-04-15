@@ -24,6 +24,8 @@
 
 * Aliases now also support subfields.
 
+* Short functions can be now defined using expression syntax.
+
 * 6502: Fixed optimizations using index registers.
 
 * Fixed volatile-related bugs.
