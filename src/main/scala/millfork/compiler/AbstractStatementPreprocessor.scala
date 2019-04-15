@@ -250,7 +250,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
       case TextLiteralExpression(characters) =>
         val name = genName(characters)
         if (ctx.env.maybeGet[Thing](name).isEmpty) {
-          ctx.env.root.registerArray(ArrayDeclarationStatement(name, None, None, None, Some(LiteralContents(characters)), None).pos(pos), ctx.options)
+          ctx.env.root.registerArray(ArrayDeclarationStatement(name, None, None, "byte", None, Some(LiteralContents(characters)), None).pos(pos), ctx.options)
         }
         VariableExpression(name).pos(pos)
       case VariableExpression(v) if currentVarValues.contains(v) =>
@@ -260,7 +260,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
       case FunctionCallExpression(t1, List(FunctionCallExpression(t2, List(arg))))
         if optimize && pointlessDoubleCast(t1, t2, arg) =>
         ctx.log.debug(s"Pointless double cast $t1($t2(...))", pos)
-        optimizeExpr(FunctionCallExpression(t1, List(arg)), currentVarValues)
+        optimizeExpr(FunctionCallExpression(t1, List(arg)).pos(pos), currentVarValues)
       case FunctionCallExpression(t1, List(arg))
         if optimize && pointlessCast(t1, arg) =>
         ctx.log.debug(s"Pointless cast $t1(...)", pos)
