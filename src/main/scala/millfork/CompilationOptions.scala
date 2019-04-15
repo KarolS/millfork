@@ -347,6 +347,7 @@ object CompilationFlag extends Enumeration {
   NonZeroTerminatedLiteralWarning,
   FatalWarnings,
   // special options for internal compiler use
+  EnableInternalTestSyntax,
   InternalCurrentlyOptimizingForMeasurement = Value
 
   val allWarnings: Set[CompilationFlag.Value] = Set(ExtraComparisonWarnings)

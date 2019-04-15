@@ -12,9 +12,11 @@
 
 * Added `MILLFORK_VERSION` preprocessor parameter.
 
-* Added structs.
+* Added structs and unions.
 
 * Pointers can now be allocated anywhere.
+
+* Pointers can now be typed.
 
 * Arrays can now have elements of types other than `byte` (still limited in size to 1 byte though).
 

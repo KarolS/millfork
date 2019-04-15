@@ -450,6 +450,10 @@ object ZBuiltIns {
 
 
   def performLongInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcodeFirst: ZOpcode.Value, opcodeLater: ZOpcode.Value, size: Int, decimal: Boolean = false): List[ZLine] = {
+    if (lhs.isInstanceOf[DerefExpression]) {
+      ctx.log.error("Too complex left-hand-side expression")
+      return Z80ExpressionCompiler.compileToHL(ctx, lhs) ++ Z80ExpressionCompiler.compileToHL(ctx, rhs)
+    }
     if (size == 2 && !decimal) {
       // n × INC HL
       // 6n cycles, n bytes

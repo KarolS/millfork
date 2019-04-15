@@ -226,6 +226,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     removedThings += str + ".addr"
     removedThings += str + ".addr.lo"
     removedThings += str + ".addr.hi"
+    removedThings += str + ".pointer"
+    removedThings += str + ".pointer.lo"
+    removedThings += str + ".pointer.hi"
     removedThings += str + ".rawaddr"
     removedThings += str + ".rawaddr.lo"
     removedThings += str + ".rawaddr.hi"
@@ -233,6 +236,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     things -= str + ".addr"
     things -= str + ".addr.lo"
     things -= str + ".addr.hi"
+    things -= str + ".pointer"
+    things -= str + ".pointer.lo"
+    things -= str + ".pointer.hi"
     things -= str + ".rawaddr"
     things -= str + ".rawaddr.lo"
     things -= str + ".rawaddr.hi"
@@ -240,6 +246,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     things -= str.stripPrefix(prefix) + ".addr"
     things -= str.stripPrefix(prefix) + ".addr.lo"
     things -= str.stripPrefix(prefix) + ".addr.hi"
+    things -= str.stripPrefix(prefix) + ".pointer"
+    things -= str.stripPrefix(prefix) + ".pointer.lo"
+    things -= str.stripPrefix(prefix) + ".pointer.hi"
     things -= str.stripPrefix(prefix) + ".rawaddr"
     things -= str.stripPrefix(prefix) + ".rawaddr.lo"
     things -= str.stripPrefix(prefix) + ".rawaddr.hi"
@@ -247,6 +256,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def get[T <: Thing : Manifest](name: String, position: Option[Position] = None): T = {
+    if (name.startsWith("pointer.") && implicitly[Manifest[T]].runtimeClass.isAssignableFrom(classOf[PointerType])) {
+      val targetName = name.stripPrefix("pointer.")
+      val target = maybeGet[VariableType](targetName)
+      return PointerType(name, targetName, target).asInstanceOf[T]
+    }
     val clazz = implicitly[Manifest[T]].runtimeClass
     if (things.contains(name)) {
       val t: Thing = things(name)
@@ -273,6 +287,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def root: Environment = parent.fold(this)(_.root)
 
   def maybeGet[T <: Thing : Manifest](name: String): Option[T] = {
+    if (name.startsWith("pointer.") && implicitly[Manifest[T]].runtimeClass.isAssignableFrom(classOf[PointerType])) {
+      val targetName = name.stripPrefix("pointer.")
+      val target = maybeGet[VariableType](targetName)
+      return Some(PointerType(name, targetName, target)).asInstanceOf[Option[T]]
+    }
     if (things.contains(name)) {
       val t: Thing = things(name)
       val clazz = implicitly[Manifest[T]].runtimeClass
@@ -310,17 +329,17 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case th@UninitializedArray(_, size, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, th.alignment)
       case th@RelativeArray(_, _, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, NoAlignment)
       case ConstantThing(_, value, typ) if typ.size <= 2 && typ.isPointy =>
-        val b = get[VariableType]("byte")
+        val e = get[VariableType](typ.pointerTargetName)
         val w = get[VariableType]("word")
-        ConstantPointy(value, None, None, w, b, NoAlignment)
+        ConstantPointy(value, None, None, w, e, NoAlignment)
       case th:VariableInMemory if th.typ.isPointy=>
-        val b = get[VariableType]("byte")
+        val e = get[VariableType](th.typ.pointerTargetName)
         val w = get[VariableType]("word")
-        VariablePointy(th.toAddress, w, b, th.zeropage)
+        VariablePointy(th.toAddress, w, e, th.zeropage)
       case th:StackVariable if th.typ.isPointy =>
-        val b = get[VariableType]("byte")
+        val e = get[VariableType](th.typ.pointerTargetName)
         val w = get[VariableType]("word")
-        StackVariablePointy(th.baseOffset, w, b)
+        StackVariablePointy(th.baseOffset, w, e)
       case _ =>
         log.error(s"$name is not a valid pointer or array")
         val b = get[VariableType]("byte")
@@ -517,6 +536,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case _ => maybeGet[ConstantThing](name).map(_.value)
         }
       case IndexedExpression(_, _) => None
+      case _: DerefExpression => None
+      case _: IndirectFieldExpression => None
+      case _: DerefDebuggingExpression => None
       case HalfWordExpression(param, hi) => evalImpl(e, vv).map(c => if (hi) c.hiByte else c.loByte)
       case SumExpression(params, decimal) =>
         params.map {
@@ -759,6 +781,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(StructType(stmt.name, stmt.fields), stmt.position)
   }
 
+  def registerUnion(stmt: UnionDefinitionStatement): Unit = {
+    stmt.fields.foreach{ f =>
+      if (Environment.invalidFieldNames.contains(f._2)) {
+        log.error(s"Invalid field name: `${f._2}`", stmt.position)
+      }
+    }
+    addThing(UnionType(stmt.name, stmt.fields), stmt.position)
+  }
+
   def getTypeSize(name: String, path: Set[String]): Int = {
     if (path.contains(name)) return -1
     val t = get[Type](name)
@@ -784,6 +815,26 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             offset += getTypeSize(fieldType, newPath)
           }
           sum
+        }
+      case s: UnionType =>
+        if (s.mutableSize >= 0) s.mutableSize
+        else {
+          val newPath = path + name
+          var max = 0
+          for( (fieldType, _) <- s.fields) {
+            val fieldSize = getTypeSize(fieldType, newPath)
+            if (fieldSize < 0) return -1
+            max = max max fieldSize
+          }
+          s.mutableSize = max
+          if (max > 0xff) {
+            log.error(s"Union `$name` is larger than 255 bytes")
+          }
+          val b = get[Type]("byte")
+          for ((fieldType, fieldName) <- s.fields) {
+            addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(0, 1), b), None)
+          }
+          max
         }
       case _ => t.size
     }
@@ -873,7 +924,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               stmt.bank
             )
             addThing(mangled, stmt.position)
-            registerAddressConstant(mangled, stmt.position, options)
+            registerAddressConstant(mangled, stmt.position, options, None)
             addThing(ConstantThing(name + '`', addr, w), stmt.position)
         }
 
@@ -939,12 +990,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             alignment = stmt.alignment.getOrElse(if (name == "main") NoAlignment else defaultFunctionAlignment(options, hot = true)) // TODO: decide actual hotness in a smarter way
           )
           addThing(mangled, stmt.position)
-          registerAddressConstant(mangled, stmt.position, options)
+          registerAddressConstant(mangled, stmt.position, options, None)
         }
     }
   }
 
-  private def registerAddressConstant(thing: ThingInMemory, position: Option[Position], options: CompilationOptions): Unit = {
+  private def registerAddressConstant(thing: ThingInMemory, position: Option[Position], options: CompilationOptions, targetType: Option[Type]): Unit = {
     if (!thing.zeropage && options.flag(CompilationFlag.LUnixRelocatableCode)) {
       val b = get[Type]("byte")
       val w = get[Type]("word")
@@ -953,6 +1004,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addThing(relocatable, position)
       addThing(RelativeVariable(thing.name + ".addr.hi", addr + 1, b, zeropage = false, None, isVolatile = false), position)
       addThing(RelativeVariable(thing.name + ".addr.lo", addr, b, zeropage = false, None, isVolatile = false), position)
+      targetType.foreach {tt =>
+        val typedPointer = RelativeVariable(thing.name + ".pointer", addr, PointerType("pointer."+tt.name, tt.name, Some(tt)), zeropage = false, None, isVolatile = false)
+        addThing(typedPointer, position)
+        addThing(RelativeVariable(thing.name + ".pointer.hi", addr + 1, b, zeropage = false, None, isVolatile = false), position)
+        addThing(RelativeVariable(thing.name + ".pointer.lo", addr, b, zeropage = false, None, isVolatile = false), position)
+      }
       val rawaddr = thing.toAddress
       addThing(ConstantThing(thing.name + ".rawaddr", rawaddr, get[Type]("pointer")), position)
       addThing(ConstantThing(thing.name + ".rawaddr.hi", rawaddr.hiByte, get[Type]("byte")), position)
@@ -965,6 +1022,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addThing(ConstantThing(thing.name + ".rawaddr", addr, get[Type]("pointer")), position)
       addThing(ConstantThing(thing.name + ".rawaddr.hi", addr.hiByte, get[Type]("byte")), position)
       addThing(ConstantThing(thing.name + ".rawaddr.lo", addr.loByte, get[Type]("byte")), position)
+      targetType.foreach { tt =>
+        val pointerType = PointerType("pointer." + tt.name, tt.name, Some(tt))
+        val typedPointer = RelativeVariable(thing.name + ".pointer", addr, pointerType, zeropage = false, None, isVolatile = false)
+        addThing(ConstantThing(thing.name + ".pointer", addr, pointerType), position)
+        addThing(ConstantThing(thing.name + ".pointer.hi", addr.hiByte, get[Type]("byte")), position)
+        addThing(ConstantThing(thing.name + ".pointer.lo", addr.loByte, get[Type]("byte")), position)
+      }
     }
   }
 
@@ -975,15 +1039,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val p = get[Type]("pointer")
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
-        val zp = typ.name == "pointer" // TODO
+        val zp = typ.isPointy // TODO
         val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None, defaultVariableAlignment(options, 2), isVolatile = false)
         addThing(v, stmt.position)
-        registerAddressConstant(v, stmt.position, options)
+        registerAddressConstant(v, stmt.position, options, Some(typ))
         val addr = v.toAddress
         for((suffix, offset, t) <- getSubvariables(typ)) {
           val subv = RelativeVariable(v.name + suffix, addr + offset, t, zeropage = zp, None, isVolatile = v.isVolatile)
           addThing(subv, stmt.position)
-          registerAddressConstant(subv, stmt.position, options)
+          registerAddressConstant(subv, stmt.position, options, Some(t))
         }
       case ByMosRegister(_) => ()
       case ByZRegister(_) => ()
@@ -1093,7 +1157,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                               declaredBank = stmt.bank, indexType, e)
                 }
                 addThing(array, stmt.position)
-                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank, alignment, isVolatile = false), stmt.position, options)
+                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank, alignment, isVolatile = false), stmt.position, options, Some(e))
                 val a = address match {
                   case None => array.toAddress
                   case Some(aa) => aa
@@ -1165,7 +1229,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, e, alignment)
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
-                    declaredBank = stmt.bank, alignment, isVolatile = false), stmt.position, options)
+                    declaredBank = stmt.bank, alignment, isVolatile = false), stmt.position, options, Some(e))
         val a = address match {
           case None => array.toAddress
           case Some(aa) => aa
@@ -1249,7 +1313,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
             InitializedMemoryVariable(name, None, typ, ive, declaredBank = stmt.bank, alignment, isVolatile = stmt.volatile)
           }
-          registerAddressConstant(v, stmt.position, options)
+          registerAddressConstant(v, stmt.position, options, Some(typ))
           (v, v.toAddress)
         })(a => {
           val addr = eval(a).getOrElse(errorConstant(s"Address of `$name` has a non-constant value", position))
@@ -1259,7 +1323,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
           val v = RelativeVariable(prefix + name, addr, typ, zeropage = zp,
                       declaredBank = stmt.bank, isVolatile = stmt.volatile)
-          registerAddressConstant(v, stmt.position, options)
+          registerAddressConstant(v, stmt.position, options, Some(typ))
           (v, addr)
         })
         addThing(v, stmt.position)
@@ -1269,7 +1333,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         for((suffix, offset, t) <- getSubvariables(typ)) {
           val subv = RelativeVariable(prefix + name + suffix, addr + offset, t, zeropage = v.zeropage, declaredBank = stmt.bank, isVolatile = v.isVolatile)
           addThing(subv, stmt.position)
-          registerAddressConstant(subv, stmt.position, options)
+          registerAddressConstant(subv, stmt.position, options, Some(t))
         }
       }
     }
@@ -1323,6 +1387,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             List.tabulate(sz){ i => (".b" + i, i, b) }
         case _ => Nil
       }
+      case p: PointerType =>
+        List(
+          (".raw", 0, p),
+          (".raw.lo", 0, b),
+          (".raw.hi", 1, b),
+          (".lo", 0, b),
+          (".hi", 1, b))
       case s: StructType =>
         val builder = new ListBuffer[(String, Int, VariableType)]
         var offset = 0
@@ -1334,6 +1405,17 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             case (innerSuffix, innerOffset, innerType) => (suffix + innerSuffix, offset + innerOffset, innerType)
           }
           offset += typ.size
+        }
+        builder.toList
+      case s: UnionType =>
+        val builder = new ListBuffer[(String, Int, VariableType)]
+        for((typeName, fieldName) <- s.fields) {
+          val typ = get[VariableType](typeName)
+          val suffix = "." + fieldName
+          builder += ((suffix, 0, typ))
+          builder ++= getSubvariables(typ).map {
+            case (innerSuffix, innerOffset, innerType) => (suffix + innerSuffix, innerOffset, innerType)
+          }
         }
         builder.toList
       case _ => Nil
@@ -1393,6 +1475,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def fixStructSizes(): Unit = {
     val allStructTypes = things.values.flatMap {
       case StructType(name, _) => Some(name)
+      case UnionType(name, _) => Some(name)
       case _ => None
     }
     var iterations = allStructTypes.size
@@ -1423,6 +1506,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     program.declarations.foreach {
       case s: StructDefinitionStatement => registerStruct(s)
+      case s: UnionDefinitionStatement => registerUnion(s)
       case _ =>
     }
     fixStructSizes()
@@ -1518,6 +1602,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     case IndexedExpression(name, index) =>
       checkName[IndexableThing]("Array or pointer", name, node.position)
       nameCheck(index)
+    case DerefDebuggingExpression(inner, _) =>
+      nameCheck(inner)
+    case DerefExpression(inner, _, _) =>
+      nameCheck(inner)
+    case IndirectFieldExpression(inner, _) =>
+      nameCheck(inner)
     case SeparateBytesExpression(h, l) =>
       nameCheck(h)
       nameCheck(l)
@@ -1560,5 +1650,5 @@ object Environment {
     "for", "if", "do", "while", "else", "return", "default", "to", "until", "paralleluntil", "parallelto", "downto",
     "inline", "noinline"
   ) ++ predefinedFunctions
-  val invalidFieldNames: Set[String] = Set("addr")
+  val invalidFieldNames: Set[String] = Set("addr", "rawaddr", "pointer")
 }

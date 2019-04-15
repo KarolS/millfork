@@ -27,6 +27,12 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def allowIntelHexAtomsInAssembly: Boolean
 
+  val enableDebuggingOptions: Boolean = {
+    val x = options.flag(CompilationFlag.EnableInternalTestSyntax)
+    println(s"enableDebuggingOptions = $x")
+    x
+  }
+
   def toAst: Parsed[Program] = program.parse(input + "\n\n\n")
 
   private val lineStarts: Array[Int] = (0 +: input.zipWithIndex.filter(_._1 == '\n').map(_._2)).toArray
@@ -247,12 +253,18 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def tightMfExpression(allowIntelHex: Boolean): P[Expression] = {
     val a = if (allowIntelHex) atomWithIntel else atom
-    P(mfParenExpr(allowIntelHex) | functionCall(allowIntelHex) | mfIndexedExpression | a) // TODO
+    for {
+      expression <- mfParenExpr(allowIntelHex) | derefExpression | functionCall(allowIntelHex) | mfIndexedExpression | a
+      fieldPath <- ("->" ~/ AWS ~/ identifier).rep
+    } yield if (fieldPath.isEmpty) expression else IndirectFieldExpression(expression, fieldPath.toList)
   }
 
   def tightMfExpressionButNotCall(allowIntelHex: Boolean): P[Expression] = {
     val a = if (allowIntelHex) atomWithIntel else atom
-    P(mfParenExpr(allowIntelHex) | mfIndexedExpression | a) // TODO
+    for {
+      expression <- mfParenExpr(allowIntelHex) | derefExpression | mfIndexedExpression | a
+      fieldPath <- ("->" ~/ AWS ~/ identifier).rep
+    } yield if (fieldPath.isEmpty) expression else IndirectFieldExpression(expression, fieldPath.toList)
   }
 
   def mfExpression(level: Int, allowIntelHex: Boolean): P[Expression] = {
@@ -299,7 +311,10 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     inner.map(x => p(x, 0))
   }
 
-  def mfLhsExpressionSimple: P[LhsExpression] = mfIndexedExpression | (position() ~ identifier).map { case (p, n) => VariableExpression(n).pos(p) }
+  def mfLhsExpressionSimple: P[LhsExpression] = for {
+    expression <- mfIndexedExpression | derefExpression | (position() ~ identifier).map{case (p,n) => VariableExpression(n).pos(p)} ~ HWS
+    fieldPath <- ("->" ~/ AWS ~/ identifier).rep
+  } yield if (fieldPath.isEmpty) expression else IndirectFieldExpression(expression, fieldPath.toList)
 
   def mfLhsExpression: P[LhsExpression] = for {
     (p, left) <- position() ~ mfLhsExpressionSimple
@@ -320,6 +335,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     name <- identifier
     params <- HWS ~ "(" ~/ AWS ~/ mfExpression(nonStatementLevel, allowIntelHex).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ ""
   } yield FunctionCallExpression(name, params.toList).pos(p)
+
+  val derefExpression: P[DerefDebuggingExpression] = for {
+    p <- position()
+    if enableDebuggingOptions
+    yens <- CharsWhileIn(Seq('¥')).! ~/ AWS
+    inner <- mfParenExpr(false)
+  } yield DerefDebuggingExpression(inner, yens.length).pos(p)
 
   val expressionStatement: P[Seq[ExecutableStatement]] = mfExpression(0, false).map(x => Seq(ExpressionStatement(x)))
 
@@ -474,25 +496,33 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     variants <- enumVariants ~/ Pass
   } yield Seq(EnumDefinitionStatement(name, variants).pos(p))
 
-  val structField: P[(String, String)] = for {
+  val compoundTypeField: P[(String, String)] = for {
     typ <- identifier ~/ HWS
     name <- identifier ~ HWS
   } yield typ -> name
 
-  val structFields: P[List[(String, String)]] =
-    ("{" ~/ AWS ~ structField.rep(sep = NoCut(EOLOrComma) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
+  val compoundTypeFields: P[List[(String, String)]] =
+    ("{" ~/ AWS ~ compoundTypeField.rep(sep = NoCut(EOLOrComma) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
 
   val structDefinition: P[Seq[StructDefinitionStatement]] = for {
     p <- position()
     _ <- "struct" ~ !letterOrDigit ~/ SWS ~ position("struct name")
-      name <- identifier ~/ HWS
-      _ <- position("struct defintion block")
-    fields <- structFields ~/ Pass
+    name <- identifier ~/ HWS
+    _ <- position("struct defintion block")
+    fields <- compoundTypeFields ~/ Pass
   } yield Seq(StructDefinitionStatement(name, fields).pos(p))
+
+  val unionDefinition: P[Seq[UnionDefinitionStatement]] = for {
+    p <- position()
+    _ <- "union" ~ !letterOrDigit ~/ SWS ~ position("union name")
+    name <- identifier ~/ HWS
+    _ <- position("union defintion block")
+    fields <- compoundTypeFields ~/ Pass
+  } yield Seq(UnionDefinitionStatement(name, fields).pos(p))
 
   val program: Parser[Program] = for {
     _ <- Start ~/ AWS ~/ Pass
-    definitions <- (importStatement | arrayDefinition | aliasDefinition | enumDefinition | structDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
+    definitions <- (importStatement | arrayDefinition | aliasDefinition | enumDefinition | structDefinition | unionDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
     _ <- AWS ~ End
   } yield Program(definitions.flatten.toList)
 

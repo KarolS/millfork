@@ -1,6 +1,6 @@
 package millfork.compiler.mos
 
-import millfork.CompilationFlag
+import millfork.{CompilationFlag, assembly}
 import millfork.assembly.Elidability
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
@@ -327,6 +327,10 @@ object BuiltIns {
   }
 
   def compileInPlaceWordOrLongShiftOps(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, aslRatherThanLsr: Boolean): List[AssemblyLine] = {
+    if (lhs.isInstanceOf[DerefExpression]) {
+      ctx.log.error("Too complex left-hand-side expression")
+      return MosExpressionCompiler.compileToAX(ctx, lhs) ++ MosExpressionCompiler.compileToAX(ctx, rhs)
+    }
     val env = ctx.env
     val b = env.get[Type]("byte")
     val targetBytes = getStorageForEachByte(ctx, lhs)
@@ -579,7 +583,7 @@ object BuiltIns {
       case BranchIfTrue(label) => compType -> label
       case BranchIfFalse(label) => ComparisonType.negate(compType) -> label
     }
-    val (lh, ll, rh, rl) = (lhs, env.eval(lhs), rhs, env.eval(rhs)) match {
+    val (preparations, lh, ll, rh, rl) = (lhs, env.eval(lhs), rhs, env.eval(rhs)) match {
       case (_, Some(NumericConstant(lc, _)), _, Some(NumericConstant(rc, _))) =>
         return if (effectiveComparisonType match {
           // TODO: those masks are probably wrong
@@ -613,21 +617,51 @@ object BuiltIns {
         return compileWordComparison(ctx, ComparisonType.flip(compType), rhs, lhs, branches)
       case (v: VariableExpression, None, _, Some(rc)) =>
         val lva = env.get[VariableInMemory](v.name)
-        (AssemblyLine.variable(ctx, CMP, lva, 1),
+        (Nil,
+          AssemblyLine.variable(ctx, CMP, lva, 1),
           AssemblyLine.variable(ctx, CMP, lva, 0),
           List(AssemblyLine.immediate(CMP, rc.hiByte.quickSimplify)),
           List(AssemblyLine.immediate(CMP, rc.loByte.quickSimplify)))
       case (lv: VariableExpression, None, rv: VariableExpression, None) =>
         val lva = env.get[VariableInMemory](lv.name)
         val rva = env.get[VariableInMemory](rv.name)
-        (AssemblyLine.variable(ctx, CMP, lva, 1),
+        (Nil,
+          AssemblyLine.variable(ctx, CMP, lva, 1),
           AssemblyLine.variable(ctx, CMP, lva, 0),
           AssemblyLine.variable(ctx, CMP, rva, 1),
           AssemblyLine.variable(ctx, CMP, rva, 0))
+      case (expr, None, _, Some(constant)) if effectiveComparisonType == ComparisonType.Equal =>
+        val innerLabel = ctx.nextLabel("cp")
+        return MosExpressionCompiler.compileToAX(ctx, expr) ++ List(
+          AssemblyLine.immediate(CMP, constant.loByte),
+          AssemblyLine.relative(BNE, innerLabel),
+          AssemblyLine.immediate(CPX, constant.hiByte),
+          AssemblyLine.relative(BEQ, Label(x)),
+          AssemblyLine.label(innerLabel))
+      case (_, Some(constant), expr, None) if effectiveComparisonType == ComparisonType.Equal =>
+        val innerLabel = ctx.nextLabel("cp")
+        return MosExpressionCompiler.compileToAX(ctx, expr) ++ List(
+          AssemblyLine.immediate(CMP, constant.loByte),
+          AssemblyLine.relative(BNE, innerLabel),
+          AssemblyLine.immediate(CPX, constant.hiByte),
+          AssemblyLine.relative(BEQ, Label(x)),
+          AssemblyLine.label(innerLabel))
+      case (expr, None, _, Some(constant)) if effectiveComparisonType == ComparisonType.NotEqual =>
+        return MosExpressionCompiler.compileToAX(ctx, expr) ++ List(
+          AssemblyLine.immediate(CMP, constant.loByte),
+          AssemblyLine.relative(BNE, Label(x)),
+          AssemblyLine.immediate(CPX, constant.hiByte),
+          AssemblyLine.relative(BNE, Label(x)))
+      case (_, Some(constant), expr, None) if effectiveComparisonType == ComparisonType.NotEqual =>
+        return MosExpressionCompiler.compileToAX(ctx, expr) ++ List(
+          AssemblyLine.immediate(CMP, constant.loByte),
+          AssemblyLine.relative(BNE, Label(x)),
+          AssemblyLine.immediate(CPX, constant.hiByte),
+          AssemblyLine.relative(BNE, Label(x)))
       case _ =>
         // TODO comparing expressions
         ctx.log.error("Too complex expressions in comparison", lhs.position.orElse(rhs.position))
-        (Nil, Nil, Nil, Nil)
+        (Nil, Nil, Nil, Nil, Nil)
     }
     val lType = MosExpressionCompiler.getExpressionType(ctx, lhs)
     val rType = MosExpressionCompiler.getExpressionType(ctx, rhs)
@@ -865,6 +899,10 @@ object BuiltIns {
   private def isPowerOfTwoUpTo15(n: Long): Boolean = if (n <= 0 || n >= 0x8000) false else 0 == ((n-1) & n)
 
   def compileInPlaceWordMultiplication(ctx: CompilationContext, v: LhsExpression, addend: Expression): List[AssemblyLine] = {
+    if (v.isInstanceOf[DerefExpression]) {
+      ctx.log.error("Too complex left-hand-side expression")
+      return MosExpressionCompiler.compileToAX(ctx, v) ++ MosExpressionCompiler.compileToAX(ctx, addend)
+    }
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
     ctx.env.eval(addend) match {
@@ -1001,6 +1039,10 @@ object BuiltIns {
     if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode) && ctx.options.zpRegisterSize < 4) {
       ctx.log.error("Unsupported decimal operation. Consider increasing the size of the zeropage register.", lhs.position)
       return compileInPlaceWordOrLongAddition(ctx, lhs, addend, subtract, decimal = false)
+    }
+    if (lhs.isInstanceOf[DerefExpression]) {
+      ctx.log.error("Too complex left-hand-side expression")
+      return MosExpressionCompiler.compileToAX(ctx, lhs) ++ MosExpressionCompiler.compileToAX(ctx, addend)
     }
     val env = ctx.env
     val b = env.get[Type]("byte")
@@ -1327,6 +1369,10 @@ object BuiltIns {
 
 
   def compileInPlaceWordOrLongBitOp(ctx: CompilationContext, lhs: LhsExpression, param: Expression, operation: Opcode.Value): List[AssemblyLine] = {
+    if (lhs.isInstanceOf[DerefExpression]) {
+      ctx.log.error("Too complex left-hand-side expression")
+      return MosExpressionCompiler.compileToAX(ctx, lhs) ++ MosExpressionCompiler.compileToAX(ctx, param)
+    }
     val env = ctx.env
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")

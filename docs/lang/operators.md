@@ -65,6 +65,12 @@ Such expressions have the property that the only register they may clobber is Y.
 Expressions of the shape `h:l` where `h` and `l` are of type byte, are considered expressions of type word.  
 If and only if both `h` and `l` are assignable expressions, then `h:l` is also an assignable expression.
 
+## Indirect field access operator
+
+`->`
+
+TODO 
+
 ## Binary arithmetic operators
 
 * `+`, `-`:  
@@ -133,12 +139,14 @@ Note you cannot mix those operators, so `a <= b < c` is not valid.
 `enum == enum`  
 `byte == byte`  
 `simple word == simple word`  
+`word == constant`  
 `simple long == simple long`
 
 * `!=`: inequality  
 `enum != enum`  
 `byte != byte`  
 `simple word != simple word`  
+`word != constant`  
 `simple long != simple long`
 
 * `>`, `<`, `<=`, `>=`: inequality  

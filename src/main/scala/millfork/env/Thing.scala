@@ -34,6 +34,8 @@ sealed trait Type extends CallableThing {
   def isArithmetic = false
 
   def isPointy = false
+
+  def pointerTargetName: String = "byte"
 }
 
 sealed trait VariableType extends Type
@@ -70,13 +72,31 @@ case class DerivedPlainType(name: String, parent: PlainType, isSigned: Boolean, 
   override def isSubtypeOf(other: Type): Boolean = parent == other || parent.isSubtypeOf(other)
 }
 
+case class PointerType(name: String, targetName: String, var target: Option[Type]) extends VariableType {
+  def size = 2
+
+  override def isSigned: Boolean = false
+
+  override def isPointy: Boolean = true
+
+  override def pointerTargetName: String = targetName
+}
+
 case class EnumType(name: String, count: Option[Int]) extends VariableType {
   override def size: Int = 1
 
   override def isSigned: Boolean = false
 }
 
-case class StructType(name: String, fields: List[(String, String)]) extends VariableType {
+sealed trait CompoundVariableType extends VariableType
+
+case class StructType(name: String, fields: List[(String, String)]) extends CompoundVariableType {
+  override def size: Int = mutableSize
+  var mutableSize: Int = -1
+  override def isSigned: Boolean = false
+}
+
+case class UnionType(name: String, fields: List[(String, String)]) extends CompoundVariableType {
   override def size: Int = mutableSize
   var mutableSize: Int = -1
   override def isSigned: Boolean = false

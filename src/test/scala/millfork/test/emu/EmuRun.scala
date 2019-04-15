@@ -131,6 +131,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     println(source)
     val platform = EmuPlatform.get(cpu)
     val options = CompilationOptions(platform, Map(
+      CompilationFlag.EnableInternalTestSyntax -> true,
       CompilationFlag.DecimalMode -> millfork.Cpu.defaultFlags(cpu).contains(CompilationFlag.DecimalMode),
       CompilationFlag.LenientTextEncoding -> true,
       CompilationFlag.EmitIllegals -> this.emitIllegals,

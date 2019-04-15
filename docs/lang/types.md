@@ -50,6 +50,23 @@ Numeric types can be converted automatically:
 
 * from a type of defined signedness to a type of undefined signedness (`sbyte`→`byte`)
 
+## Typed pointers
+
+For every type `T`, there is a pointer type defined called `pointer.T`.
+
+Unlike raw pointers, they are not subject to arithmetic.
+
+Examples:
+
+    pointer.t p
+    p.raw       // expression of type pointer, pointing to the same location in memory as 'p'
+    p.lo        // equivalent to 'p.raw.lo'
+    p.hi        // equivalent to 'p.raw.lo'
+    p[0]        // valid only if the type 't' is of size 1 or 2, accesses the pointed element
+    p[i]        // valid only if the type 't' is of size 1, equivalent to 't(p.raw[i])'
+    p->x        // valid only if the type 't' has a field called 'x', accesses the field 'x' of the pointed element
+    p->x.y->z   // you can stack it
+
 ## Boolean types
 
 TODO
@@ -115,3 +132,20 @@ Offsets are available as `structname.fieldname.offset`:
     
     // alternatively:
     ptr = p.y.addr
+
+## Unions
+
+    union <name> { <field definitions (type and name), separated by commas or newlines>}
+
+Unions are pretty similar to structs, with the difference that all fields of the union
+start at the same point in memory and therefore overlap each other.
+
+    struct point { byte x, byte y }
+    union point_or_word { point p, word w }
+    
+    point_or_word u
+    u.p.x = 0
+    u.p.y = 0
+    if u.w == 0 { ok() }
+
+Offset constants are also available, but they're obviously all zero.

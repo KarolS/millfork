@@ -11,7 +11,7 @@ class StructSuite extends FunSuite with Matchers {
 
   test("Basic struct support") {
     // TODO: 8080 has broken stack operations, fix and uncomment!
-    EmuUnoptimizedCrossPlatformRun(Cpu.StrictMos, Cpu.Z80/*, Cpu.Intel8080*/)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80/*, Cpu.Intel8080*/)("""
         | struct point {
         |   byte x
         |   byte y
@@ -41,7 +41,7 @@ class StructSuite extends FunSuite with Matchers {
   }
 
   test("Nested structs") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.StrictMos, Cpu.Intel8080)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080)("""
         | struct inner { word x, word y }
         | struct s {
         |   word w
@@ -66,6 +66,22 @@ class StructSuite extends FunSuite with Matchers {
       m.readByte(0xc005) should equal(55)
       m.readByte(0xc006) should equal(3)
       m.readWord(0xc007) should equal(777)
+    }
+  }
+
+  test("Basic union support") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080)("""
+        | struct point { byte x, byte y }
+        | union point_or_word { point p, word w }
+        | word output @$c000
+        | void main () {
+        |   point_or_word u
+        |   u.p.x = 1
+        |   u.p.y = 2
+        |   output = u.w
+        | }
+      """.stripMargin) { m =>
+      m.readWord(0xc000) should equal(0x201)
     }
   }
 }

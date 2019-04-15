@@ -396,6 +396,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             ctx.log.error("Invalid index for writing", indexExpr.position)
             Nil
         }
+      case DerefExpression(inner, offset, targetType) =>
+        val (prepare, reg) = getPhysicalPointerForDeref(ctx, inner)
+        val lo = preserveRegisterIfNeeded(ctx, MosRegister.A, prepare) ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine.indexedY(STA, reg))
+        if (targetType.size == 1) {
+          lo
+        } else {
+          lo ++ List(AssemblyLine.immediate(LDA, 0)) ++
+                List.tabulate(targetType.size - 1)(i => List(AssemblyLine.implied(INY), AssemblyLine.indexedY(STA, reg))).flatten
+        }
     }
   }
   val noop: List[AssemblyLine] = Nil
@@ -405,6 +414,28 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     val env = ctx.env
     val b = env.get[Type]("byte")
     compile(ctx, expr, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
+  }
+
+  def compileToAX(ctx: CompilationContext, expr: Expression): List[AssemblyLine] = {
+    val env = ctx.env
+    val w = env.get[Type]("word")
+    compile(ctx, expr, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+  }
+
+  def compileToZReg(ctx: CompilationContext, expr: Expression): List[AssemblyLine] = {
+    val env = ctx.env
+    val p = env.get[Type]("pointer")
+    compile(ctx, expr, Some(p -> env.get[Variable]("__reg.loword")), BranchSpec.None)
+  }
+
+  def getPhysicalPointerForDeref(ctx: CompilationContext, pointerExpression: Expression): (List[AssemblyLine], ThingInMemory) = {
+    pointerExpression match {
+      case VariableExpression(name) =>
+        val p = ctx.env.get[ThingInMemory](name)
+        if (p.zeropage) return Nil -> p
+      case _ =>
+    }
+    compileToZReg(ctx, pointerExpression) -> ctx.env.get[ThingInMemory]("__reg.loword")
   }
 
   def compile(ctx: CompilationContext, expr: Expression, exprTypeAndVariable: Option[(Type, Variable)], branches: BranchSpec): List[AssemblyLine] = {
@@ -814,6 +845,24 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             case MosRegister.AX => result :+ AssemblyLine.immediate(LDX, 0)
             case MosRegister.AY => result :+ AssemblyLine.immediate(LDY, 0)
           }
+        }
+      case DerefExpression(inner, offset, targetType) =>
+        val (prepare, reg) = getPhysicalPointerForDeref(ctx, inner)
+        targetType.size match {
+          case 1 =>
+            prepare ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine.indexedY(LDA, reg)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position)
+          case 2 =>
+            prepare ++
+              List(
+                AssemblyLine.immediate(LDY, offset+1),
+                AssemblyLine.indexedY(LDA, reg),
+                AssemblyLine.implied(TAX),
+                AssemblyLine.implied(DEY),
+                AssemblyLine.indexedY(LDA, reg)) ++
+              expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+          case _ =>
+            ctx.log.error("Cannot read a large object indirectly")
+            Nil
         }
       case SumExpression(params, decimal) =>
         assertAllArithmetic(ctx, params.map(_._2))
@@ -1508,6 +1557,75 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     }
   }
 
+  def expressionStorageFromA(ctx: CompilationContext, exprTypeAndVariable: Option[(Type, Variable)], position: Option[Position]): List[AssemblyLine] = {
+    exprTypeAndVariable.fold(noop) {
+      case (VoidType, _) => ctx.log.fatal("Cannot assign word to void", position)
+      case (_, RegisterVariable(MosRegister.A, _)) => noop
+      case (typ, RegisterVariable(MosRegister.AW, _)) =>
+        if (typ.isSigned) List(AssemblyLine.implied(TAX)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(XBA), AssemblyLine.implied(TXA))
+        else List(AssemblyLine.implied(XBA), AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(XBA))
+      case (_, RegisterVariable(MosRegister.X, _)) => List(AssemblyLine.implied(TAX))
+      case (_, RegisterVariable(MosRegister.Y, _)) => List(AssemblyLine.implied(TAY))
+      case (typ, RegisterVariable(MosRegister.AX, _)) =>
+        if (typ.isSigned) {
+          if (ctx.options.flag(CompilationFlag.EmitHudsonOpcodes)) {
+            List(AssemblyLine.implied(TAX)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(HuSAX))
+        } else {
+            List(AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(TAX), AssemblyLine.implied(PLA))
+          }
+        } else List(AssemblyLine.immediate(LDX, 0))
+      case (typ, RegisterVariable(MosRegister.XA, _)) =>
+        if (typ.isSigned) {
+          List(AssemblyLine.implied(TAX)) ++ signExtendA(ctx)
+        } else {
+          List(AssemblyLine.implied(TAX), AssemblyLine.immediate(LDA, 0))
+        }
+      case (typ, RegisterVariable(MosRegister.YA, _)) =>
+        if (typ.isSigned) {
+          List(AssemblyLine.implied(TAY)) ++ signExtendA(ctx)
+        } else {
+          List(AssemblyLine.implied(TAY), AssemblyLine.immediate(LDA, 0))
+        }
+      case (typ, RegisterVariable(MosRegister.AY, _)) =>
+        if (typ.isSigned) {
+          if (ctx.options.flag(CompilationFlag.EmitHudsonOpcodes)) {
+            List(AssemblyLine.implied(TAY)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(SAY))
+        } else {
+            List(AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(TAY), AssemblyLine.implied(PLA))
+          }
+        } else List(AssemblyLine.immediate(LDY, 0))
+      case (t, v: VariableInMemory) =>
+        v.typ.size match {
+          case 1 =>
+            AssemblyLine.variable(ctx, STA, v)
+          case s if s > 1 =>
+            if (t.isSigned) {
+              AssemblyLine.variable(ctx, STA, v) ++ signExtendA(ctx) ++ List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, v, i + 1)).flatten
+            } else {
+              AssemblyLine.variable(ctx, STA, v) ++ List(AssemblyLine.immediate(LDA, 0)) ++
+                List.tabulate(s - 1)(i => AssemblyLine.variable(ctx, STA, v, i + 1)).flatten
+            }
+        }
+      case (t, v: StackVariable) =>
+        v.typ.size match {
+          case 1 =>
+            AssemblyLine.tsx(ctx) :+ AssemblyLine.dataStackX(ctx, STA, v)
+          case s if s > 1 =>
+            AssemblyLine.tsx(ctx) ++ (if (t.isSigned) {
+              List(
+                AssemblyLine.dataStackX(ctx, STA, v.baseOffset)) ++
+                signExtendA(ctx) ++
+                List.tabulate(s - 1)(i => AssemblyLine.dataStackX(ctx, STA, v, i + 1))
+            } else {
+              List(
+                AssemblyLine.dataStackX(ctx, STA, v.baseOffset),
+                AssemblyLine.immediate(LDA, 0)) ++
+                List.tabulate(s - 1)(i => AssemblyLine.dataStackX(ctx, STA, v, i + 1))
+            })
+        }
+    }
+  }
+
   def expressionStorageFromAW(ctx: CompilationContext, exprTypeAndVariable: Option[(Type, Variable)], position: Option[Position]): List[AssemblyLine] = {
     exprTypeAndVariable.fold(noop) {
       case (VoidType, _) => ctx.log.fatal("Cannot assign word to void", position)
@@ -1603,6 +1721,70 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case SeparateBytesExpression(_, _) =>
         ctx.log.error("Invalid left-hand-side use of `:`")
         Nil
+      case DerefExpression(inner, offset, targetType) =>
+        val (prepare, reg) = getPhysicalPointerForDeref(ctx, inner)
+        env.eval(source) match {
+          case Some(constant) =>
+            targetType.size match {
+              case 1 =>
+                prepare ++ List(
+                    AssemblyLine.immediate(LDY, offset),
+                    AssemblyLine.immediate(LDA, constant),
+                    AssemblyLine.indexedY(STA, reg))
+              case 2 =>
+                prepare ++ List(
+                    AssemblyLine.immediate(LDY, offset),
+                    AssemblyLine.immediate(LDA, constant.loByte),
+                    AssemblyLine.indexedY(STA, reg),
+                    AssemblyLine.implied(INY),
+                    AssemblyLine.immediate(LDA, constant.hiByte),
+                    AssemblyLine.indexedY(STA, reg))
+            }
+          case None =>
+            source match {
+              case VariableExpression(vname) =>
+                val variable = env.get[Variable](vname)
+                targetType.size match {
+                  case 1 =>
+                    prepare ++
+                      AssemblyLine.variable(ctx, LDA, variable) ++ List(
+                        AssemblyLine.immediate(LDY, offset),
+                      AssemblyLine.indexedY(STA, reg))
+                  case 2 =>
+                    prepare ++
+                      AssemblyLine.variable(ctx, LDA, variable) ++ List(
+                      AssemblyLine.immediate(LDY, offset),
+                      AssemblyLine.indexedY(STA, reg)) ++
+                      AssemblyLine.variable(ctx, LDA, variable, 1) ++ List(
+                      AssemblyLine.implied(INY),
+                      AssemblyLine.indexedY(STA, reg))
+                  case _ =>
+                    ctx.log.error("Cannot assign to a large object indirectly")
+                    Nil
+                }
+              case _ =>
+                targetType.size match {
+                  case 1 =>
+                    compile(ctx, source, Some(targetType, RegisterVariable(MosRegister.A, targetType)), BranchSpec.None) ++ compileByteStorage(ctx, MosRegister.A, target)
+                  case 2 =>
+                    val someTuple = Some(targetType, RegisterVariable(MosRegister.AX, targetType))
+                    // TODO: optimiza if prepare is empty
+                    compile(ctx, source, someTuple, BranchSpec.None) ++ List(
+                      AssemblyLine.implied(PHA),
+                      AssemblyLine.implied(TXA),
+                      AssemblyLine.implied(PHA)) ++ prepare ++ List(
+                      AssemblyLine.immediate(LDY, offset+1),
+                      AssemblyLine.implied(PLA),
+                      AssemblyLine.indexedY(STA, reg),
+                      AssemblyLine.implied(PLA),
+                      AssemblyLine.implied(DEY),
+                      AssemblyLine.indexedY(STA, reg))
+                  case _ =>
+                    ctx.log.error("Cannot assign to a large object indirectly")
+                    Nil
+                }
+            }
+        }
       case _ =>
         compile(ctx, source, Some(b, RegisterVariable(MosRegister.A, b)), NoBranching) ++ compileByteStorage(ctx, MosRegister.A, target)
     }

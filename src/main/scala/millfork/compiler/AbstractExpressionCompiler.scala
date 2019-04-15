@@ -254,6 +254,26 @@ object AbstractExpressionCompiler {
         b
       case IndexedExpression(name, _) =>
         env.getPointy(name).elementType
+      case DerefDebuggingExpression(_, 1) => b
+      case DerefDebuggingExpression(_, 2) => w
+      case DerefExpression(_, _, typ) => typ
+      case IndirectFieldExpression(inner, fieldPath) =>
+        val firstPointerType = getExpressionType(env, log, inner)
+        fieldPath.foldLeft(firstPointerType) { (currentType, fieldName) =>
+          currentType match {
+            case PointerType(_, _, Some(targetType)) =>
+              val tuples = env.getSubvariables(targetType).filter(x => x._1 == "." + fieldName)
+              if (tuples.isEmpty) {
+                log.error(s"Type `$targetType` doesn't have field named `$fieldName`", expr.position)
+                b
+              } else {
+                tuples.head._3
+              }
+            case _ =>
+              log.error(s"Type `$currentType` is not a pointer type", expr.position)
+              b
+          }
+        }
       case SeparateBytesExpression(hi, lo) =>
         if (getExpressionType(env, log, hi).size > 1) log.error("Hi byte too large", hi.position)
         if (getExpressionType(env, log, lo).size > 1) log.error("Lo byte too large", lo.position)
@@ -271,6 +291,9 @@ object AbstractExpressionCompiler {
         }
       case FunctionCallExpression("hi", params) => b
       case FunctionCallExpression("lo", params) => b
+      case FunctionCallExpression("sin", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
+      case FunctionCallExpression("cos", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
+      case FunctionCallExpression("tan", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
       case FunctionCallExpression("sizeof", params) => env.evalSizeof(params.head).requiredSize match {
         case 1 => b
         case 2 => w

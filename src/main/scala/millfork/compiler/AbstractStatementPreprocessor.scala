@@ -57,6 +57,15 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
 
   def maybeOptimizeForStatement(f: ForStatement): Option[(ExecutableStatement, VV)]
 
+  def isNonzero(index: Expression): Boolean = env.eval(index) match {
+    case Some(c) => !c.isProvablyZero
+    case _ => true
+  }
+
+  def isWordPointy(name: String): Boolean = {
+    env.getPointy(name).elementType.size == 2
+  }
+
   def optimizeStmt(stmt: ExecutableStatement, currentVarValues: VV): (ExecutableStatement, VV) = {
     var cv = currentVarValues
     val pos = stmt.position
@@ -105,6 +114,29 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
           case Some(c) => cv + (v -> c)
           case None => cv - v
         })
+      case Assignment(target:DerefDebuggingExpression, arg) =>
+        cv = search(arg, cv)
+        cv = search(target, cv)
+        Assignment(optimizeExpr(target, cv).asInstanceOf[LhsExpression], optimizeExpr(arg, cv)).pos(pos) -> cv
+      case Assignment(target:DerefExpression, arg) =>
+        cv = search(arg, cv)
+        cv = search(target, cv)
+        Assignment(optimizeExpr(target, cv).asInstanceOf[LhsExpression], optimizeExpr(arg, cv)).pos(pos) -> cv
+      case Assignment(target:IndirectFieldExpression, arg) =>
+        cv = search(arg, cv)
+        cv = search(target, cv)
+        Assignment(optimizeExpr(target, cv).asInstanceOf[LhsExpression], optimizeExpr(arg, cv)).pos(pos) -> cv
+      case Assignment(target:IndexedExpression, arg) if isWordPointy(target.name) =>
+        if (isNonzero(target.index)) {
+          ctx.log.error("Pointers to word variables can be only indexed by 0")
+        }
+        cv = search(arg, cv)
+        cv = search(target, cv)
+        Assignment(DerefExpression(VariableExpression(target.name).pos(pos), 0, env.getPointy(target.name).elementType).pos(pos), optimizeExpr(arg, cv)).pos(pos) -> cv
+      case Assignment(target:IndexedExpression, arg) =>
+        cv = search(arg, cv)
+        cv = search(target, cv)
+        Assignment(optimizeExpr(target, cv).asInstanceOf[LhsExpression], optimizeExpr(arg, cv)).pos(pos) -> cv
       case Assignment(ve, arg) =>
         cv = search(arg, cv)
         cv = search(ve, cv)
@@ -180,6 +212,8 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
       case SumExpression(params, _) => params.map(p => search(p._2, cv)).reduce(commonVV)
       case HalfWordExpression(arg, _) => search(arg, cv)
       case IndexedExpression(_, arg) => search(arg, cv)
+      case DerefDebuggingExpression(arg, _) => search(arg, cv)
+      case DerefExpression(arg, _, _) => search(arg, cv)
       case _ => cv // TODO
     }
   }
@@ -243,10 +277,29 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
       case _ =>
     }
     expr match {
-      case FunctionCallExpression("->", List(handle, VariableExpression(field))) =>
-        expr
-      case FunctionCallExpression("->", List(handle, FunctionCallExpression(method, params))) =>
-        expr
+      case IndirectFieldExpression(root, fieldPath) if AbstractExpressionCompiler.getExpressionType(env, env.log, root).isInstanceOf[PointerType] =>
+        fieldPath.foldLeft(root) { (pointer, fieldName) =>
+          AbstractExpressionCompiler.getExpressionType(env, env.log, pointer) match {
+            case PointerType(_, _, Some(target)) =>
+              val subvariables = env.getSubvariables(target).filter(x => x._1 == "." + fieldName)
+              if (subvariables.isEmpty) {
+                ctx.log.error(s"Type `${target.name}` does not contain field `$fieldName`", pointer.position)
+                LiteralExpression(0, 1)
+              } else {
+                DerefExpression(optimizeExpr(pointer, currentVarValues).pos(pos), subvariables.head._2, subvariables.head._3)
+              }
+            case _ =>
+              ctx.log.error("Invalid pointer type on the left-hand side of `->`", pointer.position)
+              LiteralExpression(0, 1)
+          }
+        }
+      case IndirectFieldExpression(root, fieldPath) =>
+        ctx.log.error("Invalid pointer type on the left-hand side of `->`", pos)
+        root
+      case DerefDebuggingExpression(inner, 1) =>
+        DerefExpression(optimizeExpr(inner, currentVarValues), 0, env.get[VariableType]("byte")).pos(pos)
+      case DerefDebuggingExpression(inner, 2) =>
+        DerefExpression(optimizeExpr(inner, currentVarValues), 0, env.get[VariableType]("word")).pos(pos)
       case TextLiteralExpression(characters) =>
         val name = genName(characters)
         if (ctx.env.maybeGet[Thing](name).isEmpty) {

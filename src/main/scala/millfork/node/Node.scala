@@ -182,7 +182,7 @@ case class VariableExpression(name: String) extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     if (name == variable) actualParam else this
   override def containsVariable(variable: String): Boolean = name == variable
-  override def getPointies: Seq[String] = if (name.endsWith(".addr.lo")) Seq(name.takeWhile(_ != '.')) else Seq.empty
+  override def getPointies: Seq[String] = if (name.endsWith(".addr.lo")) Seq(name.stripSuffix(".addr.lo")) else Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set(name)
 }
@@ -202,8 +202,54 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
   override def getAllIdentifiers: Set[String] = index.getAllIdentifiers + name
 }
 
+case class IndirectFieldExpression(root: Expression, fields: List[String]) extends LhsExpression {
+  override def replaceVariable(variable: String, actualParam: Expression): Expression = IndirectFieldExpression(root.replaceVariable(variable, actualParam), fields)
+
+  override def containsVariable(variable: String): Boolean = root.containsVariable(variable)
+
+  override def getPointies: Seq[String] = root match {
+    case VariableExpression(v) => List(v)
+    case _ => root.getPointies
+  }
+
+  override def isPure: Boolean = root.isPure
+
+  override def getAllIdentifiers: Set[String] = root.getAllIdentifiers
+}
+
+case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) extends LhsExpression {
+  override def replaceVariable(variable: String, actualParam: Expression): Expression = DerefDebuggingExpression(inner.replaceVariable(variable, actualParam), preferredSize)
+
+  override def containsVariable(variable: String): Boolean = inner.containsVariable(variable)
+
+  override def getPointies: Seq[String] = inner match {
+    case VariableExpression(v) => List(v)
+    case _ => inner.getPointies
+  }
+
+  override def isPure: Boolean = inner.isPure
+
+  override def getAllIdentifiers: Set[String] = inner.getAllIdentifiers
+}
+
+case class DerefExpression(inner: Expression, offset: Int, targetType: Type) extends LhsExpression {
+  override def replaceVariable(variable: String, actualParam: Expression): Expression = DerefExpression(inner.replaceVariable(variable, actualParam), offset, targetType)
+
+  override def containsVariable(variable: String): Boolean = inner.containsVariable(variable)
+
+  override def getPointies: Seq[String] = inner match {
+    case VariableExpression(v) => List(v)
+    case _ => inner.getPointies
+  }
+
+  override def isPure: Boolean = inner.isPure
+
+  override def getAllIdentifiers: Set[String] = inner.getAllIdentifiers
+}
+
 sealed trait Statement extends Node {
   def getAllExpressions: List[Expression]
+
   def getAllPointies: Seq[String] = getAllExpressions.flatMap(_.getPointies)
 }
 
@@ -301,6 +347,10 @@ case class EnumDefinitionStatement(name: String, variants: List[(String, Option[
 }
 
 case class StructDefinitionStatement(name: String, fields: List[(String, String)]) extends DeclarationStatement {
+  override def getAllExpressions: List[Expression] = Nil
+}
+
+case class UnionDefinitionStatement(name: String, fields: List[(String, String)]) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
 }
 
