@@ -76,6 +76,6 @@ object ZOpcodeClasses {
     EXX, EX_DE_HL, CALL, JR, JP, LABEL)
   val ChangesOnlyRegister: Set[ZOpcode.Value] = Set(INC, DEC, INC_16, DEC_16, POP, EX_SP, IN_C, IN_IMM, RL, RR, RLC, RRC, SLA, SRA, SRL, SLL) ++ SET ++ RES
   val ChangesFirstRegister = Set(LD, LD_16, ADD_16, SBC_16)
-  val ChangesAAlways = Set(DAA, ADD, ADC, SUB, SBC, XOR, OR, AND)
+  val ChangesAAlways = Set(DAA, ADD, ADC, SUB, SBC, XOR, OR, AND, LD_AHLI, LD_AHLD)
   val NonLinear = Set(JP, JR, CALL, LABEL, BYTE, EXX, EX_DE_HL, EX_SP, EXX, RET, RETI, RETN, HALT)
 }

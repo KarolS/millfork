@@ -172,6 +172,19 @@ object CoarseFlowAnalyzer {
               copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus).
               setRegister(r, newV)
 
+          case ZLine0(LD_AHLI, _, _) =>
+            val newHL = currentStatus.getRegister(ZRegister.HL).map(i => i.+(1).&(0xffff))
+            currentStatus = currentStatus.copy(a = AnyStatus).setRegister(ZRegister.HL, newHL)
+          case ZLine0(LD_HLIA, _, _) =>
+            val newHL = currentStatus.getRegister(ZRegister.HL).map(i => i.+(1).&(0xffff))
+            currentStatus = currentStatus.setRegister(ZRegister.HL, newHL)
+          case ZLine0(LD_AHLD, _, _) =>
+            val newHL = currentStatus.getRegister(ZRegister.HL).map(i => i.-(1).&(0xffff))
+            currentStatus = currentStatus.copy(a = AnyStatus).setRegister(ZRegister.HL, newHL)
+          case ZLine0(LD_HLDA, _, _) =>
+            val newHL = currentStatus.getRegister(ZRegister.HL).map(i => i.-(1).&(0xffff))
+            currentStatus = currentStatus.setRegister(ZRegister.HL, newHL)
+
           case ZLine0(op, OneRegister(r), _) if ZOpcodeClasses.SET(op) =>
             currentStatus = currentStatus.setRegister(r, currentStatus.getRegister(r).map(i => i | 1.<<(ZOpcodeClasses.SET_seq.indexOf(op))))
           case ZLine0(op, OneRegister(r), _) if ZOpcodeClasses.RES(op) =>
