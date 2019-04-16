@@ -82,6 +82,20 @@ case class PointerType(name: String, targetName: String, var target: Option[Type
   override def pointerTargetName: String = targetName
 }
 
+case object NullType extends VariableType {
+  override def size: Int = 2
+
+  override def isSigned: Boolean = false
+
+  override def name: String = "null$"
+
+  override def isPointy: Boolean = true
+
+  override def isSubtypeOf(other: Type): Boolean = this == other || other.isPointy && other.size == 2
+
+  override def isAssignableTo(targetType: Type): Boolean = this == targetType || targetType.isPointy && targetType.size == 2
+}
+
 case class EnumType(name: String, count: Option[Int]) extends VariableType {
   override def size: Int = 1
 

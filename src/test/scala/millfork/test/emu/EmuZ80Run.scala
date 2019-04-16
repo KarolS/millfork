@@ -109,7 +109,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         }
         val program = nodeOptimizations.foldLeft(withLibraries.applyImportantAliases)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program, log)
-        val env = new Environment(None, "", CpuFamily.I80, options.jobContext)
+        val env = new Environment(None, "", CpuFamily.I80, options)
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
@@ -129,7 +129,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
 
 
         // compile
-        val env2 = new Environment(None, "", CpuFamily.I80, options.jobContext)
+        val env2 = new Environment(None, "", CpuFamily.I80, options)
         env2.collectDeclarations(program, options)
         val assembler = new Z80Assembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)

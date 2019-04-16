@@ -102,7 +102,7 @@ class PointerSuite extends FunSuite with Matchers {
         |
         | void main() {
         |   heapEnd = heap.addr
-        |   this = pointer.pointlist(0)
+        |   this = nullptr
         |   point tmp
         |   tmp.x = 3
         |   tmp.y = 3
@@ -150,6 +150,22 @@ class PointerSuite extends FunSuite with Matchers {
         | }
       """.stripMargin) { m =>
       m.readByte(0xc000) should equal(44)
+    }
+  }
+
+  test("nullptr") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | void main() {
+        |   pointer.word pw
+        |   pointer p
+        |   word w
+        |   pw = nullptr
+        |   p = nullptr
+        |   w = word(nullptr)
+        | }
+      """.stripMargin) { m =>
+
     }
   }
 }

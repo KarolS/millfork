@@ -45,7 +45,7 @@ object ShouldNotCompile extends Matchers {
         // prepare
         val callGraph = new StandardCallGraph(program, log)
         val cpuFamily = CpuFamily.forType(cpu)
-        val env = new Environment(None, "", cpuFamily, options.jobContext)
+        val env = new Environment(None, "", cpuFamily, options)
         env.collectDeclarations(program, options)
 
         var unoptimizedSize = 0L

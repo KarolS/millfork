@@ -16,7 +16,7 @@ case class CompilationContext(env: Environment,
                               breakLabels: Map[String, Label] = Map(),
                               continueLabels: Map[String, Label] = Map()){
   def withInlinedEnv(environment: Environment, newLabel: String): CompilationContext = {
-    val newEnv = new Environment(Some(env), newLabel, environment.cpuFamily, jobContext)
+    val newEnv = new Environment(Some(env), newLabel, environment.cpuFamily, options)
     newEnv.things ++= environment.things
     copy(env = newEnv)
   }

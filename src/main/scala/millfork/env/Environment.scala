@@ -18,8 +18,10 @@ import scala.collection.mutable.ListBuffer
   * @author Karol Stasiak
   */
 //noinspection NotImplementedCode
-class Environment(val parent: Option[Environment], val prefix: String, val cpuFamily: CpuFamily.Value, val jobContext: JobContext) {
+class Environment(val parent: Option[Environment], val prefix: String, val cpuFamily: CpuFamily.Value, val options: CompilationOptions) {
 
+  @inline
+  def jobContext: JobContext = options.jobContext
   @inline
   def log: Logger = jobContext.log
   @inline
@@ -50,7 +52,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         m.environment.getAllPrefixedThings
       case _ => Map[String, Thing]()
     }.fold(things.toMap)(_ ++ _)
-    val e = new Environment(None, "", cpuFamily, jobContext)
+    val e = new Environment(None, "", cpuFamily, options)
     e.things.clear()
     e.things ++= allThings
     e
@@ -397,6 +399,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   if (parent.isEmpty) {
     addThing(VoidType, None)
+    addThing(NullType, None)
     addThing(BuiltInBooleanType, None)
     val b = BasicPlainType("byte", 1)
     val w = BasicPlainType("word", 2)
@@ -433,8 +436,20 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(falseType, None)
     addThing(ConstantThing("true", NumericConstant(1, 0), trueType), None)
     addThing(ConstantThing("false", NumericConstant(0, 0), falseType), None)
-    addThing(ConstantThing("__zeropage_usage", UnexpandedConstant("__zeropage_usage", 1), b), None)
-    addThing(ConstantThing("__heap_start", UnexpandedConstant("__heap_start", 2), p), None)
+    val nullptrValue = options.features.getOrElse("NULLPTR", 0L)
+    val nullptrConstant = NumericConstant(nullptrValue, 2)
+    addThing(ConstantThing("nullptr", nullptrConstant, NullType), None)
+    addThing(ConstantThing("nullptr.hi", nullptrConstant.hiByte.quickSimplify, b), None)
+    addThing(ConstantThing("nullptr.lo", nullptrConstant.loByte.quickSimplify, b), None)
+    addThing(ConstantThing("nullptr.raw", nullptrConstant, p), None)
+    addThing(ConstantThing("nullptr.raw.hi", nullptrConstant.hiByte.quickSimplify, b), None)
+    addThing(ConstantThing("nullptr.raw.lo", nullptrConstant.loByte.quickSimplify, b), None)
+    val __zeropage_usage = UnexpandedConstant("__zeropage_usage", 1)
+    addThing(ConstantThing("__zeropage_usage", __zeropage_usage, b), None)
+    val __heap_start = UnexpandedConstant("__heap_start", 2)
+    addThing(ConstantThing("__heap_start", __heap_start, p), None)
+    addThing(ConstantThing("__heap_start.hi", __heap_start.hiByte, b), None)
+    addThing(ConstantThing("__heap_start.lo", __heap_start.loByte, b), None)
     addThing(ConstantThing("$0000", NumericConstant(0, 2), p), None)
     addThing(FlagBooleanType("set_carry",
       BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C)),
@@ -928,7 +943,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         log.error(s"Non-macro function `$name` cannot have inlinable parameters", stmt.position)
     }
 
-    val env = new Environment(Some(this), name + "$", cpuFamily, jobContext)
+    val env = new Environment(Some(this), name + "$", cpuFamily, options)
     stmt.params.foreach(p => env.registerParameter(p, options))
     def params: ParamSignature = if (stmt.assembly) {
       AssemblyParamSignature(stmt.params.map {

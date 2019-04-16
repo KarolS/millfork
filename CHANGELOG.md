@@ -18,6 +18,8 @@
 
 * Pointers can now be typed.
 
+* Added `nullptr`.
+
 * Arrays can now have elements of types other than `byte` (still limited in size to 1 byte though).
 
 * Added hint for identifiers with typos.
@@ -36,7 +38,9 @@
 
 * Fixed `#use` not accessing all preprocessor parameters.
 
-* Fixed `#pragma` not respecting `#if`
+* Fixed `#pragma` not respecting `#if`.
+
+* 8080 and LR35902: fixed large stack variables.
 
 * Optimization improvements.
 

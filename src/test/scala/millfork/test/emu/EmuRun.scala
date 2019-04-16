@@ -185,7 +185,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         }
         val program = nodeOptimizations.foldLeft(withLibraries.applyImportantAliases)((p, opt) => p.applyNodeOptimization(opt, options))
         val callGraph = new StandardCallGraph(program, log)
-        val env = new Environment(None, "", CpuFamily.M6502, options.jobContext)
+        val env = new Environment(None, "", CpuFamily.M6502, options)
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
@@ -205,7 +205,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
 
 
         // compile
-        val env2 = new Environment(None, "", CpuFamily.M6502, options.jobContext)
+        val env2 = new Environment(None, "", CpuFamily.M6502, options)
         env2.collectDeclarations(program, options)
         val assembler = new MosAssembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)

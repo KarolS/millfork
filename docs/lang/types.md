@@ -66,6 +66,13 @@ Examples:
     p[i]        // valid only if the type 't' is of size 1, equivalent to 't(p.raw[i])'
     p->x        // valid only if the type 't' has a field called 'x', accesses the field 'x' of the pointed element
     p->x.y->z   // you can stack it
+  
+## `nullptr`
+
+There is a 2-byte constant `nullptr` that can be assigned to any 2-byte pointer type.
+Its actual value is defined using the feature `NULLPTR`, by default it's 0.
+
+`nullptr` isn't directly assignable to non-pointer types. 
 
 ## Boolean types
 
@@ -103,7 +110,7 @@ Assigment between numeric types and enumerations is not possible without an expl
 Plain enumerations have their variants equal to `byte(0)` to `byte(<name>.count - 1)`.
     
 Tip: You can use an enumeration with no variants as a strongly checked alternative byte type,
-as there are no checks no values when converting bytes to enumeration values and vice versa.
+as there are no checks on values when converting bytes to enumeration values and vice versa.
 
 ## Structs
 

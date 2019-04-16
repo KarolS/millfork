@@ -196,7 +196,7 @@ object Main {
     }
     val callGraph = new StandardCallGraph(program, options.log)
 
-    val env = new Environment(None, "", platform.cpuFamily, options.jobContext)
+    val env = new Environment(None, "", platform.cpuFamily, options)
     env.collectDeclarations(program, options)
 
     val assemblyOptimizations = optLevel match {
@@ -248,7 +248,7 @@ object Main {
     }
     val callGraph = new StandardCallGraph(program, options.log)
 
-    val env = new Environment(None, "", platform.cpuFamily, options.jobContext)
+    val env = new Environment(None, "", platform.cpuFamily, options)
     env.collectDeclarations(program, options)
 
     val assemblyOptimizations = optLevel match {

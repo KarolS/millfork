@@ -90,6 +90,8 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `PAL` – 1 if the target is PAL, 0 otherwise
 
+* `NULLPTR` – physical value of `nullptr`, default 0
+
 ### Built-in preprocessor functions and operators
 
 The `defined` function returns 1 if the feature is defined, 0 otherwise.  
