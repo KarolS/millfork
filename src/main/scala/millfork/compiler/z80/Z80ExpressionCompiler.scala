@@ -1410,8 +1410,37 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
       case VariableExpression(vname) =>
         env.get[Variable](vname) match {
           case v: Variable =>
+            import ZRegister._
             val size = v.typ.size
-            compileByteReads(ctx, source, size, ZExpressionTarget.HL).zip(compileByteStores(ctx, target, size, includeStep = false)).flatMap(t => t._1 ++ t._2)
+            val reads = compileByteReads(ctx, source, size, ZExpressionTarget.HL)
+            val stores = compileByteStores(ctx, target, size, includeStep = true)
+            if (stores.exists(_.exists(_.changesRegister(HL)))) {
+              if (reads.tail.exists(_.exists(_.changesRegister(HL)))) {
+                // most likely stack-to-stack copy
+                // use DE as the secondary pointer
+                val fixedReads = reads.head.init ++ List(ZLine.ld8(E, L), ZLine.ld8(D, H), ZLine.ld8(A, MEM_DE)) :: reads.tail.map(_.map {
+                  case l@ZLine0(LD, TwoRegisters(A, MEM_HL), _) => l.copy(registers = TwoRegisters(A, MEM_DE))
+                  case l@ZLine0(INC_16, OneRegister(HL), _) => l.copy(registers = OneRegister(DE))
+                  case l@ZLine0(DEC_16, OneRegister(HL), _) => l.copy(registers = OneRegister(DE))
+                  case l => l
+                })
+                fixedReads.zip(stores).flatMap(t => t._1 ++ t._2)
+              } else {
+                val fixedReads = reads.head ++ List(ZLine.ld8(B, H)) :: reads.tail.map(_.map {
+                  case l@ZLine0(LD, TwoRegisters(reg, H), _) => l.copy(registers = TwoRegisters(reg, B))
+                  case l@ZLine0(LD, TwoRegisters(reg, L), _) => l.copy(registers = TwoRegisters(reg, C))
+                  case l => l
+                })
+                val fixedStores = stores.map(_.map {
+                  case l@ZLine0(LD, TwoRegisters(H, reg), _) => l.copy(registers = TwoRegisters(B, reg))
+                  case l@ZLine0(LD, TwoRegisters(L, reg), _) => l.copy(registers = TwoRegisters(C, reg))
+                  case l => l
+                })
+                fixedReads.zip(fixedStores).flatMap(t => t._1 ++ t._2)
+              }
+            } else {
+              reads.zip(stores).flatMap(t => t._1 ++ t._2)
+            }
         }
       case _ => ???
     }

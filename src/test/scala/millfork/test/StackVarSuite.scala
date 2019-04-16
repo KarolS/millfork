@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuOptimizedSoftwareStackRun, EmuSoftwareStackBenchmarkRun, EmuUnoptimizedZ80Run}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuSoftwareStackBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -69,24 +69,26 @@ class StackVarSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(21))
   }
 
-  // ERROR: (8:9) Right-hand-side expression is too complex
-//  test("Stack byte subtraction") {
-//    EmuUnoptimizedRun("""
-//        | byte output @$c000
-//        | void main () {
-//        |   stack byte a
-//        |   stack byte b
-//        |   b = $77
-//        |   a = $11
-//        |   b -= zzz()
-//        |   b -= a
-//        |   output = b
-//        | }
-//        | byte zzz() {
-//        |   return $22
-//        | }
-//      """.stripMargin).readByte(0xc000) should equal(0x44)
-//  }
+  test("Stack byte subtraction") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+      """
+        | byte output @$c000
+        | void main () {
+        |   stack byte a
+        |   stack byte b
+        |   b = $77
+        |   a = $11
+        |   b -= zzz()
+        |   b -= a
+        |   output = b
+        | }
+        | byte zzz() {
+        |   return $22
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(0x44)
+    }
+  }
 
   test("Stack word addition") {
     EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
@@ -251,4 +253,41 @@ class StackVarSuite extends FunSuite with Matchers {
         m.readByte(0xc003) should equal(2)
       }
     }
+
+  test("Large stack storage") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | int32 output @$c000
+        | void main () {
+        |   stack int32 a
+        |   a = f()
+        |   barrier()
+        |   output = a
+        | }
+        | noinline int32 f() = 400
+        | noinline void barrier(){}
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(400)
+    }
+  }
+
+  test("Large stack-to-stack transfer") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | int32 output @$c000
+        | void main () {
+        |   stack int32 a
+        |   stack int32 b
+        |   a = f()
+        |   barrier()
+        |   b = a
+        |   barrier()
+        |   output = b
+        | }
+        | noinline int32 f() = 400
+        | noinline void barrier(){}
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(400)
+    }
+  }
 }

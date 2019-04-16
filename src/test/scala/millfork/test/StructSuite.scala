@@ -10,8 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StructSuite extends FunSuite with Matchers {
 
   test("Basic struct support") {
-    // TODO: 8080 has broken stack operations, fix and uncomment!
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80/*, Cpu.Intel8080*/)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
         | struct point {
         |   byte x
         |   byte y

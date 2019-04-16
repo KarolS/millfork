@@ -173,7 +173,8 @@ object AlwaysGoodI80Optimizations {
     for7Registers(register =>
       (Elidable & Is8BitLoadTo(register) & NoOffset & MatchSourceRegisterAndOffset(1)) ~
         (Linear & Not(Concerns(register)) & DoesntChangeMatchedRegisterAndOffset(1)).* ~
-        (Elidable & IsRegular8BitLoadFrom(register) & DoesntMatterWhatItDoesWith(register)) ~~> { code =>
+        (Elidable & IsRegular8BitLoadFrom(register) & DoesntMatterWhatItDoesWith(register) & MatchTargetRegisterAndOffset(2)) ~
+        Where(ctx => ctx.areCompatibleForLoad(2, 1)) ~~> { code =>
         val last = code.last
         val head = code.head
         code.tail.init :+ ZLine(LD, (last.registers, head.registers) match {

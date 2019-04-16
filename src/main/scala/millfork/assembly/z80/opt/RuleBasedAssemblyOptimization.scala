@@ -100,7 +100,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
 
   def log: Logger = compilationOptions.log
 
-  override def toString: String = map.mkString(", ")
+  override def toString: String = if (map.isEmpty) "(empty context)" else map.mkString(", ")
 
   def addObject(i: Int, o: Any): Boolean = {
     if (map.contains(i)) {
@@ -178,6 +178,21 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     // if a jump leads outside the block, then it's external
     jumps --= labels
     jumps.isEmpty
+  }
+
+  def areCompatibleForLoad(target: Int, source: Int): Boolean = {
+    val t = get[RegisterAndOffset](target).register
+    val s = get[RegisterAndOffset](source).register
+    import ZRegister._
+    if (t == A || s == A) return true
+    if (t == MEM_DE || s == MEM_DE || t == MEM_BC || s == MEM_BC) return false
+    if (t == B || t == C || t == D || t == E) return true
+    if (s == B || s == C || s == D || s == E) return true
+    if ((t == IXH || t == IXL) && (s == IXH || s == IXL)) return true
+    if ((t == IYH || t == IYL) && (s == IYH || s == IYL)) return true
+    if ((t == H || t == L) && (s == MEM_HL || s == MEM_IX_D || s == MEM_IY_D)) return true
+    if ((s == H || s == L) && (t == MEM_HL || t == MEM_IX_D || t == MEM_IY_D)) return true
+    false
   }
 
 }

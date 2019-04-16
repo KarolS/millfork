@@ -8,7 +8,7 @@ import millfork.output.MemoryBank
   */
 object EmuUnoptimizedCrossPlatformRun {
   def apply(platforms: Cpu.Value*)(source: String)(verifier: MemoryBank => Unit): Unit = {
-    val (_, mm) = if (platforms.contains(Cpu.Mos)) EmuUnoptimizedRun.apply2(source) else Timings(-1, -1) -> null
+    val (_, mm) = if (platforms.contains(Cpu.Mos) || platforms.contains(Cpu.StrictMos)) EmuUnoptimizedRun.apply2(source) else Timings(-1, -1) -> null
     val (_, mc) = if (platforms.contains(Cpu.Cmos)) EmuUnoptimizedCmosRun.apply2(source) else Timings(-1, -1) -> null
     val (_, mn) = if (platforms.contains(Cpu.Ricoh)) EmuUnoptimizedRicohRun.apply2(source) else Timings(-1, -1) -> null
     val (_, mz) = if (platforms.contains(Cpu.Z80)) EmuUnoptimizedZ80Run.apply2(source) else Timings(-1, -1) -> null
