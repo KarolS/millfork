@@ -245,6 +245,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
               case 2 =>
                 MosExpressionCompiler.compile(ctx, e, someRegisterAX, NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true, preserveX = true) ++ returnInstructions
               case _ =>
+                // TODO: is this case ever used?
                 MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + "`return")) ++
                   stackPointerFixBeforeReturn(ctx) ++ returnInstructions
             }
@@ -268,8 +269,12 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                     returnInstructions
                 }
               case _ =>
-                MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + ".return")) ++
-                  stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
+                if (ctx.function.hasElidedReturnVariable) {
+                    stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
+                } else {
+                  MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + ".return")) ++
+                    stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
+                }
             }
         }) -> Nil
       case s: IfStatement =>

@@ -15,7 +15,7 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
   override def name = "Removing pointless stores to foreign variables"
 
   private val storeInstructions = Set(STA, STX, STY, SAX, STZ, STA_W, STX_W, STY_W, STZ_W)
-  private val storeAddrModes = Set(Absolute, ZeroPage, AbsoluteX, AbsoluteY, ZeroPageX, ZeroPageY)
+  private val storeAddrModes = Set(Absolute, ZeroPage, AbsoluteX, AbsoluteY, ZeroPageX, ZeroPageY, LongAbsolute, LongAbsoluteX)
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val usedFunctions = code.flatMap {

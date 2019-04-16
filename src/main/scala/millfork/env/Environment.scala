@@ -206,13 +206,60 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   val pointiesUsed: mutable.Map[String, Set[String]] = mutable.Map()
   val removedThings: mutable.Set[String] = mutable.Set()
 
-  def isKnownPointy(callee: String, variable: String): Boolean = {
-    root.pointiesUsed.get(callee).exists(_.contains(variable))
-  }
-
   private def addThing(t: Thing, position: Option[Position]): Unit = {
     if (assertNotDefined(t.name, position)) {
       things(t.name.stripPrefix(prefix)) = t
+    }
+  }
+
+  def getReturnedVariables(statements: Seq[Statement]): Set[String] = {
+    statements.flatMap {
+      case ReturnStatement(Some(VariableExpression(v))) => Set(v)
+      case ReturnStatement(_) => Set("/none/", "|none|")
+      case x: CompoundStatement => getReturnedVariables(x.getChildStatements)
+      case _ => Set.empty[String]
+    }.toSet
+  }
+
+  def coerceLocalVariableIntoGlobalVariable(localVarToRelativize: String, concreteGlobalTarget: String): Unit = {
+    log.trace(s"Coercing $localVarToRelativize to $concreteGlobalTarget")
+    def removeVariableImpl2(e: Environment, str: String): Unit = {
+      e.things -= str
+      e.things -= str + ".addr"
+      e.things -= str + ".addr.lo"
+      e.things -= str + ".addr.hi"
+      e.things -= str + ".pointer"
+      e.things -= str + ".pointer.lo"
+      e.things -= str + ".pointer.hi"
+      e.things -= str + ".rawaddr"
+      e.things -= str + ".rawaddr.lo"
+      e.things -= str + ".rawaddr.hi"
+      e.things -= str.stripPrefix(prefix)
+      e.things -= str.stripPrefix(prefix) + ".addr"
+      e.things -= str.stripPrefix(prefix) + ".addr.lo"
+      e.things -= str.stripPrefix(prefix) + ".addr.hi"
+      e.things -= str.stripPrefix(prefix) + ".pointer"
+      e.things -= str.stripPrefix(prefix) + ".pointer.lo"
+      e.things -= str.stripPrefix(prefix) + ".pointer.hi"
+      e.things -= str.stripPrefix(prefix) + ".rawaddr"
+      e.things -= str.stripPrefix(prefix) + ".rawaddr.lo"
+      e.things -= str.stripPrefix(prefix) + ".rawaddr.hi"
+      parent.foreach(x => removeVariableImpl2(x,str))
+    }
+    removeVariableImpl2(this, prefix + localVarToRelativize)
+    val namePrefix = concreteGlobalTarget + '.'
+    root.things.filter { entry =>
+      entry._1 == concreteGlobalTarget || entry._1.startsWith(namePrefix)
+    }.foreach { entry =>
+      val name = entry._1
+      val thing = entry._2
+      val newName = if (name == concreteGlobalTarget) localVarToRelativize else localVarToRelativize + '.' + name.stripPrefix(namePrefix)
+      val newThing = thing match {
+        case t: VariableInMemory => RelativeVariable(prefix + newName, t.toAddress, t.typ, t.zeropage, t.declaredBank, t.isVolatile)
+        case t: ConstantThing => t.copy(name = prefix + newName)
+        case t => println(t); ???
+      }
+      addThing(newThing, None)
     }
   }
 
@@ -883,7 +930,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
     val env = new Environment(Some(this), name + "$", cpuFamily, jobContext)
     stmt.params.foreach(p => env.registerParameter(p, options))
-    val params = if (stmt.assembly) {
+    def params: ParamSignature = if (stmt.assembly) {
       AssemblyParamSignature(stmt.params.map {
         pd =>
           val typ = env.get[Type](pd.typ)
@@ -902,10 +949,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       })
     } else {
       NormalParamSignature(stmt.params.map { pd =>
-        env.get[MemoryVariable](pd.assemblyParamPassingConvention.asInstanceOf[ByVariable].name)
+        env.get[VariableInMemory](pd.assemblyParamPassingConvention.asInstanceOf[ByVariable].name)
       })
     }
-    if (resultType.size > Cpu.getMaxSizeReturnableViaRegisters(options.platform.cpu, options)) {
+    var hasElidedReturnVariable = false
+    val hasReturnVariable = resultType.size > Cpu.getMaxSizeReturnableViaRegisters(options.platform.cpu, options)
+    if (hasReturnVariable) {
       registerVariable(VariableDeclarationStatement(stmt.name + ".return", stmt.resultType, None, global = true, stack = false, constant = false, volatile = false, register = false, None, None, None), options, isPointy = false)
     }
     stmt.statements match {
@@ -936,6 +985,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         val executableStatements = statements.flatMap {
           case e: ExecutableStatement => Some(e)
           case _ => None
+        }
+        if (hasReturnVariable) {
+          val set = getReturnedVariables(executableStatements)
+          if (set.size == 1) {
+            env.maybeGet[Variable](set.head) match {
+              case Some(v: MemoryVariable) =>
+                if (!v.isVolatile && v.typ == resultType && v.alloc == VariableAllocationMethod.Auto) {
+                  env.coerceLocalVariableIntoGlobalVariable(set.head, stmt.name + ".return")
+                  hasElidedReturnVariable = true
+                }
+              case _ =>
+            }
+          }
         }
         val paramForAutomaticReturn: List[Option[Expression]] = if (stmt.isMacro || stmt.assembly) {
           Nil
@@ -982,6 +1044,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             stackVariablesSize,
             stmt.address.map(a => this.eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant"))),
             executableStatements ++ paramForAutomaticReturn.map(param => ReturnStatement(param).pos(executableStatements.lastOption.fold(stmt.position)(_.position))),
+            hasElidedReturnVariable = hasElidedReturnVariable,
             interrupt = stmt.interrupt,
             kernalInterrupt = stmt.kernalInterrupt,
             reentrant = stmt.reentrant,
@@ -1290,10 +1353,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (stmt.register && stmt.address.isDefined) log.error(s"`$name` cannot by simultaneously at an address and in a register", position)
       if (stmt.stack) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
-        addThing(v, stmt.position)
-        for((suffix, offset, t) <- getSubvariables(typ)) {
-          addThing(StackVariable(prefix + name + suffix, t, baseStackOffset + offset), stmt.position)
-        }
+        addVariable(options, name, v, stmt.position)
         baseStackOffset += typ.size
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
@@ -1326,16 +1386,34 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           registerAddressConstant(v, stmt.position, options, Some(typ))
           (v, addr)
         })
-        addThing(v, stmt.position)
-        if (!v.isInstanceOf[MemoryVariable]) {
-          addThing(ConstantThing(v.name + "`", addr, b), stmt.position)
-        }
-        for((suffix, offset, t) <- getSubvariables(typ)) {
-          val subv = RelativeVariable(prefix + name + suffix, addr + offset, t, zeropage = v.zeropage, declaredBank = stmt.bank, isVolatile = v.isVolatile)
-          addThing(subv, stmt.position)
-          registerAddressConstant(subv, stmt.position, options, Some(t))
-        }
+        addVariable(options, name, v, stmt.position)
       }
+    }
+  }
+
+  def addVariable(options: CompilationOptions, localName: String, variable: Variable, position: Option[Position]): Unit = {
+    variable match {
+      case v: StackVariable =>
+        addThing(v, position)
+        for ((suffix, offset, t) <- getSubvariables(v.typ)) {
+          addThing(StackVariable(prefix + localName + suffix, t, baseStackOffset + offset), position)
+        }
+      case v: MemoryVariable =>
+        addThing(v, position)
+        for ((suffix, offset, t) <- getSubvariables(v.typ)) {
+          val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
+          addThing(subv, position)
+          registerAddressConstant(subv, position, options, Some(t))
+        }
+      case v: VariableInMemory =>
+        addThing(v, position)
+        addThing(ConstantThing(v.name + "`", v.toAddress, get[Type]("word")), position)
+        for ((suffix, offset, t) <- getSubvariables(v.typ)) {
+          val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
+          addThing(subv, position)
+          registerAddressConstant(subv, position, options, Some(t))
+        }
+      case _ => ???
     }
   }
 
@@ -1650,5 +1728,5 @@ object Environment {
     "for", "if", "do", "while", "else", "return", "default", "to", "until", "paralleluntil", "parallelto", "downto",
     "inline", "noinline"
   ) ++ predefinedFunctions
-  val invalidFieldNames: Set[String] = Set("addr", "rawaddr", "pointer")
+  val invalidFieldNames: Set[String] = Set("addr", "rawaddr", "pointer", "return")
 }

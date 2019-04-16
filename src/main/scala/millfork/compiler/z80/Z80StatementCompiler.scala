@@ -72,8 +72,13 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
                 Z80ExpressionCompiler.compileToDEHL(ctx, e) ++ fixStackOnReturn(ctx) ++
                   List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC), ZLine.implied(RET))
               case _ =>
-                Z80ExpressionCompiler.storeLarge(ctx, VariableExpression(ctx.function.name + ".return"), e) ++ fixStackOnReturn(ctx) ++
-                  List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+                if (ctx.function.hasElidedReturnVariable) {
+                  fixStackOnReturn(ctx) ++
+                    List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+                } else {
+                  Z80ExpressionCompiler.storeLarge(ctx, VariableExpression(ctx.function.name + ".return"), e) ++ fixStackOnReturn(ctx) ++
+                    List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
+                }
 
             }
         }) -> Nil

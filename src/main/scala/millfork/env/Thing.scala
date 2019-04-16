@@ -350,6 +350,7 @@ case class NormalFunction(name: String,
                           stackVariablesSize: Int,
                           address: Option[Constant],
                           code: List[ExecutableStatement],
+                          hasElidedReturnVariable: Boolean,
                           interrupt: Boolean,
                           kernalInterrupt: Boolean,
                           reentrant: Boolean,
@@ -373,7 +374,7 @@ trait ParamSignature {
   def length: Int
 }
 
-case class NormalParamSignature(params: List[MemoryVariable]) extends ParamSignature {
+case class NormalParamSignature(params: List[VariableInMemory]) extends ParamSignature {
   override def length: Int = params.length
 
   override def types: List[Type] = params.map(_.typ)
