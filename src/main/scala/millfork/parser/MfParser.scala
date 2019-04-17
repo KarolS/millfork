@@ -27,11 +27,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def allowIntelHexAtomsInAssembly: Boolean
 
-  val enableDebuggingOptions: Boolean = {
-    val x = options.flag(CompilationFlag.EnableInternalTestSyntax)
-    println(s"enableDebuggingOptions = $x")
-    x
-  }
+  val enableDebuggingOptions: Boolean = options.flag(CompilationFlag.EnableInternalTestSyntax)
 
   def toAst: Parsed[Program] = program.parse(input + "\n\n\n")
 
