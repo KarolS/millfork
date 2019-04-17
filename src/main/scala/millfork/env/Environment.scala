@@ -246,7 +246,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       e.things -= str.stripPrefix(prefix) + ".rawaddr"
       e.things -= str.stripPrefix(prefix) + ".rawaddr.lo"
       e.things -= str.stripPrefix(prefix) + ".rawaddr.hi"
-      parent.foreach(x => removeVariableImpl2(x,str))
+      e.parent.foreach(x => removeVariableImpl2(x,str))
     }
     removeVariableImpl2(this, prefix + localVarToRelativize)
     val namePrefix = concreteGlobalTarget + '.'
