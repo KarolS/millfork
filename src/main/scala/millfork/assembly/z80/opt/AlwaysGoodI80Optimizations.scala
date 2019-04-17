@@ -228,7 +228,45 @@ object AlwaysGoodI80Optimizations {
     // 60
     (HasOpcode(LD) & MatchSourceRegisterAndOffset(0) & MatchTargetRegisterAndOffset(1)) ~
       Where(ctx => ctx.get[RegisterAndOffset](0).register != ZRegister.MEM_ABS_8 && ctx.get[RegisterAndOffset](1).register != ZRegister.MEM_ABS_8) ~
-      (Elidable & HasOpcode(LD) & MatchSourceRegisterAndOffset(1) & MatchTargetRegisterAndOffset(0)) ~~> (_.init)
+      (Elidable & HasOpcode(LD) & MatchSourceRegisterAndOffset(1) & MatchTargetRegisterAndOffset(0)) ~~> (_.init),
+    // 61:
+    (Elidable & HasOpcode(EX_DE_HL)) ~
+      (Elidable & Is8BitLoad(H, D)) ~
+      (Elidable & Is8BitLoad(L, E) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~~> (_ => Nil),
+    // 62:
+    (Elidable & HasOpcode(EX_DE_HL)) ~
+      (Elidable & Is8BitLoad(L, E)) ~
+      (Elidable & Is8BitLoad(H, D) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~~> (_ => Nil),
+    // 63:
+    (Elidable & HasOpcode(EX_DE_HL)) ~
+      (Elidable & Is8BitLoad(E, L)) ~
+      (Elidable & Is8BitLoad(D, H) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (_ => Nil),
+    // 64:
+    (Elidable & HasOpcode(EX_DE_HL)) ~
+      (Elidable & Is8BitLoad(D, H)) ~
+      (Elidable & Is8BitLoad(E, L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (_ => Nil),
+
+    // 65:
+    ((Is8BitLoad(D, H)) ~
+      (Is8BitLoad(E, L)) ~
+      (Linear & Not(Changes(HL)) & Not(Changes(DE))).* ~
+      (Elidable & HasOpcode(INC_16) & HasRegisterParam(HL)) ~
+      (Linear & Not(Changes(HL)) & Not(Changes(DE))).*).capture(2) ~
+      (Elidable & Is8BitLoad(H, D)) ~
+      (Elidable & Is8BitLoad(L, E)) ~~> { (code, ctx) =>
+      ctx.get[List[ZLine]](2) :+ ZLine.register(DEC_16, HL)
+    },
+    // 66:
+    ((Is8BitLoad(B, H)) ~
+      (Is8BitLoad(C, L)) ~
+      (Linear & Not(Changes(HL)) & Not(Changes(BC))).* ~
+      (Elidable & HasOpcode(INC_16) & HasRegisterParam(HL)) ~
+      (Linear & Not(Changes(HL)) & Not(Changes(BC))).*).capture(2) ~
+      (Elidable & Is8BitLoad(H, B)) ~
+      (Elidable & Is8BitLoad(L, C)) ~~> { (code, ctx) =>
+      ctx.get[List[ZLine]](2) :+ ZLine.register(DEC_16, HL)
+    },
+
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
@@ -311,6 +349,54 @@ object AlwaysGoodI80Optimizations {
       List(
         ZLine.ld8(ZRegister.H, ZRegister.B),
         ZLine.ld8(ZRegister.L, ZRegister.C))
+    },
+    //20
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> { code =>
+      ZLine.ld8(ZRegister.D, ZRegister.H) ::
+        ZLine.ld8(ZRegister.E, ZRegister.L) ::
+        code.tail.init
+    },
+    //21
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.BC)) ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> { code =>
+      ZLine.ld8(ZRegister.B, ZRegister.H) ::
+        ZLine.ld8(ZRegister.C, ZRegister.L) ::
+        code.tail.init
+    },
+    //22
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> { code =>
+      ZLine.ld8(ZRegister.H, ZRegister.D) ::
+        ZLine.ld8(ZRegister.L, ZRegister.E) ::
+        code.tail.init
+    },
+    //23
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> { code =>
+      ZLine.ld8(ZRegister.H, ZRegister.B) ::
+        ZLine.ld8(ZRegister.L, ZRegister.C) ::
+        code.tail.init
+    },
+    //24
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> { code =>
+      ZLine.ld8(ZRegister.D, ZRegister.B) ::
+        ZLine.ld8(ZRegister.E, ZRegister.C) ::
+        code.tail.init
+    },
+    //25
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.BC)) ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> { code =>
+      ZLine.ld8(ZRegister.B, ZRegister.D) ::
+        ZLine.ld8(ZRegister.C, ZRegister.E) ::
+        code.tail.init
     },
   )
 
@@ -860,7 +946,37 @@ object AlwaysGoodI80Optimizations {
           ZLine.ld8(H, A)
         )
       }
-    })
+    }),
+
+    (Elidable & Is8BitLoadTo(E)).capture(1) ~
+      (Not(Concerns(A)) & Not(Concerns(DE))).*.capture(2) ~
+      (Elidable & Is8BitLoadTo(D)).capture(3) ~
+      (Not(Concerns(HL)) & Not(Concerns(DE))).*.capture(4) ~
+      (Elidable & Is8BitLoad(H, B)).capture(5) ~
+      (Elidable & Is8BitLoad(L, C)).capture(6) ~
+      (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(HL, DE)) & DoesntMatterWhatItDoesWith(BC) & DoesntMatterWhatItDoesWith(DE)).capture(7) ~~> { (code, ctx) =>
+      ctx.get[List[ZLine]](1).map(x => x.copy(registers = x.registers.asInstanceOf[TwoRegisters].copy(target = A))) ++
+        ctx.get[List[ZLine]](2) ++
+        ctx.get[List[ZLine]](3).map(x => x.copy(registers = x.registers.asInstanceOf[TwoRegisters].copy(target = H))) ++
+        List(ZLine.ld8(L, A)) ++
+        ctx.get[List[ZLine]](4) ++
+        ctx.get[List[ZLine]](7).map(x => x.copy(registers = x.registers.asInstanceOf[TwoRegisters].copy(source = BC)))
+    },
+
+    (Elidable & Is8BitLoadTo(C)).capture(1) ~
+      (Not(Concerns(A)) & Not(Concerns(BC))).*.capture(2) ~
+      (Elidable & Is8BitLoadTo(B)).capture(3) ~
+      (Not(Concerns(BC)) & Not(Concerns(HL))).*.capture(4) ~
+      (Elidable & Is8BitLoad(H, D)).capture(5) ~
+      (Elidable & Is8BitLoad(L, E)).capture(6) ~
+      (Elidable & HasOpcode(ADD_16) & HasRegisters(TwoRegisters(HL, BC)) & DoesntMatterWhatItDoesWith(BC) & DoesntMatterWhatItDoesWith(DE)).capture(7) ~~> { (code, ctx) =>
+      ctx.get[List[ZLine]](1).map(x => x.copy(registers = x.registers.asInstanceOf[TwoRegisters].copy(target = A))) ++
+        ctx.get[List[ZLine]](2) ++
+        ctx.get[List[ZLine]](3).map(x => x.copy(registers = x.registers.asInstanceOf[TwoRegisters].copy(target = H))) ++
+        List(ZLine.ld8(L, A)) ++
+        ctx.get[List[ZLine]](4) ++
+        ctx.get[List[ZLine]](7).map(x => x.copy(registers = x.registers.asInstanceOf[TwoRegisters].copy(source = DE)))
+    },
   )
 
   val UnusedCodeRemoval = new RuleBasedAssemblyOptimization("Unreachable code removal",
@@ -1039,7 +1155,10 @@ object AlwaysGoodI80Optimizations {
   )
 
   val PointlessExdehl = new RuleBasedAssemblyOptimization("Pointless EX DE,HL",
-      needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+
+    (Elidable & HasOpcode(EX_DE_HL)) ~
+      (Elidable & HasOpcode(EX_DE_HL)) ~~> (_ => Nil),
 
       (Elidable & HasOpcode(EX_DE_HL)) ~
         (Elidable & (
@@ -1090,6 +1209,18 @@ object AlwaysGoodI80Optimizations {
         & HasRegisterParam(register) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(register)) ~~> (_ => Nil)
     ),
     (Elidable & HasOpcode(DAA) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A)) ~~> (_ => Nil),
+
+    for5LargeRegisters(reg =>
+      (Elidable & HasOpcode(INC_16) & HasRegisterParam(reg)) ~
+        (Not(Concerns(reg))).* ~
+        (Elidable & HasOpcode(DEC_16) & HasRegisterParam(reg)) ~~> (_.tail.init)
+    ),
+    for5LargeRegisters(reg =>
+      (Elidable & HasOpcode(DEC_16) & HasRegisterParam(reg)) ~
+        (Not(Concerns(reg))).* ~
+        (Elidable & HasOpcode(INC_16) & HasRegisterParam(reg)) ~~> (_.tail.init)
+    ),
+
   )
 
   private def compileMultiply[T](multiplicand: Int, add1:List[T], asl: List[T]): List[T] = {

@@ -110,6 +110,11 @@ object AlwaysGoodZ80Optimizations {
       List(
         code.head.copy(registers = TwoRegisters(ZRegister.BC, ZRegister.MEM_ABS_16))
       )),
+    (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16)) ~
+      (Elidable & HasOpcode(EX_DE_HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code.head.copy(registers = TwoRegisters(ZRegister.DE, ZRegister.MEM_ABS_16))
+      )),
 
     MultipleAssemblyRules(Seq(ZRegister.BC, ZRegister.DE).map { registerPair =>
       (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(registerPair, ZRegister.IMM_16)) & MatchParameter(0)) ~
