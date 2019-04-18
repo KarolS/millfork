@@ -16,6 +16,8 @@ The flag is enabled by default, but you can disable it if you need to.
 
 Millfork has different operator precedence compared to most other languages. From highest to lowest it goes:
 
+* `->` and `[]`
+
 * `*`, `*'`
 
 * `+`, `+'`, `-`, `-'`, `|`, `&`, `^`, `>>`, `>>'`, `<<`, `<<'`, `>>>>`
@@ -169,7 +171,7 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 * `=`: normal assignment    
 `mutable enum = enum`  
 `mutable byte = byte`  
-`mutable word = word`
+`mutable word = word`  
 `mutable long = long`
 
 * `+=`, `+'=`, `|=`, `^=`, `&=`: modification in place  
@@ -206,13 +208,21 @@ While Millfork does not consider indexing an operator, this is a place as good a
 
 An expression of form `a[i]`, where `i` is an expression of type `byte`, is:
 
-* when `a` is an array that has numeric index type: an access to the `i`-th element of the array `a`
+* when `a` is an array that has numeric index type and `T` value type:  
+an access to the `i`-th element of the array `a`
 
-* when `a` is a pointer variable: an access to the byte in memory at address `a + i`
+* when `a` is a raw pointer variable:  
+an access to the byte in memory at address `a + i`
 
-Those expressions are of type `byte`. If `a` is any other kind of expression, `a[i]` is invalid.
+* when `a` is a typed pointer variable to a 1-byte type `T`:  
+an access to the value pointed to by `a`
 
-If the zeropage register is enabled, `i` can also be of type `word`.
+* when `a` is a typed pointer variable to a 2-byte type `T` and `i` is zero:  
+an access to the value pointed to by `a`
+
+* otherwise: a compile error
+
+On 8080-like targets, and on 6502 if the zeropage register is enabled, `i` can also be of type `word`.
 
 An expression of form `a[i]`, where `i` is an expression of a enumeration type, is:
 

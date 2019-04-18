@@ -23,12 +23,9 @@ Millfork puts extra limitations on which types can be used in which contexts.
 
 * `ubyte` – unsigned 1-byte value
 
-* `pointer` – the same as `word`, but variables of this type default to be zero-page-allocated
-and you can index `pointer` variables (not arbitrary `pointer`-typed expressions though, `f()[0]` won't compile)
+* `pointer` – raw pointers; the same as `word`, but variables of this type default to be zero-page-allocated
+and you can index `pointer`-typed expressions.
 You can create pointer values by suffixing `.addr` to the name of a variable, function or array.  
-**Work in progress**:
-There's no reason to make a function return `pointer` yet, since currently to dereference it, 
-you need to put it in a variable first anyway.
 
 You can access single bytes of variables by using the following notations:
 
@@ -55,6 +52,10 @@ Numeric types can be converted automatically:
 For every type `T`, there is a pointer type defined called `pointer.T`.
 
 Unlike raw pointers, they are not subject to arithmetic.
+
+If the type `T` is of size 1, you can index the pointer like a raw pointer.
+
+If the type `T` is of size 2, you can index the pointer only with the constant 0.
 
 Examples:
 
