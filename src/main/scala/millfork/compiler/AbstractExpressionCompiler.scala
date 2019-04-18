@@ -254,23 +254,51 @@ object AbstractExpressionCompiler {
       case DerefDebuggingExpression(_, 1) => b
       case DerefDebuggingExpression(_, 2) => w
       case DerefExpression(_, _, typ) => typ
-      case IndirectFieldExpression(inner, fieldPath) =>
-        val firstPointerType = getExpressionType(env, log, inner)
-        fieldPath.foldLeft(firstPointerType) { (currentType, fieldName) =>
+      case IndirectFieldExpression(inner, firstIndices, fieldPath) =>
+        var currentType = getExpressionType(env, log, inner)
+        var ok = true
+        for(_ <- firstIndices) {
           currentType match {
             case PointerType(_, _, Some(targetType)) =>
-              val tuples = env.getSubvariables(targetType).filter(x => x._1 == "." + fieldName)
-              if (tuples.isEmpty) {
-                log.error(s"Type `$targetType` doesn't have field named `$fieldName`", expr.position)
-                b
-              } else {
-                tuples.head._3
-              }
+              currentType = targetType
+            case x if x.isPointy =>
+              currentType = b
             case _ =>
               log.error(s"Type `$currentType` is not a pointer type", expr.position)
-              b
+              ok = false
           }
         }
+        for ((fieldName, indices) <- fieldPath) {
+          if (ok) {
+            currentType match {
+              case PointerType(_, _, Some(targetType)) =>
+                val tuples = env.getSubvariables(targetType).filter(x => x._1 == "." + fieldName)
+                if (tuples.isEmpty) {
+                  log.error(s"Type `$targetType` doesn't have field named `$fieldName`", expr.position)
+                  ok = false
+                } else {
+                  currentType = tuples.head._3
+                }
+              case _ =>
+                log.error(s"Type `$currentType` is not a pointer type", expr.position)
+                ok = false
+            }
+          }
+          if (ok) {
+            for (_ <- indices) {
+              currentType match {
+                case PointerType(_, _, Some(targetType)) =>
+                  currentType = targetType
+                case x if x.isPointy =>
+                  currentType = b
+                case _ =>
+                  log.error(s"Type `$currentType` is not a pointer type", expr.position)
+                  ok = false
+              }
+            }
+          }
+        }
+        if (ok) currentType else b
       case SeparateBytesExpression(hi, lo) =>
         if (getExpressionType(env, log, hi).size > 1) log.error("Hi byte too large", hi.position)
         if (getExpressionType(env, log, lo).size > 1) log.error("Lo byte too large", lo.position)

@@ -65,7 +65,7 @@ Examples:
     p[0]        // valid only if the type 't' is of size 1 or 2, accesses the pointed element
     p[i]        // valid only if the type 't' is of size 1, equivalent to 't(p.raw[i])'
     p->x        // valid only if the type 't' has a field called 'x', accesses the field 'x' of the pointed element
-    p->x.y->z   // you can stack it
+    p->x.y[0]->z[0][6]   // you can stack it
   
 ## `nullptr`
 

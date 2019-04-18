@@ -92,7 +92,7 @@ object UnusedFunctions extends NodeOptimization {
     case s: ArrayDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.elements.toList)
     case s: ArrayContents => getAllCalledFunctions(s.getAllExpressions)
     case s: FunctionDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.statements.getOrElse(Nil))
-    case Assignment(VariableExpression(_), expr) => getAllCalledFunctions(expr :: Nil)
+    case Assignment(target, expr) => getAllCalledFunctions(target :: expr :: Nil)
     case s: ReturnDispatchStatement =>
       getAllCalledFunctions(s.getAllExpressions) ++ getAllCalledFunctions(s.branches.map(_.function))
     case s: Statement => getAllCalledFunctions(s.getAllExpressions)
@@ -115,6 +115,8 @@ object UnusedFunctions extends NodeOptimization {
     case FunctionCallExpression(name, xs) => name :: getAllCalledFunctions(xs)
     case IndexedExpression(arr, index) => arr :: getAllCalledFunctions(List(index))
     case SeparateBytesExpression(h, l) => getAllCalledFunctions(List(h, l))
+    case DerefDebuggingExpression(inner, _) => getAllCalledFunctions(List(inner))
+    case IndirectFieldExpression(root, firstIndices, fieldPath) => getAllCalledFunctions(root :: firstIndices ++: fieldPath.flatMap(_._2).toList)
     case _ => Nil
   }
 

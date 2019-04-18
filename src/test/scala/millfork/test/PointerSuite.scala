@@ -2,12 +2,12 @@ package millfork.test
 
 import millfork.Cpu
 import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class PointerSuite extends FunSuite with Matchers {
+class PointerSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Pointers outside zeropage") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
@@ -166,6 +166,47 @@ class PointerSuite extends FunSuite with Matchers {
         | }
       """.stripMargin) { m =>
 
+    }
+  }
+
+  test("Complex pointers") {
+    // TODO: optimize it when inlined
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | array output[3] @$c000
+        | struct s {
+        |   pointer p
+        | }
+        | s tmp
+        | pointer.s tmpptr
+        | pointer.pointer.s get() {
+        |   tmp.p = output.addr
+        |   tmpptr = tmp.pointer
+        |   return tmpptr.pointer
+        | }
+        | void main() {
+        |   get()[0]->p[0] = 5
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(5)
+    }
+  }
+
+  test("Indexing returned pointers") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | array output[10] @$c000
+        | pointer get() = output.addr
+        | void main() {
+        |   byte i
+        |   for i,0,paralleluntil,10 {
+        |     get()[i] = 42
+        |   }
+        | }
+      """.stripMargin) { m =>
+      for(i <- 0xc000 until 0xc00a) {
+        m.readByte(i) should equal(42) withClue i
+      }
     }
   }
 }

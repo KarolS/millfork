@@ -188,7 +188,7 @@ class PreprocessorParser(options: CompilationOptions) {
     def inner: P[SeparatedList[Q, String]] = {
       for {
         head <- tightMfExpression ~/ HWS
-        maybeOperator <- StringIn(allowedOperators: _*).!.?
+        maybeOperator <- (StringIn(allowedOperators: _*).! ~ !CharIn(Seq('-','+','/'))).?
         maybeTail <- maybeOperator.fold[P[Option[List[(String, Q)]]]](Pass.map(_ => None))(o => (HWS ~/ inner ~/ HWS).map(x2 => Some((o -> x2.head) :: x2.tail)))
       } yield {
         maybeTail.fold[SeparatedList[Q, String]](SeparatedList.of(head))(t => SeparatedList(head, t))

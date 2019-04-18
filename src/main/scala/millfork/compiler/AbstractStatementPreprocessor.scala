@@ -277,25 +277,60 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
       case _ =>
     }
     expr match {
-      case IndirectFieldExpression(root, fieldPath) if AbstractExpressionCompiler.getExpressionType(env, env.log, root).isInstanceOf[PointerType] =>
-        fieldPath.foldLeft(root) { (pointer, fieldName) =>
-          AbstractExpressionCompiler.getExpressionType(env, env.log, pointer) match {
-            case PointerType(_, _, Some(target)) =>
-              val subvariables = env.getSubvariables(target).filter(x => x._1 == "." + fieldName)
-              if (subvariables.isEmpty) {
-                ctx.log.error(s"Type `${target.name}` does not contain field `$fieldName`", pointer.position)
-                LiteralExpression(0, 1)
-              } else {
-                DerefExpression(optimizeExpr(pointer, currentVarValues).pos(pos), subvariables.head._2, subvariables.head._3)
+      case IndirectFieldExpression(root, firstIndices, fieldPath) =>
+        val b = env.get[Type]("byte")
+        var ok = true
+        var result = optimizeExpr(root, currentVarValues).pos(pos)
+        def applyIndex(result: Expression, index: Expression): Expression = {
+          AbstractExpressionCompiler.getExpressionType(env, env.log, result) match {
+            case pt@PointerType(_, _, Some(target)) =>
+              env.eval(index) match {
+                case Some(NumericConstant(0, _)) => //ok
+                case _ =>
+                  env.log.error(s"Type `$pt` can be only indexed with 0")
+              }
+              DerefExpression(result, 0, target)
+            case x if x.isPointy =>
+              env.eval(index) match {
+                case Some(NumericConstant(n, _)) if n >= 0 && n <= 127 =>
+                  DerefExpression(result, n.toInt, b)
+                case _ =>
+                  DerefExpression(SumExpression(List(false -> result, false -> index), decimal = false), 0, b)
               }
             case _ =>
-              ctx.log.error("Invalid pointer type on the left-hand side of `->`", pointer.position)
-              LiteralExpression(0, 1)
+              ctx.log.error("Not a pointer type on the left-hand side of `[`", pos)
+              ok = false
+              result
           }
         }
-      case IndirectFieldExpression(root, fieldPath) =>
-        ctx.log.error("Invalid pointer type on the left-hand side of `->`", pos)
-        root
+
+        for (index <- firstIndices) {
+          result = applyIndex(result, index)
+        }
+        for ((fieldName, indices) <- fieldPath) {
+          if (ok) {
+            result = AbstractExpressionCompiler.getExpressionType(env, env.log, result) match {
+              case PointerType(_, _, Some(target)) =>
+                val subvariables = env.getSubvariables(target).filter(x => x._1 == "." + fieldName)
+                if (subvariables.isEmpty) {
+                  ctx.log.error(s"Type `${target.name}` does not contain field `$fieldName`", result.position)
+                  ok = false
+                  LiteralExpression(0, 1)
+                } else {
+                  DerefExpression(optimizeExpr(result, currentVarValues).pos(pos), subvariables.head._2, subvariables.head._3)
+                }
+              case _ =>
+                ctx.log.error("Invalid pointer type on the left-hand side of `->`", result.position)
+                LiteralExpression(0, 1)
+            }
+          }
+          if (ok) {
+            for (index <- indices) {
+              result = applyIndex(result, index)
+            }
+          }
+        }
+        result
       case DerefDebuggingExpression(inner, 1) =>
         DerefExpression(optimizeExpr(inner, currentVarValues), 0, env.get[VariableType]("byte")).pos(pos)
       case DerefDebuggingExpression(inner, 2) =>

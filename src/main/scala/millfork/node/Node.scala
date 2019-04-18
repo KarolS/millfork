@@ -202,19 +202,26 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
   override def getAllIdentifiers: Set[String] = index.getAllIdentifiers + name
 }
 
-case class IndirectFieldExpression(root: Expression, fields: List[String]) extends LhsExpression {
-  override def replaceVariable(variable: String, actualParam: Expression): Expression = IndirectFieldExpression(root.replaceVariable(variable, actualParam), fields)
+case class IndirectFieldExpression(root: Expression, firstIndices: Seq[Expression], fields: Seq[(String, Seq[Expression])]) extends LhsExpression {
+  override def replaceVariable(variable: String, actualParam: Expression): Expression =
+    IndirectFieldExpression(
+      root.replaceVariable(variable, actualParam),
+      firstIndices.map(_.replaceVariable(variable, actualParam)),
+      fields.map{case (f, i) => f -> i.map(_.replaceVariable(variable, actualParam))})
 
-  override def containsVariable(variable: String): Boolean = root.containsVariable(variable)
+  override def containsVariable(variable: String): Boolean =
+    root.containsVariable(variable) ||
+      firstIndices.exists(_.containsVariable(variable)) ||
+      fields.exists(_._2.exists(_.containsVariable(variable)))
 
-  override def getPointies: Seq[String] = root match {
+  override def getPointies: Seq[String] = (root match {
     case VariableExpression(v) => List(v)
     case _ => root.getPointies
-  }
+  }) ++ firstIndices.flatMap(_.getPointies) ++ fields.flatMap(_._2.flatMap(_.getPointies))
 
-  override def isPure: Boolean = root.isPure
+  override def isPure: Boolean = root.isPure && firstIndices.forall(_.isPure) && fields.forall(_._2.forall(_.isPure))
 
-  override def getAllIdentifiers: Set[String] = root.getAllIdentifiers
+  override def getAllIdentifiers: Set[String] = root.getAllIdentifiers ++ firstIndices.flatMap(_.getAllIdentifiers) ++ fields.flatMap(_._2.flatMap(_.getAllIdentifiers))
 }
 
 case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) extends LhsExpression {

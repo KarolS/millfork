@@ -1699,8 +1699,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       nameCheck(inner)
     case DerefExpression(inner, _, _) =>
       nameCheck(inner)
-    case IndirectFieldExpression(inner, _) =>
+    case IndirectFieldExpression(inner, firstIndices, fields) =>
       nameCheck(inner)
+      firstIndices.foreach(nameCheck)
+      fields.foreach(f => f._2.foreach(nameCheck))
     case SeparateBytesExpression(h, l) =>
       nameCheck(h)
       nameCheck(l)
