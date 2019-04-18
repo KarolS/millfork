@@ -5,6 +5,7 @@ import millfork.assembly.z80._
 import millfork.node.ZRegister
 import ZOpcode._
 import ZRegister._
+import millfork.env.Constant
 
 
 /**
@@ -46,6 +47,33 @@ object LaterI80Optimizations {
       (Elidable & HasOpcode(DEC) & HasRegisterParam(A) & DoesntMatterWhatItDoesWithFlags) ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (code => List(ZLine.implied(CCF), ZLine.imm8(SBC, 0), code.last)),
 
+    (Elidable & Is8BitLoadTo(B) & Match8BitImmediate(1)) ~
+      (Elidable & Is8BitLoadTo(C) & Match8BitImmediate(0)) ~~> { (code, ctx) =>
+      val l = ctx.get[Constant](0)
+      val h = ctx.get[Constant](1)
+      List(ZLine.ldImm16(BC, h.asl(8).+(l).quickSimplify).pos(code.map(_.source)))
+    },
+
+    (Elidable & Is8BitLoadTo(C) & Match8BitImmediate(0)) ~
+      (Elidable & Is8BitLoadTo(B) & Match8BitImmediate(1)) ~~> { (code, ctx) =>
+      val l = ctx.get[Constant](0)
+      val h = ctx.get[Constant](1)
+      List(ZLine.ldImm16(BC, h.asl(8).+(l).quickSimplify).pos(code.map(_.source)))
+    },
+
+    (Elidable & Is8BitLoadTo(D) & Match8BitImmediate(1)) ~
+      (Elidable & Is8BitLoadTo(E) & Match8BitImmediate(0)) ~~> { (code, ctx) =>
+      val l = ctx.get[Constant](0)
+      val h = ctx.get[Constant](1)
+      List(ZLine.ldImm16(DE, h.asl(8).+(l).quickSimplify).pos(code.map(_.source)))
+    },
+
+    (Elidable & Is8BitLoadTo(E) & Match8BitImmediate(0)) ~
+      (Elidable & Is8BitLoadTo(D) & Match8BitImmediate(1)) ~~> { (code, ctx) =>
+      val l = ctx.get[Constant](0)
+      val h = ctx.get[Constant](1)
+      List(ZLine.ldImm16(DE, h.asl(8).+(l).quickSimplify).pos(code.map(_.source)))
+    },
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL (later)",

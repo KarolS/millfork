@@ -1699,6 +1699,11 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcodeIn(ROL, ROR) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> { code =>
       code.last.copy(addrMode = AddrMode.Implied, parameter = Constant.Zero) :: code.init
     },
+    (Elidable & HasOpcode(STA) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & DoesNotConcernMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0) & Not(ConcernsA)).* ~
+      (Elidable & HasOpcodeIn(ROL, ROR, LSR, ASL) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.A)) ~~> { code =>
+      code.tail.init ++ List(code.last.copy(addrMode = AddrMode.Implied, parameter = Constant.Zero), code.head)
+    },
   )
 
   val SmarterShiftingBytes = new RuleBasedAssemblyOptimization("Smarter shifting of bytes",
