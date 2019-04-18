@@ -398,6 +398,12 @@ object AlwaysGoodI80Optimizations {
         ZLine.ld8(ZRegister.C, ZRegister.E) ::
         code.tail.init
     },
+    //26
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.AF)) ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer) & Not(Changes(A))).* ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.AF) & DoesntMatterWhatItDoesWithFlags) ~~> { code =>
+      code.tail.init
+    },
   )
 
   val PointlessStackStashingFromFlow = new RuleBasedAssemblyOptimization("Pointless stack stashing from flow",
@@ -1420,11 +1426,41 @@ object AlwaysGoodI80Optimizations {
       (Elidable & HasOpcodeIn(Set(OR, AND)) & HasRegisterParam(ZRegister.A)) ~~> (_.init),
   )
 
+  val LoopInvariant = new RuleBasedAssemblyOptimization("Loop invariant",
+    needsFlowInfo = FlowInfoRequirement.JustLabels,
+
+    for5LargeRegisters(reg =>
+      ((HasOpcode(LABEL) & MatchParameterOrNothing(0) & IsNotALabelUsedManyTimes) ~
+        (Linear & Not(Concerns(reg))).*).capture(1) ~
+        (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(reg, IMM_16))).capture(2) ~
+        ((Linear & Not(Changes(reg))).* ~
+          (HasOpcodeIn(Set(JP, JR, DJNZ)) & MatchParameterOrNothing(0))).capture(3) ~~> { (code, ctx) =>
+        ctx.get[List[ZLine]](2) ++
+          ctx.get[List[ZLine]](1) ++
+          ctx.get[List[ZLine]](3)
+      }
+    ),
+
+    for7Registers (reg =>
+      ((HasOpcode(LABEL) & MatchParameterOrNothing(0) & IsNotALabelUsedManyTimes) ~
+        (Linear & Not(Concerns(reg))).*).capture(1) ~
+        (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(reg, IMM_8))).capture(2) ~
+        ((Linear & Not(Changes(reg))).* ~
+          (HasOpcodeIn(Set(JP, JR, DJNZ)) & MatchParameterOrNothing(0))).capture(3) ~~> { (code, ctx) =>
+        ctx.get[List[ZLine]](2) ++
+          ctx.get[List[ZLine]](1) ++
+          ctx.get[List[ZLine]](3)
+      }
+    ),
+  )
+
+
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
     BranchInPlaceRemoval,
     ConstantMultiplication,
     ConstantInlinedShifting,
     FreeHL,
+    LoopInvariant,
     PointlessArithmetic,
     PointlessFlagChange,
     PointlessLoad,

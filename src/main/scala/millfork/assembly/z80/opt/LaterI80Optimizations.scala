@@ -74,6 +74,18 @@ object LaterI80Optimizations {
       val h = ctx.get[Constant](1)
       List(ZLine.ldImm16(DE, h.asl(8).+(l).quickSimplify).pos(code.map(_.source)))
     },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(HL, IMM_16))) ~
+      (Elidable & Is8BitLoad(E, L)) ~
+      (Elidable & Is8BitLoad(D, H) & DoesntMatterWhatItDoesWith(HL)) ~~> { code =>
+      List(code.head.copy(registers = TwoRegisters(DE, IMM_16)))
+    },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(HL, IMM_16))) ~
+      (Elidable & Is8BitLoad(C, L)) ~
+      (Elidable & Is8BitLoad(B, H) & DoesntMatterWhatItDoesWith(HL)) ~~> { code =>
+      List(code.head.copy(registers = TwoRegisters(BC, IMM_16)))
+    },
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL (later)",
