@@ -327,18 +327,19 @@ case class ProcessedContents(processor: String, values: ArrayContents) extends A
       ))
     case "long" | "long_le" =>
       values.getAllExpressions.flatMap(expr => List(
-        FunctionCallExpression("byte", List(expr)).pos(expr.position),
-        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8, 1))).pos(expr.position))).pos(expr.position),
-        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(16, 1))).pos(expr.position))).pos(expr.position),
-        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(24, 1))).pos(expr.position))).pos(expr.position)
+        FunctionCallExpression("lo", List(expr)).pos(expr.position),
+        FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(16, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(24, 1))).pos(expr.position))).pos(expr.position)
       ))
     case "long_be" =>
       values.getAllExpressions.flatMap(expr => List(
-        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(24, 1))).pos(expr.position))).pos(expr.position),
-        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(16, 1))).pos(expr.position))).pos(expr.position),
-        FunctionCallExpression("byte", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8, 1))).pos(expr.position))).pos(expr.position),
-        FunctionCallExpression("byte", List(expr)).pos(expr.position)
+        FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(24, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(16, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8, 1))).pos(expr.position))).pos(expr.position),
+        FunctionCallExpression("lo", List(expr)).pos(expr.position)
       ))
+    case "struct" => values.getAllExpressions // not used for emitting actual arrays
   }
 
   override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =

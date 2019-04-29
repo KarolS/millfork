@@ -110,6 +110,11 @@ An array is initialized with either:
    *   `@long` (=`@long_le`), `@long_be`: similar, but with four bytes      
        `@long [$11223344]` is equivalent to `[$44, $33, $22, $11]`  
        `@long_be [$11223344]` is equivalent to `[$11, $22, $33, $44]`
+       
+   *   `@struct`: every term of the initializer is interpreted as a struct constructor (see below) 
+   and treated as a list of bytes with no padding   
+       `@struct [s(1, 2)]` is equivalent to `[1, 2]` when `struct s {byte x, byte y}` is defined  
+       `@struct [s(1, 2), s(3, 4)]` is equivalent to `[1, 0, 2, 0, 3, 0, 4, 0]` when `struct s {word x, word y}` is defined  
    
 
 * a list of byte literals and/or other array initializers, surrounded by brackets:
@@ -130,6 +135,12 @@ The parameters for `file` are: file path, optional start offset, optional length
 The `for`-style expression has a variable, a starting index, a direction, a final index, 
 and a parameterizable array initializer.
 The initializer is repeated for every value of the variable in the given range.
+
+Struct constructors look like a function call, where the callee name is the name of the struct type 
+and the parameters are the values of fields in the order of declaration.  
+Fields of arithmetic, pointer and enum types are declared using normal expressions.  
+Fields of struct types are declared using struct constructors.
+Fields of union types cannot be declared.
 
 What might be useful is the fact that the compiler allows for built-in trigonometric functions
 in constant expressions only:

@@ -271,6 +271,19 @@ class ArraySuite extends FunSuite with Matchers {
     }
   }
 
+  test("Array filters 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | array x = @long [$1144]
+        | byte output @$c000
+        | void main () {
+        |   output = x[0]
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(0x44)
+    }
+  }
+
   test("Const arrays") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
@@ -296,5 +309,35 @@ class ArraySuite extends FunSuite with Matchers {
         |   a[0] = 5
         | }
       """.stripMargin)
+  }
+
+  test("Struct array initializers") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | struct p { byte x, byte y }
+        | struct line { p from, p to }
+        | struct ratio { int32 num, int32 den }
+        | const array data1 @$c000 = @struct [p(2,3), p(4,5)]
+        | const array data2 @$c010 = @struct [line(p(6,7), p(8,9))]
+        | const array data3 @$c020 = @struct [ratio($666, $777)]
+        | void main () { }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(2)
+      m.readByte(0xc001) should equal(3)
+      m.readByte(0xc002) should equal(4)
+      m.readByte(0xc003) should equal(5)
+      m.readByte(0xc010) should equal(6)
+      m.readByte(0xc011) should equal(7)
+      m.readByte(0xc012) should equal(8)
+      m.readByte(0xc013) should equal(9)
+      m.readByte(0xc020) should equal(0x66)
+      m.readByte(0xc021) should equal(6)
+      m.readByte(0xc022) should equal(0)
+      m.readByte(0xc023) should equal(0)
+      m.readByte(0xc024) should equal(0x77)
+      m.readByte(0xc025) should equal(7)
+      m.readByte(0xc026) should equal(0)
+      m.readByte(0xc027) should equal(0)
+    }
   }
 }

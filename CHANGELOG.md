@@ -20,7 +20,7 @@
 
 * Added `nullptr`.
 
-* Arrays can now have elements of types other than `byte` (still limited in size to 1 byte though).
+* Arrays can now have elements of types other than `byte` (still limited in size to 1 byte though) and be built out of struct literals.
 
 * Arrays can now be constant.
 
@@ -41,6 +41,8 @@
 * Fixed `#use` not accessing all preprocessor parameters.
 
 * Fixed `#pragma` not respecting `#if`.
+
+* Fixed `@long` and `@long_be` array filters.
 
 * 8080 and LR35902: fixed large stack variables.
 

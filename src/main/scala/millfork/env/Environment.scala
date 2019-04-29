@@ -1163,9 +1163,82 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(array, None)
   }
 
+  def extractStructArrayContents(expr: Expression, targetType: Option[Type]): List[Expression] = {
+    (targetType, expr) match {
+
+      case (Some(tt: StructType), FunctionCallExpression(fname, fieldValues)) =>
+        maybeGet[Thing](fname) match {
+          case Some(tt2:StructType) if tt2.name == tt.name =>
+            if (tt.fields.length != fieldValues.length) {
+              log.error(s"Invalid number of struct fields for struct const `${tt.name}`", fieldValues.headOption.flatMap(_.position))
+              List.fill(tt.size)(LiteralExpression(0, 1))
+            } else {
+              tt.fields.zip(fieldValues).flatMap {
+                case ((fieldTypeName, _), expr) => extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
+              }
+            }
+          case _ =>
+            log.error(s"Invalid struct type: `$fname`", expr.position)
+            List.fill(tt.size)(LiteralExpression(0, 1))
+        }
+
+      case (Some(tt: StructType), _) =>
+        log.error(s"Invalid struct initializer for type `${tt.name}`", expr.position)
+        List.fill(tt.size)(LiteralExpression(0, 1))
+
+      case (Some(tt: PlainType), _) =>
+        tt.size match {
+          case 1 => List(expr)
+          case 2 => List(FunctionCallExpression("lo", List(expr)), FunctionCallExpression("hi", List(expr)))
+          case n => List.tabulate(n)(i => FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8 * i, 1))))))
+        }
+
+      case (Some(tt: PointerType), _) => List(FunctionCallExpression("lo", List(expr)), FunctionCallExpression("hi", List(expr)))
+      case (Some(tt: EnumType), _) => List(FunctionCallExpression("byte", List(expr)))
+
+      case (Some(tt), _) =>
+        log.error("Invalid field type for use in array initializers", expr.position)
+        List.fill(tt.size)(LiteralExpression(0, 1))
+
+      case (None, FunctionCallExpression(fname, fieldValues)) =>
+        maybeGet[Thing](fname) match {
+          case Some(tt:StructType) =>
+            if (tt.fields.length != fieldValues.length) {
+              log.error(s"Invalid number of struct fields for struct const `${tt.name}`", fieldValues.headOption.flatMap(_.position))
+              List.fill(tt.size)(LiteralExpression(0, 1))
+            } else {
+              tt.fields.zip(fieldValues).flatMap {
+                case ((fieldTypeName, _), expr) => extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
+              }
+            }
+          case _ =>
+            log.error(s"Invalid struct type: `$fname`", expr.position)
+            Nil
+        }
+
+      case _ =>
+        log.error(s"Invalid struct initializer for unknown type", expr.position)
+        Nil
+    }
+  }
+
+  def checkIfArrayContentsAreSimple(xs: CombinedContents): Unit = {
+    xs.contents.foreach{
+      case x:CombinedContents => checkIfArrayContentsAreSimple(x)
+      case x:LiteralContents => ()
+      case x => log.error(s"Invalid struct array contents", x.position)
+    }
+  }
+
   def extractArrayContents(contents1: ArrayContents): List[Expression] = contents1 match {
     case LiteralContents(xs) => xs
     case CombinedContents(xs) => xs.flatMap(extractArrayContents)
+    case pc@ProcessedContents("struct", xs: CombinedContents) =>
+      checkIfArrayContentsAreSimple(xs)
+      xs.getAllExpressions.flatMap(x => extractStructArrayContents(x, None))
+    case pc@ProcessedContents("struct", _) =>
+      log.error(s"Invalid struct array contents", pc.position)
+      Nil
     case pc@ProcessedContents(f, xs) => pc.getAllExpressions
     case ForLoopContents(v, start, end, direction, body) =>
       (eval(start), eval(end)) match {
