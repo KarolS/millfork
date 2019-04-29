@@ -366,6 +366,7 @@ case class ArrayDeclarationStatement(name: String,
                                      length: Option[Expression],
                                      elementType: String,
                                      address: Option[Expression],
+                                     const: Boolean,
                                      elements: Option[ArrayContents],
                                      alignment: Option[MemoryAlignment]) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = List(length, address).flatten ++ elements.fold(List[Expression]())(_.getAllExpressions)

@@ -446,7 +446,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 }
             }
           case i: IndexedExpression =>
-            calculateAddressToHL(ctx, i) match {
+            calculateAddressToHL(ctx, i, forWriting = false) match {
               case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)) => loadByte(addr, target, volatile = false)
               case code => code ++ loadByteViaHL(target)
             }
@@ -841,7 +841,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 =>
-                    calculateAddressToAppropriatePointer(ctx, l) match {
+                    calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
                       case Some((lvo, code)) =>
                         code ++
                           (ZLine.ld8(ZRegister.A, lvo) ::
@@ -858,7 +858,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 =>
-                    calculateAddressToAppropriatePointer(ctx, l) match {
+                    calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
                       case Some((lvo, code)) =>
                         code ++
                           (ZLine.ld8(ZRegister.A, lvo) ::
@@ -883,7 +883,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case "*'=" =>
                 assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
                 val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
-                calculateAddressToAppropriatePointer(ctx, l) match {
+                calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
                   case Some((lvo, code)) =>
                     code ++
                       (ZLine.ld8(ZRegister.A, lvo) ::
@@ -1003,7 +1003,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
   }
 
   def calculateLoadAndStoreForByte(ctx: CompilationContext, expr: LhsExpression): (List[ZLine], List[ZLine]) = {
-    Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, expr) match {
+    Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, expr, forWriting = true) match { // TODO: forWriting?
       case Some((LocalVariableAddressViaHL, calculate)) =>
         (calculate :+ ZLine.ld8(ZRegister.A, ZRegister.MEM_HL)) -> List(ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
       case Some((LocalVariableAddressViaIX(offset), calculate)) =>
@@ -1020,7 +1020,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def calculateAddressToAppropriatePointer(ctx: CompilationContext, expr: LhsExpression): Option[(LocalVariableAddressOperand, List[ZLine])] = {
+  def calculateAddressToAppropriatePointer(ctx: CompilationContext, expr: LhsExpression, forWriting: Boolean): Option[(LocalVariableAddressOperand, List[ZLine])] = {
     val env = ctx.env
     expr match {
       case VariableExpression(name) =>
@@ -1035,7 +1035,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               Some(LocalVariableAddressViaHL -> calculateStackAddressToHL(ctx, v))
             }
         }
-      case i:IndexedExpression => Some(LocalVariableAddressViaHL -> calculateAddressToHL(ctx, i))
+      case i:IndexedExpression => Some(LocalVariableAddressViaHL -> calculateAddressToHL(ctx, i, forWriting))
       case i:DerefExpression => Some(LocalVariableAddressViaHL -> compileDerefPointer(ctx, i))
       case _:SeparateBytesExpression => None
       case _ => ???
@@ -1055,12 +1055,15 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def calculateAddressToHL(ctx: CompilationContext, i: IndexedExpression): List[ZLine] = {
+  def calculateAddressToHL(ctx: CompilationContext, i: IndexedExpression, forWriting: Boolean): List[ZLine] = {
     val env = ctx.env
     val pointy = env.getPointy(i.name)
     AbstractExpressionCompiler.checkIndexType(ctx, pointy, i.index)
     pointy match {
-      case ConstantPointy(baseAddr, _, size, _, _, alignment) =>
+      case ConstantPointy(baseAddr, _, size, _, _, alignment, readOnly) =>
+        if (forWriting && readOnly) {
+          ctx.log.error("Writing to a constant array", i.position)
+        }
         env.evalVariableAndConstantSubParts(i.index) match {
           case (None, offset) => List(ZLine.ldImm16(ZRegister.HL, (baseAddr + offset).quickSimplify))
           case (Some(index), offset) =>
@@ -1324,7 +1327,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             }
         }
       case i:IndexedExpression =>
-        calculateAddressToHL(ctx, i) match {
+        calculateAddressToHL(ctx, i, forWriting = true) match {
           case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)) => storeA(ctx, addr, 1, signedSource)
           case code => if (code.exists(changesA)) {
             List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++ stashDEIfChanged(ctx, code) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.E)

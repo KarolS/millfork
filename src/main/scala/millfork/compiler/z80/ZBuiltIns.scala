@@ -318,7 +318,7 @@ object ZBuiltIns {
   }
 
   def perform8BitInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcode: ZOpcode.Value, decimal: Boolean = false): List[ZLine] = {
-    val (lv, calculateAddress):(LocalVariableAddressOperand, List[ZLine]) = Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, lhs).getOrElse{
+    val (lv, calculateAddress):(LocalVariableAddressOperand, List[ZLine]) = Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, lhs, forWriting = true).getOrElse{
       ctx.log.error("Invalid left-hand-side expression", lhs.position)
       LocalVariableAddressViaHL -> Nil
     }

@@ -155,13 +155,13 @@ void createStarScreen() {
 	}
 }
 
-array starfieldCols = [
+const array starfieldCols = [
          14,10,12,15,14,13,12,11,10,14,
          14,10,14,15,14,13,12,11,10,12
 ]
 
 
-array starfieldRow = [
+const array starfieldRow = [
         058,092,073,064,091,062,093,081,066,094,
         086,059,079,087,080,071,076,067,082,095,
         100,078,099,060,075,063,084,065,083,096,

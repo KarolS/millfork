@@ -106,11 +106,13 @@ An array is a continuous sequence of bytes in memory.
 
 Syntax:
 
-`[segment(<segment>)] array [(<element type>)] <name> [[<size>]] [align ( <alignment> )] [@<address>] [= <initial_values>]`
+`[segment(<segment>)] [const] array [(<element type>)] <name> [[<size>]] [align ( <alignment> )] [@<address>] [= <initial_values>]`
 
 * `<segment>`: segment name; if absent,
 then defaults to `default_code_segment` as defined for the platform if the array has initial values,
 or to `default` if it doesn't.
+
+* if `const` is present, the array is read-only. Read-only arrays have to have a fixed address and/or defined contents.
 
 * `<element type>`: type of the elements of the array.
 It must be of size 1 byte.

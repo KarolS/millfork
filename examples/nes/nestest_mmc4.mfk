@@ -151,7 +151,7 @@ noinline void scroll_screen() {
     }
 }
 
-array bg = [
+const array bg = [
     "                                " ascii,
     "12345678901234567890123456789012" ascii,
     "                                " ascii,
@@ -189,13 +189,13 @@ array bg = [
 ]
 
 
-array palette = [
+const array palette = [
 		$0E,$00,$0E,$19,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$01,$21,
 		$0E,$20,$22,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 ]
 
 segment(chrrom0)
-array charset @$6200 = [
+const array charset @$6200 = [
 		$00,$00,$00,$00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
 		$18,$18,$18,$18,$00,$00,$18,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
 		$66,$66,$66,$00,$00,$00,$00,$00,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
@@ -263,7 +263,7 @@ array charset @$6200 = [
 ]
 
 segment(chrrom1)
-array sprites @$A000 = [
+const array sprites @$A000 = [
 		$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,
 		$18,$24,$66,$99,$99,$66,$24,$18,$00,$18,$18,$66,$66,$18,$18,$00
 ]

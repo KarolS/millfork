@@ -191,12 +191,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     val reg = ctx.env.get[VariableInMemory]("__reg")
     val compileIndex = compile(ctx, indexExpression, Some(MosExpressionCompiler.getExpressionType(ctx, indexExpression) -> RegisterVariable(MosRegister.YA, w)), BranchSpec.None)
     val prepareRegister = pointy match {
-      case ConstantPointy(addr, _, _, _, _, _) =>
+      case p:ConstantPointy =>
         List(
           AssemblyLine.implied(CLC),
-          AssemblyLine.immediate(ADC, addr.hiByte),
+          AssemblyLine.immediate(ADC, p.value.hiByte),
           AssemblyLine.zeropage(STA, reg, 1),
-          AssemblyLine.immediate(LDA, addr.loByte),
+          AssemblyLine.immediate(LDA, p.value.loByte),
           AssemblyLine.zeropage(STA, reg))
       case VariablePointy(addr, _, _, true) =>
         List(
@@ -323,6 +323,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
         (pointy, variableIndex, variableIndexSize, totalIndexSize) match {
           case (p: ConstantPointy, None, _, _) =>
+            if (p.readOnly) {
+              ctx.log.error("Writing to a constant array", target.position)
+            }
             List(AssemblyLine.absolute(store, env.genRelativeVariable(p.value + constIndex, b, zeropage = false)))
           case (p: VariablePointy, _, _, 2) =>
             wrapWordIndexingStorage(prepareWordIndexing(ctx, p, indexExpr))
@@ -330,9 +333,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             // TODO: optimize?
             wrapWordIndexingStorage(prepareWordIndexing(ctx, p, indexExpr))
           case (p: ConstantPointy, Some(v), 2, _) =>
+            if (p.readOnly) {
+              ctx.log.error("Writing to a constant array", target.position)
+            }
             val w = env.get[VariableType]("word")
-            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, None, if (constIndex.isProvablyZero) p.size else None, w, p.elementType, NoAlignment), v))
+            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, None, if (constIndex.isProvablyZero) p.size else None, w, p.elementType, NoAlignment, p.readOnly), v))
           case (p: ConstantPointy, Some(v), 1, _) =>
+            if (p.readOnly) {
+              ctx.log.error("Writing to a constant array", target.position)
+            }
             storeToArrayAtUnknownIndex(v, p.value)
           //TODO: should there be a type check or a zeropage check?
           case (pointerVariable@VariablePointy(varAddr, _, _, true), None, _, 0 | 1) =>
@@ -801,7 +810,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 None,
                 if (constantIndex.isProvablyZero) a.size else None,
                 env.get[VariableType]("word"),
-                a.elementType, NoAlignment), v) ++ loadFromReg()
+                a.elementType, NoAlignment, a.readOnly), v) ++ loadFromReg()
             case (a: VariablePointy, _, 2, _) =>
               prepareWordIndexing(ctx, a, indexExpr) ++ loadFromReg()
             case (p: VariablePointy, _, 0 | 1, _) if !p.zeropage =>

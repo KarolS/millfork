@@ -70,7 +70,7 @@ object Z80Shifting {
         } else if (i >= 8) {
           ZLine.ldImm8(ZRegister.A, 0) :: Z80ExpressionCompiler.storeA(ctx, lhs, signedSource = false)
         } else {
-          Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, lhs) match {
+          Z80ExpressionCompiler.calculateAddressToAppropriatePointer(ctx, lhs, forWriting = true) match {
             case Some((register, l)) =>
               // for shifting left:
               // ADD A = 4 cycles

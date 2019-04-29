@@ -10,6 +10,8 @@ even up to hardware damage.
 
 * array overruns: indexing past the end of an array leads to undefined behaviour 
 
+* writing to arrays defined as `const`
+
 * stray pointers: indexing a pointer that doesn't point to a valid object or indexing it past the end of the pointed object leads to undefined behaviour
 
 * reading uninitialized variables: will return undefined values

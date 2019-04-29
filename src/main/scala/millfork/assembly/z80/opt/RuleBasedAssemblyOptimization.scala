@@ -612,6 +612,12 @@ case class MatchParameter(i: Int) extends AssemblyLinePattern {
   override def hitRate: Double = 0.929
 }
 
+case class HasParameterWhere(predicate: Constant => Boolean) extends TrivialAssemblyLinePattern {
+  override def apply(line: ZLine): Boolean = predicate(line.parameter)
+
+  override def hitRate: Double = 0.332
+}
+
 case class IsLabelMatching(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.opcode == ZOpcode.LABEL && ctx.addObject(i, line.parameter.quickSimplify)

@@ -9,6 +9,7 @@ import millfork.assembly.mos.{AddrMode, opt, _}
 import millfork.assembly.mos.AddrMode._
 import millfork.env._
 import millfork.error.FatalErrorReporting
+import millfork.node.LiteralExpression
 
 /**
   * These optimizations should not remove opportunities for more complex optimizations to trigger.
@@ -1063,6 +1064,30 @@ object AlwaysGoodOptimizations {
 
       (HasOpcodeIn(LAX, LDA) & RefersTo("__sp", 0)
         & XContainsSoftwareStackPointer) ~~> (_ => List(AssemblyLine.implied(TXA))),
+
+    (Elidable & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, EOR, AND, ORA) & HasAddrModeIn(Absolute, ZeroPage, LongAbsolute) & HasParameterWhere{
+      case MemoryAddressConstant(i: InitializedArray) => i.readOnly
+      case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(i: InitializedArray), NumericConstant(offset, _)) =>
+        i.readOnly && offset >= 0 && offset < i.sizeInBytes
+      case CompoundConstant(MathOperator.Plus, NumericConstant(offset, _), MemoryAddressConstant(i: InitializedArray)) =>
+        i.readOnly && offset >= 0 && offset < i.sizeInBytes
+      case _ => false
+    }) ~~> { code =>
+      val p = code.head.parameter match {
+        case MemoryAddressConstant(i: InitializedArray) =>
+          i.contents.head
+        case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(i: InitializedArray), NumericConstant(offset, _)) =>
+          i.contents(offset.toInt)
+        case CompoundConstant(MathOperator.Plus, NumericConstant(offset, _), MemoryAddressConstant(i: InitializedArray)) =>
+          i.contents(offset.toInt)
+      }
+      p match {
+        case LiteralExpression(n, s) =>
+          code.head.copy(addrMode = Immediate, parameter = NumericConstant(n, s)) :: Nil
+        case _ =>
+          code
+      }
+    },
   ))
 
   val PointlessStackStore = new RuleBasedAssemblyOptimization("Pointless stack store",

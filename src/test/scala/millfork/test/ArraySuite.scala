@@ -270,4 +270,31 @@ class ArraySuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(0x44)
     }
   }
+
+  test("Const arrays") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | const array square = [0, 1, 4, 9, 16, 25, 36, 49, 64]
+        | byte five() = 5
+        | byte output0 @$c000
+        | byte output1 @$c001
+        | void main () {
+        |   output0 = square[3]
+        |   output1 = square[five()]
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(9)
+      m.readByte(0xc001) should equal(25)
+    }
+  }
+
+  test("Writing to const arrays should not compile") {
+    ShouldNotCompile(
+      """
+        | const array a = [0]
+        | void main () {
+        |   a[0] = 5
+        | }
+      """.stripMargin)
+  }
 }

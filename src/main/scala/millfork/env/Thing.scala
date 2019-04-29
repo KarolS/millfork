@@ -266,9 +266,10 @@ trait MfArray extends ThingInMemory with IndexableThing {
   override def isVolatile: Boolean = false
   /* TODO: what if larger elements? */
   def sizeInBytes: Int
+  def readOnly: Boolean
 }
 
-case class UninitializedArray(name: String, /* TODO: what if larger elements? */ sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
+case class UninitializedArray(name: String, /* TODO: what if larger elements? */ sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean, override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 
   override def alloc: VariableAllocationMethod.Value = VariableAllocationMethod.Static
@@ -280,7 +281,7 @@ case class UninitializedArray(name: String, /* TODO: what if larger elements? */
   override def zeropage: Boolean = false
 }
 
-case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType) extends MfArray {
+case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean) extends MfArray {
   override def toAddress: Constant = address
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
@@ -290,7 +291,7 @@ case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, decl
   override def zeropage: Boolean = false
 }
 
-case class InitializedArray(name: String, address: Option[Constant], contents: List[Expression], declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val alignment: MemoryAlignment) extends MfArray with PreallocableThing {
+case class InitializedArray(name: String, address: Option[Constant], contents: Seq[Expression], declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean, override val alignment: MemoryAlignment) extends MfArray with PreallocableThing {
   override def shouldGenerate = true
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)

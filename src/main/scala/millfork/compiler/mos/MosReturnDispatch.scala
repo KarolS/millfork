@@ -41,7 +41,7 @@ object MosReturnDispatch extends AbstractReturnDispatch[AssemblyLine] {
     }
 
     if (useJmpaix) {
-      val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(lobyte0(map(i)._1), hibyte0(map(i)._1))).toList, ctx.function.declaredBank, b, b, NoAlignment)
+      val jumpTable = InitializedArray(label + "$jt.array", None, (actualMin to actualMax).flatMap(i => List(lobyte0(map(i)._1), hibyte0(map(i)._1))).toList, ctx.function.declaredBank, b, b, readOnly = true, NoAlignment)
       env.registerUnnamedArray(jumpTable)
       if (copyParams.isEmpty) {
         val loadIndex = MosExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
@@ -56,8 +56,8 @@ object MosReturnDispatch extends AbstractReturnDispatch[AssemblyLine] {
       }
     } else {
       val loadIndex = MosExpressionCompiler.compile(ctx, stmt.indexer, Some(b -> RegisterVariable(MosRegister.X, b)), BranchSpec.None)
-      val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte1(map(i)._1)).toList, ctx.function.declaredBank, b, b, NoAlignment)
-      val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte1(map(i)._1)).toList, ctx.function.declaredBank, b, b, NoAlignment)
+      val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte1(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, NoAlignment)
+      val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte1(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, NoAlignment)
       env.registerUnnamedArray(jumpTableLo)
       env.registerUnnamedArray(jumpTableHi)
       val actualJump = if (ctx.options.flag(CompilationFlag.LUnixRelocatableCode)) {

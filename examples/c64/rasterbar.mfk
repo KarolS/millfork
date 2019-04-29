@@ -33,7 +33,7 @@ asm void stabilize(byte x){
     RTS
 }
 
-array colours = [
+const array colours = [
     $06, $06, $06, $0e, $06, $0e, 
     $0e, $06, $0e, $0e, $0e, $03, 
     $0e, $03, $03, $0e, $03, $03, 

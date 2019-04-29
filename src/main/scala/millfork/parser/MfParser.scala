@@ -238,6 +238,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val arrayDefinition: P[Seq[ArrayDeclarationStatement]] = for {
     p <- position()
     bank <- bankDeclaration
+    const <- ("const".! ~ HWS).?
     _ <- "array" ~ !letterOrDigit
     elementType <- ("(" ~/ AWS ~/ identifier ~ AWS ~ ")").? ~/ HWS
     name <- identifier ~ HWS
@@ -245,7 +246,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
     contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
-  } yield Seq(ArrayDeclarationStatement(name, bank, length, elementType.getOrElse("byte"), addr, contents, alignment).pos(p))
+  } yield Seq(ArrayDeclarationStatement(name, bank, length, elementType.getOrElse("byte"), addr, const.isDefined, contents, alignment).pos(p))
 
   def tightMfExpression(allowIntelHex: Boolean, allowTopLevelIndexing: Boolean): P[Expression] = {
     val a = if (allowIntelHex) atomWithIntel else atom
@@ -322,8 +323,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     fieldPath <- (HWS ~ "->" ~/ AWS ~/ identifier ~/ index.rep).rep
   } yield (expr, firstIndices, fieldPath) match {
     case (_, Seq(), Seq()) => expr
-    case (VariableExpression(vname), Seq(i), Seq()) => IndexedExpression(vname, i).asInstanceOf[T]
-    case _ => IndirectFieldExpression(expr, firstIndices, fieldPath).asInstanceOf[T]
+    case (VariableExpression(vname), Seq(i), Seq()) => IndexedExpression(vname, i).pos(expr.position).asInstanceOf[T]
+    case _ => IndirectFieldExpression(expr, firstIndices, fieldPath).pos(expr.position).asInstanceOf[T]
   }
 
 //  def mfLhsExpression: P[LhsExpression] = for {

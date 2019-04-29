@@ -338,7 +338,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
       case TextLiteralExpression(characters) =>
         val name = genName(characters)
         if (ctx.env.maybeGet[Thing](name).isEmpty) {
-          ctx.env.root.registerArray(ArrayDeclarationStatement(name, None, None, "byte", None, Some(LiteralContents(characters)), None).pos(pos), ctx.options)
+          ctx.env.root.registerArray(ArrayDeclarationStatement(name, None, None, "byte", None, const = true, Some(LiteralContents(characters)), None).pos(pos), ctx.options)
         }
         VariableExpression(name).pos(pos)
       case VariableExpression(v) if currentVarValues.contains(v) =>

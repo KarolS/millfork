@@ -1,6 +1,6 @@
 import stdio
 
-array p = [
+const array p = [
     "this is an example", 13,
     "of {red}multiline {yellow}{reverse}",
 #if CBM
@@ -11,7 +11,7 @@ array p = [
     "{reverseoff} {white}text"
 ]
 
-array s = [
+const array s = [
     "and this is an example                  " scr,
     "of text done in screencodes" scr
 ]

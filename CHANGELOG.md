@@ -22,6 +22,8 @@
 
 * Arrays can now have elements of types other than `byte` (still limited in size to 1 byte though).
 
+* Arrays can now be constant.
+
 * Added hint for identifiers with typos.
 
 * Aliases now also support subfields.

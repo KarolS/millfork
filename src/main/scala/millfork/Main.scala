@@ -122,9 +122,11 @@ object Main {
         Files.write(path, code)
     }
     errorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
-    c.runFileName.foreach(program =>
-      new ProcessBuilder(program, Paths.get(defaultPrgOutput).toAbsolutePath.toString).start()
-    )
+    c.runFileName.foreach{ program =>
+      val outputAbsolutePath = Paths.get(defaultPrgOutput).toAbsolutePath.toString
+      errorReporting.debug(s"Running: $program $outputAbsolutePath")
+      new ProcessBuilder(program, outputAbsolutePath).start()
+    }
     if (platform.generateBbcMicroInfFile) {
       val start = platform.codeAllocators("default").startAt
       val codeLength = result.code("default").length

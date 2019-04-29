@@ -3,8 +3,8 @@ package millfork.assembly.z80.opt
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.z80.{opt, _}
 import millfork.assembly.z80.ZOpcode._
-import millfork.env.{CompoundConstant, Constant, MathOperator, NumericConstant}
-import millfork.node.ZRegister
+import millfork.env.{CompoundConstant, Constant, InitializedArray, MathOperator, MemoryAddressConstant, NumericConstant}
+import millfork.node.{LiteralExpression, ZRegister}
 import ZRegister._
 import millfork.DecimalUtils._
 import millfork.error.FatalErrorReporting
@@ -131,6 +131,30 @@ object AlwaysGoodI80Optimizations {
         code.init :+ ZLine.ldImm16(register, hi.<<(8) + lo)
       }
     ),
+
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(A, MEM_ABS_8)) & HasParameterWhere {
+      case MemoryAddressConstant(i: InitializedArray) => i.readOnly
+      case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(i: InitializedArray), NumericConstant(offset, _)) =>
+        i.readOnly && offset >= 0 && offset < i.sizeInBytes
+      case CompoundConstant(MathOperator.Plus, NumericConstant(offset, _), MemoryAddressConstant(i: InitializedArray)) =>
+        i.readOnly && offset >= 0 && offset < i.sizeInBytes
+      case _ => false
+    }) ~~> { code =>
+      val p = code.head.parameter match {
+        case MemoryAddressConstant(i: InitializedArray) =>
+          i.contents.head
+        case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(i: InitializedArray), NumericConstant(offset, _)) =>
+          i.contents(offset.toInt)
+        case CompoundConstant(MathOperator.Plus, NumericConstant(offset, _), MemoryAddressConstant(i: InitializedArray)) =>
+          i.contents(offset.toInt)
+      }
+      p match {
+        case LiteralExpression(n, s) =>
+          code.head.copy(registers = TwoRegisters(A, IMM_8), parameter = NumericConstant(n, s)) :: Nil
+        case _ =>
+          code
+      }
+    },
   )
 
   val PointlessLoad = new RuleBasedAssemblyOptimization("Pointless load",

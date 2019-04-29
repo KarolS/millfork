@@ -85,7 +85,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def getAllFixedAddressObjects: List[(String, Int, Int)] = {
     things.values.flatMap {
-      case RelativeArray(_, NumericConstant(addr, _), size, declaredBank, _, _) =>
+      case RelativeArray(_, NumericConstant(addr, _), size, declaredBank, _, _, _) =>
         List((declaredBank.getOrElse("default"), addr.toInt, size))
       case RelativeVariable(_, NumericConstant(addr, _), typ, _, declaredBank, _) =>
         List((declaredBank.getOrElse("default"), addr.toInt, typ.size))
@@ -374,13 +374,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     InitializedMemoryVariable
     UninitializedMemoryVariable
     getArrayOrPointer(name) match {
-      case th@InitializedArray(_, _, cs, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e, th.alignment)
-      case th@UninitializedArray(_, size, _, i, e, _) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, th.alignment)
-      case th@RelativeArray(_, _, size, _, i, e) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, NoAlignment)
+      case th@InitializedArray(_, _, cs, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e, th.alignment, readOnly = ro)
+      case th@UninitializedArray(_, size, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, th.alignment, readOnly = ro)
+      case th@RelativeArray(_, _, size, _, i, e, ro) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, NoAlignment, readOnly = ro)
       case ConstantThing(_, value, typ) if typ.size <= 2 && typ.isPointy =>
         val e = get[VariableType](typ.pointerTargetName)
         val w = get[VariableType]("word")
-        ConstantPointy(value, None, None, w, e, NoAlignment)
+        ConstantPointy(value, None, None, w, e, NoAlignment, readOnly = false)
       case th:VariableInMemory if th.typ.isPointy=>
         val e = get[VariableType](th.typ.pointerTargetName)
         val w = get[VariableType]("word")
@@ -393,7 +393,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         log.error(s"$name is not a valid pointer or array")
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
-        ConstantPointy(Constant.Zero, None, None, w, b, NoAlignment)
+        ConstantPointy(Constant.Zero, None, None, w, b, NoAlignment, readOnly = false)
     }
   }
 
@@ -597,7 +597,18 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case Some(m) if m.contains(name) => Some(m(name))
           case _ => maybeGet[ConstantThing](name).map(_.value)
         }
-      case IndexedExpression(_, _) => None
+      case IndexedExpression(arrName, index) =>
+        getPointy(arrName) match {
+          case ConstantPointy(MemoryAddressConstant(arr:InitializedArray), _, _, _, _, _, _) if arr.readOnly && arr.elementType.size == 1 =>
+            eval(index).flatMap {
+              case NumericConstant(constIndex, _) =>
+                if (constIndex >= 0 && constIndex < arr.sizeInBytes) {
+                  eval(arr.contents(constIndex.toInt))
+                } else None
+              case _ => None
+            }
+          case _ => None
+        }
       case _: DerefExpression => None
       case _: IndirectFieldExpression => None
       case _: DerefDebuggingExpression => None
@@ -1206,6 +1217,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     stmt.elements match {
       case None =>
+        if (stmt.const && stmt.address.isEmpty) {
+          log.error(s"Constant array `${stmt.name}` without contents nor address", stmt.position)
+        }
         stmt.length match {
           case None => log.error(s"Array `${stmt.name}` without size nor contents", stmt.position)
           case Some(l) =>
@@ -1230,9 +1244,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
                 val array = address match {
                   case None => UninitializedArray(stmt.name + ".array", length.toInt,
-                              declaredBank = stmt.bank, indexType, e, alignment)
+                              declaredBank = stmt.bank, indexType, e, stmt.const, alignment)
                   case Some(aa) => RelativeArray(stmt.name + ".array", aa, length.toInt,
-                              declaredBank = stmt.bank, indexType, e)
+                              declaredBank = stmt.bank, indexType, e, stmt.const)
                 }
                 addThing(array, stmt.position)
                 registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank, alignment, isVolatile = false), stmt.position, options, Some(e))
@@ -1266,6 +1280,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
         }
       case Some(contents1) =>
+        if (!stmt.const && options.flag(CompilationFlag.ReadOnlyArrays)) {
+          log.warn(s"Initialized array `${stmt.name}` is not defined as const, but the target platform doesn't support writable initialized arrays.", stmt.position)
+        }
         val contents = extractArrayContents(contents1)
         val indexType = stmt.length match {
           case None => // array arr = [...]
@@ -1304,7 +1321,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         for (element <- contents) {
           AbstractExpressionCompiler.checkAssignmentType(this, element, e)
         }
-        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, e, alignment)
+        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, e, readOnly = stmt.const, alignment)
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
                     declaredBank = stmt.bank, alignment, isVolatile = false), stmt.position, options, Some(e))
@@ -1587,7 +1604,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val b = get[VariableType]("byte")
     val v = get[Type]("void")
     if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) {
-      addThing(InitializedArray("identity$", None, List.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None, b, b, defaultArrayAlignment(options, 256)), None)
+      addThing(InitializedArray("identity$", None, IndexedSeq.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None, b, b, readOnly = true, defaultArrayAlignment(options, 256)), None)
     }
     program.declarations.foreach {
       case a: AliasDefinitionStatement => registerAlias(a)
@@ -1629,12 +1646,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     if (CpuFamily.forType(options.platform.cpu) == CpuFamily.M6502) {
       if (!things.contains("__constant8")) {
-        things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None, b, b, NoAlignment)
+        things("__constant8") = InitializedArray("__constant8", None, List(LiteralExpression(8, 1)), declaredBank = None, b, b, readOnly = true, NoAlignment)
       }
       if (options.flag(CompilationFlag.SoftwareStack)) {
         if (!things.contains("__sp")) {
           things("__sp") = UninitializedMemoryVariable("__sp", b, VariableAllocationMethod.Auto, None, NoAlignment, isVolatile = false)
-          things("__stack") = UninitializedArray("__stack", 256, None, b, b, WithinPageAlignment)
+          things("__stack") = UninitializedArray("__stack", 256, None, b, b, readOnly = false, WithinPageAlignment)
         }
       }
     }

@@ -253,7 +253,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     })
 
     env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, _) =>
+      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, _, _) =>
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)
         var index = address.toInt
@@ -277,7 +277,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           }).mkString(", "))
         }
         initializedVariablesSize += items.length
-      case thing@InitializedArray(name, Some(_), items, _, _, _, _) => ???
+      case thing@InitializedArray(name, Some(_), items, _, _, _, _, _) => ???
       case f: NormalFunction if f.address.isDefined =>
         val bank = f.bank(options)
         val bank0 = mem.banks(bank)
@@ -357,7 +357,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       justAfterCode += "default" -> (index + 1)
     }
     env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-      case thing@InitializedArray(name, None, items, _, _, _, alignment) =>
+      case thing@InitializedArray(name, None, items, _, _, _, _, alignment) =>
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)
         var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
