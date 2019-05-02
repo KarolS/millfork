@@ -29,7 +29,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 
   def callingContext(ctx: CompilationContext, callee: String, v: VariableInMemory): CompilationContext = {
     val result = new Environment(Some(ctx.env), "", ctx.options.platform.cpuFamily, ctx.options)
-    val localName = v.name.stripPrefix(callee + '$')
+    val localName = v.name + "`aa"
     result.addVariable(ctx.options, localName, v, None)
     ctx.copy(env = result)
   }

@@ -214,6 +214,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  private def addThing(localName: String, t: Thing, position: Option[Position]): Unit = {
+    if (assertNotDefined(t.name, position)) {
+      things(localName) = t
+    }
+  }
+
   def getReturnedVariables(statements: Seq[Statement]): Set[String] = {
     statements.flatMap {
       case ReturnStatement(Some(VariableExpression(v))) => Set(v)
@@ -1499,19 +1505,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def addVariable(options: CompilationOptions, localName: String, variable: Variable, position: Option[Position]): Unit = {
     variable match {
       case v: StackVariable =>
-        addThing(v, position)
+        addThing(localName, v, position)
         for ((suffix, offset, t) <- getSubvariables(v.typ)) {
           addThing(StackVariable(prefix + localName + suffix, t, baseStackOffset + offset), position)
         }
       case v: MemoryVariable =>
-        addThing(v, position)
+        addThing(localName, v, position)
         for ((suffix, offset, t) <- getSubvariables(v.typ)) {
           val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
           addThing(subv, position)
           registerAddressConstant(subv, position, options, Some(t))
         }
       case v: VariableInMemory =>
-        addThing(v, position)
+        addThing(localName, v, position)
         addThing(ConstantThing(v.name + "`", v.toAddress, get[Type]("word")), position)
         for ((suffix, offset, t) <- getSubvariables(v.typ)) {
           val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)

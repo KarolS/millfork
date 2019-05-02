@@ -1404,7 +1404,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     params.zip(paramVars).flatMap {
                       case (paramExpr, paramVar) =>
                         val callCtx = callingContext(ctx, function.name, paramVar)
-                        compileAssignment(callCtx, paramExpr, VariableExpression(paramVar.name))
+                        compileAssignment(callCtx, paramExpr, VariableExpression(paramVar.name + "`aa"))
                     } ++ List(AssemblyLine.absoluteOrLongAbsolute(JSR, function, ctx.options))
                 }
                 result

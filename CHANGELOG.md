@@ -38,6 +38,8 @@
 
 * Fixed optimizations removing pointless stores to local variables.
 
+* Fixed name clashes when passing parameters to functions.
+
 * Fixed `#use` not accessing all preprocessor parameters.
 
 * Fixed `#pragma` not respecting `#if`.

@@ -975,11 +975,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                             val callCtx = callingContext(ctx, function.name, paramVar)
                             paramVar.typ.size match {
                               case 1 =>
-                                compileToA(ctx, paramExpr) ++ storeA(callCtx, VariableExpression(paramVar.name), paramVar.typ.isSigned)
+                                compileToA(ctx, paramExpr) ++ storeA(callCtx, VariableExpression(paramVar.name + "`aa"), paramVar.typ.isSigned)
                               case 2 =>
-                                compileToHL(ctx, paramExpr) ++ storeHL(callCtx, VariableExpression(paramVar.name), paramVar.typ.isSigned)
+                                compileToHL(ctx, paramExpr) ++ storeHL(callCtx, VariableExpression(paramVar.name + "`aa"), paramVar.typ.isSigned)
                               case _ =>
-                                storeLarge(callCtx, VariableExpression(paramVar.name), paramExpr)
+                                storeLarge(callCtx, VariableExpression(paramVar.name + "`aa"), paramExpr)
                             }
                         } ++ List(ZLine(CALL, NoRegisters, function.toAddress))
                     }
