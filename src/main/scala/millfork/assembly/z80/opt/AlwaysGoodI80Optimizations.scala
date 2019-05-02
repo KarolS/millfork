@@ -1007,6 +1007,21 @@ object AlwaysGoodI80Optimizations {
         ctx.get[List[ZLine]](4) ++
         ctx.get[List[ZLine]](7).map(x => x.copy(registers = x.registers.asInstanceOf[TwoRegisters].copy(source = DE)))
     },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(MEM_ABS_16, HL)) & MatchParameter(0)).captureLine(10) ~
+      (Linear & DoesntChangeMemoryAt(10) & Not(Concerns(HL))).*.capture(55) ~
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(HL, IMM_16)) & MatchParameter(0)) ~
+      (Elidable & HasOpcodeIn(Set(ADD,ADC,INC,DEC,SUB,SBC,AND,OR,XOR)) & HasRegisters(OneRegister(MEM_HL)) & DoesntMatterWhatItDoesWith(HL)).capture(11) ~~> { (code, ctx) =>
+      ctx.get[List[ZLine]](55) ++ ctx.get[List[ZLine]](11).map(_.copy(registers = OneRegister(L))) :+ code.head
+    },
+
+    (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(MEM_ABS_16, HL)) & MatchParameter(0)).captureLine(10) ~
+      (Linear & DoesntChangeMemoryAt(10) & Not(Concerns(HL))).*.capture(55) ~
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(HL, IMM_16)) & MatchParameter(1)) ~
+      Where(ctx => ctx.get[Constant](0).+(1).quickSimplify == ctx.get[Constant](1)) ~
+      (Elidable & HasOpcodeIn(Set(ADD,ADC,INC,DEC,SUB,SBC,AND,OR,XOR)) & HasRegisters(OneRegister(MEM_HL)) & DoesntMatterWhatItDoesWith(HL)).capture(11) ~~> { (code, ctx) =>
+      ctx.get[List[ZLine]](55) ++ ctx.get[List[ZLine]](11).map(_.copy(registers = OneRegister(H))) :+ code.head
+    },
   )
 
   val UnusedCodeRemoval = new RuleBasedAssemblyOptimization("Unreachable code removal",

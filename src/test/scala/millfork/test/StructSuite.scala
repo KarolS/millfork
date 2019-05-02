@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.EmuUnoptimizedCrossPlatformRun
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -81,6 +81,30 @@ class StructSuite extends FunSuite with Matchers {
         | }
       """.stripMargin) { m =>
       m.readWord(0xc000) should equal(0x201)
+    }
+  }
+
+  test("Optimize struct modifications") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+        | struct point { byte x, byte y }
+        | enum direction { none, right }
+        | direction last_direction @$c400
+        | noinline point move_right(point p) {
+        |   last_direction = right
+        |   p.x += 1
+        |   return p
+        | }
+        | byte output @$c000
+        | void main () {
+        |   point p
+        |   p.x = 1
+        |   p.y = 2
+        |   p = move_right(p)
+        |   output = p.x
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(2)
+      m.readByte(0xc400) should equal(1)
     }
   }
 }
