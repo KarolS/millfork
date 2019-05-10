@@ -1,6 +1,6 @@
 /**
   * Millfork
-  * Copyright (C) 2018
+  * Copyright (C) 2018-2019
   * @author Karol Stasiak
   *
   * This program is free software: you can redistribute it and/or modify
@@ -17,5 +17,5 @@
   * along with this program.  If not, see https://www.gnu.org/licenses/.
   */
 package object millfork {
-  val copyrightYears = "2018"
+  val copyrightYears = "2018-2019"
 }
