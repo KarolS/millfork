@@ -1,0 +1,43 @@
+[
+{
+  "name":"java.lang.String"
+},
+{
+  "name":"millfork.CompilationFlag$",
+  "allDeclaredFields":true,
+  "allPublicMethods":true
+},
+{
+  "name":"millfork.assembly.mos.Opcode$",
+  "allDeclaredFields":true,
+  "allPublicMethods":true
+},
+{
+  "name":"millfork.assembly.z80.ZOpcode$",
+  "allDeclaredFields":true,
+  "allPublicMethods":true
+},
+{
+  "name":"org.apache.commons.logging.LogFactory"
+},
+{
+  "name":"org.apache.commons.logging.impl.Jdk14Logger",
+  "methods":[{"name":"<init>","parameterTypes":["java.lang.String"] }]
+},
+{
+  "name":"org.apache.commons.logging.impl.LogFactoryImpl",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"org.apache.commons.logging.impl.WeakHashtable",
+  "methods":[{"name":"<init>","parameterTypes":[] }]
+},
+{
+  "name":"scala.Enumeration$Val",
+  "methods":[{"name":"id","parameterTypes":[] }]
+},
+{
+  "name":"sun.misc.Unsafe",
+  "fields":[{"name":"theUnsafe"}]
+}
+]
