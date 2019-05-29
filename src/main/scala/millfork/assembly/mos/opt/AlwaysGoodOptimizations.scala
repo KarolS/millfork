@@ -221,15 +221,15 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (HasOpcodeIn(STA, LDA, LAX) & HasAddrModeIn(ZeroPage, Absolute) & MatchAddrMode(9) & MatchParameter(0)) ~
       (Linear & DoesntChangeMemoryAt(9, 0) & Not(ChangesA)).* ~
-      (HasClear(State.D) & HasClear(State.C) & HasOpcode(ADC) & HasAddrModeIn(ZeroPage, Absolute) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.implied(ASL)),
+      (HasClear(State.D) & HasClear(State.C) & HasOpcode(ADC) & HasAddrModeIn(ZeroPage, Absolute) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.implied(ASL).pos(code.last.source)),
 
     (HasOpcodeIn(STA, LDA) & HasAddrMode(AbsoluteX) & MatchAddrMode(9) & MatchParameter(0)) ~
       (Linear & DoesntChangeMemoryAt(9, 0) & Not(ChangesA) & Not(ChangesX)).* ~
-      (HasClear(State.D) & HasClear(State.C) & HasOpcode(ADC) & HasAddrMode(AbsoluteX) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.implied(ASL)),
+      (HasClear(State.D) & HasClear(State.C) & HasOpcode(ADC) & HasAddrMode(AbsoluteX) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.implied(ASL).pos(code.last.source)),
 
     (HasOpcodeIn(STA, LDA, LAX) & HasAddrMode(AbsoluteY) & MatchAddrMode(9) & MatchParameter(0)) ~
       (Linear & DoesntChangeMemoryAt(9, 0) & Not(ChangesA) & Not(ChangesY)).* ~
-      (HasClear(State.D) & HasClear(State.C) & HasOpcode(ADC) & HasAddrMode(AbsoluteY) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.implied(ASL)),
+      (HasClear(State.D) & HasClear(State.C) & HasOpcode(ADC) & HasAddrMode(AbsoluteY) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.implied(ASL).pos(code.last.source)),
 
     (HasOpcodeIn(STA, LDA, LAX) & HasAddrModeIn(ZeroPage, Absolute) & MatchAddrMode(9) & MatchParameter(0)) ~
       (Linear & DoesntChangeMemoryAt(9, 0) & Not(ChangesA)).* ~
@@ -241,7 +241,7 @@ object AlwaysGoodOptimizations {
 
     (HasOpcodeIn(STA, LDA, LAX) & HasAddrModeIn(ZeroPage, Absolute) & MatchAddrMode(9) & MatchParameter(0)) ~
       (Linear & DoesntChangeMemoryAt(9, 0) & Not(ChangesA)).* ~
-      (HasOpcode(EOR) & HasAddrModeIn(ZeroPage, Absolute) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.immediate(LDA, 0)),
+      (HasOpcode(EOR) & HasAddrModeIn(ZeroPage, Absolute) & MatchParameter(0) & Elidable) ~~> (code => code.init :+ AssemblyLine.immediate(LDA, 0).pos(code.last.source)),
   )
 
   val PoinlessStoreBeforeStore = new RuleBasedAssemblyOptimization("Pointless store before store",
