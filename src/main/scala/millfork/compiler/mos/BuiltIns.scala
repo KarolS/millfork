@@ -469,7 +469,7 @@ object BuiltIns {
           simpleOperation(cmpOp, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
       }
     }
-    val secondParamCompiled = if(cmpOp == SBC && !comparingAgainstZero) AssemblyLine.implied(SEC) :: secondParamCompiled0 else secondParamCompiled0
+    var secondParamCompiled = if(cmpOp == SBC && !comparingAgainstZero) AssemblyLine.implied(SEC) :: secondParamCompiled0 else secondParamCompiled0
     val (effectiveComparisonType, label) = branches match {
       case NoBranching => return Nil
       case BranchIfTrue(l) => compType -> l
@@ -523,32 +523,61 @@ object BuiltIns {
 
       case ComparisonType.LessSigned =>
         if (comparingAgainstZero) List(AssemblyLine.relative(BMI, label)) else {
-          val fixup = ctx.nextLabel("co")
-          List(
-            AssemblyLine.relative(BVC, fixup),
-            AssemblyLine.immediate(EOR, 0x80),
-            AssemblyLine.label(fixup),
-            AssemblyLine.relative(BMI, label))
+          maybeConstant match {
+            case Some(NumericConstant(n@(1 | 2 | 4 | 8 | 16 | 32 | 64), _)) =>
+              secondParamCompiled = Nil
+              List(
+                AssemblyLine.immediate(AND, 255 ^ (n - 1)),
+                AssemblyLine.relative(BEQ, label),
+                AssemblyLine.relative(BMI, label))
+            case _ =>
+              val fixup = ctx.nextLabel("co")
+              List(
+                AssemblyLine.relative(BVC, fixup),
+                AssemblyLine.immediate(EOR, 0x80),
+                AssemblyLine.label(fixup),
+                AssemblyLine.relative(BMI, label))
+          }
         }
       case ComparisonType.GreaterOrEqualSigned =>
         if (comparingAgainstZero) List(AssemblyLine.relative(BPL, label)) else {
-          val fixup = ctx.nextLabel("co")
-          List(
-            AssemblyLine.relative(BVC, fixup),
-            AssemblyLine.immediate(EOR, 0x80),
-            AssemblyLine.label(fixup), AssemblyLine.relative(BPL, label))
+          maybeConstant match {
+            case Some(NumericConstant(n@(1 | 2 | 4 | 8 | 16 | 32 | 64), _)) =>
+              secondParamCompiled = Nil
+              val x = ctx.nextLabel("co")
+              List(
+                AssemblyLine.immediate(AND, 255 ^ (n - 1)),
+                AssemblyLine.relative(BEQ, x),
+                AssemblyLine.relative(BPL, label),
+                AssemblyLine.label(x))
+            case _ =>
+              val fixup = ctx.nextLabel("co")
+              List(
+                AssemblyLine.relative(BVC, fixup),
+                AssemblyLine.immediate(EOR, 0x80),
+                AssemblyLine.label(fixup), AssemblyLine.relative(BPL, label))
+          }
         }
       case ComparisonType.LessOrEqualSigned =>
         if (comparingAgainstZero) {
           List(AssemblyLine.relative(BEQ, label),
             AssemblyLine.relative(BMI, label))
         } else {
-          val fixup = ctx.nextLabel("co")
-          List(AssemblyLine.relative(BVC, fixup),
-            AssemblyLine.immediate(EOR, 0x80),
-            AssemblyLine.label(fixup),
-            AssemblyLine.relative(BMI, label),
-            AssemblyLine.relative(BEQ, label))
+          maybeConstant match {
+            case Some(NumericConstant(n@(0 | 1 | 3 | 7 | 15 | 31 | 63), _)) =>
+              secondParamCompiled = Nil
+              List(
+                AssemblyLine.immediate(AND, 255 ^ n),
+                AssemblyLine.relative(BEQ, label),
+                AssemblyLine.relative(BMI, label))
+            case _ =>
+              val fixup = ctx.nextLabel("co")
+              List(AssemblyLine.relative(BVC, fixup),
+                AssemblyLine.immediate(EOR, 0x80),
+                AssemblyLine.label(fixup),
+                AssemblyLine.relative(BMI, label),
+                AssemblyLine.relative(BEQ, label))
+          }
         }
       case ComparisonType.GreaterSigned =>
         if (comparingAgainstZero) {
@@ -557,15 +586,26 @@ object BuiltIns {
             AssemblyLine.relative(BPL, label),
             AssemblyLine.label(x))
         } else {
-          val fixup = ctx.nextLabel("co")
-          val x = ctx.nextLabel("co")
-          List(
-            AssemblyLine.relative(BVC, fixup),
-            AssemblyLine.immediate(EOR, 0x80),
-            AssemblyLine.label(fixup),
-            AssemblyLine.relative(BEQ, x),
-            AssemblyLine.relative(BPL, label),
-            AssemblyLine.label(x))
+          maybeConstant match {
+            case Some(NumericConstant(n@(0 | 1 | 3 | 7 | 15 | 31 | 63), _)) =>
+              secondParamCompiled = Nil
+              val x = ctx.nextLabel("co")
+              List(
+                AssemblyLine.immediate(AND, 255 ^ n),
+                AssemblyLine.relative(BEQ, x),
+                AssemblyLine.relative(BPL, label),
+                AssemblyLine.label(x))
+            case _ =>
+              val fixup = ctx.nextLabel("co")
+              val x = ctx.nextLabel("co")
+              List(
+                AssemblyLine.relative(BVC, fixup),
+                AssemblyLine.immediate(EOR, 0x80),
+                AssemblyLine.label(fixup),
+                AssemblyLine.relative(BEQ, x),
+                AssemblyLine.relative(BPL, label),
+                AssemblyLine.label(x))
+          }
         }
     }
     firstParamCompiled ++ secondParamCompiled ++ branchingCompiled
