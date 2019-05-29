@@ -35,6 +35,14 @@ object ComparisonType extends Enumeration {
     case NotEqual => Equal
   }
 
+  def toUnsigned(x: ComparisonType.Value): ComparisonType.Value = x match {
+    case LessSigned => LessUnsigned
+    case GreaterSigned => GreaterUnsigned
+    case LessOrEqualSigned => LessOrEqualUnsigned
+    case GreaterOrEqualSigned => GreaterOrEqualUnsigned
+    case x => x
+  }
+
   def isSigned(x: ComparisonType.Value): Boolean = x match {
     case LessSigned => true
     case GreaterSigned => true

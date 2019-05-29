@@ -233,9 +233,6 @@ class ComparisonSuite extends FunSuite with Matchers {
   }
 
   test("Signed comparison with overflow") {
-    // These examples require a CPU with an overflow flag.
-    // Good: 6502, Z80
-    // Bad: 8080, LR35902
     val src =
       """
         | byte output @$c000
@@ -266,7 +263,7 @@ class ComparisonSuite extends FunSuite with Matchers {
         |  if c > -1 { output += 1 }
         | }
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(src)(_.readByte(0xc000) should equal(src.count(_ == '+')))
   }
 
   test("Signed comparison < and <=") {
@@ -455,6 +452,42 @@ class ComparisonSuite extends FunSuite with Matchers {
         |   }
         | }
         | noinline void barrier() {}
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(11)
+    }
+  }
+
+  test("Signed compare to 0") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output @$c000
+        | void main() {
+        |   stuff(0)
+        | }
+        | noinline void stuff (sbyte x) {
+        |   if x >= 0 {
+        |     output = 11
+        |   }
+        | }
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(11)
+    }
+  }
+
+  test("Signed compare to 1") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | byte output @$c000
+        | void main() {
+        |   stuff(2)
+        | }
+        | noinline void stuff (sbyte x) {
+        |   if x > 1 {
+        |     output = 11
+        |   }
+        | }
       """.stripMargin
     ) { m =>
       m.readByte(0xc000) should equal(11)

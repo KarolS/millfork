@@ -4,7 +4,7 @@ import millfork.CompilationFlag
 import millfork.assembly.z80._
 import millfork.compiler.{ComparisonType, _}
 import millfork.env.NumericConstant
-import millfork.node.{Expression, ZRegister}
+import millfork.node.{Expression, FunctionCallExpression, LiteralExpression, ZRegister}
 
 /**
   * @author Karol Stasiak
@@ -15,6 +15,12 @@ object Z80Comparisons {
 
   def compile8BitComparison(ctx: CompilationContext, compType: ComparisonType.Value, l: Expression, r: Expression, branches: BranchSpec): List[ZLine] = {
     handleConstantComparison(ctx, compType, l, r, branches).foreach(return _)
+    if (ComparisonType.isSigned(compType) && !ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+      return compile8BitComparison(ctx, ComparisonType.toUnsigned(compType),
+        FunctionCallExpression("^", List(l, LiteralExpression(0x80, 1).pos(l.position))).pos(l.position),
+        FunctionCallExpression("^", List(r, LiteralExpression(0x80, 1).pos(r.position))).pos(r.position),
+        branches)
+    }
     compType match {
       case GreaterUnsigned | LessOrEqualUnsigned | GreaterSigned | LessOrEqualSigned =>
         return compile8BitComparison(ctx, ComparisonType.flip(compType), r, l, branches)
@@ -30,7 +36,7 @@ object Z80Comparisons {
         ZLine.jump(fixup, IfFlagClear(ZFlag.P)),
         ZLine.imm8(ZOpcode.XOR, 0x80),
         ZLine.label(fixup))
-    } else if (ComparisonType.isSigned(compType) && !ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
+    } else if (ComparisonType.isSigned(compType) && !ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
       List(ZLine.register(ZOpcode.SUB, ZRegister.E))
     } else List(ZLine.register(ZOpcode.CP, ZRegister.E))
     if (branches == NoBranching) return prepareAE ++ calculateFlags

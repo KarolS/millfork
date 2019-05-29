@@ -365,6 +365,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
         }
       case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
         var size = ls max rs
+        val bitmask = (1L << (8*size)) - 1
         val value = operator match {
           case MathOperator.Plus => lv + rv
           case MathOperator.Minus => lv - rv
@@ -374,9 +375,9 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Shl9 => (lv << rv) & 0x1ff
           case MathOperator.Plus9 => (lv + rv) & 0x1ff
           case MathOperator.Shr9 => (lv & 0x1ff) >> rv
-          case MathOperator.Exor => lv ^ rv
+          case MathOperator.Exor => (lv ^ rv) & bitmask
           case MathOperator.Or => lv | rv
-          case MathOperator.And => lv & rv
+          case MathOperator.And => lv & rv & bitmask
           case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
             asDecimal(lv & 0xff, rv & 0xff, _ + _) & 0xff
           case MathOperator.DecimalMinus if ls == 1 && rs == 1 && lv.&(0xff) >= rv.&(0xff) =>
