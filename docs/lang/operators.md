@@ -160,9 +160,6 @@ Currently, `>`, `<`, `<=`, `>=` operators perform signed comparison
 if any of the types of their arguments is signed,
 and unsigned comparison otherwise.  
 
-**WARNING:** On targets using Intel 8080 and Sharp LR35902, a signed comparison `a OP b` is compiled as `a - b OP 0`,
-which may give wrong results if the subtraction overflows.
-
 ## Assignment and in-place modification operators
 
 **WARNING:** Unlike other languages, Millfork does not provide any guarantees about how many times the left hand side will be evaluated. 
