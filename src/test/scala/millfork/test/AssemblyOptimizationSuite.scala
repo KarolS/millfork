@@ -656,4 +656,39 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Not using X") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+      """
+        | word output @$c000
+        | inline word w() = 300
+        |
+        | void main() {
+        |    output = w()
+        | }
+      """.stripMargin
+    ) { m =>
+      m.readWord(0xc000) should equal(300)
+    }
+  }
+
+  test("Some stuff") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+      """
+        | array output[256] @ $c000
+        | void main() {
+        |   byte i
+        |   static byte a
+        |   static byte b
+        |   for i,0,until,200 {
+        |     a = i + 1
+        |     b = i + 1
+        |     output[nonet(a+b)>>>>1] = 3
+        |   }
+        | }
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc001) should equal(3)
+    }
+  }
+
 }

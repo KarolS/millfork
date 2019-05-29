@@ -326,6 +326,17 @@ object LaterOptimizations {
     incDecThroughIndexRegister(2, dec = false, carrySet = true, useX = false),
     incDecThroughIndexRegister(2, dec = true, carrySet = true, useX = true),
     incDecThroughIndexRegister(2, dec = true, carrySet = true, useX = false),
+
+    (Elidable & HasOpcode(TYA) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z, State.V)) ~~> { code =>
+      AssemblyLine.implied(INY).pos(code(2).source) :: code.head :: AssemblyLine.implied(DEY).pos(code(2).source) :: code.drop(3)
+    },
+    (Elidable & HasOpcode(TXA) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Z, State.V)) ~~> { code =>
+      AssemblyLine.implied(INX).pos(code(2).source) :: code.head :: AssemblyLine.implied(DEX).pos(code(2).source) :: code.drop(3)
+    },
   )
 
   val LoadingBranchesOptimization = new RuleBasedAssemblyOptimization("Loading branches optimization",
@@ -545,7 +556,49 @@ object LaterOptimizations {
     },
   )
 
+  val DontUseIndexRegisters = new RuleBasedAssemblyOptimization("Don't use index registers unnecessarily",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+
+    (Elidable & HasOpcode(LDX) & Not(HasAddrMode(ZeroPageY)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & Linear & Not(ConcernsX) & DoesntChangeMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).*.captureLength(2) ~
+      (Elidable & HasOpcode(STX) & Not(HasAddrMode(ZeroPageY)) & DoesntMatterWhatItDoesWith(State.A, State.X)) ~~> { (code, ctx) =>
+      val length = ctx.get[Int](2)
+      code.tail.take(length) ++ (code(0).copy(opcode = LDA) :: code(length + 1).copy(opcode = STA) :: code.drop(length + 2))
+    },
+    (Elidable & HasOpcode(LDY) & Not(HasAddrMode(ZeroPageY)) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & Linear & Not(ConcernsY) & DoesntChangeMemoryAt(0, 1) & DoesntChangeIndexingInAddrMode(0)).*.captureLength(2) ~
+      (Elidable & HasOpcode(STY) & DoesntMatterWhatItDoesWith(State.A, State.Y)) ~~> { (code, ctx) =>
+      val length = ctx.get[Int](2)
+      code.tail.take(length) ++ (code(0).copy(opcode = LDA) :: code(length + 1).copy(opcode = STA) :: code.drop(length + 2))
+    },
+
+    (Elidable & HasOpcode(LAX) & Not(HasAddrMode(ZeroPageY)) & MatchAddrMode(0) & MatchParameter(0)) ~
+      (Elidable & Linear & Not(ConcernsX) & Not(ChangesA)).*.captureLength(2) ~
+      (Elidable & HasOpcode(STX) & Not(HasAddrMode(ZeroPageY)) & DoesntMatterWhatItDoesWith(State.X)) ~~> { (code, ctx) =>
+      val length = ctx.get[Int](2)
+      (code(0).copy(opcode = LDA) :: code.tail.take(length)) ++ (code(length + 1).copy(opcode = STA) :: code.drop(length + 2))
+    },
+
+    (HasOpcode(TXA) ~
+      (Linear & Not(ChangesA) & Not(ChangesX) & Not(HasOpcode(TAY))).*).capture(0) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ChangesX) & Not(ConcernsY)).*.capture(1) ~
+      (Elidable & SupportsAbsoluteX & HasAddrMode(AbsoluteY) & DoesntMatterWhatItDoesWith(State.Y)).capture(2) ~~> { (code, ctx) =>
+      ctx.get[List[AssemblyLine]](0) ++ ctx.get[List[AssemblyLine]](1) ++ ctx.get[List[AssemblyLine]](2).map(_.copy(addrMode = AbsoluteX))
+    },
+
+    (HasOpcode(TYA) ~
+      (Linear & Not(ChangesA) & Not(ChangesY) & Not(HasOpcode(TAX))).*).capture(0) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ChangesY) & Not(ConcernsX)).*.capture(1) ~
+      (Elidable & SupportsAbsoluteY & HasAddrMode(AbsoluteX) & DoesntMatterWhatItDoesWith(State.X)).capture(2) ~~> { (code, ctx) =>
+      ctx.get[List[AssemblyLine]](0) ++ ctx.get[List[AssemblyLine]](1) ++ ctx.get[List[AssemblyLine]](2).map(_.copy(addrMode = AbsoluteY))
+    },
+
+  )
+
   val All = List(
+    DontUseIndexRegisters,
     DoubleLoadToDifferentRegisters,
     DoubleLoadToTheSameRegister,
     IndexSwitchingOptimization,

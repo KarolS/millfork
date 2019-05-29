@@ -165,6 +165,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.AlwaysTakenJumpRemoval,
     AlwaysGoodOptimizations.UnusedLabelRemoval,
 
+    LaterOptimizations.DontUseIndexRegisters,
     LaterOptimizations.UseXInsteadOfStack,
     LaterOptimizations.UseYInsteadOfStack,
     LaterOptimizations.IndexSwitchingOptimization,
@@ -273,6 +274,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessOperationFromFlow,
     AlwaysGoodOptimizations.ReverseFlowAnalysis,
     AlwaysGoodOptimizations.SimplifiableCondition,
+    LaterOptimizations.DontUseIndexRegisters,
     VariableToRegisterOptimization,
     TwoVariablesToIndexRegistersOptimization,
     AlwaysGoodOptimizations.PointlessLoadAfterLoadOrStore,
