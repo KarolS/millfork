@@ -140,6 +140,10 @@ class IllegalSuite extends FunSuite with Matchers {
         |   byte c
         |   b = five(a)
         |   c = five(a)
+        |   asm {
+        |     iny
+        |     inx
+        |   }
         |   a = c
         |   five(a)
         |   c = a & b
@@ -156,9 +160,9 @@ class IllegalSuite extends FunSuite with Matchers {
     val m = EmuUndocumentedRun("""
         | word output @$c000
         | void main () {
-        |   output = five(5)
+        |   output = five(0, 5)
         | }
-        | word five (byte a) {
+        | word five (byte dummy, byte a) {
         |   return a:a
         | }
       """.stripMargin)
@@ -169,9 +173,9 @@ class IllegalSuite extends FunSuite with Matchers {
     val m = EmuUndocumentedRun("""
         | byte output @$c000
         | void main () {
-        |   output = five(1)
+        |   output = five(0, 1)
         | }
-        | byte five (byte a) {
+        | byte five (byte dummy, byte a) {
         |   byte b
         |   b = a
         |   a += 4

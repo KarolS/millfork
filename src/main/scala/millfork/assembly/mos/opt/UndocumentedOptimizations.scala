@@ -89,6 +89,11 @@ object UndocumentedOptimizations {
       val fragment2 = sax :: ctx.get[List[AssemblyLine]](12)
       List(fragment0, fragment1, fragment2).flatten
     },
+    (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(AND)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(SaxModes) & DoesntMatterWhatItDoesWith(State.A, State.Z, State.N)) ~~> { code =>
+      code(1).copy(opcode = LDA) :: code(2).copy(opcode = SAX) :: code.drop(3)
+    },
   )
 
   def andConstant(const: Constant, mask: Int): Option[Long] = const match {
