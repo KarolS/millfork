@@ -572,7 +572,7 @@ object LaterOptimizations {
       code.tail.take(length) ++ (code(0).copy(opcode = LDA) :: code(length + 1).copy(opcode = STA) :: code.drop(length + 2))
     },
 
-    (Elidable & HasOpcode(LAX) & Not(HasAddrMode(ZeroPageY)) & MatchAddrMode(0) & MatchParameter(0)) ~
+    (Elidable & HasOpcode(LAX) & Not(HasAddrMode(ZeroPageY))) ~
       (Elidable & Linear & Not(ConcernsX) & Not(ChangesA)).*.captureLength(2) ~
       (Elidable & HasOpcode(STX) & Not(HasAddrMode(ZeroPageY)) & DoesntMatterWhatItDoesWith(State.X)) ~~> { (code, ctx) =>
       val length = ctx.get[Int](2)
