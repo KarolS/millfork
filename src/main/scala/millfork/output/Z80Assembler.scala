@@ -61,6 +61,8 @@ class Z80Assembler(program: Program,
 
     def requireEZ80(): Unit = if (!options.flag(EmitEZ80Opcodes)) log.error("Unsupported instruction: " + instr)
 
+    def requireIntel8085(): Unit = if (!options.flag(EmitIntel8085Opcodes)) log.error("Unsupported instruction: " + instr)
+
     def useSharpOpcodes():Boolean = {
       if (!options.flag(EmitSharpOpcodes) && !options.flag(EmitIntel8080Opcodes))
         log.error("Cannot determine which variant to emit : " + instr)
@@ -78,6 +80,14 @@ class Z80Assembler(program: Program,
         index
       case ZLine0(LABEL | BYTE | DISCARD_F | DISCARD_HL | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_A | CHANGED_MEM, _, _) =>
         ???
+      case ZLine0(RIM, NoRegisters, _) =>
+        requireIntel8085()
+        writeByte(bank, index, 0x20)
+        index + 1
+      case ZLine0(SIM, NoRegisters, _) =>
+        requireIntel8085()
+        writeByte(bank, index, 0x30)
+        index + 1
       case ZLine0(RST, NoRegisters, param) =>
         val opcode = param.quickSimplify match {
           case NumericConstant(n, _) if n >=0 && n <= 0x38 && n % 8 == 0 => 0xc7 + n.toInt

@@ -44,11 +44,11 @@ If given, then the compiler will NOT try to detect the default include directory
 * `-finput_intel_syntax`, `-finput_zilog_syntax` –
 Choose syntax for assembly sources on 8080-like targets.
 Can be overridden by the source file itself using `#pragma`.
-`.ini` equivalent: `input_intel_syntax`. Default: Intel (true) on Intel 8080, Zilog (false) otherwise.
+`.ini` equivalent: `input_intel_syntax`. Default: Intel (true) on Intel 8080/8085, Zilog (false) otherwise.
 
 * `-foutput_intel_syntax`, `-foutput_zilog_syntax` –
 Choose syntax for assembly output on 8080-like targets.
-`.ini` equivalent: `output_intel_syntax`. Default: Intel (true) on Intel 8080, Zilog (false) otherwise.
+`.ini` equivalent: `output_intel_syntax`. Default: Intel (true) on Intel 8080/8085, Zilog (false) otherwise.
 
 * `--syntax=intel`, `--syntax=zilog` – sets both previous options at once
 

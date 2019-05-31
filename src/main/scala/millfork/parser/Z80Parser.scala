@@ -230,6 +230,8 @@ case class Z80Parser(filename: String,
         case "HLT" => imm(HALT)
         case "HALT" => imm(HALT)
         case "STOP" => imm(STOP)
+        case "RIM" => imm(RIM)
+        case "SIM" => imm(SIM)
 
         case "RETN" => imm(RETN)
         case "RETI" => imm(RETI)
@@ -449,6 +451,8 @@ case class Z80Parser(filename: String,
         case "CMA" => imm(CPL)
         case "STC" => imm(SCF)
         case "CMC" => imm(CCF)
+        case "RIM" => imm(RIM)
+        case "SIM" => imm(SIM)
 
         case "HLT" => imm(HALT)
         case "EI" => imm(EI)

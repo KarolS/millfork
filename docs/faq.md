@@ -26,7 +26,7 @@ Support for other devices using supported processors can be easily added, usuall
 
 * 6502 and its descendants: 6510, 65C02, Ricoh 2A03, and to a lesser degree CSG 65CE02, Hudson Soft HuC6280 and WDC 65816. 6509 is not supported and will not be.
 
-* Intel 8080, Zilog Z80, Sharp LR35902 (also known as GBZ80)
+* Intel 8080, Intel 8085, Zilog Z80, Sharp LR35902 (also known as GBZ80)
 
 * There is also partial experimental support for Intel 8086, via automatic 8080-to-8086 translation.
 The generated code is very large and very slow.

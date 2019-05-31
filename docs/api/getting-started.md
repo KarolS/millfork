@@ -44,7 +44,7 @@ You may be also interested in the following:
 * `-fipo` – enable interprocedural optimization
 
 * `-s` – additionally generate assembly output
-(if targeting Intel 8080, use `--syntax=intel` or `--syntax=zilog` to choose the preferred assembly syntax)
+(if targeting Intel 8080/8085, use `--syntax=intel` or `--syntax=zilog` to choose the preferred assembly syntax)
 
 * `-fsource-in-asm` – show original Millfork source in the assembly output
 

@@ -258,7 +258,7 @@ object Main {
       case 0 => Nil
       case _ => platform.cpu match {
         case Cpu.Z80 | Cpu.EZ80 => Z80OptimizationPresets.GoodForZ80
-        case Cpu.Intel8080 => Z80OptimizationPresets.GoodForIntel8080
+        case Cpu.Intel8080 | Cpu.Intel8085 => Z80OptimizationPresets.GoodForIntel8080
         case Cpu.Sharp => Z80OptimizationPresets.GoodForSharp
         case _ => Nil
       }

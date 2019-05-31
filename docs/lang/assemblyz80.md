@@ -10,7 +10,7 @@ There are two ways to include raw assembly code in your Millfork programs:
 
 ## Assembly syntax
 
-By default, Millfork uses Zilog syntax for Z80 and LR35902 assembly and Intel syntax for Intel 8080 assembly.
+By default, Millfork uses Zilog syntax for Z80 and LR35902 assembly and Intel syntax for Intel 8080/8085 assembly.
 This can be overridden per file by a pragma directive or by several other means.
 Using both kinds of syntax in one file is not supported.
 

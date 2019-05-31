@@ -459,6 +459,10 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butReadsRegister(ZRegister.A).copy(cf = Important, hf = Unimportant, nf = Unimportant)
           case ZLine0(SCF, _, _) =>
             currentImportance = currentImportance.copy(cf = Unimportant, hf = Unimportant, nf = Unimportant)
+          case ZLine0(RIM, _, _) =>
+            currentImportance = currentImportance.copy(a = Unimportant)
+          case ZLine0(SIM, _, _) =>
+            currentImportance = currentImportance.copy(a = Important)
           case _ =>
             currentImportance = finalImportance // TODO
         }

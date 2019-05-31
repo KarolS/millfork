@@ -10,7 +10,7 @@ import millfork.DecimalUtils._
 import millfork.error.FatalErrorReporting
 
 /**
-  * Optimizations valid for Intel8080, Z80, EZ80 and Sharp
+  * Optimizations valid for Intel8080, Intel8085, Z80, EZ80 and Sharp
   * @author Karol Stasiak
   */
 object AlwaysGoodI80Optimizations {

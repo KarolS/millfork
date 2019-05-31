@@ -27,11 +27,13 @@ if a line ends with a backslash character, the value continues to the next line.
     
     * `65816` (WDC 65816/65802; experimental; currently only programs that use only 16-bit addressing are supported)
     
-    * `z80` (Zilog Z80; experimental and slightly incomplete)
+    * `z80` (Zilog Z80)
     
-    * `i8080` (Intel 8080; experimental, buggy and very incomplete)
+    * `i8080` (Intel 8080)
     
-    * `gameboy` (Sharp LR35902; experimental, buggy and very incomplete)
+    * `i8085` (Intel 8085)
+    
+    * `gameboy` (Sharp LR35902; experimental)
     
     * `i8086` (Intel 8086; very experimental, very buggy and very, very incomplete –
     see the [8086 support disclaimer](../lang/x86disclaimer.md))
@@ -94,7 +96,7 @@ Default: the same as `encoding`.
     
     * `software_stach` – use software stack for stack variables, default is `false`
     
-    * `output_intel_syntax` – use Intel syntax instead of Zilog syntax, default is `true` for Intel 8080 and `false` otherwise
+    * `output_intel_syntax` – use Intel syntax instead of Zilog syntax, default is `true` for Intel 8080/8085 and `false` otherwise
 
 
 #### `[define]` section

@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedIntel8080Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80Run}
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedIntel8080Run, EmuUnoptimizedIntel8085Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80Run}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -896,6 +896,34 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   ldh (9),a
         |   ldh a,(c)
         |   ldh (c),a
+        |   ret
+        | }
+      """.stripMargin)
+  }
+
+
+  test("Intel 8085 instructions (Zilog syntax)") {
+    EmuUnoptimizedIntel8085Run(
+      """
+        | #pragma zilog_syntax
+        | asm void main () {
+        |   ret
+        |   rim
+        |   sim
+        |   ret
+        | }
+      """.stripMargin)
+  }
+
+
+  test("Intel 8085 instructions (Intel syntax)") {
+    EmuUnoptimizedIntel8085Run(
+      """
+        | #pragma intelg_syntax
+        | asm void main () {
+        |   ret
+        |   rim
+        |   sim
         |   ret
         | }
       """.stripMargin)

@@ -67,7 +67,7 @@ object CoarseFlowAnalyzer {
               )
             }
 
-          case ZLine0(NOP | DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_HL | DISCARD_F, _, _) =>
+          case ZLine0(NOP | DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_HL | DISCARD_F | SIM, _, _) =>
             ()
           case ZLine0(PUSH, _, _) =>
             ()
@@ -287,6 +287,8 @@ object CoarseFlowAnalyzer {
               pf = AnyStatus,
               nf = Status.SingleFalse)
 
+          case ZLine0(RIM, _, _) =>
+            currentStatus = currentStatus.copy(a = AnyStatus)
 
           case ZLine0(opcode, registers, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
