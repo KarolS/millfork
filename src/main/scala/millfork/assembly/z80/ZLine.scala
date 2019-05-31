@@ -570,7 +570,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case IN_IMM => s"    IN ${parameter.toIntelString}"
       case OUT_IMM => s"    OUT ${parameter.toIntelString}"
       case EI => "    EI"
-      case DI => "    EI"
+      case DI => "    DI"
       case EX_DE_HL => "    XCHG"
       case NOP => "    NOP"
       case CPL => "    CMA"
