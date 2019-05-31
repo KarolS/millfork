@@ -113,7 +113,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
       val toRemove = allAffectedFunctions.map(_ -> mutable.Set[Int]()).toMap
       val toReplace = allAffectedFunctions.map(_ -> mutable.Map[Int, String]()).toMap
       if (options.log.traceEnabled){
-        options.log.debug(s"Extracted ${best._2.size} common code subroutines from ${allAffectedFunctions.size} functions, saving $best._1 bytes")
+        options.log.debug(s"Extracted ${best._2.size} common code subroutines from ${allAffectedFunctions.size} functions, saving ${best._1} bytes")
       }
       for((code, instances) <- best._2) {
         val newName = env.nextLabel("xc")
