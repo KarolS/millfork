@@ -4,8 +4,9 @@
 import stdlib_6502
 #elseif ARCH_I80
 import stdlib_i80
-#else
-#warn Unsupported architecture
+#elseif ARCH_X86
+#warn 8086 is a partially supported architecture
+import stdlib_i80
 #endif
 
 #if PAL && NTSC

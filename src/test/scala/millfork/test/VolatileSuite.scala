@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class VolatileSuite extends FunSuite with Matchers {
 
   test("Basic volatile test") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         | word addr @$c000
         | volatile byte output @$c0ea

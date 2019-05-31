@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class EnumSuite extends FunSuite with Matchers {
 
   test("Enum basic test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | enum ugly {
         |   a
@@ -40,7 +40,7 @@ class EnumSuite extends FunSuite with Matchers {
   }
 
   test("Enum arrays") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | enum ugly {
         |   a
@@ -67,7 +67,7 @@ class EnumSuite extends FunSuite with Matchers {
   }
 
   test("Loops over enums") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | enum ugly {
         |   a

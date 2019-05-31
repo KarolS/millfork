@@ -63,6 +63,9 @@ this makes stack-allocated variables independent from other stack operations
 and allows for optimizing them by inlining them into registers
 (this can be disabled, so the 8080 method is used, or switched to use IY instead)
 
+* on 8086, the BP register is used as the base pointer, behaving similarly to the IX register on Z80
+(this can be disabled, so the 8080 method is used, with the target address register being BX instead of HL)
+
 ## Automatic variables
 
 Automatic variables have lifetime starting with the beginning of the function they're in 

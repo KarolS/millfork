@@ -71,6 +71,8 @@ object EmuSizeOptimizedZ80Run extends EmuZ80Run(Cpu.Z80, OptimizationPresets.Nod
 
 object EmuOptimizedIntel8080Run extends EmuZ80Run(Cpu.Intel8080, OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForIntel8080)
 
+object EmuOptimizedIntel8086Run extends EmuI86Run(OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForIntel8080)
+
 object EmuSizeOptimizedIntel8080Run extends EmuZ80Run(Cpu.Intel8080, OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForIntel8080) {
   override def optimizeForSize = true
 }

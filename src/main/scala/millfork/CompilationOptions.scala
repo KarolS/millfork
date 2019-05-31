@@ -37,9 +37,12 @@ case class CompilationOptions(platform: Platform,
       EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
       PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, LUnixRelocatableCode, RorWarning, SoftwareStack)
 
+    if (CpuFamily.forType(platform.cpu) != CpuFamily.I80 && CpuFamily.forType(platform.cpu) != CpuFamily.I86) invalids ++= Set(
+      EmitIntel8080Opcodes, UseIxForStack, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
+
     if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(
-      EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitIntel8080Opcodes, EmitEZ80Opcodes,
-      UseIxForStack, UseIyForStack, UseShadowRegistersForInterrupts, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
+      EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitEZ80Opcodes,
+      UseIyForStack, UseShadowRegistersForInterrupts)
 
     invalids = invalids.filter(flags)
 
@@ -162,6 +165,10 @@ case class CompilationOptions(platform: Platform,
             log.error("Intel 8080 opcodes enabled for architecture that doesn't support them")
           }
         }
+      case CpuFamily.I86 =>
+        if (flags(EmitIllegals)) {
+          log.error("Illegal opcodes enabled for architecture that doesn't support them")
+        }
     }
   }
 
@@ -221,13 +228,14 @@ object CpuFamily extends Enumeration {
     cpu match {
       case Mos | StrictMos | Ricoh | StrictRicoh | Cmos | HuC6280 | CE02 | Sixteen => M6502
       case Intel8080 | Sharp | Z80 | EZ80 => I80
+      case Intel8086 => I86
     }
   }
 }
 
 object Cpu extends Enumeration {
 
-  val Mos, StrictMos, Ricoh, StrictRicoh, Cmos, HuC6280, CE02, Sixteen, Intel8080, Z80, EZ80, Sharp = Value
+  val Mos, StrictMos, Ricoh, StrictRicoh, Cmos, HuC6280, CE02, Sixteen, Intel8080, Z80, EZ80, Sharp, Intel8086, Intel80186 = Value
 
   val CmosCompatible = Set(Cmos, HuC6280, CE02, Sixteen)
 
@@ -266,6 +274,8 @@ object Cpu extends Enumeration {
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts, EmitEZ80Opcodes)
     case Sharp =>
       i80AlwaysDefaultFlags ++ Set(EmitExtended80Opcodes, EmitSharpOpcodes)
+    case Intel8086 | Intel80186 =>
+      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, UseIxForStack)
   }
 
   def fromString(name: String)(implicit log: Logger): Cpu.Value = name match {
@@ -305,6 +315,15 @@ object Cpu extends Enumeration {
     case "8080" => Intel8080
     case "i8080" => Intel8080
     case "intel8080" => Intel8080
+    case "intel8086" => Intel8086
+    case "i8086" => Intel8086
+    case "8086" => Intel8086
+    case "intel80186" => Intel80186
+    case "i80186" => Intel80186
+    case "80186" => Intel80186
+    case "intel80286" => Intel80186
+    case "i80286" => Intel80186
+    case "80286" => Intel80186
     case _ => log.fatal("Unknown CPU achitecture: " + name)
   }
 

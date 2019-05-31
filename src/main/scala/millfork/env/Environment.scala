@@ -30,6 +30,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   private var baseStackOffset: Int = cpuFamily match {
     case CpuFamily.M6502 => 0x101
     case CpuFamily.I80 => 0
+    case CpuFamily.I86 => 0
   }
 
   def errorConstant(msg: String, position: Option[Position] = None): Constant = {
@@ -1739,6 +1740,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       things("memory_barrier") = MacroFunction("memory_barrier", v, NormalParamSignature(Nil), this, CpuFamily.forType(options.platform.cpu) match {
         case CpuFamily.M6502 => List(MosAssemblyStatement(Opcode.CHANGED_MEM, AddrMode.DoesNotExist, LiteralExpression(0, 1), Elidability.Fixed))
         case CpuFamily.I80 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
+        case CpuFamily.I86 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
         case _ => ???
       })
     }

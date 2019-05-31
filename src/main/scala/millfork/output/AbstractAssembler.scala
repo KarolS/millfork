@@ -521,7 +521,14 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             }
           }
         }
-        val line = if (options.flag(CompilationFlag.UseIntelSyntaxForOutput)) {
+        val line = if (options.platform.cpuFamily == CpuFamily.I86) {
+          instr match {
+            case zline: ZLine =>
+              zline.toIntel8086String
+            case _ =>
+              instr.toString
+          }
+        } else if (options.flag(CompilationFlag.UseIntelSyntaxForOutput)) {
           instr match {
             case zline: ZLine =>
               zline.toIntelString

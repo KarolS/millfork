@@ -38,6 +38,8 @@ For binary releases, see: https://github.com/KarolS/millfork/releases
     * Atari 2600 (experimental)
     
     * Game Boy (experimental)
+    
+    * MS-DOS (very experimental, via 8080-to-8086 translation)
 
 * inline assembly
 

@@ -18,7 +18,7 @@ object EmuPlatform {
     TextCodec.Ascii,
     Platform.builtInCpuFeatures(cpu),
     CurrentBankFragmentOutput(0, 0xffff),
-    Map("default" -> new UpwardByteAllocator(0x200, 0xb000)),
+    Map("default" -> (if (cpu == Cpu.Intel8086) new UpwardByteAllocator(0x100, 0xb000) else new UpwardByteAllocator(0x200, 0xb000))),
     Map("default" -> new VariableAllocator(
       if (CpuFamily.forType(cpu) == CpuFamily.M6502) pointers else Nil,
       new AfterCodeByteAllocator(0xff00))),

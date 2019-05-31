@@ -10,7 +10,7 @@ import org.scalatest.{AppendedClues, FunSuite, Matchers}
 class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Complex expression") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | byte output @$c000
         | void main () {
@@ -23,7 +23,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Complex expression 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | byte output @$c000
         | void main () {
@@ -41,7 +41,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | byte output @$c000
         | byte a
@@ -53,7 +53,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Byte addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | byte output @$c000
         | byte a
@@ -65,7 +65,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("In-place byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output[3] @$c000
         | byte a
@@ -79,7 +79,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("LHS evaluation during in-place byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output[1] @$c000
         | byte call_count @$c001
@@ -99,7 +99,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Parameter order") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | byte output @$c000
         | array arr[6]
@@ -119,7 +119,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("In-place byte addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output[3] @$c000
         | void main () {
@@ -155,7 +155,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def multiplyCase1(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       s"""
          | byte output @$$c000
          | void main () {
@@ -183,7 +183,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def multiplyCase2(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       s"""
          | byte output @$$c000
          | void main () {
@@ -242,6 +242,10 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
         |   if output1 != 20 { asm { ld a,($bfff) }}
         |   if output2 != 27 { asm { ld a,($bfff) }}
         |   if output3 != 15 { asm { ld a,($bfff) }}
+        | #elseif ARCH_X86
+        |   if output1 != 20 { asm { ld a,($bfff) }}
+        |   if output2 != 27 { asm { ld a,($bfff) }}
+        |   if output3 != 15 { asm { ld a,($bfff) }}
         | #else
         | #error unsupported architecture
         | #endif
@@ -270,7 +274,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def multiplyCase3(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       s"""
          | import zp_reg
          | byte output @$$c000

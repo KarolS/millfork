@@ -29,7 +29,7 @@ class MemsetSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   def memsetCase(size: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80, Cpu.Intel8086)(
       "const word SIZE = " + size + """
         | array output [SIZE] @$c000
         | void main () {

@@ -10,7 +10,7 @@ import org.scalatest.{AppendedClues, FunSuite, Matchers}
 class PointerSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Pointers outside zeropage") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | pointer p @$c004
         | array output[2] @$c000
@@ -25,7 +25,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Pointers on stack") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output[2] @$c000
         | void main() {
@@ -40,7 +40,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Typed byte-targeting pointers") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | enum e {}
         | array(e) output [3] @$c000
@@ -57,7 +57,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Typed word-targeting pointers") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | word output @$c000
         | void main() {
@@ -73,7 +73,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Struct pointers") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         | struct point { word x, word y }
         | struct pointlist { point head, pointer.pointlist tail }
@@ -130,7 +130,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Pointer optimization") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         | struct s { word a, byte b }
         |
@@ -154,7 +154,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("nullptr") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         | void main() {
         |   pointer.word pw
@@ -171,7 +171,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Complex pointers") {
     // TODO: optimize it when inlined
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         | array output[3] @$c000
         | struct s {
@@ -193,7 +193,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Indexing returned pointers") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         | array output[10] @$c000
         | pointer get() = output.addr

@@ -32,7 +32,7 @@ class NodeOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Returning one variable") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         | int64 output @$c000
         | void main () {

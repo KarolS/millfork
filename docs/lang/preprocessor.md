@@ -38,6 +38,8 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `ARCH_I80` – 1 if compiling for Intel 8080-like processor, 0 otherwise
 
+* `ARCH_X86` – 1 if compiling for Intel 8086-like processor, 0 otherwise
+
 * `CPU_65C02`, `CPU_65CE02`, `CPU_65816`, `CPU_HUC6280`, `CPU_8080`, `CPU_GAMEBOY`, `CPU_Z80`
 – 1 if compiling for the exact given processor, 0 otherwise
 
@@ -85,6 +87,8 @@ The following features are defined based on the chosen CPU and compilation optio
 * `MOS_6510` – 1 if the target uses a MOS 6510-compatible processor (with an I/O port at $0000/$0001)
 
 * `CPM` – 1 if the target is CP/M, 0 otherwise
+
+* `IBM_PC` – 1 if the target is IBM PC, 0 otherwise
 
 * `NTSC` – 1 if the target is NTSC, 0 otherwise
 

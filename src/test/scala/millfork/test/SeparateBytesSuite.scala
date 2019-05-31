@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class SeparateBytesSuite extends FunSuite with Matchers {
 
   test("Separate assignment 1") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | void main () {
         |  output = 2:3
@@ -19,7 +19,7 @@ class SeparateBytesSuite extends FunSuite with Matchers {
   }
 
   test("Separate assignment 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | byte ignore @$c001
         | void main () {
@@ -31,7 +31,7 @@ class SeparateBytesSuite extends FunSuite with Matchers {
   }
 
   test("Separate assignment 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | byte ignore @$c001
         | void main () {
@@ -44,7 +44,7 @@ class SeparateBytesSuite extends FunSuite with Matchers {
   }
 
   test("Separate assignment 4") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | array output [5] @$c000
         | byte ignore @$c001
         | void main () {
@@ -59,7 +59,7 @@ class SeparateBytesSuite extends FunSuite with Matchers {
   }
 
   test("Separate assignment 5") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | array output [5] @$c000
         | byte ignore @$c001
         | void main () {
@@ -74,7 +74,7 @@ class SeparateBytesSuite extends FunSuite with Matchers {
   }
 
   test("Magic split array") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | array high [16] @$c000
         | array low [16] @$c010
         | void main () {
@@ -107,7 +107,7 @@ class SeparateBytesSuite extends FunSuite with Matchers {
   }
 
   test("Separate addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | void main () {
         |  byte h
@@ -121,7 +121,7 @@ class SeparateBytesSuite extends FunSuite with Matchers {
   }
 
   test("Separate increase") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | void main () {
         |  byte h

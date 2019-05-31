@@ -87,6 +87,8 @@ The compiler emits COM files.
 
 * `cpm_z80` – CP/M on Z80
 
+* `dos_com` – a COM file for DOS on IBM PC. (very experimental)
+
 The primary and most tested platform is Commodore 64.
 
 Currently, targets that assume that the program will be loaded from disk or tape are better tested.

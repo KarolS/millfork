@@ -11,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ForLoopSuite extends FunSuite with Matchers {
 
   test("For-to") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | word output @$c000
         | void main () {
@@ -25,7 +25,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-to 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | word output @$c000
         | byte five
@@ -44,7 +44,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-downto") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | word output @$c000
         | void main () {
@@ -58,7 +58,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-downto 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output [55] @$c000
         | void main () {
@@ -78,7 +78,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-downto 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output [55] @$c000
         | void main () {
@@ -102,7 +102,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-until") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | word output @$c000
         | void main () {
@@ -116,7 +116,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-parallelto") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | word output @$c000
         | void main () {
@@ -130,7 +130,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("For-paralleluntil") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | word output @$c000
         | void main () {
@@ -144,7 +144,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Various loops") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | void init() {
         |     zero = 0
@@ -183,7 +183,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Memcpy") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output[5]@$c001
         | array input = [0,1,4,9,16,25,36,49]
@@ -201,7 +201,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Memset with index") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output[5]@$c001
         | void main () {
@@ -218,7 +218,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Memset with pointer") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output[5]@$c001
         | void main () {
@@ -235,7 +235,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Screen fill") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output[$400]@$c000
         | void main () {
@@ -253,7 +253,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Various bulk operations") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output0[5]@$c000
         | array output1[5]@$c010
@@ -288,7 +288,7 @@ class ForLoopSuite extends FunSuite with Matchers {
   }
 
   test("Edge cases - positive") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | void main() {
         |     byte i
         |     for i,0,until,256 { f() }
@@ -343,7 +343,7 @@ class ForLoopSuite extends FunSuite with Matchers {
 
 
   test("For each") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         | array output[$400]@$c000
         | void main () {

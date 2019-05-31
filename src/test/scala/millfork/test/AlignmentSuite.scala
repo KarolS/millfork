@@ -11,7 +11,7 @@ import org.scalatest.{FunSuite, Matchers}
 class AlignmentSuite extends FunSuite with Matchers {
 
   test("Alignment") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | array output [5] @$c000
         | void main () {

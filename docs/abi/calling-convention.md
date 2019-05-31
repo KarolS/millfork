@@ -76,3 +76,45 @@ and the most significant word is passed via the DE register pair
 
 * callee may clobber all registers except for IX, IY and shadow registers
 
+## 8086
+
+The Intel 8086 calling conventions is based on the Intel 8080 calling convention,
+plus it uses the BP register in the same role as the IX register of Z80.
+
+#### Parameters:
+
+* if the function has one parameter of size one byte, it is passed via the AL register
+
+* if the function has one parameter of size two bytes, it is passed via the BX register
+
+* if the function has one parameter of size three bytes,
+its least significant two bytes are passed via the BX register
+and the most significant byte is passed via the DL register
+
+* if the function has one parameter of size four bytes,
+its least significant word is passed via the BX register
+and the most significant word is passed via the DX register
+
+* otherwise, all parameters are passed via static locations
+
+#### Return values:
+
+* one-byte return values are passed via the AL register
+
+* two-byte return values are passed via the BX register
+
+* in case of three-byte return values,
+its least significant two bytes are passed via the BX register
+and the most significant byte is passed via the DL register
+
+* in case of four-byte return values,
+its least significant word is passed via the BX register
+and the most significant word is passed via the DX register
+
+* otherwise, the return value is passed via a static location
+
+#### Register preservation:
+
+* callee may clobber all flags
+
+* callee may clobber all registers except for BP

@@ -323,6 +323,28 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     case _ => "???"
   }
 
+  private def asIntel8086AssemblyString(r: ZRegister.Value): String = r match {
+    case ZRegister.A => "AL"
+    case ZRegister.B => "CH"
+    case ZRegister.C => "CL"
+    case ZRegister.D => "DH"
+    case ZRegister.E => "DL"
+    case ZRegister.H => "BH"
+    case ZRegister.L => "BL"
+    case ZRegister.AF => "AX"
+    case ZRegister.BC => "CX"
+    case ZRegister.DE => "DX"
+    case ZRegister.HL => "BX"
+    case ZRegister.SP => "SP"
+    case ZRegister.IX => "BP"
+    case ZRegister.MEM_ABS_8 => s"BYTE PTR [${parameter.toIntelString}]"
+    case ZRegister.MEM_ABS_16 => s"WORD PTR [${parameter.toIntelString}]"
+    case ZRegister.IMM_8 => parameter.toIntelString
+    case ZRegister.IMM_16 => parameter.toIntelString
+    case ZRegister.MEM_HL => "BYTE PTR [BX]"
+    case _ => "???"
+  }
+
   override def toString: String = {
     import ZOpcode._
     val raw = opcode match {
@@ -579,6 +601,153 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case EI => "    EI"
       case EI => "    EI"
       case EI => "    EI"
+      case _ => "???"
+    }
+    if (result.contains("???")) s"    ??? (${this.toString.stripPrefix("    ")})" else result
+  }
+
+
+
+  def toIntel8086String: String = {
+    import ZOpcode._
+    import ZRegister._
+    val result = opcode match {
+      case LABEL => parameter.toString + ":"
+      case DISCARD_A => "    ; DISCARD_AL"
+      case DISCARD_HL => "    ; DISCARD_BX"
+      case DISCARD_F => "    ; DISCARD_F"
+      case DISCARD_BC => "    ; DISCARD_CX"
+      case DISCARD_DE => "    ; DISCARD_DX"
+      case DISCARD_IX => "    ; DISCARD_BP"
+      case BYTE => "    DB " + parameter.toString
+      case LD | LD_16 => registers match {
+        case TwoRegisters(MEM_DE, A) => s"    MOV SI, DX\n    MOV BYTE PTR [SI], AL"
+        case TwoRegisters(MEM_BC, A) => s"    MOV SI, CX\n    MOV BYTE PTR [SI], AL"
+        case TwoRegisters(A, MEM_DE) => s"    MOV SI, DX\n    MOV AL, BYTE PTR [SI]"
+        case TwoRegisters(A, MEM_BC) => s"    MOV SI, CX\n    MOV AL, BYTE PTR [SI]"
+        case TwoRegistersOffset(MEM_IX_D, IMM_8, offset) => s"    MOV BYTE PTR [BP+$offset}], ${parameter.toIntelString}"
+        case TwoRegisters(target, IMM_16 | IMM_8) => s"    MOV ${asIntel8086AssemblyString(target)}, ${parameter.toIntelString}"
+        case TwoRegistersOffset(MEM_IX_D, source, offset) => s"    MOV BYTE PTR [BP+$offset}], ${asIntel8086AssemblyString(source)}"
+        case TwoRegistersOffset(target, MEM_IX_D, offset) => s"    MOV ${asIntel8086AssemblyString(target)}, BYTE PTR [BP+$offset}]"
+        case TwoRegisters(target, source) => s"    MOV ${asIntel8086AssemblyString(target)}, ${asIntel8086AssemblyString(source)}"
+        case _ => "???"
+      }
+      case ADD_16 => registers match {
+        case TwoRegisters(target, source) => s"    ADD ${asIntel8086AssemblyString(target)}, ${asIntel8086AssemblyString(source)}"
+        case _ => "???"
+      }
+      case DEC|DEC_16 => registers match {
+        case OneRegister(register) => s"    DEC ${asIntel8086AssemblyString(register)}"
+        case _ => "???"
+      }
+      case INC|INC_16 => registers match {
+        case OneRegister(register) => s"    INC ${asIntel8086AssemblyString(register)}"
+        case _ => "???"
+      }
+      case PUSH => registers match {
+        case OneRegister(AF) => s"    LAHF\n    XCHG AH,AL\n    PUSH AX\n    XCHG AH, AL"
+        case OneRegister(register) => s"    PUSH ${asIntel8086AssemblyString(register)}"
+        case _ => "???"
+      }
+      case POP => registers match {
+        case OneRegister(AF) => s"    POP AX\n    XCHG AH, AL\n    SAHF"
+        case OneRegister(register) => s"    POP ${asIntel8086AssemblyString(register)}"
+        case _ => "???"
+      }
+      case DAA => "    DAA"
+      case RLA => "    RCL AL"
+      case RLCA => "    ROL AL"
+      case RRA => "    RCL AL"
+      case RRCA => "    ROR AL"
+      case HALT => "    HLT"
+      case RET | JP | CALL =>
+        val (prefix, suffix) = registers match {
+          case NoRegisters => "    " -> ""
+          case OneRegister(_) => "    " -> ""
+          case IfFlagClear(ZFlag.C) => "    JB .next\n    " -> "\n.next:"
+          case IfFlagClear(ZFlag.Z) => "    JE .next\n    " -> "\n.next:"
+          case IfFlagClear(ZFlag.S) => "    JS .next\n    " -> "\n.next:"
+          case IfFlagClear(ZFlag.P) => "    JPE .next\n    " -> "\n.next:"
+          case IfFlagSet(ZFlag.C) => "    JAE .next\n    " -> "\n.next:"
+          case IfFlagSet(ZFlag.Z) => "    JNE .next\n    " -> "\n.next:"
+          case IfFlagSet(ZFlag.S) => "    JNS .next\n    " -> "\n.next:"
+          case IfFlagSet(ZFlag.P) => "    JPO .next\n    " -> "\n.next:"
+          case _ => "    ???" -> ""
+        }
+        prefix + (opcode match {
+          case RET => "RET"
+          case JP => registers match {
+            case OneRegister(HL) => "JMP BX"
+            case _ => "JMP " + parameter.toIntelString
+          }
+          case CALL => "CALL " + parameter.toIntelString
+        }) + suffix
+      case ADD => registers match {
+        case OneRegister(IMM_8) => s"    ADD AL, ${parameter.toIntelString}"
+        case OneRegister(register) => s"    ADD AL, ${asIntel8086AssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    ADD AL, BYTE PTR[BP+$offset]"
+        case _ => "???"
+      }
+      case ADC => registers match {
+        case OneRegister(IMM_8) => s"    ADC AL, ${parameter.toIntelString}"
+        case OneRegister(register) => s"    ADC AL, ${asIntel8086AssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    ADC AL, BYTE PTR[BP+$offset]"
+        case _ => "???"
+      }
+      case SUB => registers match {
+        case OneRegister(IMM_8) => s"    SUB AL, ${parameter.toIntelString}"
+        case OneRegister(register) => s"    SUB AL, ${asIntel8086AssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SUB AL, BYTE PTR[BP+$offset]"
+        case _ => "???"
+      }
+      case SBC => registers match {
+        case OneRegister(IMM_8) => s"    SBB AL, ${parameter.toIntelString}"
+        case OneRegister(register) => s"    SBB AL, ${asIntel8086AssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SBB AL, BYTE PTR[BP+$offset]"
+        case _ => "???"
+      }
+      case AND => registers match {
+        case OneRegister(IMM_8) => s"    AND AL, ${parameter.toIntelString}"
+        case OneRegister(register) => s"    AND AL, ${asIntel8086AssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    AND AL, BYTE PTR[BP+$offset]"
+        case _ => "???"
+      }
+      case OR => registers match {
+        case OneRegister(IMM_8) => s"    OR AL, ${parameter.toIntelString}"
+        case OneRegister(register) => s"    OR AL, ${asIntel8086AssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    OR AL, BYTE PTR[BP+$offset]"
+        case _ => "???"
+      }
+      case XOR => registers match {
+        case OneRegister(IMM_8) => s"    XOR AL, ${parameter.toIntelString}"
+        case OneRegister(register) => s"    XOR AL, ${asIntel8086AssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    XOR AL, BYTE PTR[BP+$offset]"
+        case _ => "???"
+      }
+      case CP => registers match {
+        case OneRegister(IMM_8) => s"    CMP AL, ${parameter.toIntelString}"
+        case OneRegister(register) => s"    CMP AL, ${asIntel8086AssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    CMP AL, BYTE PTR[BP+$offset]"
+        case _ => "???"
+      }
+      case EX_SP => registers match {
+        case OneRegister(HL) => s"    XCHG BX, [SP]"
+        case OneRegister(IX) => s"    XCHG BP, [SP]"
+        case _ => "???"
+      }
+      case RST => parameter match {
+        case NumericConstant(n, _) if n % 8 == 0 => s"    RST ${n / 8}" // TODO
+        case _ => "???"
+      }
+      case IN_IMM => s"    IN ${parameter.toIntelString}" // TODO
+      case OUT_IMM => s"    OUT ${parameter.toIntelString}" // TODO
+      case EI => "    STI"
+      case DI => "    CLI"
+      case EX_DE_HL => "    XCHG BX, DX"
+      case NOP => "    NOP"
+      case CPL => "    NOT AL"
+      case SCF => "    STC"
+      case CCF => "    CMC"
       case _ => "???"
     }
     if (result.contains("???")) s"    ??? (${this.toString.stripPrefix("    ")})" else result

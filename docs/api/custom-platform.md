@@ -32,6 +32,9 @@ if a line ends with a backslash character, the value continues to the next line.
     * `i8080` (Intel 8080; experimental, buggy and very incomplete)
     
     * `gameboy` (Sharp LR35902; experimental, buggy and very incomplete)
+    
+    * `i8086` (Intel 8086; very experimental, very buggy and very, very incomplete –
+    see the [8086 support disclaimer](../lang/x86disclaimer.md))
 
 * `encoding` – default encoding for console I/O, one of 
 `ascii`, `pet`/`petscii`, `petscr`/`cbmscr`, `atascii`, `bbc`, `jis`/`jisx`, `apple2`,

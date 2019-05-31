@@ -324,4 +324,4 @@ continue <variable>
 See [Using 6502 assembly within Millfork programs](./assembly.md)  
 or [Using 8080/LR35902/Z80 assembly within Millfork programs](./assemblyz80.md).
 
-  
+**Work in progress**: For 8086, see the [8086 support disclaimer](./x86disclaimer.md).

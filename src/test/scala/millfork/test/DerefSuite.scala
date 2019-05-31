@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
   */
 class DerefSuite extends FunSuite with Matchers {
   test("Basic deref test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         |
         | byte output @$c000
@@ -33,7 +33,7 @@ class DerefSuite extends FunSuite with Matchers {
   }
 
   test("Byte arithmetic deref test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         |
         | byte output1 @$c000
@@ -59,7 +59,7 @@ class DerefSuite extends FunSuite with Matchers {
   }
 
   test("Word arithmetic deref test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
       """
         |
         | word output1  @$c000

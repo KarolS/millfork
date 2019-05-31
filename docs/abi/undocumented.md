@@ -69,3 +69,7 @@ AHX, LAS, LXA, SHX, SHY, TAS, XAA.
 Original Z80 processors accidentally supported a bunch of extra undocumented instructions.
 Millfork will not emit them.
 The only exception is SLL, which will be emitted if it occurs in a handwritten assembly block. 
+
+## 8086
+
+Undocumented instructions are not supported.

@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ConstantSuite extends FunSuite with Matchers {
 
     test("Constants should fold") {
-      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
         """
           | array Sieve[4]
           | array __screen[4]

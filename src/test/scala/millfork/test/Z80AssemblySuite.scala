@@ -1,6 +1,7 @@
 package millfork.test
 
-import millfork.test.emu.{EmuUnoptimizedIntel8080Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80Run}
+import millfork.Cpu
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedIntel8080Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80Run}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -274,8 +275,8 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         | }
       """.stripMargin)
   }
-  test("Common I80 instructions (Intel syntax)") {
-    EmuUnoptimizedIntel8080Run(
+  test("Common I80 instructions (without RST, Intel syntax)") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Intel8080, Cpu.Intel8086)(
       """
         | #pragma intel_syntax
         | asm void main () {
@@ -491,7 +492,6 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   cnz main
         |   push b
         |   adi 1
-        |   rst 0
         |
         |   rz
         |   ret
@@ -499,7 +499,6 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   cz main
         |   call main
         |   aci 1
-        |   rst 1
         |
         |   rnc
         |   pop d
@@ -507,38 +506,32 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   cnc main
         |   push d
         |   sui 1
-        |   rst 2
         |
         |   rc
         |   jc main
         |   cc main
         |   sbi 1
-        |   rst 3
         |
         |   pop h
         |   xthl
         |   push h
         |   ani 1
-        |   rst 4
         |
         |   pchl
         |   xri 1
-        |   rst 5
         |
         |   pop psw
         |   di
         |   push psw
         |   ori 1
-        |   rst 6
         |
         |   sphl
         |   ei
         |   cpi 1
-        |   rst 7
         |
         |   ret
         | }
-      """.stripMargin)
+      """.stripMargin){ m => }
   }
 
   test("Intel 8080 instructions (Zilog syntax)") {
@@ -571,7 +564,7 @@ class Z80AssemblySuite extends FunSuite with Matchers {
   }
 
   test("Intel 8080 instructions (Intel syntax)") {
-    EmuUnoptimizedIntel8080Run(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Intel8080, Cpu.Intel8086)(
       """
         | #pragma intel_syntax
         | asm void main () {
@@ -593,6 +586,26 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   rm
         |   jm main
         |   cm main
+        |
+        |   ret
+        | }
+      """.stripMargin){ m => }
+  }
+
+  test("Intel 8080 RST instructions (Intel syntax)") {
+    EmuUnoptimizedIntel8080Run(
+      """
+        | #pragma intel_syntax
+        | asm void main () {
+        |   ret
+        |   rst 0
+        |   rst 1
+        |   rst 2
+        |   rst 3
+        |   rst 4
+        |   rst 5
+        |   rst 6
+        |   rst 7
         |
         |   ret
         | }

@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StructSuite extends FunSuite with Matchers {
 
   test("Basic struct support") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086)("""
         | struct point {
         |   byte x
         |   byte y
@@ -40,7 +40,7 @@ class StructSuite extends FunSuite with Matchers {
   }
 
   test("Nested structs") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Intel8086)("""
         | struct inner { word x, word y }
         | struct s {
         |   word w
@@ -69,7 +69,7 @@ class StructSuite extends FunSuite with Matchers {
   }
 
   test("Basic union support") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Intel8086)("""
         | struct point { byte x, byte y }
         | union point_or_word { point p, word w }
         | word output @$c000
@@ -85,7 +85,7 @@ class StructSuite extends FunSuite with Matchers {
   }
 
   test("Optimize struct modifications") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)("""
         | struct point { byte x, byte y }
         | enum direction { none, right }
         | direction last_direction @$c400

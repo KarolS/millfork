@@ -14,6 +14,9 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.4" % "test"
 
 libraryDependencies += "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test"
 
+// see: https://github.com/NeatMonster/Intel8086
+libraryDependencies += "NeatMonster" % "Intel8086" % "1.0" % "test" from "https://github.com/NeatMonster/Intel8086/raw/master/IBMPC.jar"
+
 // these three are not in Maven Central or any other public repo
 // get them from the following links or just build millfork without tests:
 // https://github.com/sethm/symon/tree/71905fdb1998ee4f142260879504bc46cf27648f

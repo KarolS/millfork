@@ -16,7 +16,8 @@ Syntax:
 
     * `asm` – the function is written in assembly, not in Millfork (obligatory for `extern` functions), 
     see [Using 6502 assembly within Millfork programs#Assembly functions](./assembly.md#assembly-functions)
-    or [Using 8080/LR35902/Z80 assembly within Millfork programs#Assembly functions](./assemblyz80.md#assembly-functions)
+    or [Using 8080/LR35902/Z80 assembly within Millfork programs#Assembly functions](./assemblyz80.md#assembly-functions);  
+    for 8086, see the [8086 support disclaimer](./x86disclaimer.md).
     
     * `macro` – the function is a macro, 
     see [Macros_and inlining#Macros](../abi/inlining.md#macros)

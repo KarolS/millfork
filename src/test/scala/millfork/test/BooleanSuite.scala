@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.EmuCrossPlatformBenchmarkRun
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BooleanSuite extends FunSuite with Matchers {
 
   test("Not") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | byte output @$c000
         | array input = [5,6,7]
@@ -26,7 +26,7 @@ class BooleanSuite extends FunSuite with Matchers {
 
 
   test("And") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | byte output @$c000
         | array input = [5,6,7]
@@ -45,7 +45,7 @@ class BooleanSuite extends FunSuite with Matchers {
 
 
   test("Or") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | byte output @$c000
         | array input = [5,6,7]
@@ -87,6 +87,6 @@ class BooleanSuite extends FunSuite with Matchers {
       | inline void pass() { output += 1 }
       | noinline void fail() { outside[0] = 0 }
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(code)(_.readByte(0xc000) should equal(code.sliding(4).count(_ == "pass")))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(code)(_.readByte(0xc000) should equal(code.sliding(4).count(_ == "pass")))
   }
 }

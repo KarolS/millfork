@@ -41,6 +41,10 @@ object EmuOptimizedInlinedIntel8080Run extends EmuZ80Run(Cpu.Intel8080, Optimiza
   override def inline: Boolean = true
 }
 
+object EmuOptimizedInlinedIntel8086Run extends EmuI86Run(OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForIntel8080) {
+  override def inline: Boolean = true
+}
+
 object EmuOptimizedInlinedSharpRun extends EmuZ80Run(Cpu.Sharp, OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForSharp) {
   override def inline: Boolean = true
 }

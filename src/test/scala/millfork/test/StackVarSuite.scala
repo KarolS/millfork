@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StackVarSuite extends FunSuite with Matchers {
 
   test("Basic stack assignment") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -24,7 +24,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -56,7 +56,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Complex expressions involving stack variables (Z80)") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -70,7 +70,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack byte subtraction") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086)(
       """
         | byte output @$c000
         | void main () {
@@ -91,7 +91,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | void main () {
         |   stack word a
@@ -109,7 +109,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
@@ -145,7 +145,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
@@ -177,7 +177,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Complex stack-related stuff") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | array id = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         | void main() {
@@ -195,7 +195,7 @@ class StackVarSuite extends FunSuite with Matchers {
 
 
   test("Indexing") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | array output [200] @$c000
         | void main () {
         |   stack byte a
@@ -208,7 +208,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
     test("Double array with stack variables") {
-      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
         """
           | array output[5]@$c001
           | array input = [0,1,4,9,16,25,36,49]
@@ -226,7 +226,7 @@ class StackVarSuite extends FunSuite with Matchers {
     }
 
     test("Complex large stacks") {
-      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
 //      val m = EmuUnoptimizedZ80Run(
         """
           | array output[5]@$c000
@@ -255,7 +255,7 @@ class StackVarSuite extends FunSuite with Matchers {
     }
 
   test("Large stack storage") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | int32 output @$c000
         | void main () {
@@ -272,7 +272,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Large stack-to-stack transfer") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
         | int32 output @$c000
         | void main () {

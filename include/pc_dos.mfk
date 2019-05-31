@@ -1,0 +1,37 @@
+#pragma intel_syntax
+
+import default_readword
+
+inline asm void exit() {
+    [$b4, 0, $cd, $21]
+	? ret
+}
+inline asm void putchar (byte e) {
+    [$b4, 2, $cd, $21]
+	? ret
+}
+
+inline void new_line() {
+	putchar(13)
+	putchar(10)
+}
+
+inline asm byte getchar() {
+    [$b4, 1, $cd, $21]
+	? ret
+}
+
+array __readline_out[83]
+const pointer readline_out = __readline_out.addr + 2
+
+pointer readline() {
+     __readline_out[0] = 81
+     __readline_out[1] = 0
+     asm {
+        ? lxi d, __readline_out.addr
+        [$b4, $0a, $cd, $21]
+     }
+     __readline_out[__readline_out[1] + 2] = 0
+     new_line()
+     return __readline_out + 2
+}
