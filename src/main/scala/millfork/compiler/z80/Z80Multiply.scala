@@ -106,7 +106,7 @@ object Z80Multiply {
   /**
     * Calculate A = p / q or A = p %% q
     */
-  def compileUnsignedByteDivision(ctx: CompilationContext, p: LhsExpression, q: Expression, modulo: Boolean): List[ZLine] = {
+  def compileUnsignedByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, LhsExpression], q: Expression, modulo: Boolean): List[ZLine] = {
     ctx.env.eval(q) match {
       case Some(NumericConstant(qq, _)) =>
         if (qq < 0) {
@@ -116,27 +116,53 @@ object Z80Multiply {
           ctx.log.error("Unsigned division by zero", q.position)
           Nil
         } else if (qq > 255) {
-          if (modulo) Z80ExpressionCompiler.compileToA(ctx, p)
-          else List(ZLine.ldImm8(ZRegister.A, 0))
+          if (modulo) {
+            p match {
+              case Right(pp) => Z80ExpressionCompiler.compileToA(ctx, pp)
+              case Left(LocalVariableAddressViaHL) => List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL))
+              case Left(LocalVariableAddressViaIX(offset)) => List(ZLine.ldViaIx(ZRegister.A, offset))
+              case Left(LocalVariableAddressViaIY(offset)) => List(ZLine.ldViaIy(ZRegister.A, offset))
+            }
+          } else List(ZLine.ldImm8(ZRegister.A, 0))
         } else {
           compileUnsignedByteDivisionImpl(ctx, p, qq.toInt, modulo)
         }
-      case Some(_) =>
-        ctx.log.error("Unsigned division by unknown constant", q.position)
-        Nil
-      case None =>
-        ctx.log.error("Unsigned division by a variable expression", q.position)
-        Nil
+      case _ =>
+        val pb = p match {
+          case Right(pp) => Z80ExpressionCompiler.compileToHL(ctx, pp)
+          case Left(LocalVariableAddressViaHL) => List(ZLine.ld8(ZRegister.L, ZRegister.MEM_HL), ZLine.ldImm8(ZRegister.H, 0))
+          case Left(LocalVariableAddressViaIX(offset)) => List(ZLine.ldViaIx(ZRegister.L, offset), ZLine.ldImm8(ZRegister.H, 0))
+          case Left(LocalVariableAddressViaIY(offset)) => List(ZLine.ldViaIy(ZRegister.L, offset), ZLine.ldImm8(ZRegister.H, 0))
+        }
+        val qb = Z80ExpressionCompiler.compileToA(ctx, q)
+        val load = if (qb.exists(Z80ExpressionCompiler.changesHL)) {
+          pb ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, qb)
+        } else if (pb.exists(Z80ExpressionCompiler.changesDE)) {
+          qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, qb)
+        } else {
+          pb ++ qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A))
+        }
+        val call = ZLine(ZOpcode.CALL, NoRegisters, ctx.env.get[FunctionInMemory]("__divmod_u16u8u16u8").toAddress)
+        if (modulo) {
+          load :+ call
+        } else {
+          load ++ List(call, ZLine.ld8(ZRegister.A, ZRegister.L))
+        }
     }
   }
   /**
       * Calculate A = p / q or A = p %% q
       */
-    def compileUnsignedByteDivisionImpl(ctx: CompilationContext, p: LhsExpression, q: Int, modulo: Boolean): List[ZLine] = {
+    def compileUnsignedByteDivisionImpl(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, LhsExpression], q: Int, modulo: Boolean): List[ZLine] = {
       import ZRegister._
       import ZOpcode._
       val result = ListBuffer[ZLine]()
-      result ++= Z80ExpressionCompiler.compileToA(ctx, p)
+      result ++= (p match {
+        case Right(pp) => Z80ExpressionCompiler.compileToA(ctx, pp)
+        case Left(LocalVariableAddressViaHL) => List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL))
+        case Left(LocalVariableAddressViaIX(offset)) => List(ZLine.ldViaIx(ZRegister.A, offset))
+        case Left(LocalVariableAddressViaIY(offset)) => List(ZLine.ldViaIy(ZRegister.A, offset))
+      })
       result += ZLine.ldImm8(E, 0)
 
       for (i <- 7.to(0, -1)) {

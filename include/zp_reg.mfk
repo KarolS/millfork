@@ -18,6 +18,31 @@ __mul_u8u8u8_start:
     ? RTS
 }
 
+// divide __reg[0]/__reg[1]
+
+noinline asm byte __mod_u8u8u8u8() {
+    ? LDA #0
+    ? LDX #7
+    ? CLC
+__divmod_u8u8u8u8_start:
+    ? ROL __reg
+    ? ROL
+    ? CMP __reg+1
+    ? BCC __divmod_u8u8u8u8_skip
+    ? SBC __reg+1
+__divmod_u8u8u8u8_skip:
+    ? DEX
+    ? BPL __divmod_u8u8u8u8_start
+    ? ROL __reg
+    ? RTS
+}
+
+asm byte __div_u8u8u8u8() {
+    ? JSR __mod_u8u8u8u8
+    ? LDA __reg
+    ? RTS
+}
+
 #if ZPREG_SIZE >= 3
 
 noinline asm word __mul_u16u8u16() {

@@ -886,8 +886,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 size match {
                   case 1 =>
                     calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
+                      case Some((LocalVariableAddressViaHL, List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)))) =>
+                        Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%=") :+ ZLine.ldAbs8(addr, ZRegister.A)
                       case Some((lvo, code)) =>
-                        code ++ (Z80Multiply.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%=") :+ ZLine.ld8(lvo, ZRegister.A))
+                        code ++ (stashHLIfChanged(ctx, Z80Multiply.compileUnsignedByteDivision(ctx, Left(lvo), r, f.functionName == "%%=")) :+ ZLine.ld8(lvo, ZRegister.A))
                       case None =>
                         ctx.log.error("Invalid left-hand side", l.position)
                         Nil
@@ -898,7 +900,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 =>
-                    targetifyA(ctx, target, Z80Multiply.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%"), false)
+                    targetifyA(ctx, target, Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%"), false)
                 }
               case "*'=" =>
                 assertAllArithmeticBytes("Long multiplication not supported", ctx, params)

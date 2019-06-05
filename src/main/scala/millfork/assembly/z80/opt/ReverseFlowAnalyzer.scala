@@ -186,10 +186,10 @@ object ReverseFlowAnalyzer {
   val readsA = Set("__mul_u8u8u8", "__mul_u16u8u16")
   val readsB = Set("")
   val readsC = Set("")
-  val readsD = Set("__mul_u8u8u8","__mul_u16u8u16")
+  val readsD = Set("__mul_u8u8u8","__mul_u16u8u16", "__divmod_u16u8u16u8")
   val readsE = Set("__mul_u16u8u16")
-  val readsH = Set("")
-  val readsL = Set("")
+  val readsH = Set("__divmod_u16u8u16u8")
+  val readsL = Set("__divmod_u16u8u16u8")
 
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[ZLine]): List[CpuImportance] = {

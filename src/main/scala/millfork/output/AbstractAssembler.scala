@@ -245,7 +245,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
     }
 
-    val unusedRuntimeObjects = Set("__mul_u8u8u8", "__constant8", "identity$", "__mul_u16u8u16").filterNot(name =>{
+    val unusedRuntimeObjects = Set("__mul_u8u8u8", "__constant8", "identity$", "__mul_u16u8u16", "__divmod_u16u8u16u8", "__mod_u8u8u8u8", "__div_u8u8u8u8").filterNot(name =>{
       compiledFunctions.exists{
         case (fname, compiled) => fname != name && (compiled match {
           case f:NormalCompiledFunction[_] => f.code.exists(_.refersTo(name))

@@ -338,7 +338,14 @@ object PseudoregisterBuiltIns {
     }
   }
 
-  def compileByteMultiplication(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean): List[AssemblyLine] = {
+  def compileByteMultiplication(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean): List[AssemblyLine] =
+    compileByteMultiplicationOrDivision(ctx, param1OrRegister, param2, storeInRegLo, "__mul_u8u8u8", commutative = true)
+  def compileUnsignedByteDivision(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean): List[AssemblyLine] =
+    compileByteMultiplicationOrDivision(ctx, param1OrRegister, param2, storeInRegLo, "__div_u8u8u8u8", commutative = false)
+  def compileUnsignedByteModulo(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean): List[AssemblyLine] =
+    compileByteMultiplicationOrDivision(ctx, param1OrRegister, param2, storeInRegLo, "__mod_u8u8u8u8", commutative = false)
+
+  def compileByteMultiplicationOrDivision(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean, functionName: String, commutative: Boolean): List[AssemblyLine] = {
     if (ctx.options.zpRegisterSize < 2) {
       ctx.log.error("Variable byte multiplication requires the zeropage pseudoregister", param1OrRegister.flatMap(_.position))
       return Nil
@@ -352,10 +359,16 @@ object PseudoregisterBuiltIns {
         val code2 = MosExpressionCompiler.compile(ctx, param2, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
         if (!usesRegLo(code2)) {
           code1 ++ List(AssemblyLine.zeropage(STA, reg)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 1))
+        } else if (!commutative) {
+          code2 ++ List(AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.fixTsx(code1) ++ List(
+            AssemblyLine.zeropage(STA, reg),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 1)
+          )
         } else if (!usesRegLo(code1)) {
           code2 ++ List(AssemblyLine.zeropage(STA, reg)) ++ code1 ++ List(AssemblyLine.zeropage(STA, reg, 1))
         } else {
-          code1 ++ List(AssemblyLine.implied(PHA)) ++ code2 ++ List(
+          code1 ++ List(AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.fixTsx(code2) ++ List(
             AssemblyLine.zeropage(STA, reg),
             AssemblyLine.implied(PLA),
             AssemblyLine.zeropage(STA, reg, 1)
@@ -365,6 +378,12 @@ object PseudoregisterBuiltIns {
         val code2 = MosExpressionCompiler.compile(ctx, param2, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
         if (!usesRegLo(code2)) {
           List(AssemblyLine.zeropage(STA, reg)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 1))
+        } else if (!commutative) {
+          List(AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.fixTsx(code2) ++ List(
+            AssemblyLine.zeropage(STA, reg, 1),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg)
+          )
         } else if (!usesRegHi(code2)) {
           List(AssemblyLine.zeropage(STA, reg, 1)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg))
         } else {
@@ -375,7 +394,7 @@ object PseudoregisterBuiltIns {
           )
         }
     }
-    val calculate = AssemblyLine.absoluteOrLongAbsolute(JSR, ctx.env.get[FunctionInMemory]("__mul_u8u8u8"), ctx.options) ::
+    val calculate = AssemblyLine.absoluteOrLongAbsolute(JSR, ctx.env.get[FunctionInMemory](functionName), ctx.options) ::
       (if (storeInRegLo) List(AssemblyLine.zeropage(STA, reg)) else Nil)
     load ++ calculate
   }

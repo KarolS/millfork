@@ -1028,12 +1028,12 @@ object BuiltIns {
         } else {
           compileUnsignedByteDivision(ctx, p, qq.toInt, modulo)
         }
-      case Some(_) =>
-        ctx.log.error("Unsigned division by unknown constant", q.position)
-        Nil
-      case None =>
-        ctx.log.error("Unsigned division by a variable expression", q.position)
-        Nil
+      case _ =>
+        if (modulo) {
+          PseudoregisterBuiltIns.compileUnsignedByteModulo(ctx, Some(p), q, storeInRegLo = false)
+        } else {
+          PseudoregisterBuiltIns.compileUnsignedByteDivision(ctx, Some(p), q, storeInRegLo = false)
+        }
     }
   }
   def compileUnsignedByteDivision(ctx: CompilationContext, p: Expression, q: Int, modulo: Boolean): List[AssemblyLine] = {

@@ -50,6 +50,39 @@ noinline asm byte __mul_u8u8u8() {
 
 #endif
 
+noinline asm void __divmod_u16u8u16u8() {
+    ? XOR A
+    ? LD B, 16
+__divmod_u16u8u16u8_loop:
+    ? ADD HL,HL
+    ? RLA
+#if CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
+    ? JR C, __divmod_u16u8u16u8_overflow
+#else
+    ? JP C, __divmod_u16u8u16u8_overflow
+#endif
+    ? CP D
+#if CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
+    ? JR C, __divmod_u16u8u16u8_skip
+#else
+    ? JP C, __divmod_u16u8u16u8_skip
+#endif
+__divmod_u16u8u16u8_overflow:
+    ? SUB D
+    ? INC L
+__divmod_u16u8u16u8_skip:
+#if CPUFEATURE_Z80
+    ? DJNZ __divmod_u16u8u16u8_loop
+#elseif CPUFEATURE_GAMEBOY
+    ? DEC B
+    ? JR NZ, __divmod_u16u8u16u8_loop
+#else
+    ? DEC B
+    ? JP NZ, __divmod_u16u8u16u8_loop
+#endif
+    ? RET
+}
+
 inline asm word __mul_u16u8u16() {
     ? LD HL,0
     ? LD B,8
