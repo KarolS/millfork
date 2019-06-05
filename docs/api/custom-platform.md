@@ -58,7 +58,7 @@ Default: the same as `encoding`.
     * `decimal_mode` – whether the compiler should emit decimal instructions, default is `false` on `ricoh` and `strictricoh` and `true` elsewhere;
     if disabled, a software decimal mode will be used
     
-    * `ro_arrays` – whether the compiler should warn upon array writes, default is `false`
+    * `ro_arrays` – (deprecated) whether the compiler should warn upon array writes, default is `false`
     
     * `prevent_jmp_indirect_bug` – whether the compiler should try to avoid the indirect JMP bug, 
     default is `false` on 65C02-compatible or non-6502 processors and `true` elsewhere
@@ -86,7 +86,7 @@ Default: the same as `encoding`.
     
     * `use_shadow_registers_for_irq` – use Z80 shadow registers in interrupt routines, default is `true` for Z80 and `false` otherwise
     
-    * `ix_stack` – use the IX register to access stack variables, default is `true` for Z80 and `false` otherwise
+    * `ix_stack` – use the IX register to access stack variables, default is `true` for Z80 and 8086, `false` otherwise
     
     * `iy_stack` – use the IY register to access stack variables, default is `false`
     
@@ -94,7 +94,7 @@ Default: the same as `encoding`.
     
     * `iy_scratch` – allow using the IY register for other purposes, default is `false`
     
-    * `software_stach` – use software stack for stack variables, default is `false`
+    * `software_stack` – use software stack for stack variables, default is `false`. Applicable only to 6502-based targets.
     
     * `output_intel_syntax` – use Intel syntax instead of Zilog syntax, default is `true` for Intel 8080/8085 and `false` otherwise
 
@@ -120,7 +120,7 @@ Note that the default segment for uninitialized arrays and variables is always `
 Default: `default`
 
 * `segment_NAME_start` – the first address used for automatic allocation in the segment.  
-Note that the `default` segment shouldn't start before $200, as the $0-$1FF range is reserved for the zeropage and the stack.  
+Note that on 6502-like targets, the `default` segment shouldn't start before $200, as the $0-$1FF range is reserved for the zeropage and the stack.  
 The `main` function will be placed as close to the beginning of its segment as possible, but not necessarily at `segment_NAME_start`
 
 * `segment_NAME_end` – the last address in the segment

@@ -15,7 +15,7 @@ Variables in Millfork can belong to one of the following storage classes:
 Variables can also belong to one of the following memory areas 
 (unless overridden with the `@` operator):
 
-* zeropage: all `pointer` variables and parameters with no defined memory segment (6502-like targets only)
+* zeropage: some variables and parameters with no defined memory segment, preferring pointers (6502-like targets only)
 
 * high RAM: all the other variables and parameters
 

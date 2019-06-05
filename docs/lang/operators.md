@@ -8,7 +8,7 @@ Most expressions involving single bytes compile,
 but for larger types usually you need to use in-place modification operators.  
 Further improvements to the compiler may increase the number of acceptable combinations. 
 
-Certain expressions require the commandline flag `-fzp-register` (`.ini` equivalent: `zeropage_register`) to be enabled.
+On 6502-like targets, certain expressions require the commandline flag `-fzp-register` (`.ini` equivalent: `zeropage_register`) to be enabled.
 They will be marked with (zpreg) next to them. 
 The flag is enabled by default, but you can disable it if you need to.
 

@@ -36,6 +36,10 @@ It is possible to make a safe nested call to a non-nesting safe function, provid
 * the non-nested parameters have to have the same values in all co-occurring calls: `f(5, f(5, 6, 7), 7)`
 
 In all other cases, the nested call may cause undefined behaviour.
+In such cases, it's recommended to introduce a temporary variable:
+
+    tmp_f11 = f(1,1)
+    f(0, tmp_f11)
 
 ## Recursion safety
 
@@ -53,6 +57,15 @@ In all other cases, the recursive call may cause undefined behaviour.
 
 The easiest, but suboptimal way to make a function recursion-safe is to make all local variables stack-allocated
 and assign all parameters to variables as soon as possible. This is slow though, so don't do it unless really necessary.
+
+Example:
+
+    word fibonacci(byte i) {
+       if i < 2 { return 1 }
+       stack byte j
+       j = i
+       return fibonacci(j-1) + fibonacci(j-2)
+    }
 
 ## Interrupt safety
 

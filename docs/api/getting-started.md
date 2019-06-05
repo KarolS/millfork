@@ -31,9 +31,23 @@ x64 hello_world.prg
 
 The following options are obligatory when compiling your sources:
 
-* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended (`prg` for Commodore, `xex` for Atari computers, `a2` for Apple, `asm` for assembly output, `lbl` for label file, `inf` for BBC file metadata, `dsk` for PC-88, `tap` for ZX Spectrum, `nes` for Famicom, `bin` for Atari 2600)
+* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended
+(`prg` for Commodore,
+`xex` for Atari computers,
+`a2` for Apple,
+`asm` for assembly output,
+`lbl` for label file,
+`inf` for BBC file metadata,
+`dsk` for PC-88,
+`tap` for ZX Spectrum,
+`rom` for MSX cartridges,
+`com` for CP/M,
+`nes` for Famicom,
+`bin` for Atari 2600)
 
-* `-t PLATFORM` – specifies the target platform. Each platform is defined in an `.ini` file in the include directory. For the list of supported platforms, see [Supported platforms](target-platforms.md)
+* `-t PLATFORM` – specifies the target platform.
+Each platform is defined in an `.ini` file in the include directory.
+For the list of supported platforms, see [Supported platforms](target-platforms.md)
 
 You may be also interested in the following:
 

@@ -46,7 +46,7 @@ For every variable `x` larger than a byte, extra subvariables are defined:
 
     * constituent bytes, from low to high: `x.lo`, `x.hi`
 
-* if `x` is of type `farword`: 
+* if `x` is of type `int24`: 
 
     * constituent bytes, from low to high: `x.b0`, `x.b1`, `x.b2`
     

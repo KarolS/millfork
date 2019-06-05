@@ -22,6 +22,7 @@ Extension will be added automatically,
 no extension for BBC micro program file,
 `.inf` for BBC Micro metadata,
 `.d88` for PC-88 disk images,
+`.com` for CP/M executables,
 `.rom` for MSX cartridge images,
 `.tap` for ZX-Spectrum tape images.
 
@@ -65,14 +66,32 @@ Choose syntax for assembly output on 8080-like targets.
 
 ## Code generation options
 
-* `-fcmos-ops`, `-fno-cmos-ops` – Whether should emit CMOS opcodes.  
-`.ini` equivalent: `emit_cmos`.
-Default: yes if targeting a 65C02-compatible architecture, no otherwise.
+#### For all targets
 
-* `-fillegals`, `-fno-illegals` – Whether should emit illegal (undocumented) NMOS opcodes.  
+* `-fvariable-overlap`, `-fno-variable-overlap` – Whether variables should overlap if their scopes do not intersect.  
+Default: yes.
+
+* `-fbounds-checking`, `-fno-bounds-checking` – Whether should insert bounds checking on array access.  
+Default: no.
+
+* `-fcompact-dispatch-params`, `-fno-compact-dispatch-params` – 
+Whether parameter values in return dispatch statements may overlap other objects. 
+This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.  
+`.ini` equivalent: `compact_dispatch_params`. Default: yes.
+
+* `-flenient-encoding`, `-fno-lenient-encoding` – 
+Whether the compiler should allow for invalid characters in string/character literals that use the default encodings and replace them with alternatives.
+`.ini` equivalent: `lenient_encoding`. Default: yes on Apple II, no otherwise.
+
+* `-fillegals`, `-fno-illegals` – Whether should emit illegal (undocumented) NMOS or Z80 opcodes.  
 `.ini` equivalent: `emit_illegals`.
 Default: no.
 
+#### 6502-related
+
+* `-fcmos-ops`, `-fno-cmos-ops` – Whether should emit CMOS opcodes.  
+`.ini` equivalent: `emit_cmos`.
+Default: yes if targeting a 65C02-compatible architecture, no otherwise.
 * `-f65ce02-ops`, `-fno-65ce02-ops` – Whether should emit 65CE02 opcodes.  
 `.ini` equivalent: `emit_65ce026`. 
 Default: yes if targeting 65CE02, no otherwise.
@@ -103,20 +122,11 @@ If disabled, a sofware decimal mode will be used.
 `.ini` equivalent: `decimal_mode`.
 Default: no if targeting Ricoh, yes otherwise.
 
-* `-fvariable-overlap`, `-fno-variable-overlap` – Whether variables should overlap if their scopes do not intersect.  
-Default: yes.
+* `-fsoftware-stack`, `-fno-software-stack` –
+Use a software stack for stack variables.
+`.ini` equivalent: `software_stack`. Default: no.
 
-* `-fbounds-checking`, `-fno-bounds-checking` – Whether should insert bounds checking on array access.  
-Default: no.
-
-* `-fcompact-dispatch-params`, `-fno-compact-dispatch-params` – 
-Whether parameter values in return dispatch statements may overlap other objects. 
-This may cause problems if the parameter table is stored next to a hardware register that has side effects when reading.  
-`.ini` equivalent: `compact_dispatch_params`. Default: yes.
-
-* `-flenient-encoding`, `-fno-lenient-encoding` – 
-Whether the compiler should allow for invalid characters in string/character literals that use the default encodings and replace them with alternatives.
-`.ini` equivalent: `lenient_encoding`. Default: yes on Apple II, no otherwise.
+#### 8080/Z80-related
 
 * `-fshadow-irq`, `-fno-shadow-irq` –
 Whether the interrupt routines should make use of Z80 shadow registers.
@@ -124,7 +134,7 @@ Whether the interrupt routines should make use of Z80 shadow registers.
 
 * `-fuse-ix-for-stack`, `-fuse-iy-for-stack`, `-fno-use-index-for-stack` –
 Which of Z80 index registers should be used for accessing stack variables, if any. 
-`.ini` equivalent: `ix_stack` and `iy_stack`. Default: IX on Z80, no otherwise.
+`.ini` equivalent: `ix_stack` and `iy_stack`. Default: IX on Z80 and 8086, no otherwise.
 
 * `-fuse-ix-for-scratch`, `-fno-use-ix-for-scratch` –
 Allow using the IX register for other purposes.
@@ -133,10 +143,6 @@ Allow using the IX register for other purposes.
 * `-fuse-iy-for-scratch`, `-fno-use-iy-for-scratch` –
 Allow using the IY register for other purposes.
 `.ini` equivalent: `iy_scratch`. Default: no.
-
-* `-fsoftware-stack`, `-fno-software-stack` –
-Use a software stack for stack variables.
-`.ini` equivalent: `software_stack`. Default: no.
 
 ## Optimization options
 
@@ -181,7 +187,7 @@ Whether identical fragments of functions should be extracted into subroutines.
 Default: no. 
 
 * `-Os`, `--size` – Optimize for size, sacrificing some speed (experimental).
-Also enables `-fcode-deduplication`.
+Also enables `-fsubroutine-extraction`.
 
 * `-Of`, `--fast` – Optimize for speed, even if it increases the size a bit (experimental).
 Also enables `-finline`. 

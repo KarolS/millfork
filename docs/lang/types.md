@@ -100,13 +100,19 @@ equal to the number of variants in the enumeration.
 
 Assigment between numeric types and enumerations is not possible without an explicit type cast:
 
-    enum E {}
+    enum E { EA, EB }
     byte b
     E e
+    e = EA      // ok
     e = b       // won't compile
     b = e       // won't compile
     b = byte(e) // ok
     e = E(b)    // ok
+    
+    array a[E]  // E is plain, array has size 2
+    a[0]        // won't compile
+    a[EB]       // ok
+    
     
 Plain enumerations have their variants equal to `byte(0)` to `byte(<name>.count - 1)`.
     

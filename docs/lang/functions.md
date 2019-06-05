@@ -35,7 +35,8 @@ Syntax:
     The hardware instruction handler is assumed to have preserved the CPU registers,
     so this function only has to preserve the zeropage pseudoregisters.
     An example is the Commodore 64 interrupt handler that calls the function at an address read from $314/$315.
-    Unlike hardware handlers with `interrupt`, you can treat functions with `kernal_interrupt` like normal functions. 
+    Unlike hardware handlers with `interrupt`, you can treat functions with `kernal_interrupt` like normal functions.  
+    On non-6502-based targets, functions marked as `kernal_interrupt` don't differ from normal functions.
     
 * `<return_type>` is a valid return type, see [Types](./types.md)
 
@@ -45,7 +46,7 @@ Syntax:
     The function will be allocated at the address divisible by alignment.
     `fast` means different things depending on the target platform:
 
-    * on 6502, it means that the function will not cross a page boundary
+    * on 6502, it means that the function will not cross a page boundary if possible
     * on Z80, it is ignored   
 
 * `<address>` is a constant expression that defines where in the memory the function is or will be located.
