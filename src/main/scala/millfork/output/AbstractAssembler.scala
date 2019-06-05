@@ -145,6 +145,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case MathOperator.And => l & r
           case MathOperator.Exor => l ^ r
           case MathOperator.Or => l | r
+          case MathOperator.Divide => l / r
+          case MathOperator.Modulo => l % r
         }
     }
   }

@@ -1308,6 +1308,20 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case 2 =>
                 BuiltIns.compileInPlaceWordMultiplication(ctx, l, r)
             }
+          case "/=" | "%%=" =>
+            assertSizesForDivision(ctx, params, inPlace = true)
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 =>
+                BuiltIns.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%=") ++ compileByteStorage(ctx, MosRegister.A, l)
+            }
+          case "/" | "%%" =>
+            assertSizesForDivision(ctx, params, inPlace = false)
+            val (l, r, size) = assertArithmeticBinary(ctx, params)
+            size match {
+              case 1 =>
+                BuiltIns.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%")
+            }
           case "*'=" =>
             assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
             val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)

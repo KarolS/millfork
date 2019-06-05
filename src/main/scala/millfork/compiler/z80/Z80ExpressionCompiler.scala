@@ -880,6 +880,26 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 2 =>
                     Z80Multiply.compile16And8BitInPlaceMultiply(ctx, l, r)
                 }
+              case "/=" | "%%=" =>
+                assertSizesForDivision(ctx, params, inPlace = true)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+                size match {
+                  case 1 =>
+                    calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
+                      case Some((lvo, code)) =>
+                        code ++ (Z80Multiply.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%=") :+ ZLine.ld8(lvo, ZRegister.A))
+                      case None =>
+                        ctx.log.error("Invalid left-hand side", l.position)
+                        Nil
+                    }
+                }
+              case "/" | "%%" =>
+                assertSizesForDivision(ctx, params, inPlace = false)
+                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+                size match {
+                  case 1 =>
+                    targetifyA(ctx, target, Z80Multiply.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%"), false)
+                }
               case "*'=" =>
                 assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
                 val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)

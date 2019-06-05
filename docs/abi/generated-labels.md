@@ -28,6 +28,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `ds` – decimal right shift operation
 
+* `dv` – division and modulo operations
+
 * `el` – beginning of the "else" block in an `if` statement
 
 * `ew` – end of a `while` statement

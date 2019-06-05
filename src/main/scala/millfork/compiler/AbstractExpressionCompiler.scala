@@ -62,7 +62,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
       }
     } else {
       if (lSize > 2 || rSize > 2 || lSize + rSize > 3) {
-        ctx.log.error("Signed multiplication not supported", params.head.position)
+        ctx.log.error("Long multiplication not supported", params.head.position)
       }
       if (lSize == 2 && rType.isSigned) {
         ctx.log.error("Signed multiplication not supported", params.head.position)
@@ -76,6 +76,21 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
           return
         }
       }
+    }
+  }
+
+  def assertSizesForDivision(ctx: CompilationContext, params: List[Expression], inPlace: Boolean): Unit = {
+    assertAllArithmetic(ctx, params)
+    //noinspection ZeroIndexToHead
+    val lType = getExpressionType(ctx, params(0))
+    val lSize = lType.size
+    val rType = getExpressionType(ctx, params(1))
+    val rSize = rType.size
+    if (lSize > 1 || rSize > 1) {
+      ctx.log.error("Long division not supported", params.head.position)
+    }
+    if (lType.isSigned || rType.isSigned) {
+      ctx.log.error("Signed division not supported", params.head.position)
     }
   }
 
@@ -323,7 +338,7 @@ object AbstractExpressionCompiler {
         case 1 => b
         case 2 => w
       }
-      case FunctionCallExpression("*" | "|" | "&" | "^", params) => params.map { e => getExpressionType(env, log, e).size }.max match {
+      case FunctionCallExpression("*" | "|" | "&" | "^" | "/" | "%%", params) => params.map { e => getExpressionType(env, log, e).size }.max match {
         case 1 => b
         case 2 => w
         case _ => log.error("Combining values bigger than words", expr.position); w

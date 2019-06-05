@@ -269,6 +269,7 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
 object MathOperator extends Enumeration {
   val Plus, Minus, Times, Shl, Shr, Shl9, Shr9, Plus9, DecimalPlus9,
   DecimalPlus, DecimalMinus, DecimalTimes, DecimalShl, DecimalShl9, DecimalShr,
+  Divide, Modulo,
   And, Or, Exor = Value
 }
 
@@ -282,6 +283,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
            Shl | DecimalShl |
            Shl9 | DecimalShl9 |
            Shr | DecimalShr |
+           Divide | Modulo |
            And | Or | Exor => lhs.isProvablyNonnegative && rhs.isProvablyNonnegative
       case _ => false
     }
@@ -343,6 +345,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Exor => c
           case MathOperator.Or => c
           case MathOperator.And => Constant.Zero
+          case MathOperator.Divide => Constant.Zero
+          case MathOperator.Modulo => Constant.Zero
           case _ => CompoundConstant(operator, l, r)
         }
       case (c, NumericConstant(0, 1)) =>
@@ -378,6 +382,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Exor => (lv ^ rv) & bitmask
           case MathOperator.Or => lv | rv
           case MathOperator.And => lv & rv & bitmask
+          case MathOperator.Divide if lv >= 0 && rv >= 0 => lv / rv
+          case MathOperator.Modulo if lv >= 0 && rv >= 0 => lv % rv
           case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
             asDecimal(lv & 0xff, rv & 0xff, _ + _) & 0xff
           case MathOperator.DecimalMinus if ls == 1 && rs == 1 && lv.&(0xff) >= rv.&(0xff) =>

@@ -20,6 +20,8 @@
 
 * Added structs and unions.
 
+* Added unsigned byte division and modulo by a constant. 
+
 * Pointers can now be allocated anywhere.
 
 * Pointers can now be typed.

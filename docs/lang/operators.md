@@ -52,6 +52,9 @@ In the descriptions below, arguments to the operators are explained as follows:
 
 * `constant` means a compile-time constant
 
+* `simpleconstant` means a compile-time constant evaluable at the first compilation pass
+(eg. a literal or a combination of literals, not an undefined address)
+
 * `simple` means either: a constant, a non-stack variable,
 a pointer indexed with a constant, a pointer indexed with a non-stack variable, 
 an array indexed with a constant, an array indexed with a non-stack variable, 
@@ -91,7 +94,11 @@ TODO
 `word * byte` (zpreg)  
 `byte * word` (zpreg)
 
-There are no division, remainder or modulo operators.
+* `/`, `%%`: unsigned division and unsigned modulo
+
+`byte / simpleconstant byte`  
+`constant word / constant word`  
+`constant long / constant long`  
 
 ## Bitwise operators
 

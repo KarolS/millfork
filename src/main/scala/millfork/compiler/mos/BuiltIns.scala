@@ -1009,6 +1009,68 @@ object BuiltIns {
     }
   }
 
+  def compileUnsignedByteDivision(ctx: CompilationContext, p: Expression, q: Expression, modulo: Boolean): List[AssemblyLine] = {
+    if (ctx.options.zpRegisterSize < 1) {
+      ctx.log.error("Byte division requires the zeropage pseudoregister", p.position)
+      return Nil
+    }
+    ctx.env.eval(q) match {
+      case Some(NumericConstant(qq, _)) =>
+        if (qq < 0) {
+          ctx.log.error("Unsigned division by negative constant", q.position)
+          Nil
+        } else if (qq == 0) {
+          ctx.log.error("Unsigned division by zero", q.position)
+          Nil
+        } else if (qq > 255) {
+          if (modulo) MosExpressionCompiler.compileToA(ctx, p)
+          else List(AssemblyLine.immediate(LDA, 0))
+        } else {
+          compileUnsignedByteDivision(ctx, p, qq.toInt, modulo)
+        }
+      case Some(_) =>
+        ctx.log.error("Unsigned division by unknown constant", q.position)
+        Nil
+      case None =>
+        ctx.log.error("Unsigned division by a variable expression", q.position)
+        Nil
+    }
+  }
+  def compileUnsignedByteDivision(ctx: CompilationContext, p: Expression, q: Int, modulo: Boolean): List[AssemblyLine] = {
+    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val initP = MosExpressionCompiler.compileToA(ctx, p)
+    val result = ListBuffer[AssemblyLine]()
+    if (ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
+      result ++= initP
+      result += AssemblyLine.zeropage(STZ, reg)
+    } else if (MosExpressionCompiler.changesZpreg(initP, 0)) {
+      result ++= initP
+      result += AssemblyLine.implied(PHA)
+      result += AssemblyLine.immediate(LDA, 0)
+      result += AssemblyLine.zeropage(STA, reg)
+      result += AssemblyLine.implied(PLA)
+    } else {
+      result += AssemblyLine.immediate(LDA, 0)
+      result += AssemblyLine.zeropage(STA, reg)
+      result ++= initP
+    }
+
+    for (i <- 7.to(0, -1)) {
+      if ((q << i) <= 255) {
+        val lbl = ctx.nextLabel("dv")
+        result += AssemblyLine.immediate(CMP, q << i)
+        result += AssemblyLine.relative(BCC, lbl)
+        result += AssemblyLine.immediate(SBC, q << i)
+        result += AssemblyLine.label(lbl)
+        result += AssemblyLine.zeropage(ROL, reg)
+      }
+    }
+    if (!modulo) {
+      result += AssemblyLine.zeropage(LDA, reg)
+    }
+    result.toList
+  }
+
   def compileInPlaceByteAddition(ctx: CompilationContext, v: LhsExpression, addend: Expression, subtract: Boolean, decimal: Boolean): List[AssemblyLine] = {
     if (decimal && !ctx.options.flag(CompilationFlag.DecimalMode) && ctx.options.zpRegisterSize < 4) {
       ctx.log.error("Unsupported decimal operation. Consider increasing the size of the zeropage register.", v.position)

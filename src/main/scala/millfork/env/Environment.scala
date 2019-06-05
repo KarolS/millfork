@@ -730,6 +730,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             constantOperation(MathOperator.DecimalTimes, params)
           case "*" =>
             constantOperation(MathOperator.Times, params)
+          case "/" =>
+            constantOperation(MathOperator.Divide, params)
+          case "%%" =>
+            constantOperation(MathOperator.Modulo, params)
           case "&&" | "&" =>
             constantOperation(MathOperator.And, params)
           case "^" =>

@@ -657,13 +657,13 @@ object MfParser {
     }
 
   val mfOperators = List(
-    List("+=", "-=", "+'=", "-'=", "^=", "&=", "|=", "*=", "*'=", "<<=", ">>=", "<<'=", ">>'=", "="),
+    List("+=", "-=", "+'=", "-'=", "^=", "&=", "|=", "*=", "*'=", "<<=", ">>=", "<<'=", ">>'=", "/=", "%%=", "="),
     List("||", "^^"),
     List("&&"),
     List("==", "<=", ">=", "!=", "<", ">"),
     List(":"),
     List("+'", "-'", "<<'", ">>'", ">>>>", "+", "-", "&", "|", "^", "<<", ">>"),
-    List("*'", "*"))
+    List("*'", "*", "/", "%%"))
 
   val mfOperatorsDropFlatten: IndexedSeq[List[String]] = (0 until mfOperators.length).map(i => mfOperators.drop(i).flatten)
 

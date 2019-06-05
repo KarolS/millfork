@@ -1,9 +1,12 @@
 package millfork.compiler.z80
 
+import millfork.CompilationFlag
 import millfork.assembly.z80._
 import millfork.compiler.{AbstractExpressionCompiler, CompilationContext}
 import millfork.env._
 import millfork.node.{ConstantArrayElementExpression, Expression, LhsExpression, ZRegister}
+
+import scala.collection.mutable.ListBuffer
 
 /**
   * @author Karol Stasiak
@@ -99,6 +102,67 @@ object Z80Multiply {
         loadRegisters ++ multiplication(ctx) ++ store
     }
   }
+
+  /**
+    * Calculate A = p / q or A = p %% q
+    */
+  def compileUnsignedByteDivision(ctx: CompilationContext, p: LhsExpression, q: Expression, modulo: Boolean): List[ZLine] = {
+    ctx.env.eval(q) match {
+      case Some(NumericConstant(qq, _)) =>
+        if (qq < 0) {
+          ctx.log.error("Unsigned division by negative constant", q.position)
+          Nil
+        } else if (qq == 0) {
+          ctx.log.error("Unsigned division by zero", q.position)
+          Nil
+        } else if (qq > 255) {
+          if (modulo) Z80ExpressionCompiler.compileToA(ctx, p)
+          else List(ZLine.ldImm8(ZRegister.A, 0))
+        } else {
+          compileUnsignedByteDivisionImpl(ctx, p, qq.toInt, modulo)
+        }
+      case Some(_) =>
+        ctx.log.error("Unsigned division by unknown constant", q.position)
+        Nil
+      case None =>
+        ctx.log.error("Unsigned division by a variable expression", q.position)
+        Nil
+    }
+  }
+  /**
+      * Calculate A = p / q or A = p %% q
+      */
+    def compileUnsignedByteDivisionImpl(ctx: CompilationContext, p: LhsExpression, q: Int, modulo: Boolean): List[ZLine] = {
+      import ZRegister._
+      import ZOpcode._
+      val result = ListBuffer[ZLine]()
+      result ++= Z80ExpressionCompiler.compileToA(ctx, p)
+      result += ZLine.ldImm8(E, 0)
+
+      for (i <- 7.to(0, -1)) {
+        if ((q << i) <= 255) {
+          val lbl = ctx.nextLabel("dv")
+          result += ZLine.imm8(CP, q << i)
+          result += ZLine.jumpR(ctx, lbl, IfFlagSet(ZFlag.C))
+          result += ZLine.imm8(SUB, q << i)
+          result += ZLine.label(lbl)
+          result += ZLine.implied(CCF) // TODO: optimize?
+          if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+            result += ZLine.register(RL, E)
+          } else {
+            result += ZLine.ld8(D, A)
+            result += ZLine.ld8(A, E)
+            result += ZLine.implied(RLA)
+            result += ZLine.ld8(E, A)
+            result += ZLine.ld8(A, D)
+          }
+        }
+      }
+      if (!modulo) {
+        result += ZLine.ld8(A, E)
+      }
+      result.toList
+    }
 
   /**
     * Calculate HL = l * r
