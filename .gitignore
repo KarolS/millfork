@@ -37,6 +37,7 @@ examples/lunix/
 *.d88
 *.com
 *.gb
+*.rom
 HELLO
 HELLOCPC
 

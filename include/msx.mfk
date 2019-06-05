@@ -1,0 +1,22 @@
+
+#if not(MSX)
+#warn msx module should be only used on MSX-compatible targets
+#endif
+
+#pragma zilog_syntax
+
+asm void putchar(byte a) @$00a2 extern
+
+inline void new_line() {
+    putchar(13)
+    putchar(10)
+}
+
+const pointer readline_out = $F55E
+
+asm pointer readline() {
+    ? ld hl, $F55D
+    call $00b1
+    ? ld hl, $F55E
+    ? ret
+}

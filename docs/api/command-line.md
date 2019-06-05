@@ -22,6 +22,7 @@ Extension will be added automatically,
 no extension for BBC micro program file,
 `.inf` for BBC Micro metadata,
 `.d88` for PC-88 disk images,
+`.rom` for MSX cartridge images,
 `.tap` for ZX-Spectrum tape images.
 
 * `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file and the extension is `.asm`.

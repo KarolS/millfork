@@ -90,6 +90,8 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `IBM_PC` – 1 if the target is IBM PC, 0 otherwise
 
+* `MSX` – 1 if the target is MSX, 0 otherwise
+
 * `NTSC` – 1 if the target is NTSC, 0 otherwise
 
 * `PAL` – 1 if the target is PAL, 0 otherwise

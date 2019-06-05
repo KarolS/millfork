@@ -4,6 +4,8 @@
 
 * Preliminary experimental Game Boy support.
 
+* Preliminary MSX support.
+
 * Super experimental and very incomplete Intel 8086 support via 8080-to-8086 translation.
 
 * Support for Intel 8085.

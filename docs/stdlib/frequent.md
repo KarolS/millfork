@@ -24,6 +24,7 @@ The string is valid only until next read from the console.
 Available for:
 ZX Spectrum,
 NEC PC-88,
+MSX,
 Commodore 64 with `c64_basic` module,
 Commodore 16 or Plus/4 with `c264_basic` module.
 
@@ -34,6 +35,7 @@ Reads a 16-bit unsigned integer from the console.
 Available for:
 ZX Spectrum,
 NEC PC-88,
+MSX,
 Commodore 64 with `c64_basic` module,
 Commodore 16 or Plus/4 with `c264_basic` module.
 

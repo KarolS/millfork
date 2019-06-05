@@ -4,7 +4,7 @@
 
 Currently, Millfork supports creating disk- or tape-based programs
 for Commodore, Apple, BBC and Atari 8-bit computers, NEC PC-88, ZX Spectrum 48k, Amstrad CPC, CP/M,
-and cartridge-based programs for Commodore 64, VIC-20, Famicom/NES and Atari 2600,
+and cartridge-based programs for Commodore 64, VIC-20, MSX, Famicom/NES and Atari 2600,
 but it may be expanded to support other 6502-based and Z80-based platforms in the future.
 
 To add a custom platform yourself, see [the custom platform adding guide](./custom-platform.md).
@@ -77,6 +77,8 @@ Read [the Amstrad CPC programming guide](./cpc-programming-guide.md) for more in
 The compiler emits tape images.
 
 * `zxspectrum_8080` – Sinclair ZX Spectrum 48k, using only Intel 8080 instructions
+
+* `msx_crt` – MSX 16kB cartridge, using only 16kB RAM
 
 * `gb_small` – a tiny 32K Game Boy program. (experimental)
 The compiler emits GB files.
