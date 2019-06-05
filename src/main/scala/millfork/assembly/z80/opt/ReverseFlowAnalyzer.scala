@@ -241,6 +241,8 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.copy(a = Unimportant)
           case ZLine0(DISCARD_F, _, _) =>
             currentImportance = currentImportance.copy(cf = Unimportant, zf = Unimportant, sf = Unimportant, pf = Unimportant, hf = Unimportant, nf = Unimportant)
+          case ZLine0(LD, TwoRegisters(ZRegister.A, ZRegister.I | ZRegister.R), _) =>
+            currentImportance = currentImportance.copy(a = Unimportant, pf = Unimportant)
           case ZLine0(LD, TwoRegistersOffset(t, s, o), _) =>
             currentImportance = currentImportance.butWritesRegister(t, o).butReadsRegister(s, o)
           case ZLine0(LD | LD_16, TwoRegisters(t, s), _) =>

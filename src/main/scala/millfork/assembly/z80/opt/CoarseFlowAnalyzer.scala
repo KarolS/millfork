@@ -218,6 +218,8 @@ object CoarseFlowAnalyzer {
             currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt))
           case ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), xx) =>
             currentStatus = currentStatus.setHL(SingleStatus(xx))
+          case ZLine0(LD, TwoRegisters(ZRegister.A, ZRegister.I | ZRegister.R), _) =>
+            currentStatus = currentStatus.copy(a = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus, nf = AnyStatus)
           case ZLine0(LD, TwoRegisters(t, ZRegister.IMM_8), NumericConstant(value, _)) =>
             currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt))
           case ZLine0(LD, TwoRegistersOffset(t, ZRegister.IMM_8, o), NumericConstant(value, _)) =>
