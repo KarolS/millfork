@@ -2264,69 +2264,85 @@ object AlwaysGoodOptimizations {
     },
   )
 
-  val OptimizeZeroComparisons = new RuleBasedAssemblyOptimization("Optimizing zero comparisons",
+  val OptimizeZeroComparisons = jvmFix(new RuleBasedAssemblyOptimization("Optimizing zero comparisons",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasSourceOfNZ(State.A) & HasOpcode(CMP) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.init),
     (Elidable & HasSourceOfNZ(State.X) & HasOpcode(CPX) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.init),
     (Elidable & HasSourceOfNZ(State.Y) & HasOpcode(CPY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.init),
     (Elidable & HasSourceOfNZ(State.IZ) & HasOpcode(CPZ) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.init),
 
-    (Elidable & HasA(0) & HasOpcode(CMP)) ~ (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> {code =>
+    (Elidable & HasA(0) & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.N, State.A)) ~
+      (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDA), code(1).copy(opcode = BNE))
     },
-    (Elidable & HasA(0) & HasOpcode(CMP)) ~ (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> {code =>
+    (Elidable & HasA(0) & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.N, State.A)) ~
+      (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDA), code(1).copy(opcode = BEQ))
     },
 
-    (Elidable & HasX(0) & HasOpcode(CPX)) ~ (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C, State.N, State.X)) ~~> {code =>
+    (Elidable & HasX(0) & HasOpcode(CPX) & DoesntMatterWhatItDoesWith(State.X, State.N)) ~
+      (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDX), code(1).copy(opcode = BNE))
     },
-    (Elidable & HasX(0) & HasOpcode(CPX)) ~ (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C, State.N, State.X)) ~~> {code =>
+    (Elidable & HasX(0) & HasOpcode(CPX) & DoesntMatterWhatItDoesWith(State.X, State.N)) ~
+      (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDX), code(1).copy(opcode = BEQ))
     },
 
-    (Elidable & HasY(0) & HasOpcode(CPY)) ~ (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Y)) ~~> {code =>
+    (Elidable & HasY(0) & HasOpcode(CPY) & DoesntMatterWhatItDoesWith(State.Y, State.N)) ~
+      (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDY), code(1).copy(opcode = BNE))
     },
-    (Elidable & HasY(0) & HasOpcode(CPY)) ~ (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Y)) ~~> {code =>
+    (Elidable & HasY(0) & HasOpcode(CPY) & DoesntMatterWhatItDoesWith(State.Y, State.N)) ~
+      (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDY), code(1).copy(opcode = BEQ))
     },
 
-    (Elidable & HasA(0) & HasOpcode(CMP)) ~ (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C, State.N, State.X)) ~~> {code =>
+    (Elidable & HasA(0) & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.N, State.X) & HasAddrModeIn(LdxAddrModes)) ~
+      (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDX), code(1).copy(opcode = BNE))
     },
-    (Elidable & HasA(0) & HasOpcode(CMP)) ~ (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C, State.N, State.X)) ~~> {code =>
+    (Elidable & HasA(0) & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.N, State.X) & HasAddrModeIn(LdxAddrModes)) ~
+      (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDX), code(1).copy(opcode = BEQ))
     },
 
-    (Elidable & HasA(0) & HasOpcode(CMP)) ~ (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Y)) ~~> {code =>
+    (Elidable & HasA(0) & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.N, State.Y) & HasAddrModeIn(LdyAddrModes)) ~
+      (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDY), code(1).copy(opcode = BNE))
     },
-    (Elidable & HasA(0) & HasOpcode(CMP)) ~ (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C, State.N, State.Y)) ~~> {code =>
+    (Elidable & HasA(0) & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.N, State.Y) & HasAddrModeIn(LdyAddrModes)) ~
+      (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDY), code(1).copy(opcode = BEQ))
     },
 
-    (Elidable & HasX(0) & HasOpcode(CPX)) ~ (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> {code =>
+    (Elidable & HasX(0) & HasOpcode(CPX) & DoesntMatterWhatItDoesWith(State.N, State.A)) ~
+      (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDA), code(1).copy(opcode = BNE))
     },
-    (Elidable & HasX(0) & HasOpcode(CPX)) ~ (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> {code =>
+    (Elidable & HasX(0) & HasOpcode(CPX) & DoesntMatterWhatItDoesWith(State.N, State.A)) ~
+      (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDA), code(1).copy(opcode = BEQ))
     },
 
-    (Elidable & HasY(0) & HasOpcode(CPY)) ~ (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> {code =>
+    (Elidable & HasY(0) & HasOpcode(CPY) & DoesntMatterWhatItDoesWith(State.N, State.A)) ~
+      (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDA), code(1).copy(opcode = BNE))
     },
-    (Elidable & HasY(0) & HasOpcode(CPY)) ~ (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C, State.N, State.A)) ~~> {code =>
+    (Elidable & HasY(0) & HasOpcode(CPY) & DoesntMatterWhatItDoesWith(State.N, State.A)) ~
+      (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDA), code(1).copy(opcode = BEQ))
     },
 
-    (Elidable & HasZ(0) & HasOpcode(CPZ)) ~ (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C, State.N, State.IZ)) ~~> {code =>
+    (Elidable & HasZ(0) & HasOpcode(CPZ) & DoesntMatterWhatItDoesWith(State.N, State.IZ)) ~
+      (HasOpcode(BCC) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDZ), code(1).copy(opcode = BNE))
     },
-    (Elidable & HasZ(0) & HasOpcode(CPZ)) ~ (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C, State.N, State.IZ)) ~~> {code =>
+    (Elidable & HasZ(0) & HasOpcode(CPZ) & DoesntMatterWhatItDoesWith(State.N, State.IZ)) ~
+      (HasOpcode(BCS) & DoesntMatterWhatItDoesWith(State.C)) ~~> {code =>
       List(code.head.copy(opcode = LDZ), code(1).copy(opcode = BEQ))
     },
-  )
+  ))
 
   private def remapZ2N(line: AssemblyLine): AssemblyLine = line.opcode match {
     case BNE => line.copy(opcode = BMI)

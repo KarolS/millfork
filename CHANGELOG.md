@@ -38,6 +38,8 @@
 
 * 6502: Fixed optimizations using index registers.
 
+* 6502: Fixed optimizations of comparisons.
+
 * Fixed volatile-related bugs.
 
 * Fixed optimizations removing jumps to jumps.
