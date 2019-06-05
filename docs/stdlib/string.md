@@ -11,7 +11,7 @@ If the string is longer than 255 bytes, then the behaviour is undefined (might e
 
 #### `sbyte strzcmp(pointer str1, pointer str2)`
 
-Compares two strings. Returns 0 if equal, non-0 if not equal.
+Compares two null-terminated strings. Returns 0 if equal, non-0 if not equal.
 If any of the strings is longer than 255 bytes, then the behaviour is undefined (might even crash).
 
 #### `void strzcopy(pointer dest, pointer src)`
@@ -27,4 +27,4 @@ Sets `errno`.
 #### `void strzappend(pointer buffer, pointer str)`
 #### `void strzappendchar(pointer buffer, byte char)`
 
-Modifies the given null-terminated buffer by appending a null-terminated string or s single character respectively.
+Modifies the given null-terminated buffer by appending a null-terminated string or a single character respectively.

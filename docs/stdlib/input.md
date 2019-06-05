@@ -21,6 +21,7 @@ Vertical joystick movement. 1 if right, -1 if left, 0 if neither.
 
 Resets the state variables.
 For platforms with more than one button, this resets only the main button state.
+On those platforms use the platform-specific functions instead. 
 
 ## null_joy_default
 
@@ -61,6 +62,6 @@ or `word` if the screen is more that 256 pixels wide.
 
 ## null_mouse_default
 
-This module set the default joystick to no joystick. 
+This module set the default mouse to no mouse. 
 
 #### `void read_mouse()`
