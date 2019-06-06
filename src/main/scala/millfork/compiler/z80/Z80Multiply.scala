@@ -133,6 +133,15 @@ object Z80Multiply {
     * Calculate A = p / q or A = p %% q
     */
   def compileUnsignedByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, LhsExpression], q: Expression, modulo: Boolean): List[ZLine] = {
+    def loadPToA(): List[ZLine] = {
+      p match {
+        case Right(pp) => Z80ExpressionCompiler.compileToA(ctx, pp)
+        case Left(LocalVariableAddressViaHL) => List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).position(q.position))
+        case Left(LocalVariableAddressViaIX(offset)) => List(ZLine.ldViaIx(ZRegister.A, offset).position(q.position))
+        case Left(LocalVariableAddressViaIY(offset)) => List(ZLine.ldViaIy(ZRegister.A, offset).position(q.position))
+      }
+    }
+
     ctx.env.eval(q) match {
       case Some(NumericConstant(qq, _)) =>
         if (qq < 0) {
@@ -141,15 +150,20 @@ object Z80Multiply {
         } else if (qq == 0) {
           ctx.log.error("Unsigned division by zero", q.position)
           Nil
+        } else if (qq == 1) {
+          if (modulo) List(ZLine.ldImm8(ZRegister.A, 0).position(q.position))
+          else loadPToA()
         } else if (qq > 255) {
-          if (modulo) {
-            p match {
-              case Right(pp) => Z80ExpressionCompiler.compileToA(ctx, pp)
-              case Left(LocalVariableAddressViaHL) => List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL))
-              case Left(LocalVariableAddressViaIX(offset)) => List(ZLine.ldViaIx(ZRegister.A, offset))
-              case Left(LocalVariableAddressViaIY(offset)) => List(ZLine.ldViaIy(ZRegister.A, offset))
-            }
-          } else List(ZLine.ldImm8(ZRegister.A, 0))
+          if (modulo) loadPToA()
+          else List(ZLine.ldImm8(ZRegister.A, 0))
+        } else if (isPowerOfTwoUpTo15(qq)) {
+          val mask = (qq - 1).toInt
+          val shift = Integer.bitCount(mask)
+          val postShiftMask = (1 << (8 - shift)) - 1
+          if (modulo) loadPToA() :+ ZLine.imm8(ZOpcode.AND, mask)
+          else if (shift == 4 && ctx.options.flag(CompilationFlag.EmitSharpOpcodes)) loadPToA() ++ List(ZLine.register(ZOpcode.SWAP, ZRegister.A), ZLine.imm8(ZOpcode.AND, 15))
+          else if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) loadPToA() ++ List.fill(shift)(ZLine.register(ZOpcode.SRL, ZRegister.A))
+          else loadPToA() ++ List.fill(shift)(ZLine.implied(ZOpcode.RRCA)) :+ ZLine.imm8(ZOpcode.AND, postShiftMask)
         } else {
           compileUnsignedByteDivisionImpl(ctx, p, qq.toInt, modulo)
         }
@@ -247,4 +261,6 @@ object Z80Multiply {
         }.toList
     }
   }
+
+  private def isPowerOfTwoUpTo15(n: Long): Boolean = if (n <= 0 || n >= 0x8000) false else 0 == ((n-1) & n)
 }

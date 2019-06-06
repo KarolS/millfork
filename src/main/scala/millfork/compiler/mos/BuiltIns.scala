@@ -1032,7 +1032,13 @@ object BuiltIns {
           Nil
         } else if (qq > 255) {
           if (modulo) MosExpressionCompiler.compileToA(ctx, p)
-          else List(AssemblyLine.immediate(LDA, 0))
+          else List(AssemblyLine.immediate(LDA, 0).position(q.position))
+        } else if (qq == 1) {
+          if (modulo) List(AssemblyLine.immediate(LDA, 0).position(q.position))
+          else MosExpressionCompiler.compileToA(ctx, p)
+        } else if (isPowerOfTwoUpTo15(qq)) {
+          if (modulo) MosExpressionCompiler.compileToA(ctx, p) :+ AssemblyLine.immediate(AND, qq - 1).position(q.position)
+          else MosExpressionCompiler.compileToA(ctx, p) ++ List.fill(java.lang.Long.bitCount(qq-1))(AssemblyLine.implied(LSR).position(q.position))
         } else {
           compileUnsignedByteDivision(ctx, p, qq.toInt, modulo)
         }

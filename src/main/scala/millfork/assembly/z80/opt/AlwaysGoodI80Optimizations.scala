@@ -736,6 +736,13 @@ object AlwaysGoodI80Optimizations {
       }
     ),
 
+    for7Registers(reg =>
+      (Elidable & MatchRegister(reg, 0) & HasRegisterParam(reg) & HasOpcode(SWAP) & DoesntMatterWhatItDoesWithFlagsExceptCarry) ~~> { (code, ctx) =>
+        val value = ctx.get[Int](0)
+        val swappedValue = ((value >> 4) & 0xf) | ((value << 4) & 0xf0)
+        List(ZLine.ldImm8(reg, swappedValue).pos(code.head.source))
+      }
+    ),
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",

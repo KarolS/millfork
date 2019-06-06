@@ -375,4 +375,19 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readByte(0xc003) should equal(x % y) withClue s"$x %% $y"
     }
   }
+
+  test("Byte division 3") {
+    divisionCase1(0, 2)
+    divisionCase1(1, 2)
+    divisionCase1(2, 2)
+    divisionCase1(250, 128)
+    divisionCase1(0, 4)
+    divisionCase1(0, 8)
+    divisionCase1(1, 4)
+    divisionCase1(6, 8)
+    divisionCase1(73, 16)
+    divisionCase1(75, 128)
+    divisionCase1(42, 128)
+    divisionCase1(142, 128)
+  }
 }
