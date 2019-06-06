@@ -1314,6 +1314,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             size match {
               case 1 =>
                 BuiltIns.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%=") ++ compileByteStorage(ctx, MosRegister.A, l)
+              case 2 =>
+                if (f.functionName == "%%=") {
+                  BuiltIns.compileUnsignedWordByByteDivision(ctx, l, r, true) ++ compileByteStorage(ctx, MosRegister.A, l)
+                } else {
+                  compileAssignment(ctx, FunctionCallExpression("/", List(l, r)).pos(f.position), l)
+                }
             }
           case "/" | "%%" =>
             assertSizesForDivision(ctx, params, inPlace = false)
@@ -1321,6 +1327,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             size match {
               case 1 =>
                 BuiltIns.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%")
+              case 2 =>
+                BuiltIns.compileUnsignedWordByByteDivision(ctx, l, r, f.functionName == "%%")
             }
           case "*'=" =>
             assertAllArithmeticBytes("Long multiplication not supported", ctx, params)

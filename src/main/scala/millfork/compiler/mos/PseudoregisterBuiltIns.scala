@@ -462,6 +462,41 @@ object PseudoregisterBuiltIns {
     load ++ calculate
   }
 
+  def compileUnsignedWordByByteDivision(ctx: CompilationContext, param1: Expression, param2: Expression, modulo: Boolean): List[AssemblyLine] = {
+    (AbstractExpressionCompiler.getExpressionType(ctx, param1).size,
+      AbstractExpressionCompiler.getExpressionType(ctx, param2).size) match {
+      case (2 | 1, 1) => // ok
+      case _ => ctx.log.fatal("Invalid code path", param2.position)
+    }
+    (ctx.env.eval(param1), ctx.env.eval(param2)) match {
+      case (Some(l), Some(r)) =>
+        val operator = if (modulo) MathOperator.Modulo else MathOperator.Divide
+        val product = CompoundConstant(operator, l, r).quickSimplify
+        return List(AssemblyLine.immediate(LDA, product.loByte), AssemblyLine.immediate(LDX, product.hiByte))
+        // TODO: powers of 2, like with *
+      case _ =>
+    }
+    val b = ctx.env.get[Type]("byte")
+    val w = ctx.env.get[Type]("word")
+    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val code1 = MosExpressionCompiler.compile(ctx, param1, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+    val code2 = MosExpressionCompiler.compile(ctx, param2, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
+    val load = if (!usesRegLo(code2) && !usesRegHi(code2)) {
+      code1 ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 2))
+    } else if (!usesReg2(code1)) {
+      code2 ++ List(AssemblyLine.zeropage(STA, reg, 2)) ++ code1 ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1))
+    } else {
+      code2 ++ List(AssemblyLine.implied(PHA)) ++ code1 ++ List(
+        AssemblyLine.zeropage(STA, reg),
+        AssemblyLine.zeropage(STX, reg, 1),
+        AssemblyLine.implied(PLA),
+        AssemblyLine.zeropage(STA, reg, 2)
+      )
+    }
+    val functionName = if(modulo) "__mod_u16u8u16u8" else "__div_u16u8u16u8"
+    load ++ List(AssemblyLine.absoluteOrLongAbsolute(JSR, ctx.env.get[FunctionInMemory](functionName), ctx.options))
+  }
+
   private def simplicity(env: Environment, expr: Expression): Char = {
     val constPart = env.eval(expr) match {
       case Some(NumericConstant(_, _)) => 'Z'

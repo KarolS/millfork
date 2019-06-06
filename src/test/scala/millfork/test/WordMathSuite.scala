@@ -447,4 +447,95 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc004) should equal(x * y) withClue s"$x * $y"
     }
   }
+
+  test("Word division 1") {
+    divisionCase1(0, 1)
+    divisionCase1(1, 1)
+    divisionCase1(1, 5)
+    divisionCase1(6, 5)
+    divisionCase2(420, 11)
+    divisionCase2(1210, 11)
+    divisionCase2(35000, 45)
+    divisionCase2(51462, 1)
+  }
+
+  private def divisionCase1(x: Int, y: Int): Unit = {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos /*,Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086*/)(
+      s"""
+         | import zp_reg
+         | word output_q1 @$$c000
+         | word output_m1 @$$c002
+         | word output_q2 @$$c004
+         | word output_m2 @$$c006
+         | void main () {
+         |  word a
+         |  a = f()
+         |  output_q1 = a / $y
+         |  output_m1 = a %% $y
+         |  output_q2 = a
+         |  output_m2 = a
+         |  output_q2 /= $y
+         |  output_m2 %%= $y
+         | }
+         | word f() = $x
+          """.
+        stripMargin) { m =>
+      m.readWord(0xc000) should equal(x / y) withClue s"= $x / $y"
+      m.readWord(0xc002) should equal(x % y) withClue s"= $x %% $y"
+      m.readWord(0xc004) should equal(x / y) withClue s"= $x / $y"
+      m.readWord(0xc006) should equal(x % y) withClue s"= $x %% $y"
+    }
+  }
+
+  test("Word division 2") {
+    divisionCase2(0, 1)
+    divisionCase2(1, 1)
+    divisionCase2(2, 1)
+    divisionCase2(250, 1)
+    divisionCase2(0, 3)
+    divisionCase2(0, 5)
+    divisionCase2(1, 5)
+    divisionCase2(6, 5)
+    divisionCase2(73, 5)
+    divisionCase2(73, 8)
+    divisionCase2(75, 5)
+    divisionCase2(42, 11)
+    divisionCase2(420, 11)
+    divisionCase2(1210, 11)
+    divisionCase2(35000, 45)
+    divisionCase2(35000, 2)
+    divisionCase2(51462, 3)
+    divisionCase2(51462, 1)
+  }
+
+  private def divisionCase2(x: Int, y: Int): Unit = {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+      s"""
+         | import zp_reg
+         | word output_q1 @$$c000
+         | word output_m1 @$$c002
+         | word output_q2 @$$c004
+         | word output_m2 @$$c006
+         | void main () {
+         |  word a
+         |  byte b
+         |  a = f()
+         |  b = g()
+         |  output_q1 = a / b
+         |  output_m1 = a %% b
+         |  output_q2 = a
+         |  output_m2 = a
+         |  output_q2 /= b
+         |  output_m2 %%= b
+         | }
+         | word f() = $x
+         | noinline byte g() = $y
+          """.
+        stripMargin) { m =>
+      m.readWord(0xc000) should equal(x / y) withClue s"= $x / $y"
+      m.readWord(0xc002) should equal(x % y) withClue s"= $x %% $y"
+      m.readWord(0xc004) should equal(x / y) withClue s"= $x / $y"
+      m.readWord(0xc006) should equal(x % y) withClue s"= $x %% $y"
+    }
+  }
 }

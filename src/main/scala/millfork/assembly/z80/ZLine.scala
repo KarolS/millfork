@@ -200,9 +200,13 @@ object ZLine {
 
   def ldViaIx(targetOffset: Int, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegistersOffset(ZRegister.MEM_IX_D, source, targetOffset), Constant.Zero)
 
+  def ld0ViaIx(targetOffset: Int): ZLine = ZLine(LD, TwoRegistersOffset(ZRegister.MEM_IX_D, ZRegister.IMM_8, targetOffset), Constant.Zero)
+
   def ldViaIy(target: ZRegister.Value, sourceOffset: Int): ZLine = ZLine(LD, TwoRegistersOffset(target, ZRegister.MEM_IY_D, sourceOffset), Constant.Zero)
 
   def ldViaIy(targetOffset: Int, source: ZRegister.Value): ZLine = ZLine(LD, TwoRegistersOffset(ZRegister.MEM_IY_D, source, targetOffset), Constant.Zero)
+
+  def ld0ViaIy(targetOffset: Int): ZLine = ZLine(LD, TwoRegistersOffset(ZRegister.MEM_IY_D, ZRegister.IMM_8, targetOffset), Constant.Zero)
 
   def ldViaIxy(x: Boolean, target: ZRegister.Value, sourceOffset: Int): ZLine = if (x) ldViaIx(target, sourceOffset) else ldViaIy(target, sourceOffset)
 

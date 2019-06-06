@@ -1009,8 +1009,16 @@ object BuiltIns {
     }
   }
 
+  def compileUnsignedWordByByteDivision(ctx: CompilationContext, p: Expression, q: Expression, modulo: Boolean): List[AssemblyLine] = {
+    if (ctx.options.zpRegisterSize < 3) {
+      ctx.log.error("Word by byte division requires the zeropage pseudoregister of size at least 3", p.position)
+      return Nil
+    }
+    PseudoregisterBuiltIns.compileUnsignedWordByByteDivision(ctx, p, q, modulo)
+  }
+
   def compileUnsignedByteDivision(ctx: CompilationContext, p: Expression, q: Expression, modulo: Boolean): List[AssemblyLine] = {
-    if (ctx.options.zpRegisterSize < 1) {
+    if (ctx.options.zpRegisterSize < 2) {
       ctx.log.error("Byte division requires the zeropage pseudoregister", p.position)
       return Nil
     }

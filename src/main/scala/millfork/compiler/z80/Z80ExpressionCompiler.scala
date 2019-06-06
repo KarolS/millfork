@@ -888,11 +888,70 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
                       case Some((LocalVariableAddressViaHL, List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)))) =>
                         Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%=") :+ ZLine.ldAbs8(addr, ZRegister.A)
+                      case Some((LocalVariableAddressViaHL, code)) =>
+                        code ++ (stashHLIfChanged(ctx, Z80Multiply.compileUnsignedByteDivision(ctx, Left(LocalVariableAddressViaHL), r, f.functionName == "%%=")) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
                       case Some((lvo, code)) =>
-                        code ++ (stashHLIfChanged(ctx, Z80Multiply.compileUnsignedByteDivision(ctx, Left(lvo), r, f.functionName == "%%=")) :+ ZLine.ld8(lvo, ZRegister.A))
+                        code ++ (Z80Multiply.compileUnsignedByteDivision(ctx, Left(lvo), r, f.functionName == "%%=") :+ ZLine.ld8(lvo, ZRegister.A))
                       case None =>
                         ctx.log.error("Invalid left-hand side", l.position)
                         Nil
+                    }
+                  case 2 =>
+                    if (f.functionName == "%%=") {
+                      calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
+                        case Some((LocalVariableAddressViaHL, List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)))) =>
+                          Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r) ++ List(
+                            ZLine.ldAbs8(addr, ZRegister.A),
+                            ZLine.register(XOR, ZRegister.A),
+                            ZLine.ldAbs8(addr+1, ZRegister.A)
+                          )
+                        case Some((lvo@LocalVariableAddressViaHL, code)) =>
+                          code ++ stashHLIfChanged(ctx, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r)) ++ List(
+                            ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                            ZLine.register(INC_16, ZRegister.HL),
+                            ZLine.ldImm8(ZRegister.MEM_HL, 0)
+                          )
+                        case Some((lvo@LocalVariableAddressViaIX(offset), code)) =>
+                          code ++ Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r) ++ List(
+                            ZLine.ldViaIx(offset, ZRegister.A),
+                            ZLine.ld0ViaIx(offset + 1)
+                          )
+                        case Some((lvo@LocalVariableAddressViaIY(offset), code)) =>
+                          code ++ Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r) ++ List(
+                            ZLine.ldViaIy(offset, ZRegister.A),
+                            ZLine.ld0ViaIy(offset + 1)
+                          )
+                        case None =>
+                          ctx.log.error("Invalid left-hand side", l.position)
+                          Nil
+                      }
+                    } else {
+                      calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
+                        case Some((lvo@LocalVariableAddressViaHL, code)) =>
+                          code ++
+                            stashHLIfChanged(ctx,
+                              Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(LocalVariableAddressViaHL), r) ++ (
+                                if (ctx.options.flags(CompilationFlag.EmitIntel8080Opcodes)) List(ZLine.implied(EX_DE_HL))
+                                else List(ZLine.ld8(ZRegister.E, ZRegister.L), ZLine.ld8(ZRegister.D, ZRegister.H))
+                                )
+                            ) ++
+                            List(
+                            ZLine.ld8(ZRegister.MEM_HL, ZRegister.E),
+                            ZLine.register(INC_16, ZRegister.HL),
+                            ZLine.ld8(ZRegister.MEM_HL, ZRegister.D)
+                          )
+                        case Some((lvo@LocalVariableAddressViaIX(offset), code)) =>
+                          code ++
+                            Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r) ++
+                            storeHLViaIX(ctx, offset, 2, false)
+                        case Some((lvo@LocalVariableAddressViaIY(offset), code)) =>
+                          code ++
+                            Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r) ++
+                            storeHLViaIY(ctx, offset, 2, false)
+                        case _ =>
+                          ctx.log.error("Invalid left-hand side", l.position)
+                          Nil
+                      }
                     }
                 }
               case "/" | "%%" =>
@@ -901,6 +960,12 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 size match {
                   case 1 =>
                     targetifyA(ctx, target, Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%"), false)
+                  case 2 =>
+                    if (f.functionName == "%%") {
+                      targetifyA(ctx, target, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r), false)
+                    } else {
+                      targetifyHL(ctx, target, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r))
+                    }
                 }
               case "*'=" =>
                 assertAllArithmeticBytes("Long multiplication not supported", ctx, params)

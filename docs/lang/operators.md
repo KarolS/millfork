@@ -46,6 +46,8 @@ In the descriptions below, arguments to the operators are explained as follows:
 
 * `byte` means any numeric one-byte type
 
+* `unsigned byte` means any numeric one-byte type that is not signed
+
 * `word` means any numeric two-byte type, or a byte expanded to a word; `pointer` is considered to be numeric
 
 * `long` means any numeric type longer than two bytes, or a shorter type expanded to such length to match the other argument
@@ -91,11 +93,11 @@ TODO
 `word * byte` (zpreg)  
 `byte * word` (zpreg)
 
-* `/`, `%%`: unsigned division and unsigned modulo
-
-`byte / byte`  
+* `/`, `%%`: unsigned division and unsigned modulo  
+`unsigned byte / unsigned byte` (zpreg)  
+`word / unsigned byte` (zpreg)  
 `constant word / constant word`  
-`constant long / constant long`  
+`constant long / constant long`
 
 ## Bitwise operators
 
@@ -197,11 +199,15 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 
 * `*=`: multiplication in place  
 `mutable byte *= constant byte`  
-`mutable byte *= byte` (zpreg)
+`mutable byte *= byte` (zpreg)  
 `mutable word *= unsigned byte` (zpreg)
 
 * `*'=`: decimal multiplication in place  
 `mutable byte *'= constant byte`
+
+* `/=`, `%%=`: unsigned division and modulo in place  
+`mutable unsigned byte /= unsigned byte` (zpreg)  
+`mutable word /= unsigned byte` (zpreg)
 
 ## Indexing
 
