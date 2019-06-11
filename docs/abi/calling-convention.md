@@ -80,6 +80,7 @@ and the most significant word is passed via the DE register pair
 
 The Intel 8086 calling conventions is based on the Intel 8080 calling convention,
 plus it uses the BP register in the same role as the IX register of Z80.
+The DI register is not used.
 
 #### Parameters:
 
