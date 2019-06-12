@@ -22,6 +22,7 @@ sealed trait Constant {
 
   def isProvablyZero: Boolean = false
   def isProvably(value: Int): Boolean = false
+  def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = false
   def isProvablyNonnegative: Boolean = false
   def isProvablyGreaterOrEqualThan(other: Constant): Boolean = other match {
     case NumericConstant(0, _) => true
@@ -108,6 +109,7 @@ case class AssertByte(c: Constant) extends Constant {
   override def isProvablyZero: Boolean = c.isProvablyZero
   override def isProvably(i: Int): Boolean = c.isProvably(i)
   override def isProvablyNonnegative: Boolean = c.isProvablyNonnegative
+  override def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = c.isProvablyInRange(startInclusive, endInclusive)
   override def fitsProvablyIntoByte: Boolean = true
 
   override def requiredSize: Int = 1
@@ -142,6 +144,7 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
     case NumericConstant(o, _) if o >= 0  => value >= o
     case _ => false
   })
+  override def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = value >= startInclusive && value <= endInclusive
   override def isProvablyZero: Boolean = value == 0
   override def isProvably(i: Int): Boolean = value == i
   override def isProvablyNonnegative: Boolean = value >= 0
@@ -200,6 +203,10 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
   override def isProvablyGreaterOrEqualThan(other: Constant): Boolean = other match {
     case NumericConstant(0, _) => true
     case MemoryAddressConstant(otherThing) => thing == otherThing
+    case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(otherThing), c) =>
+      thing == otherThing && c.isProvablyNonnegative
+    case CompoundConstant(MathOperator.Plus, c, MemoryAddressConstant(otherThing)) =>
+      thing == otherThing && c.isProvablyNonnegative
     case _ => false
   }
 
@@ -215,7 +222,7 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
     case _ => false
   }
 
-  override def fitsProvablyIntoByte: Boolean = thing.zeropage
+  override def fitsProvablyIntoByte: Boolean = thing.zeropage // TODO: check if it's true only on 6502
 
   override def requiredSize = 2
 

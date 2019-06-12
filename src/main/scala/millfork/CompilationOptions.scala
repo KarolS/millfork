@@ -26,7 +26,7 @@ case class CompilationOptions(platform: Platform,
     f -> commandLineFlags.getOrElse(f, platform.flagOverrides.getOrElse(f, Cpu.defaultFlags(platform.cpu)(f)))
   }.toMap
 
-  def flag(f: CompilationFlag.Value) = flags(f)
+  def flag(f: CompilationFlag.Value): Boolean = flags(f)
 
   {
     log.setFatalWarnings(flags(CompilationFlag.FatalWarnings))
@@ -34,14 +34,14 @@ case class CompilationOptions(platform: Platform,
     var invalids = Set[CompilationFlag.Value]()
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.M6502) invalids ++= Set(
-      EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
+      EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes, LUnixRelocatableCode,
       PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, LUnixRelocatableCode, RorWarning, SoftwareStack)
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.I80 && CpuFamily.forType(platform.cpu) != CpuFamily.I86) invalids ++= Set(
-      EmitIntel8080Opcodes, UseIxForStack, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
+      EmitIntel8085Opcodes, EmitIntel8080Opcodes, UseIxForStack, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(
-      EmitIntel8085Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitEZ80Opcodes,
+      EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitEZ80Opcodes,
       UseIyForStack, UseShadowRegistersForInterrupts)
 
     invalids = invalids.filter(flags)
@@ -50,7 +50,7 @@ case class CompilationOptions(platform: Platform,
       log.error("Invalid flags enabled for the current CPU family: " + invalids.mkString(", "))
     }
     if (CpuFamily.forType(platform.cpu) != CpuFamily.M6502 && zpRegisterSize > 0) {
-      log.error("Invalid flags enabled for the current CPU family: zp_register" + invalids.mkString(", "))
+      log.error("Invalid flags enabled for the current CPU family: zp_register")
     }
     CpuFamily.forType(platform.cpu) match {
       case CpuFamily.M6502 =>
@@ -106,19 +106,19 @@ case class CompilationOptions(platform: Platform,
         }
       case CpuFamily.I80 =>
         if (flags(EmitIllegals)) {
-          if (platform.cpu != Z80) {
+          if (platform.cpu != Z80 && platform.cpu != Intel8085) {
             log.error("Illegal opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(UseIxForStack) || flags(UseIxForScratch)) {
-          if (platform.cpu != Z80) {
+          if (!Z80Compatible(platform.cpu)) {
             log.error("IX register enabled for architecture that doesn't support it")
           } else if (!flags(EmitZ80Opcodes)) {
             log.error("IX register is enabled but instructions using it are disabled")
           }
         }
         if (flags(UseIyForStack) || flags(UseIyForScratch)) {
-          if (platform.cpu != Z80) {
+          if (!Z80Compatible(platform.cpu)) {
             log.error("IY register enabled for architecture that doesn't support it")
           } else if (!flags(EmitZ80Opcodes)) {
             log.error("IY register is enabled but instructions using it are disabled")
@@ -134,19 +134,19 @@ case class CompilationOptions(platform: Platform,
           log.error("Cannot use both IX and IY registers for stack variables simultaneously")
         }
         if (flags(UseShadowRegistersForInterrupts)) {
-          if (platform.cpu != Z80) {
+          if (!Z80Compatible(platform.cpu)) {
             log.error("Shadow registers enabled for architecture that doesn't support them")
           } else if (!flags(EmitZ80Opcodes)) {
             log.error("Shadow registers are enabled but instructions using them are disabled")
           }
         }
         if (flags(EmitZ80Opcodes)) {
-          if (platform.cpu != Z80 && platform.cpu != EZ80) {
+          if (!Z80Compatible(platform.cpu)) {
             log.error("Z80 opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(EmitEZ80Opcodes)) {
-          if (platform.cpu != Z80 && platform.cpu != EZ80) {
+          if (platform.cpu != EZ80) {
             log.error("eZ80 opcodes enabled for architecture that doesn't support them")
           }
         }
@@ -156,24 +156,24 @@ case class CompilationOptions(platform: Platform,
           }
         }
         if (flags(EmitExtended80Opcodes)) {
-          if (platform.cpu != Sharp && platform.cpu != Z80 && platform.cpu != EZ80) {
+          if (platform.cpu != Sharp && !Z80Compatible(platform.cpu)) {
             log.error("Extended 8080-like opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(EmitIntel8080Opcodes)) {
-          if (platform.cpu != Intel8080 && platform.cpu != Intel8085 && platform.cpu != Z80 && platform.cpu != EZ80) {
+          if (!Intel8080Compatible(platform.cpu)) {
             log.error("Intel 8080 opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(EmitIntel8085Opcodes)) {
-          if (platform.cpu != Intel8085) {
+          if (!Intel8085Compatible(platform.cpu)) {
             log.error("Intel 8085 opcodes enabled for architecture that doesn't support them")
           }
         }
-      case CpuFamily.I86 =>
-        if (flags(EmitIllegals)) {
-          log.error("Illegal opcodes enabled for architecture that doesn't support them")
+        if (!flags(CompilationFlag.EmitSharpOpcodes) && !flags(CompilationFlag.EmitIntel8080Opcodes)) {
+          log.error("Either Sharp LR35902 or Intel 8080 opcodes have to be enabled")
         }
+      case CpuFamily.I86 =>
     }
   }
 
@@ -211,7 +211,8 @@ case class CompilationOptions(platform: Platform,
       "CPUFEATURE_65816_EMULATION" -> toLong(flag(CompilationFlag.EmitEmulation65816Opcodes)),
       "CPUFEATURE_65816_NATIVE" -> toLong(flag(CompilationFlag.EmitNative65816Opcodes)),
       "CPUFEATURE_6502_ILLEGALS" -> toLong(platform.cpuFamily == CpuFamily.M6502 && flag(CompilationFlag.EmitIllegals)),
-      "CPUFEATURE_Z80_ILLEGALS" -> toLong(platform.cpuFamily == CpuFamily.I80 && flag(CompilationFlag.EmitIllegals)),
+      "CPUFEATURE_Z80_ILLEGALS" -> toLong(flag(CompilationFlag.EmitZ80Opcodes) && flag(CompilationFlag.EmitIllegals)),
+      "CPUFEATURE_8085_ILLEGALS" -> toLong(flag(CompilationFlag.EmitIntel8080Opcodes) && flag(CompilationFlag.EmitIllegals)),
       "SYNTAX_INTEL" -> toLong(platform.cpuFamily == CpuFamily.I80 && flag(CompilationFlag.UseIntelSyntaxForInput)),
       "SYNTAX_ZILOG" -> toLong(platform.cpuFamily == CpuFamily.I80 && !flag(CompilationFlag.UseIntelSyntaxForInput)),
       "USES_ZPREG" -> toLong(platform.cpuFamily == CpuFamily.M6502 && zpRegisterSize > 0),
@@ -227,13 +228,40 @@ case class CompilationOptions(platform: Platform,
 }
 
 object CpuFamily extends Enumeration {
-  val M6502, I80, M6800, I86, M68K, ARM = Value
+  /**
+    * Family based on the MOS 6502 processor and its descendants
+    */
+  val M6502: CpuFamily.Value = Value
+  /**
+    * Family based on the Intel 8080 processor and similar architectures
+    */
+  val I80: CpuFamily.Value = Value
+  /**
+    * Family based on the Motorola 6800 processor
+    */
+  val M6800: CpuFamily.Value = Value
+  /**
+    * Family based on the Motorola 6809 processor
+    */
+  val M6809: CpuFamily.Value = Value
+  /**
+    * Family based on the Intel 8086/8088 processor and its descendants
+    */
+  val I86: CpuFamily.Value = Value
+  /**
+    * Family based on the Motorola 68000 processor and its descendants
+    */
+  val M68K: CpuFamily.Value = Value
+  /**
+    * Family based on the ARM processors
+    */
+  val ARM: CpuFamily.Value = Value
 
   def forType(cpu: Cpu.Value): CpuFamily.Value = {
     import Cpu._
     cpu match {
       case Mos | StrictMos | Ricoh | StrictRicoh | Cmos | HuC6280 | CE02 | Sixteen => M6502
-      case Intel8080 | Intel8085 | Sharp | Z80 | EZ80 => I80
+      case Intel8080 | Intel8085 | StrictIntel8085 | Sharp | Z80 | StrictZ80 | EZ80 => I80
       case Intel8086 | Intel80186 => I86
     }
   }
@@ -241,9 +269,91 @@ object CpuFamily extends Enumeration {
 
 object Cpu extends Enumeration {
 
-  val Mos, StrictMos, Ricoh, StrictRicoh, Cmos, HuC6280, CE02, Sixteen, Intel8080, Intel8085, Z80, EZ80, Sharp, Intel8086, Intel80186 = Value
+  /**
+    * The MOS 6502/6507/6510 processor
+    */
+  val Mos: Cpu.Value = Value
+  /**
+    * The MOS 6502/6507/6510 processor, without illegal instructions
+    */
+  val StrictMos: Cpu.Value = Value
+  /**
+    * The Ricoh 2A03/2A07 processor
+    */
+  val Ricoh: Cpu.Value = Value
+  /**
+    * The Ricoh 2A03/2A07 processor, without illegal instructions
+    */
+  val StrictRicoh: Cpu.Value = Value
+  /**
+    * The WDC 65C02 processor
+    */
+  val Cmos: Cpu.Value = Value
+  /**
+    * The Hudson Soft HuC6280 processor
+    */
+  val HuC6280: Cpu.Value = Value
+  /**
+    * The CSG 65CE02 processor
+    */
+  val CE02: Cpu.Value = Value
+  /**
+    * The WDC 65816 processor
+    */
+  val Sixteen: Cpu.Value = Value
+  /**
+    * The Intel 8080 processor
+    */
+  val Intel8080: Cpu.Value = Value
+  /**
+    * The Intel 8085 processor
+    */
+  val Intel8085: Cpu.Value = Value
+  /**
+    * The Intel 8085 processor, without illegal instructions
+    */
+  val StrictIntel8085: Cpu.Value = Value
+  /**
+    * The Zilog Z80 processor
+    */
+  val Z80: Cpu.Value = Value
+  /**
+    * The Zilog Z80 processor, without illegal instructions
+    */
+  val StrictZ80: Cpu.Value = Value
+  /**
+    * The Zilog eZ80 processor
+    */
+  val EZ80: Cpu.Value = Value
+  /**
+    * The Sharp LR35902 processor
+    */
+  val Sharp: Cpu.Value = Value
+  /**
+    * The Intel 8086 or 8088 processor
+    */
+  val Intel8086: Cpu.Value = Value
+  /**
+    * The Intel 80186 or 80188 processor
+    */
+  val Intel80186: Cpu.Value = Value
 
-  val CmosCompatible = Set(Cmos, HuC6280, CE02, Sixteen)
+  /**
+    * Processors that can run code for WDC 65C02
+    */
+  val CmosCompatible: Set[Cpu.Value] = Set(Cmos, HuC6280, CE02, Sixteen)
+  /**
+    * Processors that can run code for Zilog Z80
+    */
+  val Z80Compatible: Set[Cpu.Value] = Set(Z80, StrictZ80, EZ80)
+  /**
+    * Processors that can run code for Intel 8080
+    */
+  val Intel8080Compatible: Set[Cpu.Value] = Set(Intel8080, Intel8085, StrictIntel8085, Z80, StrictZ80, EZ80)
+  /**
+    * Processors that can run code for Intel 8085
+    */
+  val Intel8085Compatible: Set[Cpu.Value] = Set(Intel8085, StrictIntel8085)
 
   import CompilationFlag._
 
@@ -274,16 +384,16 @@ object Cpu extends Enumeration {
       mosAlwaysDefaultFlags ++ Set(DecimalMode, EmitCmosOpcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes, ReturnWordsViaAccumulator)
     case Intel8080 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
-    case Intel8085 =>
+    case StrictIntel8085 | Intel8085 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitIntel8085Opcodes, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
-    case Z80 =>
+    case StrictZ80 | Z80 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts)
     case EZ80 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts, EmitEZ80Opcodes)
     case Sharp =>
       i80AlwaysDefaultFlags ++ Set(EmitExtended80Opcodes, EmitSharpOpcodes)
     case Intel8086 | Intel80186 =>
-      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, UseIxForStack)
+      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, UseIxForStack, EmitIntel8085Opcodes, EmitIllegals)
   }
 
   def fromString(name: String)(implicit log: Logger): Cpu.Value = name match {
@@ -306,7 +416,9 @@ object Cpu extends Enumeration {
     case "65ce02" => CE02
     case "ce02" => CE02
     case "65816" => Sixteen
+    case "65c816" => Sixteen
     case "816" => Sixteen
+    case "5a22" => Sixteen
     case "ricoh" => Ricoh
     case "2a03" => Ricoh
     case "2a07" => Ricoh
@@ -314,6 +426,7 @@ object Cpu extends Enumeration {
     case "strict2a03" => StrictRicoh
     case "strict2a07" => StrictRicoh
     case "z80" => Z80
+    case "strictz80" => Z80
       // disabled for now:
 //    case "ez80" => EZ80
     case "gameboy"  => Sharp
@@ -326,6 +439,9 @@ object Cpu extends Enumeration {
     case "8085" => Intel8085
     case "i8085" => Intel8085
     case "intel8085" => Intel8085
+    case "strict8085" => StrictIntel8085
+    case "stricti8085" => StrictIntel8085
+    case "strictintel8085" => StrictIntel8085
     case "intel8086" => Intel8086
     case "i8086" => Intel8086
     case "8086" => Intel8086
@@ -382,7 +498,7 @@ object CompilationFlag extends Enumeration {
 
   val allWarnings: Set[CompilationFlag.Value] = Set(ExtraComparisonWarnings)
 
-  val fromString = Map(
+  val fromString: Map[String, CompilationFlag.Value] = Map(
     "lunix" -> LUnixRelocatableCode,
     "emit_illegals" -> EmitIllegals,
     "emit_cmos" -> EmitCmosOpcodes,

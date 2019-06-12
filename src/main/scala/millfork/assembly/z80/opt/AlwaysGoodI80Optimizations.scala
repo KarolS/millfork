@@ -428,7 +428,24 @@ object AlwaysGoodI80Optimizations {
       (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.AF) & DoesntMatterWhatItDoesWithFlags) ~~> { code =>
       code.tail.init
     },
+    //27-31
+    for5LargeRegisters(register => {
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(register)) ~
+        (Linear & IsLocallyAlignable).*.capture(1) ~
+        Where(ctx => ctx.isAlignableBlock(1)) ~
+        (Elidable & HasOpcode(POP) & HasRegisterParam(register) & DoesntMatterWhatItDoesWith(register)) ~~> { (code, ctx) =>
+        shallowerStack(code.tail.init)
+      }
+    }),
   )
+
+  private def shallowerStack(lines: List[ZLine]): List[ZLine] = lines match {
+    case (x@ZLine0(LD_HLSP | LD_DESP, _, c)) :: xs => x.copy(parameter = c - 2) :: shallowerStack(xs)
+    case (x@ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), c)) :: (y@ZLine0(ADD_16, TwoRegisters(ZRegister.HL, ZRegister.SP), _)) :: xs =>
+      x.copy(parameter = c - 2) :: y :: shallowerStack(xs)
+    case x :: xs => x :: shallowerStack(xs)
+    case Nil => Nil
+  }
 
   val PointlessStackStashingFromFlow = new RuleBasedAssemblyOptimization("Pointless stack stashing from flow",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
@@ -439,6 +456,18 @@ object AlwaysGoodI80Optimizations {
         (Elidable & HasOpcode(POP) & HasRegisterParam(register)) ~~> { (code, ctx) =>
         val i = ctx.get[Int](1)
         code.tail.init :+ ZLine.ldImm16(register, i)
+      }
+    }),
+  )
+
+  val PointlessStackUnstashing = new RuleBasedAssemblyOptimization("Pointless stack unstashing",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    // 0-4
+    for5LargeRegisters(register => {
+      (Elidable & HasOpcode(POP) & HasRegisterParam(register)) ~
+        (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer) & Not(Concerns(register))).* ~
+        (Elidable & HasOpcode(PUSH) & HasRegisterParam(register) & DoesntMatterWhatItDoesWith(register)) ~~> { (code, ctx) =>
+        code.tail.init
       }
     }),
   )
@@ -1249,6 +1278,11 @@ object AlwaysGoodI80Optimizations {
 
     )
 
+  val PointlessExdehlFromFlow = new RuleBasedAssemblyOptimization("Pointless EX DE,HL from flow",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & HasOpcode(EX_DE_HL) & DoesntMatterWhatItDoesWith(DE, HL)) ~~> (_ => Nil),
+  )
+
   val PointlessArithmetic = new RuleBasedAssemblyOptimization("Pointless arithmetic",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     (Elidable & HasOpcodeIn(Set(ADD, ADC, SUB, SBC, OR, AND, XOR, CP)) & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A)) ~~> (_ => Nil),
@@ -1507,11 +1541,14 @@ object AlwaysGoodI80Optimizations {
     ConstantInlinedShifting,
     FreeHL,
     LoopInvariant,
+    PointlessExdehl,
+    PointlessExdehlFromFlow,
     PointlessArithmetic,
     PointlessFlagChange,
     PointlessLoad,
     PointlessStackStashing,
     PointlessStackStashingFromFlow,
+    PointlessStackUnstashing,
     ReloadingKnownValueFromMemory,
     ShiftingKnownValue,
     SimplifiableMaths,

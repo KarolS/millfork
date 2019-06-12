@@ -9,7 +9,7 @@ import org.scalatest.{AppendedClues, FunSuite, Matchers}
 class WordMathSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | word a
         | void main () {
@@ -21,7 +21,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Cast word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | word a
         | void main () {
@@ -34,7 +34,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | word a
         | void main () {
@@ -46,7 +46,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word subtraction 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | word a
         | void main () {
@@ -58,7 +58,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word subtraction 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | word a
         | void main () {

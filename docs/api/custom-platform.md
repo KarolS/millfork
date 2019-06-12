@@ -29,18 +29,21 @@ if a line ends with a backslash character, the value continues to the next line.
     
     * `z80` (Zilog Z80)
     
+    * `strictz80` (Z80 without illegal instructions)
+    
     * `i8080` (Intel 8080)
     
     * `i8085` (Intel 8085)
+    
+    * `strict8085` (Intel 8085 without illegal instructions)
     
     * `gameboy` (Sharp LR35902; experimental)
     
     * `i8086` (Intel 8086; very experimental, very buggy and very, very incomplete –
     see the [8086 support disclaimer](../lang/x86disclaimer.md))
 
-* `encoding` – default encoding for console I/O, one of 
-`ascii`, `pet`/`petscii`, `petscr`/`cbmscr`, `atascii`, `bbc`, `jis`/`jisx`, `apple2`,
-`iso_de`, `iso_no`/`iso_dk`, `iso_se`/`iso_fi`, `iso_yu`. Default: `ascii`
+* `encoding` – default encoding for console I/O. Default: `ascii`.
+See [the list of available encodings](../lang/text.md).
 
 * `screen_encoding` – default encoding for screencodes (literals with encoding specified as `scr`). 
 Default: the same as `encoding`.
@@ -51,12 +54,18 @@ Default: the same as `encoding`.
 
     * `emit_illegals` – whether the compiler should emit illegal instructions, default `false`
     
-    * `emit_cmos` – whether the compiler should emit CMOS instructions, default is `true` on compatible processors and `false` elsewhere
+    * `emit_cmos` – whether the compiler should emit 65C02 instructions, default is `true` on compatible processors and `false` elsewhere
 
     * `emit_65816` – which 65816 instructions should the compiler emit, either `no`, `emulation` or `native` 
     
     * `decimal_mode` – whether the compiler should emit decimal instructions, default is `false` on `ricoh` and `strictricoh` and `true` elsewhere;
     if disabled, a software decimal mode will be used
+
+    * `emit_8085` – whether the compiler should emit Intel 8085 instructions, default is `true` on compatible processors and `false` elsewhere
+
+    * `emit_x80` – whether the compiler should emit instructions present on Sharp LR35902 and Z80, but absent on Intel 8080, default is `true` on compatible processors and `false` elsewhere
+
+    * `emit_z80` – whether the compiler should emit Zilog Z80 instructions not covered by `emit_x80`, default is `true` on compatible processors and `false` elsewhere
     
     * `ro_arrays` – (deprecated) whether the compiler should warn upon array writes, default is `false`
     

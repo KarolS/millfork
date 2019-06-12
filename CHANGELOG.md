@@ -8,7 +8,7 @@
 
 * Super experimental and very incomplete Intel 8086 support via 8080-to-8086 translation.
 
-* Support for Intel 8085.
+* Support for Intel 8085, together with illegal instructions.
 
 * Added `memory_barrier` macro.
 
@@ -48,7 +48,7 @@
 
 * Fixed optimizations removing pointless stores to local variables.
 
-* Fixed name clashes when passing parameters to functions.
+* Fixed name clashes when passing parameters to functions and macros.
 
 * Fixed `#use` not accessing all preprocessor parameters.
 

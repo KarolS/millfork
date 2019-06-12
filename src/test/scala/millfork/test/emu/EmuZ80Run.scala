@@ -82,9 +82,11 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
       CompilationFlag.OptimizeStdlib -> this.inline,
       CompilationFlag.OptimizeForSize -> this.optimizeForSize,
       CompilationFlag.SubroutineExtraction -> optimizeForSize,
-      CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80),
+      CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80 || cpu == millfork.Cpu.Intel8085),
       CompilationFlag.LenientTextEncoding -> true)
     val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0, Map(), JobContext(log, new LabelGenerator))
+    println(cpu)
+    println(options.flags.filter(_._2).keys.toSeq.sorted)
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source
@@ -201,6 +203,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
             }
             Timings(ticks, ticks) -> memoryBank
           case _ =>
+            // e.g. 8085 with illegals
             Timings(-1, -1) -> memoryBank
         }
         log.clearErrors()

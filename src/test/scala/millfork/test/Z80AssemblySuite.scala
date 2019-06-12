@@ -919,11 +919,58 @@ class Z80AssemblySuite extends FunSuite with Matchers {
   test("Intel 8085 instructions (Intel syntax)") {
     EmuUnoptimizedIntel8085Run(
       """
-        | #pragma intelg_syntax
+        | #pragma intel_syntax
         | asm void main () {
         |   ret
         |   rim
         |   sim
+        |   ret
+        | }
+      """.stripMargin)
+  }
+
+  test("Illegal Intel 8085 instructions (Intel syntax)") {
+    EmuUnoptimizedIntel8085Run(
+      """
+        | #pragma intel_syntax
+        | asm void main () {
+        |   ret
+        |   lhlx
+        |   shlx
+        |   arhl
+        |   rlde
+        |   ldhi 5
+        |   ldsi 6
+        |   rstv
+        |   ovrst8
+        |   jk main
+        |   jnk main
+        |   jx5 main
+        |   jnx5 main
+        |   dsub
+        |   ret
+        | }
+      """.stripMargin)
+  }
+
+  test("Illegal Intel 8085 instructions (Zilog syntax)") {
+    EmuUnoptimizedIntel8085Run(
+      """
+        | #pragma zilog_syntax
+        | asm void main () {
+        |   ret
+        |   ld hl,(de)
+        |   ld (de), hl
+        |   sra hl
+        |   rl de
+        |   ld de,hl+5
+        |   ld de,sp+6
+        |   rstv
+        |   jp k, main
+        |   jp nk, main
+        |   jp x5, main
+        |   jp nx5, main
+        |   dsub
         |   ret
         | }
       """.stripMargin)

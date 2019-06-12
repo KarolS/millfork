@@ -1,11 +1,10 @@
 package millfork.compiler
 
 import millfork.assembly.AbstractCode
-import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
+import millfork.assembly.z80.ZOpcode
 import millfork.env._
-import millfork.error.ConsoleLogger
-import millfork.node.{MosRegister, _}
+import millfork.node._
 
 /**
   * @author Karol Stasiak
@@ -60,6 +59,7 @@ abstract class MacroExpander[T <: AbstractCode] {
         if (params.length != normalParams.length) {
           ctx.log.error(s"Invalid number of params for macro function ${i.name}", position)
         } else {
+          normalParams.foreach(param => i.environment.removeVariable(param.name))
           params.zip(normalParams).foreach {
             case (v@VariableExpression(_), MemoryVariable(paramName, paramType, _)) =>
               actualCode = actualCode.map(stmt => replaceVariable(stmt, paramName.stripPrefix(i.environment.prefix), v).asInstanceOf[ExecutableStatement])
@@ -74,12 +74,15 @@ abstract class MacroExpander[T <: AbstractCode] {
     // fix local labels:
     // TODO: do it even if the labels are in an inline assembly block inside a Millfork function
     val localLabels = actualCode.flatMap {
-      case MosAssemblyStatement(LABEL, _, VariableExpression(l), _) => Some(l)
+      case MosAssemblyStatement(Opcode.LABEL, _, VariableExpression(l), _) => Some(l)
+      case Z80AssemblyStatement(ZOpcode.LABEL, _, _, VariableExpression(l), _) => Some(l)
       case _ => None
     }.toSet
     val labelPrefix = ctx.nextLabel("il")
     paramPreparation -> actualCode.map {
       case s@MosAssemblyStatement(_, _, VariableExpression(v), _) if localLabels(v) =>
+        s.copy(expression = VariableExpression(labelPrefix + v))
+      case s@Z80AssemblyStatement(_, _, _, VariableExpression(v), _) if localLabels(v) =>
         s.copy(expression = VariableExpression(labelPrefix + v))
       case s => s
     }

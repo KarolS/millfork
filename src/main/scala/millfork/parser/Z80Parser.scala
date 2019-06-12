@@ -138,6 +138,16 @@ case class Z80Parser(filename: String,
     case (reg, addr) => (op, OneRegister(reg), None, addr.getOrElse(zero))
   }
 
+  def one8RegisterOr8085Illegal(op: ZOpcode.Value, illegalTarget: ZRegister.Value, illegalOp: ZOpcode.Value): P[(ZOpcode.Value, ZRegisters, Option[Expression], Expression)] = param(allowAbsolute = false).map{
+    case (reg@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), Some(e)) => (op, OneRegister(reg), Some(e), zero)
+    case (reg, _) if reg == illegalTarget && options.flag(CompilationFlag.EmitIntel8085Opcodes) && options.flag(CompilationFlag.EmitIllegals) =>
+      (illegalOp, NoRegisters, None, zero)
+    case (reg, _) if reg == illegalTarget =>
+      log.error("This instruction requires support for undocumented 8085 instructions: " + ZLine.register(op, reg))
+      (op, OneRegister(ZRegister.A), None, zero)
+    case (reg, addr) => (op, OneRegister(reg), None, addr.getOrElse(zero))
+  }
+
   def one8Or16Register(op8: ZOpcode.Value, op16: ZOpcode.Value): P[(ZOpcode.Value, OneRegister, Option[Expression], Expression)] = param(allowAbsolute = false).map{
     case (reg@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), Some(e)) => (op8, OneRegister(reg), Some(e), zero)
     case (reg@(ZRegister.HL | ZRegister.DE | ZRegister.AF | ZRegister.SP | ZRegister.BC | ZRegister.IX | ZRegister.IY), addr) => (op16, OneRegister(reg), None, addr.getOrElse(zero))
@@ -152,10 +162,19 @@ case class Z80Parser(filename: String,
   }
 
   private val jumpCondition: P[ZRegisters] = (HWS ~ (
+    if (options.flag(CompilationFlag.EmitIllegals) && options.flag(CompilationFlag.EmitIntel8085Opcodes))
     "NZ" | "nz" | "nc" | "NC" | "NV" | "nv" |
       "PO" | "po" | "PE" | "pe" |
       "m" | "M" | "p" | "P" |
-      "c" | "C" | "Z" | "z" | "V" | "v").! ~ HWS).map {
+      "c" | "C" | "Z" | "z" | "V" | "v" |
+      "k" | "K" | "nk" | "NK" |
+      "x5" | "X5" | "nx5" | "NX5"
+    else
+      "NZ" | "nz" | "nc" | "NC" | "NV" | "nv" |
+        "PO" | "po" | "PE" | "pe" |
+        "m" | "M" | "p" | "P" |
+        "c" | "C" | "Z" | "z" | "V" | "v"
+    ).! ~ HWS).map {
     case "Z" | "z" => IfFlagSet(ZFlag.Z)
     case "PE" | "pe" | "v" | "V" => IfFlagSet(ZFlag.P)
     case "C" | "c" => IfFlagSet(ZFlag.C)
@@ -164,6 +183,8 @@ case class Z80Parser(filename: String,
     case "PO" | "po" | "NV" | "nv" => IfFlagClear(ZFlag.P)
     case "NC" | "nc" => IfFlagClear(ZFlag.C)
     case "P" | "p" => IfFlagClear(ZFlag.S)
+    case "K" | "k" | "X5" | "x5" => IfFlagSet(ZFlag.K)
+    case "NK" | "nk" |"NX5" | "nx5" => IfFlagClear(ZFlag.K)
     case _ => NoRegisters // shouldn't happen
   }
 
@@ -265,17 +286,17 @@ case class Z80Parser(filename: String,
         case "RRA" => imm(RRA)
         case "RLCA" => imm(RLCA)
         case "RRCA" => imm(RRCA)
-        case "RL" => one8Register(RL)
+        case "RL" => one8RegisterOr8085Illegal(RL, ZRegister.DE, RLDE)
         case "RR" => one8Register(RR)
         case "RLC" => one8Register(RLC)
         case "RRC" => one8Register(RRC)
         case "SLA" => one8Register(SLA)
         case "SLL" => one8Register(SLL)
-        case "SRA" => one8Register(SRA)
+        case "SRA" => one8RegisterOr8085Illegal(SRA, ZRegister.HL, RRHL)
         case "SRL" => one8Register(SRL)
         case "SWAP" => one8Register(SWAP)
 
-        case "BIT" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+        case "BIT" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
           case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), (r2, e2))
             if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
             (ZOpcodeClasses.BIT_seq(n.toInt), OneRegister(r2), e2, zero)
@@ -283,7 +304,7 @@ case class Z80Parser(filename: String,
             log.error("Invalid parameters for BIT", Some(pos))
             (NOP, NoRegisters, None, zero)
         }
-        case "SET" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+        case "SET" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
           case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), (r2, e2))
             if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
             (ZOpcodeClasses.SET_seq(n.toInt), OneRegister(r2), e2, zero)
@@ -291,7 +312,7 @@ case class Z80Parser(filename: String,
             log.error("Invalid parameters for SET", Some(pos))
             (NOP, NoRegisters, None, zero)
         }
-        case "RES" => (param(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(false)).map {
+        case "RES" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
           case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), (r2, e2))
             if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
             (ZOpcodeClasses.RES_seq(n.toInt), OneRegister(r2), e2, zero)
@@ -388,6 +409,20 @@ case class Z80Parser(filename: String,
             (NOP, NoRegisters, None, zero)
         }
         case "LD" => (param(allowAbsolute = true, allowRI = true) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = true, allowRI = true)).map {
+          case (ZRegister.DE, None, (ZRegister.IMM_8 | ZRegister.IMM_16, Some(SumExpression((false, VariableExpression("sp" | "SP")) :: offset, false))))
+            if options.flags(CompilationFlag.EmitIntel8085Opcodes) && options.flags(CompilationFlag.EmitIllegals) =>
+            (LD_DESP, OneRegister(ZRegister.IMM_8), None, offset match {
+              case List((false, expr)) => expr
+              case (true, _) :: _ => SumExpression((false -> LiteralExpression(0, 1)) :: offset, decimal = false)
+              case _ => SumExpression(offset, decimal = false)
+            })
+          case (ZRegister.DE, None, (ZRegister.IMM_8 | ZRegister.IMM_16, Some(SumExpression((false, VariableExpression("hl" | "HL")) :: offset, false))))
+            if options.flags(CompilationFlag.EmitIntel8085Opcodes) && options.flags(CompilationFlag.EmitIllegals) =>
+            (LD_DEHL, OneRegister(ZRegister.IMM_8), None, offset match {
+              case List((false, expr)) => expr
+              case (true, _) :: _ => SumExpression((false -> LiteralExpression(0, 1)) :: offset, decimal = false)
+              case _ => SumExpression(offset, decimal = false)
+            })
           case (ZRegister.HL, None, (ZRegister.IMM_8 | ZRegister.IMM_16, Some(SumExpression((false, VariableExpression("sp" | "SP")) :: offset, false))))
             if options.flags(CompilationFlag.EmitSharpOpcodes) =>
             (LD_HLSP, OneRegister(ZRegister.IMM_8), None, offset match {
@@ -395,6 +430,12 @@ case class Z80Parser(filename: String,
               case (true, _) :: _ => SumExpression((false -> LiteralExpression(0, 1)) :: offset, decimal = false)
               case _ => SumExpression(offset, decimal = false)
             })
+          case (ZRegister.MEM_DE, None, (ZRegister.HL, None))
+            if options.flags(CompilationFlag.EmitIntel8085Opcodes) && options.flags(CompilationFlag.EmitIllegals) =>
+            (SHLX, NoRegisters, None, zero)
+          case (ZRegister.HL, None, (ZRegister.MEM_DE, None))
+            if options.flags(CompilationFlag.EmitIntel8085Opcodes) && options.flags(CompilationFlag.EmitIllegals) =>
+            (SHLX, NoRegisters, None, zero)
           case (ZRegister.A, None, (ZRegister.MEM_ABS_8, Some(VariableExpression("HLI" | "hli"))))
             if options.flags(CompilationFlag.EmitSharpOpcodes) =>
             (LD_AHLI, NoRegisters, None, zero)
@@ -421,6 +462,9 @@ case class Z80Parser(filename: String,
         case "SBC" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
           case (r1, e1, (r2, e2)) => merge(SBC, SBC_16, skipTargetA = true)((r1, e1, r2, e2))
         }
+
+        case "DSUB" => imm(DSUB)
+        case "RSTV" => imm(RSTV)
 
         case _ =>
           log.error("Unsupported opcode " + opcode, Some(pos))
@@ -550,7 +594,18 @@ case class Z80Parser(filename: String,
         case "CNZ" => asmExpression.map { e => (CALL, IfFlagClear(ZFlag.Z), None, e)}
         case "CP" => asmExpression.map { e => (CALL, IfFlagClear(ZFlag.S), None, e)}
         case "CPO" => asmExpression.map { e => (CALL, IfFlagClear(ZFlag.P), None, e)}
-          
+
+        case "DSUB" => imm(DSUB)
+        case "JNK" | "JNX5" => asmExpression.map { e => (JP, IfFlagClear(ZFlag.K), None, e)}
+        case "JK" | "JX5" => asmExpression.map { e => (JP, IfFlagSet(ZFlag.K), None, e)}
+        case "RRHL" | "ARHL" => imm(RRHL)
+        case "RLDE" | "RDEL" => imm(RLDE)
+        case "RSTV" | "OVRST8" => imm(RSTV)
+        case "LDSI" => asmExpression.map { e => (LD_DESP, NoRegisters, None, e)}
+        case "LDHI" => asmExpression.map { e => (LD_DEHL, NoRegisters, None, e)}
+        case "SHLDE" | "SHLX" => imm(SHLX)
+        case "LHLDE" | "LHLX" =>imm(LHLX)
+
         case _ =>
           log.error("Unsupported opcode " + opcode, Some(pos))
           imm(NOP)

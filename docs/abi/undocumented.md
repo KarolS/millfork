@@ -70,6 +70,32 @@ Original Z80 processors accidentally supported a bunch of extra undocumented ins
 Millfork will not emit them.
 The only exception is SLL, which will be emitted if it occurs in a handwritten assembly block. 
 
+## 8085
+
+Since various assemblers use different mnemonics for undocumented opcodes, 
+Millfork supports multiple mnemonics per opcode. The default one is given first:
+
+Intel syntax | Zilog syntax    
+**DSUB** | **DSUB**   
+**ARHL**, RRHL | **SRA HL**  
+**RLDE**, RDEL | **RL DE**  
+**LDHI n** | **LD DE,(HL+n)**  
+**LDSI n** | **LD DE,(SP+n)**    
+**LHLX** | **LD HL,(DE)**    
+**SHLX** | **LD (DE),HL**      
+**JK n**, JX5 n | **JP K,n**; JP X5,n      
+**JNK n**, JNX5 n | **JP NK,n**; JP NX5,n    
+**RSTV**, OVRST8 | **RSTV**   
+
+
+
+#### Generation
+
+If enabled, The compiler will only emit the following undocumented instructions from Millfork code:
+DSUB, LHLX, SHLX, LDSI, LDHI
+
+The optimizer does not track the K and V flags. Use `JK`, `JNK` and `RSTV` with care.
+
 ## 8086
 
 Undocumented instructions are not supported.

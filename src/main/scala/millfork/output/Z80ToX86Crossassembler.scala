@@ -63,6 +63,8 @@ class Z80ToX86Crossassembler(program: Program,
     case IfFlagClear(ZFlag.Z) => 0x74 // JE
     case IfFlagSet(ZFlag.P) => 0x7b // JPO
     case IfFlagClear(ZFlag.P) => 0x7a // JPE
+    case IfFlagSet(ZFlag.K) => 0x7d // JGE
+    case IfFlagClear(ZFlag.K) => 0x7c // JL
   }
 
   override def emitInstruction(bank: String, options: CompilationOptions, index: Int, instr: ZLine): Int = {
@@ -343,6 +345,47 @@ class Z80ToX86Crossassembler(program: Program,
         writeByte(bank, index, 0xe6)
         writeByte(bank, index + 1, param)
         index + 2
+
+      case ZLine0(LD_DEHL, _, param) =>
+        writeByte(bank, index, 0x8d)
+        writeByte(bank, index + 1 , 0x57)
+        writeByte(bank, index + 2, param)
+        index + 3
+
+      case ZLine0(LD_DESP, _, param) =>
+        writeByte(bank, index, 0x89)
+        writeByte(bank, index + 1, 0xe6)
+        writeByte(bank, index + 2, 0x8d)
+        writeByte(bank, index + 3 , 0x54)
+        writeByte(bank, index + 4, param)
+        index + 5
+
+      case ZLine0(LD_HLSP, _, param) =>
+        writeByte(bank, index, 0x89)
+        writeByte(bank, index + 1, 0xe6)
+        writeByte(bank, index + 2, 0x8d)
+        writeByte(bank, index + 3 , 0x5c)
+        writeByte(bank, index + 4, param)
+        index + 5
+
+      case ZLine0(DSUB, _, param) =>
+        writeByte(bank, index, 0x29)
+        writeByte(bank, index + 1, 0xcb)
+        index + 2
+
+      case ZLine0(SHLX, _, param) =>
+        writeByte(bank, index, 0x89)
+        writeByte(bank, index + 1, 0xd6)
+        writeByte(bank, index + 2, 0x89)
+        writeByte(bank, index + 3 , 0x1c)
+        index + 4
+
+      case ZLine0(LHLX, _, param) =>
+        writeByte(bank, index, 0x89)
+        writeByte(bank, index + 1, 0xd6)
+        writeByte(bank, index + 2, 0x8b)
+        writeByte(bank, index + 3 , 0x1c)
+        index + 4
 
       case _ =>
         println("TODO: " + instr)

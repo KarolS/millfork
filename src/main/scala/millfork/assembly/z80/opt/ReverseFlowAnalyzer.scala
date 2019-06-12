@@ -218,6 +218,8 @@ object ReverseFlowAnalyzer {
           case ZLine0(DJNZ, _, MemoryAddressConstant(Label(l))) =>
             val labelIndex = getLabelIndex(codeArray, l)
             currentImportance = if (labelIndex < 0) finalImportance else (importanceArray(labelIndex) ~ currentImportance).butReadsRegister(ZRegister.B).butReadsFlag(ZFlag.Z)
+          case ZLine0(JP | JR, IfFlagSet(ZFlag.K) | IfFlagClear(ZFlag.K), MemoryAddressConstant(Label(l))) =>
+            currentImportance = finalImportance
           case ZLine0(JP | JR, IfFlagSet(flag), MemoryAddressConstant(Label(l))) =>
             val labelIndex = getLabelIndex(codeArray, l)
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex) ~ currentImportance.butReadsFlag(flag)
@@ -247,7 +249,7 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butWritesRegister(t, o).butReadsRegister(s, o)
           case ZLine0(LD | LD_16, TwoRegisters(t, s), _) =>
             currentImportance = currentImportance.butWritesRegister(t).butReadsRegister(s)
-          case ZLine0(EX_DE_HL, TwoRegisters(t, s), _) =>
+          case ZLine0(EX_DE_HL, _, _) =>
             currentImportance = currentImportance.copy(d = currentImportance.h, e = currentImportance.l, h = currentImportance.d, l = currentImportance.e)
           case ZLine0(ADD_16, TwoRegisters(t, s), _) =>
             currentImportance = currentImportance.butReadsRegister(t).butReadsRegister(s)
@@ -461,10 +463,26 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.butReadsRegister(ZRegister.A).copy(cf = Important, hf = Unimportant, nf = Unimportant)
           case ZLine0(SCF, _, _) =>
             currentImportance = currentImportance.copy(cf = Unimportant, hf = Unimportant, nf = Unimportant)
+
+          case ZLine0(LD_HLSP, _, _) =>
+            currentImportance = currentImportance.copy(h = Unimportant, l = Unimportant)
+
           case ZLine0(RIM, _, _) =>
             currentImportance = currentImportance.copy(a = Unimportant)
           case ZLine0(SIM, _, _) =>
             currentImportance = currentImportance.copy(a = Important)
+          case ZLine0(DSUB, _, _) =>
+            currentImportance = currentImportance.copy(
+              b = Important, c = Important, h = Important, l = Important,
+              zf = Unimportant, hf = Unimportant, nf = Unimportant, pf = Unimportant)
+          case ZLine0(SHLX, _, _) =>
+            currentImportance = currentImportance.copy(d = Important, e = Important, h = Important, l = Important)
+          case ZLine0(LHLX, _, _) =>
+            currentImportance = currentImportance.copy(d = Important, e = Important, h = Unimportant, l = Unimportant)
+          case ZLine0(LD_DEHL, _, _) =>
+            currentImportance = currentImportance.copy(h = Important, l = Important, d = Unimportant, e = Unimportant)
+          case ZLine0(LD_DESP, _, _) =>
+            currentImportance = currentImportance.copy(d = Unimportant, e = Unimportant)
           case _ =>
             currentImportance = finalImportance // TODO
         }

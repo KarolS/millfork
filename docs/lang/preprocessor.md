@@ -40,7 +40,7 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `ARCH_X86` – 1 if compiling for Intel 8086-like processor, 0 otherwise
 
-* `CPU_65C02`, `CPU_65CE02`, `CPU_65816`, `CPU_HUC6280`, `CPU_8080`, `CPU_GAMEBOY`, `CPU_Z80`
+* `CPU_65C02`, `CPU_65CE02`, `CPU_65816`, `CPU_HUC6280`, `CPU_8080`, `CPU_8085`, `CPU_GAMEBOY`, `CPU_Z80`, `CPU_8086`
 – 1 if compiling for the exact given processor, 0 otherwise
 
 * `CPU_6502` – 1 if compiling for any pre-65C02 6502-like processor, 0 otherwise
@@ -48,8 +48,8 @@ The following features are defined based on the chosen CPU and compilation optio
 * `CPUFEATURE_DECIMAL_MODE` – 1 if decimal mode is enabled, 0 otherwise
 
 * `CPUFEATURE_65C02`, `CPUFEATURE_65CE02`, `CPUFEATURE_HUC6280`, `CPUFEATURE_65816_EMULATION`, `CPUFEATURE_65816_NATIVE`,
-`CPUFEATURE_8080`, `CPUFEATURE_GAMEBOY`, `CPUFEATURE_Z80`,
-`CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS` – 1 if given instruction subset is enabled, 0 otherwise
+`CPUFEATURE_8080`, `CPUFEATURE_8085`, `CPUFEATURE_GAMEBOY`, `CPUFEATURE_Z80`,
+`CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_8085_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS` – 1 if given instruction subset is enabled, 0 otherwise
 
 * `OPTIMIZE_FOR_SIZE`, `OPTIMIZE_FOR_SPEED`, `OPTIMIZE_INLINE`, `OPTIMIZE_IPO`
 – 1 if given optimization setting is enabled, 0 otherwise
@@ -58,13 +58,13 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `USES_ZPREG` – 1 if the zeropage pseudoregister is used, 0 otherwise
 
-* `ZPREG_SIZE` – size of the pseudoregister in bytes
+* `ZPREG_SIZE` – size of the pseudoregister in bytes, or 0 on platforms that don't use it
 
 * `USES_IX_STACK`, `USES_IY_STACK` – 1 if given index register is used as a base pointer for stack-allocated variables, 0 otherwise 
 
-* `USES_SHADOW_REGISTERS` – 1 if interrupts preserve old registers in the shadow registers, 0 otherwise
+* `USES_SHADOW_REGISTERS` – 1 if interrupts preserve old registers in the shadow registers, 0 if they do it on stack
 
-* `USES_SOFTWARE_STACK` – 1 if using software stack for variables, 0 otherwise
+* `USES_SOFTWARE_STACK` – 1 if using software stack for variables (6502-like targets only), 0 otherwise
 
 ### Commonly used features
 
@@ -152,6 +152,7 @@ To use such value in other files, consider this:
 ### `#pragma`
 
 Changes the behaviour of the parser for the current file.
+The change applies to the whole file, regardless of where the directive is located. 
 
  * `#pragma intel_syntax` – interpret assembly using Intel syntax
  

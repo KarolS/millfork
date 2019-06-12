@@ -111,10 +111,11 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
     TwoRegisters(D, C) |
     TwoRegisters(E, D) |
     TwoRegisters(E, B), _) :: xs => false
+    case ZLine0(DSUB, _, _) :: xs => if (loaded.hasBC && dir == DE2BC) canOptimize(xs, dir, loaded) else false
     case ZLine0(LD, TwoRegisters(r@(B|C|D|E), _), _) :: xs => canOptimize(xs, dir, loaded = loaded.load(r))
     case ZLine0(LD, TwoRegistersOffset(r@(B|C|D|E), _, _), _) :: xs => canOptimize(xs, dir, loaded = loaded.load(r))
     case ZLine0(LABEL | CALL | JR | JP, _, _) :: xs => canOptimize(xs, dir, loaded = Loaded())
-    case ZLine0(EX_DE_HL, _, _) :: xs => if (loaded.hasDE && dir == BC2DE) canOptimize(xs, dir, loaded) else false
+    case ZLine0(EX_DE_HL | LHLX | SHLX | LD_DEHL | LD_DESP, _, _) :: xs => if (loaded.hasDE && dir == BC2DE) canOptimize(xs, dir, loaded) else false
     case ZLine0(DJNZ, _, _) :: xs => if (loaded.b && dir == DE2BC) canOptimize(xs, dir, loaded) else false
     case x :: xs if !loaded.b && (x.readsRegister(B) || x.changesRegister(B)) => false
     case x :: xs if !loaded.c && (x.readsRegister(C) || x.changesRegister(C)) => false

@@ -280,15 +280,21 @@ object ZBuiltIns {
               } else {
                 if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
                   // TODO: optimize
-                  result += ZLine.ld8(ZRegister.D, ZRegister.H)
-                  result += ZLine.ld8(ZRegister.E, ZRegister.L)
+                  result += ZLine.implied(EX_DE_HL)
                   result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
                   result += ZLine.ld8(ZRegister.B, ZRegister.H)
                   result += ZLine.ld8(ZRegister.C, ZRegister.L)
-                  result += ZLine.ld8(ZRegister.H, ZRegister.D)
-                  result += ZLine.ld8(ZRegister.L, ZRegister.E)
+                  result += ZLine.implied(EX_DE_HL)
                   result += ZLine.register(OR, ZRegister.A)
                   result += ZLine.registers(SBC_16, ZRegister.HL, ZRegister.BC)
+                } else if (ctx.options.flag(CompilationFlag.EmitIntel8085Opcodes) && ctx.options.flag(CompilationFlag.EmitIllegals)) {
+                  // TODO: optimize
+                  result += ZLine.implied(EX_DE_HL)
+                  result ++= Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToHL(ctx, expr))
+                  result += ZLine.ld8(ZRegister.B, ZRegister.H)
+                  result += ZLine.ld8(ZRegister.C, ZRegister.L)
+                  result += ZLine.implied(EX_DE_HL)
+                  result += ZLine.implied(DSUB)
                 } else {
                   // TODO: optimize
                   result += ZLine.ld8(ZRegister.D, ZRegister.H)
@@ -309,10 +315,21 @@ object ZBuiltIns {
       }
     }
     if (hasConst) {
-      result ++= List(
-        ZLine.ldImm16(ZRegister.DE, const),
-        ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE)
-      )
+      if (const.isProvablyZero) {
+        // do nothing
+      } else if (const.isProvably(1)) {
+        result += ZLine.register(INC_16, ZRegister.HL)
+      } else if (ctx.options.flag(CompilationFlag.EmitIntel8085Opcodes) && ctx.options.flag(CompilationFlag.EmitIllegals) && const.isProvablyInRange(1, 127)) {
+        result ++= List(
+          ZLine.imm8(LD_DEHL, const),
+          ZLine.implied(EX_DE_HL)
+        )
+      } else {
+        result ++= List(
+          ZLine.ldImm16(ZRegister.DE, const),
+          ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE)
+        )
+      }
     }
     result.toList
   }

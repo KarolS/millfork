@@ -8,6 +8,7 @@ import millfork.env._
 import millfork.error.{FatalErrorReporting, Logger}
 import millfork.node.ZRegister
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 /**
@@ -131,7 +132,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     if (clazz.isInstance(t)) {
       t.asInstanceOf[AnyRef]
     } else {
-      if (i eq null) {
+      if (t.asInstanceOf[AnyRef] eq null) {
         log.fatal(s"Value at index $i is null")
       } else {
         throw new IllegalStateException(s"Value at index $i is a ${t.getClass.getSimpleName}, not a ${clazz.getSimpleName}")
@@ -178,6 +179,24 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     // if a jump leads outside the block, then it's external
     jumps --= labels
     jumps.isEmpty
+  }
+
+  def isAlignableBlock(i: Int): Boolean = {
+    if (!isExternallyLinearBlock(i)) return false
+    import ZOpcode._
+    import ZRegister.{SP, HL, IMM_16}
+    @tailrec
+    def impl(list: List[ZLine]): Boolean = list match {
+      case ZLine0(PUSH | POP | CALL | RET | RETI | RETN | EX_SP | EXX | EX_AF_AF | RST | RSTV | HALT | STOP, _, _) :: _ => false
+      case ZLine0(LD_DESP | LD_HLSP, _, c) :: xs => if (c.isProvablyInRange(2, 127)) impl(xs) else false
+      case ZLine0(LD_16, TwoRegisters(HL, IMM_16), c) :: ZLine0(ADD_16, TwoRegisters(HL, SP), _) :: xs => if (c.isProvablyInRange(2, 127)) impl(xs) else false
+      case ZLine0(_, TwoRegisters(SP, _), _) :: _ => false
+      case ZLine0(_, TwoRegisters(_, SP), _) :: _ => false
+      case ZLine0(_, OneRegister(SP), _) :: _ => false
+      case _ :: xs => impl(xs)
+      case Nil => true
+    }
+    impl(get[List[ZLine]](i))
   }
 
   def areCompatibleForLoad(target: Int, source: Int): Boolean = {
@@ -696,7 +715,7 @@ case object DoesntMatterWhatItDoesWithFlags extends AssemblyLinePattern {
     FlowInfoRequirement.assertBackward(needsFlowInfo)
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
-    ZFlag.values.forall(r => flowInfo.importanceAfter.getFlag(r) != Important)
+    ZFlag.All.forall(r => flowInfo.importanceAfter.getFlag(r) != Important)
 
   override def toString: String = "[¯\\_(ツ)_/¯:F]"
 
@@ -734,7 +753,7 @@ case object DoesntMatterWhatItDoesWithFlagsExceptCarry extends AssemblyLinePatte
     FlowInfoRequirement.assertBackward(needsFlowInfo)
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
-    ZFlag.values.forall(r => r == ZFlag.C || flowInfo.importanceAfter.getFlag(r) != Important)
+    ZFlag.All.forall(r => r == ZFlag.C || flowInfo.importanceAfter.getFlag(r) != Important)
 
   override def toString: String = "[¯\\_(ツ)_/¯:F\\C]"
 
@@ -871,12 +890,32 @@ case object ReadsStackPointer extends TrivialAssemblyLinePattern {
           case OneRegister(ZRegister.SP) => true
           case _ => false
         }
-      case LD_HLSP | PUSH | POP => true
+      case LD_HLSP  | LD_DESP | PUSH | POP => true
       case _ => false
     }
   }
 
   override def hitRate: Double = 0.2 // ?
+}
+
+case object IsLocallyAlignable extends TrivialAssemblyLinePattern {
+  override def apply(line: ZLine): Boolean = {
+    import ZOpcode._
+    line.opcode match {
+      case CALL | PUSH | POP | EX_SP | RST | RSTV | RET | RETN | RETI | EXX | EX_AF_AF | HALT | STOP => false
+      case LD_HLSP | LD_DESP => line.parameter.isProvablyInRange(2, 127)
+      case ADD_16 => true
+      case LD_16 => line.registers match {
+        case TwoRegisters(_, ZRegister.SP) => false
+        case TwoRegisters(ZRegister.SP, _) => false
+        case OneRegister(ZRegister.SP) => false
+        case _ => true
+      }
+      case _ => true
+    }
+  }
+
+  override def hitRate: Double = 0.7 // ?
 }
 
 case class Changes(register: ZRegister.Value) extends TrivialAssemblyLinePattern {

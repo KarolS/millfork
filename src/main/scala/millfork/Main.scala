@@ -256,12 +256,14 @@ object Main {
 
     val assemblyOptimizations = optLevel match {
       case 0 => Nil
-      case _ => platform.cpu match {
-        case Cpu.Z80 | Cpu.EZ80 => Z80OptimizationPresets.GoodForZ80
-        case Cpu.Intel8080 | Cpu.Intel8085 => Z80OptimizationPresets.GoodForIntel8080
-        case Cpu.Sharp => Z80OptimizationPresets.GoodForSharp
-        case _ => Nil
-      }
+      case _ =>
+        if (options.flag(CompilationFlag.EmitZ80Opcodes))
+          Z80OptimizationPresets.GoodForZ80
+        else if (options.flag(CompilationFlag.EmitIntel8080Opcodes))
+          Z80OptimizationPresets.GoodForIntel8080
+        else if (options.flag(CompilationFlag.EmitSharpOpcodes))
+          Z80OptimizationPresets.GoodForSharp
+        else Nil
     }
 
     // compile
@@ -424,9 +426,17 @@ object Main {
     boolean("-flarge-code", "-fsmall-code").action { (c, v) =>
       c.changeFlag(CompilationFlag.LargeCode, v)
     }.description("Whether should use 24-bit or 16-bit jumps to subroutines (not yet implemented).").hidden()
+
+    boolean("-f8085-ops", "-fno-8085-ops").action { (c, v) =>
+      c.changeFlag(CompilationFlag.EmitIntel8085Opcodes, v)
+    }.description("Whether should emit Intel 8085 opcodes.")
+    boolean("-fz80-ops", "-fno-z80-ops").action { (c, v) =>
+      c.changeFlag(CompilationFlag.EmitZ80Opcodes, v).changeFlag(CompilationFlag.EmitExtended80Opcodes, v)
+    }.description("Whether should emit Z80 opcodes.")
+
     boolean("-fillegals", "-fno-illegals").action { (c, v) =>
       c.changeFlag(CompilationFlag.EmitIllegals, v)
-    }.description("Whether should emit illegal (undocumented) NMOS opcodes. Requires -O2 or higher to have an effect.")
+    }.description("Whether should emit illegal (undocumented) opcodes. On 6502, requires -O2 or higher to have an effect.")
     flag("-fzp-register=[0-15]").description("Set the size of the zeropage pseudoregister (6502 only).").dummy()
     (0 to 15).foreach(i =>
       flag("-fzp-register="+i).action(c => c.copy(zpRegisterSize = Some(i))).hidden()

@@ -83,15 +83,16 @@ This may cause problems if the parameter table is stored next to a hardware regi
 Whether the compiler should allow for invalid characters in string/character literals that use the default encodings and replace them with alternatives.
 `.ini` equivalent: `lenient_encoding`. Default: yes on Apple II, no otherwise.
 
-* `-fillegals`, `-fno-illegals` – Whether should emit illegal (undocumented) NMOS or Z80 opcodes.  
+* `-fillegals`, `-fno-illegals` – Whether should emit illegal (undocumented) NMOS 6502, Intel 8085 or Z80 opcodes.  
 `.ini` equivalent: `emit_illegals`.
 Default: no.
 
 #### 6502-related
 
-* `-fcmos-ops`, `-fno-cmos-ops` – Whether should emit CMOS opcodes.  
+* `-fcmos-ops`, `-fno-cmos-ops` – Whether should emit 65C02 opcodes.  
 `.ini` equivalent: `emit_cmos`.
 Default: yes if targeting a 65C02-compatible architecture, no otherwise.
+
 * `-f65ce02-ops`, `-fno-65ce02-ops` – Whether should emit 65CE02 opcodes.  
 `.ini` equivalent: `emit_65ce026`. 
 Default: yes if targeting 65CE02, no otherwise.
@@ -128,13 +129,21 @@ Use a software stack for stack variables.
 
 #### 8080/Z80-related
 
+* `-f8085-ops`, `-fno-8085-ops` – Whether should emit Intel 8085 opcodes.  
+`.ini` equivalent: `emit_8085`.
+Default: yes if targeting Intel 8085 architecture, no otherwise.
+
+* `-fz80-ops`, `-fno-z80-ops` – Whether should emit Z80 opcodes.   
+`.ini` equivalents: `emit_z80` and `emit_x80`.
+Default: yes if targeting a Z80-compatible architecture, no otherwise.
+
 * `-fshadow-irq`, `-fno-shadow-irq` –
 Whether the interrupt routines should make use of Z80 shadow registers.
 `.ini` equivalent: `use_shadow_registers_for_irq`. Default: yes on Z80, no otherwise.
 
 * `-fuse-ix-for-stack`, `-fuse-iy-for-stack`, `-fno-use-index-for-stack` –
 Which of Z80 index registers should be used for accessing stack variables, if any. 
-`.ini` equivalent: `ix_stack` and `iy_stack`. Default: IX on Z80 and 8086, no otherwise.
+`.ini` equivalent: `ix_stack` and `iy_stack`. Default: IX on Z80, no otherwise.
 
 * `-fuse-ix-for-scratch`, `-fno-use-ix-for-scratch` –
 Allow using the IX register for other purposes.
@@ -143,6 +152,11 @@ Allow using the IX register for other purposes.
 * `-fuse-iy-for-scratch`, `-fno-use-iy-for-scratch` –
 Allow using the IY register for other purposes.
 `.ini` equivalent: `iy_scratch`. Default: no.
+
+#### 8086-related
+
+Compiling to 8086 is based on translating from a mix of 8085 and Z80 instructions to 8086.
+See [the 8086 support disclaimer](./../lang/x86disclaimer.md).
 
 ## Optimization options
 

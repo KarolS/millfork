@@ -136,6 +136,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
 
   def fixTsx(ctx: CompilationContext, code: List[ZLine]): List[ZLine] = code match {
     case (ldhlsp@ZLine0(LD_HLSP, _, param)) :: xs => ldhlsp.copy(parameter = param + 2) :: fixTsx(ctx, xs)
+    case (lddesp@ZLine0(LD_DESP, _, param)) :: xs => lddesp.copy(parameter = param + 2) :: fixTsx(ctx, xs)
     case (ldhl@ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), param)) ::
       (addhlsp@ZLine0(ADD_16, TwoRegisters(ZRegister.HL, ZRegister.SP), _)) ::
       (ldsphl@ZLine0(LD_16, TwoRegisters(ZRegister.SP, ZRegister.HL), _)) ::
@@ -397,7 +398,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                       // TODO: signed words
                       case ZExpressionTarget.NOTHING => Nil
                       case ZExpressionTarget.HL =>
-                        loadHL ++ List(ZLine.ld8(A,MEM_HL), ZLine.register(INC_16, HL), ZLine.ld8(H, MEM_HL), ZLine.ld8(L, A))
+                        if (ctx.options.flag(CompilationFlag.EmitIntel8085Opcodes) && ctx.options.flag(CompilationFlag.EmitIllegals)) {
+                          List(ZLine.imm8(LD_DESP, ctx.extraStackOffset + v.baseOffset), ZLine.implied(LHLX))
+                        } else {
+                          loadHL ++ List(ZLine.ld8(A, MEM_HL), ZLine.register(INC_16, HL), ZLine.ld8(H, MEM_HL), ZLine.ld8(L, A))
+                        }
                       case ZExpressionTarget.BC =>
                         loadHL ++ List(ZLine.ld8(C,MEM_HL), ZLine.register(INC_16, HL), ZLine.ld8(B, MEM_HL))
                       case ZExpressionTarget.DE =>
@@ -943,11 +948,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         case Some((lvo@LocalVariableAddressViaIX(offset), code)) =>
                           code ++
                             Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r) ++
-                            storeHLViaIX(ctx, offset, 2, false)
+                            storeHLViaIX(ctx, offset, 2, signedSource = false)
                         case Some((lvo@LocalVariableAddressViaIY(offset), code)) =>
                           code ++
                             Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r) ++
-                            storeHLViaIY(ctx, offset, 2, false)
+                            storeHLViaIY(ctx, offset, 2, signedSource = false)
                         case _ =>
                           ctx.log.error("Invalid left-hand side", l.position)
                           Nil
@@ -959,10 +964,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
                 size match {
                   case 1 =>
-                    targetifyA(ctx, target, Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%"), false)
+                    targetifyA(ctx, target, Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%"), isSigned = false)
                   case 2 =>
                     if (f.functionName == "%%") {
-                      targetifyA(ctx, target, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r), false)
+                      targetifyA(ctx, target, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r), isSigned = false)
                     } else {
                       targetifyHL(ctx, target, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r))
                     }
@@ -1449,6 +1454,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               storeHLViaIX(ctx, v.baseOffset, v.typ.size, signedSource)
             } else if (ctx.options.flag(CompilationFlag.UseIyForStack)){
               storeHLViaIY(ctx, v.baseOffset, v.typ.size, signedSource)
+            } else if (ctx.options.flag(CompilationFlag.EmitIntel8085Opcodes) && ctx.options.flag(CompilationFlag.EmitIllegals)) {
+              List(ZLine.register(PUSH, DE),
+                ZLine.imm8(LD_DESP, v.baseOffset + 2),
+                ZLine.implied(SHLX),
+                ZLine.register(POP, DE))
             } else if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
               List(
                 ZLine.register(PUSH, DE),
@@ -1483,11 +1493,18 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         Z80ExpressionCompiler.stashHLIfChanged(ctx, ZLine.ld8(ZRegister.A, ZRegister.L) :: storeA(ctx, lo, signedSource)) ++
           (ZLine.ld8(ZRegister.A, ZRegister.H) :: storeA(ctx, hi, signedSource))
       case e:DerefExpression =>
-        List(ZLine.register(PUSH, ZRegister.HL)) ++ compileDerefPointer(ctx, e) ++ List(
-          ZLine.register(POP, ZRegister.BC),
-          ZLine.ld8(ZRegister.MEM_HL, ZRegister.C),
-          ZLine.register(INC_16, ZRegister.HL),
-          ZLine.ld8(ZRegister.MEM_HL, ZRegister.B))
+        if (ctx.options.flag(CompilationFlag.EmitIntel8085Opcodes) && ctx.options.flag(CompilationFlag.EmitIllegals)) {
+          List(ZLine.register(PUSH, ZRegister.HL)) ++ compileDerefPointer(ctx, e) ++ List(
+            ZLine.register(POP, ZRegister.DE),
+            ZLine.implied(EX_DE_HL),
+            ZLine.implied(SHLX))
+        } else {
+          List(ZLine.register(PUSH, ZRegister.HL)) ++ compileDerefPointer(ctx, e) ++ List(
+            ZLine.register(POP, ZRegister.BC),
+            ZLine.ld8(ZRegister.MEM_HL, ZRegister.C),
+            ZLine.register(INC_16, ZRegister.HL),
+            ZLine.ld8(ZRegister.MEM_HL, ZRegister.B))
+        }
       case _: SeparateBytesExpression =>
         ctx.log.error("Invalid `:`", target.position)
         Nil

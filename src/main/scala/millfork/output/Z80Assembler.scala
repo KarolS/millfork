@@ -63,6 +63,8 @@ class Z80Assembler(program: Program,
 
     def requireIntel8085(): Unit = if (!options.flag(EmitIntel8085Opcodes)) log.error("Unsupported instruction: " + instr)
 
+    def requireIntel8085Illegals(): Unit = if (!options.flag(EmitIntel8085Opcodes) || !options.flag(EmitIllegals)) log.error("Unsupported instruction: " + instr)
+
     def useSharpOpcodes():Boolean = {
       if (!options.flag(EmitSharpOpcodes) && !options.flag(EmitIntel8080Opcodes))
         log.error("Cannot determine which variant to emit : " + instr)
@@ -229,6 +231,14 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0xF9)
         index + 2
+      case ZLine0(SRA, OneRegister(HL), _) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0x10)
+        index + 1
+      case ZLine0(RL, OneRegister(DE), _) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0x18)
+        index + 1
       case ZLine0(op, OneRegister(ZRegister.IMM_8), param) if immediates.contains(op) =>
         val o = immediates(op)
         writeByte(bank, index, o)
@@ -462,6 +472,11 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0xf2)
         writeWord(bank, index + 1, param)
         index + 3
+      case ZLine0(JP, IfFlagClear(ZFlag.K), param) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0xdd)
+        writeWord(bank, index + 1, param)
+        index + 3
 
       case ZLine0(JP, IfFlagSet(ZFlag.Z), param) =>
         writeByte(bank, index, 0xca)
@@ -479,6 +494,11 @@ class Z80Assembler(program: Program,
       case ZLine0(JP, IfFlagSet(ZFlag.S), param) =>
         requireIntel8080()
         writeByte(bank, index, 0xfa)
+        writeWord(bank, index + 1, param)
+        index + 3
+      case ZLine0(JP, IfFlagSet(ZFlag.K), param) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0xfd)
         writeWord(bank, index + 1, param)
         index + 3
       case ZLine0(JP, OneRegister(HL), _) =>
@@ -622,6 +642,40 @@ class Z80Assembler(program: Program,
         index + 1
       case ZLine0(STOP, _, _) =>
         requireSharp()
+        writeByte(bank, index, 0x10)
+        index + 1
+      case ZLine0(DSUB, _, _) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0x08)
+        index + 1
+      case ZLine0(LD_DEHL, _, param) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0x28)
+        writeByte(bank, index + 1, param)
+        index + 2
+      case ZLine0(LD_DESP, _, param) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0x38)
+        writeByte(bank, index + 1, param)
+        index + 2
+      case ZLine0(RSTV, _, _) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0xcb)
+        index + 1
+      case ZLine0(SHLX, _, _) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0xd9)
+        index + 1
+      case ZLine0(LHLX, _, _) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0xed)
+        index + 1
+      case ZLine0(RLDE, _, _) =>
+        requireIntel8085Illegals()
+        writeByte(bank, index, 0x18)
+        index + 1
+      case ZLine0(RRHL, _, _) =>
+        requireIntel8085Illegals()
         writeByte(bank, index, 0x10)
         index + 1
       case _ =>

@@ -250,11 +250,12 @@ object Platform {
       "CPU_EZ80" -> toLong(cpu == Cpu.EZ80),
       "CPU_8080" -> toLong(cpu == Cpu.Intel8080),
       "CPU_8085" -> toLong(cpu == Cpu.Intel8085),
-      "CPU_8086" -> toLong(cpu == Cpu.Intel8086),
-      "CPU_80186" -> toLong(cpu == Cpu.Intel80186),
       "CPU_GAMEBOY" -> toLong(cpu == Cpu.Sharp),
       "ARCH_X86" -> toLong(CpuFamily.forType(cpu) == CpuFamily.I86),
+      "CPU_8086" -> toLong(cpu == Cpu.Intel8086),
+      "CPU_80186" -> toLong(cpu == Cpu.Intel80186),
       "ARCH_6800" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6800),
+      "ARCH_6809" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6809),
       "ARCH_ARM" -> toLong(CpuFamily.forType(cpu) == CpuFamily.ARM),
       "ARCH_68K" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M68K)
       // TODO

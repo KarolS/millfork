@@ -11,10 +11,11 @@ import millfork.node.{Position, ZRegister}
   */
 
 object ZFlag extends Enumeration {
-  val Z, P, C, S, H, N = Value
+  val Z, P, C, S, H, N, V, K = Value
 
   val AllButSZ: Seq[Value] = Seq(P, C, H, N)
   val AllButZ: Seq[Value] = Seq(P, C, H, N, S)
+  val All: Seq[Value] = Seq(P, C, H, N, S, Z)
 }
 
 sealed trait ZRegisters {
@@ -379,6 +380,16 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case LDH_AD => s"    LDH A,($parameter)"
       case LD_HLSP => "    LD HL,SP+" + parameter
       case ADD_SP => "    ADD SP," + parameter
+
+      case DSUB => "    DSUB"
+      case RRHL => "    SRA HL"
+      case RLDE => "    RL DE"
+      case LD_DEHL => s"    LD DE,HL+${parameter.toString}"
+      case LD_DESP => s"    LD DE,SP+${parameter.toString}"
+      case RSTV => "    RSTV"
+      case LHLX => "    LD HL,(DE)"
+      case SHLX => "    LD (DE),HL"
+
       case EX_SP => registers match {
         case OneRegister(r) => s"    EX (SP),${asAssemblyString(r)}"
         case _ => ???
@@ -396,7 +407,6 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
         }
         s"    $opcode$ps"
       case op@(ADD | SBC | ADC) =>
-        val os = op.toString
         val ps = (registers match {
           case OneRegister(r) => s" ${asAssemblyString(r)}"
           case OneRegisterOffset(r, o) => s" ${asAssemblyString(r, o)}"
@@ -527,10 +537,12 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
         case IfFlagClear(ZFlag.Z) => s"    JNZ ${parameter.toIntelString}"
         case IfFlagClear(ZFlag.S) => s"    JP ${parameter.toIntelString}"
         case IfFlagClear(ZFlag.P) => s"    JPO ${parameter.toIntelString}"
+        case IfFlagClear(ZFlag.K) => s"    JNK ${parameter.toIntelString}"
         case IfFlagSet(ZFlag.C) => s"    JC ${parameter.toIntelString}"
         case IfFlagSet(ZFlag.Z) => s"    JZ ${parameter.toIntelString}" 
         case IfFlagSet(ZFlag.S) => s"    JM ${parameter.toIntelString}" 
         case IfFlagSet(ZFlag.P) => s"    JPE ${parameter.toIntelString}"
+        case IfFlagSet(ZFlag.K) => s"    JK ${parameter.toIntelString}"
         case _ => "???"
       }
       case CALL => registers match {
@@ -603,8 +615,15 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case SCF => "    STC"
       case CCF => "    CMC"
       case EI => "    EI"
-      case EI => "    EI"
-      case EI => "    EI"
+
+      case DSUB => "    DSUB"
+      case RRHL => "    ARHL"
+      case RLDE => "    RLDE"
+      case LD_DEHL => s"    LDHI ${parameter.toIntelString}"
+      case LD_DESP => s"    LDSI ${parameter.toIntelString}"
+      case RSTV => "    RSTV"
+      case LHLX => "    LHLX"
+      case SHLX => "    SHLX"
       case _ => "???"
     }
     if (result.contains("???")) s"    ??? (${this.toString.stripPrefix("    ")})" else result
@@ -672,10 +691,12 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case IfFlagClear(ZFlag.Z) => "    JE .next\n    " -> "\n.next:"
           case IfFlagClear(ZFlag.S) => "    JS .next\n    " -> "\n.next:"
           case IfFlagClear(ZFlag.P) => "    JPE .next\n    " -> "\n.next:"
+          case IfFlagClear(ZFlag.K) => "    JL .next\n    " -> "\n.next:"
           case IfFlagSet(ZFlag.C) => "    JAE .next\n    " -> "\n.next:"
           case IfFlagSet(ZFlag.Z) => "    JNE .next\n    " -> "\n.next:"
           case IfFlagSet(ZFlag.S) => "    JNS .next\n    " -> "\n.next:"
           case IfFlagSet(ZFlag.P) => "    JPO .next\n    " -> "\n.next:"
+          case IfFlagSet(ZFlag.K) => "    JGE .next\n    " -> "\n.next:"
           case _ => "    ???" -> ""
         }
         prefix + (opcode match {
@@ -752,6 +773,15 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case CPL => "    NOT AL"
       case SCF => "    STC"
       case CCF => "    CMC"
+
+      case LD_HLSP => "    LEA BX,[BX+${parameter.toIntelString}]"
+
+      case DSUB => "    SUB BX, CX" // TODO: ???
+      case LD_DESP => s"    LEA DX, [SP+${parameter.toIntelString}]"
+      case LD_DEHL => s"    LEA DX, [BX+${parameter.toIntelString}]"
+      case RSTV => "    JNO .next\n    RST 8\n.next" // TODO
+      case LHLX => "    MOV BX, WORD PTR [DX]"
+      case SHLX => "    MOV WORD PTR [DX], BX"
       case _ => "???"
     }
     if (result.contains("???")) s"    ??? (${this.toString.stripPrefix("    ")})" else result
@@ -862,6 +892,15 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case LDH_AD => false
           case LD_HLIA | LD_HLDA => r == H || r == L | r == A
           case LD_AHLI | LD_AHLD => r == H || r == L
+          case LD_HLSP => r == SP
+
+          case LD_DEHL => r == H || r == L
+          case LD_DESP => r == SP
+          case DSUB => r == B || r == C || r == H || r == L
+          case SHLX => r == D || r == E || r == H || r == L
+          case LHLX | RLDE => r == D || r == E
+          case RRHL => r == H || r == L
+
           case _ => true // TODO
         }
     }
@@ -991,7 +1030,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           }
           case EX_DE_HL => r == D || r == E || r == H || r == L
           case LDIR | LDDR => r == D || r == E || r == H || r == L || r == B || r == C
-          case JP | JR | RET | RETI | RETN |
+          case JP | JR | RET | RETI | RETN | SIM | RIM |
                PUSH |
                DISCARD_A | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_HL | DISCARD_F => false
           case ADD | ADC | AND | OR | XOR | SUB | SBC | DAA | NEG | CPL | RLA | RRA | RLCA | RRCA => r == A
@@ -1003,6 +1042,11 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case LDH_AC | LDH_AD => r == A
           case LD_HLIA | LD_HLDA => r == H || r == L
           case LD_AHLI | LD_AHLD => r == H || r == L | r == A
+
+          case LD_DESP | LD_DEHL | RLDE => r == D || r == E
+          case LHLX | RRHL | DSUB => r == H || r == L
+          case SHLX => false
+
           case _ => true // TODO
         }
     }
@@ -1033,6 +1077,9 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case LABEL | DI | EI | NOP => false
       case LDH_AC | LDH_AD | LD_AHLI | LD_AHLD => false
       case LDH_CA | LDH_DA | LD_HLIA | LD_HLDA => true
+      case LD_HLSP => false
+      case LHLX => true
+      case SHLX | LD_DESP | LD_DEHL | DSUB => false
       case _ => true // TODO
     }
   }
@@ -1058,6 +1105,9 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case LABEL | DI | EI | NOP | HALT => false
       case LDH_AC | LDH_AD | LD_AHLI | LD_AHLD => true
       case LDH_CA | LDH_DA | LD_HLIA | LD_HLDA => false
+      case LD_HLSP => false
+      case SHLX => true
+      case LHLX | LD_DESP | LD_DEHL | DSUB => false
       case _ => true // TODO
     }
   }

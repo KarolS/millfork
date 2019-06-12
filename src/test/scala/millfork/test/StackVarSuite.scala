@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StackVarSuite extends FunSuite with Matchers {
 
   test("Basic stack assignment") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | void main () {
         |   stack byte a
@@ -91,7 +91,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | void main () {
         |   stack word a
@@ -109,7 +109,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
