@@ -475,6 +475,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case And => s"$plhs & $prhs"
       case Or => s"$plhs | $prhs"
       case Exor => s"$plhs ^ $prhs"
+      case Divide => s"$plhs / $prhs"
+      case Modulo => s"$plhs %% $prhs"
     }
   }
 
@@ -498,6 +500,8 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case And => s"$plhis & $prhis"
       case Or => s"$plhis | $prhis"
       case Exor => s"$plhis ^ $prhis"
+      case Divide => s"$plhs / $prhs"
+      case Modulo => s"$plhs %% $prhs"
     }
   }
 
