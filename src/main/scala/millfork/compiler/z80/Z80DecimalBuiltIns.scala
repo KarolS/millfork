@@ -322,8 +322,8 @@ object Z80DecimalBuiltIns {
 //    println((2 to 99).map(ways).map(_.length).max)
     println()
     println()
-    val multiplyCostsCycles2 = multiplyCostsCycles.map{case(k,v) => k -> (v + multiplyCostsBytes(k) / 2048.0)}.toMap
-    val multiplyCostsBytes2 = multiplyCostsBytes.map{case(k,v) => k -> (v + multiplyCostsCycles(k) / 2048.0)}.toMap
+    val multiplyCostsCycles2 = multiplyCostsCycles.map { case (k, v) => k -> (v + multiplyCostsBytes(k) / 2048.0) }
+    val multiplyCostsBytes2 = multiplyCostsBytes.map { case (k, v) => k -> (v + multiplyCostsCycles(k) / 2048.0) }
     val mc = (2 to 99).map{i => i -> findWay(i, multiplyCostsCycles2)}.toMap
     val mb = (2 to 99).map{i => i -> findWay(i, multiplyCostsBytes2)}.toMap
     for (i <- 2 to 99) {

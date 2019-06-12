@@ -1,7 +1,7 @@
 package millfork.output
 
 import millfork.{CompilationFlag, CompilationOptions, Cpu, Platform}
-import millfork.assembly.z80._
+import millfork.assembly.z80.{ZOpcode, _}
 import millfork.assembly.z80.opt.{ConditionalInstructions, JumpFollowing, JumpShortening}
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
@@ -706,11 +706,11 @@ object Z80Assembler {
 
   case class One(opcode: Int, multiplier: Int)
 
-  val implieds = mutable.Map[ZOpcode.Value, Int]()
-  val immediates = mutable.Map[ZOpcode.Value, Int]()
-  val edImplieds = mutable.Map[ZOpcode.Value, Int]()
-  val oneRegister = mutable.Map[ZOpcode.Value, One]()
-  val cbOneRegister = mutable.Map[ZOpcode.Value, One]()
+  val implieds: mutable.Map[ZOpcode.Value, Int] = mutable.Map[ZOpcode.Value, Int]()
+  val immediates: mutable.Map[ZOpcode.Value, Int] = mutable.Map[ZOpcode.Value, Int]()
+  val edImplieds: mutable.Map[ZOpcode.Value, Int] = mutable.Map[ZOpcode.Value, Int]()
+  val oneRegister: mutable.Map[ZOpcode.Value, One] = mutable.Map[ZOpcode.Value, One]()
+  val cbOneRegister: mutable.Map[ZOpcode.Value, One] = mutable.Map[ZOpcode.Value, One]()
 
   do {
     import ZOpcode._

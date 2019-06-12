@@ -25,15 +25,15 @@ abstract class CallGraph(program: Program, log: Logger) {
 
   def canOverlap(a: VariableVertex, b: VariableVertex): Boolean
 
-  protected val entryPoints = mutable.Set[String]()
+  protected val entryPoints: mutable.Set[String] = mutable.Set[String]()
   // (F,G) means function F calls function G
-  protected val callEdges = mutable.Set[(String, String)]()
+  protected val callEdges: mutable.Set[(String, String)] = mutable.Set[(String, String)]()
   // (F,G) means function G is called when building parameters for function F
-  protected val paramEdges = mutable.Set[(String, String)]()
-  protected val multiaccessibleFunctions = mutable.Set[String]()
-  protected val everCalledFunctions = mutable.Set[String]()
-  protected val allFunctions = mutable.Set[String]()
-  protected val aliases = mutable.Map[String, String]()
+  protected val paramEdges: mutable.Set[(String, String)] = mutable.Set[(String, String)]()
+  protected val multiaccessibleFunctions: mutable.Set[String] = mutable.Set[String]()
+  protected val everCalledFunctions: mutable.Set[String] = mutable.Set[String]()
+  protected val allFunctions: mutable.Set[String] = mutable.Set[String]()
+  protected val aliases: mutable.Map[String, String] = mutable.Map[String, String]()
 
   entryPoints += "main"
   program.declarations.foreach(s => add(None, Nil, s))

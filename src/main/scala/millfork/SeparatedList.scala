@@ -5,7 +5,7 @@ package millfork
   */
 case class SeparatedList[T, S](head: T, tail: List[(S, T)]) {
 
-  def toPairList(initialSeparator: S) = (initialSeparator -> head) :: tail
+  def toPairList(initialSeparator: S): List[(S, T)] = (initialSeparator -> head) :: tail
 
   def size: Int = tail.size + 1
 

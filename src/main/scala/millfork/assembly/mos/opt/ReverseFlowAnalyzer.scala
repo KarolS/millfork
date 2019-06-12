@@ -113,7 +113,7 @@ object ReverseFlowAnalyzer {
 
   val cache = new FlowCache[AssemblyLine, CpuImportance]("mos reverse")
 
-  val functionsThatReadC = Set("__adc_decimal", "__sbc_decimal")
+  val functionsThatReadC: Set[String] = Set("__adc_decimal", "__sbc_decimal")
   private val aluAdders = Set(Opcode.ADC, Opcode.SBC, Opcode.ISC, Opcode.DCP, Opcode.ADC_W, Opcode.SBC_W)
   private val readAsPointer = Set(AddrMode.IndexedZ, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.LongIndexedZ, AddrMode.IndexedX, AddrMode.Indirect, AddrMode.AbsoluteIndexedX)
   private val absoluteLike = Set(AddrMode.ZeroPage, AddrMode.Absolute, AddrMode.LongAbsolute)

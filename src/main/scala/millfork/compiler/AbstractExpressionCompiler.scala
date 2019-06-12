@@ -12,7 +12,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 
   def getExpressionType(ctx: CompilationContext, expr: Expression): Type = AbstractExpressionCompiler.getExpressionType(ctx, expr)
 
-  def assertAllArithmetic(ctx: CompilationContext,expressions: List[Expression]) = {
+  def assertAllArithmetic(ctx: CompilationContext,expressions: List[Expression]): Unit = {
      for(e <- expressions) {
        val typ = getExpressionType(ctx, e)
        if (!typ.isArithmetic) {
@@ -253,14 +253,14 @@ object AbstractExpressionCompiler {
     val v = env.get[Type]("void")
     val w = env.get[Type]("word")
     val t = expr match {
-      case LiteralExpression(value, size) =>
+      case LiteralExpression(_, size) =>
         size match {
           case 1 => b
           case 2 => w
           case 3 => env.get[Type]("farword")
           case 4 => env.get[Type]("long")
         }
-      case GeneratedConstantExpression(c, t) => t
+      case GeneratedConstantExpression(_, typ) => typ
       case TextLiteralExpression(_) => env.get[Type]("pointer")
       case VariableExpression(name) =>
         env.get[TypedThing](name, expr.position).typ
@@ -326,14 +326,14 @@ object AbstractExpressionCompiler {
         case 2 => w
         case _ => log.error("Adding values bigger than words", expr.position); w
       }
-      case FunctionCallExpression("nonet", params) => w
+      case FunctionCallExpression("nonet", _) => w
       case FunctionCallExpression("not", params) =>
         toAllBooleanConstants(params) match {
           case Some(List(x)) => toType(!x)
           case _ => bool
         }
-      case FunctionCallExpression("hi", params) => b
-      case FunctionCallExpression("lo", params) => b
+      case FunctionCallExpression("hi", _) => b
+      case FunctionCallExpression("lo", _) => b
       case FunctionCallExpression("sin", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
       case FunctionCallExpression("cos", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
       case FunctionCallExpression("tan", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
@@ -357,9 +357,9 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression(">>", List(a1, a2)) =>
         if (getExpressionType(env, log, a2).size > 1) log.error("Shift amount too large", a2.position)
         getExpressionType(env, log, a1)
-      case FunctionCallExpression("<<'", params) => b
-      case FunctionCallExpression(">>'", params) => b
-      case FunctionCallExpression(">>>>", params) => b
+      case FunctionCallExpression("<<'", _) => b
+      case FunctionCallExpression(">>'", _) => b
+      case FunctionCallExpression(">>>>", _) => b
       case FunctionCallExpression("&&", params) =>
         toAllBooleanConstants(params).fold(bool)(list => toType(list.reduce(_ && _)))
       case FunctionCallExpression("||", params) =>
@@ -381,20 +381,20 @@ object AbstractExpressionCompiler {
         toAllNumericConstants(params).fold(bool)(list => toType(monotonous(list, _ <= _)))
       case FunctionCallExpression(">=", params) =>
         toAllNumericConstants(params).fold(bool)(list => toType(monotonous(list, _ >= _)))
-      case FunctionCallExpression("+=", params) => v
-      case FunctionCallExpression("-=", params) => v
-      case FunctionCallExpression("*=", params) => v
-      case FunctionCallExpression("+'=", params) => v
-      case FunctionCallExpression("-'=", params) => v
-      case FunctionCallExpression("*'=", params) => v
-      case FunctionCallExpression("|=", params) => v
-      case FunctionCallExpression("&=", params) => v
-      case FunctionCallExpression("^=", params) => v
-      case FunctionCallExpression("<<=", params) => v
-      case FunctionCallExpression(">>=", params) => v
-      case FunctionCallExpression("<<'=", params) => v
-      case FunctionCallExpression(">>'=", params) => v
-      case f@FunctionCallExpression(name, params) =>
+      case FunctionCallExpression("+=", _) => v
+      case FunctionCallExpression("-=", _) => v
+      case FunctionCallExpression("*=", _) => v
+      case FunctionCallExpression("+'=", _) => v
+      case FunctionCallExpression("-'=", _) => v
+      case FunctionCallExpression("*'=", _) => v
+      case FunctionCallExpression("|=", _) => v
+      case FunctionCallExpression("&=", _) => v
+      case FunctionCallExpression("^=", _) => v
+      case FunctionCallExpression("<<=", _) => v
+      case FunctionCallExpression(">>=", _) => v
+      case FunctionCallExpression("<<'=", _) => v
+      case FunctionCallExpression(">>'=", _) => v
+      case f@FunctionCallExpression(name, _) =>
         env.maybeGet[Type](name) match {
           case Some(typ) =>
             typ

@@ -183,13 +183,13 @@ object ReverseFlowAnalyzer {
 
   val cache = new FlowCache[ZLine, CpuImportance]("z80 reverse")
 
-  val readsA = Set("__mul_u8u8u8", "__mul_u16u8u16")
-  val readsB = Set("")
-  val readsC = Set("")
-  val readsD = Set("__mul_u8u8u8","__mul_u16u8u16", "__divmod_u16u8u16u8")
-  val readsE = Set("__mul_u16u8u16")
-  val readsH = Set("__divmod_u16u8u16u8")
-  val readsL = Set("__divmod_u16u8u16u8")
+  val readsA: Set[String] = Set("__mul_u8u8u8", "__mul_u16u8u16")
+  val readsB: Set[String] = Set("")
+  val readsC: Set[String] = Set("")
+  val readsD: Set[String] = Set("__mul_u8u8u8","__mul_u16u8u16", "__divmod_u16u8u16u8")
+  val readsE: Set[String] = Set("__mul_u16u8u16")
+  val readsH: Set[String] = Set("__divmod_u16u8u16u8")
+  val readsL: Set[String] = Set("__divmod_u16u8u16u8")
 
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[ZLine]): List[CpuImportance] = {

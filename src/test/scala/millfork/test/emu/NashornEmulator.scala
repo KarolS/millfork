@@ -13,7 +13,7 @@ import scala.language.dynamics
   */
 object NashornEmulator {
 
-  lazy val engine = {
+  lazy val engine: ScriptEngine = {
     val jsFile = Paths.get(classOf[Nothing].getResource("/cpu.js").toURI).toFile
     val engine: ScriptEngine = new ScriptEngineManager().getEngineByName("nashorn")
     engine.eval(new FileReader(jsFile))

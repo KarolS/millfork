@@ -14,13 +14,13 @@ abstract class MacroExpander[T <: AbstractCode] {
   def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyParam], params: List[Expression], code: List[ExecutableStatement]): (List[T], List[ExecutableStatement])
 
   def replaceVariable(stmt: Statement, paramName: String, target: Expression): Statement = {
-    def f[T <: Expression](e: T) = e.replaceVariable(paramName, target)
+    def f[S <: Expression](e: S) = e.replaceVariable(paramName, target)
 
-    def fx[T <: Expression](e: T) = e.replaceVariable(paramName, target).asInstanceOf[LhsExpression]
+    def fx[S <: Expression](e: S) = e.replaceVariable(paramName, target).asInstanceOf[LhsExpression]
 
-    def g[T <: Statement](s: T) = replaceVariable(s, paramName, target)
+    def g[S <: Statement](s: S) = replaceVariable(s, paramName, target)
 
-    def gx[T <: ExecutableStatement](s: T) = replaceVariable(s, paramName, target).asInstanceOf[ExecutableStatement]
+    def gx[S <: ExecutableStatement](s: S) = replaceVariable(s, paramName, target).asInstanceOf[ExecutableStatement]
 
     def h(s: String) = if (s == paramName) target.asInstanceOf[VariableExpression].name else s
 

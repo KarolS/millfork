@@ -457,7 +457,7 @@ object BuiltIns {
         case ComparisonType.Equal | ComparisonType.NotEqual | ComparisonType.LessSigned | ComparisonType.GreaterOrEqualSigned =>
           val secondParamCompiledUnoptimized = simpleOperation(cmpOp, ctx, rhs, IndexChoice.PreferY, preserveA = true, commutative = false)
           secondParamCompiledUnoptimized match {
-            case List(AssemblyLine(cmpOp, Immediate, NumericConstant(0, _), Elidability.Elidable, _)) =>
+            case List(AssemblyLine(_, Immediate, NumericConstant(0, _), Elidability.Elidable, _)) =>
               if (OpcodeClasses.ChangesAAlways(firstParamCompiled.last.opcode)) {
                 Nil
               } else {

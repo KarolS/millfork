@@ -38,9 +38,9 @@ object ZOpcodeClasses {
   import ZOpcode._
 
   
-  val RES_seq = IndexedSeq(RES0, RES1, RES2, RES3, RES4, RES5, RES6, RES7)
-  val SET_seq = IndexedSeq(SET0, SET1, SET2, SET3, SET4, SET5, SET6, SET7)
-  val BIT_seq = IndexedSeq(BIT0, BIT1, BIT2, BIT3, BIT4, BIT5, BIT6, BIT7)
+  val RES_seq: IndexedSeq[ZOpcode.Value] = IndexedSeq(RES0, RES1, RES2, RES3, RES4, RES5, RES6, RES7)
+  val SET_seq: IndexedSeq[ZOpcode.Value] = IndexedSeq(SET0, SET1, SET2, SET3, SET4, SET5, SET6, SET7)
+  val BIT_seq: IndexedSeq[ZOpcode.Value] = IndexedSeq(BIT0, BIT1, BIT2, BIT3, BIT4, BIT5, BIT6, BIT7)
   private val all_bit_seq = BIT_seq ++ RES_seq ++ SET_seq
 
   def singleBitOpcode(op:ZOpcode.Value): Int = 0x40 + all_bit_seq.indexOf(op) * 8
@@ -56,9 +56,9 @@ object ZOpcodeClasses {
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR) ++ BIT ++ RES ++ SET
 
-  val NoopDiscards = Set(DISCARD_F, DISCARD_A, DISCARD_HL, DISCARD_BC, DISCARD_DE, DISCARD_IX, DISCARD_IY)
+  val NoopDiscards: Set[ZOpcode.Value] = Set(DISCARD_F, DISCARD_A, DISCARD_HL, DISCARD_BC, DISCARD_DE, DISCARD_IX, DISCARD_IY)
 
-  val ChangesAFAlways = Set( // TODO: !
+  val ChangesAFAlways: Set[ZOpcode.Value] = Set( // TODO: !
     DAA, ADD, ADC, SUB, SBC, XOR, OR, AND, INC, DEC,
     SCF, CCF, NEG, RIM,
     LDH_AC, LDH_AD, LD_AHLI, LD_AHLD,
@@ -66,22 +66,22 @@ object ZOpcodeClasses {
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,
     EXX, CALL, JR, JP, LABEL, DJNZ)
-  val ChangesBCAlways = Set(
+  val ChangesBCAlways: Set[ZOpcode.Value] = Set(
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,
     EXX, CALL, JR, JP, LABEL, DJNZ)
-  val ChangesHLAlways = Set(
+  val ChangesHLAlways: Set[ZOpcode.Value] = Set(
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,
     LD_AHLI, LD_AHLD, LD_HLIA, LD_HLDA, LD_HLSP, DSUB,
     RRHL, LHLX,
     EXX, EX_DE_HL, CALL, JR, JP, LABEL)
-  val ChangesDEAlways = Set(
+  val ChangesDEAlways: Set[ZOpcode.Value] = Set(
     LDI, LDIR, LDD, LDDR,
     LD_DESP, LD_DEHL, RLDE,
     EXX, EX_DE_HL, CALL, JR, JP, LABEL)
   val ChangesOnlyRegister: Set[ZOpcode.Value] = Set(INC, DEC, INC_16, DEC_16, POP, EX_SP, IN_C, IN_IMM, RL, RR, RLC, RRC, SLA, SRA, SRL, SLL) ++ SET ++ RES
-  val ChangesFirstRegister = Set(LD, LD_16, ADD_16, SBC_16)
-  val ChangesAAlways = Set(DAA, ADD, ADC, SUB, SBC, XOR, OR, AND, LD_AHLI, LD_AHLD, RIM)
-  val NonLinear = Set(JP, JR, CALL, LABEL, BYTE, EXX, EX_DE_HL, EX_SP, EXX, RET, RETI, RETN, HALT, RST, RSTV)
+  val ChangesFirstRegister: Set[ZOpcode.Value] = Set(LD, LD_16, ADD_16, SBC_16)
+  val ChangesAAlways: Set[ZOpcode.Value] = Set(DAA, ADD, ADC, SUB, SBC, XOR, OR, AND, LD_AHLI, LD_AHLD, RIM)
+  val NonLinear: Set[ZOpcode.Value] = Set(JP, JR, CALL, LABEL, BYTE, EXX, EX_DE_HL, EX_SP, EXX, RET, RETI, RETN, HALT, RST, RSTV)
 }

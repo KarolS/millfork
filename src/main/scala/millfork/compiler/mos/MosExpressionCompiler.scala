@@ -1316,7 +1316,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 BuiltIns.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%=") ++ compileByteStorage(ctx, MosRegister.A, l)
               case 2 =>
                 if (f.functionName == "%%=") {
-                  BuiltIns.compileUnsignedWordByByteDivision(ctx, l, r, true) ++ compileByteStorage(ctx, MosRegister.A, l)
+                  BuiltIns.compileUnsignedWordByByteDivision(ctx, l, r, modulo = true) ++ compileByteStorage(ctx, MosRegister.A, l)
                 } else {
                   compileAssignment(ctx, FunctionCallExpression("/", List(l, r)).pos(f.position), l)
                 }

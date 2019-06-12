@@ -6,6 +6,7 @@ import millfork.node._
 import AbstractExpressionCompiler.getExpressionType
 import millfork.compiler.AbstractStatementPreprocessor.hiddenEffectFreeFunctions
 
+import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -15,8 +16,8 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
   type VV = Map[String, Constant]
   protected val optimize = true // TODO
   protected val env: Environment = ctx.env
-  protected val localPrefix = ctx.function.name + "$"
-  protected val usedIdentifiers = if (optimize) statements.flatMap(_.getAllExpressions).flatMap(_.getAllIdentifiers) else Set()
+  protected val localPrefix: String = ctx.function.name + "$"
+  protected val usedIdentifiers: immutable.Iterable[String] with (Nothing => Any) = if (optimize) statements.flatMap(_.getAllExpressions).flatMap(_.getAllIdentifiers) else Set()
   protected val trackableVars: Set[String] = if (optimize) {
     env.getAllLocalVariables
       .filterNot(_.typ.isSigned) // sadly, tracking loses signedness
@@ -382,7 +383,7 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
 }
 
 object AbstractStatementPreprocessor {
-  val hiddenEffectFreeFunctions = Set(
+  val hiddenEffectFreeFunctions: Set[String] = Set(
     "+", "+'", "-", "-'",
     "*", "*'",
     "<<", "<<'", ">>", ">>'", ">>>>",

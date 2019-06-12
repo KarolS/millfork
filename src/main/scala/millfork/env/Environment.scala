@@ -1752,6 +1752,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def hintTypo(name: String): Unit = {
     val realThings = this.things.keySet ++ parent.map(_.things.keySet).getOrElse(Set())
+    //noinspection ScalaDeprecation
     val matchingThings = realThings.filter(thing => !thing.contains("$") && StringUtils.getJaroWinklerDistance(thing,name) > 0.9)
     if (matchingThings.nonEmpty) {
       log.info("Did you mean: " + matchingThings.mkString(", "))
@@ -1839,7 +1840,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 }
 
 object Environment {
-  val predefinedFunctions = Set("not", "hi", "lo", "nonet", "sizeof")
+  val predefinedFunctions: Set[String] = Set("not", "hi", "lo", "nonet", "sizeof")
   val keywords: Set[String] = Set(
     "true", "false",
     "byte", "sbyte", "word", "pointer", "void", "long",

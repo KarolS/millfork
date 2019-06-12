@@ -12,7 +12,7 @@ import millfork.env._
   */
 object CmosOptimizations {
 
-  val StzAddrModes = Set(ZeroPage, ZeroPageX, Absolute, AbsoluteX)
+  val StzAddrModes: Set[AddrMode.Value] = Set(ZeroPage, ZeroPageX, Absolute, AbsoluteX)
 
   val ZeroStoreAsStz = new RuleBasedAssemblyOptimization("Zero store",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,

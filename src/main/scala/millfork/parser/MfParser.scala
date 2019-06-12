@@ -87,7 +87,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val textLiteral: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
       case (p, s, ((co, zt), lenient)) =>
-        val characters = co.encode(options.log, None, s.toList, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
+        val characters = co.encode(options.log, None, s, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
         if (zt) characters :+ LiteralExpression(0,1)
         else characters
     }
@@ -185,7 +185,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     LiteralContents(slice.map(c => LiteralExpression(c & 0xff, 1)).toList)
   }
 
-  def arrayStringContents: P[ArrayContents] = textLiteral.map(LiteralContents(_))
+  def arrayStringContents: P[ArrayContents] = textLiteral.map(LiteralContents)
 
   def arrayLoopContents: P[ArrayContents] = for {
       identifier <- "for" ~ SWS ~/ identifier ~/ HWS ~ "," ~/ HWS ~ Pass
@@ -317,14 +317,14 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def index: P[Expression] = HWS ~ "[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~/ "]" ~/ Pass
 
-  def mfExpressionWrapper[T <: Expression](inner: P[T]): P[T] = for {
+  def mfExpressionWrapper[E <: Expression](inner: P[E]): P[E] = for {
     expr <- inner
     firstIndices <- index.rep
     fieldPath <- (HWS ~ "->" ~/ AWS ~/ identifier ~/ index.rep).rep
   } yield (expr, firstIndices, fieldPath) match {
     case (_, Seq(), Seq()) => expr
-    case (VariableExpression(vname), Seq(i), Seq()) => IndexedExpression(vname, i).pos(expr.position).asInstanceOf[T]
-    case _ => IndirectFieldExpression(expr, firstIndices, fieldPath).pos(expr.position).asInstanceOf[T]
+    case (VariableExpression(vname), Seq(i), Seq()) => IndexedExpression(vname, i).pos(expr.position).asInstanceOf[E]
+    case _ => IndirectFieldExpression(expr, firstIndices, fieldPath).pos(expr.position).asInstanceOf[E]
   }
 
 //  def mfLhsExpression: P[LhsExpression] = for {
@@ -665,7 +665,7 @@ object MfParser {
     List("+'", "-'", "<<'", ">>'", ">>>>", "+", "-", "&", "|", "^", "<<", ">>"),
     List("*'", "*", "/", "%%"))
 
-  val mfOperatorsDropFlatten: IndexedSeq[List[String]] = (0 until mfOperators.length).map(i => mfOperators.drop(i).flatten)
+  val mfOperatorsDropFlatten: IndexedSeq[List[String]] = mfOperators.indices.map(i => mfOperators.drop(i).flatten)
 
   val nonStatementLevel = 1 // everything but not `=`
   val mathLevel = 4 // the `:` operator
@@ -699,5 +699,5 @@ object MfParser {
 
   val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt")
 
-  val InvalidReturnTypes = Set("enum", "alias", "array", "const", "stack", "register", "static", "volatile", "import", "struct", "union")
+  val InvalidReturnTypes: Set[String] = Set("enum", "alias", "array", "const", "stack", "register", "static", "volatile", "import", "struct", "union")
 }

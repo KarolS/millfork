@@ -6,7 +6,7 @@ import millfork.output.MemoryBank
   * @author Karol Stasiak
   */
 object EmuUltraBenchmarkRun {
-  def apply(source:String)(verifier: MemoryBank=>Unit) = {
+  def apply(source:String)(verifier: MemoryBank=>Unit): Unit = {
     val (Timings(t0, _), m0) = EmuUnoptimizedRun.apply2(source)
     val (Timings(t1, _), m1) = EmuOptimizedRun.apply2(source)
     val (Timings(ti, _), mi) = EmuOptimizedInlinedRun.apply2(source)

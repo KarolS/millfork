@@ -6,7 +6,7 @@ import millfork.output.MemoryBank
   * @author Karol Stasiak
   */
 object EmuCmosBenchmarkRun {
-  def apply(source:String)(verifier: MemoryBank=>Unit) = {
+  def apply(source:String)(verifier: MemoryBank=>Unit): Unit = {
     println(f"Compiling for NMOS (unoptimized)")
     val (Timings(_, t0), m0) = EmuUnoptimizedRun.apply2(source)
     println(f"Compiling for NMOS")

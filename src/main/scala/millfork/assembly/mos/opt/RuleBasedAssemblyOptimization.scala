@@ -2,7 +2,7 @@ package millfork.assembly.mos.opt
 
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly._
-import millfork.assembly.mos._
+import millfork.assembly.mos.{AddrMode, _}
 import millfork.assembly.opt.SingleStatus
 import millfork.compiler.LabelGenerator
 import millfork.env._
@@ -174,7 +174,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
     if (clazz.isInstance(t)) {
       t.asInstanceOf[AnyRef]
     } else {
-      if (i eq null) {
+      if (t.asInstanceOf[AnyRef] eq null) {
         log.fatal(s"Value at index $i is null")
       } else {
         log.fatal(s"Value at index $i is a ${t.getClass.getSimpleName}, not a ${clazz.getSimpleName}")
@@ -893,7 +893,7 @@ case object IsNonvolatile extends TrivialAssemblyLinePattern {
 }
 
 case object ReadsX extends TrivialAssemblyLinePattern {
-  val XAddrModes = Set(AddrMode.AbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX, AddrMode.AbsoluteIndexedX)
+  val XAddrModes: Set[AddrMode.Value] = Set(AddrMode.AbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX, AddrMode.AbsoluteIndexedX)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ReadsXAlways(line.opcode) || XAddrModes(line.addrMode)
@@ -902,7 +902,7 @@ case object ReadsX extends TrivialAssemblyLinePattern {
 }
 
 case object ReadsY extends TrivialAssemblyLinePattern {
-  val YAddrModes = Set(AddrMode.AbsoluteY, AddrMode.IndexedY, AddrMode.ZeroPageY)
+  val YAddrModes: Set[AddrMode.Value] = Set(AddrMode.AbsoluteY, AddrMode.IndexedY, AddrMode.ZeroPageY)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ReadsYAlways(line.opcode) || YAddrModes(line.addrMode)
@@ -932,7 +932,7 @@ case object ConcernsAH extends TrivialAssemblyLinePattern {
 }
 
 case object ConcernsX extends TrivialAssemblyLinePattern {
-  val XAddrModes = Set(AddrMode.AbsoluteX, AddrMode.AbsoluteIndexedX, AddrMode.LongAbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX)
+  val XAddrModes: Set[AddrMode.Value] = Set(AddrMode.AbsoluteX, AddrMode.AbsoluteIndexedX, AddrMode.LongAbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsXAlways(line.opcode) || XAddrModes(line.addrMode)
@@ -941,7 +941,7 @@ case object ConcernsX extends TrivialAssemblyLinePattern {
 }
 
 case object ConcernsS extends TrivialAssemblyLinePattern {
-  val SAddrModes = Set(AddrMode.Stack, AddrMode.IndexedSY)
+  val SAddrModes: Set[AddrMode.Value] = Set(AddrMode.Stack, AddrMode.IndexedSY)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsSAlways(line.opcode) || SAddrModes(line.addrMode)
@@ -950,7 +950,7 @@ case object ConcernsS extends TrivialAssemblyLinePattern {
 }
 
 case object ConcernsY extends TrivialAssemblyLinePattern {
-  val YAddrModes = Set(AddrMode.AbsoluteY, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.ZeroPageY)
+  val YAddrModes: Set[AddrMode.Value] = Set(AddrMode.AbsoluteY, AddrMode.IndexedSY, AddrMode.IndexedY, AddrMode.LongIndexedY, AddrMode.ZeroPageY)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsYAlways(line.opcode) || YAddrModes(line.addrMode)
@@ -959,7 +959,7 @@ case object ConcernsY extends TrivialAssemblyLinePattern {
 }
 
 case object ConcernsStack extends TrivialAssemblyLinePattern {
-  val SAddrModes = Set(AddrMode.IndexedSY, AddrMode.Stack)
+  val SAddrModes: Set[AddrMode.Value] = Set(AddrMode.IndexedSY, AddrMode.Stack)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsStackAlways(line.opcode) || SAddrModes(line.addrMode)
@@ -968,7 +968,7 @@ case object ConcernsStack extends TrivialAssemblyLinePattern {
 }
 
 case object ConcernsIZ extends TrivialAssemblyLinePattern {
-  val IZAddrModes = Set(AddrMode.IndexedZ, AddrMode.LongIndexedZ)
+  val IZAddrModes: Set[AddrMode.Value] = Set(AddrMode.IndexedZ, AddrMode.LongIndexedZ)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ConcernsIZAlways(line.opcode) || IZAddrModes(line.addrMode)

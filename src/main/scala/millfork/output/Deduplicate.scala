@@ -142,7 +142,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
       }
 
     }
-    result.toSeq
+    result
   }
 
   def deduplicateIdenticalFunctions(segmentName: String, segContents: Map[String, Either[String, CodeAndAlignment[T]]]): Seq[(String, CompiledFunction[T])] = {
@@ -173,7 +173,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
         }
       }
     }
-    result.toSeq
+    result
   }
 
   private def follow(segContents: Map[String, Either[String, CodeAndAlignment[T]]], to: String): Option[String] = {
@@ -224,7 +224,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
           result += to -> NonexistentFunction()
         }
     }
-    result.toSeq
+    result
   }
 
   def eliminateRemainingTrivialTailJumps(segmentName: String, segContents: Map[String, Either[String, CodeAndAlignment[T]]]): Seq[(String, CompiledFunction[T])] = {
@@ -260,7 +260,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
           }
         }
     }
-    result.toSeq
+    result
   }
 
   def fixDoubleRedirects(compiledFunctions: mutable.Map[String, CompiledFunction[T]]): Unit = {

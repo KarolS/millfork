@@ -285,9 +285,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val bank0 = mem.banks(bank)
         val index = f.address.get.asInstanceOf[NumericConstant].value.toInt
         compiledFunctions(f.name) match {
-          case NormalCompiledFunction(_, code, _, _) =>
+          case NormalCompiledFunction(_, functionCode, _, _) =>
             labelMap(f.name) = index
-            val end = outputFunction(bank, code, index, assembly, options)
+            val end = outputFunction(bank, functionCode, index, assembly, options)
             for (i <- index until end) {
               bank0.occupied(index) = true
               bank0.initialized(index) = true
@@ -306,11 +306,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     sortedCompilerFunctions.filterNot(o => unusedRuntimeObjects(o._1)).foreach {
       case (_, NormalCompiledFunction(_, _, true, _)) =>
         // already done before
-      case (name, NormalCompiledFunction(bank, code, false, alignment)) =>
-        val size = code.map(_.sizeInBytes).sum
+      case (name, NormalCompiledFunction(bank, functionCode, false, alignment)) =>
+        val size = functionCode.map(_.sizeInBytes).sum
         val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
         labelMap(name) = index
-        justAfterCode += bank -> outputFunction(bank, code, index, assembly, options)
+        justAfterCode += bank -> outputFunction(bank, functionCode, index, assembly, options)
       case _ =>
     }
     sortedCompilerFunctions.foreach {
@@ -323,7 +323,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       env.allThings.things.foreach {
         case (_, m@UninitializedMemoryVariable(name, typ, _, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
           val isUsed = compiledFunctions.values.exists{
-            case NormalCompiledFunction(_, code, _, _)  => code.exists(_.parameter.isRelatedTo(m))
+            case NormalCompiledFunction(_, functionCode, _, _)  => functionCode.exists(_.parameter.isRelatedTo(m))
             case _ => false
           }
 //          println(m.name -> isUsed)
@@ -507,11 +507,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           lastSource = instr.source
           if (printLineNumbers) {
             lastSource match {
-              case Some(sl@SourceLine(moduleName, line)) if line > 0 =>
+              case Some(sl@SourceLine(moduleName, lineNo)) if lineNo > 0 =>
                 if (sourceInAssembly) {
                   assOut.append("; ")
                 }
-                assOut.append(s";line:$line:$moduleName")
+                assOut.append(s";line:$lineNo:$moduleName")
                 if (sourceInAssembly) {
                   log.getLine(sl).foreach(l => assOut.append(";   " + l))
                 }

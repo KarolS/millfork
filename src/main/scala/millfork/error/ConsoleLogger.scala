@@ -17,7 +17,7 @@ class ConsoleLogger extends Logger {
 
   var hasErrors = false
 
-  private var sourceLines: mutable.Map[String, IndexedSeq[String]] = mutable.Map()
+  private val sourceLines: mutable.Map[String, IndexedSeq[String]] = mutable.Map()
 
   private def printErrorContext(pos: Option[Position]): Unit = synchronized {
     pos.foreach { position =>

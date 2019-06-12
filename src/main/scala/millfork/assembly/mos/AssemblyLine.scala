@@ -437,7 +437,7 @@ object AssemblyLine {
   def absolute(opcode: Opcode.Value, addr: Constant) =
     AssemblyLine(opcode, AddrMode.Absolute, addr)
 
-  def absoluteOrLongAbsolute(opcode: Opcode.Value, thing: ThingInMemory, options: CompilationOptions) =
+  def absoluteOrLongAbsolute(opcode: Opcode.Value, thing: ThingInMemory, options: CompilationOptions): AssemblyLine =
     if (thing.isFar(options)) AssemblyLine(opcode, AddrMode.LongAbsolute, thing.toAddress)
     else AssemblyLine(opcode, AddrMode.Absolute, thing.toAddress)
 

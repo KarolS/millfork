@@ -77,9 +77,9 @@ object Preprocessor {
               if (enabled) {
                 val value = evalParam(param, pos)
                 enabled = value != 0
-                ifStack.push(IfContext(enabled, false, true))
+                ifStack.push(IfContext(hadEnabled = enabled, hadElse = false, enabledBefore = true))
               } else {
-                ifStack.push(IfContext(false, false, false))
+                ifStack.push(IfContext(hadEnabled = false, hadElse = false, enabledBefore = false))
               }
             case "endif" =>
               if (param != "") log.error("#endif shouldn't have a parameter", pos)
@@ -149,7 +149,7 @@ class PreprocessorParser(options: CompilationOptions) {
   type M = Map[String, Long]
   type Q = M => Option[Long]
   val alwaysNone: M => Option[Long] = (_: M) => None
-  val log = options.log
+  val log: Logger = options.log
 
   val literalAtom: P[Q] = (MfParser.binaryAtom | MfParser.hexAtom | MfParser.octalAtom | MfParser.quaternaryAtom | MfParser.decimalAtom).map(l => _ => Some(l.value))
 

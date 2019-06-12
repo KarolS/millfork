@@ -1,7 +1,7 @@
 package millfork.output
 
 import millfork.{CompilationFlag, CompilationOptions, Cpu, Platform}
-import millfork.assembly.z80._
+import millfork.assembly.z80.{ZOpcode, _}
 import millfork.assembly.z80.opt.{ConditionalInstructions, JumpFollowing, JumpShortening}
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
@@ -83,7 +83,7 @@ class Z80ToX86Crossassembler(program: Program,
         index
       case ZLine0(LABEL | BYTE | DISCARD_F | DISCARD_HL | DISCARD_BC | DISCARD_DE | DISCARD_IX | DISCARD_IY | DISCARD_A | CHANGED_MEM, _, _) =>
         ???
-      case ZLine0(op, NoRegisters, _) if implieds.contains(op) && implieds(op) != 666 =>
+      case ZLine0(op, NoRegisters, _) if implieds.contains(op) =>
         writeByte(bank, index, implieds(op))
         index + 1
 
@@ -398,27 +398,22 @@ object Z80ToX86Crossassembler {
 
   case class One(opcode: Int, multiplier: Int)
 
-  val implieds = mutable.Map[ZOpcode.Value, Int]()
-  val arith = mutable.Map[ZOpcode.Value, Int]()
-  val edImplieds = mutable.Map[ZOpcode.Value, Int]()
-  val oneRegister = mutable.Map[ZOpcode.Value, One]()
-  val cbOneRegister = mutable.Map[ZOpcode.Value, One]()
+  val implieds: mutable.Map[ZOpcode.Value, Int] = mutable.Map[ZOpcode.Value, Int]()
+  val arith: mutable.Map[ZOpcode.Value, Int] = mutable.Map[ZOpcode.Value, Int]()
+  val edImplieds: mutable.Map[ZOpcode.Value, Int] = mutable.Map[ZOpcode.Value, Int]()
+  val oneRegister: mutable.Map[ZOpcode.Value, One] = mutable.Map[ZOpcode.Value, One]()
+  val cbOneRegister: mutable.Map[ZOpcode.Value, One] = mutable.Map[ZOpcode.Value, One]()
 
   do {
     import ZOpcode._
     implieds(NOP) = 0x90
     implieds(DAA) = 0x27
     implieds(SCF) = 0xf9
-    implieds(CPL) = 666
     implieds(CCF) = 0xf5
     implieds(RET) = 0xc3
     implieds(EI) = 0xfb
     implieds(DI) = 0xfa
     implieds(HALT) = 0xf4
-    implieds(RLCA) = 666
-    implieds(RRCA) = 666
-    implieds(RLA) = 666
-    implieds(RRA) = 666
 
     arith(ADD) = 0x00
     arith(ADC) = 0x10

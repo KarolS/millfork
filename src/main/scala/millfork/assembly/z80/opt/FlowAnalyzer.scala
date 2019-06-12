@@ -18,7 +18,7 @@ class FlowHolder(_statusBefore: () => List[CpuStatus], _importanceAfter: () => L
 case class FlowInfo(holder: FlowHolder, index: Int, _labelUseCountMap: () => Option[Map[String, Int]]) {
 
   lazy val statusBefore: CpuStatus = holder.statusBefore(index)
-  lazy val importanceAfter = holder.importanceAfter(index)
+  lazy val importanceAfter: CpuImportance = holder.importanceAfter(index)
   lazy val labelUseCountMap: Option[Map[String, Int]] = _labelUseCountMap()
 
   def labelUseCount(label: String): Int = labelUseCountMap.map(_.getOrElse(label, 0)).getOrElse(-1)
