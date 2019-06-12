@@ -32,6 +32,21 @@ case class Context(errorReporting: Logger,
 
   def filloutFlags(): Context = {
     var addons = Map[CompilationFlag.Value, Boolean]()
+    if (flags.contains(CompilationFlag.EmitNative65816Opcodes)
+      || flags.contains(CompilationFlag.EmitEmulation65816Opcodes)
+      || flags.contains(CompilationFlag.EmitHudsonOpcodes)
+      || flags.contains(CompilationFlag.Emit65CE02Opcodes)) {
+      addons += CompilationFlag.EmitCmosOpcodes -> true
+    }
+    if (flags.contains(CompilationFlag.EmitEZ80Opcodes)) {
+      addons += CompilationFlag.EmitZ80Opcodes -> true
+    }
+    if (flags.contains(CompilationFlag.EmitZ80Opcodes) || flags.contains(CompilationFlag.EmitSharpOpcodes)) {
+      addons += CompilationFlag.EmitExtended80Opcodes -> true
+    }
+    if (flags.contains(CompilationFlag.EmitZ80Opcodes) || flags.contains(CompilationFlag.EmitIntel8085Opcodes)) {
+      addons += CompilationFlag.EmitIntel8080Opcodes -> true
+    }
     if (flags.contains(CompilationFlag.OptimizeForSpeed)) {
       addons += CompilationFlag.InlineFunctions -> true
     }
