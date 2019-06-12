@@ -39,5 +39,9 @@
 {
   "name":"sun.misc.Unsafe",
   "fields":[{"name":"theUnsafe"}]
+},
+{
+  "name":"org.graalvm.nativeimage.ProcessProperties",
+  "allPublicMethods":true
 }
 ]

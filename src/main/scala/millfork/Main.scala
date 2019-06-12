@@ -138,7 +138,7 @@ object Main {
 
   private def getDefaultIncludePath: Either[String, String] = {
     try {
-      var where = new File(getClass.getProtectionDomain.getCodeSource.getLocation.toURI).getParentFile
+      var where = getExecutablePath.getParentFile
       if ((where.getName == "scala-2.12" || where.getName == "scala-2.13") && where.getParentFile.getName == "target") {
         where = where.getParentFile.getParentFile
       }
@@ -149,20 +149,30 @@ object Main {
         Left(s"The ${dir.getAbsolutePath} directory doesn't exist")
       }
     } catch {
-      case  e: Exception => Left(e.getMessage)
+      case e: Exception => Left(e.toString)
+    }
+  }
+
+  private def getExecutablePath: File = {
+    try {
+      new File(Class.forName("org.graalvm.nativeimage.ProcessProperties").getMethod("getExecutableName").invoke(null).asInstanceOf[String])
+    } catch {
+      case _: Exception => try {
+        new File(getClass.getProtectionDomain.getCodeSource.getLocation.toURI)
+      }
     }
   }
 
   private def getAllDefaultPlatforms: Seq[String] = {
     (getDefaultIncludePath match {
       case Left(_) => Seq(
-        "c64", "c64_scpu", "c64_scpu16", "c64_crt9k", "c64_crt16k", "lunix",
+        "c64", "c64_scpu", "c64_scpu16", "c64_crt8k", "c64_crt16k", "lunix",
         "vic20", "vic20_3k", "vic20_8k", "vic20_a000",
         "c16", "plus4", "pet", "c128",
         "a8", "bbcmicro", "apple2",
-        "nes_mmc4", "nes_small", "vcs",
-        "zxspectrum", "zxspectrum_8080", "pc88", "cpc464",
-        "cpm", "cpm_z80")
+        "nes_mmc4", "nes_small", "vcs", "gb_small",
+        "zxspectrum", "zxspectrum_8080", "pc88", "cpc464", "msx_crt",
+        "cpm", "cpm_z80", "dos_com")
       case Right(path) =>
         Seq(new File(".").list(), new File(path).list())
           .filter(_ ne null)
