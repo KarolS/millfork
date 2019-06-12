@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 
 import com.codingrodent.microprocessor.Z80.Z80Core
 import fastparse.core.Parsed.{Failure, Success}
-import fr.neatmonster.ibmpc.{IBMCGA, Intel8086}
+import fr.neatmonster.ibmpc.{IBMCGA, Intel8086, Intel8255, Intel8259, Motorola6845}
 import javax.swing.SwingUtilities
 import millfork._
 import millfork.assembly.AssemblyOptimization
@@ -55,6 +55,11 @@ object EmuI86Run {
 
   def cachedMath(): Program = get("include/i80_math.mfk") // TODO
   def cachedStdio(): Program = get("src/test/resources/include/dummy_stdio.mfk")
+
+  val leakSaverCpu = new Intel8086()
+  val leakSaverCrtc = new Motorola6845()
+  val leakSaverPic = new Intel8259()
+  val leakSaverPpi = new Intel8255(leakSaverPic)
 }
 
 class EmuI86Run(nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[ZLine]]) extends Matchers {
@@ -183,6 +188,10 @@ class EmuI86Run(nodeOptimizations: List[NodeOptimization], assemblyOptimizations
             clocks = sniffField[Long](cpu, "clocks")
           } while(clocks < 100000 && sniffMethod[Boolean](cpu, "tick"))
           SwingUtilities.getWindowAncestor(sniffField[IBMCGA](cpu, "cga")).setVisible(false)
+          // CGA's leak, so at least don't let other objects leak
+          setField(sniffField[IBMCGA](cpu, "cga"), "cpu", EmuI86Run.leakSaverCpu)
+          setField(sniffField[IBMCGA](cpu, "cga"), "ppi", EmuI86Run.leakSaverPpi)
+          setField(sniffField[IBMCGA](cpu, "cga"), "crtc", EmuI86Run.leakSaverCrtc)
           if (clocks >= 100000) throw new RuntimeException("Timeout")
           0x100.until(1<<16).foreach(i => memoryBank.output(i) = memory(i).toByte)
           Timings(-1, -1) -> memoryBank
@@ -198,10 +207,16 @@ class EmuI86Run(nodeOptimizations: List[NodeOptimization], assemblyOptimizations
     }
   }
 
-  def sniffField[T](intel8086: Intel8086, fieldName: String): T = {
-    val f = intel8086.getClass.getDeclaredField(fieldName)
+  def sniffField[T](obj: AnyRef, fieldName: String): T = {
+    val f = obj.getClass.getDeclaredField(fieldName)
     f.setAccessible(true)
-    f.get(intel8086).asInstanceOf[T]
+    f.get(obj).asInstanceOf[T]
+  }
+
+  def setField(obj: AnyRef, fieldName: String, value: Any): Unit = {
+    val f = obj.getClass.getDeclaredField(fieldName)
+    f.setAccessible(true)
+    f.set(obj, value)
   }
 
   def sniffMethod[T](intel8086: Intel8086, fieldName: String): T = {

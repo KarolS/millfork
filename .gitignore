@@ -41,5 +41,5 @@ examples/lunix/
 HELLO
 HELLOCPC
 
-
-
+#heap dumps
+java_pid*
