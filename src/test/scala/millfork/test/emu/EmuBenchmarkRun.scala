@@ -130,28 +130,31 @@ object EmuCrossPlatformBenchmarkRun {
     if (platforms.isEmpty) {
       throw new RuntimeException("Dude, test at least one platform")
     }
-    if (platforms.contains(millfork.Cpu.Mos)) {
+    if (Settings.enable6502Tests && platforms.contains(millfork.Cpu.Mos)) {
       EmuBenchmarkRun.apply(source)(verifier)
     }
-    if (platforms.contains(millfork.Cpu.StrictMos)) {
+    if (Settings.enable6502Tests && platforms.contains(millfork.Cpu.StrictMos)) {
       EmuBenchmarkRun.apply(source)(verifier)
     }
-    if (platforms.contains(millfork.Cpu.Ricoh)) {
+    if (Settings.enableRicohTests && platforms.contains(millfork.Cpu.Ricoh)) {
       verifier(EmuUndocumentedRun.apply(source))
     }
-    if (platforms.contains(millfork.Cpu.Cmos)) {
+    if (Settings.enable65C02Tests && platforms.contains(millfork.Cpu.Cmos)) {
       EmuCmosBenchmarkRun.apply(source)(verifier)
     }
     if (Settings.enableWdc85816Tests && platforms.contains(millfork.Cpu.Sixteen)) {
       EmuNative65816BenchmarkRun.apply(source)(verifier)
     }
-    if (platforms.contains(millfork.Cpu.Z80)) {
+    if (Settings.enableZ80Tests && platforms.contains(millfork.Cpu.Z80)) {
       EmuZ80BenchmarkRun.apply(source)(verifier)
     }
-    if (platforms.contains(millfork.Cpu.Intel8080)) {
+    if (Settings.enableGameboyTests && platforms.contains(millfork.Cpu.Intel8080)) {
       EmuIntel8080BenchmarkRun.apply(source)(verifier)
     }
-    if (platforms.contains(millfork.Cpu.Sharp)) {
+    if (Settings.enableUnemulatedTests && platforms.contains(millfork.Cpu.Intel8085)) {
+      EmuUnoptimizedIntel8085Run.apply(source)
+    }
+    if (Settings.enableGameboyTests && platforms.contains(millfork.Cpu.Sharp)) {
       EmuSharpBenchmarkRun.apply(source)(verifier)
     }
     if (Settings.enableIntel8086Tests && platforms.contains(millfork.Cpu.Intel8086)) {

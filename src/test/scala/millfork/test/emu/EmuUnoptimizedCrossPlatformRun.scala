@@ -15,27 +15,27 @@ object EmuUnoptimizedCrossPlatformRun {
     val (_, mi) = if (platforms.contains(Cpu.Intel8080)) EmuUnoptimizedIntel8080Run.apply2(source) else Timings(-1, -1) -> null
     val (_, ms) = if (platforms.contains(Cpu.Sharp)) EmuUnoptimizedSharpRun.apply2(source) else Timings(-1, -1) -> null
     val (_, mx) = if (Settings.enableIntel8086Tests && platforms.contains(Cpu.Intel8086)) EmuUnoptimizedIntel8086Run.apply2(source) else Timings(-1, -1) -> null
-    if (platforms.contains(Cpu.Mos)) {
+    if (Settings.enable6502Tests && platforms.contains(Cpu.Mos)) {
       println(f"Running 6502")
       verifier(mm)
     }
-    if (platforms.contains(millfork.Cpu.Ricoh)) {
+    if (Settings.enableRicohTests && platforms.contains(millfork.Cpu.Ricoh)) {
       println(f"Running Ricoh")
       verifier(mn)
     }
-    if (platforms.contains(Cpu.Cmos)) {
+    if (Settings.enable65C02Tests && platforms.contains(Cpu.Cmos)) {
       println(f"Running 65C02")
       verifier(mc)
     }
-    if (platforms.contains(Cpu.Z80)) {
+    if (Settings.enableZ80Tests && platforms.contains(Cpu.Z80)) {
       println(f"Running Z80")
       verifier(mz)
     }
-    if (platforms.contains(Cpu.Intel8080)) {
+    if (Settings.enableIntel8080Tests && platforms.contains(Cpu.Intel8080)) {
       println(f"Running 8080")
       verifier(mi)
     }
-    if (platforms.contains(Cpu.Sharp)) {
+    if (Settings.enableGameboyTests && platforms.contains(Cpu.Sharp)) {
       println(f"Running LR35902")
       verifier(ms)
     }
