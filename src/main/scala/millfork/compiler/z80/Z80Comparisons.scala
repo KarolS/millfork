@@ -26,9 +26,13 @@ object Z80Comparisons {
         return compile8BitComparison(ctx, ComparisonType.flip(compType), r, l, branches)
       case _ => ()
     }
-    val prepareAE = Z80ExpressionCompiler.compileToA(ctx, r) ++
-      List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
-      Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, l))
+    val prepareAE = Z80ExpressionCompiler.compileToA(ctx, r) match {
+      case List(ZLine0(ZOpcode.LD, TwoRegisters(ZRegister.A, ZRegister.IMM_8), param)) =>
+        Z80ExpressionCompiler.compileToA(ctx, l) :+ ZLine.ldImm8(ZRegister.E, param)
+      case compiledR => compiledR ++
+        List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
+        Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, l))
+    }
     val calculateFlags = if (ComparisonType.isSigned(compType) && ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
       val fixup = ctx.nextLabel("co")
       List(

@@ -691,4 +691,21 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Simple flags") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080)(
+      """
+        | byte output @ $c000
+        | void main() {
+        |   output = 0
+        |   if f() & 1 != 0 {
+        |     output += 1
+        |   }
+        | }
+        | noinline byte f() = 1
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(1)
+    }
+  }
+
 }
