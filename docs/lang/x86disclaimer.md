@@ -79,6 +79,13 @@ as 8080's `DAD` changes only the carry flag, and 8086's `ADD` changes many flags
 Luckily, this is not an issue with Millfork code, as the optimizer does not assume anything about flags after that instruction.
 The proper sequence is `LAHF`/`ADD r1,r2`/`RCR SI,1`/`SAHF`/`RCL SI,1`, but it is obviously too slow.
 
+* the converter translates the `INX` instruction (16-bit `INC` on Z80) to `INC`,
+and similarly, the `DCX` instruction (16-bit `DEC` on Z80) to `DEC` ,
+which may change behaviour of assembly code,
+as 8080's `INX` and `DCX` don't change any flags, and 8086's `INC` and `DEC` change many flags.
+Luckily, this is not an issue with Millfork code, as the optimizer does not assume anything about flags after that instruction.
+The proper sequence is `LAHF`/`INC r` (or `DEC r`)/`SAHF`, but it is obviously too slow.
+
 #### Register mapping
 
 The registers are translated as following:  
