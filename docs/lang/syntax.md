@@ -143,7 +143,18 @@ A function can be declared at the top level. For more details, see [Functions](.
 
 ## `import` statements
 
-TODO
+    import <module>
+    
+Adds a module to the program.
+
+The module is looked up first in the current working directory, and then in the include directories.
+
+Usually, the imported module will undergo the first phase of compilation first.
+This means that the constants in the imported module will be resolved first, allowing you to use them in the importing module.
+
+The only exception to this rule is when the importing graph has a cycle, in which case the order of modules within the cycle is unspecified.
+
+All starting modules are considered to be imported by all source files explicitly mentioned on the command line.  
 
 ## Statements
 

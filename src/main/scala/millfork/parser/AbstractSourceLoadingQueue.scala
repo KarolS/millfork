@@ -4,8 +4,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
 import fastparse.core.Parsed.{Failure, Success}
-import millfork.{CompilationFlag, CompilationOptions}
-import millfork.error.ConsoleLogger
+import millfork.{CompilationFlag, CompilationOptions, Tarjan}
 import millfork.node.{ImportStatement, Position, Program}
 
 import scala.collection.mutable
@@ -16,12 +15,32 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
                                              val options: CompilationOptions) {
 
   protected val parsedModules: mutable.Map[String, Program] = mutable.Map[String, Program]()
+  protected val moduleDependecies: mutable.Set[(String, String)] = mutable.Set[(String, String)]()
   protected val moduleQueue: mutable.Queue[() => Unit] = mutable.Queue[() => Unit]()
   val extension: String = ".mfk"
+
+  def standardModules: IndexedSeq[String]
 
   def enqueueStandardModules(): Unit
 
   def run(): Program = {
+    for {
+      initialFilename <- initialFilenames
+      startingModule <- options.platform.startingModules
+    } {
+      val initialModule = extractName(initialFilename)
+      moduleDependecies += initialModule -> startingModule
+      for (standardModule <- standardModules) {
+        moduleDependecies += initialModule -> standardModule
+        moduleDependecies += startingModule -> standardModule
+      }
+    }
+    for {
+      earlier <- standardModules.indices
+      later <- (earlier + 1) until standardModules.length
+    } {
+      moduleDependecies += standardModules(later) -> standardModules(earlier)
+    }
     initialFilenames.foreach { i =>
       parseModule(extractName(i), includePath, Right(i))
     }
@@ -37,7 +56,9 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
       }
     }
     options.log.assertNoErrors("Parse failed")
-    parsedModules.values.reduce(_ + _).applyImportantAliases
+    val compilationOrder = Tarjan.sort(parsedModules.keys, moduleDependecies)
+    options.log.debug("Compilation order: " + compilationOrder.mkString(", "))
+    compilationOrder.filter(parsedModules.contains).map(parsedModules).reduce(_ + _).applyImportantAliases
   }
 
   def lookupModuleFile(includePath: List[String], moduleName: String, position: Option[Position]): String = {
@@ -75,6 +96,7 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
           parsedModules.put(moduleName, prog)
           prog.declarations.foreach {
             case s@ImportStatement(m) =>
+              moduleDependecies += moduleName -> m
               if (!parsedModules.contains(m)) {
                 moduleQueue.enqueue(() => parseModule(m, parentDir :: includePath, Left(s.position)))
               }
@@ -94,6 +116,6 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
   def extractName(i: String): String = {
     val noExt = i.stripSuffix(extension)
     val lastSlash = noExt.lastIndexOf('/') max noExt.lastIndexOf('\\')
-    if (lastSlash >= 0) i.substring(lastSlash + 1) else i
+    if (lastSlash >= 0) noExt.substring(lastSlash + 1) else noExt
   }
 }

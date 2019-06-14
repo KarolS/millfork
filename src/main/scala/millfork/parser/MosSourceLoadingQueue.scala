@@ -13,6 +13,8 @@ class MosSourceLoadingQueue(initialFilenames: List[String],
   override def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long], pragmas: Set[String]): MfParser[AssemblyLine] =
     MosParser(filename, src, parentDir, options, featureConstants)
 
+  override def standardModules: IndexedSeq[String] = IndexedSeq("zp_reg", "bcd_6502")
+
   def enqueueStandardModules(): Unit = {
     if (options.zpRegisterSize > 0) {
       moduleQueue.enqueue(() => parseModule("zp_reg", includePath, Left(None)))

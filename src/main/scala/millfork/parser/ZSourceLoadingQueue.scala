@@ -19,6 +19,8 @@ class ZSourceLoadingQueue(initialFilenames: List[String],
     Z80Parser(filename, src, parentDir, options, featureConstants, useIntelSyntax)
   }
 
+  override def standardModules: IndexedSeq[String] = IndexedSeq.empty
+
   def enqueueStandardModules(): Unit = {
     // TODO
   }
