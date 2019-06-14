@@ -237,7 +237,20 @@ object ZeropageRegisterOptimizations {
             AssemblyLine.zeropage(ctx.get[Opcode.Value](1), ctx.zreg(zregIndex)),
             AssemblyLine.implied(TSX)))
       }
-    })
+    }),
+    MultipleAssemblyRules((0 to 1).map { zregIndex =>
+      (Elidable & HasOpcode(PHA) & DoesntMatterWhatItDoesWithReg(zregIndex)) ~
+        (Linear & Not(ConcernsS) & Not(RefersToOrUses("__reg", zregIndex))).*.capture(21) ~
+        (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & RefersToOrUses("__reg", zregIndex)) ~
+        (Elidable & HasOpcode(PLA)) ~
+        (HasOpcodeIn(LDY, LDX, CLC, SEC, CLD, SED)).*.capture(22) ~
+        (Elidable & HasOpcodeIn(ORA, EOR, ADC, AND) & HasAddrModeIn(Absolute, ZeroPage) & RefersToOrUses("__reg", zregIndex) & DoesntMatterWhatItDoesWithReg(zregIndex)) ~~> { (code, ctx) =>
+        List(AssemblyLine.zeropage(STA, ctx.zreg(zregIndex)).pos(code.head.source)) ++
+          ctx.get[List[AssemblyLine]](21) ++
+          ctx.get[List[AssemblyLine]](22) ++
+          List(code.last)
+      }
+    }),
   )
 
   val PointlessLoad = new RuleBasedAssemblyOptimization("Pointless load from zeropage register",
@@ -311,6 +324,53 @@ object ZeropageRegisterOptimizations {
     })
   )
 
+  private val simplifiableIndexingFiller: AssemblyPattern =
+    (Elidable & HasOpcode(LDY) & HasImmediate(0) & DoesntMatterWhatItDoesWith(State.N, State.Z) | Linear & Not(ConcernsY) & Not(RefersToOrUses("__reg"))).*
+
+  private val finalIndexingOperation: AssemblyLinePattern =
+    HasY(0) & HasAddrMode(IndexedY) & RefersToOrUses("__reg", 0) & DoesntMatterWhatItDoesWith(State.Y) & DoesntMatterWhatItDoesWithReg(0) & DoesntMatterWhatItDoesWithReg(1)
+
+  val SimplifiablePointerIndexing = new RuleBasedAssemblyOptimization("Simplifiable pointer indexing",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    (Elidable & HasOpcode(ADC) & HasClear(State.D) & HasClear(State.C) & HasAddrModeIn(Absolute, ZeroPage, Immediate) & Not(RefersToOrUses("__reg"))) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 0)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(INC) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 1)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & IsNotALabelUsedManyTimes & DoesntMatterWhatItDoesWith(State.A, State.V, State.C, State.N, State.Z)) ~
+      (simplifiableIndexingFiller ~ finalIndexingOperation).capture(2) ~~> { (code, ctx) =>
+      code(1) :: code.head.copy(opcode = LDY) :: ctx.get[List[AssemblyLine]](2).filter(l => l.opcode != LDY)
+    },
+
+    (Elidable & HasOpcode(ADC) & HasClear(State.D) & HasClear(State.C) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 0)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 0)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(INC) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 1)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & IsNotALabelUsedManyTimes & DoesntMatterWhatItDoesWith(State.A, State.V, State.C, State.N, State.Z)) ~
+      (simplifiableIndexingFiller ~ finalIndexingOperation).capture(2) ~~> { (code, ctx) =>
+      AssemblyLine.implied(TAY).pos(code.head.source) :: ctx.get[List[AssemblyLine]](2).filter(l => l.opcode != LDY)
+    },
+
+    (Elidable & HasOpcode(ADC) & HasClear(State.D) & HasClear(State.C) & HasAddrModeIn(Absolute, ZeroPage, Immediate) & Not(RefersToOrUses("__reg"))) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 0)) ~
+      (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWith(State.A, State.V, State.C, State.N, State.Z)) ~
+      (simplifiableIndexingFiller ~ finalIndexingOperation).capture(2) ~~> { (code, ctx) =>
+      code(1) :: code(4).copy(opcode = STX) :: code.head.copy(opcode = LDY) :: ctx.get[List[AssemblyLine]](2).filter(l => l.opcode != LDY)
+    },
+
+    (Elidable & HasOpcode(ADC) & HasClear(State.D) & HasClear(State.C) & HasAddrModeIn(Absolute, ZeroPage, Immediate) & Not(RefersToOrUses("__reg"))) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 0)) ~
+      (Elidable & HasOpcode(LDA) & HasAddrModeIn(Absolute, ZeroPage, Immediate) & Not(RefersTo("__reg"))) ~
+      (Elidable & HasOpcode(ADC) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & RefersTo("__reg", 1) & DoesntMatterWhatItDoesWith(State.A, State.V, State.C, State.N, State.Z)) ~
+      (simplifiableIndexingFiller ~ finalIndexingOperation).capture(2) ~~> { (code, ctx) =>
+      code(1) :: code(2) :: code(4) :: code.head.copy(opcode = LDY) :: ctx.get[List[AssemblyLine]](2).filter(l => l.opcode != LDY)
+    },
+
+  )
+
   val SimplifiableAddingOfOneBit = new RuleBasedAssemblyOptimization("Simplifiable adding of one bit",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasOpcode(AND) & HasImmediate(1)) ~
@@ -347,6 +407,7 @@ object ZeropageRegisterOptimizations {
     DeadRegStoreFromFlow,
     PointlessLoad,
     SimplifiableAddingOfOneBit,
+    SimplifiablePointerIndexing,
     StashInRegInsteadOfStack,
   )
 

@@ -2662,6 +2662,101 @@ object AlwaysGoodOptimizations {
       val last = code.last
       code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
     },
+
+    (HasOpcode(STX) & MatchX(1) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(5)) ~
+    (HasOpcode(STA) & MatchA(0) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(4)) ~
+      Where(ctx => {
+        ctx.addObject(3, ZeroPage)
+        (ctx.get[Constant](4) + 1).quickSimplify == ctx.get[Constant](5)
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3, 4) & DoesNotConcernMemoryAt(3, 5)).* ~
+      Where(ctx => {
+        val lo = ctx.get[Int](0) & 0xff
+        val hi = ctx.get[Int](1) & 0xff
+        ctx.addObject(2, hi * 256 + lo)
+        true
+      }) ~
+      (Elidable & MatchParameter(4) & HasAddrModeIn(IndexedZ, IndexedY) & MatchAddrMode(9)) ~
+      Where(ctx => {
+        ctx.get[AddrMode.Value](9) == IndexedY || !ctx.compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
+      }) ~~> { (code, ctx) =>
+      val addr = ctx.get[Int](2)
+      val last = code.last
+      code.init :+ last.copy(parameter = NumericConstant(addr, 2), addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
+    },
+
+    (HasOpcode(LDA) & MatchImmediate(0)) ~
+      (HasOpcode(LDX) & MatchImmediate(1)) ~
+      (HasOpcode(STX) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(5)) ~
+      (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(4)) ~
+      Where(ctx => {
+        ctx.addObject(3, ZeroPage)
+        (ctx.get[Constant](4) + 1).quickSimplify == ctx.get[Constant](5)
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3, 4) & DoesNotConcernMemoryAt(3, 5)).* ~
+      Where(ctx => {
+        val lo = ctx.get[Constant](0)
+        val hi = ctx.get[Constant](1)
+        ctx.addObject(2, (hi.asl(8) + lo).quickSimplify)
+        true
+      }) ~
+      (Elidable & MatchParameter(4) & HasAddrModeIn(IndexedZ, IndexedY) & MatchAddrMode(9)) ~
+      Where(ctx => {
+        ctx.get[AddrMode.Value](9) == IndexedY || !ctx.compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
+      }) ~~> { (code, ctx) =>
+      val addr = ctx.get[Constant](2)
+      val last = code.last
+      code.init :+ last.copy(parameter = addr, addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
+    },
+
+    (HasOpcode(LDA) & MatchImmediate(0)) ~
+      (HasOpcode(LDX) & MatchImmediate(1)) ~
+      (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(4)) ~
+      (HasOpcode(STX) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(5)) ~
+      Where(ctx => {
+        ctx.addObject(3, ZeroPage)
+        (ctx.get[Constant](4) + 1).quickSimplify == ctx.get[Constant](5)
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3, 4) & DoesNotConcernMemoryAt(3, 5)).* ~
+      Where(ctx => {
+        val lo = ctx.get[Constant](0)
+        val hi = ctx.get[Constant](1)
+        ctx.addObject(2, (hi.asl(8) + lo).quickSimplify)
+        true
+      }) ~
+      (Elidable & MatchParameter(4) & HasAddrModeIn(IndexedZ, IndexedY) & MatchAddrMode(9)) ~
+      Where(ctx => {
+        ctx.get[AddrMode.Value](9) == IndexedY || !ctx.compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
+      }) ~~> { (code, ctx) =>
+      val addr = ctx.get[Constant](2)
+      val last = code.last
+      code.init :+ last.copy(parameter = addr, addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
+    },
+
+    (HasOpcode(LDA) & MatchImmediate(0)) ~
+      (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(4)) ~
+      (HasOpcode(LDA) & MatchImmediate(1) & HasAddrModeIn(Absolute, ZeroPage)) ~
+      (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(5)) ~
+      Where(ctx => {
+        ctx.addObject(3, ZeroPage)
+        (ctx.get[Constant](4) + 1).quickSimplify == ctx.get[Constant](5)
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3, 4) & DoesNotConcernMemoryAt(3, 5)).* ~
+      Where(ctx => {
+        val lo = ctx.get[Constant](0)
+        val hi = ctx.get[Constant](1)
+        ctx.addObject(2, (hi.asl(8) + lo).quickSimplify)
+        true
+      }) ~
+      (Elidable & MatchParameter(4) & HasAddrModeIn(IndexedZ, IndexedY) & MatchAddrMode(9)) ~
+      Where(ctx => {
+        ctx.get[AddrMode.Value](9) == IndexedY || !ctx.compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
+      }) ~~> { (code, ctx) =>
+      val addr = ctx.get[Constant](2)
+      val last = code.last
+      code.init :+ last.copy(parameter = addr, addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
+    },
+
   )
 
   val ReplacingArithmeticsWithBitOps = new RuleBasedAssemblyOptimization("Replacing arithmetics with bit ops",

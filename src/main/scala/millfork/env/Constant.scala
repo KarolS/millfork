@@ -333,7 +333,13 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
         ((l + b) - a).quickSimplify
       case (_, CompoundConstant(MathOperator.Plus, a, b)) if operator == MathOperator.Minus =>
         ((l - a) - b).quickSimplify
-      case (CompoundConstant(MathOperator.Shl, SubbyteConstant(c1, 1), NumericConstant(8, _)), SubbyteConstant(c2, 0)) if operator == MathOperator.Or && c1 == c2 => c1
+
+      case (CompoundConstant(MathOperator.Shl, SubbyteConstant(c1, 1), NumericConstant(8, _)), SubbyteConstant(c2, 0))
+        if operator == MathOperator.Or || operator == MathOperator.Plus && c1 == c2 && c1.requiredSize <= 2 => c1
+      case (CompoundConstant(MathOperator.Times, SubbyteConstant(c1, 1), NumericConstant(256, _)), SubbyteConstant(c2, 0))
+        if operator == MathOperator.Or || operator == MathOperator.Plus && c1 == c2 && c1.requiredSize <= 2 => c1
+      case (CompoundConstant(MathOperator.Times, NumericConstant(256, _), SubbyteConstant(c1, 1)), SubbyteConstant(c2, 0))
+        if operator == MathOperator.Or || operator == MathOperator.Plus && c1 == c2 && c1.requiredSize <= 2 => c1
 
       case (_, CompoundConstant(MathOperator.DecimalMinus, a, b)) if operator == MathOperator.DecimalPlus =>
         CompoundConstant(MathOperator.DecimalMinus, CompoundConstant(MathOperator.DecimalPlus, l, a), b).quickSimplify
