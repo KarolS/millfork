@@ -189,10 +189,10 @@ object Main {
           log.debug(s"Failed to find the default include path: $err")
         case Right(path) =>
           log.debug(s"Automatically detected include path: $path")
-          return c.copy(includePath = List(path))
+          return c.copy(includePath = List(path) ++ c.extraIncludePath)
       }
     }
-    c
+    c.copy(includePath = c.includePath ++ c.extraIncludePath)
   }
 
   private def assembleForMos(c: Context, platform: Platform, options: CompilationOptions): AssemblerOutput = {
@@ -347,6 +347,10 @@ object Main {
       val n = paths.split(";")
       c.copy(includePath = c.includePath ++ n)
     }.description("Include paths for modules. If not given, the default path is used: " + getDefaultIncludePath.fold(identity, identity))
+
+    parameter("-i", "--add-include-dir").repeatable().placeholder("<dir>").action { (path, c) =>
+      c.copy(extraIncludePath = c.extraIncludePath :+ path)
+    }.description("Add a directory to include paths.")
 
     parameter("-r", "--run").placeholder("<program>").action { (p, c) =>
       assertNone(c.runFileName, "Run program already defined")

@@ -36,6 +36,9 @@ When searching for modules, the directory containing the file currently being co
 When searching for platform definitions, the current working directory is also searched.
 If not given, the compiler will try to detect the default include directory.
 If given, then the compiler will NOT try to detect the default include directory and you will have to add it to the list yourself.
+
+* `-i <dir>` – Add a directory to the include directories.
+Unlike `-I`, this does not replace the default include directory and allows using directories with semicolons in their names. 
  
 * `-t <platform>` – Target platform. It is loaded from an `.ini` file found in any of the include directories. See also [this document](target-platforms.md).
 
