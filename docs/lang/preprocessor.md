@@ -16,6 +16,9 @@ Despite its similarity to the C preprocessor, it's much more restricted in its p
 
 * separate namespaces for the preprocessor and the language (you need to use `#use` to use a preprocessor constant in the code)
 
+Preprocessor directives by default start with `#`.
+To avoid conflicts with C preprocessor (for users wishing to use it), it is also possible to replace `#` with `$$`.
+
 ### Defining feature values
 
 Feature values are defined in the `[define]` section of the platform definition file.  

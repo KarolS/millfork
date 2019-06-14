@@ -15,7 +15,7 @@ case class PreprocessingResult(source: String, featureConstants: Map[String, Lon
 
 object Preprocessor {
 
-  private val Regex = raw"\A\s*#\s*([a-z]+)\s*(.*?)\s*\z".r
+  private val Regex = """\A\s*(?:#|\$\$)\s*([a-z]+)\s*(.*?)\s*\z""".r
 
   def preprocessForTest(options: CompilationOptions, code: String): PreprocessingResult = {
     apply(options, "", code.lines.toSeq)

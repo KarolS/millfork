@@ -196,7 +196,7 @@ class BasicSymonTest extends FunSuite with Matchers {
         | #use ARCH_I80
         |
         | #use HORSE = ARCH_6502
-        | #use COW = ARCH_I80
+        | $$use COW = ARCH_I80
         |
         | #if 1
         | asm void main () {
