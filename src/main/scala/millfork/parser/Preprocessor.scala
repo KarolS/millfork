@@ -59,10 +59,14 @@ object Preprocessor {
           keyword match {
             case "use" => if (enabled) {
               if (param == "") log.error("#use should have a parameter", pos)
-              featureConstants += param -> options.features.getOrElse(param, {
-                log.warn(s"Undefined parameter $param, assuming 0", pos)
-                0L
-              })
+              param.split("=", 2) match {
+                case Array(p) =>
+                  featureConstants += param -> options.features.getOrElse(param, {
+                    log.warn(s"Undefined parameter $param, assuming 0", pos)
+                    0L
+                  })
+                case Array(p0,p1) => featureConstants += p0.trim() -> evalParam(p1, pos)
+              }
             }
             case "fatal" => if (enabled) log.fatal(param, pos)
             case "error" => if (enabled) log.error(param, pos)
@@ -167,7 +171,8 @@ class PreprocessorParser(options: CompilationOptions) {
     case ("not", List(p)) => {m:M => Some(if (p(m).getOrElse(0L) == 0) 1 else 0)}
     case ("lo", List(p)) => {m:M => Some(p(m).getOrElse(0L) & 0xff)}
     case ("hi", List(p)) => {m:M => Some(p(m).getOrElse(0L).>>(8).&(0xff))}
-    case ("defined" | "lo" | "hi" | "not", ps) =>
+    case ("if", List(i, t, e)) => {m:M => if (i(m).getOrElse(0L) != 0) t(m) else e(m)}
+    case ("defined" | "lo" | "hi" | "not" | "if", ps) =>
       log.error(s"Invalid number of parameters to $name: ${ps.length}")
       alwaysNone
     case _ =>

@@ -44,6 +44,10 @@
 
 * 6502: Fixed optimizations of comparisons.
 
+* Preprocessor: Added `#use A=B` directive
+
+* Preprocessor: Added `if` function
+
 * Fixed volatile-related bugs.
 
 * Fixed optimizations removing jumps to jumps.

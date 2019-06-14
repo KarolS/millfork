@@ -103,7 +103,14 @@ The following features are defined based on the chosen CPU and compilation optio
 The `defined` function returns 1 if the feature is defined, 0 otherwise.  
 All the other functions and operators treat undefined features as if they were defined as 0. 
 
-TODO
+The `if` function returns its second parameter if the first parameter is defined and non-zero, and the third parameter otherwise:
+
+    // prints 400:
+    #infoeval if(1, 400, 500)
+    // prints 500:
+    #infoeval if(0, 400, 500)
+
+TODO   
 `not`, `lo`, `hi`, `+`, `-`, `*`, `|`, `&`, `^`, `||`, `&&`, `<<`, `>>`,`==`, `!=`, `>`, `>=`, `<`, `<=`
 
 The following Millfork operators and functions are not available in the preprocessor:  
@@ -140,11 +147,22 @@ Evaluates an expression and emits the result as a diagnostic message.
 
 ### `#use`
 
-Exports a feature value under its name to the parser.
-The parser will substitute every use of that name as a variable or constant 
+    #use <ident> = <expr>
+    
+    #use <feature>
+    // equivalent to #use <feature> = <feature>
+
+Exports a value to the parser.
+The parser will substitute every use of the given identifier as a variable or constant 
 with the numeric value of the feature.
+
+    #use CPU_MODEL = if(CPU_65816 | ARCH_X86, 16, 8)
+    putstrz("Your CPU is "z)
+    putword(CPU_MODEL)
+    putstrz("-bit."z)
+
 The substitution will happen only within the current file.
-To use such value in other files, consider this:
+To use such value in other files, consider using a normal constant:
 
     #use WIDESCREEN
     const byte is_widescreen = WIDESCREEN
