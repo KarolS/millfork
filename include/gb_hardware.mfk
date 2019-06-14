@@ -4,15 +4,6 @@
 
 #pragma zilog_syntax
 
-// TODO: optimize?
-array __vectors @ $40 = [
-    $c3, __on_vblank.addr.lo, __on_vblank.addr.hi, 0,0,0,0,0,
-    $c3, __on_lcdc.addr.lo, __on_lcdc.addr.hi, 0,0,0,0,0,
-    $c3, __on_timer.addr.lo, __on_timer.addr.hi, 0,0,0,0,0,
-    $c3, __on_serial.addr.lo, __on_serial.addr.hi, 0,0,0,0,0,
-    $c3, __on_joypad.addr.lo, __on_joypad.addr.hi, 0,0,0,0,0
-]
-
 
 asm void __start() @ $150 {
     di
@@ -89,6 +80,15 @@ interrupt void __on_serial(){
 interrupt void __on_joypad(){
     on_joypad()
 }
+
+// TODO: optimize?
+array __vectors @ $40 = [
+    $c3, __on_vblank.addr.lo, __on_vblank.addr.hi, 0,0,0,0,0,
+    $c3, __on_lcdc.addr.lo, __on_lcdc.addr.hi, 0,0,0,0,0,
+    $c3, __on_timer.addr.lo, __on_timer.addr.hi, 0,0,0,0,0,
+    $c3, __on_serial.addr.lo, __on_serial.addr.hi, 0,0,0,0,0,
+    $c3, __on_joypad.addr.lo, __on_joypad.addr.hi, 0,0,0,0,0
+]
 
 array oam[$a0] @$fe00
 
