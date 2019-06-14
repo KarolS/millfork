@@ -16,7 +16,7 @@ import millfork.node.NiceFunctionProperty.IsLeaf
   * @author Karol Stasiak
   */
 
-case class AssemblerOutput(code: Map[String, Array[Byte]], asm: Array[String], labels: List[(String, Int)])
+case class AssemblerOutput(code: Map[String, Array[Byte]], asm: Array[String], labels: List[(String, (Int, Int))])
 
 abstract class AbstractAssembler[T <: AbstractCode](private val program: Program,
                                            private val rootEnv: Environment,
@@ -30,8 +30,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   var initializedVariablesSize: Int = 0
   protected val log: Logger = rootEnv.log
 
-  val mem = new CompiledMemory(platform.bankNumbers.keys.toList)
-  val labelMap: mutable.Map[String, Int] = mutable.Map()
+  val mem = new CompiledMemory(platform.bankNumbers.toList)
+  val labelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
   private val bytesToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
   private val wordsToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
 
@@ -97,9 +97,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
       case MemoryAddressConstant(th) =>
         try {
-          if (labelMap.contains(th.name)) return labelMap(th.name)
-          if (labelMap.contains(th.name + "`")) return labelMap(th.name)
-          if (labelMap.contains(th.name + ".addr")) return labelMap.getOrElse[Int](th.name, labelMap(th.name + ".array"))
+          if (labelMap.contains(th.name)) return labelMap(th.name)._2
+          if (labelMap.contains(th.name + "`")) return labelMap(th.name)._2
+          if (labelMap.contains(th.name + ".addr")) return labelMap.getOrElse[(Int, Int)](th.name, labelMap(th.name + ".array"))._2
           val x1 = env.maybeGet[ConstantThing](th.name).map(_.value)
           val x2 = env.maybeGet[ConstantThing](th.name + "`").map(_.value)
           val x3 = env.maybeGet[NormalFunction](th.name).flatMap(_.address)
@@ -121,7 +121,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             log.fatal("Stack overflow " + c)
         }
       case UnexpandedConstant(name, _) =>
-        if (labelMap.contains(name)) labelMap(name)
+        if (labelMap.contains(name)) labelMap(name)._2
         else ???
       case SubbyteConstant(cc, i) => deepConstResolve(cc).>>>(i * 8).&(0xff)
       case CompoundConstant(operator, lc, rc) =>
@@ -286,7 +286,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val index = f.address.get.asInstanceOf[NumericConstant].value.toInt
         compiledFunctions(f.name) match {
           case NormalCompiledFunction(_, functionCode, _, _) =>
-            labelMap(f.name) = index
+            labelMap(f.name) = bank0.index -> index
             val end = outputFunction(bank, functionCode, index, assembly, options)
             for (i <- index until end) {
               bank0.occupied(index) = true
@@ -308,14 +308,16 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         // already done before
       case (name, NormalCompiledFunction(bank, functionCode, false, alignment)) =>
         val size = functionCode.map(_.sizeInBytes).sum
-        val index = codeAllocators(bank).allocateBytes(mem.banks(bank), options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
-        labelMap(name) = index
+        val bank0 = mem.banks(bank)
+        val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
+        labelMap(name) = bank0.index -> index
         justAfterCode += bank -> outputFunction(bank, functionCode, index, assembly, options)
       case _ =>
     }
     sortedCompilerFunctions.foreach {
       case (name, RedirectedFunction(_, target, offset)) =>
-        labelMap(name) = labelMap(target) + offset
+        val tuple = labelMap(target)
+        labelMap(name) = tuple._1 -> (tuple._2 + offset)
       case _ =>
     }
 
@@ -332,7 +334,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             if (bank != "default") ???
             val bank0 = mem.banks(bank)
             var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = m.alignment)
-            labelMap(name) = index + 1
+            labelMap(name) = bank0.index -> (index + 1)
             val altName = m.name.stripPrefix(env.prefix) + "`"
             val thing = if (name.endsWith(".addr")) env.get[ThingInMemory](name.stripSuffix(".addr")) else env.get[ThingInMemory](name + ".array")
             env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
@@ -363,7 +365,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val bank = thing.bank(options)
         val bank0 = mem.banks(bank)
         var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
-        labelMap(name) = index
+        labelMap(name) = bank0.index -> index
         assembly.append("* = $" + index.toHexString)
         assembly.append(name)
         for (item <- items) {
@@ -385,7 +387,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val bank = m.bank(options)
         val bank0 = mem.banks(bank)
         var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
-        labelMap(name) = index
+        labelMap(name) = bank0.index -> index
         val altName = m.name.stripPrefix(env.prefix) + "`"
         env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
         assembly.append("* = $" + index.toHexString)
@@ -414,20 +416,21 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = false)
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 3, forZpOnly = false)
 
+    val defaultBank = mem.banks("default").index
     if (platform.freeZpPointers.nonEmpty) {
       val zpUsageOffset = platform.freeZpPointers.min
       val zeropageOccupation = zpOccupied.slice(zpUsageOffset, platform.freeZpPointers.max + 2)
-      labelMap += "__zeropage_usage" -> (zeropageOccupation.lastIndexOf(true) - zeropageOccupation.indexOf(true) + 1)
-      labelMap += "__zeropage_first" -> (zpUsageOffset + (zeropageOccupation.indexOf(true) max 0))
-      labelMap += "__zeropage_last" -> (zpUsageOffset + (zeropageOccupation.lastIndexOf(true) max 0))
-      labelMap += "__zeropage_end" -> (zpUsageOffset + zeropageOccupation.lastIndexOf(true) + 1)
+      labelMap += "__zeropage_usage" -> (defaultBank, zeropageOccupation.lastIndexOf(true) - zeropageOccupation.indexOf(true) + 1)
+      labelMap += "__zeropage_first" -> (defaultBank, zpUsageOffset + (zeropageOccupation.indexOf(true) max 0))
+      labelMap += "__zeropage_last" -> (defaultBank, zpUsageOffset + (zeropageOccupation.lastIndexOf(true) max 0))
+      labelMap += "__zeropage_end" -> (defaultBank, zpUsageOffset + zeropageOccupation.lastIndexOf(true) + 1)
     } else {
-      labelMap += "__zeropage_usage" -> 0
-      labelMap += "__zeropage_first" -> 3
-      labelMap += "__zeropage_last" -> 2
-      labelMap += "__zeropage_end" -> 3
+      labelMap += "__zeropage_usage" -> (defaultBank -> 0)
+      labelMap += "__zeropage_first" -> (defaultBank -> 3)
+      labelMap += "__zeropage_last" -> (defaultBank -> 2)
+      labelMap += "__zeropage_end" -> (defaultBank -> 3)
     }
-    labelMap += "__heap_start" -> variableAllocators("default").heapStart
+    labelMap += "__heap_start" -> (defaultBank -> variableAllocators("default").heapStart)
 
     env = rootEnv.allThings
 
@@ -449,10 +452,10 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       mem.banks(bank).end = end
     }
 
-    labelMap.toList.sorted.foreach { case (l, v) =>
+    labelMap.toList.sorted.foreach { case (l, (_, v)) =>
       assembly += f"$l%-30s = $$$v%04X"
     }
-    labelMap.toList.sortBy { case (a, b) => b -> a }.foreach { case (l, v) =>
+    labelMap.toList.sortBy { case (a, (_, v)) => v -> a }.foreach { case (l, (_, v)) =>
       assembly += f"    ; $$$v%04X = $l%s"
     }
 
@@ -464,13 +467,13 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     AssemblerOutput(code, assembly.toArray, labelMap.toList)
   }
 
-  def injectLabels(labelMap: Map[String, Int], code: List[T]): List[T]
+  def injectLabels(labelMap: Map[String, (Int, Int)], code: List[T]): List[T]
 
   private def compileFunction(f: NormalFunction,
                               optimizations: Seq[AssemblyOptimization[T]],
                               options: CompilationOptions,
                               inlinedFunctions: Map[String, List[T]],
-                              labelMap: Map[String, Int],
+                              labelMap: Map[String, (Int, Int)],
                               niceFunctionProperties: Set[(NiceFunctionProperty, String)]): List[T] = {
     log.debug("Compiling: " + f.name, f.position)
     val unoptimized: List[T] =

@@ -110,7 +110,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                         callGraph: CallGraph,
                         allocators: Map[String, VariableAllocator],
                         options: CompilationOptions,
-                        onEachVariable: (String, Int) => Unit,
+                        onEachVariable: (String, (Int, Int)) => Unit,
                         pass: Int,
                         forZpOnly: Boolean): Unit = {
     if (forZpOnly && !options.platform.hasZeroPage) {
@@ -155,14 +155,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
         } else GlobalVertex
         val bank = m.bank(options)
+        val bank0 = mem.banks(bank)
         m.alloc match {
           case VariableAllocationMethod.None =>
             Nil
           case VariableAllocationMethod.Zeropage =>
             if (forZpOnly || !options.platform.hasZeroPage) {
               val addr =
-                allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Zeropage, alignment = m.alignment)
-              onEachVariable(m.name, addr)
+                allocators(bank).allocateBytes(bank0, callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Zeropage, alignment = m.alignment)
+              onEachVariable(m.name, bank0.index -> addr)
               List(
                 ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
               )
@@ -175,10 +176,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               val graveName = m.name.stripPrefix(prefix) + "`"
               if (forZpOnly) {
                 if (bank == "default") {
-                  allocators(bank).tryAllocateZeropageBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, alignment = m.alignment) match {
+                  allocators(bank).tryAllocateZeropageBytes(bank0, callGraph, vertex, options, m.sizeInBytes, alignment = m.alignment) match {
                     case None => Nil
                     case Some(addr) =>
-                      onEachVariable(m.name, addr)
+                      onEachVariable(m.name, bank0.index -> addr)
                       List(
                         ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
                       )
@@ -187,8 +188,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               } else if (things.contains(graveName)) {
                 Nil
               } else {
-                val addr = allocators(bank).allocateBytes(mem.banks(bank), callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Either, alignment = m.alignment)
-                onEachVariable(m.name, addr)
+                val addr = allocators(bank).allocateBytes(bank0, callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Either, alignment = m.alignment)
+                onEachVariable(m.name, bank0.index -> addr)
                 List(
                   ConstantThing(graveName, NumericConstant(addr, 2), p)
                 )

@@ -2,7 +2,7 @@ package millfork.test.emu
 
 import millfork.output.{AfterCodeByteAllocator, CurrentBankFragmentOutput, UpwardByteAllocator, VariableAllocator}
 import millfork.parser.TextCodec
-import millfork.{Cpu, CpuFamily, OutputStyle, Platform}
+import millfork.{Cpu, CpuFamily, OutputStyle, Platform, ViceDebugOutputFormat}
 
 /**
   * @author Karol Stasiak
@@ -29,6 +29,7 @@ object EmuPlatform {
     false,
     Map("default" -> 0),
     "default",
+    ViceDebugOutputFormat,
     OutputStyle.Single
   )
 }

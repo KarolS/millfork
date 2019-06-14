@@ -67,7 +67,6 @@ object Main {
 
     val output = c.outputFileName.getOrElse("a")
     val assOutput = output + ".asm"
-    val labelOutput = output + ".lbl"
 //    val prgOutputs = (platform.outputStyle match {
 //      case OutputStyle.Single => List("default")
 //      case OutputStyle.PerBank => platform.bankNumbers.keys.toList
@@ -91,17 +90,27 @@ object Main {
       Files.write(path, result.asm.mkString("\n").getBytes(StandardCharsets.UTF_8))
     }
     if (c.outputLabels) {
-      val path = Paths.get(labelOutput)
-      errorReporting.debug("Writing labels to " + path.toAbsolutePath)
-      Files.write(path, result.labels.sortWith { (a, b) =>
-        val aLocal = a._1.head == '.'
-        val bLocal = b._1.head == '.'
-        if (aLocal == bLocal) a._1 < b._1
-        else b._1 < a._1
-      }.groupBy(_._2).values.map(_.head).toSeq.sortBy(_._2).map { case (l, a) =>
-        val normalized = l.replace('$', '_').replace('.', '_')
-        s"al ${a.toHexString} .$normalized"
-      }.mkString("\n").getBytes(StandardCharsets.UTF_8))
+      def labelUnimportance(l: String): Int = {
+        if (l.startsWith(".")) 8
+        else if (l.startsWith("__")) 7
+        else 0
+      }
+      val sortedLabels = result.labels.groupBy(_._2).values.map(_.minBy(a => labelUnimportance(a._1) -> a._1)).toSeq.sortBy(_._2)
+      val format = c.outputLabelsFormatOverride.getOrElse(platform.outputLabelsFormat)
+      val basename = if (format.addOutputExtension)  output + platform.fileExtension else output
+      if (format.filePerBank) {
+        sortedLabels.groupBy(_._2._1).foreach{ case (bank, labels) =>
+          val labelOutput = basename + format.fileExtension(bank)
+          val path = Paths.get(labelOutput)
+          errorReporting.debug("Writing labels to " + path.toAbsolutePath)
+          Files.write(path, labels.map(format).mkString("\n").getBytes(StandardCharsets.UTF_8))
+        }
+      } else {
+        val labelOutput = basename + format.fileExtension(0)
+        val path = Paths.get(labelOutput)
+        errorReporting.debug("Writing labels to " + path.toAbsolutePath)
+        Files.write(path, sortedLabels.map(format).mkString("\n").getBytes(StandardCharsets.UTF_8))
+      }
     }
     val defaultPrgOutput = if (output.endsWith(platform.fileExtension)) output else output + platform.fileExtension
     result.code.foreach{
@@ -336,7 +345,14 @@ object Main {
 
     flag("-g").action { c =>
       c.copy(outputLabels = true)
-    }.description("Generate also the label file.")
+    }.description("Generate also the label file in the default format.")
+
+    parameter("-G").placeholder("<format>").action { (p, c) =>
+      val f = DebugOutputFormat.map.getOrElse(
+        p.toLowerCase(Locale.ROOT),
+        errorReporting.fatal("Invalid label file format: " + p))
+      c.copy(outputLabels = true, outputLabelsFormatOverride = Some(f))
+    }.description("Generate also the label file in the given format. Available options: vice, nesasm, sym.")
 
     parameter("-t", "--target").placeholder("<platform>").action { (p, c) =>
       assertNone(c.platform, "Platform already defined")

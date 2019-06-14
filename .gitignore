@@ -24,6 +24,8 @@ examples/lunix/
 *.asm
 *.lbl
 *.nl
+*.fns
+*.sym
 *.deb
 *.xex
 *.nes

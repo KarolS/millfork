@@ -39,7 +39,8 @@ class MosAssembler(program: Program,
       case AssemblyLine0(BYTE, _, _) => log.fatal("BYTE opcode failure")
       case AssemblyLine0(_, RawByte, _) => log.fatal("BYTE opcode failure")
       case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(labelName))) =>
-        labelMap(labelName) = index
+        val bank0 = mem.banks(bank)
+        labelMap(labelName) = bank0.index -> index
         index
       case AssemblyLine0(_, DoesNotExist, _) =>
         index
@@ -66,7 +67,7 @@ class MosAssembler(program: Program,
     }
   }
 
-  override def injectLabels(labelMap: Map[String, Int], code: List[AssemblyLine]): List[AssemblyLine] = {
+  override def injectLabels(labelMap: Map[String, (Int, Int)], code: List[AssemblyLine]): List[AssemblyLine] = {
     import Opcode._
     code.map {
       case l@AssemblyLine(LDA | STA | CMP |
@@ -79,10 +80,10 @@ class MosAssembler(program: Program,
                           ISC | DCP | LAX | SAX | RLA | RRA | SLO | SRE, AddrMode.Absolute, p, Elidability.Elidable, _) =>
         p match {
           case NumericConstant(n, _) => if (n <= 255) l.copy(addrMode = AddrMode.ZeroPage) else l
-          case MemoryAddressConstant(th) => if (labelMap.getOrElse(th.name, 0x800) < 0x100) l.copy(addrMode = AddrMode.ZeroPage) else l
+          case MemoryAddressConstant(th) => if (labelMap.getOrElse(th.name, 0 -> 0x800)._2 < 0x100) l.copy(addrMode = AddrMode.ZeroPage) else l
           case CompoundConstant(MathOperator.Plus,
           MemoryAddressConstant(th),
-          NumericConstant(n, _)) => if (labelMap.getOrElse(th.name, 0x800) + n < 0x100) l.copy(addrMode = AddrMode.ZeroPage) else l
+          NumericConstant(n, _)) => if (labelMap.getOrElse(th.name, 0 -> 0x800)._2 < 0x100) l.copy(addrMode = AddrMode.ZeroPage) else l
           case _ => l
         }
 

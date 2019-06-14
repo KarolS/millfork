@@ -10,6 +10,8 @@
 
 * Support for Intel 8085, together with illegal instructions.
 
+* More label file formats.
+
 * Added `memory_barrier` macro.
 
 * Added `random` module.

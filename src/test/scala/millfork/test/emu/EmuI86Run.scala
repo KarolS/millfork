@@ -74,7 +74,7 @@ class EmuI86Run(nodeOptimizations: List[NodeOptimization], assemblyOptimizations
   }
 
   def apply2(source: String): (Timings, MemoryBank) = {
-    if (!Settings.enableIntel8086Tests) return Timings(-1, -1) -> new MemoryBank()
+    if (!Settings.enableIntel8086Tests) return Timings(-1, -1) -> new MemoryBank(0)
     Console.out.flush()
     Console.err.flush()
     val log = TestErrorReporting.log
@@ -139,7 +139,7 @@ class EmuI86Run(nodeOptimizations: List[NodeOptimization], assemblyOptimizations
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("////; DISCARD_")).foreach(println)
         println(";;; ---------------------------")
-        assembler.labelMap.foreach { case (l, addr) => println(f"$l%-15s $$$addr%04x") }
+        assembler.labelMap.foreach { case (l, (_, addr)) => println(f"$l%-15s $$$addr%04x") }
 
         val optimizedSize = assembler.mem.banks("default").initialized.count(identity).toLong
         if (unoptimizedSize == optimizedSize) {

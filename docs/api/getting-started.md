@@ -31,19 +31,20 @@ x64 hello_world.prg
 
 The following options are obligatory when compiling your sources:
 
-* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended
-(`prg` for Commodore,
-`xex` for Atari computers,
-`a2` for Apple,
-`asm` for assembly output,
-`lbl` for label file,
-`inf` for BBC file metadata,
-`dsk` for PC-88,
-`tap` for ZX Spectrum,
-`rom` for MSX cartridges,
-`com` for CP/M,
-`nes` for Famicom,
-`bin` for Atari 2600)
+* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended:  
+`prg` for Commodore;
+`crt` for Commodore cartridges;
+`xex` for Atari computers;
+`a2` for Apple;
+`dsk` for PC-88;
+`tap` for ZX Spectrum;
+`rom` for MSX cartridges;
+`com` for CP/M;
+`nes` for Famicom;
+`bin` for Atari 2600;
+`inf` for BBC file metadata;
+`asm` for assembly output;
+`lbl`, `nl`, `fns`, or `sym` for label file
 
 * `-t PLATFORM` – specifies the target platform.
 Each platform is defined in an `.ini` file in the include directory.
@@ -62,7 +63,7 @@ You may be also interested in the following:
 
 * `-fsource-in-asm` – show original Millfork source in the assembly output
 
-* `-g` – additionally generate a label file, in format compatible with VICE emulator
+* `-g` – additionally generate a label file
 
 * `-r PROGRAM` – automatically launch given program after successful compilation
 

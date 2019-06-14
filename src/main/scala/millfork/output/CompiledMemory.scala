@@ -5,12 +5,12 @@ import scala.collection.mutable
 /**
   * @author Karol Stasiak
   */
-class CompiledMemory(bankNames: List[String]) {
+class CompiledMemory(bankNames: List[(String, Int)]) {
   var programName = "MILLFORK"
-  val banks: mutable.Map[String, MemoryBank] = mutable.Map(bankNames.map(_ -> new MemoryBank): _*)
+  val banks: mutable.Map[String, MemoryBank] = mutable.Map(bankNames.map(p => p._1 -> new MemoryBank(p._2)): _*)
 }
 
-class MemoryBank {
+class MemoryBank(val index: Int) {
   def readByte(addr: Int): Int = output(addr) & 0xff
 
   def readWord(addr: Int): Int = readByte(addr) + (readByte(addr + 1) << 8)

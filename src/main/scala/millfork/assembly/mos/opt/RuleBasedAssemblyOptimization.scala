@@ -102,10 +102,10 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 }
 
 class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
-                              val labelMap: Map[String, Int],
+                              val labelMap: Map[String, (Int, Int)],
                               val zeropageRegister: Option[ThingInMemory],
                               val niceFunctionProperties: Set[(NiceFunctionProperty, String)],
-                              val labeUseCount: String => Int) {
+                              val labelUseCount: String => Int) {
   @inline
   def log: Logger = compilationOptions.log
   @inline
@@ -222,7 +222,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
     }
     // if a jump leads inside the block, then it's internal
     // if a jump leads outside the block, then it's external
-    jumps == labels && labels.forall(l => labeUseCount(l) <= 1)
+    jumps == labels && labels.forall(l => labelUseCount(l) <= 1)
   }
 
   def zreg(i: Int): Constant = {
@@ -1530,10 +1530,10 @@ case object IsZeroPage extends AssemblyLinePattern {
                           ISC | DCP | LAX | SAX | RLA | RRA | SLO | SRE, AddrMode.Absolute, p, Elidability.Elidable, _) =>
         p match {
           case NumericConstant(n, _) => n <= 255
-          case MemoryAddressConstant(th) => ctx.labelMap.getOrElse(th.name, 0x800) < 0x100
+          case MemoryAddressConstant(th) => ctx.labelMap.getOrElse(th.name, 0 -> 0x800)._2 < 0x100
           case CompoundConstant(MathOperator.Plus,
           MemoryAddressConstant(th),
-          NumericConstant(n, _)) => ctx.labelMap.getOrElse(th.name, 0x800) + n < 0x100
+          NumericConstant(n, _)) => ctx.labelMap.getOrElse(th.name, 0 -> 0x800)._2 + n < 0x100
           case _ => false
         }
       case _ => false

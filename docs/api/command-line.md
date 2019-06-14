@@ -28,7 +28,20 @@ no extension for BBC micro program file,
 
 * `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file and the extension is `.asm`.
 
-* `-g` – Generate also the label file. The label file contains labels with their addresses, with duplicates removed. It can be loaded into the monitor of the Vice emulator for debugging purposes. The file has the same name as the output file and the extension is `.lbl`.
+* `-g` – Generate also the label file. The label file contains labels with their addresses, with duplicates removed.
+It can be loaded into the monitor of the emulator for debugging purposes.
+The file has the same name as the output file.
+The extension and the file format are platform-dependent. 
+
+* `-G <format>` – The same as `-g`, but with the specified format:
+
+    * `-G vice` – format compatible with the Vice emulator. The extension is `.lbl`.
+    
+    * `-G nesasm` – format used by the NESASM assembler. The extension is `.fns`.
+    
+    * `-G sym` – format used by the WLA DX assembler. The extension is `.sym`.
+    
+    * `-G fceux` – multi-file format used by the FCEUX emulator. The extension is `.nl`.
 
 * `-I  <dir>;<dir>` – The include directories.
 Those directories are searched for modules and platform definitions.

@@ -3,6 +3,7 @@ package millfork
 import java.io.{File, StringReader}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+import java.util.Locale
 
 import millfork.error.Logger
 import millfork.output._
@@ -34,6 +35,7 @@ class Platform(
                 val generateGameBoyChecksums: Boolean,
                 val bankNumbers: Map[String, Int],
                 val defaultCodeBank: String,
+                val outputLabelsFormat: DebugOutputFormat,
                 val outputStyle: OutputStyle.Value
               ) {
   def hasZeroPage: Boolean = cpuFamily == CpuFamily.M6502
@@ -201,6 +203,10 @@ object Platform {
       case "lunix" => OutputStyle.LUnix
       case x => log.fatal(s"Invalid output style: `$x`")
     }
+    val debugOutputFormatName = os.get(classOf[String], "labels", "vice")
+    val debugOutputFormat = DebugOutputFormat.map.getOrElse(
+      debugOutputFormatName.toLowerCase(Locale.ROOT),
+      log.fatal(s"Invalid label file format: `$debugOutputFormatName`"))
 
     val builtInFeatures = builtInCpuFeatures(cpu)
 
@@ -232,6 +238,7 @@ object Platform {
       generateGameBoyChecksums,
       bankNumbers,
       defaultCodeBank,
+      debugOutputFormat,
       outputStyle)
   }
 

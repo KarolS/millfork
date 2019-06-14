@@ -141,6 +141,9 @@ Default: the same as `segment_NAME_end`.
 * `segment_NAME_datastart` – the first address used for non-zeropage variables, or `after_code` if the variables should be allocated after the code.  
 Default: `after_code`.
 
+* `segment_NAME_bank` – the bank number the segment belongs to. Default: `0`.
+For better debugging on NES, RAM segments should use bank number `$ff`.
+
 #### `[output]` section
  
 * `style` – how multi-segment programs should be output:
@@ -178,3 +181,13 @@ Default: `after_code`.
 * `bbc_inf` – should the `.inf` file with file metadata for BBC Micro be created
 
 * `gb_checksum` – should the main output file be patched with Game Boy-compatible checksums
+
+* `labels` – format of the label file:
+
+    * `vice` (the default) – format compatible with the Vice emulator. The extension is `.lbl`.
+    
+    * `nesasm` – format used by the NESASM assembler. The extension is `.fns`.
+    
+    * `sym` – format used by the WLA/DX assembler. The extension is `.sym`.
+    
+    * `fceux` – multi-file format used by the FCEUX emulator. The extension is `.nl`.
