@@ -97,6 +97,8 @@ The registers are translated as following:
                        SP → SP
                        IX → BP
 
+The `AH` register is used as a temporary register for holding the flags.
+
 The `SI` register is used as a temporary register for holding the address in 8080's `LDAX`/`STAX`
 (`LD (DE),A`/`LD(BC),A`/`LD A,(DE)`/`LD A,(BC)` on Z80)
 and 8085's undocumented `LDSI`/`SHLX`/`LHLX` (`LD DE,SP+n`/`LD (DE),HL`/`LD HL,(DE)` in Z80 syntax).
