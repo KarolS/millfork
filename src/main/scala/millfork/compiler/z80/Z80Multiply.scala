@@ -106,7 +106,7 @@ object Z80Multiply {
   /**
     * Calculate HL = p / q and A = p %% q
     */
-  def compileUnsignedWordByByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, LhsExpression], q: Expression): List[ZLine] = {
+  def compileUnsignedWordByByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, Expression], q: Expression): List[ZLine] = {
     val pb = p match {
       case Right(pp) => Z80ExpressionCompiler.compileToHL(ctx, pp)
       case Left(LocalVariableAddressViaHL) => List(
@@ -122,7 +122,7 @@ object Z80Multiply {
     val load = if (qb.exists(Z80ExpressionCompiler.changesHL)) {
       pb ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, qb)
     } else if (pb.exists(Z80ExpressionCompiler.changesDE)) {
-      qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, qb)
+      qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, pb)
     } else {
       pb ++ qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A))
     }
@@ -132,7 +132,7 @@ object Z80Multiply {
   /**
     * Calculate A = p / q or A = p %% q
     */
-  def compileUnsignedByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, LhsExpression], q: Expression, modulo: Boolean): List[ZLine] = {
+  def compileUnsignedByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, Expression], q: Expression, modulo: Boolean): List[ZLine] = {
     def loadPToA(): List[ZLine] = {
       p match {
         case Right(pp) => Z80ExpressionCompiler.compileToA(ctx, pp)
@@ -179,7 +179,7 @@ object Z80Multiply {
   /**
       * Calculate A = p / q or A = p %% q
       */
-    def compileUnsignedByteDivisionImpl(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, LhsExpression], q: Int, modulo: Boolean): List[ZLine] = {
+    def compileUnsignedByteDivisionImpl(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, Expression], q: Int, modulo: Boolean): List[ZLine] = {
       import ZRegister._
       import ZOpcode._
       val result = ListBuffer[ZLine]()

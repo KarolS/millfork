@@ -968,7 +968,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 }
               case "/" | "%%" =>
                 assertSizesForDivision(ctx, params, inPlace = false)
-                val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+                val (l, r, size) = assertArithmeticBinary(ctx, params)
                 size match {
                   case 1 =>
                     targetifyA(ctx, target, Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%"), isSigned = false)
