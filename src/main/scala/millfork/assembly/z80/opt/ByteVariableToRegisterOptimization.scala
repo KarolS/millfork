@@ -337,6 +337,8 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case ZLine(LD, TwoRegistersOffset(reg, MEM_IX_D, off), _, _, s) :: xs if "IX+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
         else ZLine.ld8(reg, target).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case ZLine(LD, TwoRegistersOffset(MEM_IX_D, IMM_8, off), param, _, s) :: xs if "IX+" + off == vname =>
+        ZLine.ldImm8(target, param).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
       case ZLine(LD, TwoRegistersOffset(MEM_IX_D, reg, off), _, _, s) :: xs if "IX+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
         else ZLine.ld8(target, reg).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
@@ -346,6 +348,8 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case ZLine(LD, TwoRegistersOffset(reg, MEM_IY_D, off), _, _, s) :: xs if "IY+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
         else ZLine.ld8(reg, target).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+      case ZLine(LD, TwoRegistersOffset(MEM_IY_D, IMM_8, off), param, _, s) :: xs if "IY+" + off == vname =>
+        ZLine.ldImm8(target, param).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
       case ZLine(LD, TwoRegistersOffset(MEM_IY_D, reg, off), _, _, s) :: xs if "IY+" + off == vname =>
         if (reg == target) inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
         else ZLine.ld8(target, reg).pos(s) :: inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
