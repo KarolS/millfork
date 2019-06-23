@@ -113,8 +113,24 @@ object LaterI80Optimizations {
     },
   )
 
+  val TailCall = new RuleBasedAssemblyOptimization("Tail call",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+    (Elidable & HasOpcode(CALL)) ~
+      (Elidable & HasOpcodeIn(ZOpcodeClasses.NoopDiscards)).* ~
+      (Elidable & HasOpcode(RET) & HasRegisters(NoRegisters)) ~~> { code =>
+      List(code.head.copy(opcode = JP))
+    },
+    (Elidable & HasOpcode(CALL)) ~
+      HasOpcode(LABEL).* ~
+      (Elidable & HasOpcodeIn(ZOpcodeClasses.NoopDiscards)).*.capture(0) ~
+      (Elidable & HasOpcode(RET) & HasRegisters(NoRegisters)) ~~> { (code, ctx) =>
+      ctx.get[List[ZLine]](0) ++ (code.head.copy(opcode = JP) :: code.tail)
+    },
+  )
+
   val All: List[AssemblyOptimization[ZLine]] = List(
     VariousSmallOptimizations,
-    FreeHL
+    FreeHL,
+    TailCall,
   )
 }
