@@ -273,6 +273,11 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
           case LiteralExpression(0, _) => true
           case _ => false
         }) ctx.log.warn("Multiplication by zero.", params.head.position)
+      case FunctionCallExpression("/" | "/=" | "%%" | "%%=", params) =>
+        if (params.tail.exists {
+          case LiteralExpression(0, _) => true
+          case _ => false
+        }) ctx.log.warn("Division by zero.", params.head.position)
       case FunctionCallExpression("<<" | ">>" | "<<'" | "<<=" | ">>=" | "<<'=" | ">>>>", List(lhs@_, LiteralExpression(0, _))) =>
         ctx.log.warn("Shift by zero.", lhs.position)
       case _ =>
