@@ -64,6 +64,7 @@ object UnusedGlobalVariables extends NodeOptimization {
     case FunctionCallExpression(name, xs) => name :: getAllReadVariables(xs)
     case IndexedExpression(arr, index) => arr :: getAllReadVariables(List(index))
     case SeparateBytesExpression(h, l) => getAllReadVariables(List(h, l))
+    case IndirectFieldExpression(root, firstIndices, fields) => getAllReadVariables(List(root) ++ firstIndices ++ fields.flatMap(_._2))
     case _ => Nil
   }
 

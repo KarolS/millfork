@@ -156,6 +156,9 @@ abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements
       case ExpressionStatement(expr) =>
         cv = search(expr, cv)
         ExpressionStatement(optimizeExpr(expr, cv)).pos(pos) -> cv
+      case ReturnStatement(Some(expr)) =>
+        cv = search(expr, cv)
+        ReturnStatement(Some(optimizeExpr(expr, cv))).pos(pos) -> cv
       case IfStatement(cond, th, el) =>
         cv = search(cond, cv)
         val c = optimizeExpr(cond, cv)

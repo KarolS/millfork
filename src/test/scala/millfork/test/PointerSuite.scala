@@ -209,4 +209,26 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
       }
     }
   }
+
+  test("Pointers and arrays") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | struct P {
+        |    word i
+        |    byte c
+        |    byte d
+        | }
+        |
+        | array a [sizeof(P)*8]
+        |
+        | noinline byte f(byte i) {
+        |     return pointer.P(a.addr + sizeof(P)*i)->c
+        | }
+        |
+        | void main() {
+        |     f(6)
+        | }
+      """.stripMargin) { m =>
+    }
+  }
 }
