@@ -253,7 +253,14 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
           case LiteralExpression(value, _) => ???
           case GeneratedConstantExpression(_, _) => ???
           case VariableExpression(name) =>
-            env.get[Variable](name) match {
+            env.get[VariableLikeThing](name) match {
+              case s: StackOffsetThing =>
+                s.subbyte match {
+                  case None => targetifyHL(ctx, target, calculateStackAddressToHL(ctx, s.offset))
+                  case Some(0) => targetifyA(ctx, target, calculateStackAddressToHL(ctx, s.offset) :+ ZLine.ld8(ZRegister.A, ZRegister.L), isSigned = false)
+                  case Some(1) => targetifyA(ctx, target, calculateStackAddressToHL(ctx, s.offset) :+ ZLine.ld8(ZRegister.A, ZRegister.H), isSigned = false)
+                  case _ => throw new IllegalArgumentException
+                }
               case v: VariableInMemory =>
                 import ZRegister._
                 v.typ.size match {
@@ -1139,7 +1146,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
 
   def calculateStackAddressToHL(ctx: CompilationContext, baseOffset: Int): List[ZLine] = {
     if (ctx.options.flag(CompilationFlag.UseIxForStack) || ctx.options.flag(CompilationFlag.UseIyForStack)) {
-      ???
+      // TODO: is this correct?
+      List(ZLine.ldImm16(ZRegister.HL, baseOffset + ctx.extraStackOffset), ZLine.registers(ZOpcode.ADD_16, ZRegister.HL, ZRegister.SP))
     } else if (ctx.options.flag(CompilationFlag.EmitSharpOpcodes)) {
       List(ZLine.imm8(ZOpcode.LD_HLSP, baseOffset + ctx.extraStackOffset))
     } else {
@@ -1592,7 +1600,22 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
       case None =>
         rhs match {
           case VariableExpression(vname) =>
-            env.get[Variable](vname) match {
+            env.get[VariableLikeThing](vname) match {
+              case s: StackOffsetThing =>
+                s.subbyte match {
+                  case None =>
+                    val list = List(
+                      calculateStackAddressToHL(ctx, s.offset) :+ ZLine.ld8(ZRegister.A, ZRegister.L),
+                      calculateStackAddressToHL(ctx, s.offset) :+ ZLine.ld8(ZRegister.A, ZRegister.H)) ++ List.fill(size)(List(ZLine.ldImm8(ZRegister.A, 0)))
+                    list.take(size)
+                  case Some(0) =>
+                    val list = (calculateStackAddressToHL(ctx, s.offset) :+ ZLine.ld8(ZRegister.A, ZRegister.L)) :: List.fill(size)(List(ZLine.ldImm8(ZRegister.A, 0)))
+                    list.take(size)
+                  case Some(1) =>
+                    val list = (calculateStackAddressToHL(ctx, s.offset) :+ ZLine.ld8(ZRegister.A, ZRegister.H)) :: List.fill(size)(List(ZLine.ldImm8(ZRegister.A, 0)))
+                    list.take(size)
+                  case _ => throw new IllegalArgumentException
+                }
               case v: VariableInMemory =>
                 List.tabulate(size) { i =>
                   if (i < v.typ.size) {

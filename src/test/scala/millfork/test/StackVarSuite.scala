@@ -290,4 +290,105 @@ class StackVarSuite extends FunSuite with Matchers {
       m.readLong(0xc000) should equal(400)
     }
   }
+
+  test("Pointers to stack variables 1") {
+    val code =
+      """
+        | noinline void inc(pointer.byte p) {
+        |   p[0] += 1
+        |   test1 = word(p)
+        | }
+        | byte output @$c000
+        | word test1 @$c002
+        | word stkptr @$c004
+        | void main () {
+        |   stack byte a
+        |   a = 0
+        |   inc(a.pointer) // ↑
+        |   inc(a.pointer) // ↑
+        |   inc(a.pointer) // ↑
+        |   inc(a.pointer) // ↑
+        |   inc(a.pointer) // ↑
+        |   inc(a.pointer) // ↑
+        |   inc(a.pointer) // ↑
+        |   inc(a.pointer) // ↑
+        |   inc(a.pointer) // ↑
+        |   output = a
+        |   #if ARCH_6502
+        |   asm {
+        |     tsx
+        |     stx stkptr
+        |     ldx #0
+        |     stx stkptr+1
+        |   }
+        |   #endif
+        |   #if ARCH_I80 && CPUFEATURE_8080
+        |   #pragma zilog_syntax
+        |   asm {
+        |     ld hl,0
+        |     add hl,sp
+        |     ld (stkptr),hl
+        |   }
+        |   #endif
+        |   #if CPUFEATURE_GAMEBOY
+        |   #pragma zilog_syntax
+        |   asm {
+        |     ld hl,0
+        |     add hl,sp
+        |     ld a,l
+        |     ld (stkptr),a
+        |     ld a,h
+        |     ld (stkptr+1),a
+        |   }
+        |   #endif
+        | }
+      """.stripMargin
+
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(code) { m =>
+      println("$" + m.readWord(0xc002).toHexString)
+//      (0x1f0 until 0x200).foreach { a =>
+//        printf(f"$$$a%04x = $$${m.readByte(a)}%02x%n");
+//      }
+//      (0xc000 until 0xc010).foreach { a =>
+//        printf(f"$$$a%04x = $$${m.readByte(a)}%02x%n");
+//      }
+      println("$" + m.readWord(0xc004).toHexString)
+      m.readByte(0xc000) should equal(code.count(_ == '↑'))
+    }
+    EmuSoftwareStackBenchmarkRun(code) { m =>
+      println("$" + m.readWord(0xc002).toHexString)
+      println("$" + m.readWord(0xc004).toHexString)
+      m.readByte(0xc000) should equal(code.count(_ == '↑'))
+    }
+  }
+
+
+  test("Pointers to stack variables 2") {
+    val code =
+      """
+        | import zp_reg
+        | void main () {
+        |   stack byte a
+        |   a = 0
+        |   byte b
+        |   word w
+        |   b += a.addr.lo
+        |   w += a.addr
+        |   w <<= a.addr.hi
+        |   b *= a.addr.lo
+        |   b <<= a.addr.lo
+        |   w = nonet(b << a.addr.lo)
+        |   w &= a.addr
+        |   w = w | a.addr
+        |
+        | }
+      """.stripMargin
+
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(code) { m =>
+    }
+    EmuSoftwareStackBenchmarkRun(code) { m =>
+    }
+  }
+
+
 }

@@ -1471,6 +1471,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (stmt.stack) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
         addVariable(options, name, v, stmt.position)
+        addThing(StackOffsetThing(v.name + ".addr", this.baseStackOffset, get[Type]("pointer"), None), stmt.position)
+        addThing(StackOffsetThing(v.name + ".addr.lo", this.baseStackOffset, b, Some(0)), stmt.position)
+        addThing(StackOffsetThing(v.name + ".addr.hi", this.baseStackOffset, b, Some(1)), stmt.position)
+        addThing(StackOffsetThing(v.name + ".pointer", this.baseStackOffset, PointerType("pointer."+v.typ.name, v.typ.name, Some(v.typ)), None), stmt.position)
+        addThing(StackOffsetThing(v.name + ".pointer.lo", this.baseStackOffset, b, Some(0)), stmt.position)
+        addThing(StackOffsetThing(v.name + ".pointer.hi", this.baseStackOffset, b, Some(1)), stmt.position)
         baseStackOffset += typ.size
       } else {
         val (v, addr) = stmt.address.fold[(VariableInMemory, Constant)]({
@@ -1736,7 +1742,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (options.flag(CompilationFlag.SoftwareStack)) {
         if (!things.contains("__sp")) {
           things("__sp") = UninitializedMemoryVariable("__sp", b, VariableAllocationMethod.Auto, None, NoAlignment, isVolatile = false)
-          things("__stack") = UninitializedArray("__stack", 256, None, b, b, readOnly = false, WithinPageAlignment)
+          things("__stack") = UninitializedArray("__stack", 256, None, b, b, readOnly = false, DivisibleAlignment(256))
         }
       }
     }

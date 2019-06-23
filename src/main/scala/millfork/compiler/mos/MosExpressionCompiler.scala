@@ -447,6 +447,67 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     compileToZReg(ctx, pointerExpression) -> ctx.env.get[ThingInMemory]("__reg.loword")
   }
 
+  def compileStackOffset(ctx: CompilationContext, target: Variable, offset: Int, subbyte: Option[Int]): List[AssemblyLine] = {
+    val hi = if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+      MemoryAddressConstant(ctx.env.get[ThingInMemory]("__stack")).hiByte
+    } else {
+      Constant.One
+    }
+    val tsx = if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+      AssemblyLine.absolute(LDX, MemoryAddressConstant(ctx.env.get[ThingInMemory]("__sp")))
+    } else {
+      AssemblyLine.implied(TSX)
+    }
+    val actualOffset = if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+      offset & 0xff
+    } else {
+      (offset + ctx.extraStackOffset) & 0xff
+    }
+
+    val b = ctx.env.get[Type]("byte")
+    subbyte match {
+      case Some(1) => compile(ctx, GeneratedConstantExpression(hi, b), Some(b -> target), BranchSpec.None)
+      case Some(0) => target match {
+        case RegisterVariable(MosRegister.A, _) => actualOffset match {
+          case 0 => List(tsx, AssemblyLine.implied(TXA))
+          case 1 => List(tsx, AssemblyLine.implied(INX), AssemblyLine.implied(TXA))
+          case 2 => List(tsx, AssemblyLine.implied(INX), AssemblyLine.implied(INX), AssemblyLine.implied(TXA))
+          case _ => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, actualOffset))
+        }
+
+        case RegisterVariable(MosRegister.X, _) => actualOffset match {
+          case 0 => List(tsx)
+          case 1 => List(tsx, AssemblyLine.implied(INX))
+          case 2 => List(tsx, AssemblyLine.implied(INX), AssemblyLine.implied(INX))
+          case 3 => List(tsx, AssemblyLine.implied(INX), AssemblyLine.implied(INX), AssemblyLine.implied(INX))
+          case _ => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, actualOffset), AssemblyLine.implied(TAX))
+        }
+        case RegisterVariable(MosRegister.Y, _) => actualOffset match {
+          case 0 => List(tsx)
+          case 1 => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(TAY), AssemblyLine.implied(INY))
+          case _ => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, actualOffset), AssemblyLine.implied(TAY))
+        }
+        case _ =>
+          val loadA = actualOffset match {
+            case 0 => List(tsx, AssemblyLine.implied(TXA))
+            case 1 => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(INX))
+            case 2 => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(INX), AssemblyLine.implied(INX))
+            case _ => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, actualOffset))
+          }
+          loadA ++ expressionStorageFromA(ctx, Some(b -> target), None)
+      }
+      case None =>
+        val loadA = actualOffset match {
+          case 0 => List(tsx, AssemblyLine.implied(TXA))
+          case 1 => List(tsx, AssemblyLine.implied(INX), AssemblyLine.implied(TXA))
+          case 2 => List(tsx, AssemblyLine.implied(INX), AssemblyLine.implied(INX), AssemblyLine.implied(TXA))
+          case _ => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, actualOffset))
+        }
+        loadA ++ List(AssemblyLine.immediate(LDX, hi)) ++ expressionStorageFromAX(ctx, Some(ctx.env.get[Type]("pointer") -> target), None)
+      case _ => throw new IllegalArgumentException
+    }
+  }
+
   def compile(ctx: CompilationContext, expr: Expression, exprTypeAndVariable: Option[(Type, Variable)], branches: BranchSpec): List[AssemblyLine] = {
     val env = ctx.env
     env.eval(expr) match {
@@ -476,6 +537,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           assertCompatible(exprType, target.typ)
           env.eval(expr).map(c => compileConstant(ctx, c, target)).getOrElse {
             env.get[TypedThing](name) match {
+              case source: StackOffsetThing => compileStackOffset(ctx, target, source.offset, source.subbyte)
               case source: VariableInMemory =>
                 target match {
                   case RegisterVariable(MosRegister.A, _) => AssemblyLine.variable(ctx, LDA, source)

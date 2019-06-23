@@ -383,6 +383,10 @@ case class ConstantThing(name: String, value: Constant, typ: Type) extends Typed
   def map(f: Constant => Constant) = ConstantThing("", f(value), typ)
 }
 
+case class StackOffsetThing(name: String, offset: Int, typ: Type, subbyte: Option[Int]) extends TypedThing with VariableLikeThing {
+
+}
+
 trait ParamSignature {
   def types: List[Type]
 

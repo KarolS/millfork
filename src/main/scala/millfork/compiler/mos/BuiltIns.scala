@@ -41,7 +41,7 @@ object BuiltIns {
     val parts: (List[AssemblyLine], List[AssemblyLine]) = env.eval(source).fold {
       val b = env.get[Type]("byte")
       source match {
-        case VariableExpression(name) =>
+        case VariableExpression(name) if env.maybeGet[Variable](name).isDefined =>
           val v = env.get[Variable](name)
           if (v.typ.size > 1) {
             ctx.log.error(s"Variable `$name` is too big for a built-in operation", source.position)

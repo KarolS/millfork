@@ -144,6 +144,12 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case UnknownStatus => this.copy(l = UnknownStatus, h = UnknownStatus, hl = UnknownStatus)
   }
 
+  def cleanMemIxIfNeeded(preservesStackVariables: Boolean, r: ZRegister.Value): CpuStatus = if (preservesStackVariables) this else {
+    r match {
+      case ZRegister.MEM_HL | ZRegister.MEM_BC | ZRegister.MEM_DE => copy(memIx = Map())
+      case _ => this
+    }
+  }
 
   override def toString: String = {
     val memRepr = if (memIx.isEmpty) "" else (0 to memIx.keys.max).map(i => memIx.getOrElse(i, UnknownStatus)).mkString("")

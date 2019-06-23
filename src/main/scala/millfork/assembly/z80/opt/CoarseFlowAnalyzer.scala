@@ -28,6 +28,13 @@ object CoarseFlowAnalyzer {
     val preservesE: Set[String] = Set("__divmod_u16u8u16u8")
     val preservesH: Set[String] = Set("__mul_u8u8u8")
     val preservesL: Set[String] = Set("__mul_u8u8u8")
+    // does the code preserve the stack variables apart from direct writes, assuming Z80 and base pointer in IX?
+    val preservesStackVariables = code.forall {
+      case ZLine0(ZOpcode.ADD_16, TwoRegisters(ZRegister.HL, ZRegister.SP), _) => false
+      case ZLine0(ZOpcode.ADD_16, TwoRegisters(ZRegister.IY, ZRegister.SP), _) => false
+      case ZLine0(ZOpcode.ADD_16, TwoRegisters(ZRegister.IX, ZRegister.SP), _) => compilationOptions.flag(CompilationFlag.UseIxForStack)
+      case _ => true
+    }
 
     var changed = true
     while (changed) {
@@ -56,7 +63,7 @@ object CoarseFlowAnalyzer {
               case _ => true
             }
             if (mayBeCalled) {
-              val result = initialStatus.copy(memIx = currentStatus.memIx)
+              val result = if (preservesStackVariables) initialStatus.copy(memIx = currentStatus.memIx) else initialStatus
               currentStatus = result.copy(
                 b = if (preservesB(n)) currentStatus.b else result.b,
                 c = if (preservesC(n)) currentStatus.c else result.c,
@@ -144,19 +151,21 @@ object CoarseFlowAnalyzer {
             val newV = currentStatus.getRegister(r).map(i => i.+(1).&(0xff))
             currentStatus = currentStatus.
               copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus).
-              setRegister(r, newV)
+              setRegister(r, newV).
+              cleanMemIxIfNeeded(preservesStackVariables, r)
           case ZLine0(DEC, OneRegister(r), _) =>
             val newV = currentStatus.getRegister(r).map(i => i.-(1).&(0xff))
             currentStatus = currentStatus.
               copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus).
-              setRegister(r, newV)
+              setRegister(r, newV).
+              cleanMemIxIfNeeded(preservesStackVariables, r)
           case ZLine0(INC, OneRegisterOffset(r, o), _) =>
-            val newV = currentStatus.getRegister(r, o).map(i => i.+(1).&(0xff))
+            val newV = currentStatus.cleanMemIxIfNeeded(preservesStackVariables, r).getRegister(r, o).map(i => i.+(1).&(0xff))
             currentStatus = currentStatus.
               copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus).
               setRegister(r, newV, o)
           case ZLine0(DEC, OneRegisterOffset(r, o), _) =>
-            val newV = currentStatus.getRegister(r, o).map(i => i.-(1).&(0xff))
+            val newV = currentStatus.cleanMemIxIfNeeded(preservesStackVariables, r).getRegister(r, o).map(i => i.-(1).&(0xff))
             currentStatus = currentStatus.
               copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus).
               setRegister(r, newV, o)
@@ -174,21 +183,27 @@ object CoarseFlowAnalyzer {
 
           case ZLine0(LD_AHLI, _, _) =>
             val newHL = currentStatus.getRegister(ZRegister.HL).map(i => i.+(1).&(0xffff))
-            currentStatus = currentStatus.copy(a = AnyStatus).setRegister(ZRegister.HL, newHL)
+            currentStatus = currentStatus.copy(a = AnyStatus).setRegister(ZRegister.HL, newHL).
+                          cleanMemIxIfNeeded(preservesStackVariables, ZRegister.MEM_HL)
           case ZLine0(LD_HLIA, _, _) =>
             val newHL = currentStatus.getRegister(ZRegister.HL).map(i => i.+(1).&(0xffff))
-            currentStatus = currentStatus.setRegister(ZRegister.HL, newHL)
+            currentStatus = currentStatus.setRegister(ZRegister.HL, newHL).
+                          cleanMemIxIfNeeded(preservesStackVariables, ZRegister.MEM_HL)
           case ZLine0(LD_AHLD, _, _) =>
             val newHL = currentStatus.getRegister(ZRegister.HL).map(i => i.-(1).&(0xffff))
-            currentStatus = currentStatus.copy(a = AnyStatus).setRegister(ZRegister.HL, newHL)
+            currentStatus = currentStatus.copy(a = AnyStatus).setRegister(ZRegister.HL, newHL).
+                          cleanMemIxIfNeeded(preservesStackVariables, ZRegister.MEM_HL)
           case ZLine0(LD_HLDA, _, _) =>
             val newHL = currentStatus.getRegister(ZRegister.HL).map(i => i.-(1).&(0xffff))
-            currentStatus = currentStatus.setRegister(ZRegister.HL, newHL)
+            currentStatus = currentStatus.setRegister(ZRegister.HL, newHL).
+                          cleanMemIxIfNeeded(preservesStackVariables, ZRegister.MEM_HL)
 
           case ZLine0(op, OneRegister(r), _) if ZOpcodeClasses.SET(op) =>
-            currentStatus = currentStatus.setRegister(r, currentStatus.getRegister(r).map(i => i | 1.<<(ZOpcodeClasses.SET_seq.indexOf(op))))
+            currentStatus = currentStatus.setRegister(r, currentStatus.getRegister(r).map(i => i | 1.<<(ZOpcodeClasses.SET_seq.indexOf(op)))).
+                                      cleanMemIxIfNeeded(preservesStackVariables, r)
           case ZLine0(op, OneRegister(r), _) if ZOpcodeClasses.RES(op) =>
-            currentStatus = currentStatus.setRegister(r, currentStatus.getRegister(r).map(i => i & ~1.<<(ZOpcodeClasses.RES_seq.indexOf(op))))
+            currentStatus = currentStatus.setRegister(r, currentStatus.getRegister(r).map(i => i & ~1.<<(ZOpcodeClasses.RES_seq.indexOf(op)))).
+                                      cleanMemIxIfNeeded(preservesStackVariables, r)
 
           case l@ZLine0(ADD, OneRegisterOffset(s, o), _) =>
             val (newA, newC) = currentStatus.a.adc(currentStatus.getRegister(s, o), Status.SingleFalse)
@@ -221,11 +236,12 @@ object CoarseFlowAnalyzer {
           case ZLine0(LD, TwoRegisters(ZRegister.A, ZRegister.I | ZRegister.R), _) =>
             currentStatus = currentStatus.copy(a = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus, nf = AnyStatus)
           case ZLine0(LD, TwoRegisters(t, ZRegister.IMM_8), NumericConstant(value, _)) =>
-            currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt))
+            currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt)).
+                                      cleanMemIxIfNeeded(preservesStackVariables, t)
           case ZLine0(LD, TwoRegistersOffset(t, ZRegister.IMM_8, o), NumericConstant(value, _)) =>
-            currentStatus = currentStatus.setRegister(t, SingleStatus(value.toInt), o)
+            currentStatus = currentStatus.cleanMemIxIfNeeded(preservesStackVariables, t).setRegister(t, SingleStatus(value.toInt), o)
           case ZLine0(LD | LD_16, TwoRegisters(t, s), _) =>
-            currentStatus = currentStatus.setRegister(t, currentStatus.getRegister(s))
+            currentStatus = currentStatus.setRegister(t, currentStatus.getRegister(s)).cleanMemIxIfNeeded(preservesStackVariables, t)
           case ZLine0(LD | LD_16, TwoRegistersOffset(t, s, o), _) =>
             currentStatus = currentStatus.setRegister(t, currentStatus.getRegister(s, o), o)
           case ZLine0(EX_DE_HL, _, _) =>
@@ -237,9 +253,11 @@ object CoarseFlowAnalyzer {
           case ZLine0(SLA, OneRegister(r), _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
               .setRegister(r, currentStatus.getRegister(r).map(_.<<(1).&(0xff)))
+              .cleanMemIxIfNeeded(preservesStackVariables, r)
           case ZLine0(SRL, OneRegister(r), _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
               .setRegister(r, currentStatus.getRegister(r).map(_.>>(1).&(0x7f)))
+              .cleanMemIxIfNeeded(preservesStackVariables, r)
 
 
           case ZLine0(RLA | RRA | RLCA | RRCA, _, _) =>

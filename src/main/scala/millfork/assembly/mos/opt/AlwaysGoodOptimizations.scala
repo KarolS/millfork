@@ -1001,7 +1001,7 @@ object AlwaysGoodOptimizations {
         XContainsHardwareStackPointer & HasOpcodeIn(INC, DEC, ASL, LSR) & MatchAddrMode(0) & MatchParameter(1) |
         Linear & XContainsHardwareStackPointer & HasAddrMode(AbsoluteX) & Not(MatchParameter(1)) & Not(HasOpcodeIn(OpcodeClasses.AccessesWordInMemory)) |
         Linear & HasAddrMode(AbsoluteX) & Not(MatchParameter(1) & XContainsHardwareStackPointer) & Not(ChangesMemory) |
-        Linear & Not(ChangesS) & DoesntChangeMemoryAt(0, 1) & Not(HasAddrMode(AbsoluteX))).* ~
+        Linear & Not(ChangesS) & DoesntChangeMemoryAt(0, 1) & Not(HasAddrMode(AbsoluteX)) & Not(HasOpcodeIn(TXA, TXY, HuSAX, SXY, STX, STX_W, PHX, PHX_W, SAX, XAA, SAX, AHX, SHX, TAS))).* ~
       (Elidable & XContainsHardwareStackPointer & HasOpcodeIn(LDA, LDX, LDY, ADC, SBC, ORA, EOR, AND, CMP) & MatchAddrMode(0) & MatchParameter(1)) ~~> { (code, ctx) =>
       val oldA = ctx.get[Int](2)
       val ADDR = ctx.get[Constant](1)

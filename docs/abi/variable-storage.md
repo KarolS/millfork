@@ -42,7 +42,7 @@ but the main disadvantages are:
 
 * increased stack usage
 
-* cannot take their addresses
+* their addresses are not considered constants and it's slower to get them
 
 * cannot use them in inline assembly code blocks
 
