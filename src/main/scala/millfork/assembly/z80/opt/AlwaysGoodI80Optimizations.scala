@@ -6,6 +6,7 @@ import millfork.assembly.z80.ZOpcode._
 import millfork.env.{CompoundConstant, Constant, InitializedArray, MathOperator, MemoryAddressConstant, NumericConstant}
 import millfork.node.{LiteralExpression, ZRegister}
 import ZRegister._
+import millfork.CompilationFlag
 import millfork.DecimalUtils._
 import millfork.error.FatalErrorReporting
 
@@ -1309,6 +1310,51 @@ object AlwaysGoodI80Optimizations {
 
   )
 
+  val ConstantDivision = new RuleBasedAssemblyOptimization("Constant division",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__divmod_u16u8u16u8", 0)
+      & MatchRegister(ZRegister.H, 4)
+      & MatchRegister(ZRegister.L, 5)
+      & MatchRegister(ZRegister.D, 6)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C, ZRegister.B)) ~~> { (_, ctx) =>
+      val p = ctx.get[Int](4) * 256 + ctx.get[Int](5).&(0xff)
+      val q = ctx.get[Int](6)
+      if (q == 0) Nil // lol undefined behaviour, everyone's favourite C feature
+      else List(ZLine.ldImm16(ZRegister.HL, p / q), ZLine.ldImm8(ZRegister.A, p % q))
+    },
+    (Elidable & HasOpcode(CALL)
+      & IsUnconditional
+      & RefersTo("__divmod_u16u8u16u8", 0)
+      & MatchRegister(ZRegister.D, 6)
+      & DoesntMatterWhatItDoesWithFlags
+      & DoesntMatterWhatItDoesWith(ZRegister.D, ZRegister.E, ZRegister.C, ZRegister.B)) ~
+      Where(ctx => {
+        val q = ctx.get[Int](6)
+        q != 0 && q.&(q - 1) == 0
+      }) ~~> { (_, ctx) =>
+      val q = ctx.get[Int](6)
+      if (ctx.compilationOptions.flag(CompilationFlag.EmitExtended80Opcodes)) {
+        List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.imm8(ZOpcode.AND, q - 1)) ++ (0L until Integer.numberOfTrailingZeros(q)).flatMap(_ => List(
+          ZLine.register(ZOpcode.SRL, ZRegister.H),
+          ZLine.register(ZOpcode.RR, ZRegister.L)
+        ))
+      } else {
+        List(ZLine.ld8(ZRegister.D, ZRegister.L)) ++ (0L until Integer.numberOfTrailingZeros(q)).flatMap(_ => List(
+          ZLine.ld8(ZRegister.A, ZRegister.H),
+          ZLine.register(ZOpcode.OR, ZRegister.A),
+          ZLine.implied(ZOpcode.RRA),
+          ZLine.ld8(ZRegister.H, ZRegister.A),
+          ZLine.ld8(ZRegister.A, ZRegister.L),
+          ZLine.implied(ZOpcode.RRA),
+          ZLine.ld8(ZRegister.L, ZRegister.A)
+        )) ++ List(ZLine.ld8(ZRegister.A, ZRegister.D), ZLine.imm8(ZOpcode.AND, q - 1))
+      }
+    },
+  )
+
   private def compileMultiply[T](multiplicand: Int, add1:List[T], asl: List[T]): List[T] = {
     if (multiplicand == 0) FatalErrorReporting.reportFlyingPig("Trying to optimize multiplication by 0 in a wrong way!")
     def impl(m: Int): List[List[T]] = {
@@ -1537,6 +1583,7 @@ object AlwaysGoodI80Optimizations {
 
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
     BranchInPlaceRemoval,
+    ConstantDivision,
     ConstantMultiplication,
     ConstantInlinedShifting,
     FreeHL,

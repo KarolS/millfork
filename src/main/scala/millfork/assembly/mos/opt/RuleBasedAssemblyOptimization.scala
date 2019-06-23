@@ -552,6 +552,35 @@ case class MatchA(i: Int) extends AssemblyLinePattern {
   override def hitRate: Double = 0.42
 }
 
+case class MatchStoredRegister(i: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertForward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {
+    import Opcode._
+    line.opcode match {
+      case STA =>
+        flowInfo.statusBefore.a match {
+          case SingleStatus(value) => ctx.addObject(i, value)
+          case _ => false
+        }
+      case STX =>
+        flowInfo.statusBefore.x match {
+          case SingleStatus(value) => ctx.addObject(i, value)
+          case _ => false
+        }
+      case STY =>
+        flowInfo.statusBefore.y match {
+          case SingleStatus(value) => ctx.addObject(i, value)
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
+  override def hitRate: Double = 0.42
+}
+
 case class MatchX(i: Int) extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertForward(needsFlowInfo)

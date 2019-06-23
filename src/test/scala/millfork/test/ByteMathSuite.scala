@@ -390,4 +390,48 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
     divisionCase1(42, 128)
     divisionCase1(142, 128)
   }
+
+  test("Byte division 4") {
+    divisionCase4(0, 2)
+    divisionCase4(1, 2)
+    divisionCase4(2, 2)
+    divisionCase4(250, 128)
+    divisionCase4(0, 4)
+    divisionCase4(0, 8)
+    divisionCase4(1, 4)
+    divisionCase4(6, 8)
+    divisionCase4(73, 16)
+    divisionCase4(75, 128)
+    divisionCase4(42, 128)
+    divisionCase4(142, 128)
+  }
+
+  private def divisionCase4(x: Int, y: Int): Unit = {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+      s"""
+         | import zp_reg
+         | byte output_q1 @$$c000
+         | byte output_m1 @$$c001
+         | byte output_q2 @$$c002
+         | byte output_m2 @$$c003
+         | void main () {
+         |  byte a
+         |  output_q2 = g()
+         |  output_m2 = g()
+         |  a = f()
+         |  output_q1 = $x / a
+         |  output_m1 = $x %% a
+         |  output_q2 /= a
+         |  output_m2 %%= a
+         | }
+         | byte f() {return $y}
+         | noinline byte g() {return $x}
+          """.
+        stripMargin) { m =>
+      m.readByte(0xc000) should equal(x / y) withClue s"$x / $y"
+      m.readByte(0xc001) should equal(x % y) withClue s"$x %% $y"
+      m.readByte(0xc002) should equal(x / y) withClue s"$x / $y"
+      m.readByte(0xc003) should equal(x % y) withClue s"$x %% $y"
+    }
+  }
 }

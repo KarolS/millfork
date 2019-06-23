@@ -538,4 +538,53 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc006) should equal(x % y) withClue s"= $x %% $y"
     }
   }
+
+  test("Word division 4") {
+    divisionCase4(0, 2)
+    divisionCase4(1, 2)
+    divisionCase4(2, 2)
+    divisionCase4(250, 128)
+    divisionCase4(0, 4)
+    divisionCase4(0, 8)
+    divisionCase4(1, 4)
+    divisionCase4(6, 8)
+    divisionCase4(73, 16)
+    divisionCase4(75, 128)
+    divisionCase4(42, 128)
+    divisionCase4(142, 128)
+    divisionCase2(2534, 2)
+    divisionCase2(2534, 32)
+    divisionCase2(35000, 2)
+    divisionCase2(51462, 4)
+    divisionCase2(51462, 1)
+  }
+
+  private def divisionCase4(x: Int, y: Int): Unit = {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+      s"""
+         | import zp_reg
+         | word output_q1 @$$c000
+         | byte output_m1 @$$c002
+         | word output_q2 @$$c004
+         | word output_m2 @$$c006
+         | void main () {
+         |  byte a
+         |  output_q2 = g()
+         |  output_m2 = g()
+         |  a = f()
+         |  output_q1 = $x / a
+         |  output_m1 = $x %% a
+         |  output_q2 /= a
+         |  output_m2 %%= a
+         | }
+         | byte f() {return $y}
+         | noinline word g() {return $x}
+          """.
+        stripMargin) { m =>
+      m.readWord(0xc000) should equal(x / y) withClue s"$x / $y"
+      m.readByte(0xc002) should equal(x % y) withClue s"$x %% $y"
+      m.readWord(0xc004) should equal(x / y) withClue s"$x / $y"
+      m.readByte(0xc006) should equal(x % y) withClue s"$x %% $y"
+    }
+  }
 }

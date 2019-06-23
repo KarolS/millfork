@@ -5,6 +5,7 @@ import millfork.assembly.mos.AddrMode._
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, Opcode, State}
 import millfork.DecimalUtils.asDecimal
+import millfork.assembly.z80.opt.HasRegister
 import millfork.error.FatalErrorReporting
 /**
   * @author Karol Stasiak
@@ -113,6 +114,76 @@ object ZeropageRegisterOptimizations {
         code.init ++ List.fill(Integer.numberOfTrailingZeros(constant))(shift).flatten ++ List(loAsl.copy(opcode = LDA), hiRol.copy(opcode = LDX))
       }
     },
+  )
+
+  val ConstantDivision = new RuleBasedAssemblyOptimization("Constant division",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    // TODO: constants other than power of 2:
+
+    (HasOpcodeIn(STA, STX, STY) & RefersTo("__reg", 1) & MatchStoredRegister(2) & MatchAddrMode(0) & MatchParameter(1)) ~
+      Where({ ctx =>
+        val a = ctx.get[Int](2)
+        a != 0 && a.-(1).&(a) == 0
+      }) ~
+      (Linear & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(JSR) & RefersTo("__div_u8u8u8u8", 0)
+        & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N, State.V) // everything else (including Y) should be preserved
+        & DoesntMatterWhatItDoesWithReg(0)
+        & DoesntMatterWhatItDoesWithReg(1)) ~~> { (code, ctx) =>
+      val count = Integer.numberOfTrailingZeros(ctx.get[Int](2))
+      val zreg = ctx.zeropageRegister.get
+      code.init ++ List(AssemblyLine.zeropage(LDA, zreg)) ++ List.fill(count)(AssemblyLine.implied(LSR))
+    },
+
+    (HasOpcodeIn(STA, STX, STY) & RefersTo("__reg", 1) & MatchStoredRegister(2) & MatchAddrMode(0) & MatchParameter(1)) ~
+      Where({ ctx =>
+        val a = ctx.get[Int](2)
+        a != 0 && a.-(1).&(a) == 0
+      }) ~
+      (Linear & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(JSR) & RefersTo("__mod_u8u8u8u8", 0)
+        & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N, State.V, State.X) // everything else (including Y) should be preserved
+        & DoesntMatterWhatItDoesWithReg(0)
+        & DoesntMatterWhatItDoesWithReg(1)) ~~> { (code, ctx) =>
+      val a = ctx.get[Int](2)
+      val zreg = ctx.zeropageRegister.get
+      code.init ++ List(AssemblyLine.zeropage(LDA, zreg), AssemblyLine.immediate(AND, a - 1))
+    },
+
+    (HasOpcodeIn(STA, STX, STY) & RefersTo("__reg", 2) & MatchStoredRegister(2) & MatchAddrMode(0) & MatchParameter(1)) ~
+      Where({ ctx =>
+        val a = ctx.get[Int](2)
+        a != 0 && a.-(1).&(a) == 0
+      }) ~
+      (Linear & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(JSR) & RefersTo("__div_u16u8u16u8", 0)
+        & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N, State.V) // everything else (including Y) should be preserved
+        & DoesntMatterWhatItDoesWithReg(0)
+        & DoesntMatterWhatItDoesWithReg(1)
+        & DoesntMatterWhatItDoesWithReg(2)) ~~> { (code, ctx) =>
+      val count = Integer.numberOfTrailingZeros(ctx.get[Int](2))
+      val zreg = ctx.zeropageRegister.get
+      code.init ++
+        List.fill(count)(List(AssemblyLine.zeropage(LSR, zreg, 1), AssemblyLine.zeropage(ROR, zreg))).flatten ++
+        List(AssemblyLine.zeropage(LDA, zreg), AssemblyLine.zeropage(LDX, zreg, 1))
+    },
+
+    (HasOpcodeIn(STA, STX, STY) & RefersTo("__reg", 2) & MatchStoredRegister(2) & MatchAddrMode(0) & MatchParameter(1)) ~
+      Where({ ctx =>
+        val a = ctx.get[Int](2)
+        a != 0 && a.-(1).&(a) == 0 && a <= 128
+      }) ~
+      (Linear & DoesntChangeMemoryAt(0, 1)).* ~
+      (Elidable & HasOpcode(JSR) & RefersTo("__mod_u16u8u16u8", 0)
+        & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N, State.V, State.X) // everything else (including Y) should be preserved
+        & DoesntMatterWhatItDoesWithReg(0)
+        & DoesntMatterWhatItDoesWithReg(1)
+        & DoesntMatterWhatItDoesWithReg(2)) ~~> { (code, ctx) =>
+      val a = ctx.get[Int](2)
+      val zreg = ctx.zeropageRegister.get
+      code.init ++ List(AssemblyLine.zeropage(LDA, zreg), AssemblyLine.immediate(AND, a - 1), AssemblyLine.immediate(LDX, 0))
+    },
+
   )
 
   val ConstantDecimalMath = new RuleBasedAssemblyOptimization("Constant decimal math",
@@ -400,6 +471,7 @@ object ZeropageRegisterOptimizations {
 
   val All: List[AssemblyOptimization[AssemblyLine]] = List(
     ConstantDecimalMath,
+    ConstantDivision,
     ConstantMultiplication,
     ConstantInlinedMultiplication,
     LoadingKnownValue,
