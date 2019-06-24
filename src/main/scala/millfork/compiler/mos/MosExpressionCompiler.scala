@@ -1388,6 +1388,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             val (l, r, size) = assertArithmeticBinary(ctx, params)
             size match {
               case 1 =>
+                zeroExtend = true
                 BuiltIns.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%")
               case 2 =>
                 BuiltIns.compileUnsignedWordByByteDivision(ctx, l, r, f.functionName == "%%")
