@@ -960,6 +960,19 @@ object BuiltIns {
   }
 
   def compileByteMultiplication(ctx: CompilationContext, v: Expression, c: Int): List[AssemblyLine] = {
+    c match {
+      case 0 =>
+        if (v.isPure) return List(AssemblyLine.immediate(LDA, 0))
+        else return MosExpressionCompiler.compileToA(ctx, v) ++ List(AssemblyLine.immediate(LDA, 0))
+      case 1 => return MosExpressionCompiler.compileToA(ctx, v)
+      case 2 | 4 | 8 | 16 | 32 =>
+        return MosExpressionCompiler.compileToA(ctx, v) ++ List.fill(Integer.numberOfTrailingZeros(c))(AssemblyLine.implied(ASL))
+      case 128 =>
+        return MosExpressionCompiler.compileToA(ctx, v) ++ List(AssemblyLine.implied(ROR), AssemblyLine.implied(ROR), AssemblyLine.immediate(AND, 0x80))
+      case 64 =>
+        return MosExpressionCompiler.compileToA(ctx, v) ++ List(AssemblyLine.implied(ROR), AssemblyLine.implied(ROR), AssemblyLine.implied(ROR), AssemblyLine.immediate(AND, 0xC0))
+      case _ =>
+    }
     val result = ListBuffer[AssemblyLine]()
     // TODO: optimise
     val addingCode = simpleOperation(ADC, ctx, v, IndexChoice.PreferY, preserveA = false, commutative = false, decimal = false)
@@ -975,13 +988,28 @@ object BuiltIns {
         result += AssemblyLine.implied(ASL)
       }
       if ((mult & mask) != 0) {
-        result ++= List(AssemblyLine.implied(CLC), adc)
+        result += AssemblyLine.implied(CLC)
+        result += adc
         empty = false
       }
 
       mask >>>= 1
     }
-    result.toList
+    val sizeIfCalling = addingCode.map(_.sizeInBytes).sum + 9
+    val sizeIfUnrolling = result.map(_.sizeInBytes).sum
+    var shouldUnroll = true
+    if (ctx.options.zpRegisterSize >= 2) {
+      if (ctx.options.flag(CompilationFlag.OptimizeForSize)) {
+        shouldUnroll = sizeIfUnrolling <= sizeIfCalling
+      } else if (!ctx.options.flag(CompilationFlag.OptimizeForSpeed)) {
+        shouldUnroll = sizeIfUnrolling <= sizeIfCalling + 6
+      }
+    }
+    if (shouldUnroll){
+      result.toList
+    } else {
+      indexing ++ List(adc.copy(opcode = LDA)) ++ PseudoregisterBuiltIns.compileByteMultiplication(ctx, None, LiteralExpression(c, 1), storeInRegLo = false)
+    }
   }
 
   //noinspection ZeroIndexToHead
@@ -991,13 +1019,26 @@ object BuiltIns {
     variables.length match {
       case 0 => List(AssemblyLine.immediate(LDA, constant & 0xff))
       case 1 =>
-        val sim = simplicity(ctx.env, variables.head._1)
-        if (sim >= 'I') {
-          compileByteMultiplication(ctx, variables.head._1, constant)
+        if (constant == 1) {
+          MosExpressionCompiler.compileToA(ctx, variables.head._1)
         } else {
-          MosExpressionCompiler.compileToA(ctx, variables.head._1) ++
-            List(AssemblyLine.zeropage(STA, ctx.env.get[ThingInMemory]("__reg.b0"))) ++
-            compileByteMultiplication(ctx, VariableExpression("__reg.b0"), constant)
+          val sim = simplicity(ctx.env, variables.head._1)
+          if (sim >= 'I') {
+            compileByteMultiplication(ctx, variables.head._1, constant)
+          } else {
+            constant match {
+              case 2 | 4 | 8 | 16 | 32 =>
+                MosExpressionCompiler.compileToA(ctx, variables.head._1) ++ List.fill(Integer.numberOfTrailingZeros(constant))(AssemblyLine.implied(ASL))
+              case 128 =>
+                MosExpressionCompiler.compileToA(ctx, variables.head._1) ++ List(AssemblyLine.implied(ROR), AssemblyLine.implied(ROR), AssemblyLine.immediate(AND, 0x80))
+              case 64 =>
+                MosExpressionCompiler.compileToA(ctx, variables.head._1) ++ List(AssemblyLine.implied(ROR), AssemblyLine.implied(ROR), AssemblyLine.implied(ROR), AssemblyLine.immediate(AND, 0xC0))
+              case _ =>
+                MosExpressionCompiler.compileToA(ctx, variables.head._1) ++
+                  List(AssemblyLine.zeropage(STA, ctx.env.get[ThingInMemory]("__reg.b0"))) ++
+                  compileByteMultiplication(ctx, VariableExpression("__reg.b0"), constant)
+            }
+          }
         }
       case 2 =>
         if (constant == 1)
@@ -1036,6 +1077,8 @@ object BuiltIns {
         } else if (qq == 1) {
           if (modulo) List(AssemblyLine.immediate(LDA, 0).position(q.position))
           else MosExpressionCompiler.compileToA(ctx, p)
+        } else if (qq >= 128 && !modulo) {
+          MosExpressionCompiler.compileToA(ctx, p) ++ List(AssemblyLine.immediate(CMP, qq), AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL))
         } else if (isPowerOfTwoUpTo15(qq)) {
           if (modulo) MosExpressionCompiler.compileToA(ctx, p) :+ AssemblyLine.immediate(AND, qq - 1).position(q.position)
           else MosExpressionCompiler.compileToA(ctx, p) ++ List.fill(java.lang.Long.bitCount(qq-1))(AssemblyLine.implied(LSR).position(q.position))

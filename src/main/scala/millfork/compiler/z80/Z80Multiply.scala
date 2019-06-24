@@ -106,7 +106,7 @@ object Z80Multiply {
   /**
     * Calculate HL = p / q and A = p %% q
     */
-  def compileUnsignedWordByByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, Expression], q: Expression): List[ZLine] = {
+  def compileUnsignedWordByByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, Expression], q: Expression, modulo: Boolean): List[ZLine] = {
     val pb = p match {
       case Right(pp) => Z80ExpressionCompiler.compileToHL(ctx, pp)
       case Left(LocalVariableAddressViaHL) => List(
@@ -117,6 +117,42 @@ object Z80Multiply {
       )
       case Left(LocalVariableAddressViaIX(offset)) => List(ZLine.ldViaIx(ZRegister.L, offset), ZLine.ldViaIx(ZRegister.H, offset+1))
       case Left(LocalVariableAddressViaIY(offset)) => List(ZLine.ldViaIy(ZRegister.L, offset), ZLine.ldViaIy(ZRegister.H, offset+1))
+    }
+    ctx.env.eval(q) match {
+      case Some(NumericConstant(0, _)) =>
+        ctx.log.error("Unsigned division by zero", q.position)
+        return pb
+      case Some(NumericConstant(1, _)) =>
+        if (modulo) {
+          return pb :+ ZLine.ldImm8(ZRegister.A, 0)
+        } else {
+          return pb
+        }
+      case Some(NumericConstant(qc, _)) if qc <= 255 && isPowerOfTwoUpTo15(qc) =>
+        val count = Integer.numberOfTrailingZeros(qc.toInt)
+        if (modulo) {
+          return pb ++ List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.imm8(ZOpcode.AND, qc.toInt - 1))
+        } else {
+          val extendedOps = ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)
+          val shiftHL = if (extendedOps) {
+            (0L until count).flatMap(_ => List(
+              ZLine.register(ZOpcode.SRL, ZRegister.H),
+              ZLine.register(ZOpcode.RR, ZRegister.L)
+            ))
+          } else {
+            (0 until count).flatMap(_ => List(
+              ZLine.ld8(ZRegister.A, ZRegister.H),
+              ZLine.register(ZOpcode.OR, ZRegister.A),
+              ZLine.implied(ZOpcode.RRA),
+              ZLine.ld8(ZRegister.H, ZRegister.A),
+              ZLine.ld8(ZRegister.A, ZRegister.L),
+              ZLine.implied(ZOpcode.RRA),
+              ZLine.ld8(ZRegister.L, ZRegister.A)
+            ))
+          }
+          return pb ++ shiftHL
+        }
+      case _ =>
     }
     val qb = Z80ExpressionCompiler.compileToA(ctx, q)
     val load = if (qb.exists(Z80ExpressionCompiler.changesHL)) {
@@ -168,7 +204,7 @@ object Z80Multiply {
           compileUnsignedByteDivisionImpl(ctx, p, qq.toInt, modulo)
         }
       case _ =>
-        val call = compileUnsignedWordByByteDivision(ctx, p, q)
+        val call = compileUnsignedWordByByteDivision(ctx, p, q, modulo = modulo)
         if (modulo) {
           call
         } else {
@@ -253,6 +289,9 @@ object Z80Multiply {
     count match {
       case 0 => List(ZLine.ldImm8(A, 0))
       case 1 => Nil
+      case 128 => List(ZLine.implied(RRCA), ZLine.imm8(AND, 0x80))
+      case 64 => List(ZLine.implied(RRCA), ZLine.implied(RRCA), ZLine.imm8(AND, 0xC0))
+      case 32 => List(ZLine.implied(RRCA), ZLine.implied(RRCA), ZLine.implied(RRCA), ZLine.imm8(AND, 0xE0))
       case n if n > 0 && n.-(1).&(n).==(0) => List.fill(Integer.numberOfTrailingZeros(n))(ZLine.register(ADD, A))
       case _ =>
         ZLine.ld8(E,A) :: Integer.toString(count & 0xff, 2).tail.flatMap{

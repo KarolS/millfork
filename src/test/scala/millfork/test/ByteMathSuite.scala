@@ -157,6 +157,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   private def multiplyCase1(x: Int, y: Int): Unit = {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       s"""
+         | import zp_reg
          | byte output @$$c000
          | void main () {
          |  output = $x
@@ -185,6 +186,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   private def multiplyCase2(x: Int, y: Int): Unit = {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       s"""
+         | import zp_reg
          | byte output @$$c000
          | void main () {
          |  byte a

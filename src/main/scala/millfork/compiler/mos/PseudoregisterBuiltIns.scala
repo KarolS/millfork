@@ -272,6 +272,14 @@ object PseudoregisterBuiltIns {
     }
   }
 
+  private def unrollShift(ctx: CompilationContext, count: Long, bodySize8bit: Int, bodySize16bit: Int): Boolean = {
+    // TODO: figure out how this interacts with the optimizer
+    val bodySize = if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) bodySize16bit else bodySize8bit
+    if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) true
+    else if (ctx.options.flag(CompilationFlag.OptimizeForSize)) count * bodySize < bodySize + 5 // will unroll up to <<2 (<<3 on 65816)
+    else count * bodySize < bodySize + 13 // will unroll up to <<4 (<<7 on 65816)
+  }
+
   def compileWordShiftOps(left: Boolean, ctx: CompilationContext, l: Expression, r: Expression): List[AssemblyLine] = {
     if (ctx.options.zpRegisterSize < 2) {
       ctx.log.error("Word shifting requires the zeropage pseudoregister", l.position)
@@ -279,12 +287,12 @@ object PseudoregisterBuiltIns {
     }
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
-    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val reg = ctx.env.get[VariableInMemory]("__reg.loword")
     val firstParamCompiled = MosExpressionCompiler.compile(ctx, l, Some(MosExpressionCompiler.getExpressionType(ctx, l) -> reg), NoBranching)
     ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
         List(AssemblyLine.zeropage(LDA, reg), AssemblyLine.zeropage(LDX, reg, 1))
-      case Some(NumericConstant(v, _)) if v > 0 =>
+      case Some(NumericConstant(v, _)) if v > 0 && unrollShift(ctx, v, 2, 4) =>
         if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
           firstParamCompiled ++
             List(AssemblyLine.accu16) ++
@@ -468,17 +476,30 @@ object PseudoregisterBuiltIns {
       case (2 | 1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", param2.position)
     }
-    (ctx.env.eval(param1), ctx.env.eval(param2)) match {
-      case (Some(l), Some(r)) =>
-        val operator = if (modulo) MathOperator.Modulo else MathOperator.Divide
-        val product = CompoundConstant(operator, l, r).quickSimplify
-        return List(AssemblyLine.immediate(LDA, product.loByte), AssemblyLine.immediate(LDX, product.hiByte))
-        // TODO: powers of 2, like with *
-      case _ =>
-    }
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg")
+    (ctx.env.eval(param1), ctx.env.eval(param2)) match {
+      case (Some(l), Some(r)) =>
+        if (r.isProvablyZero) {
+          ctx.log.error("Unsigned division by zero", param2.position)
+        }
+        val operator = if (modulo) MathOperator.Modulo else MathOperator.Divide
+        val product = CompoundConstant(operator, l, r).quickSimplify
+        return List(AssemblyLine.immediate(LDA, product.loByte), AssemblyLine.immediate(LDX, product.hiByte))
+      case (_, Some(NumericConstant(p, _))) =>
+        if (p == 0) {
+          ctx.log.error("Unsigned division by zero", param2.position)
+        }
+        if (p == 1) {
+          if (modulo) return MosExpressionCompiler.compile(ctx, param1, None, BranchSpec.None) ++ List(AssemblyLine.immediate(LDA, 0), AssemblyLine.immediate(LDX, 0))
+          else return MosExpressionCompiler.compile(ctx, param1, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+        } else if (p < 256 && isPowerOfTwoUpTo15(p)) {
+          if (modulo) return MosExpressionCompiler.compile(ctx, param1, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None) ++ List(AssemblyLine.immediate(AND, p - 1), AssemblyLine.immediate(LDX, 0))
+          else return compileWordShiftOps(left = false, ctx, param1, LiteralExpression(Integer.numberOfTrailingZeros(p.toInt), 1))
+        }
+      case _ =>
+    }
     val code1 = MosExpressionCompiler.compile(ctx, param1, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
     val code2 = MosExpressionCompiler.compile(ctx, param2, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
     val load = if (!usesRegLo(code2) && !usesRegHi(code2)) {
