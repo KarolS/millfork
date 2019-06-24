@@ -49,20 +49,23 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
   }
 
   def extractCommonCode(segmentName: String, segContents: Map[String, Either[String, CodeAndAlignment[T]]]): Seq[(String, CompiledFunction[T])] = {
+    val minSnippetSize =
+      if (options.flag(CompilationFlag.OptimizeForSize)) 4
+      else if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) 16
+      else if (options.flag(CompilationFlag.OptimizeForSpeed)) 13
+      else 10
     var result = ListBuffer[(String, CompiledFunction[T])]()
     val snippets: Seq[(List[T], CodeChunk[T])] = segContents.toSeq.flatMap {
       case (_, Left(_)) => Nil
       case (functionName, Right(CodeAndAlignment(code, _))) =>
-        if (options.flag(CompilationFlag.OptimizeForSize)) {
-          getExtractableSnippets(functionName, code).map(code -> _)
-        } else Nil
+        getExtractableSnippets(functionName, code).filter(_.codeSizeInBytes.>=(minSnippetSize)).map(code -> _)
     }
     val chunks: Seq[CodeChunk[T]] = snippets.flatMap { case (wholeCode, snippet) =>
       for {
         start <- snippet.code.indices
         end <- start + 1 to snippet.code.length
       } yield wholeCode -> CodeChunk(snippet.functionName, snippet.offset + start, snippet.offset + end)(snippet.code.slice(start, end))
-    }.map(_._2).filter(_.codeSizeInBytes > 3).groupBy { chunk =>
+    }.map(_._2).filter(_.codeSizeInBytes >= minSnippetSize).groupBy { chunk =>
       renumerateLabels(chunk.code, temporary = true)
     }.filter {
       case (code, _) =>
@@ -113,7 +116,8 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
       val toRemove = allAffectedFunctions.map(_ -> mutable.Set[Int]()).toMap
       val toReplace = allAffectedFunctions.map(_ -> mutable.Map[Int, String]()).toMap
       if (options.log.traceEnabled){
-        options.log.debug(s"Extracted ${best._2.size} common code subroutines from ${allAffectedFunctions.size} functions, saving ${best._1} bytes")
+        val functionNameList = if (allAffectedFunctions.size < 7) allAffectedFunctions.mkString(" (", ",", ")") else ""
+        options.log.debug(s"Extracted ${best._2.size} common code subroutines from ${allAffectedFunctions.size} functions$functionNameList, saving ${best._1} bytes")
       }
       for((code, instances) <- best._2) {
         val newName = env.nextLabel("xc")
