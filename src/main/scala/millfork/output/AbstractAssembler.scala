@@ -124,6 +124,13 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         if (labelMap.contains(name)) labelMap(name)._2
         else ???
       case SubbyteConstant(cc, i) => deepConstResolve(cc).>>>(i * 8).&(0xff)
+      case s: StructureConstant =>
+        s.typ.size match {
+          case 0 => 0
+          case 1 => deepConstResolve(s.subbyte(0))
+          case 2 => deepConstResolve(s.subword(0))
+          case _ => ???
+        }
       case CompoundConstant(operator, lc, rc) =>
         val l = deepConstResolve(lc)
         val r = deepConstResolve(rc)

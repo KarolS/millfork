@@ -107,4 +107,66 @@ class StructSuite extends FunSuite with Matchers {
       m.readByte(0xc400) should equal(1)
     }
   }
+
+  test("Struct literals") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)("""
+        | struct point { byte x, byte y }
+        | const point origin = point(1,2)
+        | noinline point move_right(point p) {
+        |   p.x += 1
+        |   return p
+        | }
+        | byte output @$c000
+        | void main () {
+        |   point p
+        |   p = move_right(origin)
+        |   p = move_right(point(1,2))
+        |   output = p.x
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(2)
+    }
+  }
+
+  test("Struct literals 2") {
+    val code = """
+        | struct point { word x, word y }
+        | const point origin = point(6, 8)
+        | noinline point move_right(point p) {
+        |   p.x += 1
+        |   return p
+        | }
+        | noinline point move_up(point p) {
+        |   p.y += 1
+        |   return p
+        | }
+        | word outputX @$c000
+        | word outputY @$c002
+        | void main () {
+        |   point p
+        |   p = point(0,0)
+        |   p = move_up(point(0,0))
+        |   p = origin
+        |   p = move_up(p) // ↑
+        |   p = move_right(p) // →
+        |   p = move_right(p) // →
+        |   p = move_up(p) // ↑
+        |   p = move_right(p) // →
+        |   p = move_right(p) // →
+        |   p = move_up(p) // ↑
+        |   p = move_up(p) // ↑
+        |   p = move_up(p) // ↑
+        |   p = move_right(p) // →
+        |   p = move_up(p) // ↑
+        |   p = move_up(p) // ↑
+        |   p = move_up(p) // ↑
+        |   outputX = p.x
+        |   outputY = p.y
+        | }
+      """.stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(code){ m =>
+      m.readWord(0xc000) should equal(code.count(_ == '→') + 6)
+      m.readWord(0xc002) should equal(code.count(_ == '↑') + 8)
+    }
+  }
 }

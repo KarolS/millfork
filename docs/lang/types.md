@@ -147,6 +147,12 @@ Offsets are available as `structname.fieldname.offset`:
     // alternatively:
     ptr = p.y.addr
 
+You can create constant expressions of struct types using so-called struct constructors, e.g.:
+
+    point(5,6)
+
+All arguments to the constructor must be constant.
+
 ## Unions
 
     union <name> { <field definitions (type and name), separated by commas or newlines>}
@@ -163,3 +169,5 @@ start at the same point in memory and therefore overlap each other.
     if u.w == 0 { ok() }
 
 Offset constants are also available, but they're obviously all zero.
+
+Unions currently do not have an equivalent of struct constructors. This may be improved on in the future.

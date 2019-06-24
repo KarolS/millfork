@@ -552,6 +552,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               case Some(ff: MangledFunction) =>
                 if (ff.returnType.isSigned) Some(e) -> Constant.Zero
                 else variable -> constant
+              case Some(t: StructType) =>
+                // dunno what to do
+                variable -> constant
+              case Some(t: UnionType) =>
+                // dunno what to do
+                None -> Constant.Zero
               case Some(t: Type) =>
                 if (t.isSigned) Some(e) -> Constant.Zero
                 else variable -> constant
@@ -745,10 +751,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case "||" | "|" =>
             constantOperation(MathOperator.Or, params)
           case _ =>
-            if (params.size == 1) {
-              return maybeGet[Type](name).flatMap(_ => eval(params.head))
+            maybeGet[Type](name) match {
+              case Some(t: StructType) =>
+                if (params.size == t.fields.size) {
+                  sequence(params.map(eval)).map(fields => StructureConstant(t, fields))
+                } else None
+              case Some(_: UnionType) =>
+                None
+              case Some(_) =>
+                if (params.size == 1) {
+                  eval(params.head)
+                } else None
+              case _ => None
             }
-            None
         }
     }
   }.map(_.quickSimplify)
@@ -1699,6 +1714,21 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     log.error("Cycles in struct definitions found")
   }
 
+  def fixStructFields(): Unit = {
+    things.values.foreach {
+      case st@StructType(_, fields) =>
+        st.mutableFieldsWithTypes = fields.map {
+          case (tn, name) => get[Type](tn) -> name
+        }
+      case ut@UnionType(_, fields) =>
+        ut.mutableFieldsWithTypes = fields.map {
+          case (tn, name) => get[Type](tn) -> name
+        }
+      case _ => ()
+    }
+
+  }
+
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
     val b = get[VariableType]("byte")
     val v = get[Type]("void")
@@ -1719,6 +1749,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case _ =>
     }
     fixStructSizes()
+    fixStructFields()
     val pointies = collectPointies(program.declarations)
     pointiesUsed("") = pointies
     program.declarations.foreach {

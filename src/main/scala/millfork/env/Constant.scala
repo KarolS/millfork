@@ -124,6 +124,34 @@ case class AssertByte(c: Constant) extends Constant {
   override def toIntelString: String = c.toIntelString
 }
 
+case class StructureConstant(typ: StructType, fields: List[Constant]) extends Constant {
+  override def toIntelString: String = typ.name + fields.map(_.toIntelString).mkString("(",",",")")
+
+  override def toString: String = typ.name + fields.map(_.toString).mkString("(",",",")")
+
+  override def requiredSize: Int = typ.size
+
+  override def isRelatedTo(v: Thing): Boolean = fields.exists(_.isRelatedTo(v))
+
+  override def refersTo(name: String): Boolean = typ.name == name || fields.exists(_.refersTo(name))
+
+  override def loByte: Constant = subbyte(0)
+
+  override def hiByte: Constant = subbyte(1)
+
+  override def subbyte(index: Int): Constant = {
+    var offset = 0
+    for ((fv, (ft, _)) <- fields.zip(typ.mutableFieldsWithTypes)) {
+      val fs = ft.size
+      if (index < offset + fs) {
+        return fv.subbyte(index - offset)
+      }
+      offset += fs
+    }
+    Constant.Zero
+  }
+}
+
 case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant {
   override def isRelatedTo(v: Thing): Boolean = false
 
