@@ -174,6 +174,8 @@ object ZRegister extends Enumeration {
     case 1 => MEM_ABS_8
     case 2 => MEM_ABS_16
   }
+
+  val main7Registers: Set[ZRegister.Value] = Set[ZRegister.Value](ZRegister.A, ZRegister.B, ZRegister.C, ZRegister.D, ZRegister.D, ZRegister.E, ZRegister.H, ZRegister.L)
 }
 
 //case class Indexing(child: Expression, register: Register.Value) extends Expression

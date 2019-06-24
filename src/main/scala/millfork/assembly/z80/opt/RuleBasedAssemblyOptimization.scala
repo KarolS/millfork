@@ -573,6 +573,26 @@ case class MatchTargetRegisterAndOffset(i: Int) extends AssemblyLinePattern {
   override def hitRate: Double = 0.879
 }
 
+case class MatchSourceRealRegister(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers match {
+      case TwoRegisters(_, s) if ZRegister.main7Registers(s) => ctx.addObject(i, s)
+      case _ => false
+    }
+
+  override def hitRate: Double = 0.931
+}
+
+case class MatchTargetRealRegister(i: Int) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers match {
+      case TwoRegisters(t, _) if ZRegister.main7Registers(t) => ctx.addObject(i, t)
+      case _ => false
+    }
+
+  override def hitRate: Double = 0.879
+}
+
 case class MatchSoleRegisterAndOffset(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.registers match {
@@ -922,6 +942,13 @@ case class Changes(register: ZRegister.Value) extends TrivialAssemblyLinePattern
   override def apply(line: ZLine): Boolean = line.changesRegister(register)
 
   override def hitRate: Double = 0.212
+}
+
+case class ChangesMatchedRegister(register: Int) extends AssemblyLinePattern {
+
+  override def hitRate: Double = 0.212 // ?
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = line.changesRegister(ctx.get[ZRegister.Value](register))
 }
 
 case class Concerns(register: ZRegister.Value) extends TrivialAssemblyLinePattern {

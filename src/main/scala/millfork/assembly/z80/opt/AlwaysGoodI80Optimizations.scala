@@ -292,6 +292,10 @@ object AlwaysGoodI80Optimizations {
       ctx.get[List[ZLine]](2) :+ ZLine.register(DEC_16, HL)
     },
 
+    // 67
+    (HasOpcode(LD) & MatchSourceRealRegister(0) & MatchTargetRealRegister(1)) ~
+      (Linear & Not(ChangesMatchedRegister(0)) & Not(ChangesMatchedRegister(1))).* ~
+      (Elidable & HasOpcode(LD) & MatchSourceRealRegister(1) & MatchTargetRealRegister(0)) ~~> (_.init),
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
