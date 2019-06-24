@@ -340,4 +340,39 @@ class ArraySuite extends FunSuite with Matchers {
       m.readByte(0xc027) should equal(0)
     }
   }
+
+  test("Local arrays") {
+    EmuUnoptimizedRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |   array square[5]
+        |   square[0] = 1
+        |   output = square[0]
+        | }
+      """.stripMargin).readByte(0xc000) should equal(1)
+    ShouldNotCompile(
+      """
+        | void main () {
+        |   array square = [0]
+        | }
+      """.stripMargin)
+    ShouldNotCompile(
+      """
+        | void f() {
+        |   square[1] = 1
+        | }
+        | void main () {
+        |   array square = [0]
+        | }
+      """.stripMargin)
+    EmuUnoptimizedRun(
+      """
+        | byte output @$c000
+        | void main () {
+        |   const array square = [1]
+        |   output = square[0]
+        | }
+      """.stripMargin).readByte(0xc000) should equal(1)
+  }
 }

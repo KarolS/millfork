@@ -375,7 +375,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       orElse(maybeGet[ThingInMemory](arrayName)).
       orElse(maybeGet[ThingInMemory](arrayName + ".array")).
       orElse(maybeGet[ConstantThing](arrayName)).
-      getOrElse(log.fatal(s"`$arrayName` is not an array or a pointer"))
+      getOrElse{
+        log.error(s"`$arrayName` is not an array or a pointer")
+        get[Thing]("nullptr")
+      }
   }
 
   def getPointy(name: String): Pointy = {
@@ -1018,6 +1021,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case Some(statements) =>
         statements.foreach {
           case v: VariableDeclarationStatement => env.registerVariable(v, options, pointies(v.name))
+          case a: ArrayDeclarationStatement => env.registerArray(a, options)
           case _ => ()
         }
         val executableStatements = statements.flatMap {
@@ -1293,6 +1297,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (options.flag(CompilationFlag.LUnixRelocatableCode) && stmt.alignment.exists(_.isMultiplePages)) {
       log.error("Invalid alignment for LUnix code", stmt.position)
     }
+    if (stmt.elements.isDefined && !stmt.const && parent.isDefined) {
+      log.error(s"Local array `${stmt.name}` cannot be initialized if it's not const", stmt.position)
+    }
+    val arrayName = prefix + stmt.name
     val b = get[VariableType]("byte")
     val w = get[VariableType]("word")
     val p = get[Type]("pointer")
@@ -1328,38 +1336,38 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
                 val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
                 val array = address match {
-                  case None => UninitializedArray(stmt.name + ".array", length.toInt,
+                  case None => UninitializedArray(arrayName + ".array", length.toInt,
                               declaredBank = stmt.bank, indexType, e, stmt.const, alignment)
-                  case Some(aa) => RelativeArray(stmt.name + ".array", aa, length.toInt,
+                  case Some(aa) => RelativeArray(arrayName + ".array", aa, length.toInt,
                               declaredBank = stmt.bank, indexType, e, stmt.const)
                 }
                 addThing(array, stmt.position)
-                registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None, stmt.bank, alignment, isVolatile = false), stmt.position, options, Some(e))
+                registerAddressConstant(UninitializedMemoryVariable(arrayName, p, VariableAllocationMethod.None, stmt.bank, alignment, isVolatile = false), stmt.position, options, Some(e))
                 val a = address match {
                   case None => array.toAddress
                   case Some(aa) => aa
                 }
-                addThing(RelativeVariable(stmt.name + ".first", a, b, zeropage = false,
+                addThing(RelativeVariable(arrayName + ".first", a, b, zeropage = false,
                             declaredBank = stmt.bank, isVolatile = false), stmt.position)
                 if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
                   val b = get[Type]("byte")
                   val w = get[Type]("word")
-                  val relocatable = UninitializedMemoryVariable(stmt.name, w, VariableAllocationMethod.Static, None, NoAlignment, isVolatile = false)
+                  val relocatable = UninitializedMemoryVariable(arrayName, w, VariableAllocationMethod.Static, None, NoAlignment, isVolatile = false)
                   val addr = relocatable.toAddress
                   addThing(relocatable, stmt.position)
-                  addThing(RelativeVariable(stmt.name + ".addr.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
-                  addThing(RelativeVariable(stmt.name + ".addr.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
-                  addThing(RelativeVariable(stmt.name + ".array.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
-                  addThing(RelativeVariable(stmt.name + ".array.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
+                  addThing(RelativeVariable(arrayName + ".addr.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
+                  addThing(RelativeVariable(arrayName + ".addr.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
+                  addThing(RelativeVariable(arrayName + ".array.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
+                  addThing(RelativeVariable(arrayName + ".array.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
                 } else {
-                  addThing(ConstantThing(stmt.name, a, p), stmt.position)
-                  addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
-                  addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
-                  addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
-                  addThing(ConstantThing(stmt.name + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
+                  addThing(ConstantThing(arrayName, a, p), stmt.position)
+                  addThing(ConstantThing(arrayName + ".hi", a.hiByte.quickSimplify, b), stmt.position)
+                  addThing(ConstantThing(arrayName + ".lo", a.loByte.quickSimplify, b), stmt.position)
+                  addThing(ConstantThing(arrayName + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
+                  addThing(ConstantThing(arrayName + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
                 }
                 if (length < 256) {
-                  addThing(ConstantThing(stmt.name + ".length", lengthConst, b), stmt.position)
+                  addThing(ConstantThing(arrayName + ".length", lengthConst, b), stmt.position)
                 }
               case _ => log.error(s"Array `${stmt.name}` has weird length", stmt.position)
             }
@@ -1406,33 +1414,33 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         for (element <- contents) {
           AbstractExpressionCompiler.checkAssignmentType(this, element, e)
         }
-        val array = InitializedArray(stmt.name + ".array", address, contents, declaredBank = stmt.bank, indexType, e, readOnly = stmt.const, alignment)
+        val array = InitializedArray(arrayName + ".array", address, contents, declaredBank = stmt.bank, indexType, e, readOnly = stmt.const, alignment)
         addThing(array, stmt.position)
-        registerAddressConstant(UninitializedMemoryVariable(stmt.name, p, VariableAllocationMethod.None,
+        registerAddressConstant(UninitializedMemoryVariable(arrayName, p, VariableAllocationMethod.None,
                     declaredBank = stmt.bank, alignment, isVolatile = false), stmt.position, options, Some(e))
         val a = address match {
           case None => array.toAddress
           case Some(aa) => aa
         }
-        addThing(RelativeVariable(stmt.name + ".first", a, e, zeropage = false,
+        addThing(RelativeVariable(arrayName + ".first", a, e, zeropage = false,
                     declaredBank = stmt.bank, isVolatile = false), stmt.position)
         if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
           val b = get[Type]("byte")
           val w = get[Type]("word")
-          val relocatable = UninitializedMemoryVariable(stmt.name, w, VariableAllocationMethod.Static, None, NoAlignment, isVolatile = false)
+          val relocatable = UninitializedMemoryVariable(arrayName, w, VariableAllocationMethod.Static, None, NoAlignment, isVolatile = false)
           val addr = relocatable.toAddress
           addThing(relocatable, stmt.position)
-          addThing(RelativeVariable(stmt.name + ".array.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
-          addThing(RelativeVariable(stmt.name + ".array.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
+          addThing(RelativeVariable(arrayName + ".array.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
+          addThing(RelativeVariable(arrayName + ".array.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
         } else {
-          addThing(ConstantThing(stmt.name, a, p), stmt.position)
-          addThing(ConstantThing(stmt.name + ".hi", a.hiByte.quickSimplify, b), stmt.position)
-          addThing(ConstantThing(stmt.name + ".lo", a.loByte.quickSimplify, b), stmt.position)
-          addThing(ConstantThing(stmt.name + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
-          addThing(ConstantThing(stmt.name + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
+          addThing(ConstantThing(arrayName, a, p), stmt.position)
+          addThing(ConstantThing(arrayName + ".hi", a.hiByte.quickSimplify, b), stmt.position)
+          addThing(ConstantThing(arrayName + ".lo", a.loByte.quickSimplify, b), stmt.position)
+          addThing(ConstantThing(arrayName + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
+          addThing(ConstantThing(arrayName + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
         }
         if (length < 256) {
-          addThing(ConstantThing(stmt.name + ".length", NumericConstant(length, 1), b), stmt.position)
+          addThing(ConstantThing(arrayName + ".length", NumericConstant(length, 1), b), stmt.position)
         }
     }
   }

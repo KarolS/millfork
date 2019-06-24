@@ -36,6 +36,8 @@
 
 * Arrays can now be constant.
 
+* Arrays can now be local.
+
 * Added hint for identifiers with typos.
 
 * Aliases now also support subfields.

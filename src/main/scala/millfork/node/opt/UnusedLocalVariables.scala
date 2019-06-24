@@ -21,6 +21,7 @@ object UnusedLocalVariables extends NodeOptimization {
 
   def getAllLocalVariables(statements: List[Statement]): List[String] = statements.flatMap {
     case v: VariableDeclarationStatement => List(v.name)
+    case v: ArrayDeclarationStatement => List(v.name)
     case x: IfStatement => getAllLocalVariables(x.thenBranch) ++ getAllLocalVariables(x.elseBranch)
     case x: WhileStatement => getAllLocalVariables(x.body)
     case x: DoWhileStatement => getAllLocalVariables(x.body)
@@ -32,6 +33,7 @@ object UnusedLocalVariables extends NodeOptimization {
     case CompoundConstant(_, l, r) => getAllReadVariables(l) ++ getAllReadVariables(r)
     case MemoryAddressConstant(th) => List(
       th.name,
+      th.name.stripSuffix(".array"),
       th.name.stripSuffix(".addr"),
       th.name.stripSuffix(".hi"),
       th.name.stripSuffix(".lo"),
@@ -77,6 +79,8 @@ object UnusedLocalVariables extends NodeOptimization {
 
   def removeVariables(statements: List[Statement], localsToRemove: Set[String]): List[Statement] = if (localsToRemove.isEmpty) statements else statements.flatMap {
     case s: VariableDeclarationStatement =>
+      if (localsToRemove(s.name)) None else Some(s)
+    case s: ArrayDeclarationStatement =>
       if (localsToRemove(s.name)) None else Some(s)
     case s@ExpressionStatement(FunctionCallExpression(op, VariableExpression(n) :: params)) if op.endsWith("=") =>
       if (localsToRemove(n)) {

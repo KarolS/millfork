@@ -104,6 +104,10 @@ This allows for overriding definitions of library functions by another library:
 
 An array is a continuous sequence of bytes in memory.
 
+An array declaration can happen at either top level of a file (*global* arrays), 
+or a top level of a function (*local* arrays).
+Regardless of where they were declared, arrays are considered static.
+
 Syntax:
 
 `[segment(<segment>)] [const] array [(<element type>)] <name> [[<size>]] [align ( <alignment> )] [@<address>] [= <initial_values>]`
@@ -133,7 +137,8 @@ If the declared size and the size deduced from the `<initial_values>` don't matc
 
 * `<address>` is a constant expression that defines where in the memory the array is or will be located.
 
-* `<initial_values>` is an array literal, see [Literals](./literals.md)
+* `<initial_values>` is an array literal, see [Literals](./literals.md).
+Local arrays can have initial values only if they're const.
 
 TODO
 
