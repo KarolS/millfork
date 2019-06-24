@@ -312,11 +312,13 @@ for <variable> : [ <comma separated expressions> ]  {
     
     * `paralleluntil` – the same as `until`, but the iterations may be executed in any order
     
-    There is no `paralleldownto`, because it would do the same as `parallelto`.
+    There is no `paralleldownto`, because it would do the same as `parallelto` with swapped arguments.
 
 * `<enum type>` – traverse enum constants of given type, in arbitrary order
 
-* `<comma separated expressions>` – traverse every value in the list
+* `<comma separated expressions>` – traverse every value in the list, in the given order.
+Values do not have to be constant.
+If a value is not a constant and its value changes while executing the loop, the behaviour is undefined.
 
 ### `break` and `continue` statements
 

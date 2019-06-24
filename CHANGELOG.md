@@ -66,6 +66,8 @@
 
 * Fixed `@long` and `@long_be` array filters.
 
+* Fixed for-each loops with non-constant arrays.
+
 * 8080 and LR35902: fixed large stack variables.
 
 * Other bug fixes.

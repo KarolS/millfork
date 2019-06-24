@@ -515,7 +515,7 @@ case class ForStatement(variable: String, start: Expression, end: Expression, di
 }
 
 case class ForEachStatement(variable: String, values: Either[Expression, List[Expression]], body: List[ExecutableStatement]) extends CompoundStatement {
-  override def getAllExpressions: List[Expression] = VariableExpression(variable) :: body.flatMap(_.getAllExpressions)
+  override def getAllExpressions: List[Expression] = VariableExpression(variable) :: (values.fold[List[Expression]](_ => Nil, identity) ++ body.flatMap(_.getAllExpressions))
 
   override def getChildStatements: Seq[Statement] = body
   override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {

@@ -351,7 +351,9 @@ class ForLoopSuite extends FunSuite with Matchers {
         |   for p:[$c000, $c003, $c005, $c007]{
         |     p[0] = 34
         |   }
-        |   for p:[$c001, $c004, $c006, $c008]{
+        |   word w
+        |   w = $c004
+        |   for p:[$c001, w, $c006, w+4]{
         |     p[0] = 42
         |   }
         | }
