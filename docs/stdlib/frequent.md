@@ -10,6 +10,9 @@ Prints a single character.
 
 Available for: all computer targets.
 
+Note that this function obeys typical platform idiosyncrasies,
+for example on CBM targets the quote character will toggle the quotation mode.
+
 #### `void new_line()`
 
 Moves the cursor to the next line.

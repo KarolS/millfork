@@ -9,6 +9,9 @@ It requires an implementation of `void putchar(byte a)` and therefore works only
 
 Prints a string of length `len` located at address `str`.  
 
+Note that both this function and `putstrz` obey typical platform idiosyncrasies,
+for example on CBM targets the quote character will toggle the quotation mode. This may be subject to change.
+
 #### `void putstrz(pointer str)`
 
 Prints a null-terminated string located at address `str`.  
