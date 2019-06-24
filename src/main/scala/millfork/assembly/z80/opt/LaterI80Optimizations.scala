@@ -61,6 +61,20 @@ object LaterI80Optimizations {
       List(ZLine.ldImm16(BC, h.asl(8).+(l).quickSimplify).pos(code.map(_.source)))
     },
 
+    (Elidable & Is8BitLoadTo(H) & Match8BitImmediate(1)) ~
+      (Elidable & Is8BitLoadTo(L) & Match8BitImmediate(0)) ~~> { (code, ctx) =>
+      val l = ctx.get[Constant](0)
+      val h = ctx.get[Constant](1)
+      List(ZLine.ldImm16(HL, h.asl(8).+(l).quickSimplify).pos(code.map(_.source)))
+    },
+
+    (Elidable & Is8BitLoadTo(L) & Match8BitImmediate(0)) ~
+      (Elidable & Is8BitLoadTo(H) & Match8BitImmediate(1)) ~~> { (code, ctx) =>
+      val l = ctx.get[Constant](0)
+      val h = ctx.get[Constant](1)
+      List(ZLine.ldImm16(HL, h.asl(8).+(l).quickSimplify).pos(code.map(_.source)))
+    },
+
     (Elidable & Is8BitLoadTo(D) & Match8BitImmediate(1)) ~
       (Elidable & Is8BitLoadTo(E) & Match8BitImmediate(0)) ~~> { (code, ctx) =>
       val l = ctx.get[Constant](0)
