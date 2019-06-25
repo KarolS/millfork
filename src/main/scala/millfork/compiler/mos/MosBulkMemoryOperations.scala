@@ -3,7 +3,7 @@ package millfork.compiler.mos
 import millfork.CompilationFlag
 import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, Opcode}
 import millfork.compiler.{AbstractExpressionCompiler, BranchSpec, CompilationContext}
-import millfork.env.{Label, MemoryAddressConstant, NumericConstant, Type, Variable, VariableInMemory}
+import millfork.env.{Label, MemoryAddressConstant, MemoryVariable, NumericConstant, RelativeVariable, Type, Variable, VariableAllocationMethod, VariableInMemory}
 import millfork.node._
 import millfork.assembly.mos.Opcode._
 
@@ -182,6 +182,13 @@ object MosBulkMemoryOperations {
     import ForDirection._
     val target = ctx.env.maybeGet[Variable](targetExpression.name).getOrElse(return None)
     if (target.isVolatile) return None
+    val indexVariable = ctx.env.get[Variable](f.variable)
+    if (indexVariable.isVolatile || indexVariable.typ.size != 1) return None
+    indexVariable match {
+      case v: MemoryVariable =>
+        if (v.alloc == VariableAllocationMethod.Static) return None
+      case _ => return None
+    }
     val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
     if (sourceType.size != 1) return None
     if (!sourceType.isArithmetic) return None
@@ -193,7 +200,6 @@ object MosBulkMemoryOperations {
       if (!target.typ.isArithmetic) return None
       if (target.typ.size != 1) return None
     }
-    val indexVariable = ctx.env.get[Variable](f.variable)
     val loadSource = MosExpressionCompiler.compileToA(ctx, source) match {
       case List(AssemblyLine0(LDY, Absolute | ZeroPage, MemoryAddressConstant(index)), l@AssemblyLine0(LDA, AbsoluteY | IndexedY, _)) if index.name == indexVariable.name => l
       case List(l@AssemblyLine0(LDA, Absolute | ZeroPage | Immediate, _)) => l
