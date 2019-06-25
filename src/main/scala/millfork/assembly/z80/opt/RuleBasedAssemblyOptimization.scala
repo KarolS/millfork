@@ -181,6 +181,23 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     jumps.isEmpty
   }
 
+  def isStackPreservingBlock(i: Int): Boolean = {
+    import millfork.assembly.z80.ZOpcode._
+    var pushCount = 0
+    get[List[ZLine]](i).foreach {
+      case ZLine0(RET | RST | RETI | RETN, _, _) =>
+        return false
+      case ZLine0(PUSH, _, _) =>
+        pushCount += 1
+      case ZLine0(POP, _, _) =>
+        pushCount -= 1
+        if (pushCount < 0) return false
+      case l =>
+        if (ReadsStackPointer(l)) return false
+    }
+    pushCount == 0
+  }
+
   def isAlignableBlock(i: Int): Boolean = {
     if (!isExternallyLinearBlock(i)) return false
     import ZOpcode._
@@ -911,6 +928,10 @@ case object ReadsStackPointer extends TrivialAssemblyLinePattern {
           case _ => false
         }
       case LD_HLSP  | LD_DESP | PUSH | POP => true
+      case CALL => line.parameter match {
+        case MemoryAddressConstant(th: NormalFunction) => false
+        case _ => true
+      }
       case _ => false
     }
   }

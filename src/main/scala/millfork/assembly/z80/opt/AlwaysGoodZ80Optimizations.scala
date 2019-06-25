@@ -140,8 +140,20 @@ object AlwaysGoodZ80Optimizations {
       List(ZLine.ld8(ZRegister.MEM_BC, ZRegister.A))
     },
 
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.C)) ~
+      (Elidable & Is8BitLoad(ZRegister.H, ZRegister.B)) ~
+      (Elidable & Is8BitLoad(ZRegister.MEM_HL, ZRegister.A) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
+      List(ZLine.ld8(ZRegister.MEM_BC, ZRegister.A))
+    },
+
     (Elidable & Is8BitLoad(ZRegister.H, ZRegister.D)) ~
       (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
+      (Elidable & Is8BitLoad(ZRegister.MEM_HL, ZRegister.A) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
+      List(ZLine.ld8(ZRegister.MEM_DE, ZRegister.A))
+    },
+
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
+      (Elidable & Is8BitLoad(ZRegister.H, ZRegister.D)) ~
       (Elidable & Is8BitLoad(ZRegister.MEM_HL, ZRegister.A) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
       List(ZLine.ld8(ZRegister.MEM_DE, ZRegister.A))
     },
@@ -152,8 +164,20 @@ object AlwaysGoodZ80Optimizations {
       List(ZLine.ld8(ZRegister.A, ZRegister.MEM_BC))
     },
 
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.C)) ~
+      (Elidable & Is8BitLoad(ZRegister.H, ZRegister.B)) ~
+      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
+      List(ZLine.ld8(ZRegister.A, ZRegister.MEM_BC))
+    },
+
     (Elidable & Is8BitLoad(ZRegister.H, ZRegister.D)) ~
       (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
+      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
+      List(ZLine.ld8(ZRegister.A, ZRegister.MEM_DE))
+    },
+
+    (Elidable & Is8BitLoad(ZRegister.L, ZRegister.E)) ~
+      (Elidable & Is8BitLoad(ZRegister.H, ZRegister.D)) ~
       (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> {_ =>
       List(ZLine.ld8(ZRegister.A, ZRegister.MEM_DE))
     },
