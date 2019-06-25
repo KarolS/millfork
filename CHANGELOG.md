@@ -14,6 +14,8 @@
 
 * Added `memory_barrier` macro.
 
+* Added `readkey` function.
+
 * Added `random` module.
 
 * Added `ensure_mixedcase` function and `oldpet` and `origpet` text encodings.
@@ -44,9 +46,13 @@
 
 * Short functions can be now defined using expression syntax.
 
+* C64: Printing double quote characters doesn't toggle the quotation mode anymore. 
+
 * 6502: Fixed optimizations using index registers.
 
 * 6502: Fixed optimizations of comparisons.
+
+* 6502: Fixed optimizations near `for` loops over in-place lists.
 
 * Preprocessor: Added `#use A=B` directive
 
