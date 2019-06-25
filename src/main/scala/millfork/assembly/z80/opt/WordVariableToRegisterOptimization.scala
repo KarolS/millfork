@@ -8,6 +8,7 @@ import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
 
 import scala.collection.mutable.ListBuffer
+import scala.util.control.TailCalls.{TailRec, done, tailcall}
 
 /**
   * @author Karol Stasiak
@@ -126,7 +127,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
           case (v, range, _) =>
             log.debug(s"Inlining $v to register pair HL")
             val oldCode = vs.codeWithFlow.slice(range.start, range.end)
-            val newCode = inlineVars(v, "", "", oldCode)
+            val newCode = inlineVars(v, "", "", oldCode).result
             reportOptimizedBlock(oldCode, newCode)
             output ++= newCode
             i = range.end
@@ -140,7 +141,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
             case (v, range, _) =>
               log.debug(s"Inlining $v to register pair BC")
               val oldCode = vs.codeWithFlow.slice(range.start, range.end)
-              val newCode = inlineVars("", v, "", oldCode)
+              val newCode = inlineVars("", v, "", oldCode).result
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
@@ -155,7 +156,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
             case (v, range, _) =>
               log.debug(s"Inlining $v to register pair DE")
               val oldCode = vs.codeWithFlow.slice(range.start, range.end)
-              val newCode = inlineVars("", "", v, oldCode)
+              val newCode = inlineVars("", "", v, oldCode).result
               reportOptimizedBlock(oldCode, newCode)
               output ++= newCode
               i = range.end
@@ -295,7 +296,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     }
   }
 
-  def inlineVars(hl: String, bc: String, de: String, code: List[(FlowInfo, ZLine)]): List[ZLine] = {
+  def inlineVars(hl: String, bc: String, de: String, code: List[(FlowInfo, ZLine)]): TailRec[List[ZLine]] = {
     //    if (code.nonEmpty) println(code.head)
     code match {
 
@@ -303,165 +304,169 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         (f, add@ZLine(ADD_16, TwoRegisters(HL, BC), _, _, s2)) ::
         xs if bc != "" =>
         if (f.importanceAfter.getRegister(DE) == Important) {
-          ZLine.register(PUSH, BC).pos(s1) :: load :: add :: ZLine.register(POP, BC).pos(s2) :: inlineVars(hl, bc, de, xs)
+          tailcall(inlineVars(hl, bc, de, xs)).map(
+            ZLine.register(PUSH, BC).pos(s1) :: load :: add :: ZLine.register(POP, BC).pos(s2) :: _)
         } else {
-          load.copy(registers = TwoRegisters(DE, IMM_16)) ::
-            ZLine.registers(ADD_16, HL, DE).pos(s2) ::
-            inlineVars(hl, bc, de, xs)
+          tailcall(inlineVars(hl, bc, de, xs)).map(
+            load.copy(registers = TwoRegisters(DE, IMM_16)) :: ZLine.registers(ADD_16, HL, DE).pos(s2) :: _)
         }
 
       case (_, load@ZLine(LD_16, TwoRegisters(DE, IMM_16), _, _, s1)) ::
         (f, add@ZLine(ADD_16, TwoRegisters(HL, DE), _, _, s2)) ::
         xs if de != "" =>
         if (f.importanceAfter.getRegister(BC) == Important) {
-          ZLine.register(PUSH, DE).pos(s1) :: load :: add :: ZLine.register(POP, DE).pos(s2) :: inlineVars(hl, bc, de, xs)
+          tailcall(inlineVars(hl, bc, de, xs)).map(
+            ZLine.register(PUSH, DE).pos(s1) :: load :: add :: ZLine.register(POP, DE).pos(s2) :: _)
         } else {
-          load.copy(registers = TwoRegisters(BC, IMM_16)) ::
-            ZLine.registers(ADD_16, HL, BC).pos(s2) ::
-            inlineVars(hl, bc, de, xs)
+          tailcall(inlineVars(hl, bc, de, xs)).map(
+            load.copy(registers = TwoRegisters(BC, IMM_16)) :: ZLine.registers(ADD_16, HL, BC).pos(s2) :: _)
         }
 
       case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), a1@MemoryAddressConstant(th1), _, s1)) ::
         (_, ZLine(ADD_16, TwoRegisters(HL, reg@(DE | BC)), _, _, s2)) ::
         (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), a2@MemoryAddressConstant(th2), _, s3)) ::
-        xs if hl != "" && th1.name != hl && th2.name != hl=>
+        xs if hl != "" && th1.name != hl && th2.name != hl =>
         // bytes before: 3 + 1 + 3 = 7
         // cycles before: 16 + 11 + 16 = 43
         // bytes after: 3 + 1 + 3 + 3 + 1 + 3 = 14
         // cycles after: 13 + 4 + 13 + 13 + 4 + 13 = 60
-        val (h,l) = reg match {
-          case BC => (B,C)
+        val (h, l) = reg match {
+          case BC => (B, C)
           case DE => (D, E)
         }
-        ZLine.ldAbs8(A, a1).pos(s1) ::
-          ZLine.register(ADD, l).pos(s2) ::
-          ZLine.ldAbs8(a2, A).pos(s3) ::
-          ZLine.ldAbs8(A, a1 + 1).pos(s1) ::
-          ZLine.register(ADC, h).pos(s2) ::
-          ZLine.ldAbs8(a2 + 1, A).pos(s3) ::
-          inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(
+          ZLine.ldAbs8(A, a1).pos(s1) ::
+            ZLine.register(ADD, l).pos(s2) ::
+            ZLine.ldAbs8(a2, A).pos(s3) ::
+            ZLine.ldAbs8(A, a1 + 1).pos(s1) ::
+            ZLine.register(ADC, h).pos(s2) ::
+            ZLine.ldAbs8(a2 + 1, A).pos(s3) :: _)
 
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s1)) ::
         (_, loadConst@ZLine(LD_16, TwoRegisters(BC, constSource), _, _, s2)) ::
         (_, add@ZLine(ADD_16, TwoRegisters(HL, BC), _, _, s3)) :: xs if th.name == bc =>
-        ZLine.ld8(B, H).pos(s1) :: ZLine.ld8(C, L).pos(s1) ::
-          loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
-          add.copy(registers = TwoRegisters(HL, BC)) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(
+          ZLine.ld8(B, H).pos(s1) :: ZLine.ld8(C, L).pos(s1) ::
+            loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
+            add.copy(registers = TwoRegisters(HL, BC)) :: _)
 
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s1)) ::
         (_, loadConst@ZLine0(LD_16, TwoRegisters(DE, constSource), _)) ::
         (_, add@ZLine0(ADD_16, TwoRegisters(HL, DE), _)) :: xs if th.name == de =>
-        ZLine.ld8(D, H).pos(s1) :: ZLine.ld8(E, L).pos(s1) ::
-          loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
-          add.copy(registers = TwoRegisters(HL, DE)) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(
+          ZLine.ld8(D, H).pos(s1) :: ZLine.ld8(E, L).pos(s1) ::
+            loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
+            add.copy(registers = TwoRegisters(HL, DE)) :: _)
       // TODO: above with regs swapped
 
       case (_, loadConst@ZLine0(LD_16, TwoRegisters(t, constSource), _)) ::
         (_, ZLine0(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th))) ::
         (_, add@ZLine0(ADD_16, TwoRegisters(HL, t2), _)) :: xs if th.name == bc && t == t2 && t != HL =>
-        loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
-          add.copy(registers = TwoRegisters(HL, BC)) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(
+          loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
+            add.copy(registers = TwoRegisters(HL, BC)) :: _)
 
-      case (_, loadConst@ZLine0(LD_16, TwoRegisters(t, constSource),_)) ::
+      case (_, loadConst@ZLine0(LD_16, TwoRegisters(t, constSource), _)) ::
         (_, ZLine0(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th))) ::
         (_, add@ZLine0(ADD_16, TwoRegisters(HL, t2), _)) :: xs if th.name == de && t == t2 && t != HL =>
-        loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
-          add.copy(registers = TwoRegisters(HL, DE)) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(
+          loadConst.copy(registers = TwoRegisters(HL, constSource)) ::
+            add.copy(registers = TwoRegisters(HL, DE)) :: _)
 
       case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
-        inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs))
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
-        inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs))
       case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
-        ZLine.ld8(H, B).pos(s) :: ZLine.ld8(L, C).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(H, B).pos(s) :: ZLine.ld8(L, C).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
-        ZLine.ld8(B, H).pos(s) :: ZLine.ld8(C, L).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(B, H).pos(s) :: ZLine.ld8(C, L).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(HL, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
-        ZLine.ld8(H, D).pos(s) :: ZLine.ld8(L, E).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(H, D).pos(s) :: ZLine.ld8(L, E).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
-        ZLine.ld8(D, H).pos(s) :: ZLine.ld8(E, L).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(D, H).pos(s) :: ZLine.ld8(E, L).pos(s) :: _)
 
       case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
-        inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs))
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
-        inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs))
       case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
-        ZLine.ld8(D, B).pos(s) :: ZLine.ld8(E, C).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(D, B).pos(s) :: ZLine.ld8(E, C).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
-        ZLine.ld8(B, D).pos(s) :: ZLine.ld8(C, E).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(B, D).pos(s) :: ZLine.ld8(C, E).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(DE, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
-        ZLine.ld8(D, H).pos(s) :: ZLine.ld8(E, L).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(D, H).pos(s) :: ZLine.ld8(E, L).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
-        ZLine.ld8(H, D).pos(s) :: ZLine.ld8(L, E).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(H, D).pos(s) :: ZLine.ld8(L, E).pos(s) :: _)
 
       case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
-        inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs))
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
-        inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs))
       case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
-        ZLine.ld8(B, H).pos(s) :: ZLine.ld8(C, L).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(B, H).pos(s) :: ZLine.ld8(C, L).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
-        ZLine.ld8(H, B).pos(s) :: ZLine.ld8(L, C).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(H, B).pos(s) :: ZLine.ld8(L, C).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(BC, MEM_ABS_16), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
-        ZLine.ld8(B, D).pos(s) :: ZLine.ld8(C, E).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(B, D).pos(s) :: ZLine.ld8(C, E).pos(s) :: _)
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
-        ZLine.ld8(D, B).pos(s) :: ZLine.ld8(E, C).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(D, B).pos(s) :: ZLine.ld8(E, C).pos(s) :: _)
 
       case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
-        ZLine.ld8(A, L).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(A, L).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _, s)) :: xs if th.name == hl =>
-        ZLine.ld8(L, A).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(L, A).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
-        ZLine.ld8(A, C).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(A, C).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _, s)) :: xs if th.name == bc =>
-        ZLine.ld8(C, A).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(C, A).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
-        ZLine.ld8(A, E).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(A, E).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), MemoryAddressConstant(th), _, s)) :: xs if th.name == de =>
-        ZLine.ld8(E, A).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(E, A).pos(s) :: _)
 
       case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == hl =>
-        ZLine.ld8(A, H).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(A, H).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == hl =>
-        ZLine.ld8(H, A).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(H, A).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == bc =>
-        ZLine.ld8(A, B).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(A, B).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == bc =>
-        ZLine.ld8(B, A).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(B, A).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(A, MEM_ABS_8), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == de =>
-        ZLine.ld8(A, D).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(A, D).pos(s) :: _)
       case (_, ZLine(LD, TwoRegisters(MEM_ABS_8, A), CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _)), _, s)) :: xs if th.name == de =>
-        ZLine.ld8(D, A).pos(s) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.ld8(D, A).pos(s) :: _)
 
       case (_, l1@ZLine(LD_16, TwoRegisters(BC, IMM_16), _, _, s1)) :: (_, l2@ZLine(ADD_16, TwoRegisters(HL, BC), _, _, s2)) :: xs if bc != "" =>
-        ZLine.register(PUSH, BC).pos(s1) :: l1 :: l2 :: ZLine.register(POP, BC).pos(s2) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.register(PUSH, BC).pos(s1) :: l1 :: l2 :: ZLine.register(POP, BC).pos(s2) :: _)
 
       case (_, l1@ZLine(LD_16, TwoRegisters(DE, IMM_16), _, _, s1)) :: (_, l2@ZLine(ADD_16, TwoRegisters(HL, DE), _, _, s2)) :: xs if de != "" =>
-        ZLine.register(PUSH, DE).pos(s1) :: l1 :: l2 :: ZLine.register(POP, DE).pos(s2) :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.register(PUSH, DE).pos(s1) :: l1 :: l2 :: ZLine.register(POP, DE).pos(s2) :: _)
 
       case (_, x@ZLine(CALL, _, _, _, s)) :: xs =>
         if (bc != "") {
-          ZLine.register(PUSH, BC).pos(s) :: x :: ZLine.register(POP, BC).pos(s) :: inlineVars(hl, bc, de, xs)
+          tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.register(PUSH, BC).pos(s) :: x :: ZLine.register(POP, BC).pos(s) :: _)
         } else if (de != "") {
-          ZLine.register(PUSH, DE).pos(s) :: x :: ZLine.register(POP, DE).pos(s) :: inlineVars(hl, bc, de, xs)
+          tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.register(PUSH, DE).pos(s) :: x :: ZLine.register(POP, DE).pos(s) :: _)
         } else {
           throw new IllegalStateException()
         }
 
 
       case x :: (_, ZLine0(LD_16, TwoRegisters(MEM_ABS_16, HL), MemoryAddressConstant(th))) :: xs if x._2.changesRegister(HL) && th.name == hl =>
-        x._2 :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(x._2 :: _)
       case x :: (_, ZLine0(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th))) :: xs if x._2.changesRegister(BC) && th.name == bc =>
-        x._2 :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(x._2 :: _)
       case x :: (_, ZLine0(LD_16, TwoRegisters(MEM_ABS_16, DE), MemoryAddressConstant(th))) :: xs if x._2.changesRegister(DE) && th.name == de =>
-        x._2 :: inlineVars(hl, bc, de, xs)
+        tailcall(inlineVars(hl, bc, de, xs)).map(x._2 :: _)
 
       case x :: _ if bc != "" && x._2.changesRegister(BC) => throw new IllegalStateException()
       case x :: _ if de != "" && x._2.changesRegister(DE) => throw new IllegalStateException()
       case x :: _ if hl != "" && x._2.changesRegister(HL) => throw new IllegalStateException()
 
-      case x :: xs => x._2 :: inlineVars(hl, bc, de, xs)
-      case Nil => Nil
+      case x :: xs => tailcall(inlineVars(hl, bc, de, xs)).map(x._2 :: _)
+      case Nil => done(Nil)
     }
   }
 }
