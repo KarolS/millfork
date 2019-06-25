@@ -2,11 +2,12 @@
 
 // CHROUT. Write byte to default output. (If not screen, must call OPEN and CHKOUT beforehands.)
 // Input: A = Byte to write.
-asm void putchar(byte a) @$FFD2 extern
+asm void chrout(byte a) @$FFD2 extern
 
 // CHRIN. Read byte from default input (for keyboard, read a line from the screen). (If not keyboard, must call OPEN and CHKIN beforehands.)
 // Output: A = Byte read.
-asm byte getchar() @$FFCF extern
+asm byte chrin() @$FFCF extern
+alias getchar = chrin
 
 // CHKIN. Define file as default input. (Must call OPEN beforehands.)
 // Input: X = Logical number.
@@ -23,8 +24,22 @@ asm void clrchn() @$FFCC extern
 // Output: A = Device status.
 asm byte readst() @$FFB7 extern
 
+inline asm void putchar(byte a) {
+    JSR chrout
+    LDA #0
+    STA $D4
+    ? RTS
+}
+
+noinline asm byte readkey() {
+__read_key__start
+    LDA $C6
+    BEQ __read_key__start
+    JMP $E5B4
+}
+
 inline void new_line() {
-    putchar(13)
+    chrout(13)
 }
 
 // OPEN. Open file. (Must call SETLFS and SETNAM beforehands.)

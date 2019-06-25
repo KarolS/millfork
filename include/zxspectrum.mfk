@@ -14,6 +14,16 @@ inline void new_line() {
     putchar(13)
 }
 
+asm byte readkey() {
+    ld hl,23560
+    ld (hl),0
+__readkey__start:
+    ld a,(hl)
+    or a
+    jr z,__readkey__start
+    ? ret
+}
+
 inline asm void set_border(byte a) {
     out (254),a
     ? ret

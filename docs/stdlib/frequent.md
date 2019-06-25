@@ -8,16 +8,34 @@ However, as they are not the part of the standard library, they might not be ava
 
 Prints a single character.
 
-Available for: all computer targets.
+Available for: all computer targets.  
+Uses ROM routines, so requires the appropriate ROM to be enabled if applicable.
 
-Note that this function obeys typical platform idiosyncrasies,
-for example on CBM targets the quote character will toggle the quotation mode.
+Note that this function may obey typical platform idiosyncrasies, for example:
+
+* on CBM targets other than C64 the quote character toggles the quotation mode
+
+* printing past the end of line might insert a blank line below the current one
+
+* printing past the end of the screen might ask the user to confirm scrolling
+
+The exact behaviour is platform-dependent.
+Future library versions will strive to eliminate those issues.
 
 #### `void new_line()`
 
 Moves the cursor to the next line.
 
-Available for: all computer targets.
+Available for: all computer targets.  
+Uses ROM routines, so requires the appropriate ROM to be enabled if applicable.
+
+#### `byte readkey()`
+
+Waits for and reads a single keypress.
+
+Available for:
+Commodore 64 (requires KERNAL),
+ZX Spectrum.
 
 #### `pointer readline()`
 
@@ -28,8 +46,8 @@ Available for:
 ZX Spectrum,
 NEC PC-88,
 MSX,
-Commodore 64 with `c64_basic` module,
-Commodore 16 or Plus/4 with `c264_basic` module.
+Commodore 64 with `c64_basic` module (requires KERNAL and BASIC),
+Commodore 16 or Plus/4 with `c264_basic` module (requires KERNAL and BASIC).
 
 #### `word readword()`
 
@@ -39,14 +57,15 @@ Available for:
 ZX Spectrum,
 NEC PC-88,
 MSX,
-Commodore 64 with `c64_basic` module,
-Commodore 16 or Plus/4 with `c264_basic` module.
+Commodore 64 with `c64_basic` module (requires KERNAL and BASIC),
+Commodore 16 or Plus/4 with `c264_basic` module (requires KERNAL and BASIC).
 
 #### `void bell()`
 
 Beeps.
 
 Available for: Apple 2, ZX Spectrum.
+Uses ROM routines, so requires the appropriate ROM to be enabled if applicable.
 
 #### `void set_bg_color(byte color)`
 
