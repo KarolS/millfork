@@ -74,6 +74,8 @@
 
 * Fixed for-each loops with non-constant arrays.
 
+* 8080 and LR35902: Fixed inlining of byte-sized variables into registers.
+
 * 8080 and LR35902: fixed large stack variables.
 
 * Other bug fixes.

@@ -270,6 +270,25 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         if (target == D || target == E) fail(61) else
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe = Some(true), xs).map(add(CyclesAndBytes(10, 3)))
 
+        // TODO: other combinations:
+      case (_, ZLine0(LD, TwoRegisters(L, C), _)) :: (_, ZLine0(LD, TwoRegisters(H, B), _)) :: xs if addressInBc.contains(true) =>
+        canBeInlined(vname, synced, target, addressInHl = Some(true), addressInBc, addressInDe, xs).map(add(CyclesAndBytes(8, 2)))
+      case (_, ZLine0(LD, TwoRegisters(H, B), _)) :: (_, ZLine0(LD, TwoRegisters(L, C), _)) :: xs if addressInBc.contains(true) =>
+        canBeInlined(vname, synced, target, addressInHl = Some(true), addressInBc, addressInDe, xs).map(add(CyclesAndBytes(8, 2)))
+      case (_, ZLine0(LD, TwoRegisters(L, E), _)) :: (_, ZLine0(LD, TwoRegisters(H, D), _)) :: xs if addressInDe.contains(true) =>
+        canBeInlined(vname, synced, target, addressInHl = Some(true), addressInBc, addressInDe, xs).map(add(CyclesAndBytes(8, 2)))
+      case (_, ZLine0(LD, TwoRegisters(H, D), _)) :: (_, ZLine0(LD, TwoRegisters(L, E), _)) :: xs if addressInDe.contains(true) =>
+        canBeInlined(vname, synced, target, addressInHl = Some(true), addressInBc, addressInDe, xs).map(add(CyclesAndBytes(8, 2)))
+
+      case (_, ZLine0(LD, TwoRegisters(C, L), _)) :: (_, ZLine0(LD, TwoRegisters(B, H), _)) :: xs if addressInHl.contains(true) =>
+        canBeInlined(vname, synced, target, addressInHl, addressInBc = Some(true), addressInDe, xs).map(add(CyclesAndBytes(8, 2)))
+      case (_, ZLine0(LD, TwoRegisters(B, H), _)) :: (_, ZLine0(LD, TwoRegisters(C, L), _)) :: xs if addressInHl.contains(true) =>
+        canBeInlined(vname, synced, target, addressInHl, addressInBc = Some(true), addressInDe, xs).map(add(CyclesAndBytes(8, 2)))
+      case (_, ZLine0(LD, TwoRegisters(E, L), _)) :: (_, ZLine0(LD, TwoRegisters(D, H), _)) :: xs if addressInHl.contains(true) =>
+        canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe = Some(true), xs).map(add(CyclesAndBytes(8, 2)))
+      case (_, ZLine0(LD, TwoRegisters(D, H), _)) :: (_, ZLine0(LD, TwoRegisters(E, L), _)) :: xs if addressInHl.contains(true) =>
+        canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe = Some(true), xs).map(add(CyclesAndBytes(8, 2)))
+
       case (_, ZLine0(_, OneRegister(MEM_HL), _)) :: xs => addressInHl match {
         case Some(true) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(3, 0)))
         case Some(false) => canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs)
@@ -388,15 +407,34 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         x.copy(registers = TwoRegisters(reg, target), parameter = p) ::
           inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
 
+        // TODO: other combinations
+      case ZLine0(LD, TwoRegisters(L, C), _) :: ZLine0(LD, TwoRegisters(H, B), _) :: xs if addressInBc =>
+        inlineVars(vname, target, addressInHl = true, addressInBc = true, addressInDe = addressInDe, xs)
+      case ZLine0(LD, TwoRegisters(H, B), _) :: ZLine0(LD, TwoRegisters(L, C), _) :: xs if addressInBc =>
+        inlineVars(vname, target, addressInHl = true, addressInBc = true, addressInDe = addressInDe, xs)
+      case ZLine0(LD, TwoRegisters(L, E), _) :: ZLine0(LD, TwoRegisters(H, D), _) :: xs if addressInDe =>
+        inlineVars(vname, target, addressInHl = true, addressInBc = addressInBc, addressInDe = true, xs)
+      case ZLine0(LD, TwoRegisters(H, D), _) :: ZLine0(LD, TwoRegisters(L, E), _) :: xs if addressInDe =>
+        inlineVars(vname, target, addressInHl = true, addressInBc = addressInBc, addressInDe = true, xs)
+
+      case ZLine0(LD, TwoRegisters(C, L), _) :: ZLine0(LD, TwoRegisters(B, H), _) :: xs if addressInHl =>
+        inlineVars(vname, target, addressInHl = true, addressInBc = true, addressInDe = addressInDe, xs)
+      case ZLine0(LD, TwoRegisters(B, H), _) :: ZLine0(LD, TwoRegisters(C, L), _) :: xs if addressInHl =>
+        inlineVars(vname, target, addressInHl = true, addressInBc = true, addressInDe = addressInDe, xs)
+      case ZLine0(LD, TwoRegisters(E, L), _) :: ZLine0(LD, TwoRegisters(D, H), _) :: xs if addressInHl =>
+        inlineVars(vname, target, addressInHl = true, addressInBc = addressInBc, addressInDe = true, xs)
+      case ZLine0(LD, TwoRegisters(D, H), _) :: ZLine0(LD, TwoRegisters(E, L), _) :: xs if addressInHl =>
+        inlineVars(vname, target, addressInHl = true, addressInBc = addressInBc, addressInDe = true, xs)
+
       case (x@ZLine(CALL,_,_,_,s))::xs =>
         // TODO: this push/pull pair shouldn't prevent the inlining to the other register in the pair
         target match {
           case ZRegister.B | ZRegister.C =>
             ZLine.register(PUSH, BC).pos(s) :: x :: ZLine.register(POP, BC).pos(s) ::
-              inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+              inlineVars(vname, target, addressInHl = false, addressInBc, addressInDe = false, xs)
           case ZRegister.D | ZRegister.E =>
             ZLine.register(PUSH, DE).pos(s) :: x :: ZLine.register(POP, DE).pos(s) ::
-              inlineVars(vname, target, addressInHl, addressInBc, addressInDe, xs)
+              inlineVars(vname, target, addressInHl = false, addressInBc = false, addressInDe, xs)
         }
 
       case x :: xs if x.changesRegister(HL) =>
