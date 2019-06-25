@@ -29,6 +29,7 @@ object Node {
 
 sealed trait Expression extends Node {
   def replaceVariable(variable: String, actualParam: Expression): Expression
+  def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression
   def containsVariable(variable: String): Boolean
   def getPointies: Seq[String]
   def isPure: Boolean
@@ -38,6 +39,7 @@ sealed trait Expression extends Node {
 
 case class ConstantArrayElementExpression(constant: Constant) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
@@ -46,6 +48,7 @@ case class ConstantArrayElementExpression(constant: Constant) extends Expression
 
 case class LiteralExpression(value: Long, requiredSize: Int) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
@@ -54,6 +57,7 @@ case class LiteralExpression(value: Long, requiredSize: Int) extends Expression 
 
 case class TextLiteralExpression(characters: List[Expression]) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
@@ -62,6 +66,7 @@ case class TextLiteralExpression(characters: List[Expression]) extends Expressio
 
 case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
@@ -70,6 +75,7 @@ case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expre
 
 case class BooleanLiteralExpression(value: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
@@ -80,6 +86,7 @@ sealed trait LhsExpression extends Expression
 
 case object BlackHoleExpression extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): LhsExpression = this
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
@@ -91,6 +98,10 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
     SeparateBytesExpression(
       hi.replaceVariable(variable, actualParam),
       lo.replaceVariable(variable, actualParam)).pos(position)
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = 
+    SeparateBytesExpression(
+          hi.replaceIndexedExpression(predicate, replacement),
+          lo.replaceIndexedExpression(predicate, replacement)).pos(position)
   override def containsVariable(variable: String): Boolean = hi.containsVariable(variable) || lo.containsVariable(variable)
   override def getPointies: Seq[String] = hi.getPointies ++ lo.getPointies
   override def isPure: Boolean = hi.isPure && lo.isPure
@@ -100,6 +111,8 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
 case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     SumExpression(expressions.map { case (n, e) => n -> e.replaceVariable(variable, actualParam) }, decimal).pos(position)
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = 
+    SumExpression(expressions.map { case (n, e) => n -> e.replaceIndexedExpression(predicate, replacement) }, decimal).pos(position)
   override def containsVariable(variable: String): Boolean = expressions.exists(_._2.containsVariable(variable))
   override def getPointies: Seq[String] = expressions.flatMap(_._2.getPointies)
   override def isPure: Boolean = expressions.forall(_._2.isPure)
@@ -111,6 +124,10 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
     FunctionCallExpression(functionName, expressions.map {
       _.replaceVariable(variable, actualParam)
     }).pos(position)
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = 
+    FunctionCallExpression(functionName, expressions.map {
+      _.replaceIndexedExpression(predicate, replacement)
+    }).pos(position)
   override def containsVariable(variable: String): Boolean = expressions.exists(_.containsVariable(variable))
   override def getPointies: Seq[String] = expressions.flatMap(_.getPointies)
   override def isPure: Boolean = false // TODO
@@ -120,6 +137,8 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
 case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte).pos(position)
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = 
+    HalfWordExpression(expression.replaceIndexedExpression(predicate, replacement), hiByte).pos(position)
   override def containsVariable(variable: String): Boolean = expression.containsVariable(variable)
   override def getPointies: Seq[String] = expression.getPointies
   override def isPure: Boolean = expression.isPure
@@ -183,6 +202,7 @@ object ZRegister extends Enumeration {
 case class VariableExpression(name: String) extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     if (name == variable) actualParam else this
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = name == variable
   override def getPointies: Seq[String] = if (name.endsWith(".addr.lo")) Seq(name.stripSuffix(".addr.lo")) else Seq.empty
   override def isPure: Boolean = true
@@ -198,6 +218,9 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
         case _ => ??? // TODO
       }
     } else IndexedExpression(name, index.replaceVariable(variable, actualParam)).pos(position)
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
+    if (predicate(this)) replacement(this).pos(position = position) 
+    else IndexedExpression(name, index.replaceIndexedExpression(predicate, replacement))
   override def containsVariable(variable: String): Boolean = name == variable || index.containsVariable(variable)
   override def getPointies: Seq[String] = Seq(name)
   override def isPure: Boolean = index.isPure
@@ -210,6 +233,12 @@ case class IndirectFieldExpression(root: Expression, firstIndices: Seq[Expressio
       root.replaceVariable(variable, actualParam),
       firstIndices.map(_.replaceVariable(variable, actualParam)),
       fields.map{case (f, i) => f -> i.map(_.replaceVariable(variable, actualParam))})
+  
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
+    IndirectFieldExpression(
+      root.replaceIndexedExpression(predicate, replacement),
+      firstIndices.map(_.replaceIndexedExpression(predicate, replacement)),
+      fields.map{case (f, i) => f -> i.map(_.replaceIndexedExpression(predicate, replacement))})
 
   override def containsVariable(variable: String): Boolean =
     root.containsVariable(variable) ||
@@ -228,6 +257,9 @@ case class IndirectFieldExpression(root: Expression, firstIndices: Seq[Expressio
 
 case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = DerefDebuggingExpression(inner.replaceVariable(variable, actualParam), preferredSize)
+  
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
+    DerefDebuggingExpression(inner.replaceIndexedExpression(predicate, replacement), preferredSize)
 
   override def containsVariable(variable: String): Boolean = inner.containsVariable(variable)
 
@@ -243,6 +275,9 @@ case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) exten
 
 case class DerefExpression(inner: Expression, offset: Int, targetType: Type) extends LhsExpression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression = DerefExpression(inner.replaceVariable(variable, actualParam), offset, targetType)
+
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
+    DerefExpression(inner.replaceIndexedExpression(predicate, replacement), offset, targetType)
 
   override def containsVariable(variable: String): Boolean = inner.containsVariable(variable)
 

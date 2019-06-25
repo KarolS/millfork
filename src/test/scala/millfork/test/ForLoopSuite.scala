@@ -370,7 +370,7 @@ class ForLoopSuite extends FunSuite with Matchers {
     }
   }
 
-  test("Folding loops") {
+  test("Folding loops on 6502") {
     EmuUnoptimizedRun(
       """
         |array a [100]
@@ -395,5 +395,20 @@ class ForLoopSuite extends FunSuite with Matchers {
         |  for i,0,paralleluntil,100 { swsum += a[i] }
         |}
       """.stripMargin)
+  }
+
+  test("Folding loops on Z80") {
+    EmuOptimizedZ80Run(
+      """
+        |array a [10] = [0,1,2,3,4,5,6,7,8,9]
+        |byte output @$c000
+        |void main() {
+        |  byte sum
+        |  byte i
+        |  sum = 0
+        |  for i,0,paralleluntil,10 { sum += a[i] }
+        |  output = sum
+        |}
+      """.stripMargin).readByte(0xc000) should equal(45)
   }
 }
