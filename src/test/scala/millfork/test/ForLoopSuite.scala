@@ -369,4 +369,31 @@ class ForLoopSuite extends FunSuite with Matchers {
       m.readByte(0xc008) should equal(42)
     }
   }
+
+  test("Folding loops") {
+    EmuUnoptimizedRun(
+      """
+        |array a [100]
+        |void main() {
+        |  byte sum
+        |  byte i
+        |  pointer p
+        |  p = a.addr
+        |  sum = 0
+        |  for i,0,paralleluntil,100 { sum += a[i] }
+        |  for i,0,paralleluntil,100 { sum +'= a[i] }
+        |  for i,0,paralleluntil,100 { sum &= a[i] }
+        |  for i,0,until,100 { sum &= a[i] }
+        |  for i,0,until,50 { sum &= a[i+1] }
+        |  for i,0,parallelto,50 { sum &= a[i] }
+        |  for i,0,until,100 { sum &= p[i] }
+        |  word wsum
+        |  for i,0,paralleluntil,100 { wsum += a[i] }
+        |  stack byte ssum
+        |  stack word swsum
+        |  for i,0,paralleluntil,100 { ssum += a[i] }
+        |  for i,0,paralleluntil,100 { swsum += a[i] }
+        |}
+      """.stripMargin)
+  }
 }

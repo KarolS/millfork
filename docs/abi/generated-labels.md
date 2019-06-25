@@ -38,6 +38,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `fe` – body of an `for` statement over a list
 
+* `fo` – certain optimized `for` loops
+
 * `he` – beginning of the body of a `while` statement
 
 * `in` – increment for larger types
