@@ -53,6 +53,9 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
 
   def optimizeImpl(code: List[(AssemblyLine, CpuStatus)], variables: Set[String], map: Map[String, Int]): (Boolean, List[AssemblyLine]) = code match {
 
+    case (x@AssemblyLine0(JSR, Absolute, MemoryAddressConstant(th)), _) :: xs if th.name.startsWith(".") =>
+      x :: optimizeImpl(xs, variables, Map())
+
     case (AssemblyLine(op@(
       LDA | LDX | LDY | LDZ |
       ADC | ORA | EOR | AND | SBC |
