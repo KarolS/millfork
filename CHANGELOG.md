@@ -60,6 +60,8 @@
 
 * Preprocessor: Added `if` function
 
+* Preprocessor: Added `#define` directive.
+
 * Fixed volatile-related bugs.
 
 * Fixed optimizations removing jumps to jumps.

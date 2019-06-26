@@ -10,6 +10,8 @@ import c64_basic
 import c264_basic
 #endif
 
+#define READKEY = CBM_64 | CBM_VIC | CBM_264 | CBM_128 | ZX_SPECTRUM | NEC_PC_88 | ATARI_8
+
 void main () {
     init_rand_seed()
     ensure_mixedcase()
@@ -60,5 +62,10 @@ void play_round() {
     putword(guess_count)
     putstrz(" attempts!"z)
     new_line()
+    #if READKEY
+    putstrz("Press any key to play again."z)
+    readkey()
+    new_line()
+    #endif
     new_line()
 }

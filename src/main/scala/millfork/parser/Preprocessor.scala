@@ -37,17 +37,29 @@ object Preprocessor {
     var enabled = true
     val ifStack = mutable.Stack[IfContext]()
     var lineNo = 0
+    var currentFeatures = options.features
 
     def evalParam(param: String, pos: Some[Position]): Long = {
       new PreprocessorParser(options).expression.parse(param) match {
         case Success(q, _) =>
-          val value = q.apply(options.features).getOrElse(0L)
+          val value = q.apply(currentFeatures).getOrElse(0L)
 //          log.trace(param + " ===> " + value)
           value
         case Failure(_, _, _) =>
           log.error("Failed to parse expression", pos)
           0L
       }
+    }
+
+    def assertIdentifier(ident: String, pos: Option[Position]) : String = {
+      ident.foreach{
+        case ' ' => log.error("Unexpected space in a preprocessor identifier", pos)
+        case '_' => // ok
+        case c if c < 128 && Character.isDigit(c) => // ok
+        case c if c < 128 && Character.isLetter(c) => // ok
+        case _ => log.error("Invalid character in a preprocessor identifier", pos)
+      }
+      ident
     }
 
     for (line <- lines) {
@@ -65,7 +77,13 @@ object Preprocessor {
                     log.warn(s"Undefined parameter $param, assuming 0", pos)
                     0L
                   })
-                case Array(p0,p1) => featureConstants += p0.trim() -> evalParam(p1, pos)
+                case Array(p0,p1) => featureConstants += assertIdentifier(p0.trim(), pos) -> evalParam(p1, pos)
+              }
+            }
+            case "define" => if (enabled) {
+              param.split("=", 2) match {
+                case Array(p0,p1) => currentFeatures += assertIdentifier(p0.trim(), pos) -> evalParam(p1, pos)
+                case _ => log.error("#define should have a parameter", pos)
               }
             }
             case "fatal" => if (enabled) log.fatal(param, pos)

@@ -148,6 +148,15 @@ Emits a diagnostic message.
     
 Evaluates an expression and emits the result as a diagnostic message.
 
+### `#define`
+
+    #define <ident> = <expr>
+
+Defines a new feature value or redefines a previous feature value.
+
+The feature value is visible only to the preprocessor, only when processing the current file,
+and only in lines preprocessed after this one. 
+
 ### `#use`
 
     #use <ident> = <expr>

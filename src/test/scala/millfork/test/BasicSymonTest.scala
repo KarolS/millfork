@@ -214,6 +214,21 @@ class BasicSymonTest extends FunSuite with Matchers {
         | }
         | #endif
         |
+        | #if 1
+        | #define A=4
+        | #endif
+        | #if 0
+        | #define B=1
+        | #endif
+        |
+        | #if B
+        | #error B should not be defined
+        | #endif
+        |
+        | #if A != 4
+        | #error A should be defined
+        | #endif
+        |
         | #if 1 + 1 == 2
         |   #info 1
         |   #if      1 == 3
