@@ -1,5 +1,5 @@
 segment(prgrom)
-array __vectors @$8000 = [
+const array __vectors @$8000 = [
     main.addr.lo,
     main.addr.hi,
     main.addr.lo,

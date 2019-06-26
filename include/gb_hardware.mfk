@@ -82,7 +82,7 @@ interrupt void __on_joypad(){
 }
 
 // TODO: optimize?
-array __vectors @ $40 = [
+const array __vectors @ $40 = [
     $c3, __on_vblank.addr.lo, __on_vblank.addr.hi, 0,0,0,0,0,
     $c3, __on_lcdc.addr.lo, __on_lcdc.addr.hi, 0,0,0,0,0,
     $c3, __on_timer.addr.lo, __on_timer.addr.hi, 0,0,0,0,0,

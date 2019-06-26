@@ -110,7 +110,7 @@ asm void reset_routine() @$FFF4 {
     JMP main
 }
 
-array __vectors @$FFFA = @word [
+const array __vectors @$FFFA = @word [
     reset_routine.addr,
     reset_routine.addr,
     reset_routine.addr
