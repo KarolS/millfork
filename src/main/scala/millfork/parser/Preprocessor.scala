@@ -119,7 +119,7 @@ object Preprocessor {
                   enabled = false
                 } else {
                   val value = evalParam(param, pos)
-                  enabled = value != 0
+                  enabled = i.enabledBefore && value != 0
                   ifStack.push(ifStack.pop().copy(hadEnabled = enabled))
                 }
               }
@@ -132,7 +132,7 @@ object Preprocessor {
                 if (i.hadEnabled) {
                   enabled = false
                 } else {
-                  enabled = !enabled
+                  enabled = i.enabledBefore && !enabled
                 }
                 ifStack.push(ifStack.pop().copy(hadEnabled = true, hadElse = true))
               }

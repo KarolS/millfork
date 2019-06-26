@@ -74,6 +74,8 @@
 
 * Fixed `#pragma` not respecting `#if`.
 
+* Fixed nested `#if`s.
+
 * Fixed `@long` and `@long_be` array filters.
 
 * Fixed for-each loops with non-constant arrays.

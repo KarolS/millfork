@@ -229,6 +229,15 @@ class BasicSymonTest extends FunSuite with Matchers {
         | #error A should be defined
         | #endif
         |
+        | #if 0
+        | #error inside if 0
+        | #if 0
+        | #error inside second if 0
+        | #else
+        | #error really shouldn't happen
+        | #endif
+        | #endif
+        |
         | #if 1 + 1 == 2
         |   #info 1
         |   #if      1 == 3
