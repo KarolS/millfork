@@ -212,12 +212,12 @@ Whether identical functions should be merged into one function.
 Default: yes. 
 
 * `-fsubroutine-extraction`, `-fno-subroutine-extraction` – 
-Whether identical fragments of functions should be extracted into subroutines.
+Whether identical fragments of functions should be extracted into subroutines (experimental).
+Makes the code smaller. Computationally very expensive.
 `.ini` equivalent: `subroutine_extraction`.
 Default: no. 
 
 * `-Os`, `--size` – Optimize for size, sacrificing some speed (experimental).
-Also enables `-fsubroutine-extraction`.
 
 * `-Of`, `--fast` – Optimize for speed, even if it increases the size a bit (experimental).
 Also enables `-finline`. 

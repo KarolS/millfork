@@ -31,35 +31,34 @@ case class Context(errorReporting: Logger,
       copy(flags = this.flags + (f -> b))
     }
   }
+  
+  def isFlagSet(f: CompilationFlag.Value): Boolean = flags.getOrElse(f, false)
 
   def filloutFlags(): Context = {
     var addons = Map[CompilationFlag.Value, Boolean]()
-    if (flags.contains(CompilationFlag.EmitNative65816Opcodes)
-      || flags.contains(CompilationFlag.EmitEmulation65816Opcodes)
-      || flags.contains(CompilationFlag.EmitHudsonOpcodes)
-      || flags.contains(CompilationFlag.Emit65CE02Opcodes)) {
+    if (isFlagSet(CompilationFlag.EmitNative65816Opcodes)
+      || isFlagSet(CompilationFlag.EmitEmulation65816Opcodes)
+      || isFlagSet(CompilationFlag.EmitHudsonOpcodes)
+      || isFlagSet(CompilationFlag.Emit65CE02Opcodes)) {
       addons += CompilationFlag.EmitCmosOpcodes -> true
     }
-    if (flags.contains(CompilationFlag.EmitEZ80Opcodes)) {
+    if (isFlagSet(CompilationFlag.EmitEZ80Opcodes)) {
       addons += CompilationFlag.EmitZ80Opcodes -> true
     }
-    if (flags.contains(CompilationFlag.EmitZ80Opcodes) || flags.contains(CompilationFlag.EmitSharpOpcodes)) {
+    if (isFlagSet(CompilationFlag.EmitZ80Opcodes) || isFlagSet(CompilationFlag.EmitSharpOpcodes)) {
       addons += CompilationFlag.EmitExtended80Opcodes -> true
     }
-    if (flags.contains(CompilationFlag.EmitZ80Opcodes) || flags.contains(CompilationFlag.EmitIntel8085Opcodes)) {
+    if (isFlagSet(CompilationFlag.EmitZ80Opcodes) || isFlagSet(CompilationFlag.EmitIntel8085Opcodes)) {
       addons += CompilationFlag.EmitIntel8080Opcodes -> true
     }
-    if (flags.contains(CompilationFlag.OptimizeForSpeed)) {
+    if (isFlagSet(CompilationFlag.OptimizeForSpeed)) {
       addons += CompilationFlag.InlineFunctions -> true
     }
-    if (flags.contains(CompilationFlag.OptimizeForSize)) {
-      addons += CompilationFlag.SubroutineExtraction -> true
-    }
-    if (flags.contains(CompilationFlag.DangerousOptimizations)) {
+    if (isFlagSet(CompilationFlag.DangerousOptimizations)) {
       addons += CompilationFlag.InterproceduralOptimization -> true
       addons += CompilationFlag.OptimizeStdlib -> true
     }
-    if (flags.contains(CompilationFlag.OptimizeForDebugging)) {
+    if (isFlagSet(CompilationFlag.OptimizeForDebugging)) {
       addons += CompilationFlag.VariableOverlap -> false
       addons += CompilationFlag.RegisterVariables -> false
       addons += CompilationFlag.FunctionDeduplication -> false
