@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuSoftwareStackBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuOptimizedZ80Run, EmuSoftwareStackBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -388,6 +388,26 @@ class StackVarSuite extends FunSuite with Matchers {
     }
     EmuSoftwareStackBenchmarkRun(code) { m =>
     }
+  }
+
+  test("Pointers to stack variables 3") {
+    val m = EmuOptimizedZ80Run(
+      """
+        | noinline byte f() = 6
+        | noinline void g(byte x) {}
+        | void main () {
+        |   stack byte b
+        |   stack byte a
+        |   stack byte c
+        |      b = b
+        |      c = c
+        |   a = f()
+        |   a += 5
+        |   a += a.addr.lo
+        |   g(a)
+        |   if f() == 0 { main() }
+        | }
+      """.stripMargin)
   }
 
 

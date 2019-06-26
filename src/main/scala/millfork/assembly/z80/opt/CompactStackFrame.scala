@@ -58,12 +58,27 @@ object CompactStackFrame extends AssemblyOptimization[ZLine] {
 
 
   def findUsedOffsets(code: List[ZLine], Mem: ZRegister.Value): Set[Int] = {
-    code.flatMap {
+    val used = code.flatMap {
       case ZLine0(_, OneRegisterOffset(Mem, offset), _) => Some(offset)
       case ZLine0(_, TwoRegistersOffset(_, Mem, offset), _) => Some(offset)
       case ZLine0(_, TwoRegistersOffset(Mem, _, offset), _) => Some(offset)
       case _ => None
     }.toSet
+    import ZOpcode._
+    import ZRegister._
+    if (used.isEmpty){
+      used
+    } else if (code.exists {
+      case ZLine0(LD_16, TwoRegisters(_, SP), _) => true
+      case ZLine0(LD_16, TwoRegisters(SP, _), _) => true
+      case ZLine0(ADD_16 | SBC_16, TwoRegisters(_, SP), _) => true
+      case ZLine0(LD_HLSP | LD_DESP, _, _) => true
+      case ZLine0(EX_SP, _, _) => true
+      case _ => false
+    }){
+      (0 to used.max).toSet
+    } else used
+
   }
 
   def optimizeContinue(code: List[ZLine], Index: ZRegister.Value, sourceSize: Int, targetSize: Int, mapping: Map[Int, Int]): Option[List[ZLine]] = {

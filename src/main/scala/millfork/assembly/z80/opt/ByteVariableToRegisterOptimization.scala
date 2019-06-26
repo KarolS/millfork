@@ -241,6 +241,12 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       def unapply(c: Int): Option[Int] = if ("IY+" + c == vname) Some(c) else None
     }
     code match {
+      case (_, ZLine0(LD_16, TwoRegisters(_, SP), _)) :: _ if vname.contains("+") => None
+      case (_, ZLine0(LD_16, TwoRegisters(SP, _), _)) :: _ if vname.contains("+") => None
+      case (_, ZLine0(ADD_16 | SBC_16, TwoRegisters(_, SP), _)) :: _ if vname.contains("+") => None
+      case (_, ZLine0(LD_HLSP | LD_DESP, _, _)) :: _ if vname.contains("+") => None
+      case (_, ZLine0(EX_SP, _, _)) :: _ if vname.contains("+") => None
+
       case (_, ZLine0(LD, TwoRegisters(A, MEM_ABS_8), ThisVar(_))) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(9, 2)))
       case (_, ZLine0(LD, TwoRegisters(MEM_ABS_8, A), ThisVar(_))) :: xs =>
