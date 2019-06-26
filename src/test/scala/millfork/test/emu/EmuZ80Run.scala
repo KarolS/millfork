@@ -77,6 +77,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     println(source)
     val platform = EmuPlatform.get(cpu)
     val extraFlags = Map(
+      CompilationFlag.DangerousOptimizations -> true,
       CompilationFlag.EnableInternalTestSyntax -> true,
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.OptimizeStdlib -> this.inline,

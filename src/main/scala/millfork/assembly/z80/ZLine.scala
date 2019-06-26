@@ -906,6 +906,23 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     }
   }
 
+  def accessesMemoryViaGivenRegister(r: ZRegister.Value): Boolean = {
+    import ZRegister._
+    import ZOpcode._
+    registers match {
+      case TwoRegisters(MEM_HL, _) | TwoRegisters(_, MEM_HL) | OneRegister(MEM_HL) => r == MEM_HL
+      case TwoRegisters(MEM_BC, _) | TwoRegisters(_, MEM_BC) | OneRegister(MEM_BC) => r == MEM_BC
+      case TwoRegisters(MEM_DE, _) | TwoRegisters(_, MEM_DE) | OneRegister(MEM_DE) => r == MEM_DE
+      // TODO: IX and IY
+      case  _ => opcode match {
+        case LD_HLIA | LD_HLDA | LD_AHLD | LD_AHLI => r == MEM_HL
+        case LHLX => r == MEM_DE
+        case SHLX => r == MEM_DE
+        case _ => false
+      }
+    }
+  }
+
   def changesRegisterAndOffset(r: ZRegister.Value, o: Int): Boolean = {
     import ZOpcode._
     import ZRegister._

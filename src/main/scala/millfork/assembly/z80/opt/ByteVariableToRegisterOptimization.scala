@@ -241,11 +241,14 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       def unapply(c: Int): Option[Int] = if ("IY+" + c == vname) Some(c) else None
     }
     code match {
-      case (_, ZLine0(LD_16, TwoRegisters(_, SP), _)) :: _ if vname.contains("+") => None
-      case (_, ZLine0(LD_16, TwoRegisters(SP, _), _)) :: _ if vname.contains("+") => None
-      case (_, ZLine0(ADD_16 | SBC_16, TwoRegisters(_, SP), _)) :: _ if vname.contains("+") => None
-      case (_, ZLine0(LD_HLSP | LD_DESP, _, _)) :: _ if vname.contains("+") => None
-      case (_, ZLine0(EX_SP, _, _)) :: _ if vname.contains("+") => None
+      case (_, ZLine0(LD_16, TwoRegisters(HL | IY, SP), _)) :: _ if vname.startsWith("IX+") => fail(121)
+      case (_, ZLine0(LD_16, TwoRegisters(HL | IX, SP), _)) :: _ if vname.startsWith("IY+") => fail(121)
+      case (_, ZLine0(LD_16, TwoRegisters(SP, HL | IY), _)) :: _ if vname.startsWith("IX+") => fail(122)
+      case (_, ZLine0(LD_16, TwoRegisters(SP, HL | IX), _)) :: _ if vname.startsWith("IY+") => fail(122)
+      case (_, ZLine0(ADD_16 | SBC_16, TwoRegisters(HL | IY, SP), _)) :: _ if vname.startsWith("IX+") => fail(123)
+      case (_, ZLine0(ADD_16 | SBC_16, TwoRegisters(HL | IX, SP), _)) :: _ if vname.startsWith("IY+") => fail(123)
+      case (_, ZLine0(LD_HLSP | LD_DESP, _, _)) :: _ if vname.contains("+") => fail(124)
+      case (_, ZLine0(EX_SP, _, _)) :: _ if vname.contains("+") => fail(125)
 
       case (_, ZLine0(LD, TwoRegisters(A, MEM_ABS_8), ThisVar(_))) :: xs =>
         canBeInlined(vname, synced, target, addressInHl, addressInBc, addressInDe, xs).map(add(CyclesAndBytes(9, 2)))

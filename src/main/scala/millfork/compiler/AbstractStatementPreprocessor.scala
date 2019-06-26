@@ -12,7 +12,7 @@ import scala.collection.mutable.ListBuffer
 /**
   * @author Karol Stasiak
   */
-abstract class AbstractStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]) {
+abstract class AbstractStatementPreprocessor(protected val ctx: CompilationContext, statements: List[ExecutableStatement]) {
   type VV = Map[String, Constant]
   protected val optimize = true // TODO
   protected val env: Environment = ctx.env

@@ -1,5 +1,6 @@
 package millfork.compiler.z80
 
+import millfork.CompilationFlag
 import millfork.compiler.{AbstractStatementPreprocessor, CompilationContext}
 import millfork.env.{MemoryVariable, MfArray, PointerType, Thing, Variable, VariableAllocationMethod}
 import millfork.node.{Assignment, DerefDebuggingExpression, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForDirection, ForEachStatement, ForStatement, FunctionCallExpression, IfStatement, IndexedExpression, IndirectFieldExpression, LhsExpression, LiteralExpression, Node, Statement, SumExpression, VariableDeclarationStatement, VariableExpression, WhileStatement}
@@ -38,6 +39,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
 
 
   def maybeOptimizeForStatement(f: ForStatement): Option[(ExecutableStatement, VV)] = {
+    if (!ctx.options.flag(CompilationFlag.DangerousOptimizations)) return None
     // TODO: figure out when this is useful
     // Currently all instances of arr[i] are replaced with arr`popt`i[0], where arr`popt`i is a new pointer variable.
     // This breaks the main Millfork promise of not using hidden variables!

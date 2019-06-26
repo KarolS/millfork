@@ -31,6 +31,7 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[ZLine] {
         val firstVariableAccess = code(firstaccess)
         val lastVariableAccess = code(lastaccess)
         import millfork.assembly.z80.ZOpcode._
+        // TODO: this might be buggy; needs more testing.
         if ((firstVariableAccess match {
           case ZLine(LD, TwoRegisters(MEM_HL, _), _, Elidability.Elidable, _) => true
           case ZLine(LD | LD_16, TwoRegisters(MEM_ABS_8 | MEM_ABS_16, _), _, Elidability.Elidable, _) => true
@@ -54,7 +55,12 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[ZLine] {
     if (toRemove.isEmpty) {
       code
     } else {
-      optimizationContext.log.debug(s"Removing pointless store(s) to ${badVariables.mkString(", ")}")
+      optimizationContext.log.debug(s"Removing pointless store(s) to automatic variables ${badVariables.mkString(", ")}")
+//      val range = toRemove.min to toRemove.max
+//      range.map{ i =>
+//        if (toRemove(i)) f"${code(i)}%-42s  <-- REMOVE"
+//        else code(i).toString
+//      }.foreach(println)
       code.zipWithIndex.filter(x => !toRemove(x._2)).map(_._1)
     }
   }
