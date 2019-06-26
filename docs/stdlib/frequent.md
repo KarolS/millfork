@@ -63,19 +63,19 @@ Uses ROM routines, so requires the appropriate ROM to be enabled if applicable.
 
 Sets the screen background color.
 
-Available for: C64, VIC-20, C64, C264 series.
+Available for: C64, VIC-20, C64, C128, C264 series.
 
 #### `void set_border(byte color)`
 
 Sets the screen border color.
 
-Available for: VIC-20, C64, C264 series, ZX Spectrum.
+Available for: VIC-20, C64, C128, C264 series, ZX Spectrum.
 
 #### `const byte black, white, red, green, blue, cyan, purple, yellow`
 
 Various colour constants.
 
-Available for: VIC-20, C64, C264 series, ZX Spectrum.
+Available for: VIC-20, C64, C128, C264 series, ZX Spectrum.
 
 #### `macro void memory_barrier()`
 

@@ -21,7 +21,7 @@ __no_eor:
 }
 
 
-#if CBM_64
+#if CBM_64_COMPAT
 
 void init_rand_seed() {
     poke($D40E, $ff)
