@@ -142,6 +142,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         cv = search(arg, cv)
         cv = search(ve, cv)
         Assignment(ve, optimizeExpr(arg, cv)).pos(pos) -> cv
+      case ExpressionStatement(expr@FunctionCallExpression(fname, List(VariableExpression(v), arg)))
+        if ctx.env.maybeGet[Thing](fname).exists(i => i.isInstanceOf[MacroFunction]) =>
+        ExpressionStatement(optimizeExpr(expr, Map())).pos(pos) -> Map()
       case ExpressionStatement(expr@FunctionCallExpression("+=", List(VariableExpression(v), arg)))
         if currentVarValues.contains(v) =>
         cv = search(arg, cv)
@@ -366,7 +369,12 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         // Eliminating variables may eliminate carry
         FunctionCallExpression("nonet", args.map(arg => optimizeExpr(arg, Map()))).pos(pos)
       case FunctionCallExpression(name, args) =>
-        FunctionCallExpression(name, args.map(arg => optimizeExpr(arg, currentVarValues))).pos(pos)
+        ctx.env.maybeGet[Thing](name) match {
+          case Some(_: MacroFunction) =>
+            FunctionCallExpression(name, args.map(arg => optimizeExpr(arg, Map()))).pos(pos)
+          case _ =>
+            FunctionCallExpression(name, args.map(arg => optimizeExpr(arg, currentVarValues))).pos(pos)
+        }
       case SumExpression(expressions, decimal) =>
         // don't collapse additions, let the later stages deal with it
         // expecially important when inside a nonet operation
