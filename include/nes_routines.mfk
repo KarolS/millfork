@@ -53,9 +53,9 @@ interrupt void on_nmi() {
     nmi()
 }
 
-array nmi_vector @$FFFA = @word [on_nmi.addr]
+const array nmi_vector @$FFFA = @word [on_nmi.addr]
 
-array reset_vector @$FFFC = @word [on_reset.addr]
+const array reset_vector @$FFFC = @word [on_reset.addr]
 
-array irq_vector @$FFFE = @word [on_irq.addr]
+const array irq_vector @$FFFE = @word [on_irq.addr]
 
