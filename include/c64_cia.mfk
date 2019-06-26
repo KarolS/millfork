@@ -1,6 +1,6 @@
 // Hardware addresses for C64
 
-#if not(CBM_64)
+#if not(CBM_64) && not(CBM_64_COMPAT)
 #warn c64_cia module should be only used on C64-compatible targets
 #endif
 

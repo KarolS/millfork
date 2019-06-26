@@ -48,6 +48,8 @@
 
 * On most Commodore targets printing double quote characters doesn't toggle the quotation mode anymore. 
 
+* **Potentially breaking change!** Commodore 128 target no longer defines `CBM_64` feature.
+
 * 6502: Fixed optimizations using index registers.
 
 * 6502: Fixed optimizations of comparisons.
