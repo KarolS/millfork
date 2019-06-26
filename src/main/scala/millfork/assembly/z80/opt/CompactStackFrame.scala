@@ -35,6 +35,9 @@ object CompactStackFrame extends AssemblyOptimization[ZLine] {
         ZLine(ADD_16, TwoRegisters(Index, SP), _, Elidability.Elidable, s3) ::
         ZLine(LD_16, TwoRegisters(SP, Index), _, Elidability.Elidable, s4) :: tail =>
         val sourceSize = (-negativeSize).&(0xffff).toInt
+        if (mayAccessStackViaPointers(tail)) {
+          return None
+        }
         val usedOffsets: Set[Int] = findUsedOffsets(tail, Index match {
           case IX => MEM_IX_D
           case IY => MEM_IY_D
@@ -56,29 +59,41 @@ object CompactStackFrame extends AssemblyOptimization[ZLine] {
     }
   }
 
+  def mayAccessStackViaPointers(code: List[ZLine]): Boolean = {
+    import millfork.assembly.z80.ZOpcode._
+    import millfork.node.ZRegister._
+    val mayUsePointer = code.map {
+      case ZLine0(_, TwoRegisters(HL, SP), _) => true
+      case ZLine0(_, TwoRegisters(SP, HL), _) => true
+      case ZLine0(LD_HLSP | LD_DESP, _, _) => true
+      case ZLine0(_, TwoRegistersOffset(_, MEM_HL | MEM_BC | MEM_DE, offset), _) => true
+      case ZLine0(_, TwoRegistersOffset(MEM_HL | MEM_BC | MEM_DE, _, offset), _) => true
+      case ZLine0(CALL, _, _) => true
+      case _ => false
+    }.toArray
+    val range = VariableLifetime.expandRangeToCoverLoops(code, mayUsePointer)
+    if (range.nonEmpty) {
+      val criticalCodeSlice = code.slice(range.start, range.end)
+      if (criticalCodeSlice.exists {
+        case ZLine0(_, TwoRegisters(_, SP), _) => true
+        case ZLine0(_, TwoRegisters(SP, _), _) => true
+        case ZLine0(LD_HLSP | LD_DESP, _, _) => true
+        case ZLine0(EX_SP, _, _) => true
+        case _ => false
+      }) {
+        return true
+      }
+    }
+    false
+  }
 
   def findUsedOffsets(code: List[ZLine], Mem: ZRegister.Value): Set[Int] = {
-    val used = code.flatMap {
+    code.flatMap {
       case ZLine0(_, OneRegisterOffset(Mem, offset), _) => Some(offset)
       case ZLine0(_, TwoRegistersOffset(_, Mem, offset), _) => Some(offset)
       case ZLine0(_, TwoRegistersOffset(Mem, _, offset), _) => Some(offset)
       case _ => None
     }.toSet
-    import ZOpcode._
-    import ZRegister._
-    if (used.isEmpty){
-      used
-    } else if (code.exists {
-      case ZLine0(LD_16, TwoRegisters(_, SP), _) => true
-      case ZLine0(LD_16, TwoRegisters(SP, _), _) => true
-      case ZLine0(ADD_16 | SBC_16, TwoRegisters(_, SP), _) => true
-      case ZLine0(LD_HLSP | LD_DESP, _, _) => true
-      case ZLine0(EX_SP, _, _) => true
-      case _ => false
-    }){
-      (0 to used.max).toSet
-    } else used
-
   }
 
   def optimizeContinue(code: List[ZLine], Index: ZRegister.Value, sourceSize: Int, targetSize: Int, mapping: Map[Int, Int]): Option[List[ZLine]] = {

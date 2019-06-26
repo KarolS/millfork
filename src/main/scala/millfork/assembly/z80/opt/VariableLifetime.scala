@@ -46,11 +46,16 @@ object VariableLifetime {
       pointerReadAt.foreach(i => flags(i) = true)
     }
 
+    val code = codeWithFlow.map(_._2)
+    expandRangeToCoverLoops(code, flags)
+  }
+
+  def expandRangeToCoverLoops(code: List[ZLine], flags: Array[Boolean]): Range = {
     if (flags.forall(!_)) return Range(0, 0)
     var min = flags.indexOf(true)
     var max = flags.lastIndexOf(true) + 1
     var changed = true
-    val labelMap = codeWithFlow.zipWithIndex.flatMap(a => a._1._2.parameter match {
+    val labelMap = code.zipWithIndex.flatMap(a => a._1.parameter match {
       case MemoryAddressConstant(Label(l)) => List(l -> a._2)
       case _ => Nil
     }).groupBy(_._1).mapValues(_.map(_._2).toSet)

@@ -49,14 +49,18 @@ object UnusedLocalVariables extends NodeOptimization {
     case _ => Nil
   }
 
+  def getAllReadVariables(expression: (String, Expression)): List[String] = {
+    if (expression._2.isPure) getAllReadVariables(List(expression._2)).filter(_ != expression._1)
+    else getAllReadVariables(List(expression._2))
+  }
 
   def optimizeVariables(log: Logger, statements: List[Statement]): List[Statement] = {
     val allLocals = getAllLocalVariables(statements)
-    val allRead = getAllReadVariables(statements.flatMap {
-      case Assignment(VariableExpression(_), expression) => List(expression)
-      case ExpressionStatement(FunctionCallExpression(op, VariableExpression(_) :: params)) if op.endsWith("=") => params
-      case x => x.getAllExpressions
-    }).toSet
+    val allRead = statements.flatMap {
+          case Assignment(VariableExpression(v), expression) => List(v.takeWhile(_ != '.') -> expression)
+          case ExpressionStatement(FunctionCallExpression(op, VariableExpression(_) :: params)) if op.endsWith("=") => params.map("```" -> _)
+          case x => x.getAllExpressions.map("```" -> _)
+        }.flatMap(getAllReadVariables(_)).toSet
     val localsToRemove = allLocals.filterNot(allRead).toSet
     if (localsToRemove.nonEmpty) {
       log.debug("Removing unused local variables: " + localsToRemove.mkString(", "))

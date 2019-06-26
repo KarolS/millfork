@@ -123,12 +123,22 @@ class StackVarSuite extends FunSuite with Matchers {
         | }
         | word fib(byte i) {
         |   stack byte j
+        |   stack word sum
+        |   stack word w
+        |   stack word v
         |   j = i
         |   if j < 2 {
         |     return 1
         |   }
-        |   stack word sum
+        |
         |   sum = fib(j-1)
+        |
+        |   // see if optimizer cleans these off:
+        |   w = sum
+        |   sum = w
+        |   v = sum
+        |   sum = v
+        |
         |   sum += fib(j-2)
         |   sum &= $0F3F
         |   return sum
@@ -409,6 +419,40 @@ class StackVarSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)
   }
+
+  test("Pointers to stack variables 4") {
+    val m = EmuOptimizedZ80Run(
+      """
+        | noinline word f() = 6
+        | noinline void g(word x) {}
+        | asm void __loop() {
+        |   nop
+        |   nop
+        |   nop
+        |   jp __loop
+        | }
+        | noinline void h (pointer.word p) {
+        |   p[0] = __loop.addr + 1
+        | }
+        | void main () {
+        |   stack word b
+        |   stack word a
+        |   stack word c
+        |   stack word d
+        |   h(a.pointer)
+        |   h(b.pointer)
+        |   h(c.pointer)
+        |   h(d.pointer)
+        |   a = f()
+        |   a += 5
+        |   a += a.addr.lo
+        |   g(a)
+        |   if f() == 0 { main() }
+        | }
+      """.stripMargin)
+  }
+
+
 
 
 }
