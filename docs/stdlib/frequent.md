@@ -13,7 +13,7 @@ Uses ROM routines, so requires the appropriate ROM to be enabled if applicable.
 
 Note that this function may obey typical platform idiosyncrasies, for example:
 
-* on CBM targets other than C64 the quote character toggles the quotation mode
+* on Commodore PET targets the quote character toggles the quotation mode
 
 * printing past the end of line might insert a blank line below the current one
 
@@ -33,9 +33,21 @@ Uses ROM routines, so requires the appropriate ROM to be enabled if applicable.
 
 Waits for and reads a single keypress.
 
+The returning values may vary between platforms:
+
+* letters may be uppercase or lowercase
+
+* modifier keys may be applied or ignored
+
 Available for:
 Commodore 64 (requires KERNAL),
-ZX Spectrum.
+Commodore 16 or Plus/4 (requires KERNAL),
+Commodore 128 (requires KERNAL),
+VIC 20 (requires KERNAL),
+Atari,
+Amstrad CPC,
+ZX Spectrum,
+NEC PC-88.
 
 #### `pointer readline()`
 

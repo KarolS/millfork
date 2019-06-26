@@ -46,7 +46,7 @@
 
 * Short functions can be now defined using expression syntax.
 
-* C64: Printing double quote characters doesn't toggle the quotation mode anymore. 
+* On most Commodore targets printing double quote characters doesn't toggle the quotation mode anymore. 
 
 * 6502: Fixed optimizations using index registers.
 

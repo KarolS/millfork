@@ -24,7 +24,7 @@ asm void clrchn() @$FFCC extern
 // Output: A = Device status.
 asm byte readst() @$FFB7 extern
 
-inline asm void putchar(byte a) {
+asm void putchar(byte a) {
     JSR chrout
     LDA #0
     STA $D4
@@ -32,7 +32,7 @@ inline asm void putchar(byte a) {
 }
 
 noinline asm byte readkey() {
-__read_key__start
+__read_key__start:
     LDA $C6
     BEQ __read_key__start
     JMP $E5B4

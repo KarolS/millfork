@@ -6,7 +6,21 @@
 
 // CHROUT. Write byte to default output. (If not screen, must call OPEN and CHKOUT beforehands.)
 // Input: A = Byte to write.
-asm void putchar(byte a) @$FFD2 extern
+asm void chrout(byte a) @$FFD2 extern
+
+asm void putchar(byte a) {
+    JSR chrout
+    LDA #0
+    STA $D4
+    ? RTS
+}
+
+noinline asm byte readkey() {
+__read_key__start:
+    LDA $C6
+    BEQ __read_key__start
+    JMP $E5CF
+}
 
 inline void new_line() {
     putchar(13)
