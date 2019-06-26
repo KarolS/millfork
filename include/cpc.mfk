@@ -5,8 +5,6 @@
 
 asm void putchar(byte a) @$BB5A extern
 
-asm byte readkey() @$BB06 extern
-
 inline void new_line() {
     putchar(13)
     putchar(10)

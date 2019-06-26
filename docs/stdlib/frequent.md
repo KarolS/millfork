@@ -29,26 +29,6 @@ Moves the cursor to the next line.
 Available for: all computer targets.  
 Uses ROM routines, so requires the appropriate ROM to be enabled if applicable.
 
-#### `byte readkey()`
-
-Waits for and reads a single keypress.
-
-The returning values may vary between platforms:
-
-* letters may be uppercase or lowercase
-
-* modifier keys may be applied or ignored
-
-Available for:
-Commodore 64 (requires KERNAL),
-Commodore 16 or Plus/4 (requires KERNAL),
-Commodore 128 (requires KERNAL),
-VIC 20 (requires KERNAL),
-Atari,
-Amstrad CPC,
-ZX Spectrum,
-NEC PC-88.
-
 #### `pointer readline()`
 
 Reads a line from the console and returns a pointer to a null-terminated string.

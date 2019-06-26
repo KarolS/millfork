@@ -10,7 +10,11 @@ import c64_basic
 import c264_basic
 #endif
 
-#define READKEY = CBM_64 | CBM_VIC | CBM_264 | CBM_128 | ZX_SPECTRUM | NEC_PC_88 | ATARI_8
+#define READKEY = CBM_64 | CBM_264 | ZX_SPECTRUM | NEC_PC_88
+
+#if READKEY
+import keyboard
+#endif
 
 void main () {
     init_rand_seed()
@@ -63,9 +67,9 @@ void play_round() {
     putstrz(" attempts!"z)
     new_line()
     #if READKEY
-    putstrz("Press any key to play again."z)
-    readkey()
-    new_line()
+        putstrz("Press any key to play again."z)
+        readkey()
+        new_line()
     #endif
     new_line()
 }

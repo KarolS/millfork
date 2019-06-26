@@ -45,7 +45,7 @@
 
 * [Modules for reading input devices](stdlib/input.md)
 
-* [Other cross-platform modules (`err`, `random`)](stdlib/other.md)
+* [Other cross-platform modules (`keyboard`, `err`, `random`)](stdlib/other.md)
 
 * [Definitions available on only some platforms](stdlib/frequent.md)
 

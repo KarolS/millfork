@@ -13,16 +13,6 @@ noinline asm void putchar(byte a) {
     rts
 }
 
-noinline asm byte readkey() {
-    lda #$C
-    sta $2A
-    lda $E425
-    pha
-    lda $E424
-    pha
-    rts
-}
-
 inline void new_line() {
     putchar($9b)
 }

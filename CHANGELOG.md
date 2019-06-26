@@ -14,7 +14,7 @@
 
 * Added `memory_barrier` macro.
 
-* Added `readkey` function.
+* Added `keyboard` module.
 
 * Added `random` module.
 

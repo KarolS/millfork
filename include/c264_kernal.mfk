@@ -14,14 +14,6 @@ asm void putchar(byte a) {
     ? RTS
 }
 
-noinline asm byte readkey() {
-__read_key__start:
-    LDA $EF
-    BEQ __read_key__start
-    LDX #0
-    JMP $D8D5
-}
-
 inline void new_line() {
     putchar(13)
 }

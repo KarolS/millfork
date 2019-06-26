@@ -1,0 +1,101 @@
+#if ATARI_8
+const byte KEY_ENTER = 155
+#else
+const byte KEY_ENTER = 13
+#endif
+
+
+#if CBM_64
+noinline asm byte readkey() {
+__read_key__start:
+    LDA $C6
+    BEQ __read_key__start
+    JMP $E5B4
+}
+#define OK = 1
+#endif
+
+
+#if CBM_128
+noinline asm byte readkey() {
+__read_key__start:
+    LDA $D0
+    BEQ __read_key__start
+    LDX #0
+    JMP $C244
+}
+#define OK = 1
+#endif
+
+
+#if CBM_264
+noinline asm byte readkey() {
+__read_key__start:
+    LDA $EF
+    BEQ __read_key__start
+    LDX #0
+    JMP $D8D5
+}
+#define OK = 1
+#endif
+
+
+#if CBM_VIC
+noinline asm byte readkey() {
+__read_key__start:
+    LDA $C6
+    BEQ __read_key__start
+    JMP $E5CF
+}
+#define OK = 1
+#endif
+
+
+#if ATARI_8
+noinline asm byte readkey() {
+    lda #$C
+    sta $2A
+    lda $E425
+    pha
+    lda $E424
+    pha
+    rts
+}
+#define OK = 1
+#endif
+
+
+#if NEC_PC_88
+asm byte readkey() @$3583 extern
+#define OK = 1
+#endif
+
+
+#if AMSTRAD_CPC
+asm byte readkey() @$BB06 extern
+#define OK = 1
+#endif
+
+
+#if ZX_SPECTRUM
+#pragma zilog_syntax
+asm byte readkey() {
+    ld hl,23560
+    ld (hl),0
+__readkey__start:
+    ld a,(hl)
+    or a
+    jr z,__readkey__start
+    ? ret
+}
+#define OK = 1
+#endif
+
+
+#if not(OK)
+    #if KEYBOARD
+        #warn keyboard module is not yet supported
+    #else
+        #warn keyboard module is not supported on targets without keyboard
+    #endif
+#endif
