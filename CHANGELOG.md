@@ -50,6 +50,8 @@
 
 * **Potentially breaking change!** Commodore 128 target no longer defines `CBM_64` feature.
 
+* 6502 targets can now define free zeropage bytes, not only pointers.
+
 * 6502: Fixed optimizations using index registers.
 
 * 6502: Fixed optimizations of comparisons.

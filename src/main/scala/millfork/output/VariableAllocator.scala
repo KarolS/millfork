@@ -68,14 +68,14 @@ class UpwardByteAllocator(val startAt: Int, val endBefore: Int) extends ByteAllo
   override def preferredOrder: Option[List[Int]] = None
 }
 
-class ZeropageAllocator(val freeZpPointers: List[Int]) extends ByteAllocator {
+class ZeropageAllocator(val freeZpBytes: List[Int]) extends ByteAllocator {
 
   def notifyAboutEndOfCode(org: Int): Unit = ()
-  override def preferredOrder: Option[List[Int]] = if (freeZpPointers.isEmpty) None else Some(freeZpPointers.flatMap(i => Seq(i,i+1)))
+  override def preferredOrder: Option[List[Int]] = if (freeZpBytes.isEmpty) None else Some(freeZpBytes)
 
-  override def startAt: Int = if (freeZpPointers.isEmpty) 2 else freeZpPointers.min
+  override def startAt: Int = if (freeZpBytes.isEmpty) 2 else freeZpBytes.min
 
-  override def endBefore: Int = if (freeZpPointers.isEmpty) 2 else freeZpPointers.max + 2
+  override def endBefore: Int = if (freeZpBytes.isEmpty) 2 else freeZpBytes.max + 1
 }
 
 class AfterCodeByteAllocator(val endBefore: Int) extends ByteAllocator {
@@ -85,9 +85,9 @@ class AfterCodeByteAllocator(val endBefore: Int) extends ByteAllocator {
   override def preferredOrder: Option[List[Int]] = None
 }
 
-class VariableAllocator(pointers: List[Int], private val bytes: ByteAllocator) {
+class VariableAllocator(zpBytes: List[Int], private val bytes: ByteAllocator) {
 
-  val zeropage: ByteAllocator = new ZeropageAllocator(pointers)
+  val zeropage: ByteAllocator = new ZeropageAllocator(zpBytes)
 
   private val variableMap = mutable.Map[Int, mutable.Map[Int, Set[VariableVertex]]]()
 

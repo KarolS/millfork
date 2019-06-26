@@ -184,9 +184,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val variableAllocators = platform.variableAllocators
     val zpOccupied = mem.banks("default").occupied
     (0 until 0x100).foreach(i => zpOccupied(i) = true)
-    platform.freeZpPointers.foreach { i =>
+    platform.freeZpBytes.foreach { i =>
       zpOccupied(i) = false
-      zpOccupied(i + 1) = false
     }
 
     val optimizations = unfilteredOptimizations.filter(_.requiredFlags.forall(options.flag))
@@ -430,9 +429,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 3, forZpOnly = false)
 
     val defaultBank = mem.banks("default").index
-    if (platform.freeZpPointers.nonEmpty) {
-      val zpUsageOffset = platform.freeZpPointers.min
-      val zeropageOccupation = zpOccupied.slice(zpUsageOffset, platform.freeZpPointers.max + 2)
+    if (platform.freeZpBytes.nonEmpty) {
+      val zpUsageOffset = platform.freeZpBytes.min
+      val zeropageOccupation = zpOccupied.slice(zpUsageOffset, platform.freeZpBytes.max + 1)
       labelMap += "__zeropage_usage" -> (defaultBank, zeropageOccupation.lastIndexOf(true) - zeropageOccupation.indexOf(true) + 1)
       labelMap += "__zeropage_first" -> (defaultBank, zpUsageOffset + (zeropageOccupation.indexOf(true) max 0))
       labelMap += "__zeropage_last" -> (defaultBank, zpUsageOffset + (zeropageOccupation.lastIndexOf(true) max 0))

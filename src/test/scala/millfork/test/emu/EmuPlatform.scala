@@ -8,7 +8,7 @@ import millfork.{Cpu, CpuFamily, OutputStyle, Platform, ViceDebugOutputFormat}
   * @author Karol Stasiak
   */
 object EmuPlatform {
-  private val pointers: List[Int] = (0 until 256 by 2).toList
+  private val pointers: List[Int] = (0 until 256).toList
 
   def get(cpu: Cpu.Value) = new Platform(
     cpu,

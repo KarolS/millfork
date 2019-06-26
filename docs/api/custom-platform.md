@@ -118,7 +118,11 @@ See the [preprocessor documentation](../lang/preprocessor.md) for more info.
 * `zp_pointers` – 
 either a list of comma separated zeropage addresses that can be used by the program as zeropage pointers, or `all` for all. 
 Each value should be the address of the first of two free bytes in the zeropage.
-Only used for 6502-based targets.
+Only used for 6502-based targets. Cannot be used together with `zp_bytes`.
+
+* `zp_bytes` – 
+either a list of comma separated zeropage byte addresses or address ranges that can be used by the program in zeropage, or `all` for all. 
+Only used for 6502-based targets. Cannot be used together with `zp_pointers`.
 
 * `segments` – a comma-separated list of segment names.  
 A segment named `default` is always required.  

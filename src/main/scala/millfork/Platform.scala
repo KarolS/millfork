@@ -29,7 +29,7 @@ class Platform(
                 val codeAllocators: Map[String, UpwardByteAllocator],
                 val variableAllocators: Map[String, VariableAllocator],
                 val zpRegisterSize: Int,
-                val freeZpPointers: List[Int],
+                val freeZpBytes: List[Int],
                 val fileExtension: String,
                 val generateBbcMicroInfFile: Boolean,
                 val generateGameBoyChecksums: Boolean,
@@ -166,14 +166,29 @@ object Platform {
       bankDataStarts(b).foreach(dataStarts => if (dataStarts >= bankEnds(b)) log.error(s"Segment $b has invalid range"))
     })
 
-    val freePointers = as.get(classOf[String], "zp_pointers", "all") match {
-      case "all" => List.tabulate(128)(_ * 2)
-      case xs => xs.split("[, ]+").flatMap(parseNumberOrRange).toList
+    val freePointers: Option[List[Int]] = as.get(classOf[String], "zp_pointers", "") match {
+      case "all" => Some(List.tabulate(128)(_ * 2))
+      case "" => None
+      case xs => Some(xs.split("[, ]+").flatMap(s => parseNumberOrRange(s, 2)).toList)
+    }
+    val freeExplicitBytes: Option[List[Int]] = as.get(classOf[String], "zp_bytes", "") match {
+      case "all" => Some(List.tabulate(256)(identity))
+      case "" => None
+      case xs => Some(xs.split("[, ]+").flatMap(s => parseNumberOrRange(s, 1)).toList)
+    }
+
+    val freeZpBytes: List[Int] = (freePointers, freeExplicitBytes) match {
+      case (Some(l), None) => l.flatMap(i => List(i, i+1))
+      case (None, Some(l)) => l
+      case (None, None) => List.tabulate(256)(identity)
+      case (Some(_), Some(l)) =>
+        log.error(s"Cannot define both zp_pointers and zp_bytes")
+        l
     }
 
     val codeAllocators = banks.map(b => b -> new UpwardByteAllocator(bankStarts(b), bankCodeEnds(b)))
     val variableAllocators = banks.map(b => b -> new VariableAllocator(
-      if (b == "default" && CpuFamily.forType(cpu) == CpuFamily.M6502) freePointers else Nil, bankDataStarts(b) match {
+      if (b == "default" && CpuFamily.forType(cpu) == CpuFamily.M6502) freeZpBytes else Nil, bankDataStarts(b) match {
         case None => new AfterCodeByteAllocator(bankEnds(b))
         case Some(start) => new UpwardByteAllocator(start, bankEnds(b))
       }))
@@ -232,7 +247,7 @@ object Platform {
       codeAllocators.toMap,
       variableAllocators.toMap,
       zpRegisterSize,
-      freePointers,
+      freeZpBytes,
       if (fileExtension == "" || fileExtension.startsWith(".")) fileExtension else "." + fileExtension,
       generateBbcMicroInfFile,
       generateGameBoyChecksums,
@@ -269,15 +284,15 @@ object Platform {
     )
   }
 
-  def parseNumberOrRange(s:String)(implicit log: Logger): Seq[Int] = {
+  def parseNumberOrRange(s:String, step: Int)(implicit log: Logger): Seq[Int] = {
     if (s.contains("-")) {
       val segments = s.split("-")
       if (segments.length != 2) {
         log.fatal(s"Invalid range: `$s`")
       }
-      Range(parseNumber(segments(0)), parseNumber(segments(1)), 2)
+      Range(parseNumber(segments(0).trim()), parseNumber(segments(1).trim()), step)
     } else {
-      Seq(parseNumber(s))
+      Seq(parseNumber(s.trim()))
     }
   }
 
