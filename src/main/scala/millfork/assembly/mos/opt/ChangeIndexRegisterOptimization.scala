@@ -5,6 +5,8 @@ import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext
 import millfork.env.NormalFunction
 import millfork.error.Logger
 
+import scala.util.control.TailCalls.{TailRec, done, tailcall}
+
 /**
   * @author Karol Stasiak
   */
@@ -58,14 +60,14 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
       case (true, false) =>
         if (!usesX) code else {
           log.debug("Changing index register from X to Y")
-          val changed = switchX2Y(code)
+          val changed = switchX2Y(code).result
           traceDiff(code, changed)
           changed
         }
       case (false, true) =>
         if (!usesY) code else {
           log.debug("Changing index register from Y to X")
-          val changed = switchY2X(code)
+          val changed = switchY2X(code).result
           traceDiff(code, changed)
           changed
         }
@@ -73,14 +75,14 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
         if (preferX2Y) {
           if (!usesX) code else {
             log.debug("Changing index register from X to Y (arbitrarily)")
-            val changed = switchX2Y(code)
+            val changed = switchX2Y(code).result
             traceDiff(code, changed)
             changed
           }
         } else {
           if (!usesY) code else {
             log.debug("Changing index register from Y to X (arbitrarily)")
-            val changed = switchY2X(code)
+            val changed = switchY2X(code).result
             traceDiff(code, changed)
             changed
           }
@@ -160,32 +162,32 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case Nil => true
   }
 
-  private def switchX2Y(code: List[AssemblyLine])(implicit log: Logger): List[AssemblyLine] = code match {
+  private def switchX2Y(code: List[AssemblyLine])(implicit log: Logger): TailRec[List[AssemblyLine]] = code match {
     case (a@AssemblyLine0(LDX | TAX, _, _))
       :: (b@AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _))
-      :: xs => a :: b :: switchX2Y(xs)
+      :: xs => tailcall(switchX2Y(xs)).map(a :: b :: _)
     case (a@AssemblyLine0(LDX | TAX, _, _))
       :: (b@AssemblyLine0(_, IndexedX, _))
-      :: xs => a :: b :: switchX2Y(xs)
+      :: xs => tailcall(switchX2Y(xs)).map(a :: b :: _)
     case (a@AssemblyLine0(LDX | TAX, _, _))
       :: (i@AssemblyLine0(INX | DEX, _, _))
       :: (b@AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | LDY | STY | STZ, AbsoluteX | ZeroPageX, _))
-      :: xs => a :: i :: b :: switchX2Y(xs)
+      :: xs => tailcall(switchX2Y(xs)).map(a :: i :: b :: _)
     case (a@AssemblyLine0(LDX | TAX, _, _))
       :: (i@AssemblyLine0(INX | DEX, _, _))
       :: (b@AssemblyLine0(_, IndexedX, _))
-      :: xs => a :: i :: b :: switchX2Y(xs)
-    case (x@AssemblyLine0(TAX, _, _)) :: xs => x.copy(opcode = TAY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(TXA, _, _)) :: xs => x.copy(opcode = TYA) :: switchX2Y(xs)
-    case (x@AssemblyLine0(TXY | TYX, _, _)) :: xs => x.copy(opcode = TYX) :: switchX2Y(xs) // keep the transfer for the flags
-    case (x@AssemblyLine0(STX, _, _)) :: xs => x.copy(opcode = STY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(LDX, _, _)) :: xs => x.copy(opcode = LDY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(INX, _, _)) :: xs => x.copy(opcode = INY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(DEX, _, _)) :: xs => x.copy(opcode = DEY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(CPX, _, _)) :: xs => x.copy(opcode = CPY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(PHX, _, _)) :: xs => x.copy(opcode = PHY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(PLX, _, _)) :: xs => x.copy(opcode = PLY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(HuSAX, _, _)) :: xs => x.copy(opcode = SAY) :: switchX2Y(xs)
+      :: xs => tailcall(switchX2Y(xs)).map(a :: i :: b :: _)
+    case (x@AssemblyLine0(TAX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = TAY) :: _)
+    case (x@AssemblyLine0(TXA, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = TYA) :: _)
+    case (x@AssemblyLine0(TXY | TYX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = TYX) :: _) // keep the transfer for the flags
+    case (x@AssemblyLine0(STX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = STY) :: _)
+    case (x@AssemblyLine0(LDX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = LDY) :: _)
+    case (x@AssemblyLine0(INX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = INY) :: _)
+    case (x@AssemblyLine0(DEX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = DEY) :: _)
+    case (x@AssemblyLine0(CPX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = CPY) :: _)
+    case (x@AssemblyLine0(PHX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = PHY) :: _)
+    case (x@AssemblyLine0(PLX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = PLY) :: _)
+    case (x@AssemblyLine0(HuSAX, _, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(opcode = SAY) :: _)
 
     case AssemblyLine0(LAX, _, _) :: xs => log.fatal("Unexpected LAX")
     case AssemblyLine0(TXS, _, _) :: xs => log.fatal("Unexpected TXS")
@@ -194,42 +196,42 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
     case AssemblyLine0(SAX, _, _) :: xs => log.fatal("Unexpected SAX")
     case AssemblyLine0(SXY, _, _) :: xs => log.fatal("Unexpected SXY")
 
-    case (x@AssemblyLine0(_, AbsoluteX, _)) :: xs => x.copy(addrMode = AbsoluteY) :: switchX2Y(xs)
-    case (x@AssemblyLine0(_, ZeroPageX, _)) :: xs => x.copy(addrMode = ZeroPageY) :: switchX2Y(xs)
+    case (x@AssemblyLine0(_, AbsoluteX, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(addrMode = AbsoluteY) :: _)
+    case (x@AssemblyLine0(_, ZeroPageX, _)) :: xs => tailcall(switchX2Y(xs)).map(x.copy(addrMode = ZeroPageY) :: _)
     case (x@AssemblyLine0(_, IndexedX, _)) :: xs => log.fatal("Unexpected IndexedX")
 
-    case x::xs => x :: switchX2Y(xs)
-    case Nil => Nil
+    case x::xs => tailcall(switchX2Y(xs)).map(x :: _)
+    case Nil => done(Nil)
   }
 
-  private def switchY2X(code: List[AssemblyLine])(implicit log: Logger): List[AssemblyLine] = code match {
+  private def switchY2X(code: List[AssemblyLine])(implicit log: Logger): TailRec[List[AssemblyLine]] = code match {
     case AssemblyLine0(LDY | TAY, _, _)
       :: AssemblyLine0(_, IndexedY, _)
-      :: xs => code.take(2) ++ switchY2X(xs)
+      :: xs => tailcall(switchY2X(xs)).map(code.take(2) ++ _)
     case AssemblyLine0(LDY | TAY, _, _)
       :: (i@AssemblyLine0(INY | DEY, _, _))
       :: AssemblyLine0(_, IndexedY, _)
-      :: xs => code.take(3) ++ switchY2X(xs)
-    case (x@AssemblyLine0(TAY, _, _)) :: xs => x.copy(opcode = TAX) :: switchY2X(xs)
-    case (x@AssemblyLine0(TYA, _, _)) :: xs => x.copy(opcode = TXA) :: switchY2X(xs)
-    case (x@AssemblyLine0(TYX | TXY, _, _)) :: xs => x.copy(opcode = TXY) :: switchY2X(xs) // keep the transfer for the flags
-    case (x@AssemblyLine0(STY, _, _)) :: xs => x.copy(opcode = STX) :: switchY2X(xs)
-    case (x@AssemblyLine0(LDY, _, _)) :: xs => x.copy(opcode = LDX) :: switchY2X(xs)
-    case (x@AssemblyLine0(INY, _, _)) :: xs => x.copy(opcode = INX) :: switchY2X(xs)
-    case (x@AssemblyLine0(DEY, _, _)) :: xs => x.copy(opcode = DEX) :: switchY2X(xs)
-    case (x@AssemblyLine0(CPY, _, _)) :: xs => x.copy(opcode = CPX) :: switchY2X(xs)
-    case (x@AssemblyLine0(PHY, _, _)) :: xs => x.copy(opcode = PHX) :: switchY2X(xs)
-    case (x@AssemblyLine0(PLY, _, _)) :: xs => x.copy(opcode = PLX) :: switchY2X(xs)
-    case (x@AssemblyLine0(SAY, _, _)) :: xs => x.copy(opcode = HuSAX) :: switchY2X(xs)
+      :: xs => tailcall(switchY2X(xs)).map(code.take(3) ++ _)
+    case (x@AssemblyLine0(TAY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = TAX) :: _)
+    case (x@AssemblyLine0(TYA, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = TXA) :: _)
+    case (x@AssemblyLine0(TYX | TXY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = TXY) :: _) // keep the transfer for the flags
+    case (x@AssemblyLine0(STY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = STX) :: _)
+    case (x@AssemblyLine0(LDY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = LDX) :: _)
+    case (x@AssemblyLine0(INY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = INX) :: _)
+    case (x@AssemblyLine0(DEY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = DEX) :: _)
+    case (x@AssemblyLine0(CPY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = CPX) :: _)
+    case (x@AssemblyLine0(PHY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = PHX) :: _)
+    case (x@AssemblyLine0(PLY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = PLX) :: _)
+    case (x@AssemblyLine0(SAY, _, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(opcode = HuSAX) :: _)
     case AssemblyLine0(SXY, _, _) :: xs => log.fatal("Unexpected SXY")
 
-    case (x@AssemblyLine0(_, AbsoluteY, _)) :: xs => x.copy(addrMode = AbsoluteX) :: switchY2X(xs)
-    case (x@AssemblyLine0(_, ZeroPageY, _)) :: xs => x.copy(addrMode = ZeroPageX) :: switchY2X(xs)
+    case (x@AssemblyLine0(_, AbsoluteY, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(addrMode = AbsoluteX) :: _)
+    case (x@AssemblyLine0(_, ZeroPageY, _)) :: xs => tailcall(switchY2X(xs)).map(x.copy(addrMode = ZeroPageX) :: _)
     case AssemblyLine0(_, IndexedY, _) :: xs => log.fatal("Unexpected IndexedY")
     case AssemblyLine0(_, LongIndexedY, _) :: xs => log.fatal("Unexpected LongIndexedY")
     case AssemblyLine0(_, IndexedSY, _) :: xs => log.fatal("Unexpected IndexedSY")
 
-    case x::xs => x :: switchY2X(xs)
-    case Nil => Nil
+    case x::xs => tailcall(switchY2X(xs)).map(x :: _)
+    case Nil => done(Nil)
   }
 }
