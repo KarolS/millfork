@@ -20,6 +20,9 @@
 
 * Added `init_rw_memory` module for cartridge targets.
 
+* **Breaking change!** Preinitialized writable arrays on cartridge targets
+can no longer be read before an explicit call to `init_rw_memory`, either add the call or make the arrays const.
+
 * Added `ensure_mixedcase` function and `oldpet` and `origpet` text encodings.
 
 * Added `MILLFORK_VERSION` preprocessor parameter.

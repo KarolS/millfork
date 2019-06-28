@@ -116,7 +116,11 @@ Syntax:
 then defaults to `default_code_segment` as defined for the platform if the array has initial values,
 or to `default` if it doesn't.
 
-* if `const` is present, the array is read-only. Read-only arrays have to have a fixed address and/or defined contents.
+* if `const` is present, the array is read-only. Read-only arrays have to have a fixed address and/or defined contents.  
+**COMPATIBILITY WARNING!** In Millfork 0.3.2 and earlier, arrays couldn't be declared const and on cartridge-based targets,
+preinitialized arrays were assumed to be immutable and were allocated to ROM.
+Since 0.3.4, only const arrays can be allocated to ROM, non-const arrays are allocated to RAM
+and their contents are uninitialized before a call to `init_rw_memory`. See [the ROM vs RAM guide](../api/rom-vs-ram.md).
 
 * `<element type>`: type of the elements of the array.
 It must be of size 1 byte.
