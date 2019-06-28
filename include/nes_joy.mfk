@@ -27,15 +27,15 @@ void nes_reset_joy() {
 
 inline void read_also_joy1() {
     strobe_joypad()
-    __parse_nes_joypad(read_joypad1())
+    __parse_nes_joypad1()
 }
 
 inline void read_also_joy2() {
     strobe_joypad()
-    __parse_nes_joypad(read_joypad2())
+    __parse_nes_joypad2()
 }
 
-void __parse_nes_joypad(byte b) {
+void __parse_nes_joypad1() {
     if read_joypad1() & 1 != 0 { input_a += 1 }
     if read_joypad1() & 1 != 0 { input_b += 1 }
     if read_joypad1() & 1 != 0 { input_select += 1 }
@@ -44,4 +44,15 @@ void __parse_nes_joypad(byte b) {
     if read_joypad1() & 1 != 0 { input_dy += 1 }
     if read_joypad1() & 1 != 0 { input_dx -= 1 }
     if read_joypad1() & 1 != 0 { input_dx += 1 }
+}
+
+void __parse_nes_joypad2() {
+    if read_joypad2() & 1 != 0 { input_a += 1 }
+    if read_joypad2() & 1 != 0 { input_b += 1 }
+    if read_joypad2() & 1 != 0 { input_select += 1 }
+    if read_joypad2() & 1 != 0 { input_start += 1 }
+    if read_joypad2() & 1 != 0 { input_dy -= 1 }
+    if read_joypad2() & 1 != 0 { input_dy += 1 }
+    if read_joypad2() & 1 != 0 { input_dx -= 1 }
+    if read_joypad2() & 1 != 0 { input_dx += 1 }
 }
