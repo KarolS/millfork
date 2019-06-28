@@ -1,4 +1,5 @@
 void main() {
+    init_rw_memory()
     byte y
     while true {
         start_frame()

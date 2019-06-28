@@ -84,8 +84,8 @@ class ZeropageAllocator(val freeZpBytes: List[Int]) extends ByteAllocator {
   override def heapStart: Int = 0
 }
 
-class AfterCodeByteAllocator(val endBefore: Int) extends ByteAllocator {
-  var startAt = 0x200
+class AfterCodeByteAllocator(startIfNoCode: Int, val endBefore: Int) extends ByteAllocator {
+  var startAt = startIfNoCode
   def notifyAboutEndOfCode(org: Int): Unit = startAt = org
 
   override def preferredOrder: Option[List[Int]] = None

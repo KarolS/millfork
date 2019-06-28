@@ -66,7 +66,7 @@ See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
 
 * `ZPREG_SIZE` – size of the pseudoregister in bytes, or 0 on platforms that don't use it
 
-* `TINY_MAIN_RAM` – 1 if the main ram is 256 bytes or less, 0 otherwise
+* `TINY_RW_MEMORY` – 1 if the main ram is 256 bytes or less, 0 otherwise
 
 * `USES_IX_STACK`, `USES_IY_STACK` – 1 if given index register is used as a base pointer for stack-allocated variables, 0 otherwise 
 

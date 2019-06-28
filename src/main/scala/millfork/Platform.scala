@@ -157,16 +157,12 @@ object Platform {
       case "default" =>
         log.error("Cannot use default as ram_init_segment")
         None
-      case x if banks.contains(x) =>
-        if (CpuFamily.forType(cpu) == CpuFamily.M6502 && zpRegisterSize < 4) {
-          log.error("Using ram_init_segment requires zeropage register of size at least 4")
-        }
-        Some(x)
+      case x if banks.contains(x) => Some(x)
       case x =>
         log.error("Invalid ram_init_segment: " + x)
         None
     }
-    // used by 65816:
+    // used by 65816 and in NES debugging:
     val bankNumbers = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_bank", "00") match {
       case "" => 0
       case x => parseNumber(x)
@@ -204,7 +200,7 @@ object Platform {
     val codeAllocators = banks.map(b => b -> new UpwardByteAllocator(bankStarts(b), bankCodeEnds(b)))
     val variableAllocators = banks.map(b => b -> new VariableAllocator(
       if (b == "default" && CpuFamily.forType(cpu) == CpuFamily.M6502) freeZpBytes else Nil, bankDataStarts(b) match {
-        case None => new AfterCodeByteAllocator(bankEnds(b))
+        case None => new AfterCodeByteAllocator(bankStarts(b), bankEnds(b))
         case Some(start) => new UpwardByteAllocator(start, bankEnds(b))
       }))
 

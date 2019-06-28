@@ -21,7 +21,7 @@ object EmuPlatform {
     Map("default" -> (if (cpu == Cpu.Intel8086) new UpwardByteAllocator(0x100, 0xb000) else new UpwardByteAllocator(0x200, 0xb000))),
     Map("default" -> new VariableAllocator(
       if (CpuFamily.forType(cpu) == CpuFamily.M6502) pointers else Nil,
-      new AfterCodeByteAllocator(0xff00))),
+      new AfterCodeByteAllocator(0x200, 0xff00))),
     if (CpuFamily.forType(cpu) == CpuFamily.M6502) 4 else 0,
     pointers,
     ".bin",
