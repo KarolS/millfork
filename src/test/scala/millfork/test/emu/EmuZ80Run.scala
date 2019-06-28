@@ -92,7 +92,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     log.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
-    log.setSource(Some(effectiveSource.lines.toIndexedSeq))
+    log.setSource(Some(effectiveSource.linesIterator.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, pragmas) = Preprocessor.preprocessForTest(options, effectiveSource)
     // tests use Intel syntax only when forced to:
     val parserF = Z80Parser("", preprocessedSource, "", options, features, pragmas.contains("intel_syntax"))

@@ -35,7 +35,7 @@ object ShouldNotCompile extends Matchers {
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
-    log.setSource(Some(effectiveSource.lines.toIndexedSeq))
+    log.setSource(Some(effectiveSource.linesIterator.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = MosParser("", preprocessedSource, "", options, features)
     parserF.toAst match {

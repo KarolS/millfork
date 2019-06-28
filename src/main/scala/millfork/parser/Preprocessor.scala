@@ -18,7 +18,7 @@ object Preprocessor {
   private val Regex = """\A\s*(?:#|\$\$)\s*([a-z]+)\s*(.*?)\s*\z""".r
 
   def preprocessForTest(options: CompilationOptions, code: String): PreprocessingResult = {
-    apply(options, "", code.lines.toSeq)
+    apply(options, "", code.linesIterator.toSeq)
   }
 
   case class IfContext(hadEnabled: Boolean, hadElse: Boolean, enabledBefore: Boolean)
