@@ -375,7 +375,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       assembly.append("    " + bytePseudoopcode + " 2 ;; end of LUnix relocatable segment")
       justAfterCode += "default" -> (index + 1)
     }
-    if (options.platform.ramInitialValuesBank.isDefined) env.getAllFixedAddressObjects.foreach {
+    env.getAllFixedAddressObjects.foreach {
       case (bank, addr, size) =>
         val bank0 = mem.banks(bank)
         for(i <- 0 until size) bank0.occupied(addr + i) = true
@@ -492,11 +492,6 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     }
     if (options.platform.ramInitialValuesBank.isDefined) {
       variableAllocators("default").notifyAboutEndOfData(rwDataEnd)
-    } else env.getAllFixedAddressObjects.foreach {
-      case (bank, addr, size) =>
-        val bank0 = mem.banks(bank)
-        for (i <- 0 until size) bank0.occupied(addr + i) = true
-        variableAllocators(bank).notifyAboutHole(bank0, addr, size)
     }
     variableAllocators.foreach { case (b, a) => a.notifyAboutEndOfCode(justAfterCode(b)) }
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = false)
