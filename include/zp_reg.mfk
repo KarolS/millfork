@@ -8,11 +8,11 @@ noinline asm byte __mul_u8u8u8() {
     ? JMP __mul_u8u8u8_start
 __mul_u8u8u8_add:
     ? CLC
-    ? ADC __reg.lo
+    ? ADC lo(__reg)
 __mul_u8u8u8_loop:
-    ? ASL __reg.lo
+    ? ASL lo(__reg)
 __mul_u8u8u8_start:
-    ? LSR __reg.hi
+    ? LSR lo(__reg+1)
     ? BCS __mul_u8u8u8_add
     ? BNE __mul_u8u8u8_loop
     ? RTS
@@ -25,21 +25,21 @@ noinline asm byte __mod_u8u8u8u8() {
     ? LDX #7
     ? CLC
 __divmod_u8u8u8u8_start:
-    ? ROL __reg
+    ? ROL lo(__reg)
     ? ROL
-    ? CMP __reg+1
+    ? CMP lo(__reg+1)
     ? BCC __divmod_u8u8u8u8_skip
-    ? SBC __reg+1
+    ? SBC lo(__reg+1)
 __divmod_u8u8u8u8_skip:
     ? DEX
     ? BPL __divmod_u8u8u8u8_start
-    ? ROL __reg
+    ? ROL lo(__reg)
     ? RTS
 }
 
 asm byte __div_u8u8u8u8() {
     ? JSR __mod_u8u8u8u8
-    ? LDA __reg
+    ? LDA lo(__reg)
     ? RTS
 }
 
@@ -51,17 +51,17 @@ noinline asm word __mul_u16u8u16() {
     ? JMP __mul_u16u8u16_start
 __mul_u16u8u16_add:
     ? CLC
-    ? ADC __reg
+    ? ADC lo(__reg)
     ? TAY
     ? TXA
-    ? ADC __reg + 1
+    ? ADC lo(__reg+1)
     ? TAX
     ? TYA
 __mul_u16u8u16_loop:
-    ? ASL __reg
-    ? ROL __reg + 1
+    ? ASL lo(__reg)
+    ? ROL lo(__reg+1)
 __mul_u16u8u16_start:
-    ? LSR __reg + 2
+    ? LSR lo(__reg+2)
     ? BCS __mul_u16u8u16_add
     ? BNE __mul_u16u8u16_loop
     ? RTS
@@ -74,24 +74,24 @@ noinline asm byte __mod_u16u8u16u8() {
     ? LDX #15
     ? CLC
 __divmod_u16u8u16u8_start:
-    ? ROL __reg
-    ? ROL __reg+1
+    ? ROL lo(__reg)
+    ? ROL lo(__reg+1)
     ? ROL
-    ? CMP __reg+2
+    ? CMP lo(__reg+2)
     ? BCC __divmod_u16u8u16u8_skip
-    ? SBC __reg+2
+    ? SBC lo(__reg+2)
 __divmod_u16u8u16u8_skip:
     ? DEX
     ? BPL __divmod_u16u8u16u8_start
-    ? ROL __reg
-    ? ROL __reg+1
+    ? ROL lo(__reg)
+    ? ROL lo(__reg+1)
     ? RTS
 }
 
 asm word __div_u16u8u16u8() {
     ? JSR __mod_u16u8u16u8
-    ? LDA __reg
-    ? LDX __reg+1
+    ? LDA lo(__reg)
+    ? LDX lo(__reg+1)
     ? RTS
 }
 
