@@ -8,14 +8,14 @@
 #if TINY_RW_MEMORY
 
 noinline asm void init_rw_memory() {
-    ldx #__rwdata_size.lo // can't be more than $00FC
-    beq __init_rw_memory__skip3
+    ? ldx #__rwdata_size.lo // can't be more than $00FC
+    ? beq __init_rw_memory__skip3
     + memory_barrier()
 __init_rw_memory__loop3:
-    lda lo(__rwdata_init_start - 1),x
-    sta lo(__rwdata_start - 1),x
-    dex
-    bne __init_rw_memory__loop3
+    ? lda lo(__rwdata_init_start - 1),x
+    ? sta lo(__rwdata_start - 1),x
+    ? dex
+    ? bne __init_rw_memory__loop3
     + memory_barrier()
 __init_rw_memory__skip3:
     rts
@@ -28,43 +28,43 @@ __init_rw_memory__skip3:
 #endif
 
 noinline asm void init_rw_memory() {
-    lda #__rwdata_size.hi
-    ora #__rwdata_size.lo
-    beq __init_rw_memory__skip3
+    ? lda #__rwdata_size.hi
+    ? ora #__rwdata_size.lo
+    ? beq __init_rw_memory__skip3
     + memory_barrier()
 
-    ldx #__rwdata_size.hi
-    beq __init_rw_memory__skip1
+    ? ldx #__rwdata_size.hi
+    ? beq __init_rw_memory__skip1
 
-    lda #__rwdata_init_start.lo
-    sta lo(__reg)
-    lda #__rwdata_init_start.hi
-    sta lo(__reg + 1)
-    lda #__rwdata_start.lo
-    sta lo(__reg + 2)
-    lda #__rwdata_start.hi
-    sta lo(__reg + 3)
+    ? lda #__rwdata_init_start.lo
+    ? sta __reg
+    ? lda #__rwdata_init_start.hi
+    ? sta __reg+1
+    ? lda #__rwdata_start.lo
+    ? sta __reg+2
+    ? lda #__rwdata_start.hi
+    ? sta __reg+3
 
 __init_rw_memory__loop1:
-    ldy #0
+    ? ldy #0
 __init_rw_memory__loop2:
-    lda (lo(__reg)),y
-    sta (lo(__reg + 2)),y
-    dey
-    bne __init_rw_memory__loop2
-    inc lo(__reg + 1)
-    inc lo(__reg + 3)
-    dex
-    bne __init_rw_memory__loop1
+    ? lda (__reg),y
+    ? sta (__reg+2),y
+    ? dey
+    ? bne __init_rw_memory__loop2
+    ? inc __reg+1
+    ? inc __reg+3
+    ? dex
+    ? bne __init_rw_memory__loop1
 
 __init_rw_memory__skip1:
-    ldx #__rwdata_size.lo
-    beq __init_rw_memory__skip3
+    ? ldx #__rwdata_size.lo
+    ? beq __init_rw_memory__skip3
 __init_rw_memory__loop3:
-    lda __rwdata_init_start + (__rwdata_size & $ff00) - 1,x
-    sta __rwdata_start      + (__rwdata_size & $ff00) - 1,x
-    dex
-    bne __init_rw_memory__loop3
+    ? lda __rwdata_init_start + (__rwdata_size & $ff00) - 1,x
+    ? sta __rwdata_start      + (__rwdata_size & $ff00) - 1,x
+    ? dex
+    ? bne __init_rw_memory__loop3
 __init_rw_memory__skip3:
     + memory_barrier()
     rts
