@@ -35,6 +35,7 @@ class Platform(
                 val generateGameBoyChecksums: Boolean,
                 val bankNumbers: Map[String, Int],
                 val defaultCodeBank: String,
+                val ramInitialValuesBank: Option[String],
                 val outputLabelsFormat: DebugOutputFormat,
                 val outputStyle: OutputStyle.Value
               ) {
@@ -151,6 +152,20 @@ object Platform {
       case "" | null => "default"
       case x => x
     }
+    val ramInitialValuesBank = as.get(classOf[String], "ram_init_segment") match {
+      case "" | null => None
+      case "default" =>
+        log.error("Cannot use default as ram_init_segment")
+        None
+      case x if banks.contains(x) =>
+        if (CpuFamily.forType(cpu) == CpuFamily.M6502 && zpRegisterSize < 4) {
+          log.error("Using ram_init_segment requires zeropage register of size at least 4")
+        }
+        Some(x)
+      case x =>
+        log.error("Invalid ram_init_segment: " + x)
+        None
+    }
     // used by 65816:
     val bankNumbers = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_bank", "00") match {
       case "" => 0
@@ -236,10 +251,15 @@ object Platform {
       k -> value
     }.toMap
 
+    var actualStartingModules = startingModules
+    if (ramInitialValuesBank.isDefined) {
+      actualStartingModules = "init_rw_memory" :: actualStartingModules
+    }
+
     new Platform(
       cpu,
       flagOverrides,
-      startingModules,
+      actualStartingModules,
       codec,
       srcCodec,
       builtInFeatures ++ definedFeatures,
@@ -253,6 +273,7 @@ object Platform {
       generateGameBoyChecksums,
       bankNumbers,
       defaultCodeBank,
+      ramInitialValuesBank,
       debugOutputFormat,
       outputStyle)
   }

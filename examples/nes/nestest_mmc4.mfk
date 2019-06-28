@@ -1,16 +1,24 @@
 // Based upon the example code from NES 101 tutorial by Michael Martin
 // compile with -t nes_mmc4
 
+import nes_joy
+
+volatile byte initialized
+
 void main() {
+    initialized = 0
+    set_prg_bank(0)
+    init_rw_memory()
     init_graphics()
-    init_input()
     init_sound()
     ppu_ctrl = %10001000
     ppu_mask = %00011110
+    initialized = 1
     while(true){}
 }
 
 void nmi() {
+    if initialized != 1 { return }
     set_prg_bank(1)
     scroll_screen()
     set_prg_bank(2)
@@ -24,22 +32,18 @@ void irq() {
 }
 
 array oam_buffer [256] @$200
-byte scroll
-byte a
+byte scroll = 240
+byte a = 0 // debouncing
 segment(ram) sbyte dx
 
 void init_graphics() {
+    set_horizontal_mirroring()
     set_chr_bank0($06)
     set_chr_bank1($1A)
     init_sprites()
     set_prg_bank(6)
     load_palette()
     load_name_tables()
-    init_scrolling()
-}
-
-void init_input() {
-    a = 0
 }
 
 void init_sound() {
@@ -78,20 +82,16 @@ noinline void load_name_tables() {
     p = bg.addr
     ppu_set_addr($2400)
     for page_count,0,until,4 {
-        for b,0,until,255 {
+        for b,0,to,255 {
             ppu_write_data(p[b])
         }
         p.hi += 1
     }
     for page_count,0,until,4 {
-        for b,0,until,255 {
+        for b,0,to,255 {
             ppu_write_data(0)
         }
     }
-}
-
-void init_scrolling() {
-    scroll = 240
 }
 
 segment(prgrom2)
@@ -109,17 +109,17 @@ noinline void update_sprite() {
 
 segment(prgrom3)
 noinline void react_to_input() {
-    strobe_joypad()
-    if read_joypad1() & 1 != 0 { // A button
-        reverse_dx()
+    read_joy1()
+    if input_a != 0 { // A button
+        if a == 0 {
+            reverse_dx()
+        }
     }
-    read_joypad1() // B button
-    read_joypad1() // Select button
-    read_joypad1() // Start button
-    if read_joypad1() & 1 != 0 { // Up button
+    a = input_a
+    if input_dy < 0 { // Up button
         if oam_buffer[0] > 7 { oam_buffer[0] -= 1}
     }
-    if read_joypad1() & 1 != 0 { // Down button
+    if input_dy > 0 { // Down button
         if oam_buffer[0] < 223 { oam_buffer[0] += 1}
     }
 }

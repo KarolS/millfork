@@ -54,6 +54,9 @@ The following features are defined based on the chosen CPU and compilation optio
 `CPUFEATURE_8080`, `CPUFEATURE_8085`, `CPUFEATURE_GAMEBOY`, `CPUFEATURE_Z80`,
 `CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_8085_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS` – 1 if given instruction subset is enabled, 0 otherwise
 
+* `INIT_RW_MEMORY` – 1 if the option `ram_init_segment` is defined, 0 otherwise.
+See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
+
 * `OPTIMIZE_FOR_SIZE`, `OPTIMIZE_FOR_SPEED`, `OPTIMIZE_INLINE`, `OPTIMIZE_IPO`
 – 1 if given optimization setting is enabled, 0 otherwise
 
@@ -62,6 +65,8 @@ The following features are defined based on the chosen CPU and compilation optio
 * `USES_ZPREG` – 1 if the zeropage pseudoregister is used, 0 otherwise
 
 * `ZPREG_SIZE` – size of the pseudoregister in bytes, or 0 on platforms that don't use it
+
+* `TINY_MAIN_RAM` – 1 if the main ram is 256 bytes or less, 0 otherwise
 
 * `USES_IX_STACK`, `USES_IY_STACK` – 1 if given index register is used as a base pointer for stack-allocated variables, 0 otherwise 
 

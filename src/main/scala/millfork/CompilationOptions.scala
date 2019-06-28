@@ -213,8 +213,10 @@ case class CompilationOptions(platform: Platform,
       "CPUFEATURE_6502_ILLEGALS" -> toLong(platform.cpuFamily == CpuFamily.M6502 && flag(CompilationFlag.EmitIllegals)),
       "CPUFEATURE_Z80_ILLEGALS" -> toLong(flag(CompilationFlag.EmitZ80Opcodes) && flag(CompilationFlag.EmitIllegals)),
       "CPUFEATURE_8085_ILLEGALS" -> toLong(flag(CompilationFlag.EmitIntel8080Opcodes) && flag(CompilationFlag.EmitIllegals)),
+      "INIT_RW_MEMORY" -> toLong(platform.ramInitialValuesBank.isDefined),
       "SYNTAX_INTEL" -> toLong(platform.cpuFamily == CpuFamily.I80 && flag(CompilationFlag.UseIntelSyntaxForInput)),
       "SYNTAX_ZILOG" -> toLong(platform.cpuFamily == CpuFamily.I80 && !flag(CompilationFlag.UseIntelSyntaxForInput)),
+      "TINY_RW_MEMORY" -> toLong(platform.variableAllocators("default").totalHimemSize <= 256),
       "USES_ZPREG" -> toLong(platform.cpuFamily == CpuFamily.M6502 && zpRegisterSize > 0),
       "USES_IX_STACK" -> toLong(flag(CompilationFlag.UseIxForStack)),
       "USES_IY_STACK" -> toLong(flag(CompilationFlag.UseIyForStack)),
@@ -465,7 +467,7 @@ object Cpu extends Enumeration {
 object CompilationFlag extends Enumeration {
   val
   // common compilation options:
-  EmitIllegals, DecimalMode, ReadOnlyArrays, LenientTextEncoding, LineNumbersInAssembly, SourceInAssembly,
+  EmitIllegals, DecimalMode, LenientTextEncoding, LineNumbersInAssembly, SourceInAssembly,
   // compilation options for MOS:
   EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
   PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, SoftwareStack,
@@ -526,7 +528,6 @@ object CompilationFlag extends Enumeration {
     "inline" -> InlineFunctions,
     "dangerous_optimizations" -> DangerousOptimizations,
     "decimal_mode" -> DecimalMode,
-    "ro_arrays" -> ReadOnlyArrays,
     "ror_warn" -> RorWarning,
     "prevent_jmp_indirect_bug" -> PreventJmpIndirectBug,
     "compact_dispatch_params" -> CompactReturnDispatchParams,

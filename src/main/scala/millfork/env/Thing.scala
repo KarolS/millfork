@@ -298,7 +298,8 @@ case class InitializedArray(name: String, address: Option[Constant], contents: S
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
 
-  override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
+  override def bank(compilationOptions: CompilationOptions): String =
+    declaredBank.getOrElse(if (readOnly) compilationOptions.platform.defaultCodeBank else "default")
 
   override def zeropage: Boolean = false
 

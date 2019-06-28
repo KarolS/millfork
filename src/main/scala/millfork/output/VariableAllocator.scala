@@ -23,6 +23,7 @@ object AllocationLocation extends Enumeration {
 sealed trait ByteAllocator {
   def startAt: Int
   def endBefore: Int
+  def heapStart: Int
 
   def preferredOrder: Option[List[Int]]
 
@@ -64,7 +65,10 @@ sealed trait ByteAllocator {
 }
 
 class UpwardByteAllocator(val startAt: Int, val endBefore: Int) extends ByteAllocator {
-  def notifyAboutEndOfCode(org: Int): Unit = ()
+  var heapStart: Int = startAt
+  def notifyAboutEndOfCode(org: Int): Unit = {
+    heapStart = org
+  }
   override def preferredOrder: Option[List[Int]] = None
 }
 
@@ -76,6 +80,8 @@ class ZeropageAllocator(val freeZpBytes: List[Int]) extends ByteAllocator {
   override def startAt: Int = if (freeZpBytes.isEmpty) 2 else freeZpBytes.min
 
   override def endBefore: Int = if (freeZpBytes.isEmpty) 2 else freeZpBytes.max + 1
+
+  override def heapStart: Int = 0
 }
 
 class AfterCodeByteAllocator(val endBefore: Int) extends ByteAllocator {
@@ -83,15 +89,19 @@ class AfterCodeByteAllocator(val endBefore: Int) extends ByteAllocator {
   def notifyAboutEndOfCode(org: Int): Unit = startAt = org
 
   override def preferredOrder: Option[List[Int]] = None
+
+  override def heapStart: Int = startAt
 }
 
 class VariableAllocator(zpBytes: List[Int], private val bytes: ByteAllocator) {
+
+  def totalHimemSize: Int = bytes.endBefore - bytes.startAt
 
   val zeropage: ByteAllocator = new ZeropageAllocator(zpBytes)
 
   private val variableMap = mutable.Map[Int, mutable.Map[Int, Set[VariableVertex]]]()
 
-  var heapStart: Int = bytes.startAt
+  var heapStart: Int = bytes.heapStart
 
   def allocateBytes(mem: MemoryBank, callGraph: CallGraph, p: VariableVertex, options: CompilationOptions, count: Int, initialized: Boolean, writeable: Boolean, location: AllocationLocation.Value, alignment: MemoryAlignment): Int = {
     if (!variableMap.contains(count)) {
@@ -173,5 +183,16 @@ class VariableAllocator(zpBytes: List[Int], private val bytes: ByteAllocator) {
     }
   }
 
+  //TODO: Everything about the three methods below is ugly and wrong. Fix later.
+
   def notifyAboutEndOfCode(org: Int): Unit = bytes.notifyAboutEndOfCode(org)
+  def notifyAboutEndOfData(org: Int): Unit = heapStart = heapStart max org
+
+  def notifyAboutHole(mem: MemoryBank, addr: Int, size: Int): Unit = {
+    if (Math.abs(addr - heapStart) <= 1) {
+      heapStart += size
+      while (mem.occupied(heapStart)) heapStart += 1
+      bytes.notifyAboutEndOfCode(heapStart)
+    }
+  }
 }

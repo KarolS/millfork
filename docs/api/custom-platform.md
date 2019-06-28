@@ -67,8 +67,6 @@ Default: the same as `encoding`.
 
     * `emit_z80` – whether the compiler should emit Zilog Z80 instructions not covered by `emit_x80`, default is `true` on compatible processors and `false` elsewhere
     
-    * `ro_arrays` – (deprecated) whether the compiler should warn upon array writes, default is `false`
-    
     * `prevent_jmp_indirect_bug` – whether the compiler should try to avoid the indirect JMP bug, 
     default is `false` on 65C02-compatible or non-6502 processors and `true` elsewhere
     
@@ -131,6 +129,10 @@ Default: `default`. In all options below, `NAME` refers to a segment name.
 * `default_code_segment` – the default segment for code and initialized arrays.  
 Note that the default segment for uninitialized arrays and variables is always `default`.  
 Default: `default`
+
+* `ram_init_segment` – the segment storing a copy of initial values for preinitialized writable arrays and variables.
+The segment cannot be `default`. See [the ROM vs RAM guide](./rom-vs-ram.md) for more information.
+Default: none.
 
 * `segment_NAME_start` – the first address used for automatic allocation in the segment.  
 Note that on 6502-like targets, the `default` segment shouldn't start before $200, as the $0-$1FF range is reserved for the zeropage and the stack.  

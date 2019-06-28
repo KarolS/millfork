@@ -9,6 +9,9 @@ but it may be expanded to support other 6502-based and Z80-based platforms in th
 
 To add a custom platform yourself, see [the custom platform adding guide](./custom-platform.md).
 
+If you are compiling for a cartridge-based target,
+you need to take special precautions; see [the ROM vs RAM guide](./rom-vs-ram.md)
+
 ## Supported platforms
 
 The following platforms are currently supported:
@@ -92,6 +95,3 @@ The compiler emits COM files.
 * `dos_com` – a COM file for DOS on IBM PC. (very experimental)
 
 The primary and most tested platform is Commodore 64.
-
-Currently, targets that assume that the program will be loaded from disk or tape are better tested.
-Cartridge targets may exhibit unexpected bugs.

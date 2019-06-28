@@ -267,12 +267,15 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     })
 
     env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, _, _) =>
+      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, readOnly, _) =>
         val bank = thing.bank(options)
+        if (!readOnly && options.platform.ramInitialValuesBank.isDefined) {
+            log.error(s"Preinitialized writable array $name cannot be put at a fixed address")
+        }
         val bank0 = mem.banks(bank)
         var index = address.toInt
         assembly.append("* = $" + index.toHexString)
-        assembly.append(name)
+        assembly.append(name + ":")
         for (item <- items) {
           env.eval(item) match {
             case Some(c) => writeByte(bank, index, c)
@@ -352,7 +355,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
             assembly.append("* = $" + index.toHexString)
             assembly.append("    " + bytePseudoopcode + " $2c")
-            assembly.append(name)
+            assembly.append(name + ":")
             val c = thing.toAddress
             writeByte(bank, index, 0x2c.toByte) // BIT abs
             index += 1
@@ -372,57 +375,128 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       assembly.append("    " + bytePseudoopcode + " 2 ;; end of LUnix relocatable segment")
       justAfterCode += "default" -> (index + 1)
     }
-    env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-      case thing@InitializedArray(name, None, items, _, _, _, _, alignment) =>
-        val bank = thing.bank(options)
-        val bank0 = mem.banks(bank)
-        var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
-        labelMap(name) = bank0.index -> index
-        assembly.append("* = $" + index.toHexString)
-        assembly.append(name)
-        for (item <- items) {
-          env.eval(item) match {
-            case Some(c) => writeByte(bank, index, c)
-            case None => log.error(s"Non-constant contents of array `$name`", item.position)
-          }
-          index += 1
-        }
-        items.grouped(16).foreach { group =>
-          assembly.append("    " + bytePseudoopcode + " " + group.map(expr => env.eval(expr) match {
-            case Some(c) => c.quickSimplify.toString
-            case None => "<? unknown constant ?>"
-          }).mkString(", "))
-        }
-        initializedVariablesSize += items.length
-        justAfterCode += bank -> index
-      case m@InitializedMemoryVariable(name, None, typ, value, _, alignment, _)  =>
-        val bank = m.bank(options)
-        val bank0 = mem.banks(bank)
-        var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
-        labelMap(name) = bank0.index -> index
-        val altName = m.name.stripPrefix(env.prefix) + "`"
-        env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
-        assembly.append("* = $" + index.toHexString)
-        assembly.append(name)
-        env.eval(value) match {
-          case Some(c) =>
-            for (i <- 0 until typ.size) {
-              writeByte(bank, index, c.subbyte(i))
-              assembly.append("    " + bytePseudoopcode + " " + c.subbyte(i).quickSimplify)
-              index += 1
-            }
-          case None =>
-            log.error(s"Non-constant initial value for variable `$name`")
-            index += typ.size
-        }
-        initializedVariablesSize += typ.size
-        justAfterCode += bank -> index
-      case _ =>
-    }
-    env.getAllFixedAddressObjects.foreach {
+    if (options.platform.ramInitialValuesBank.isDefined) env.getAllFixedAddressObjects.foreach {
       case (bank, addr, size) =>
         val bank0 = mem.banks(bank)
         for(i <- 0 until size) bank0.occupied(addr + i) = true
+        variableAllocators(bank).notifyAboutHole(bank0, addr, size)
+    }
+    var rwDataStart = Int.MaxValue
+    var rwDataEnd = 0
+    for(readOnlyPass <- Seq(true, false)) {
+      if (!readOnlyPass) {
+        if (options.platform.ramInitialValuesBank.isDefined) {
+          codeAllocators("default").notifyAboutEndOfCode(codeAllocators("default").heapStart)
+        }
+      }
+      env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
+        case thing@InitializedArray(name, None, items, _, _, _, readOnly, alignment) if readOnly == readOnlyPass =>
+          val bank = thing.bank(options)
+          if (options.platform.ramInitialValuesBank.isDefined && !readOnly && bank != "default") {
+            log.error(s"Preinitialized writable array `$name` should be defined in the `default` bank")
+          }
+          val bank0 = mem.banks(bank)
+          var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
+          labelMap(name) = bank0.index -> index
+          if (!readOnlyPass) {
+            rwDataStart = rwDataStart.min(index)
+            rwDataEnd = rwDataEnd.min(index + items.size)
+          }
+          assembly.append("* = $" + index.toHexString)
+          assembly.append(name + ":")
+          for (item <- items) {
+            env.eval(item) match {
+              case Some(c) => writeByte(bank, index, c)
+              case None => log.error(s"Non-constant contents of array `$name`", item.position)
+            }
+            index += 1
+          }
+          items.grouped(16).foreach { group =>
+            assembly.append("    " + bytePseudoopcode + " " + group.map(expr => env.eval(expr) match {
+              case Some(c) => c.quickSimplify.toString
+              case None => "<? unknown constant ?>"
+            }).mkString(", "))
+          }
+          initializedVariablesSize += items.length
+          justAfterCode += bank -> index
+        case m@InitializedMemoryVariable(name, None, typ, value, _, alignment, _) if !readOnlyPass=>
+          val bank = m.bank(options)
+          if (options.platform.ramInitialValuesBank.isDefined && bank != "default") {
+            log.error(s"Preinitialized variable `$name` should be defined in the `default` bank")
+          }
+          val bank0 = mem.banks(bank)
+          var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
+          labelMap(name) = bank0.index -> index
+          if (!readOnlyPass) {
+            rwDataStart = rwDataStart.min(index)
+            rwDataEnd = rwDataEnd.max(index + typ.size)
+          }
+          val altName = m.name.stripPrefix(env.prefix) + "`"
+          env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
+          assembly.append("* = $" + index.toHexString)
+          assembly.append(name + ":")
+          env.eval(value) match {
+            case Some(c) =>
+              for (i <- 0 until typ.size) {
+                writeByte(bank, index, c.subbyte(i))
+                assembly.append("    " + bytePseudoopcode + " " + c.subbyte(i).quickSimplify)
+                index += 1
+              }
+            case None =>
+              log.error(s"Non-constant initial value for variable `$name`")
+              index += typ.size
+          }
+          initializedVariablesSize += typ.size
+          justAfterCode += bank -> index
+        case _ =>
+      }
+    }
+    if (rwDataEnd == 0 && rwDataStart == Int.MaxValue) {
+      rwDataStart = 0
+    }
+    platform.ramInitialValuesBank match {
+      case None =>
+      case Some(ivBank) =>
+        val db = mem.banks("default")
+        val ib = mem.banks(ivBank)
+        val size = rwDataEnd - rwDataStart
+        if (size < 0) log.fatal("What")
+        val ivAddr = codeAllocators(ivBank).allocateBytes(ib, options, size, initialized = true, writeable = false, AllocationLocation.High, NoAlignment)
+        labelMap += "__rwdata_init_start" -> (ib.index -> ivAddr)
+        labelMap += "__rwdata_init_end" -> (ib.index -> (ivAddr + size))
+        labelMap += "__rwdata_size" -> (ib.index -> size)
+        for (i <- 0 until size) {
+          ib.output(ivAddr + i) = db.output(rwDataStart + i)
+        }
+        val debugArray = Array.fill[Option[Constant]](size)(None)
+        bytesToWriteLater ++= bytesToWriteLater.flatMap{
+          case ("default", addr, value) if addr >= rwDataStart && addr < rwDataEnd =>
+            debugArray(addr - rwDataStart) = Some(value)
+            Some(ivBank, addr + ivAddr - rwDataStart, value)
+          case _ => None
+        }
+        wordsToWriteLater ++= wordsToWriteLater.flatMap {
+          case ("default", addr, value) if addr >= rwDataStart && addr < rwDataEnd =>
+            debugArray(addr - rwDataStart) = Some(value.loByte)
+            debugArray(addr - rwDataStart + 1) = Some(value.hiByte)
+            Some(ivBank, addr + ivAddr - rwDataStart, value)
+          case _ => None
+        }
+        assembly.append("* = $" + ivAddr.toHexString)
+        assembly.append("__rwdata_init_start:")
+        for (addrs <- 0 until size grouped 16) {
+          assembly.append("    " + bytePseudoopcode + " " + addrs.map(i =>
+            debugArray(i).getOrElse(NumericConstant(ib.output(i + ivAddr) & 0xff, 1))
+          ).mkString(", "))
+        }
+    }
+    if (options.platform.ramInitialValuesBank.isDefined) {
+      variableAllocators("default").notifyAboutEndOfData(rwDataEnd)
+    } else env.getAllFixedAddressObjects.foreach {
+      case (bank, addr, size) =>
+        val bank0 = mem.banks(bank)
+        for (i <- 0 until size) bank0.occupied(addr + i) = true
+        variableAllocators(bank).notifyAboutHole(bank0, addr, size)
     }
     variableAllocators.foreach { case (b, a) => a.notifyAboutEndOfCode(justAfterCode(b)) }
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = false)
@@ -442,6 +516,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       labelMap += "__zeropage_last" -> (defaultBank -> 2)
       labelMap += "__zeropage_end" -> (defaultBank -> 3)
     }
+    labelMap += "__rwdata_start" -> (defaultBank -> rwDataStart)
+    labelMap += "__rwdata_end" -> (defaultBank -> rwDataEnd)
     labelMap += "__heap_start" -> (defaultBank -> variableAllocators("default").heapStart)
 
     env = rootEnv.allThings

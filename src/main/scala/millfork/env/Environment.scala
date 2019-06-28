@@ -457,10 +457,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(ConstantThing("nullptr.raw.lo", nullptrConstant.loByte.quickSimplify, b), None)
     val __zeropage_usage = UnexpandedConstant("__zeropage_usage", 1)
     addThing(ConstantThing("__zeropage_usage", __zeropage_usage, b), None)
-    val __heap_start = UnexpandedConstant("__heap_start", 2)
-    addThing(ConstantThing("__heap_start", __heap_start, p), None)
-    addThing(ConstantThing("__heap_start.hi", __heap_start.hiByte, b), None)
-    addThing(ConstantThing("__heap_start.lo", __heap_start.loByte, b), None)
+    def addUnexpandedWordConstant(name: String): Unit = {
+      val c = UnexpandedConstant(name, 2)
+      addThing(ConstantThing(name, c, p), None)
+      addThing(ConstantThing(name + ".hi", c.hiByte, b), None)
+      addThing(ConstantThing(name + ".lo", c.loByte, b), None)
+    }
+    addUnexpandedWordConstant("__rwdata_start")
+    addUnexpandedWordConstant("__rwdata_end")
+    if (options.platform.ramInitialValuesBank.isDefined) {
+      addUnexpandedWordConstant("__rwdata_init_start")
+      addUnexpandedWordConstant("__rwdata_init_end")
+      addUnexpandedWordConstant("__rwdata_size")
+    }
     addThing(ConstantThing("$0000", NumericConstant(0, 2), p), None)
     addThing(FlagBooleanType("set_carry",
       BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C)),
@@ -1388,9 +1397,6 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
         }
       case Some(contents1) =>
-        if (!stmt.const && options.flag(CompilationFlag.ReadOnlyArrays)) {
-          log.warn(s"Initialized array `${stmt.name}` is not defined as const, but the target platform doesn't support writable initialized arrays.", stmt.position)
-        }
         val contents = extractArrayContents(contents1)
         val indexType = stmt.length match {
           case None => // array arr = [...]
@@ -1430,6 +1436,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           AbstractExpressionCompiler.checkAssignmentType(this, element, e)
         }
         val array = InitializedArray(arrayName + ".array", address, contents, declaredBank = stmt.bank, indexType, e, readOnly = stmt.const, alignment)
+        if (!stmt.const && options.platform.ramInitialValuesBank.isDefined && array.bank(options) != "default") {
+          log.error(s"Preinitialized writable array `${stmt.name}` has to be in the default segment.", stmt.position)
+        }
         addThing(array, stmt.position)
         registerAddressConstant(UninitializedMemoryVariable(arrayName, p, VariableAllocationMethod.None,
                     declaredBank = stmt.bank, alignment, isVolatile = false), stmt.position, options, Some(e))
@@ -1489,7 +1498,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (stmt.volatile && stmt.stack) log.error(s"`$name` cannot be simultaneously on stack and volatile", position)
       if (stmt.volatile && stmt.register) log.error(s"`$name` cannot be simultaneously volatile and in a register", position)
       if (stmt.initialValue.isDefined && parent.isDefined) log.error(s"`$name` is local and not a constant and therefore cannot have a value", position)
-      if (stmt.initialValue.isDefined && stmt.address.isDefined) log.warn(s"`$name` has both address and initial value - this may not work as expected!", position)
+      if (stmt.initialValue.isDefined && stmt.address.isDefined) {
+        if (options.platform.ramInitialValuesBank.isDefined) {
+          log.error(s"`$name` has both address and initial value, which is unsupported on this target", position)
+        } else {
+          log.warn(s"`$name` has both address and initial value - this may not work as expected!", position)
+        }
+      }
       if (stmt.register && stmt.address.isDefined) log.error(s"`$name` cannot by simultaneously at an address and in a register", position)
       if (stmt.stack) {
         val v = StackVariable(prefix + name, typ, this.baseStackOffset)
@@ -1514,9 +1529,6 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
           val v = stmt.initialValue.fold[MemoryVariable](UninitializedMemoryVariable(prefix + name, typ, alloc,
                       declaredBank = stmt.bank, alignment, isVolatile = stmt.volatile)){ive =>
-            if (options.flags(CompilationFlag.ReadOnlyArrays)) {
-              log.warn("Initialized variable in read-only segment", position)
-            }
             InitializedMemoryVariable(name, None, typ, ive, declaredBank = stmt.bank, alignment, isVolatile = stmt.volatile)
           }
           registerAddressConstant(v, stmt.position, options, Some(typ))

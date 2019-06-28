@@ -3,16 +3,20 @@
 
 import nes_joy1_default
 
+volatile byte initialized
+
 void main() {
     init_graphics()
     init_input()
     init_sound()
     ppu_ctrl = %10001000
     ppu_mask = %00011110
+    initialized = 1
     while(true){}
 }
 
 void nmi() {
+    if initialized != 1 { return }
     scroll_screen()
     update_sprite()
     react_to_input()
@@ -24,7 +28,7 @@ void irq() {
 
 array oam_buffer [256] @$200
 byte scroll
-byte a
+byte a // debouncing
 sbyte dx
 
 void init_graphics() {
@@ -72,13 +76,13 @@ void load_name_tables() {
     p = bg.addr
     ppu_set_addr($2400)
     for page_count,0,until,4 {
-        for b,0,until,255 {
+        for b,0,to,255 {
             ppu_write_data(p[b])
         }
         p.hi += 1
     }
     for page_count,0,until,4 {
-        for b,0,until,255 {
+        for b,0,to,255 {
             ppu_write_data(0)
         }
     }
@@ -103,8 +107,11 @@ void update_sprite() {
 void react_to_input() {
     read_joy()
     if input_a != 0 { // A button
-        reverse_dx()
+        if a == 0 {
+            reverse_dx()
+        }
     }
+    a = input_a
     if input_dy < 0 { // Up button
         if oam_buffer[0] > 7 { oam_buffer[0] -= 1}
     }

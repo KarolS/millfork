@@ -4,6 +4,16 @@ Definitions on the following list are frequently provided by the default automat
 
 However, as they are not the part of the standard library, they might not be available on all targets:
 
+#### `void init_rw_memory()`
+
+Initializes all writable arrays and variables with their initial values.
+
+If the preprocessor feature `INIT_RW_MEMORY` is defined and non-zero,
+then `init_rw_memory` is available and should be called before accessing any preinitialized writable object.
+
+If the preprocessor feature `INIT_RW_MEMORY` is not defined or is zero,
+then `init_rw_memory` is not available.
+
 #### `void putchar(byte char)`
 
 Prints a single character.

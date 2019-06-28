@@ -1,0 +1,118 @@
+#if not(INIT_RW_MEMORY)
+#error The init_rw_memory module cannot be used by the current target
+#endif
+
+#if ARCH_6502
+
+
+#if TINY_RW_MEMORY
+
+noinline asm void init_rw_memory() {
+    ldx #__rwdata_size.lo // can't be more than $00FC
+    beq __init_rw_memory__skip3
+    + memory_barrier()
+__init_rw_memory__loop3:
+    lda lo(__rwdata_init_start - 1),x
+    sta lo(__rwdata_start - 1),x
+    dex
+    bne __init_rw_memory__loop3
+    + memory_barrier()
+__init_rw_memory__skip3:
+    rts
+}
+
+#else
+
+#if ZPREG_SIZE < 4
+#error The init_rw_module requires at least 4 bytes of zeropage pseudoregister
+#endif
+
+noinline asm void init_rw_memory() {
+    lda #__rwdata_size.hi
+    ora #__rwdata_size.lo
+    beq __init_rw_memory__skip3
+    + memory_barrier()
+
+    ldx #__rwdata_size.hi
+    beq __init_rw_memory__skip1
+
+    lda #__rwdata_init_start.lo
+    sta lo(__reg)
+    lda #__rwdata_init_start.hi
+    sta lo(__reg + 1)
+    lda #__rwdata_start.lo
+    sta lo(__reg + 2)
+    lda #__rwdata_start.hi
+    sta lo(__reg + 3)
+
+__init_rw_memory__loop1:
+    ldy #0
+__init_rw_memory__loop2:
+    lda (lo(__reg)),y
+    sta (lo(__reg + 2)),y
+    dey
+    bne __init_rw_memory__loop2
+    inc lo(__reg + 1)
+    inc lo(__reg + 3)
+    dex
+    bne __init_rw_memory__loop1
+
+__init_rw_memory__skip1:
+    ldx #__rwdata_size.lo
+    beq __init_rw_memory__skip3
+__init_rw_memory__loop3:
+    lda __rwdata_init_start + (__rwdata_size & $ff00) - 1,x
+    sta __rwdata_start      + (__rwdata_size & $ff00) - 1,x
+    dex
+    bne __init_rw_memory__loop3
+__init_rw_memory__skip3:
+    + memory_barrier()
+    rts
+}
+
+#endif
+
+
+#elseif CPUFEATURE_Z80
+
+#pragma zilog_syntax
+noinline asm void init_rw_memory() {
+    ld a,b
+    or c
+    ret z
+    + memory_barrier()
+    ld hl,__rwdata_init_start
+    ld de,__rwdata_start
+    ld bc,__rwdata_size
+    ldir
+    + memory_barrier()
+    ret
+}
+
+#elseif ARCH_I80
+
+#pragma zilog_syntax
+noinline asm void init_rw_memory() {
+      ld a,b
+      or c
+      ret z
+    + memory_barrier()
+      ld bc,__rwdata_size
+      ld hl,__rwdata_init_start
+      ld de,__rwdata_start
+__init_rw_memory__loop1:
+    ? ld a,(hl)
+    ? inc hl
+      ld (de),a
+      inc de
+      dec bc
+    ? jp nz,__init_rw_memory__loop1
+    + memory_barrier()
+      ret
+}
+
+#else
+
+#error Unsupported architecture for init_rw_memory
+
+#endif

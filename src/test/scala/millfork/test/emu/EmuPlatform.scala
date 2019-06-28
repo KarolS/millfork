@@ -29,6 +29,7 @@ object EmuPlatform {
     false,
     Map("default" -> 0),
     "default",
+    None,
     ViceDebugOutputFormat,
     OutputStyle.Single
   )
