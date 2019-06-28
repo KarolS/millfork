@@ -968,6 +968,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
                 calculate ++ store
               }
+            case _ =>
+              ctx.log.error("Non-in-place addition or subtraction of variables larger than 2 bytes is not supported", expr.position)
+              Nil
           }
         }
       case SeparateBytesExpression(h, l) =>
@@ -1005,6 +1008,11 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 case 2 =>
                   compile(ctx, l, Some(b -> env.genRelativeVariable(target.toAddress, b, zeropage = target.zeropage)), branches) ++
                     compile(ctx, h, Some(b -> env.genRelativeVariable(target.toAddress + 1, b, zeropage = target.zeropage)), branches)
+                case n if n > 2 =>
+                  val zero = LiteralExpression(0,1).pos(expr.position)
+                  compile(ctx, l, Some(b -> env.genRelativeVariable(target.toAddress, b, zeropage = target.zeropage)), branches) ++
+                    compile(ctx, h, Some(b -> env.genRelativeVariable(target.toAddress + 1, b, zeropage = target.zeropage)), branches) ++
+                    List.tabulate(n - 2)(i => compile(ctx, zero, Some(b -> env.genRelativeVariable(target.toAddress + (i + 2), b, zeropage = target.zeropage)), branches)).flatten
               }
             case target: StackVariable =>
               target.typ.size match {
@@ -1019,6 +1027,18 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     compile(ctx, l, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset)), branches) ++
                       compile(ctx, h, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset + 1)), branches)
                   }
+                case n if n > 2 =>
+                  val zero = LiteralExpression(0, 1).pos(expr.position)
+                  if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
+                    compile(ctx, l, Some(b -> StackVariable("", b, target.baseOffset)), branches) ++
+                      compile(ctx, h, Some(b -> StackVariable("", b, target.baseOffset + 1)), branches) ++
+                      List.tabulate(n - 2)(i => compile(ctx, zero, Some(b -> StackVariable("", b, target.baseOffset + 2 + i)), branches)).flatten
+                  } else {
+                    compile(ctx, l, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset)), branches) ++
+                      compile(ctx, h, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset + 1)), branches) ++
+                      List.tabulate(n - 2)(i => compile(ctx, zero, Some(b -> StackVariable("", b, target.baseOffset + ctx.extraStackOffset + 2 + i)), branches)).flatten
+                  }
+
               }
           }
         }
