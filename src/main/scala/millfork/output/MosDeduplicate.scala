@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.CompilationOptions
+import millfork.{CompilationOptions, Prehashed}
 import millfork.assembly.mos._
 import millfork.env.{Environment, Label, MemoryAddressConstant}
 import Opcode._
@@ -78,7 +78,7 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
     case Nil => Nil
   }
 
-  override def renumerateLabels(code: List[AssemblyLine], temporary: Boolean): List[AssemblyLine] = {
+  override def renumerateLabels(code: List[AssemblyLine], temporary: Boolean): Prehashed[List[AssemblyLine]] = {
     val map = mutable.Map[String, String]()
     var counter = 0
     code.foreach{
@@ -87,11 +87,11 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
         counter += 1
       case _ =>
     }
-    code.map{
+    Prehashed(code.map{
       case l@AssemblyLine0(_, _, MemoryAddressConstant(Label(x))) if map.contains(x) =>
         l.copy(parameter = MemoryAddressConstant(Label(map(x))))
       case l => l
-    }
+    })
   }
 
   def checkIfLabelsAreInternal(snippet: List[AssemblyLine], wholeCode: List[AssemblyLine]): Boolean = {

@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.CompilationOptions
+import millfork.{CompilationOptions, Prehashed}
 import millfork.assembly.z80.{ZOpcode, _}
 import millfork.env.{Environment, Label, MemoryAddressConstant}
 import ZOpcode._
@@ -87,7 +87,7 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
     case Nil => Nil
   }
 
-  override def renumerateLabels(code: List[ZLine], temporary: Boolean): List[ZLine] = {
+  override def renumerateLabels(code: List[ZLine], temporary: Boolean): Prehashed[List[ZLine]] = {
     val map = mutable.Map[String, String]()
     var counter = 0
     code.foreach{
@@ -96,11 +96,11 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
         counter += 1
       case _ =>
     }
-    code.map{
+    Prehashed(code.map{
       case l@ZLine0(_, _, MemoryAddressConstant(Label(x))) if map.contains(x) =>
         l.copy(parameter = MemoryAddressConstant(Label(map(x))))
       case l => l
-    }
+    })
   }
 
   def checkIfLabelsAreInternal(snippet: List[ZLine], wholeCode: List[ZLine]): Boolean = {
