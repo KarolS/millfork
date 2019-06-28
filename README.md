@@ -5,7 +5,8 @@
 A middle-level programming language targeting 6502-based, 8080-based and Z80-based microcomputers. 
 
 For binary releases, see: https://github.com/KarolS/millfork/releases
-(latest: 0.3.2)
+(latest: 0.3.2).  
+For build instructions, see [Build instructions](./COMPILING.md).
 
 ## Features
 

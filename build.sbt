@@ -62,6 +62,7 @@ releaseDist := {
   IO.copyFile(base / "src/3rd-party-licenses.txt", distDir / "3rd-party-licenses.txt")
   IO.copyFile(base / "CHANGELOG.md", distDir / "CHANGELOG.md")
   IO.copyFile(base / "README.md", distDir / "README.md")
+  IO.copyFile(base / "COMPILING.md", distDir / "COMPILING.md")
   def copyDir(name: String): Unit = {
     IO.createDirectory(distDir / name)
     IO.copyDirectory(base / name, distDir / name)
