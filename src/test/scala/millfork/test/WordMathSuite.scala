@@ -401,7 +401,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
          |  output *= $y
          | }
           """.
-        stripMargin)(_.readWord(0xc000) should equal(x * y) withClue s"$x * $y")
+        stripMargin)(_.readWord(0xc000) should equal(x * y) withClue s"= $x * $y")
   }
 
   test("Not-in-place word/byte multiplication") {
@@ -443,8 +443,8 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
          | }
           """.
         stripMargin) { m =>
-      m.readWord(0xc000) should equal(x * y) withClue s"$y * $x"
-      m.readWord(0xc004) should equal(x * y) withClue s"$x * $y"
+      m.readWord(0xc000) should equal(x * y) withClue s"= $y * $x"
+      m.readWord(0xc004) should equal(x * y) withClue s"= $x * $y"
     }
   }
 
@@ -581,10 +581,10 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
          | noinline word g() {return $x}
           """.
         stripMargin) { m =>
-      m.readWord(0xc000) should equal(x / y) withClue s"$x / $y"
-      m.readByte(0xc002) should equal(x % y) withClue s"$x %% $y"
-      m.readWord(0xc004) should equal(x / y) withClue s"$x / $y"
-      m.readByte(0xc006) should equal(x % y) withClue s"$x %% $y"
+      m.readWord(0xc000) should equal(x / y) withClue s"= $x / $y"
+      m.readByte(0xc002) should equal(x % y) withClue s"= $x %% $y"
+      m.readWord(0xc004) should equal(x / y) withClue s"= $x / $y"
+      m.readByte(0xc006) should equal(x % y) withClue s"= $x %% $y"
     }
   }
 }

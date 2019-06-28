@@ -194,7 +194,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
          |  output = a * $y
          | }
           """.
-        stripMargin)(_.readByte(0xc000) should equal(x * y) withClue s"$x * $y")
+        stripMargin)(_.readByte(0xc000) should equal(x * y) withClue s"= $x * $y")
   }
 
   test("Byte multiplication 2") {
@@ -326,10 +326,10 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
          | byte f() {return $x}
           """.
         stripMargin) { m =>
-      m.readByte(0xc000) should equal(x / y) withClue s"$x / $y"
-      m.readByte(0xc001) should equal(x % y) withClue s"$x %% $y"
-      m.readByte(0xc002) should equal(x / y) withClue s"$x / $y"
-      m.readByte(0xc003) should equal(x % y) withClue s"$x %% $y"
+      m.readByte(0xc000) should equal(x / y) withClue s"= $x / $y"
+      m.readByte(0xc001) should equal(x % y) withClue s"= $x %% $y"
+      m.readByte(0xc002) should equal(x / y) withClue s"= $x / $y"
+      m.readByte(0xc003) should equal(x % y) withClue s"= $x %% $y"
     }
   }
 
@@ -371,10 +371,10 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
          | noinline byte g() = $y
           """.
         stripMargin) { m =>
-      m.readByte(0xc000) should equal(x / y) withClue s"$x / $y"
-      m.readByte(0xc001) should equal(x % y) withClue s"$x %% $y"
-      m.readByte(0xc002) should equal(x / y) withClue s"$x / $y"
-      m.readByte(0xc003) should equal(x % y) withClue s"$x %% $y"
+      m.readByte(0xc000) should equal(x / y) withClue s"= $x / $y"
+      m.readByte(0xc001) should equal(x % y) withClue s"= $x %% $y"
+      m.readByte(0xc002) should equal(x / y) withClue s"= $x / $y"
+      m.readByte(0xc003) should equal(x % y) withClue s"= $x %% $y"
     }
   }
 
@@ -430,10 +430,10 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
          | noinline byte g() {return $x}
           """.
         stripMargin) { m =>
-      m.readByte(0xc000) should equal(x / y) withClue s"$x / $y"
-      m.readByte(0xc001) should equal(x % y) withClue s"$x %% $y"
-      m.readByte(0xc002) should equal(x / y) withClue s"$x / $y"
-      m.readByte(0xc003) should equal(x % y) withClue s"$x %% $y"
+      m.readByte(0xc000) should equal(x / y) withClue s"= $x / $y"
+      m.readByte(0xc001) should equal(x % y) withClue s"= $x %% $y"
+      m.readByte(0xc002) should equal(x / y) withClue s"= $x / $y"
+      m.readByte(0xc003) should equal(x % y) withClue s"= $x %% $y"
     }
   }
 }
