@@ -86,7 +86,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
       x <- set
       y <- set
       if x != y
-    } yield x & y).forall(_ == false)).toSeq.map(_.groupBy(chunk => renumerateLabels(chunk.code, temporary = true)).filter(_._2.size >= 2).mapValues(_.toSeq)).filter(_.nonEmpty).map { map =>
+    } yield x & y).forall(_ == false)).toSeq.map(_.groupBy(chunk => renumerateLabels(chunk.code, temporary = true)).filter(_._2.size >= 2).mapValues(_.toSeq).view.force).filter(_.nonEmpty).map { map =>
       map.foldLeft(0) {
         (sum, entry) =>
           val chunkSize = entry._2.head.codeSizeInBytes
@@ -314,7 +314,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
       case (name, NormalCompiledFunction(segment, code, false, alignment)) => Some((segment, name, Right(CodeAndAlignment(code, alignment)))) // TODO
       case (name, RedirectedFunction(segment, target, 0)) => Some((segment, name, Left(target))) // TODO
       case _ => None
-    }.groupBy(_._1).mapValues(_.map { case (_, name, code) => name -> code }.toMap)
+    }.groupBy(_._1).mapValues(_.map { case (_, name, code) => name -> code }.toMap).view.force
   }
 
   def actualCode(functionName: String, functionCode: List[T]): List[T]

@@ -311,8 +311,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case _ =>
     }
 
-    val codeAllocators = platform.codeAllocators.mapValues(new VariableAllocator(Nil, _))
-    var justAfterCode = platform.codeAllocators.mapValues(a => a.startAt)
+    val codeAllocators = platform.codeAllocators.mapValues(new VariableAllocator(Nil, _)).view.force
+    var justAfterCode = platform.codeAllocators.mapValues(a => a.startAt).view.force
 
     val sortedCompilerFunctions = compiledFunctions.toList.sortBy { case (name, cf) => if (name == "main") 0 -> "" else cf.orderKey }
     sortedCompilerFunctions.filterNot(o => unusedRuntimeObjects(o._1)).foreach {

@@ -49,7 +49,7 @@ object FlowAnalyzer {
       case _ => Some(code.flatMap {
         case ZLine0(op, _, MemoryAddressConstant(Label(l))) if op != ZOpcode.LABEL => Some(l)
         case _ => None
-      }.groupBy(identity).mapValues(_.size))
+      }.groupBy(identity).mapValues(_.size).view.force)
     }
     val holder = new FlowHolder(forwardFlow, reverseFlow)
     code.zipWithIndex.map{ case (line, i) => FlowInfo(holder, i, labelMap) -> line}

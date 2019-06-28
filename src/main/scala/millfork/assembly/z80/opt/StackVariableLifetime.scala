@@ -26,7 +26,7 @@ object StackVariableLifetime {
     val labelMap = codeWithFlow.zipWithIndex.flatMap(a => a._1._2.parameter match {
       case MemoryAddressConstant(Label(l)) => List(l -> a._2)
       case _ => Nil
-    }).groupBy(_._1).mapValues(_.map(_._2).toSet)
+    }).groupBy(_._1).mapValues(_.map(_._2).toSet).view.force
 
     while (changed) {
       changed = false

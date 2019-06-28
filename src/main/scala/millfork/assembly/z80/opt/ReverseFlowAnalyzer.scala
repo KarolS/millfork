@@ -128,8 +128,8 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.IYH => this.copy(iyh = Important)
     case ZRegister.IYL => this.copy(iyl = Important)
     case ZRegister.IX => this.copy(ixh = Important, ixl = Important)
-    case ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important, memIx = if (offset < 0) memIx.mapValues(_ => Important) else memIx + (offset -> Important))
-    case ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important, memIy = if (offset < 0) memIy.mapValues(_ => Important) else memIy + (offset -> Important))
+    case ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important, memIx = if (offset < 0) memIx.mapValues(_ => Important).view.force else memIx + (offset -> Important))
+    case ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important, memIy = if (offset < 0) memIy.mapValues(_ => Important).view.force else memIy + (offset -> Important))
     case ZRegister.IY | ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important)
     case _ => this
   }
@@ -153,9 +153,9 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.IXL => this.copy(ixl = Unimportant)
     case ZRegister.IYH => this.copy(iyh = Unimportant)
     case ZRegister.IYL => this.copy(iyl = Unimportant)
-    case ZRegister.IX => this.copy(ixh = Unimportant, ixl = Unimportant, memIx = memIx.mapValues(_ => Unimportant))
+    case ZRegister.IX => this.copy(ixh = Unimportant, ixl = Unimportant, memIx = memIx.mapValues(_ => Unimportant).view.force)
     case ZRegister.MEM_IX_D => this.copy(ixh = Important, ixl = Important, memIx = if (offset < 0) Map() else memIx + (offset -> Unimportant))
-    case ZRegister.IY => this.copy(iyh = Important, iyl = Important, memIy = memIy.mapValues(_ => Unimportant))
+    case ZRegister.IY => this.copy(iyh = Important, iyl = Important, memIy = memIy.mapValues(_ => Unimportant).view.force)
     case ZRegister.MEM_IY_D => this.copy(iyh = Important, iyl = Important, memIy = if (offset < 0) Map() else memIy + (offset -> Unimportant))
     case _ => this
   }
