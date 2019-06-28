@@ -34,12 +34,24 @@ object AlwaysGoodOptimizations {
       (HasOpcode(CLC) & Elidable) ~
       (HasOpcode(ADC) & Elidable & DoesntMatterWhatItDoesWith(State.C, State.Z, State.V, State.N)) ~~> (code => code(2).copy(opcode = LDA) :: code.drop(3)),
     (HasOpcode(CLC) & Elidable) ~
-    (HasOpcode(ADC) & MatchImmediate(0) & Elidable) ~
+      (HasOpcode(ADC) & MatchImmediate(0) & Elidable) ~
       (HasOpcode(CLC) & Elidable) ~
       (HasOpcode(ADC) & MatchImmediate(1) & Elidable & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> ((code, ctx) => List(
       AssemblyLine.implied(CLC),
       AssemblyLine.immediate(ADC, (ctx.get[Constant](0) + ctx.get[Constant](1)).quickSimplify),
     )),
+    (HasOpcode(AND) & HasImmediate(0x7F) & Elidable & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsA)).* ~
+      (HasOpcodeIn(ASL, ROL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.tail),
+    (HasOpcodeIn(ORA, EOR) & HasImmediate(0x80) & Elidable & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsA)).* ~
+      (HasOpcodeIn(ASL, ROL) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.tail),
+    (HasOpcode(AND) & HasImmediate(0xFE) & Elidable & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsA)).* ~
+      (HasOpcodeIn(LSR, ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.tail),
+    (HasOpcodeIn(ORA, EOR) & HasImmediate(1) & Elidable & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
+      (Linear & Not(ConcernsA)).* ~
+      (HasOpcodeIn(LSR, ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.tail),
   ))
 
   val PointlessAccumulatorShifting = new RuleBasedAssemblyOptimization("Pointless accumulator shifting",
@@ -2735,8 +2747,32 @@ object AlwaysGoodOptimizations {
 
     (HasOpcode(LDA) & MatchImmediate(0)) ~
       (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(4)) ~
-      (HasOpcode(LDA) & MatchImmediate(1) & HasAddrModeIn(Absolute, ZeroPage)) ~
+      (HasOpcode(LDA) & MatchImmediate(1)) ~
       (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(5)) ~
+      Where(ctx => {
+        ctx.addObject(3, ZeroPage)
+        (ctx.get[Constant](4) + 1).quickSimplify == ctx.get[Constant](5)
+      }) ~
+      (Linear & DoesNotConcernMemoryAt(3, 4) & DoesNotConcernMemoryAt(3, 5)).* ~
+      Where(ctx => {
+        val lo = ctx.get[Constant](0)
+        val hi = ctx.get[Constant](1)
+        ctx.addObject(2, (hi.asl(8) + lo).quickSimplify)
+        true
+      }) ~
+      (Elidable & MatchParameter(4) & HasAddrModeIn(IndexedZ, IndexedY) & MatchAddrMode(9)) ~
+      Where(ctx => {
+        ctx.get[AddrMode.Value](9) == IndexedY || !ctx.compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
+      }) ~~> { (code, ctx) =>
+      val addr = ctx.get[Constant](2)
+      val last = code.last
+      code.init :+ last.copy(parameter = addr, addrMode = if (last.addrMode == IndexedZ) Absolute else AbsoluteY)
+    },
+
+    (HasOpcode(LDA) & MatchImmediate(1)) ~
+      (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(5)) ~
+      (HasOpcode(LDA) & MatchImmediate(0)) ~
+      (HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & MatchParameter(4)) ~
       Where(ctx => {
         ctx.addObject(3, ZeroPage)
         (ctx.get[Constant](4) + 1).quickSimplify == ctx.get[Constant](5)

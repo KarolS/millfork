@@ -708,4 +708,20 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Optimize certain indexing operations") {
+    EmuBenchmarkRun(
+      """
+        |array arr16[$100]
+        |noinline word getValue(word index) {
+        |    word tmp
+        |    tmp.hi = arr16[((index & 0x7f)<<1)+1]
+        |    tmp.lo = arr16[(index & 0x7f)<<1]
+        |    return (tmp & 0xff) >> 1;
+        |}
+        |void main() {
+        |    getValue(1)
+        |}
+      """.stripMargin){ m => }
+  }
+
 }
