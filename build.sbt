@@ -2,7 +2,7 @@ name := "millfork"
 
 version := "0.3.3-SNAPSHOT"
 
-scalaVersion := "2.12.3"
+scalaVersion := "2.12.8"
 
 resolvers += Resolver.mavenLocal
 
@@ -10,7 +10,7 @@ libraryDependencies += "com.lihaoyi" %% "fastparse" % "1.0.0"
 
 libraryDependencies += "org.apache.commons" % "commons-configuration2" % "2.2"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.4" % "test"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
 
 libraryDependencies += "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test"
 
