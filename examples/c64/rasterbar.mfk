@@ -15,7 +15,7 @@ void main() {
         for colour_index, 0, until, colours.length {
             colour = colours[colour_index]
             while wait_for != vic_raster  { }
-            stabilize(8)
+            stabilize(10)
             vic_border = colour
             wait_for += 2
         }
@@ -26,11 +26,11 @@ void main() {
 
 }
 
-asm void stabilize(byte x){
+inline asm void stabilize(byte x){
     burn:
     DEX
     BNE burn
-    RTS
+    ? RTS
 }
 
 const array colours = [
