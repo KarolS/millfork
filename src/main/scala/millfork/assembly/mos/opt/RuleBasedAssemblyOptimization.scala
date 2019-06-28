@@ -1241,8 +1241,10 @@ case class HasOpcode(op: Opcode.Value) extends TrivialAssemblyLinePattern {
 }
 
 case class RefersTo(identifier: String, offset: Int = 999) extends TrivialAssemblyLinePattern {
-  override def apply(line: AssemblyLine): Boolean = {
-    (line.addrMode == AddrMode.ZeroPage || line.addrMode == AddrMode.Absolute || line.addrMode == AddrMode.LongAbsolute) && (line.parameter match {
+  def check(constant: Constant): Boolean = {
+    constant match {
+      case SubbyteConstant(base, 0) =>
+        check(base)
       case MemoryAddressConstant(th) =>
         (offset == 999 || offset == 0) && th.name == identifier
       case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
@@ -1250,7 +1252,11 @@ case class RefersTo(identifier: String, offset: Int = 999) extends TrivialAssemb
       case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) =>
         (offset == 999 || offset == nn) && th.name == identifier
       case _ => false
-    })
+    }
+  }
+
+  override def apply(line: AssemblyLine): Boolean = {
+    (line.addrMode == AddrMode.ZeroPage || line.addrMode == AddrMode.Absolute || line.addrMode == AddrMode.LongAbsolute) && check(line.parameter)
   }
 
   override def toString: String = s"<$identifier+$offset>"
@@ -1259,9 +1265,12 @@ case class RefersTo(identifier: String, offset: Int = 999) extends TrivialAssemb
 }
 
 case class RefersToOrUses(identifier: String, offset: Int = 999) extends TrivialAssemblyLinePattern {
-  override def apply(line: AssemblyLine): Boolean = {
-    line.addrMode match {
-      case AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute | AddrMode.Indirect => line.parameter match {
+
+  def check(parameter: Constant, addrMode: AddrMode.Value): Boolean = {
+    addrMode match {
+      case AddrMode.ZeroPage | AddrMode.Absolute | AddrMode.LongAbsolute | AddrMode.Indirect => parameter match {
+        case SubbyteConstant(base, 0) =>
+          check(base, addrMode)
         case MemoryAddressConstant(th) =>
           (offset == 999 || offset == 0) && th.name == identifier
         case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
@@ -1272,7 +1281,9 @@ case class RefersToOrUses(identifier: String, offset: Int = 999) extends Trivial
           (offset == 999 || offset == -nn) && th.name == identifier
         case _ => false
       }
-      case AddrMode.IndexedY | AddrMode.LongIndexedY | AddrMode.IndexedZ | AddrMode.LongIndexedZ => line.parameter match {
+      case AddrMode.IndexedY | AddrMode.LongIndexedY | AddrMode.IndexedZ | AddrMode.LongIndexedZ => parameter match {
+        case SubbyteConstant(base, 0) =>
+          check(base, addrMode)
         case MemoryAddressConstant(th) =>
           (offset == 999 || offset == 0 || offset == 1) && th.name == identifier
         case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
@@ -1283,7 +1294,9 @@ case class RefersToOrUses(identifier: String, offset: Int = 999) extends Trivial
           (offset == 999 || offset == -nn || offset == -nn + 1) && th.name == identifier
         case _ => false
       }
-      case AddrMode.AbsoluteX | AddrMode.AbsoluteY | AddrMode.AbsoluteIndexedX => line.parameter match {
+      case AddrMode.AbsoluteX | AddrMode.AbsoluteY | AddrMode.AbsoluteIndexedX => parameter match {
+        case SubbyteConstant(base, 0) =>
+          check(base, addrMode)
         case MemoryAddressConstant(th) =>
           (offset == 999 || offset >= 0 && offset <= 255) && th.name == identifier
         case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) =>
@@ -1294,7 +1307,8 @@ case class RefersToOrUses(identifier: String, offset: Int = 999) extends Trivial
           (offset == 999 || offset >= -nn && offset <= -nn + 255) && th.name == identifier
         case _ => false
       }
-      case AddrMode.IndexedX => line.parameter match {
+      case AddrMode.IndexedX => parameter match {
+        case SubbyteConstant(base, 0) => check(base, addrMode)
         case MemoryAddressConstant(th) => th.name == identifier
         case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(nn, _)) => th.name == identifier
         case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) => th.name == identifier
@@ -1304,6 +1318,8 @@ case class RefersToOrUses(identifier: String, offset: Int = 999) extends Trivial
       case _ => false
     }
   }
+
+  override def apply(line: AssemblyLine): Boolean = check(line.parameter, line.addrMode)
 
   override def toString: String = s"<$identifier+$offset>"
 

@@ -557,6 +557,25 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     }
   }
 
+  override def fitsProvablyIntoByte: Boolean = {
+    import MathOperator._
+    operator match {
+      case And => lhs.fitsProvablyIntoByte || rhs.fitsProvablyIntoByte
+      case Or | Exor => lhs.fitsProvablyIntoByte && rhs.fitsProvablyIntoByte
+      case Shr | Shr9 => lhs.fitsProvablyIntoByte
+      case Plus => (lhs, rhs) match {
+        case (MemoryAddressConstant(thing), offset) => thing.name == "__reg" && offset.fitsProvablyIntoByte
+        case (offset, MemoryAddressConstant(thing)) => thing.name == "__reg" && offset.fitsProvablyIntoByte
+        case _ => false
+      }
+      case Minus => (lhs, rhs) match {
+        case (MemoryAddressConstant(thing), offset) => thing.name == "__reg" && offset.fitsProvablyIntoByte
+        case _ => false
+      }
+      case _ => false
+    }
+  }
+
   override def isRelatedTo(v: Thing): Boolean = lhs.isRelatedTo(v) || rhs.isRelatedTo(v)
 
   override def refersTo(name: String): Boolean = lhs.refersTo(name) || rhs.refersTo(name)
