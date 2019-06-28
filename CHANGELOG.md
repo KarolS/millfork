@@ -18,6 +18,8 @@
 
 * Added `random` module.
 
+* Added `init_rw_memory` module for cartridge targets.
+
 * Added `ensure_mixedcase` function and `oldpet` and `origpet` text encodings.
 
 * Added `MILLFORK_VERSION` preprocessor parameter.
@@ -49,6 +51,8 @@
 * On most Commodore targets printing double quote characters doesn't toggle the quotation mode anymore. 
 
 * **Potentially breaking change!** Commodore 128 target no longer defines `CBM_64` feature.
+
+* Fixed the NES examples and the `nes_joy` module. 
 
 * 6502 targets can now define free zeropage bytes, not only pointers.
 
