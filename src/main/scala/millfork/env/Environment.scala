@@ -1472,6 +1472,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def registerVariable(stmt: VariableDeclarationStatement, options: CompilationOptions, isPointy: Boolean): Unit = {
     val name = stmt.name
     val position = stmt.position
+    if (name == "" || name.contains(".") && !name.contains(".return")) {
+      log.warn(s"Invalid variable name: $name. Please report a bug.", position)
+    }
     if (stmt.stack && parent.isEmpty) {
       if (stmt.stack && stmt.global) log.error(s"`$name` is static or global and cannot be on stack", position)
     }

@@ -31,12 +31,12 @@ object UnusedLocalVariables extends NodeOptimization {
   def getAllReadVariables(c: Constant): List[String] = c match {
     case SubbyteConstant(cc, _) => getAllReadVariables(cc)
     case CompoundConstant(_, l, r) => getAllReadVariables(l) ++ getAllReadVariables(r)
-    case MemoryAddressConstant(th) => List(th.name.takeWhile(_ != '.'))
+    case MemoryAddressConstant(th) => List(extractThingName(th.name))
     case _ => Nil
   }
 
   def getAllReadVariables(expressions: List[Node]): List[String] = expressions.flatMap {
-    case s: VariableExpression => List(s.name.takeWhile(_ != '.'))
+    case s: VariableExpression => List(extractThingName(s.name))
     case s: LiteralExpression => Nil
     case HalfWordExpression(param, _) => getAllReadVariables(param :: Nil)
     case SumExpression(xs, _) => getAllReadVariables(xs.map(_._2))
@@ -57,7 +57,7 @@ object UnusedLocalVariables extends NodeOptimization {
   def optimizeVariables(log: Logger, statements: List[Statement]): List[Statement] = {
     val allLocals = getAllLocalVariables(statements)
     val allRead = statements.flatMap {
-          case Assignment(VariableExpression(v), expression) => List(v.takeWhile(_ != '.') -> expression)
+          case Assignment(VariableExpression(v), expression) => List(extractThingName(v) -> expression)
           case ExpressionStatement(FunctionCallExpression(op, VariableExpression(_) :: params)) if op.endsWith("=") => params.map("```" -> _)
           case x => x.getAllExpressions.map("```" -> _)
         }.flatMap(getAllReadVariables(_)).toSet

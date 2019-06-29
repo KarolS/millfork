@@ -93,7 +93,7 @@ object UnusedFunctions extends NodeOptimization {
   def getAllCalledFunctions(c: Constant): List[String] = c match {
     case SubbyteConstant(cc, _) => getAllCalledFunctions(cc)
     case CompoundConstant(_, l, r) => getAllCalledFunctions(l) ++ getAllCalledFunctions(r)
-    case MemoryAddressConstant(th) => List(th.name.takeWhile(_ != '.'))
+    case MemoryAddressConstant(th) => List(extractThingName(th.name))
     case _ => Nil
   }
 
@@ -106,7 +106,7 @@ object UnusedFunctions extends NodeOptimization {
     case s: ReturnDispatchStatement =>
       getAllCalledFunctions(s.getAllExpressions) ++ getAllCalledFunctions(s.branches.map(_.function))
     case s: Statement => getAllCalledFunctions(s.getAllExpressions)
-    case s: VariableExpression => List(s.name.takeWhile(_ != '.'))
+    case s: VariableExpression => List(extractThingName(s.name))
     case s: LiteralExpression => Nil
     case HalfWordExpression(param, _) => getAllCalledFunctions(param :: Nil)
     case SumExpression(xs, decimal) =>

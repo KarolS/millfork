@@ -24,4 +24,14 @@ trait NodeOptimization {
     } while(lastSize != set.size)
     result
   }
+
+  def extractThingName(fullName: String): String = {
+    var result = fullName.takeWhile(_ != '.')
+    if (result.length == fullName.length) return result
+    val suffix = fullName.drop(result.length)
+    if (suffix == ".return" || suffix.startsWith(".return.")) {
+      result += ".return"
+    }
+    result
+  }
 }

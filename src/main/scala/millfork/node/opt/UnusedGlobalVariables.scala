@@ -45,7 +45,7 @@ object UnusedGlobalVariables extends NodeOptimization {
   def getAllReadVariables(c: Constant): List[String] = c match {
     case SubbyteConstant(cc, _) => getAllReadVariables(cc)
     case CompoundConstant(_, l, r) => getAllReadVariables(l) ++ getAllReadVariables(r)
-    case MemoryAddressConstant(th) => List(th.name.takeWhile(_ != '.'))
+    case MemoryAddressConstant(th) => List(extractThingName(th.name))
     case _ => Nil
   }
 
@@ -57,7 +57,7 @@ object UnusedGlobalVariables extends NodeOptimization {
     case Assignment(VariableExpression(_), expr) => getAllReadVariables(expr :: Nil)
     case ExpressionStatement(FunctionCallExpression(op, VariableExpression(_) :: params)) if op.endsWith("=") => getAllReadVariables(params)
     case s: Statement => getAllReadVariables(s.getAllExpressions)
-    case s: VariableExpression => List(s.name.takeWhile(_ != '.'))
+    case s: VariableExpression => List(extractThingName(s.name))
     case s: LiteralExpression => Nil
     case HalfWordExpression(param, _) => getAllReadVariables(param :: Nil)
     case SumExpression(xs, _) => getAllReadVariables(xs.map(_._2))
