@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.4
 
 * Preliminary experimental Game Boy support.
 
