@@ -2,6 +2,12 @@
 
 ## Current version
 
+* Enabled declaring multiple variables in one line.
+
+* Fixed detection of duplicate names in declarations.
+
+* 6502: Fixed expressions of form `p[i] <<= 1`.
+
 ## 0.3.4
 
 * Preliminary experimental Game Boy support.
