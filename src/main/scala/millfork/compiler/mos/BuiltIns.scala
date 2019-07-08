@@ -319,8 +319,13 @@ object BuiltIns {
       case Some(NumericConstant(0, _)) =>
         MosExpressionCompiler.compile(ctx, lhs, None, NoBranching)
       case Some(NumericConstant(v, _)) if v > 0 =>
-        val result = simpleOperation(opcode, ctx, lhs, IndexChoice.RequireX, preserveA = true, commutative = false)
-        result ++ List.fill(v.toInt - 1)(result.last)
+        val result = simpleOperation(opcode, ctx, lhs, IndexChoice.PreferX, preserveA = true, commutative = false)
+        result.last.addrMode match {
+          case AbsoluteX | Absolute | ZeroPage | ZeroPageX | LongAbsoluteX | LongAbsolute =>
+            result ++ List.fill(v.toInt - 1)(result.last)
+          case IndexedY | AbsoluteY | IndexedZ | LongIndexedZ | IndexedSY =>
+            result.init ++ List(result.last.copy(opcode = LDA)) ++ List.fill(v.toInt)(AssemblyLine.implied(opcode)) ++ List(result.last.copy(opcode = STA))
+        }
       case _ =>
         compileShiftOps(opcode, ctx, lhs, rhs) ++ MosExpressionCompiler.compileByteStorage(ctx, MosRegister.A, lhs)
     }
