@@ -174,6 +174,7 @@ case class CompilationOptions(platform: Platform,
           log.error("Either Sharp LR35902 or Intel 8080 opcodes have to be enabled")
         }
       case CpuFamily.I86 =>
+      case CpuFamily.M6809 =>
     }
   }
 
@@ -265,6 +266,7 @@ object CpuFamily extends Enumeration {
       case Mos | StrictMos | Ricoh | StrictRicoh | Cmos | HuC6280 | CE02 | Sixteen => M6502
       case Intel8080 | Intel8085 | StrictIntel8085 | Sharp | Z80 | StrictZ80 | EZ80 => I80
       case Intel8086 | Intel80186 => I86
+      case Cpu.Motorola6809 => M6809
     }
   }
 }
@@ -339,6 +341,10 @@ object Cpu extends Enumeration {
     * The Intel 80186 or 80188 processor
     */
   val Intel80186: Cpu.Value = Value
+  /**
+    * The Motorola 6809 processor
+    */
+  val Motorola6809: Cpu.Value = Value
 
   /**
     * Processors that can run code for WDC 65C02
@@ -366,6 +372,8 @@ object Cpu extends Enumeration {
   private val mosAlwaysDefaultFlags = alwaysDefaultFlags
 
   private val i80AlwaysDefaultFlags = alwaysDefaultFlags
+
+  private val m6809AlwaysDefaultFlags = alwaysDefaultFlags
 
   def defaultFlags(x: Cpu.Value): Set[CompilationFlag.Value] = x match {
     case StrictMos =>
@@ -396,6 +404,8 @@ object Cpu extends Enumeration {
       i80AlwaysDefaultFlags ++ Set(EmitExtended80Opcodes, EmitSharpOpcodes)
     case Intel8086 | Intel80186 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, UseIxForStack, EmitIntel8085Opcodes, EmitIllegals)
+    case Motorola6809 =>
+      m6809AlwaysDefaultFlags
   }
 
   def fromString(name: String)(implicit log: Logger): Cpu.Value = name match {
@@ -453,6 +463,8 @@ object Cpu extends Enumeration {
     case "intel80286" => Intel80186
     case "i80286" => Intel80186
     case "80286" => Intel80186
+      // disabled for now
+//    case "6809" => Motorola6809
     case _ => log.fatal("Unknown CPU achitecture: " + name)
   }
 
@@ -460,6 +472,7 @@ object Cpu extends Enumeration {
     CpuFamily.forType(cpu) match {
       case CpuFamily.M6502 => 2
       case CpuFamily.I80 | CpuFamily.I86 => 4
+      case CpuFamily.M6809 => 2
       case _ => ???
     }
 }

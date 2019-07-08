@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
   */
 class BasicSymonTest extends FunSuite with Matchers {
   test("Empty test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | void main () {
         |

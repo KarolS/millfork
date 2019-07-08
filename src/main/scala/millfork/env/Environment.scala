@@ -1,5 +1,6 @@
 package millfork.env
 
+import millfork.assembly.m6809.{MOpcode, NonExistent}
 import millfork.assembly.{BranchingOpcodeMapping, Elidability}
 import millfork.{env, _}
 import millfork.assembly.mos.{AddrMode, Opcode}
@@ -1806,6 +1807,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         case CpuFamily.M6502 => List(MosAssemblyStatement(Opcode.CHANGED_MEM, AddrMode.DoesNotExist, LiteralExpression(0, 1), Elidability.Fixed))
         case CpuFamily.I80 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
         case CpuFamily.I86 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
+        case CpuFamily.M6809 => List(M6809AssemblyStatement(MOpcode.CHANGED_MEM, NonExistent, LiteralExpression(0, 1), Elidability.Fixed))
         case _ => ???
       })
     }

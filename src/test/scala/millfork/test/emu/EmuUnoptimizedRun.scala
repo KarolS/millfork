@@ -25,3 +25,5 @@ object EmuUnoptimizedIntel8085Run extends EmuZ80Run(Cpu.Intel8085, Nil, Nil)
 object EmuUnoptimizedIntel8086Run extends EmuI86Run(Nil, Nil)
 
 object EmuUnoptimizedSharpRun extends EmuZ80Run(Cpu.Sharp, Nil, Nil)
+
+object EmuUnoptimizedM6809Run extends EmuM6809Run(Cpu.Motorola6809, Nil, Nil)

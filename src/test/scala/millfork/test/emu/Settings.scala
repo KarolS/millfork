@@ -48,6 +48,12 @@ object Settings {
     */
   val enableUnemulatedTests: Boolean = true
 
+  /**
+    * Should the Motorola 6809 tests be enabled?
+    * Motorola 6809 emulation is not yet implemented, so keep this false for the time being.
+    */
+  val enableMotorola6809Tests: Boolean = false
+
   // the following are the core platforms and they are all tested by default
 
   val enable6502Tests: Boolean = true

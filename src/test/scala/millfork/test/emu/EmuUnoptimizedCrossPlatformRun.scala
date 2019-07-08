@@ -14,6 +14,7 @@ object EmuUnoptimizedCrossPlatformRun {
     val (_, mz) = if (platforms.contains(Cpu.Z80)) EmuUnoptimizedZ80Run.apply2(source) else Timings(-1, -1) -> null
     val (_, mi) = if (platforms.contains(Cpu.Intel8080)) EmuUnoptimizedIntel8080Run.apply2(source) else Timings(-1, -1) -> null
     val (_, ms) = if (platforms.contains(Cpu.Sharp)) EmuUnoptimizedSharpRun.apply2(source) else Timings(-1, -1) -> null
+    val (_, mo) = if (platforms.contains(Cpu.Motorola6809)) EmuUnoptimizedM6809Run.apply2(source) else Timings(-1, -1) -> null
     val (_, mx) = if (Settings.enableIntel8086Tests && platforms.contains(Cpu.Intel8086)) EmuUnoptimizedIntel8086Run.apply2(source) else Timings(-1, -1) -> null
     if (Settings.enable6502Tests && platforms.contains(Cpu.Mos)) {
       println(f"Running 6502")
@@ -41,6 +42,10 @@ object EmuUnoptimizedCrossPlatformRun {
     }
     if (Settings.enableIntel8086Tests && platforms.contains(Cpu.Intel8086)) {
       println(f"Running 8086")
+      verifier(mx)
+    }
+    if (Settings.enableMotorola6809Tests && platforms.contains(Cpu.Motorola6809)) {
+      println(f"Running 6809")
       verifier(mx)
     }
   }

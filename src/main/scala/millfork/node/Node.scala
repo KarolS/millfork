@@ -1,6 +1,7 @@
 package millfork.node
 
 import millfork.assembly.Elidability
+import millfork.assembly.m6809.{MAddrMode, MOpcode}
 import millfork.assembly.mos.{AddrMode, Opcode}
 import millfork.assembly.z80.{ZOpcode, ZRegisters}
 import millfork.env.{Constant, ParamPassingConvention, Type}
@@ -195,6 +196,15 @@ object ZRegister extends Enumeration {
   }
 
   val main7Registers: Set[ZRegister.Value] = Set[ZRegister.Value](ZRegister.A, ZRegister.B, ZRegister.C, ZRegister.D, ZRegister.D, ZRegister.E, ZRegister.H, ZRegister.L)
+}
+
+object M6809Register extends Enumeration {
+  val A, B, D, DP, X, Y, U, S, PC, CC = Value
+
+  def registerSize(reg: Value): Int = reg match {
+    case D | X | Y | U | S | PC => 2
+    case A | B | DP | CC => 1
+  }
 }
 
 //case class Indexing(child: Expression, register: Register.Value) extends Expression
@@ -498,6 +508,10 @@ case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, 
 }
 
 case class Z80AssemblyStatement(opcode: ZOpcode.Value, registers: ZRegisters, offsetExpression: Option[Expression], expression: Expression, elidability: Elidability.Value) extends ExecutableStatement {
+  override def getAllExpressions: List[Expression] = List(expression)
+}
+
+case class M6809AssemblyStatement(opcode: MOpcode.Value, addrMode: MAddrMode, expression: Expression, elidability: Elidability.Value) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
 }
 
