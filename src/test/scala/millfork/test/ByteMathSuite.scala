@@ -43,8 +43,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   test("Byte addition") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | byte output @$c000
-        | byte a
+        | byte output @$c000, a
         | void main () {
         |  a = 1
         |  output = a + a
@@ -55,8 +54,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   test("Byte addition 2") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | byte output @$c000
-        | byte a
+        | byte output @$c000, a
         | void main () {
         |  a = 1
         |  output = a + 65
@@ -123,10 +121,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
       """
         | array output[3] @$c000
         | void main () {
-        |  byte x
-        |  byte y
-        |  byte tmpx
-        |  byte tmpy
+        |  byte x, y, tmpx, tmpy
         |  tmpx = one()
         |  tmpy = one()
         |  x = tmpx
@@ -201,9 +196,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
         | import zp_reg
-        | byte output1 @$c001
-        | byte output2 @$c002
-        | byte output3 @$c003
+        | byte output1 @$c001, output2 @$c002, output3 @$c003
         | void main () {
         |   calc1()
         |   crash_if_bad()
@@ -309,10 +302,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       s"""
          | import zp_reg
-         | byte output_q1 @$$c000
-         | byte output_m1 @$$c001
-         | byte output_q2 @$$c002
-         | byte output_m2 @$$c003
+         | byte output_q1 @$$c000, output_m1 @$$c001, output_q2 @$$c002, output_m2 @$$c003
          | void main () {
          |  byte a
          |  a = f()
@@ -351,10 +341,8 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       s"""
          | import zp_reg
-         | byte output_q1 @$$c000
-         | byte output_m1 @$$c001
-         | byte output_q2 @$$c002
-         | byte output_m2 @$$c003
+         | byte output_q1 @$$c000, output_m1 @$$c001
+         | byte output_q2 @$$c002, output_m2 @$$c003
          | void main () {
          |  byte a
          |  byte b
@@ -412,10 +400,8 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       s"""
          | import zp_reg
-         | byte output_q1 @$$c000
-         | byte output_m1 @$$c001
-         | byte output_q2 @$$c002
-         | byte output_m2 @$$c003
+         | byte output_q1 @$$c000, output_m1 @$$c001
+         | byte output_q2 @$$c002, output_m2 @$$c003
          | void main () {
          |  byte a
          |  output_q2 = g()

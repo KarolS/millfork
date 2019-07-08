@@ -105,25 +105,31 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val globalVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)
 
+  def singleVariableDefinition: P[(Position, String, Option[Expression], Option[Expression], Option[MemoryAlignment])] = for {
+      p <- position()
+      name <- identifier ~/ HWS ~/ Pass
+      addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~ HWS
+      initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~ HWS
+      alignment = None // TODO
+    } yield (p, name, addr, initialValue, alignment)
+
   def variableDefinition(implicitlyGlobal: Boolean): P[Seq[DeclarationStatement]] = for {
     p <- position()
     bank <- bankDeclaration
     flags <- variableFlags ~ HWS
     typ <- identifier ~ SWS
-    name <- identifier ~/ HWS ~/ Pass
-    addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~ HWS
-    initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~ HWS
-    alignment = None // TODO
+    vars <- singleVariableDefinition.rep(min = 1, sep = "," ~/ HWS)
     _ <- &(EOL) ~/ ""
   } yield {
-    Seq(VariableDeclarationStatement(name, typ,
+    vars.map { case (p, name, addr, initialValue, alignment) => VariableDeclarationStatement(name, typ,
       bank,
       global = implicitlyGlobal || flags("static"),
       stack = flags("stack"),
       constant = flags("const"),
       volatile = flags("volatile"),
       register = flags("register"),
-      initialValue, addr, alignment).pos(p))
+      initialValue, addr, alignment).pos(p)
+    }
   }
 
   val paramDefinition: P[ParameterDeclaration] = for {

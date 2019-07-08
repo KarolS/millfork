@@ -13,8 +13,7 @@ class StackVarSuite extends FunSuite with Matchers {
     EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | void main () {
-        |   stack byte a
-        |   stack byte b
+        |   stack byte a, b
         |   b = 4
         |   a = b
         |   output = a
@@ -27,8 +26,7 @@ class StackVarSuite extends FunSuite with Matchers {
     EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | byte output @$c000
         | void main () {
-        |   stack byte a
-        |   stack byte b
+        |   stack byte a, b
         |   a = $11
         |   b = $44
         |   b += zzz()
@@ -74,8 +72,7 @@ class StackVarSuite extends FunSuite with Matchers {
       """
         | byte output @$c000
         | void main () {
-        |   stack byte a
-        |   stack byte b
+        |   stack byte a, b
         |   b = $77
         |   a = $11
         |   b -= zzz()
@@ -94,8 +91,7 @@ class StackVarSuite extends FunSuite with Matchers {
     EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000
         | void main () {
-        |   stack word a
-        |   stack word b
+        |   stack word a, b
         |   a = $111
         |   b = $444
         |   b += zzz()
@@ -123,9 +119,7 @@ class StackVarSuite extends FunSuite with Matchers {
         | }
         | word fib(byte i) {
         |   stack byte j
-        |   stack word sum
-        |   stack word w
-        |   stack word v
+        |   stack word sum, w, v
         |   j = i
         |   if j < 2 {
         |     return 1
@@ -208,8 +202,7 @@ class StackVarSuite extends FunSuite with Matchers {
     EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | array output [200] @$c000
         | void main () {
-        |   stack byte a
-        |   stack byte b
+        |   stack byte a, b
         |   a = $11
         |   b = $44
         |   output[a + b] = $66
@@ -286,8 +279,7 @@ class StackVarSuite extends FunSuite with Matchers {
       """
         | int32 output @$c000
         | void main () {
-        |   stack int32 a
-        |   stack int32 b
+        |   stack int32 a, b
         |   a = f()
         |   barrier()
         |   b = a
@@ -406,9 +398,7 @@ class StackVarSuite extends FunSuite with Matchers {
         | noinline byte f() = 6
         | noinline void g(byte x) {}
         | void main () {
-        |   stack byte b
-        |   stack byte a
-        |   stack byte c
+        |   stack byte b, a, c
         |      b = b
         |      c = c
         |   a = f()
@@ -435,10 +425,7 @@ class StackVarSuite extends FunSuite with Matchers {
         |   p[0] = __loop.addr + 1
         | }
         | void main () {
-        |   stack word b
-        |   stack word a
-        |   stack word c
-        |   stack word d
+        |   stack word b, a, c, d
         |   h(a.pointer)
         |   h(b.pointer)
         |   h(c.pointer)

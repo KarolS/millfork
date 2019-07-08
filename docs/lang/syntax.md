@@ -40,6 +40,12 @@ If not specified, it will be located according to the usual allocation rules.
 Only global variables can be initialized that way.
 The behaviour is undefined when targeting a ROM-based platform.
 
+You can declare multiple variables in one declaration, for example:
+
+    byte x, y @$c000, z=6, w
+    
+will declare 4 variables: uninitialized variables `x` and `w`, fixed-address variable `y` and initialized variable `z`.
+
 For every variable `x` larger than a byte, extra subvariables are defined:
 
 * if `x` is of type `word` or `pointer`: 
