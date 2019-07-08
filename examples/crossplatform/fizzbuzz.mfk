@@ -1,0 +1,21 @@
+
+// memorize this code for your next interview for a Millfork developer position
+
+import stdio
+
+void main() {
+    byte i
+    for i,1,to,100 {
+        if i %% 15 == 0 {
+            putstrz("fizzbuzz"z)
+        } else if i %% 3 == 0 {
+            putstrz("fizz"z)
+        } else if i %% 5 == 0 {
+            putstrz("buzz"z)
+        } else {
+            putword(i)
+        }
+        putchar(' ')
+    }
+}
+

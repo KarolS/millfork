@@ -4,6 +4,8 @@
 
 * [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – simple text output
 
+* [Fizzbuzz](crossplatform/fizzbuzz.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – everyone's favourite programming task
+
 * [Text encodings](crossplatform/text_encodings.mfk) (C64/ZX Spectrum) – examples of text encoding features
 
 * [Echo](crossplatform/echo.mfk) (C64/C16/ZX Spectrum/PC-88/MSX)– simple text input and output
@@ -15,6 +17,8 @@
 * [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
 
 * [Bell](crossplatform/bell.mfk) (Apple II/ZX Spectrum) – a program that goes \*ding!\*
+
+* [Life](crossplatform/life.mfk) (C64/ZX Spectrum) – Conway's game of life
 
 ## Commodore 64 examples
 
@@ -46,3 +50,7 @@ how to create a program made of multiple files loaded on demand
 ## Atari 2600 examples
 
 * [Colors](vcs/colors.mfk) – simple static rasterbars
+
+## PC-88 examples
+
+* [Fizzbuzz88](pc88/fizzbuzz88.mfk) – Fizzbuzz, but in Japanese

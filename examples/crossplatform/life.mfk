@@ -1,0 +1,143 @@
+#if CBM_64
+const byte width = 40
+const byte height = 25
+#endif
+#if ZX_SPECTRUM
+const byte width = 32
+const byte height = 24
+#endif
+
+const word area = word(width) * word(height)
+
+// representation: $1 live now $80 live soon
+const byte ALIVE = $81
+array buffer [width * height] align(256)
+
+void init_buffer() {
+    pointer p
+    for p,buffer.addr,paralleluntil,buffer.addr+area {
+        p[0] = 0
+    }
+    // glider:
+    buffer[1*width + 2] = ALIVE
+    buffer[2*width + 3] = ALIVE
+    buffer[3*width + 1] = ALIVE
+    buffer[3*width + 2] = ALIVE
+    buffer[3*width + 3] = ALIVE
+}
+
+void do_round() align(fast) {
+    byte x, y, sum, j
+    pointer p
+    p = buffer.addr - width - 1
+    for y,0,until,height {
+        for x,0,until,width {
+            sum = 0
+            if y != 0 {
+                if x != 0 { sum += p[0] }
+                sum += p[1]
+                if x != width - 1 { sum += p[2] }
+            }
+            if true {
+                if x != 0 { sum += p[width] }
+                if x != width - 1 { sum += p[width + 2] }
+            }
+            if y != height - 1 {
+                if x != 0 { sum += p[2 * width] }
+                sum += p[2 * width + 1]
+                if x != width - 1 { sum += p[2 * width + 2] }
+            }
+            sum &= $7f
+            if sum == 3 {
+                p[width + 1] |= $80
+            } else if sum != 2 {
+                p[width + 1] &= $7f
+            }
+            p += 1
+        }
+    }
+    p = buffer.addr
+    for j,0,paralleluntil,height {
+        for x,0,paralleluntil,width {
+            if p[x] & $80 != 0 { p[x] = $81 }
+            else { p[x] = 0 }
+        }
+        p += width
+    }
+}
+
+
+#if CBM_64
+
+void init_gfx() {
+    byte i
+    for i,0,paralleluntil,250 {
+        c64_color_ram[i+000]=light_blue
+        c64_color_ram[i+250]=light_blue
+        c64_color_ram[i+500]=light_blue
+        c64_color_ram[i+750]=light_blue
+    }
+}
+
+void redraw() align(fast) {
+    pointer src, dest
+    byte x, y
+    src = buffer.addr
+    dest = $400
+    for y,0,until,height {
+        for x,0,until,width {
+            if src[x] != 0 {
+                dest[x] = 128 + ' '
+            } else {
+                dest[x] = ' '
+            }
+        }
+        src += width
+        dest += width
+    }
+}
+
+void wait_frame() align(fast) {
+    while vic_raster != $ff {}
+    while vic_raster == $ff {}
+}
+#endif
+
+#if ZX_SPECTRUM
+
+void init_gfx() {
+}
+
+void redraw() align(fast) {
+    pointer src, dest
+    byte x, y
+    src = buffer.addr
+    dest = $5800
+    for y,0,until,height {
+        for x,0,until,width {
+            if src[x] != 0 {
+                dest[x] = 0
+            } else {
+                dest[x] = $3f
+            }
+        }
+        src += width
+        dest += width
+    }
+}
+
+asm macro void wait_frame() {
+    halt
+}
+#endif
+
+void main() {
+    init_gfx()
+    init_buffer()
+    redraw()
+    while true {
+        wait_frame()
+        do_round()
+        redraw()
+    }
+}
