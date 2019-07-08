@@ -3,7 +3,7 @@ package millfork.compiler.mos
 import millfork.CompilationFlag
 import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, Opcode}
 import millfork.compiler.{AbstractExpressionCompiler, BranchSpec, CompilationContext}
-import millfork.env.{Label, MemoryAddressConstant, MemoryVariable, NumericConstant, RelativeVariable, Type, Variable, VariableAllocationMethod, VariableInMemory}
+import millfork.env.{ConstantPointy, Label, MemoryAddressConstant, MemoryVariable, NumericConstant, RelativeVariable, StackVariablePointy, Type, Variable, VariableAllocationMethod, VariableInMemory, VariablePointy}
 import millfork.node._
 import millfork.assembly.mos.Opcode._
 
@@ -175,6 +175,85 @@ object MosBulkMemoryOperations {
         }
     }
     loadAll ++ setWholePages ++ setRest
+  }
+
+  def compileMemmodify(ctx: CompilationContext, targetExpression: IndexedExpression, operator: String, source: Expression, f: ForStatement): Option[List[AssemblyLine]] = {
+    val env = ctx.env
+    if (AbstractExpressionCompiler.getExpressionType(ctx, source).size != 1) return None
+    if (AbstractExpressionCompiler.getExpressionType(ctx, targetExpression).size != 1) return None
+    val indexVariable = ctx.env.get[Variable](f.variable)
+    if (indexVariable.isVolatile) return None
+    if (f.direction != ForDirection.ParallelUntil) return None
+    if (!env.eval(f.start).exists(_.isProvablyZero)) return None
+    val offset = env.evalVariableAndConstantSubParts(targetExpression.index) match {
+      case (Some(VariableExpression(v)), o) if v == f.variable => o
+      case _ => return None
+    }
+    val reg = env.get[VariableInMemory]("__reg.loword")
+    val (prepareZpreg, addrMode, parameter) = env.getPointy(targetExpression.name) match {
+      case _: VariablePointy | _:StackVariablePointy =>
+        val offsetExpr = GeneratedConstantExpression(offset, env.get[Type]("word"))
+        val pz = MosExpressionCompiler.compileToZReg(ctx, SumExpression(List(false -> VariableExpression(targetExpression.name), false -> offsetExpr), decimal = false))
+        (pz, AddrMode.IndexedY, reg.toAddress)
+      case c: ConstantPointy =>
+        if (indexVariable.typ.size == 1) (Nil, AddrMode.AbsoluteX, c.value)
+        else {
+          val pz = MosExpressionCompiler.compileToZReg(ctx, GeneratedConstantExpression(c.value + offset, env.get[Type]("pointer")))
+          (pz, AddrMode.IndexedY, reg.toAddress)
+        }
+    }
+    def wrapLdaSta(code: List[AssemblyLine]) : List[AssemblyLine] = AssemblyLine(LDA, addrMode, parameter) :: (code :+AssemblyLine(STA, addrMode, parameter))
+    val body = env.eval(source) match {
+      case Some(NumericConstant(0, _)) => return Some(MosExpressionCompiler.compile(ctx, f.end, None, BranchSpec.None))
+      case Some(NumericConstant(n, _)) if operator == "<<=" && n > 0 =>
+        addrMode match {
+          case AddrMode.AbsoluteX if n <= 2 => List.fill(n.toInt)(AssemblyLine.absoluteX(ASL, parameter))
+          case _ => wrapLdaSta(List.fill(n.toInt)(AssemblyLine.implied(ASL)))
+        }
+      case Some(NumericConstant(n, _)) if operator == ">>=" && n > 0 =>
+        addrMode match {
+          case AddrMode.AbsoluteX if n <= 2 => List.fill(n.toInt)(AssemblyLine.absoluteX(LSR, parameter))
+          case _ => wrapLdaSta(List.fill(n.toInt)(AssemblyLine.implied(LSR)))
+        }
+      case Some(NumericConstant(n@(1 | 2), _)) if operator == "+=" && addrMode == AddrMode.AbsoluteX =>
+        List.fill(n.toInt)(AssemblyLine.absoluteX(INC, parameter))
+      case Some(NumericConstant(n@(1 | 2), _)) if operator == "-=" && addrMode == AddrMode.AbsoluteX =>
+        List.fill(n.toInt)(AssemblyLine.absoluteX(DEC, parameter))
+      case _ if operator == ">>=" || operator == "<<=" => return None
+      case Some(c) if operator == "+=" => wrapLdaSta(List(AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, c)))
+      case Some(c) if operator == "-=" => wrapLdaSta(List(AssemblyLine.implied(SEC), AssemblyLine.immediate(SBC, c)))
+      case Some(c) if operator == "&=" => wrapLdaSta(List(AssemblyLine.immediate(AND, c)))
+      case Some(c) if operator == "|=" => wrapLdaSta(List(AssemblyLine.immediate(ORA, c)))
+      case Some(c) if operator == "^=" => wrapLdaSta(List(AssemblyLine.immediate(EOR, c)))
+      case _ => return None // TODO
+    }
+    val TAL = addrMode match {
+      case AddrMode.AbsoluteX => TAX
+      case AddrMode.IndexedY => TAY
+    }
+    val TLA = addrMode match {
+      case AddrMode.AbsoluteX => TXA
+      case AddrMode.IndexedY => TYA
+    }
+    val DEL = addrMode match {
+      case AddrMode.AbsoluteX => DEX
+      case AddrMode.IndexedY => DEY
+    }
+    indexVariable.typ.size match {
+      case 1 =>
+        val end = MosExpressionCompiler.compileToA(ctx, f.end)
+        val prepareAll = if (addrMode == AddrMode.IndexedY && (MosExpressionCompiler.changesZpreg(end, 0) || MosExpressionCompiler.changesZpreg(end, 1))) {
+          end ++ List(AssemblyLine.implied(PHA)) ++ MosExpressionCompiler.fixTsx(prepareZpreg) ++ List(AssemblyLine.implied(PLA), AssemblyLine.implied(TAL))
+        } else {
+          prepareZpreg ++ end ++ List(AssemblyLine.implied(TAL))
+        }
+        val label = ctx.nextLabel("fo")
+        Some(prepareAll ++ List(AssemblyLine.label(label), AssemblyLine.implied(DEL)) ++ body ++ List(AssemblyLine.implied(TLA), AssemblyLine.relative(BNE, label)))
+      case 2 =>
+        // TODO
+        None
+      case _ => None
+    }
   }
 
   def compileFold(ctx: CompilationContext, targetExpression: VariableExpression, operator: String, source: Expression, f: ForStatement): Option[List[AssemblyLine]] = {

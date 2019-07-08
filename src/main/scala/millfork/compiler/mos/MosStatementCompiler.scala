@@ -292,6 +292,13 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           case Some(x) => x -> Nil
           case None => compileForStatement(ctx, f)
         }
+      case f@ForStatement(variable, start, end, _, List(ExpressionStatement(
+        FunctionCallExpression(operator@("+=" | "-=" | "<<=" | ">>="), List(target: IndexedExpression, source))
+      ))) if !source.containsVariable(variable) && !start.containsVariable(target.name) && !end.containsVariable(target.name) && target.name != variable =>
+        MosBulkMemoryOperations.compileMemmodify(ctx, target, operator, source, f) match {
+          case Some(x) => x -> Nil
+          case None => compileForStatement(ctx, f)
+        }
       case f:ForStatement =>
         compileForStatement(ctx,f)
       case f:ForEachStatement =>

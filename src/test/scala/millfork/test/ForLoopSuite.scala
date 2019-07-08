@@ -287,6 +287,71 @@ class ForLoopSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Modifying whole array") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+      """
+        | array output[$ff]@$c000
+        | void main () {
+        |   byte i
+        |   for i,0,paralleluntil,$ff {
+        |     output[i] = 0
+        |   }
+        |   memory_barrier()
+        |   for i,0,paralleluntil,$f0 {
+        |     output[i] += 1
+        |   }
+        |   memory_barrier()
+        |   for i,0,paralleluntil,$e0 {
+        |     output[i] -= 1
+        |   }
+        |   memory_barrier()
+        |   for i,0,paralleluntil,$d0 {
+        |     output[i] += 5
+        |   }
+        |   memory_barrier()
+        |   for i,0,paralleluntil,$c0 {
+        |     output[i] -= 4
+        |   }
+        |   memory_barrier()
+        |   for i,0,paralleluntil,$b0 {
+        |     output[i] <<= 4
+        |   }
+        |   memory_barrier()
+        |   for i,0,paralleluntil,$a0 {
+        |     output[i] >>= 3
+        |   }
+        |   memory_barrier()
+        |   for i,0,paralleluntil,$90 {
+        |     output[i] <<= 2
+        |   }
+        |   memory_barrier()
+        |   for i,0,paralleluntil,$80 {
+        |     output[i] >>= 2
+        |   }
+        |   memory_barrier()
+        | }
+      """.stripMargin){ m=>
+      m.readByte(0xc0fe) should equal (0)
+      m.readByte(0xc0f0) should equal (0)
+      m.readByte(0xc0ef) should equal (1)
+      m.readByte(0xc0e0) should equal (1)
+      m.readByte(0xc0df) should equal (0)
+      m.readByte(0xc0d0) should equal (0)
+      m.readByte(0xc0cf) should equal (5)
+      m.readByte(0xc0c0) should equal (5)
+      m.readByte(0xc0bf) should equal (1)
+      m.readByte(0xc0b0) should equal (1)
+      m.readByte(0xc0af) should equal (16)
+      m.readByte(0xc0a0) should equal (16)
+      m.readByte(0xc09f) should equal (2)
+      m.readByte(0xc090) should equal (2)
+      m.readByte(0xc08f) should equal (8)
+      m.readByte(0xc080) should equal (8)
+      m.readByte(0xc07f) should equal (2)
+      m.readByte(0xc070) should equal (2)
+    }
+  }
+
   test("Edge cases - positive") {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | void main() {
