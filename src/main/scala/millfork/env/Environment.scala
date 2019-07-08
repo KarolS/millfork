@@ -511,8 +511,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (builtinsAdded && Environment.keywords(name)) {
       log.error(s"Cannot redefine a builtin keyword `$name`", position)
       false
-    } else if (things.contains(name) || parent.exists(_.things.contains(name))) {
-      log.error(s"`$name` is already defined", position)
+    } else if (things.contains(name) || parent.exists(_.things.contains(name)) || things.contains(name.stripPrefix(prefix))) {
+      if (!name.contains('.')){
+        if (parent.isDefined) {
+          log.error(s"`${name.stripPrefix(prefix)}` is already defined in this function", position)
+        } else {
+          log.error(s"`$name` is already defined", position)
+        }
+      }
       false
     } else {
       true
