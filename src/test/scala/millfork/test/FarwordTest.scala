@@ -9,12 +9,12 @@ import org.scalatest.{FunSuite, Matchers}
   */
 class FarwordTest extends FunSuite with Matchers {
 
-  test("Farword assignment") {
+  test("Int24 assignment") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output3 @$c000
-        | farword output2 @$c004
-        | farword output1 @$c008
+        | int24 output3 @$c000
+        | int24 output2 @$c004
+        | int24 output1 @$c008
         | void main () {
         |   output3 = $223344
         |   output2 = $223344
@@ -28,11 +28,11 @@ class FarwordTest extends FunSuite with Matchers {
       m.readMedium(0xc008) should equal(0x55)
     }
   }
-  test("Farword assignment 2") {
+  test("Int24 assignment 2") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output3 @$c000
-        | farword output2 @$c004
+        | int24 output3 @$c000
+        | int24 output2 @$c004
         | word output1 @$c008
         | void main () {
         |   word w
@@ -52,11 +52,11 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
 
-  test("Farword assignment 3") {
+  test("Int24 assignment 3") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output0 @$c000
-        | farword output1 @$c003
+        | int24 output0 @$c000
+        | int24 output1 @$c003
         | void main () {
         |   output0 = $112233
         |   output1 = $112233
@@ -69,13 +69,13 @@ class FarwordTest extends FunSuite with Matchers {
       m.readMedium(0xc003) should equal(0x111122)
     }
   }
-  test("Farword addition") {
+  test("Int24 addition") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output @$c000
+        | int24 output @$c000
         | void main () {
         |   word w
-        |   farword l
+        |   int24 l
         |   byte b
         |   w = $8000
         |   b = $8
@@ -89,10 +89,10 @@ class FarwordTest extends FunSuite with Matchers {
       m.readMedium(0xc000) should equal(0x58008)
     }
   }
-  test("Farword addition 2") {
+  test("Int24 addition 2") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output @$c000
+        | int24 output @$c000
         | void main () {
         |   output = 0
         |   output += $50000
@@ -103,13 +103,13 @@ class FarwordTest extends FunSuite with Matchers {
       m.readMedium(0xc000) should equal(0x58008)
     }
   }
-  test("Farword subtraction") {
+  test("Int24 subtraction") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output @$c000
+        | int24 output @$c000
         | void main () {
         |   word w
-        |   farword l
+        |   int24 l
         |   byte b
         |   w = $8000
         |   b = $8
@@ -123,10 +123,10 @@ class FarwordTest extends FunSuite with Matchers {
       m.readMedium(0xc000) should equal(0)
     }
   }
-  test("Farword subtraction 2") {
+  test("Int24 subtraction 2") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output @$c000
+        | int24 output @$c000
         | void main () {
         |   output = $58008
         |   output -= $50000
@@ -137,10 +137,10 @@ class FarwordTest extends FunSuite with Matchers {
       m.readMedium(0xc000) should equal(0)
     }
   }
-  test("Farword subtraction 3") {
+  test("Int24 subtraction 3") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output @$c000
+        | int24 output @$c000
         | void main () {
         |   output = $58008
         |   output -= w()
@@ -157,10 +157,10 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
 
-  test("Farword AND") {
+  test("Int24 AND") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output @$c000
+        | int24 output @$c000
         | void main () {
         |   output = $FFFFFF
         |   output &= w()
@@ -177,16 +177,16 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
 
-  test("Farword INC/DEC") {
+  test("Int24 INC/DEC") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """
-        | farword output0 @$c000
-        | farword output1 @$c004
-        | farword output2 @$c008
-        | farword output3 @$c00c
-        | farword output4 @$c010
-        | farword output5 @$c014
-        | farword output6 @$c018
+        | int24 output0 @$c000
+        | int24 output1 @$c004
+        | int24 output2 @$c008
+        | int24 output3 @$c00c
+        | int24 output4 @$c010
+        | int24 output5 @$c014
+        | int24 output6 @$c018
         | void main () {
         |   output0 = 0
         |   output1 = $FF

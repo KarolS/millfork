@@ -577,10 +577,10 @@ object MfParser {
 
   val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').?.! ~ "\"").map(_.toList)
 
-  def size(value: Long, wordLiteral: Boolean, farwordLiteral: Boolean, longLiteral: Boolean): Int = {
+  def size(value: Long, wordLiteral: Boolean, int24Literal: Boolean, int32Literal: Boolean): Int = {
     val w = value > 255 || value < -0x80 || wordLiteral
-    val f = value > 0xffff || value < -0x8000 || farwordLiteral
-    val l = value > 0xffffff || value < -0x800000 || longLiteral
+    val f = value > 0xffff || value < -0x8000 || int24Literal
+    val l = value > 0xffffff || value < -0x800000 || int32Literal
     if (l) 4 else if (f) 3 else if (w) 2 else 1
   }
 

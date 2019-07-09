@@ -12,7 +12,7 @@ Millfork puts extra limitations on which types can be used in which contexts.
 (alias: `int16`)
 
 * `int24` – 3-byte value of undefined signedness, defaulting to unsigned
-(alias: `farword`; this alias is deprecated and might be removed in the future)
+(alias: `farword`; this alias is deprecated and will be removed in the future)
 
 * `long` – 4-byte value of undefined signedness, defaulting to unsigned
 (alias: `int32`)

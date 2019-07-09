@@ -257,7 +257,7 @@ object AbstractExpressionCompiler {
         size match {
           case 1 => b
           case 2 => w
-          case 3 => env.get[Type]("farword")
+          case 3 => env.get[Type]("int24")
           case 4 => env.get[Type]("long")
         }
       case GeneratedConstantExpression(_, typ) => typ

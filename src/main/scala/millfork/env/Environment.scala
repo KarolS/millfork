@@ -437,7 +437,6 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(BasicPlainType("int128", 16), None)
     val p = DerivedPlainType("pointer", w, isSigned = false, isPointy = true)
     addThing(p, None)
-    //    addThing(DerivedPlainType("farpointer", get[PlainType]("farword"), isSigned = false), None)
     addThing(DerivedPlainType("ubyte", b, isSigned = false, isPointy = false), None)
     addThing(DerivedPlainType("sbyte", b, isSigned = true, isPointy = false), None)
     addThing(Alias("unsigned8", "ubyte"), None)

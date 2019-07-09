@@ -323,7 +323,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                           ZLine.ldAbs8(A, v, 2), ZLine.ld8(E, A))
                       }
                     case ZExpressionTarget.DEHL =>
-                      // TODO: signed farwords
+                      // TODO: signed int24s
                       if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
                         List(ZLine.ldAbs16(HL, v), ZLine.ldAbs8(A, v, 2), ZLine.ld8(E, A), ZLine.ldImm8(D, 0))
                       } else {
@@ -337,7 +337,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 4 => target match {
                     case ZExpressionTarget.NOTHING => Nil
                     case ZExpressionTarget.DEHL =>
-                      // TODO: signed farwords
+                      // TODO: signed int24s
                       if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
                         List(ZLine.ldAbs16(HL, v), ZLine.ldAbs16(DE, v.toAddress + 2))
                       } else if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
@@ -377,7 +377,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         List(ZLine.ldViaIxy(x, L, v.baseOffset), ZLine.ldViaIxy(x, H, v.baseOffset + 1), ZLine.ldImm16(DE, 0))
                     }
                     case 3 => target match {
-                      // TODO: signed farwords
+                      // TODO: signed int24s
                       case ZExpressionTarget.NOTHING => Nil
                       case ZExpressionTarget.EHL =>
                         List(ZLine.ldViaIxy(x, L, v.baseOffset), ZLine.ldViaIxy(x, H, v.baseOffset + 1), ZLine.ldViaIxy(x, E, v.baseOffset + 2))
@@ -420,7 +420,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         loadHL ++ List(ZLine.ld8(A,MEM_HL), ZLine.register(INC_16, HL), ZLine.ld8(H, MEM_HL), ZLine.ld8(L, A), ZLine.ldImm16(DE, 0))
                     }
                     case 3 => target match {
-                      // TODO: signed farwords
+                      // TODO: signed int24s
                       case ZExpressionTarget.NOTHING => Nil
                       case ZExpressionTarget.EHL =>
                         loadHL2 ++ List(

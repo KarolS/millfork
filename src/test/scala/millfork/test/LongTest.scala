@@ -259,9 +259,9 @@ class LongTest extends FunSuite with Matchers {
         | long output5 @$c014
         | long output6 @$c018
         |
-        | farword f0 @$c020
-        | farword f1 @$c023
-        | farword f2 @$c026
+        | int24 f0 @$c020
+        | int24 f1 @$c023
+        | int24 f2 @$c026
         | void main () {
         |   output0 = ll($91929394)
         |   output1 = lf($929394)
@@ -278,7 +278,7 @@ class LongTest extends FunSuite with Matchers {
         | long ll(long param) {
         |   return param
         | }
-        | long lf(farword param) {
+        | long lf(int24 param) {
         |   return param
         | }
         | long lw(word param) {
@@ -287,13 +287,13 @@ class LongTest extends FunSuite with Matchers {
         | long lb(byte param) {
         |   return param
         | }
-        | farword ff(farword param) {
+        | int24 ff(int24 param) {
         |   return param
         | }
-        | farword fw(word param) {
+        | int24 fw(word param) {
         |   return param
         | }
-        | farword fb(byte param) {
+        | int24 fb(byte param) {
         |   return param
         | }
       """.stripMargin) { m =>
@@ -329,7 +329,7 @@ class LongTest extends FunSuite with Matchers {
         | int64 xl(long param) {
         |   return param
         | }
-        | int64 xf(farword param) {
+        | int64 xf(int24 param) {
         |   return param
         | }
         | int64 xw(word param) {
