@@ -2,7 +2,7 @@ package millfork.assembly.z80.opt
 
 import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
 import millfork.assembly.z80._
-import millfork.env.{AssemblyParamSignature, NormalFunction, NormalParamSignature}
+import millfork.env.{AssemblyParam, AssemblyParamSignature, FunctionInMemory, MemoryAddressConstant, NormalFunction, NormalParamSignature, NumericConstant, ParamSignature, ZRegisterVariable}
 import millfork.error.Logger
 import millfork.node.ZRegister
 
@@ -99,8 +99,22 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
     }
   }
 
+  private def readsBCorDE(params: ParamSignature): Boolean = {
+    import ZRegister._
+    params match {
+      case AssemblyParamSignature(ps) => ps.exists {
+        case AssemblyParam(_, ZRegisterVariable(B | C | D | E | BC | DE, _), _) => true
+        case _ => false
+      }
+      case NormalParamSignature(List(p)) => p.typ.size == 3 || p.typ.size == 4
+      case _ => false
+    }
+  }
+
   private def canOptimize(code: List[ZLine], dir: PairDirection, loaded: Loaded): Boolean = code match {
     case ZLine0(CALL, _, _) :: xs => false // TODO
+    case ZLine0(JP, _, MemoryAddressConstant(f: FunctionInMemory)) :: xs if readsBCorDE(f.params) => false
+    case ZLine0(JP, _, NumericConstant(_, _)) :: xs => false
     case ZLine0(LD_16, TwoRegisters(r, IMM_16), _) :: xs => canOptimize(xs, dir, loaded = loaded.load(r))
     case ZLine0(LD,
     TwoRegisters(B, C) |
