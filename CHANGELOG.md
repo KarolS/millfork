@@ -2,11 +2,15 @@
 
 ## Current version
 
+* Improved passing of register parameters to assembly functions.
+
 * Enabled declaring multiple variables in one line.
 
 * Fixed detection of duplicate names in declarations.
 
 * 6502: Fixed expressions of form `p[i] <<= 1`.
+
+* Other fixes and improvements.
 
 ## 0.3.4
 
