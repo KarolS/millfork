@@ -154,20 +154,20 @@ and call `increase(score, 10)`, the entire call will compile into:
 
 Non-macro functions can only have their parameters passed via registers:
 
-* `byte a`, `byte b`, etc.: a single byte passed via the given CPU register
+* `byte a`, `byte b`, `byte c`, `byte d`, `byte e`, `byte h`, `byte l`: a single byte passed via the given CPU register; any 1-byte type can be used
 
-* `word hl`, `word bc`, `word de`: a 2-byte word byte passed via given 16-bit register
+* `word hl`, `word bc`, `word de`: a 2-byte word byte passed via given 16-bit register; any 2-byte type can be used
+
+Parameters passed via other registers (`I`, `IX`, `IY`, `IXH` etc.) or combinations of registers do not work yet.
 
 **Work in progress**: 
-Currently, only few parameter signatures are supported for non-macro assembly functions:
+Only the following combinations of register parameters work reliably:
 
-* `()`
+* zero or one register parameters
 
-* `(byte a)`, `(byte b)`, `(byte c)`, `(byte d)`, `(byte e)`, `(byte h)`, `(byte l)` ("byte" may be any other 2-byte type)
+* two register parameters where at least one of them is a 16-bit parameter
 
-* `(word hl)`, `(word bc)`, `(word de)` ("word" may be any other 2-byte type)
-
-More parameters or parameters passed via other registers do not work yet.
+Other combinations are guaranteed to work only with constant arguments.
 
 Macro assembly functions cannot have any parameter passed via registers.
 

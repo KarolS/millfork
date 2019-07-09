@@ -30,6 +30,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             toA.init
           case ZLine0(ZOpcode.LD, TwoRegisters(ZRegister.A, source@(ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E | ZRegister.MEM_HL)), _) =>
             toA.init :+ ZLine.ld8(register, source)
+          case ZLine0(ZOpcode.LD, TwoRegisters(ZRegister.A, ZRegister.IMM_8), param) if toA.size == 1 =>
+            List(ZLine.ldImm8(register, param))
           case ZLine0(ZOpcode.LD, TwoRegistersOffset(ZRegister.A, ZRegister.MEM_IX_D, offset), _) =>
             toA.init :+ ZLine.ldViaIx(register, offset)
           case ZLine0(ZOpcode.LD, TwoRegistersOffset(ZRegister.A, ZRegister.MEM_IY_D, offset), _) =>
@@ -1058,9 +1060,45 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         compileToBC(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
                       case AssemblyParamSignature(Nil) =>
                         List(ZLine(CALL, NoRegisters, function.toAddress))
-                      case AssemblyParamSignature(paramConvs) =>
-                        // TODO: stop being lazy and implement this
-                        ???
+                      case AssemblyParamSignature(paramConvs) =>val pairs = params.zip(paramConvs)
+                        val viaMemory = pairs.flatMap {
+                          case (paramExpr, AssemblyParam(typ, paramVar: VariableInMemory, AssemblyParameterPassingBehaviour.Copy)) =>
+                            ctx.log.error("Variable parameters to assembly functions are not supported", expression.position)
+                            Nil
+                          case _ => Nil
+                        }
+                        val viaRegisters = pairs.flatMap {
+                          case (paramExpr, AssemblyParam(typ, paramVar@ZRegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy)) =>
+                            if (typ.size != ZRegister.registerSize(register)) {
+                              ctx.log.error(s"Type ${typ.name} and register $register are of different sizes", expression.position)
+                            }
+                            val compi = ZRegister.registerSize(register) match {
+                              case 1 => compile8BitTo(ctx, paramExpr, register)
+                              case 2 => register match {
+                                case ZRegister.HL => compileToHL(ctx, paramExpr)
+                                case ZRegister.BC => compileToBC(ctx, paramExpr)
+                                case ZRegister.DE => compileToDE(ctx, paramExpr)
+                                case _ =>
+                                  ctx.log.error(s"Unsupported register $register", expression.position)
+                                  Nil
+                              }
+                            }
+                            Some(register -> compi)
+                          case _ => Nil
+                        } match {
+                          case Seq() => Nil
+                          case Seq((_, param)) => param
+                          case Seq((ZRegister.HL, phl), (_, pxx)) => phl ++ stashHLIfChanged(ctx, pxx)
+                          case Seq((_, pxx), (ZRegister.HL, phl)) => phl ++ stashHLIfChanged(ctx, pxx)
+                          case Seq((ZRegister.DE, pde), (_, pxx)) => pde ++ stashDEIfChanged(ctx, pxx)
+                          case Seq((_, pxx), (ZRegister.DE, pde)) => pde ++ stashDEIfChanged(ctx, pxx)
+                          case Seq((ZRegister.BC, pbc), (_, pxx)) => pbc ++ stashBCIfChanged(ctx, pxx)
+                          case Seq((_, pxx), (ZRegister.BC, pbc)) => pbc ++ stashBCIfChanged(ctx, pxx)
+                          case other =>
+                            ctx.log.warn("Unsupported register parameter combination: " + other.map(_._1.toString).mkString("(", ",", ")"), expression.position)
+                            other.flatMap(_._2) // TODO : make sure all registers are passed in correctly
+                        }
+                        viaMemory ++ viaRegisters :+ ZLine(CALL, NoRegisters, function.toAddress)
                       case NormalParamSignature(List(param)) if param.typ.size == 1 =>
                         compileToA(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
                       case NormalParamSignature(List(param)) if param.typ.size == 2 =>

@@ -41,6 +41,7 @@ Syntax:
 * `<return_type>` is a valid return type, see [Types](./types.md)
 
 * `<params>` is a comma-separated list of parameters, in form `type name`. Allowed types are the same as for local variables.
+For assembly functions, certain parameter names are interpreted as CPU registers.
 
 * `<alignment>` is either a numeric literal that is a power of 2, or keyword `fast`.
     The function will be allocated at the address divisible by alignment.

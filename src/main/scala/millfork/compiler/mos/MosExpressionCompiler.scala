@@ -1500,7 +1500,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       case Seq((_, param)) => param
                       case Seq((MosRegister.A, pa), (_, pxy)) => pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, pxy)
                       case Seq((_, pxy), (MosRegister.A, pa)) => pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, pxy)
-                      case other => other.flatMap(_._2) // TODO : make sure all registers are passed in correctly
+                      case other =>
+                        ctx.log.warn("Unsupported register parameter combination: " + other.map(_._1.toString).mkString("(", ",", ")"), expr.position)
+                        other.flatMap(_._2) // TODO : make sure all registers are passed in correctly
                     }
                     secondViaMemory ++ thirdViaRegisters :+ AssemblyLine.absoluteOrLongAbsolute(JSR, function, ctx.options)
                   case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>

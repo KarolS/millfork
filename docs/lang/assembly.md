@@ -125,9 +125,31 @@ and call `increase(score, 10)`, the entire call will compile into:
 
 Non-macro functions can only have their parameters passed via registers:
 
-* `byte a`, `byte x`, `byte y`: a single byte passed via the given CPU register
+* `byte a`, `byte x`, `byte y`: a single byte passed via the given CPU register; any 1-byte type can be used
 
-* `word xa`, `word ax`, `word ay`, `word ya`, `word xy`, `word yx`: a 2-byte word byte passed via given two CPU registers, with the high byte passed through the first register and the low byte passed through the second register
+* `word xa`, `word ax`, `word ay`, `word ya`, `word xy`, `word yx`: a 2-byte word byte passed via given two CPU registers,
+with the high byte passed through the first register and the low byte passed through the second register; any 2-byte type can be used
+
+For example, this piece of code:
+
+    asm void f(word ax) @F_ADDR extern
+    
+    f(5)
+    
+will compile to
+
+    LDA #5
+    LDX #0
+    JSR F_ADDR
+
+**Work in progress**: 
+Only the following combinations of register parameters work reliably:
+
+* zero or one register parameters
+
+* two register parameters where at least one of them is an 8-bit parameter passed via A
+
+Other combinations are guaranteed to work only with constant arguments.
 
 Macro assembly functions can have maximum one parameter passed via a register.
 
