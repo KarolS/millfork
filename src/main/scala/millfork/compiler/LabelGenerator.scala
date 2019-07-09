@@ -10,4 +10,6 @@ class LabelGenerator {
   private val labelCounter = new AtomicLong
 
   def apply(prefix: String): String = "." + prefix + "__" + labelCounter.incrementAndGet().formatted("%05d")
+
+  def asNumber(): Long = labelCounter.incrementAndGet()
 }

@@ -41,7 +41,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
   def maybeOptimizeForStatement(f: ForStatement): Option[(ExecutableStatement, VV)] = {
     if (!ctx.options.flag(CompilationFlag.DangerousOptimizations)) return None
     // TODO: figure out when this is useful
-    // Currently all instances of arr[i] are replaced with arr`popt`i[0], where arr`popt`i is a new pointer variable.
+    // Currently all instances of arr[i] are replaced with arr`popt##`i[0], where arr`popt`i is a new pointer variable.
     // This breaks the main Millfork promise of not using hidden variables!
     // This may be increase code size or runtime in certain circumstances, more experimentation is needed.
     if (!optimize) return None
@@ -60,11 +60,13 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
     val indexedArrays = findIndexedArrays(f.body, f.variable).toSet
     if (indexedArrays.isEmpty) return None
     if (indexedArrays.size > 2) return None // TODO: is this the optimal limit?
-    for (a <- indexedArrays) {
+    val newVariables: Map[(String, String), String] = (for (a <- indexedArrays) yield {
       val array = ctx.env.get[MfArray](a + ".array")
+      val infix = "`popt" + ctx.nextLabel.asNumber() + "`"
       // Evil hidden memory usage:
+      val newVariable = a + infix + f.variable
       env.registerVariable(VariableDeclarationStatement(
-        a + "`popt`" + f.variable,
+        newVariable,
         "pointer",
         None,
         global = false,
@@ -76,7 +78,8 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
         None,
         None
       ), ctx.options, isPointy = true)
-    }
+      (a -> f.variable) -> (a + infix + f.variable)
+    }).toMap
 
     def replaceArrayIndexingsE(node: Expression): Expression = node.replaceIndexedExpression(
       i => i.index match {
@@ -86,7 +89,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
       i => {
         val array = ctx.env.get[MfArray](i.name + ".array")
         optimizeExpr(IndirectFieldExpression(
-          FunctionCallExpression("pointer." + array.elementType.name, List(VariableExpression(i.name + "`popt`" + f.variable))),
+          FunctionCallExpression("pointer." + array.elementType.name, List(VariableExpression(newVariables(i.name, f.variable)))),
           Seq(LiteralExpression(0, 1)),
           Seq()), Map())
       }
@@ -118,7 +121,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
       val newBody = replaceArrayIndexings(f.body) ++ indexedArrays.map(name => {
         val array = ctx.env.get[MfArray](name + ".array")
         ExpressionStatement(FunctionCallExpression(operator, List(
-          VariableExpression(name + "`popt`" + f.variable),
+          VariableExpression(newVariables(name, f.variable)),
           LiteralExpression(1, 1))))
       })
       val optStart = optimizeExpr(f.start, Map())
@@ -126,7 +129,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
         indexedArrays.map(name => {
           val array = ctx.env.get[MfArray](name + ".array")
           Assignment(
-            VariableExpression(name + "`popt`" + f.variable),
+            VariableExpression(newVariables(name, f.variable)),
             FunctionCallExpression("pointer." + array.elementType.name, List(
               SumExpression(List(false -> VariableExpression(name + ".addr"), false -> optStart), decimal = false)
             )))
