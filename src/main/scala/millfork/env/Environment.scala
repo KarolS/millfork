@@ -235,26 +235,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def coerceLocalVariableIntoGlobalVariable(localVarToRelativize: String, concreteGlobalTarget: String): Unit = {
     log.trace(s"Coercing $localVarToRelativize to $concreteGlobalTarget")
     def removeVariableImpl2(e: Environment, str: String): Unit = {
-      e.things -= str
-      e.things -= str + ".addr"
-      e.things -= str + ".addr.lo"
-      e.things -= str + ".addr.hi"
-      e.things -= str + ".pointer"
-      e.things -= str + ".pointer.lo"
-      e.things -= str + ".pointer.hi"
-      e.things -= str + ".rawaddr"
-      e.things -= str + ".rawaddr.lo"
-      e.things -= str + ".rawaddr.hi"
-      e.things -= str.stripPrefix(prefix)
-      e.things -= str.stripPrefix(prefix) + ".addr"
-      e.things -= str.stripPrefix(prefix) + ".addr.lo"
-      e.things -= str.stripPrefix(prefix) + ".addr.hi"
-      e.things -= str.stripPrefix(prefix) + ".pointer"
-      e.things -= str.stripPrefix(prefix) + ".pointer.lo"
-      e.things -= str.stripPrefix(prefix) + ".pointer.hi"
-      e.things -= str.stripPrefix(prefix) + ".rawaddr"
-      e.things -= str.stripPrefix(prefix) + ".rawaddr.lo"
-      e.things -= str.stripPrefix(prefix) + ".rawaddr.hi"
+      e.removeVariable(str)
+      e.removeVariable(str.stripPrefix(prefix))
       e.parent.foreach(x => removeVariableImpl2(x,str))
     }
     removeVariableImpl2(this, prefix + localVarToRelativize)
@@ -280,36 +262,22 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   private def removeVariableImpl(str: String): Unit = {
-    removedThings += str
-    removedThings += str + ".addr"
-    removedThings += str + ".addr.lo"
-    removedThings += str + ".addr.hi"
-    removedThings += str + ".pointer"
-    removedThings += str + ".pointer.lo"
-    removedThings += str + ".pointer.hi"
-    removedThings += str + ".rawaddr"
-    removedThings += str + ".rawaddr.lo"
-    removedThings += str + ".rawaddr.hi"
-    things -= str
-    things -= str + ".addr"
-    things -= str + ".addr.lo"
-    things -= str + ".addr.hi"
-    things -= str + ".pointer"
-    things -= str + ".pointer.lo"
-    things -= str + ".pointer.hi"
-    things -= str + ".rawaddr"
-    things -= str + ".rawaddr.lo"
-    things -= str + ".rawaddr.hi"
-    things -= str.stripPrefix(prefix)
-    things -= str.stripPrefix(prefix) + ".addr"
-    things -= str.stripPrefix(prefix) + ".addr.lo"
-    things -= str.stripPrefix(prefix) + ".addr.hi"
-    things -= str.stripPrefix(prefix) + ".pointer"
-    things -= str.stripPrefix(prefix) + ".pointer.lo"
-    things -= str.stripPrefix(prefix) + ".pointer.hi"
-    things -= str.stripPrefix(prefix) + ".rawaddr"
-    things -= str.stripPrefix(prefix) + ".rawaddr.lo"
-    things -= str.stripPrefix(prefix) + ".rawaddr.hi"
+    def extractThingName(fullName: String): String = {
+      var result = fullName.takeWhile(_ != '.')
+      if (result.length == fullName.length) return result
+      val suffix = fullName.drop(result.length)
+      if (suffix == ".return" || suffix.startsWith(".return.")) {
+        result += ".return"
+      }
+      result
+    }
+
+    val toRemove = things.keys.filter { n =>
+      val baseName = extractThingName(n)
+      baseName == str || baseName == str.stripPrefix(prefix)
+    }.toSet
+    removedThings ++= toRemove.map(_.stripPrefix(prefix))
+    things --= toRemove
     parent.foreach(_ removeVariableImpl str)
   }
 
