@@ -266,12 +266,12 @@ trait MfArray extends ThingInMemory with IndexableThing {
   def indexType: VariableType
   def elementType: VariableType
   override def isVolatile: Boolean = false
-  /* TODO: what if larger elements? */
   def sizeInBytes: Int
+  def elementCount: Int
   def readOnly: Boolean
 }
 
-case class UninitializedArray(name: String, /* TODO: what if larger elements? */ sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean, override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
+case class UninitializedArray(name: String, elementCount: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean, override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 
   override def alloc: VariableAllocationMethod.Value = VariableAllocationMethod.Static
@@ -281,9 +281,11 @@ case class UninitializedArray(name: String, /* TODO: what if larger elements? */
   override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse("default")
 
   override def zeropage: Boolean = false
+
+  override def sizeInBytes: Int = elementCount * elementType.size
 }
 
-case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean) extends MfArray {
+case class RelativeArray(name: String, address: Constant, elementCount: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean) extends MfArray {
   override def toAddress: Constant = address
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
@@ -291,6 +293,8 @@ case class RelativeArray(name: String, address: Constant, sizeInBytes: Int, decl
   override def bank(compilationOptions: CompilationOptions): String = declaredBank.getOrElse("default")
 
   override def zeropage: Boolean = false
+
+  override def sizeInBytes: Int = elementCount * elementType.size
 }
 
 case class InitializedArray(name: String, address: Option[Constant], contents: Seq[Expression], declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean, override val alignment: MemoryAlignment) extends MfArray with PreallocableThing {
@@ -303,7 +307,9 @@ case class InitializedArray(name: String, address: Option[Constant], contents: S
 
   override def zeropage: Boolean = false
 
-  override def sizeInBytes: Int = contents.size
+  override def elementCount: Int = contents.size
+
+  override def sizeInBytes: Int = contents.size * elementType.size
 }
 
 case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean, declaredBank: Option[String], override val isVolatile: Boolean) extends VariableInMemory {

@@ -185,12 +185,12 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 
   def validateTypeCastAndGetSourceExpressionType(ctx: CompilationContext, typ: Type, params: List[Expression]): Type = {
     var failed = false
-    if (typ.name == "pointer") {
-      ctx.log.error("Cannot cast into pointer")
+    if (typ.name == "pointer" && typ.name !="pointer" && !typ.isInstanceOf[PointerType]) {
+      ctx.log.error("Cannot cast into pointer", params.headOption.flatMap(_.position))
       failed = true
     }
     if (params.length != 1) {
-      ctx.log.error("Type casting should have exactly one argument")
+      ctx.log.error("Type casting should have exactly one argument", params.headOption.flatMap(_.position))
       failed = true
     }
     val sourceType = getExpressionType(ctx, params.head)
@@ -286,8 +286,19 @@ object AbstractExpressionCompiler {
               ok = false
           }
         }
-        for ((fieldName, indices) <- fieldPath) {
-          if (ok) {
+        for ((dot, fieldName, indices) <- fieldPath) {
+          if (dot && ok) {
+            fieldName match {
+              case "addr" => env.get[Type]("pointer")
+              case "pointer" => env.get[Type]("pointer." + currentType.name)
+              case "addr.hi" => b
+              case "addr.lo" => b
+              case "pointer.hi" => b
+              case "pointer.lo" => b
+                log.error(s"Unexpected subfield `$fieldName`", expr.position)
+                ok = false
+            }
+          } else if (ok) {
             currentType match {
               case PointerType(_, _, Some(targetType)) =>
                 val tuples = env.getSubvariables(targetType).filter(x => x._1 == "." + fieldName)

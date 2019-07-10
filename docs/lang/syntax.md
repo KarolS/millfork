@@ -129,7 +129,6 @@ Since 0.3.4, only const arrays can be allocated to ROM, non-const arrays are all
 and their contents are uninitialized before a call to `init_rw_memory`. See [the ROM vs RAM guide](../api/rom-vs-ram.md).
 
 * `<element type>`: type of the elements of the array.
-It must be of size 1 byte.
 If omitted, the default is `byte`.
 
 * `<size>`: either a constant number, which then defines the size of the array,

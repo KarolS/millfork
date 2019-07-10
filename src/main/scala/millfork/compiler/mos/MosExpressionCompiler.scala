@@ -337,7 +337,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               ctx.log.error("Writing to a constant array", target.position)
             }
             val w = env.get[VariableType]("word")
-            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, None, if (constIndex.isProvablyZero) p.size else None, w, p.elementType, NoAlignment, p.readOnly), v))
+            wrapWordIndexingStorage(prepareWordIndexing(ctx, ConstantPointy(p.value + constIndex, None, if (constIndex.isProvablyZero) p.sizeInBytes else None, if (constIndex.isProvablyZero) p.elementCount else None, w, p.elementType, NoAlignment, p.readOnly), v))
           case (p: ConstantPointy, Some(v), 1, _) =>
             if (p.readOnly) {
               ctx.log.error("Writing to a constant array", target.position)
@@ -406,13 +406,13 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             Nil
         }
       case DerefExpression(inner, offset, targetType) =>
-        val (prepare, reg) = getPhysicalPointerForDeref(ctx, inner)
-        val lo = preserveRegisterIfNeeded(ctx, MosRegister.A, prepare) ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine.indexedY(STA, reg))
+        val (prepare, addr, am) = getPhysicalPointerForDeref(ctx, inner)
+        val lo = preserveRegisterIfNeeded(ctx, MosRegister.A, prepare) ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine(STA, am, addr))
         if (targetType.size == 1) {
           lo
         } else {
           lo ++ List(AssemblyLine.immediate(LDA, 0)) ++
-                List.tabulate(targetType.size - 1)(i => List(AssemblyLine.implied(INY), AssemblyLine.indexedY(STA, reg))).flatten
+                List.tabulate(targetType.size - 1)(i => List(AssemblyLine.implied(INY), AssemblyLine(STA, am, addr))).flatten
         }
     }
   }
@@ -437,14 +437,18 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     compile(ctx, expr, Some(p -> env.get[Variable]("__reg.loword")), BranchSpec.None)
   }
 
-  def getPhysicalPointerForDeref(ctx: CompilationContext, pointerExpression: Expression): (List[AssemblyLine], ThingInMemory) = {
+  def getPhysicalPointerForDeref(ctx: CompilationContext, pointerExpression: Expression): (List[AssemblyLine], Constant, AddrMode.Value) = {
     pointerExpression match {
       case VariableExpression(name) =>
         val p = ctx.env.get[ThingInMemory](name)
-        if (p.zeropage) return Nil -> p
+        if (p.isInstanceOf[MfArray]) return (Nil, p.toAddress, AddrMode.AbsoluteY)
+        if (p.zeropage) return (Nil, p.toAddress, AddrMode.IndexedY)
       case _ =>
     }
-    compileToZReg(ctx, pointerExpression) -> ctx.env.get[ThingInMemory]("__reg.loword")
+    ctx.env.eval(pointerExpression) match {
+      case Some(addr) => (Nil, addr, AddrMode.AbsoluteY)
+      case _ => (compileToZReg(ctx, pointerExpression), ctx.env.get[ThingInMemory]("__reg.loword").toAddress, AddrMode.IndexedY)
+    }
   }
 
   def compileStackOffset(ctx: CompilationContext, target: Variable, offset: Int, subbyte: Option[Int]): List[AssemblyLine] = {
@@ -807,6 +811,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case IndexedExpression(arrayName, indexExpr) =>
         val pointy = env.getPointy(arrayName)
         AbstractExpressionCompiler.checkIndexType(ctx, pointy, indexExpr)
+        if (pointy.elementType.size != 1) ctx.log.fatal("Whee!") // the statement preprocessor should have removed all of those
         // TODO: check
         val (variableIndex, constantIndex) = env.evalVariableAndConstantSubParts(indexExpr)
         val variableIndexSize = variableIndex.map(v => getExpressionType(ctx, v).size).getOrElse(0)
@@ -870,7 +875,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               prepareWordIndexing(ctx, ConstantPointy(
                 a.value + constantIndex,
                 None,
-                if (constantIndex.isProvablyZero) a.size else None,
+                if (constantIndex.isProvablyZero) a.sizeInBytes else None,
+                if (constantIndex.isProvablyZero) a.elementCount else None,
                 env.get[VariableType]("word"),
                 a.elementType, NoAlignment, a.readOnly), v) ++ loadFromReg()
             case (a: VariablePointy, _, 2, _) =>
@@ -918,18 +924,26 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           }
         }
       case DerefExpression(inner, offset, targetType) =>
-        val (prepare, reg) = getPhysicalPointerForDeref(ctx, inner)
-        targetType.size match {
-          case 1 =>
-            prepare ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine.indexedY(LDA, reg)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position)
-          case 2 =>
+        val (prepare, addr, am) = getPhysicalPointerForDeref(ctx, inner)
+        (targetType.size, am) match {
+          case (1, AbsoluteY) =>
+            prepare ++ List(AssemblyLine.absolute(LDA, addr + offset)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position)
+          case (1, _) =>
+            prepare ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine(LDA, am, addr)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position)
+          case (2, AbsoluteY) =>
+            prepare ++
+              List(
+                AssemblyLine.absolute(LDA, addr + offset),
+                AssemblyLine.absolute(LDX, addr + offset + 1)) ++
+              expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+          case (2, _) =>
             prepare ++
               List(
                 AssemblyLine.immediate(LDY, offset+1),
-                AssemblyLine.indexedY(LDA, reg),
+                AssemblyLine(LDA, am, addr),
                 AssemblyLine.implied(TAX),
                 AssemblyLine.implied(DEY),
-                AssemblyLine.indexedY(LDA, reg)) ++
+                AssemblyLine(LDA, am, addr)) ++
               expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
           case _ =>
             ctx.log.error("Cannot read a large object indirectly")
@@ -1287,6 +1301,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 l match {
                   case v: VariableExpression =>
                     BuiltIns.compileInPlaceWordOrLongAddition(ctx, v, r, subtract = false, decimal = false)
+                  case _ =>
+                    ctx.log.error("Cannot modify large object accessed via such complex expression", l.position)
+                    compile(ctx, r, None, BranchSpec.None)
                 }
             }
           case "-=" =>
@@ -1303,6 +1320,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 l match {
                   case v: VariableExpression =>
                     BuiltIns.compileInPlaceWordOrLongAddition(ctx, v, r, subtract = true, decimal = false)
+                  case _ =>
+                    ctx.log.error("Cannot modify large object accessed via such complex expression", l.position)
+                    compile(ctx, r, None, BranchSpec.None)
                 }
             }
           case "+'=" =>
@@ -1319,6 +1339,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 l match {
                   case v: VariableExpression =>
                     BuiltIns.compileInPlaceWordOrLongAddition(ctx, v, r, subtract = false, decimal = true)
+                  case _ =>
+                    ctx.log.error("Cannot modify large object accessed via such complex expression", l.position)
+                    compile(ctx, r, None, BranchSpec.None)
                 }
             }
           case "-'=" =>
@@ -1335,6 +1358,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 l match {
                   case v: VariableExpression =>
                     BuiltIns.compileInPlaceWordOrLongAddition(ctx, v, r, subtract = true, decimal = true)
+                  case _ =>
+                    ctx.log.error("Cannot modify large object accessed via such complex expression", l.position)
+                    compile(ctx, r, None, BranchSpec.None)
                 }
             }
           case "<<=" =>
@@ -1389,6 +1415,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 BuiltIns.compileInPlaceByteMultiplication(ctx, l, r)
               case 2 =>
                 BuiltIns.compileInPlaceWordMultiplication(ctx, l, r)
+              case _ => ctx.log.fatal("Oops")
             }
           case "/=" | "%%=" =>
             assertSizesForDivision(ctx, params, inPlace = true)
@@ -1402,6 +1429,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 } else {
                   compileAssignment(ctx, FunctionCallExpression("/", List(l, r)).pos(f.position), l)
                 }
+              case _ => ctx.log.fatal("Oops")
             }
           case "/" | "%%" =>
             assertSizesForDivision(ctx, params, inPlace = false)
@@ -1838,69 +1866,122 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         ctx.log.error("Invalid left-hand-side use of `:`")
         Nil
       case DerefExpression(inner, offset, targetType) =>
-        val (prepare, reg) = getPhysicalPointerForDeref(ctx, inner)
+        val (prepare, addr, am) = getPhysicalPointerForDeref(ctx, inner)
         env.eval(source) match {
           case Some(constant) =>
-            targetType.size match {
-              case 1 =>
+            (targetType.size, am) match {
+              case (1, AbsoluteY) =>
                 prepare ++ List(
-                    AssemblyLine.immediate(LDY, offset),
-                    AssemblyLine.immediate(LDA, constant),
-                    AssemblyLine.indexedY(STA, reg))
-              case 2 =>
+                  AssemblyLine.immediate(LDA, constant),
+                  AssemblyLine.absolute(STA, addr + offset))
+              case (1, _) =>
                 prepare ++ List(
-                    AssemblyLine.immediate(LDY, offset),
-                    AssemblyLine.immediate(LDA, constant.loByte),
-                    AssemblyLine.indexedY(STA, reg),
-                    AssemblyLine.implied(INY),
-                    AssemblyLine.immediate(LDA, constant.hiByte),
-                    AssemblyLine.indexedY(STA, reg))
+                  AssemblyLine.immediate(LDY, offset),
+                  AssemblyLine.immediate(LDA, constant),
+                  AssemblyLine(STA, am, addr))
+              case (2, AbsoluteY) =>
+                prepare ++ List(
+                  AssemblyLine.immediate(LDA, constant.loByte),
+                  AssemblyLine.absolute(STA, addr + offset),
+                  AssemblyLine.immediate(LDA, constant.hiByte),
+                  AssemblyLine.absolute(STA, addr + offset + 1))
+              case (2, _) =>
+                prepare ++ List(
+                  AssemblyLine.immediate(LDY, offset),
+                  AssemblyLine.immediate(LDA, constant.loByte),
+                  AssemblyLine(STA, am, addr),
+                  AssemblyLine.implied(INY),
+                  AssemblyLine.immediate(LDA, constant.hiByte),
+                  AssemblyLine(STA, am, addr))
+              case _ =>
+                ctx.log.error("Cannot assign to a large object indirectly", target.position)
+                Nil
             }
           case None =>
             source match {
               case VariableExpression(vname) =>
                 val variable = env.get[Variable](vname)
-                targetType.size match {
-                  case 1 =>
+                (targetType.size, am) match {
+                  case (1, AbsoluteY) =>
                     prepare ++
-                      AssemblyLine.variable(ctx, LDA, variable) ++ List(
-                        AssemblyLine.immediate(LDY, offset),
-                      AssemblyLine.indexedY(STA, reg))
-                  case 2 =>
+                      AssemblyLine.variable(ctx, LDA, variable) :+
+                      AssemblyLine.absolute(STA, addr + offset)
+                  case (1, _) =>
                     prepare ++
                       AssemblyLine.variable(ctx, LDA, variable) ++ List(
                       AssemblyLine.immediate(LDY, offset),
-                      AssemblyLine.indexedY(STA, reg)) ++
+                      AssemblyLine(STA, am, addr))
+                  case (2, AbsoluteY) =>
+                    prepare ++
+                      AssemblyLine.variable(ctx, LDA, variable) ++ List(
+                      AssemblyLine.absolute(STA, addr + offset)) ++
+                      AssemblyLine.variable(ctx, LDA, variable, 1) ++ List(
+                      AssemblyLine.absolute(STA, addr + offset + 1))
+                  case (2, _) =>
+                    prepare ++
+                      AssemblyLine.variable(ctx, LDA, variable) ++ List(
+                      AssemblyLine.immediate(LDY, offset),
+                      AssemblyLine(STA, am, addr)) ++
                       AssemblyLine.variable(ctx, LDA, variable, 1) ++ List(
                       AssemblyLine.implied(INY),
-                      AssemblyLine.indexedY(STA, reg))
+                      AssemblyLine(STA, am, addr))
                   case _ =>
-                    ctx.log.error("Cannot assign to a large object indirectly")
+                    ctx.log.error("Cannot assign to a large object indirectly", target.position)
                     Nil
                 }
               case _ =>
-                targetType.size match {
-                  case 1 =>
+                (targetType.size, am) match {
+                  case (1, _) =>
                     compile(ctx, source, Some(targetType, RegisterVariable(MosRegister.A, targetType)), BranchSpec.None) ++ compileByteStorage(ctx, MosRegister.A, target)
-                  case 2 =>
+                  case (2, AbsoluteY) =>
                     val someTuple = Some(targetType, RegisterVariable(MosRegister.AX, targetType))
-                    // TODO: optimiza if prepare is empty
-                    compile(ctx, source, someTuple, BranchSpec.None) ++ List(
-                      AssemblyLine.implied(PHA),
-                      AssemblyLine.implied(TXA),
-                      AssemblyLine.implied(PHA)) ++ prepare ++ List(
-                      AssemblyLine.immediate(LDY, offset+1),
-                      AssemblyLine.implied(PLA),
-                      AssemblyLine.indexedY(STA, reg),
-                      AssemblyLine.implied(PLA),
-                      AssemblyLine.implied(DEY),
-                      AssemblyLine.indexedY(STA, reg))
+                    // TODO: optimize if prepare is empty
+                    if (prepare.isEmpty) {
+                      compile(ctx, source, someTuple, BranchSpec.None) ++ List(
+                        AssemblyLine.absolute(STA, addr + offset),
+                        AssemblyLine.absolute(STX, addr + offset + 1))
+                    } else {
+                      compile(ctx, source, someTuple, BranchSpec.None) ++ List(
+                        AssemblyLine.implied(PHA),
+                        AssemblyLine.implied(TXA),
+                        AssemblyLine.implied(PHA)) ++ prepare ++ List(
+                        AssemblyLine.implied(PLA),
+                        AssemblyLine.absolute(STA, addr + offset + 1),
+                        AssemblyLine.implied(PLA),
+                        AssemblyLine.absolute(STA, addr + offset))
+                    }
+                  case (2, _) =>
+                    val someTuple = Some(targetType, RegisterVariable(MosRegister.AX, targetType))
+                    if (prepare.isEmpty) {
+                      compile(ctx, source, someTuple, BranchSpec.None) ++ List(
+                        AssemblyLine.immediate(LDY, offset),
+                        AssemblyLine.indexedY(STA, addr),
+                        AssemblyLine.implied(TXA),
+                        AssemblyLine.implied(INY),
+                        AssemblyLine.indexedY(STA, addr))
+                    } else {
+                      compile(ctx, source, someTuple, BranchSpec.None) ++ List(
+                        AssemblyLine.implied(PHA),
+                        AssemblyLine.implied(TXA),
+                        AssemblyLine.implied(PHA)) ++ prepare ++ List(
+                        AssemblyLine.immediate(LDY, offset+1),
+                        AssemblyLine.implied(PLA),
+                        AssemblyLine.indexedY(STA, addr),
+                        AssemblyLine.implied(PLA),
+                        AssemblyLine.implied(DEY),
+                        AssemblyLine.indexedY(STA, addr))
+                    }
                   case _ =>
-                    ctx.log.error("Cannot assign to a large object indirectly")
+                    ctx.log.error("Cannot assign to a large object indirectly", target.position)
                     Nil
                 }
             }
         }
+      case i: IndexedExpression =>
+        if (AbstractExpressionCompiler.getExpressionType(ctx, target).size != 1) {
+          ctx.log.error("Cannot store a large object this way", target.position)
+        }
+        compile(ctx, source, Some(b, RegisterVariable(MosRegister.A, b)), NoBranching) ++ compileByteStorage(ctx, MosRegister.A, target)
       case _ =>
         compile(ctx, source, Some(b, RegisterVariable(MosRegister.A, b)), NoBranching) ++ compileByteStorage(ctx, MosRegister.A, target)
     }
@@ -1910,7 +1991,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     if (!ctx.options.flags(CompilationFlag.CheckIndexOutOfBounds)) return Nil
     val arrayLength:Int = pointy match {
       case _: VariablePointy => return Nil
-      case p: ConstantPointy => p.size match {
+      case p: ConstantPointy => p.sizeInBytes match {
         case None => return Nil
         case Some(s) => s
       }

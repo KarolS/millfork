@@ -128,12 +128,12 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         cv = search(target, cv)
         Assignment(optimizeExpr(target, cv).asInstanceOf[LhsExpression], optimizeExpr(arg, cv)).pos(pos) -> cv
       case Assignment(target:IndexedExpression, arg) if isWordPointy(target.name) =>
-        if (isNonzero(target.index)) {
-          ctx.log.error("Pointers to word variables can be only indexed by 0")
-        }
         cv = search(arg, cv)
         cv = search(target, cv)
-        Assignment(DerefExpression(VariableExpression(target.name).pos(pos), 0, env.getPointy(target.name).elementType).pos(pos), optimizeExpr(arg, cv)).pos(pos) -> cv
+        Assignment(DerefExpression(SumExpression(List(
+          false -> FunctionCallExpression("pointer", List(VariableExpression(target.name).pos(pos))).pos(pos),
+          false -> FunctionCallExpression("<<", List(optimizeExpr(target.index, cv), LiteralExpression(1, 1))).pos(pos)
+        ), decimal = false), 0, env.getPointy(target.name).elementType).pos(pos), optimizeExpr(arg, cv)).pos(pos) -> cv
       case Assignment(target:IndexedExpression, arg) =>
         cv = search(arg, cv)
         cv = search(target, cv)
@@ -272,6 +272,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         case _ =>
       }
     }
+    implicit class StringToFunctionNameOps(val functionName: String) {
+      def <|(exprs: Expression*): Expression = FunctionCallExpression(functionName, exprs.toList).pos(exprs.head.position)
+    }
     // generic warnings:
     expr match {
       case FunctionCallExpression("*" | "*=", params) =>
@@ -299,15 +302,55 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
               env.eval(index) match {
                 case Some(NumericConstant(0, _)) => //ok
                 case _ =>
+                  // TODO: should we keep this?
                   env.log.error(s"Type `$pt` can be only indexed with 0")
               }
               DerefExpression(result, 0, target)
             case x if x.isPointy =>
+              val (targetType, arraySizeInBytes) = result match {
+                case VariableExpression(maybePointy) =>
+                  val pointy = env.getPointy(maybePointy)
+                  pointy.elementType -> (pointy match {
+                    case p:ConstantPointy => p.sizeInBytes
+                    case _ => None
+                  })
+                case _ => env.get[Type](x.pointerTargetName) -> None
+              }
+              ctx.log.trace(s"$result is $x and targets $targetType")
               env.eval(index) match {
-                case Some(NumericConstant(n, _)) if n >= 0 && n <= 127 =>
-                  DerefExpression(result, n.toInt, b)
+                case Some(NumericConstant(n, _)) if n >= 0 && (targetType.size * n) <= 127 =>
+                  x match {
+                    case _: PointerType =>
+                      DerefExpression(result, n.toInt, targetType)
+                    case _ =>
+                      DerefExpression(
+                        ("pointer." + targetType.name) <| result,
+                        n.toInt, targetType)
+                  }
                 case _ =>
-                  DerefExpression(SumExpression(List(false -> result, false -> index), decimal = false), 0, b)
+                  val scaledIndex = arraySizeInBytes match {
+                    case Some(n) if n <= 256 => targetType.size match {
+                      case 1 => "byte" <| index
+                      case 2 => "<<" <| ("byte" <| index, LiteralExpression(1, 1))
+                      case 4 => "<<" <| ("byte" <| index, LiteralExpression(2, 1))
+                      case 8 => "<<" <| ("byte" <| index, LiteralExpression(3, 1))
+                      case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.size, 1))
+                    }
+                    case Some(n) if n <= 512 && targetType.size == 2 =>
+                      "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
+                    case _ => targetType.size match {
+                      case 1 => "word" <| index
+                      case 2 => "<<" <| ("word" <| index, LiteralExpression(1, 1))
+                      case 4 => "<<" <| ("word" <| index, LiteralExpression(2, 1))
+                      case 8 => "<<" <| ("word" <| index, LiteralExpression(3, 1))
+                      case _ => "*" <| ("word" <| index, LiteralExpression(targetType.size, 1))
+                    }
+                  }
+                  // TODO: re-cast pointer type
+                  DerefExpression(("pointer." + targetType.name) <| SumExpression(List(
+                    false -> result,
+                    false -> optimizeExpr(scaledIndex, Map())
+                  ), decimal = false), 0, targetType)
               }
             case _ =>
               ctx.log.error("Not a pointer type on the left-hand side of `[`", pos)
@@ -319,9 +362,37 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         for (index <- firstIndices) {
           result = applyIndex(result, index)
         }
-        for ((fieldName, indices) <- fieldPath) {
-          if (ok) {
-            result = AbstractExpressionCompiler.getExpressionType(env, env.log, result) match {
+        for ((dot, fieldName, indices) <- fieldPath) {
+          if (dot && ok) {
+            val pointer = result match {
+              case DerefExpression(inner, 0, _) =>
+                inner
+              case DerefExpression(inner, offset, targetType) =>
+                ("pointer." + targetType.name) <| SumExpression(List(
+                  false -> ("pointer" <| inner),
+                  false -> LiteralExpression(offset, 2)
+                ), decimal = false)
+              case IndexedExpression(name, index) =>
+                ctx.log.fatal("Oops!")
+              case _ =>
+                ok = false
+                ctx.log.error(s"Not a left-hand-side expression", result.position)
+                result
+            }
+            fieldName match {
+              case "pointer" => result = pointer
+              case "pointer.hi" => result = "hi" <| pointer
+              case "pointer.lo" => result = "lo" <| pointer
+              case "addr" => result = "pointer" <| pointer
+              case "addr.hi" => result = "hi" <| pointer
+              case "addr.lo" => result = "lo" <| pointer
+              case _ =>
+                ctx.log.error(s"Unexpected subfield `$fieldName`", result.position)
+                ok = false
+            }
+          } else if (ok) {
+            val currentResultType = AbstractExpressionCompiler.getExpressionType(env, env.log, result)
+            result = currentResultType match {
               case PointerType(_, _, Some(target)) =>
                 val subvariables = env.getSubvariables(target).filter(x => x._1 == "." + fieldName)
                 if (subvariables.isEmpty) {
@@ -333,6 +404,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 }
               case _ =>
                 ctx.log.error("Invalid pointer type on the left-hand side of `->`", result.position)
+                ctx.log.debug(currentResultType.toString)
                 LiteralExpression(0, 1)
             }
           }
@@ -379,6 +451,42 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         // don't collapse additions, let the later stages deal with it
         // expecially important when inside a nonet operation
         SumExpression(expressions.map{case (minus, arg) => minus -> optimizeExpr(arg, currentVarValues)}, decimal)
+      case IndexedExpression(name, index) =>
+        val pointy = env.getPointy(name)
+        val targetType = pointy.elementType
+        targetType.size match {
+          case 1 => IndexedExpression(name, optimizeExpr(index, Map())).pos(pos)
+          case _ =>
+            if (targetType.size != 2) {
+              ctx.log.error("Cannot access a large array element directly", expr.position)
+            }
+            val arraySizeInBytes = pointy match {
+              case p:ConstantPointy => p.sizeInBytes
+              case _ => None
+            }
+            val scaledIndex = arraySizeInBytes match {
+              case Some(n) if n <= 256 => targetType.size match {
+                case 1 => "byte" <| index
+                case 2 => "<<" <| ("byte" <| index, LiteralExpression(1, 1))
+                case 4 => "<<" <| ("byte" <| index, LiteralExpression(2, 1))
+                case 8 => "<<" <| ("byte" <| index, LiteralExpression(3, 1))
+                case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.size, 1))
+              }
+              case Some(n) if n <= 512 && targetType.size == 2 =>
+                "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
+              case _ => targetType.size match {
+                case 1 => "word" <| index
+                case 2 => "<<" <| ("word" <| index, LiteralExpression(1, 1))
+                case 4 => "<<" <| ("word" <| index, LiteralExpression(2, 1))
+                case 8 => "<<" <| ("word" <| index, LiteralExpression(3, 1))
+                case _ => "*" <| ("word" <| index, LiteralExpression(targetType.size, 1))
+              }
+            }
+            DerefExpression(SumExpression(List(
+              false -> ("pointer" <| VariableExpression(name).pos(pos)),
+              false -> optimizeExpr(scaledIndex, Map())
+            ), decimal = false), 0, pointy.elementType).pos(pos)
+        }
       case _ => expr // TODO
     }
   }

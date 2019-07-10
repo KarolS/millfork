@@ -120,7 +120,7 @@ object UnusedFunctions extends NodeOptimization {
     case IndexedExpression(arr, index) => arr :: getAllCalledFunctions(List(index))
     case SeparateBytesExpression(h, l) => getAllCalledFunctions(List(h, l))
     case DerefDebuggingExpression(inner, _) => getAllCalledFunctions(List(inner))
-    case IndirectFieldExpression(root, firstIndices, fieldPath) => getAllCalledFunctions(root :: firstIndices ++: fieldPath.flatMap(_._2).toList)
+    case IndirectFieldExpression(root, firstIndices, fieldPath) => getAllCalledFunctions(root :: firstIndices ++: fieldPath.flatMap(_._3).toList)
     case _ => Nil
   }
 

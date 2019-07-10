@@ -44,7 +44,7 @@ object UnusedLocalVariables extends NodeOptimization {
     case IndexedExpression(arr, index) => arr :: getAllReadVariables(List(index))
     case DerefExpression(inner, _, _) => getAllReadVariables(List(inner))
     case DerefDebuggingExpression(inner, _) => getAllReadVariables(List(inner))
-    case IndirectFieldExpression(inner, firstIndices, fields) => getAllReadVariables(List(inner) ++ firstIndices ++ fields.flatMap(_._2))
+    case IndirectFieldExpression(inner, firstIndices, fields) => getAllReadVariables(List(inner) ++ firstIndices ++ fields.flatMap(_._3))
     case SeparateBytesExpression(h, l) => getAllReadVariables(List(h, l))
     case _ => Nil
   }

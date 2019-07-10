@@ -70,7 +70,7 @@ abstract class CallGraph(program: Program, log: Logger) {
       case IndirectFieldExpression(root, firstIndices, fields) =>
         add(currentFunction, callingFunctions, root)
         firstIndices.foreach(i => add(currentFunction, callingFunctions, i))
-        fields.foreach(f => f._2.foreach(i => add(currentFunction, callingFunctions, i)))
+        fields.foreach(f => f._3.foreach(i => add(currentFunction, callingFunctions, i)))
       case _ => ()
     }
   }

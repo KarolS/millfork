@@ -21,7 +21,8 @@ case class VariablePointy(addr: Constant, indexType: VariableType, elementType: 
 
 case class ConstantPointy(value: Constant,
                           name: Option[String],
-                          size: Option[Int],
+                          sizeInBytes: Option[Int],
+                          elementCount: Option[Int],
                           indexType: VariableType,
                           elementType: VariableType,
                           alignment: MemoryAlignment,

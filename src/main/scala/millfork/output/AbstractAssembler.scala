@@ -267,7 +267,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     })
 
     env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, _, readOnly, _) =>
+      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, elementType, readOnly, _) =>
         val bank = thing.bank(options)
         if (!readOnly && options.platform.ramInitialValuesBank.isDefined) {
             log.error(s"Preinitialized writable array $name cannot be put at a fixed address")
@@ -278,22 +278,25 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         assembly.append(name + ":")
         for (item <- items) {
           env.eval(item) match {
-            case Some(c) => writeByte(bank, index, c)
+            case Some(c) =>
+              for(i <- 0 until elementType.size) {
+                writeByte(bank, index, c.subbyte(i))
+                bank0.occupied(index) = true
+                bank0.initialized(index) = true
+                bank0.writeable(index) = true
+                bank0.readable(index) = true
+                index += 1
+              }
             case None => log.error(s"Non-constant contents of array `$name`", item.position)
           }
-          bank0.occupied(index) = true
-          bank0.initialized(index) = true
-          bank0.writeable(index) = true
-          bank0.readable(index) = true
-          index += 1
         }
-        items.grouped(16).foreach { group =>
-          assembly.append("    " + bytePseudoopcode + " " + group.map(expr => env.eval(expr) match {
-            case Some(c) => c.quickSimplify.toString
-            case None => "<? unknown constant ?>"
-          }).mkString(", "))
+        items.flatMap(expr => env.eval(expr) match {
+          case Some(c) => List.tabulate(elementType.size)(i => c.subbyte(i).quickSimplify.toString)
+          case None => List.fill(elementType.size)("<? unknown constant ?>")
+        }).grouped(16).foreach { group =>
+          assembly.append("    " + bytePseudoopcode + " " + group.mkString(", "))
         }
-        initializedVariablesSize += items.length
+        initializedVariablesSize += thing.sizeInBytes
       case thing@InitializedArray(name, Some(_), items, _, _, _, _, _) => ???
       case f: NormalFunction if f.address.isDefined =>
         val bank = f.bank(options)
@@ -390,32 +393,35 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
       }
       env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-        case thing@InitializedArray(name, None, items, _, _, _, readOnly, alignment) if readOnly == readOnlyPass =>
+        case thing@InitializedArray(name, None, items, _, _, elementType, readOnly, alignment) if readOnly == readOnlyPass =>
           val bank = thing.bank(options)
           if (options.platform.ramInitialValuesBank.isDefined && !readOnly && bank != "default") {
             log.error(s"Preinitialized writable array `$name` should be defined in the `default` bank")
           }
           val bank0 = mem.banks(bank)
-          var index = codeAllocators(bank).allocateBytes(bank0, options, items.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
+          var index = codeAllocators(bank).allocateBytes(bank0, options, thing.sizeInBytes, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
           labelMap(name) = bank0.index -> index
           if (!readOnlyPass) {
             rwDataStart = rwDataStart.min(index)
-            rwDataEnd = rwDataEnd.min(index + items.size)
+            rwDataEnd = rwDataEnd.min(index + thing.sizeInBytes)
           }
           assembly.append("* = $" + index.toHexString)
           assembly.append(name + ":")
           for (item <- items) {
             env.eval(item) match {
-              case Some(c) => writeByte(bank, index, c)
+              case Some(c) =>
+                for (i <- 0 until elementType.size) {
+                  writeByte(bank, index, c.subbyte(i))
+                  index += 1
+                }
               case None => log.error(s"Non-constant contents of array `$name`", item.position)
             }
-            index += 1
           }
-          items.grouped(16).foreach { group =>
-            assembly.append("    " + bytePseudoopcode + " " + group.map(expr => env.eval(expr) match {
-              case Some(c) => c.quickSimplify.toString
-              case None => "<? unknown constant ?>"
-            }).mkString(", "))
+          items.flatMap(expr => env.eval(expr) match {
+            case Some(c) => List.tabulate(elementType.size)(i => c.subbyte(i).quickSimplify.toString)
+            case None => List.fill(elementType.size)("<? unknown constant ?>")
+          }).grouped(16).foreach { group =>
+            assembly.append("    " + bytePseudoopcode + " " + group.mkString(", "))
           }
           initializedVariablesSize += items.length
           justAfterCode += bank -> index

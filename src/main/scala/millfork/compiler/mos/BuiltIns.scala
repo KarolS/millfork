@@ -333,7 +333,7 @@ object BuiltIns {
 
   def compileInPlaceWordOrLongShiftOps(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, aslRatherThanLsr: Boolean): List[AssemblyLine] = {
     if (lhs.isInstanceOf[DerefExpression]) {
-      ctx.log.error("Too complex left-hand-side expression")
+      ctx.log.error("Too complex left-hand-side expression", lhs.position)
       return MosExpressionCompiler.compileToAX(ctx, lhs) ++ MosExpressionCompiler.compileToAX(ctx, rhs)
     }
     val env = ctx.env
@@ -945,7 +945,7 @@ object BuiltIns {
 
   def compileInPlaceWordMultiplication(ctx: CompilationContext, v: LhsExpression, addend: Expression): List[AssemblyLine] = {
     if (v.isInstanceOf[DerefExpression]) {
-      ctx.log.error("Too complex left-hand-side expression")
+      ctx.log.error("Too complex left-hand-side expression", v.position)
       return MosExpressionCompiler.compileToAX(ctx, v) ++ MosExpressionCompiler.compileToAX(ctx, addend)
     }
     val b = ctx.env.get[Type]("byte")
@@ -1205,7 +1205,7 @@ object BuiltIns {
       return compileInPlaceWordOrLongAddition(ctx, lhs, addend, subtract, decimal = false)
     }
     if (lhs.isInstanceOf[DerefExpression]) {
-      ctx.log.error("Too complex left-hand-side expression")
+      ctx.log.error("Too complex left-hand-side expression", lhs.position)
       return MosExpressionCompiler.compileToAX(ctx, lhs) ++ MosExpressionCompiler.compileToAX(ctx, addend)
     }
     val env = ctx.env
@@ -1534,7 +1534,7 @@ object BuiltIns {
 
   def compileInPlaceWordOrLongBitOp(ctx: CompilationContext, lhs: LhsExpression, param: Expression, operation: Opcode.Value): List[AssemblyLine] = {
     if (lhs.isInstanceOf[DerefExpression]) {
-      ctx.log.error("Too complex left-hand-side expression")
+      ctx.log.error("Too complex left-hand-side expression", lhs.position)
       return MosExpressionCompiler.compileToAX(ctx, lhs) ++ MosExpressionCompiler.compileToAX(ctx, param)
     }
     val env = ctx.env

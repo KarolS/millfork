@@ -326,11 +326,20 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   def mfExpressionWrapper[E <: Expression](inner: P[E]): P[E] = for {
     expr <- inner
     firstIndices <- index.rep
-    fieldPath <- (HWS ~ "->" ~/ AWS ~/ identifier ~/ index.rep).rep
+    fieldPath <- (HWS ~ (("->".! ~/ AWS) | ".".!) ~/ AWS ~/ identifier ~/ index.rep).rep
   } yield (expr, firstIndices, fieldPath) match {
     case (_, Seq(), Seq()) => expr
     case (VariableExpression(vname), Seq(i), Seq()) => IndexedExpression(vname, i).pos(expr.position).asInstanceOf[E]
-    case _ => IndirectFieldExpression(expr, firstIndices, fieldPath).pos(expr.position).asInstanceOf[E]
+    case _ =>
+      val fixedFieldPath = fieldPath.flatMap { e =>
+        e match {
+          case (".", "pointer", _) => Seq(e)
+          case (".", f, _) if f.startsWith("pointer.") => Seq(e)
+          case (".", f, i) => Seq((".", "pointer", Nil), ("->", f, i))
+          case _ => Seq(e)
+        }
+      }
+      IndirectFieldExpression(expr, firstIndices, fixedFieldPath.map {case (a,b,c) => (a == ".", b, c)}).pos(expr.position).asInstanceOf[E]
   }
 
 //  def mfLhsExpression: P[LhsExpression] = for {

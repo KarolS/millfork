@@ -29,7 +29,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
     case f: DerefDebuggingExpression => Nil
     case IndexedExpression(a, VariableExpression(v)) => if (v == variable) {
       ctx.env.maybeGet[Thing](a + ".array") match {
-        case Some(_: MfArray) => Seq(a)
+        case Some(array: MfArray) if array.elementType.size == 1 => Seq(a)
         case _ => Nil
       }
     } else Nil
@@ -130,7 +130,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
           val array = ctx.env.get[MfArray](name + ".array")
           Assignment(
             VariableExpression(newVariables(name, f.variable)),
-            FunctionCallExpression("pointer." + array.elementType.name, List(
+            FunctionCallExpression("pointer", List(
               SumExpression(List(false -> VariableExpression(name + ".addr"), false -> optStart), decimal = false)
             )))
         }).toList :+ ForStatement(f.variable, optStart, optimizeExpr(f.end, Map()), newDirection, optimizeStmts(newBody, Map())._1),

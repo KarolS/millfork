@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -229,6 +229,77 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
         |     f(6)
         | }
       """.stripMargin) { m =>
+    }
+  }
+
+  test("Pointers and arrays to large elements") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | struct P {
+        |    word i
+        |    byte c
+        |    byte d
+        | }
+        |
+        | array(P) a [8]
+        |
+        | noinline byte f(byte i) {
+        |     return a[i].c
+        | }
+        |
+        | void main() {
+        |     f(6)
+        | }
+      """.stripMargin) { m =>
+    }
+  }
+
+  test("Page crossing with arrays of large elements") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        | import zp_reg
+        | struct P {
+        |    word i
+        |    byte c
+        |    byte d
+        | }
+        |
+        | array(P) a [80] @$c080
+        | array(P) b [500] @$c280
+        |
+        | noinline void fill(word i) {
+        |     if i < 80 { a[lo(i)].i = i }
+        |     b[i].i = i
+        | }
+        |
+        | void main() {
+        |     word i
+        |     for i,0,until,500 { fill(i) }
+        | }
+      """.stripMargin) { m =>
+      for (i <- 0 until 80) {
+        m.readWord(0xc080 + 4*i) should equal(i) withClue s"a[$i]"
+      }
+      for (i <- 0 until 500) {
+        m.readWord(0xc280 + 4*i) should equal(i) withClue s"b[$i]"
+      }
+    }
+  }
+
+  test("Word pointers") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080) (
+      """
+        |pointer.word p
+        |word output @$c000
+        |void main () {
+        | word tmp
+        | p = tmp.pointer
+        | tmp = $203
+        | output = p[0]
+        |}
+      """.stripMargin
+    ){ m =>
+      m.readWord(0xc000) should equal(0x203)
     }
   }
 }

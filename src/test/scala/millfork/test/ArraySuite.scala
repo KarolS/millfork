@@ -60,21 +60,27 @@ class ArraySuite extends FunSuite with Matchers {
   }
 
   test("Array assignment with offset 1") {
-    val m = new EmuRun(Cpu.StrictMos, Nil, DangerousOptimizations.All ++ OptimizationPresets.Good)(
-      """
-        | array output [8] @$c000
-        | void main () {
-        |   byte i
-        |   i = 0
-        |   while i != 6 {
-        |     output[i + 2] = i + 1
-        |     output[i] = output[i]
-        |     i += 1
-        |   }
-        | }
-      """.stripMargin)
+    try {
+      val m = new EmuRun(Cpu.StrictMos, Nil, DangerousOptimizations.All ++ OptimizationPresets.Good)(
+        """
+          | array output [8] @$c000
+          | void main () {
+          |   byte i
+          |   i = 0
+          |   while i != 6 {
+          |     output[i + 2] = i + 1
+          |     output[i] = output[i]
+          |     i += 1
+          |   }
+          | }
+        """.stripMargin)
       m.readByte(0xc002) should equal(1)
       m.readByte(0xc007) should equal(6)
+    } catch {
+      case th: Throwable =>
+        th.printStackTrace(System.err)
+        throw th
+    }
   }
 
   test("Array assignment through a pointer") {
@@ -374,5 +380,82 @@ class ArraySuite extends FunSuite with Matchers {
         |   output = square[0]
         | }
       """.stripMargin).readByte(0xc000) should equal(1)
+  }
+
+  test("Arrays of words") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+      """
+        | array(word) words[10] @$c000
+        | void main () {
+        |   words[2] = $702
+        |   words[3] = $201
+        |   memory_barrier()
+        |   words[1] = words[3]
+        |   words[4] = words[3] + words[2]
+        |   words[5] = $101
+        |   words[5] = words[5] << 1
+        |   words[5] = words[5] + $1001
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc004) should equal(0x702)
+      m.readWord(0xc006) should equal(0x201)
+      m.readWord(0xc002) should equal(0x201)
+      m.readWord(0xc008) should equal(0x903)
+      m.readWord(0xc00a) should equal(0x1203)
+    }
+  }
+
+  test("Initialized arrays of words") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+      """
+        | struct coord { byte x, byte y }
+        |
+        | array(word) a = [1,2,3]
+        | array(coord) c = [coord(1,2),coord(3,4)]
+        |
+        | word output @$c000
+        | coord output2 @$c002
+        |
+        | void main () {
+        |   output = a[2]
+        |   output2 = c[1]
+        | }
+        |
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(3)
+      m.readByte(0xc002) should equal(3)
+      m.readByte(0xc003) should equal(4)
+    }
+  }
+
+  test("Invalid array things that will become valid in the future") {
+    ShouldNotCompile(
+      """
+        | array(int32) a[7] @$c000
+        | void main () {
+        |   a[0] = 2
+        | }
+      """.stripMargin)
+    ShouldNotCompile(
+      """
+        | array(int32) a[7] @$c000
+        | void main () {
+        |   a[0] += 2
+        | }
+      """.stripMargin)
+    ShouldNotCompile(
+      """
+        | array(word) a[7] @$c000
+        | void main () {
+        |   a[0] += 2
+        | }
+      """.stripMargin)
+    ShouldNotCompile(
+      """
+        | array(int32) a[7] @$c000
+        | int32 main () {
+        |   return a[4]
+        | }
+      """.stripMargin)
   }
 }

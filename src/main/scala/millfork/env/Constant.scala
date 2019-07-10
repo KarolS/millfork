@@ -42,6 +42,8 @@ sealed trait Constant {
 
   def +(that: Constant): Constant = CompoundConstant(MathOperator.Plus, this, that)
 
+  def *(scale: Int): Constant = CompoundConstant(MathOperator.Times, this, NumericConstant(scale, Constant.minimumSize(scale) min 2)).quickSimplify
+
   def -(that: Constant): Constant = CompoundConstant(MathOperator.Minus, this, that)
 
   def +(that: Long): Constant = if (that == 0) this else this + NumericConstant(that, minimumSize(that))

@@ -354,13 +354,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     InitializedMemoryVariable
     UninitializedMemoryVariable
     getArrayOrPointer(name) match {
-      case th@InitializedArray(_, _, cs, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(cs.length), i, e, th.alignment, readOnly = ro)
-      case th@UninitializedArray(_, size, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, th.alignment, readOnly = ro)
-      case th@RelativeArray(_, _, size, _, i, e, ro) => ConstantPointy(th.toAddress, Some(name), Some(size), i, e, NoAlignment, readOnly = ro)
+      case th@InitializedArray(_, _, cs, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(e.size * cs.length), Some(cs.length), i, e, th.alignment, readOnly = ro)
+      case th@UninitializedArray(_, elementCount, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(elementCount * e.size), Some(elementCount / e.size), i, e, th.alignment, readOnly = ro)
+      case th@RelativeArray(_, _, elementCount, _, i, e, ro) => ConstantPointy(th.toAddress, Some(name), Some(elementCount * e.size), Some(elementCount / e.size), i, e, NoAlignment, readOnly = ro)
       case ConstantThing(_, value, typ) if typ.size <= 2 && typ.isPointy =>
         val e = get[VariableType](typ.pointerTargetName)
         val w = get[VariableType]("word")
-        ConstantPointy(value, None, None, w, e, NoAlignment, readOnly = false)
+        ConstantPointy(value, None, None, None, w, e, NoAlignment, readOnly = false)
       case th:VariableInMemory if th.typ.isPointy=>
         val e = get[VariableType](th.typ.pointerTargetName)
         val w = get[VariableType]("word")
@@ -373,7 +373,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         log.error(s"$name is not a valid pointer or array")
         val b = get[VariableType]("byte")
         val w = get[VariableType]("word")
-        ConstantPointy(Constant.Zero, None, None, w, b, NoAlignment, readOnly = false)
+        ConstantPointy(Constant.Zero, None, None, None, w, b, NoAlignment, readOnly = false)
     }
   }
 
@@ -599,7 +599,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
       case IndexedExpression(arrName, index) =>
         getPointy(arrName) match {
-          case ConstantPointy(MemoryAddressConstant(arr:InitializedArray), _, _, _, _, _, _) if arr.readOnly && arr.elementType.size == 1 =>
+          case ConstantPointy(MemoryAddressConstant(arr:InitializedArray), _, _, _, _, _, _, _) if arr.readOnly && arr.elementType.size == 1 =>
             eval(index).flatMap {
               case NumericConstant(constIndex, _) =>
                 if (constIndex >= 0 && constIndex < arr.sizeInBytes) {
@@ -1303,8 +1303,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val w = get[VariableType]("word")
     val p = get[Type]("pointer")
     val e = get[VariableType](stmt.elementType)
-    if (e.size != 1) {
-      log.error(s"Array elements should be of size 1, `${e.name}` is of size ${e.size}", stmt.position)
+    if (e.size < 1 && e.size > 127) {
+      log.error(s"Array elements should be of size between 1 and 127, `${e.name}` is of size ${e.size}", stmt.position)
     }
     stmt.elements match {
       case None =>
@@ -1841,7 +1841,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     case IndirectFieldExpression(inner, firstIndices, fields) =>
       nameCheck(inner)
       firstIndices.foreach(nameCheck)
-      fields.foreach(f => f._2.foreach(nameCheck))
+      fields.foreach(f => f._3.foreach(nameCheck))
     case SeparateBytesExpression(h, l) =>
       nameCheck(h)
       nameCheck(l)

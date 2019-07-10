@@ -10,6 +10,9 @@ import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, N
 import millfork.node.StandardCallGraph
 import millfork.parser.{MosParser, PreprocessingResult, Preprocessor}
 import millfork._
+import millfork.compiler.m6809.M6809Compiler
+import millfork.compiler.z80.Z80Compiler
+import millfork.output.{M6809Assembler, MosAssembler, Z80Assembler}
 import org.scalatest.Matchers
 
 import scala.collection.JavaConverters._
@@ -52,7 +55,12 @@ object ShouldNotCompile extends Matchers {
         // print unoptimized asm
         env.allPreallocatables.foreach {
           case f: NormalFunction =>
-            val unoptimized = MosCompiler.compile(CompilationContext(f.environment, f, 0, options, Set()))
+            val unoptimized = cpuFamily match {
+              case CpuFamily.M6502 => MosCompiler.compile(CompilationContext(f.environment, f, 0, options, Set()))
+              case CpuFamily.I80 => Z80Compiler.compile(CompilationContext(f.environment, f, 0, options, Set()))
+              case CpuFamily.M6809 => M6809Compiler.compile(CompilationContext(f.environment, f, 0, options, Set()))
+              case _ => Nil
+            }
             unoptimizedSize += unoptimized.map(_.sizeInBytes).sum
           case d: InitializedArray =>
             unoptimizedSize += d.contents.length
@@ -61,12 +69,27 @@ object ShouldNotCompile extends Matchers {
         }
 
         if (!log.hasErrors) {
-          val familyName = cpuFamily match {
-            case CpuFamily.M6502 => "6502"
-            case CpuFamily.I80 => "Z80"
-            case _ => "unknown CPU"
+          val env2 = new Environment(None, "", cpuFamily, options)
+          env2.collectDeclarations(program, options)
+          cpuFamily match {
+            case CpuFamily.M6502 =>
+              val assembler = new MosAssembler(program, env2, platform)
+              val output = assembler.assemble(callGraph, Nil, options)
+              output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
+              fail("Failed: Compilation succeeded for 6502")
+            case CpuFamily.I80 =>
+              val assembler = new Z80Assembler(program, env2, platform)
+              val output = assembler.assemble(callGraph, Nil, options)
+              output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
+              fail("Failed: Compilation succeeded for Z80")
+            case CpuFamily.M6809 =>
+              val assembler = new M6809Assembler(program, env2, platform)
+              val output = assembler.assemble(callGraph, Nil, options)
+              output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
+              fail("Failed: Compilation succeeded for 6809")
+            case _ =>
+              fail("Failed: Compilation succeeded for unknown CPU")
           }
-          fail("Failed: Compilation succeeded for " + familyName)
         }
         log.clearErrors()
 

@@ -16,6 +16,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
 
 
   def compile(ctx: CompilationContext, statement: ExecutableStatement): (List[ZLine], List[ZLine])= {
+    ctx.log.trace(statement.toString)
     val options = ctx.options
     val env = ctx.env
     val ret = Z80Compiler.restoreRegistersAndReturn(ctx)
@@ -84,13 +85,23 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         }) -> Nil
       case Assignment(destination, source) =>
         val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
+        val targetType = AbstractExpressionCompiler.getExpressionType(ctx, destination)
+        AbstractExpressionCompiler.checkAssignmentType(ctx, source, targetType)
         (sourceType.size match {
           case 0 =>
             ctx.log.error("Cannot assign a void expression", statement.position)
             Z80ExpressionCompiler.compile(ctx, source, ZExpressionTarget.NOTHING, BranchSpec.None) ++
               Z80ExpressionCompiler.compile(ctx, destination, ZExpressionTarget.NOTHING, BranchSpec.None)
           case 1 => Z80ExpressionCompiler.compileToA(ctx, source) ++ Z80ExpressionCompiler.storeA(ctx, destination, sourceType.isSigned)
-          case 2 => Z80ExpressionCompiler.compileToHL(ctx, source) ++ Z80ExpressionCompiler.storeHL(ctx, destination, sourceType.isSigned)
+          case 2 =>
+            ctx.env.eval(source) match {
+              case Some(constantWord) =>
+                Z80ExpressionCompiler.storeConstantWord(ctx, destination, constantWord, sourceType.isSigned)
+              case _ =>
+                val load = Z80ExpressionCompiler.compileToHL(ctx, source)
+                val store = Z80ExpressionCompiler.storeHL(ctx, destination, sourceType.isSigned)
+                load ++ store
+            }
           case s => Z80ExpressionCompiler.storeLarge(ctx, destination, source)
         }) -> Nil
       case s: IfStatement =>
