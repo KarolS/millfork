@@ -72,7 +72,8 @@ inline asm byte read_ppu_status() {
     ? RTS
 }
 
-inline asm void ppu_set_scroll(word a, word x) {
+inline asm void ppu_set_scroll(byte a, byte x) {
+    BIT ppu_status
     ! STA ppu_scroll
     ! STX ppu_scroll
     ? RTS
