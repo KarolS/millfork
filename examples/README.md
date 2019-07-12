@@ -18,7 +18,7 @@
 
 * [Bell](crossplatform/bell.mfk) (Apple II/ZX Spectrum) – a program that goes \*ding!\*
 
-* [Life](crossplatform/life.mfk) (C64/ZX Spectrum) – Conway's game of life
+* [Life](crossplatform/life.mfk) (C64/C16/Atari/ZX Spectrum) – Conway's game of life
 
 ## Commodore 64 examples
 

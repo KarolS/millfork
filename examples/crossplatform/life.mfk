@@ -1,4 +1,4 @@
-#if CBM_64
+#if CBM_64 || CBM_264
 const byte width = 40
 const byte height = 25
 #endif
@@ -6,17 +6,22 @@ const byte height = 25
 const byte width = 32
 const byte height = 24
 #endif
+#if ATARI_8
+const byte width = 40
+const byte height = 24
+#endif
 
 const word area = word(width) * word(height)
 
 // representation: $1 live now $80 live soon
 const byte ALIVE = $81
+const byte DEAD = 0
 array buffer [width * height] align(256)
 
 void init_buffer() {
     pointer p
     for p,buffer.addr,paralleluntil,buffer.addr+area {
-        p[0] = 0
+        p[0] = DEAD
     }
     // glider:
     buffer[1*width + 2] = ALIVE
@@ -59,8 +64,8 @@ void do_round() align(fast) {
     p = buffer.addr
     for j,0,paralleluntil,height {
         for x,0,paralleluntil,width {
-            if p[x] & $80 != 0 { p[x] = $81 }
-            else { p[x] = 0 }
+            if p[x] & $80 != 0 { p[x] = ALIVE }
+            else { p[x] = DEAD }
         }
         p += width
     }
@@ -100,6 +105,66 @@ void redraw() align(fast) {
 void wait_frame() align(fast) {
     while vic_raster != $ff {}
     while vic_raster == $ff {}
+}
+#endif
+
+#if CBM_264
+
+void init_gfx() {
+}
+
+void redraw() align(fast) {
+    pointer src, dest
+    byte x, y
+    src = buffer.addr
+    dest = $c00
+    for y,0,until,height {
+        for x,0,until,width {
+            if src[x] != 0 {
+                dest[x] = 128 + ' '
+            } else {
+                dest[x] = ' '
+            }
+        }
+        src += width
+        dest += width
+    }
+}
+
+void wait_frame() align(fast) {
+    while ted_raster_y != $ff {}
+    while ted_raster_y == $ff {}
+}
+#endif
+
+#if ATARI_8
+
+pointer screen_start @$58
+byte clock @$14
+
+void init_gfx() {
+}
+
+void redraw() align(fast) {
+    pointer src, dest
+    byte x, y
+    src = buffer.addr
+    dest = screen_start
+    for y,0,until,height {
+        for x,0,until,width {
+            if src[x] != 0 {
+                dest[x] = 128 + ' 'scr
+            } else {
+                dest[x] = ' 'scr
+            }
+        }
+        src += width
+        dest += width
+    }
+}
+
+void wait_frame() align(fast) {
+    while clock != clock {}
 }
 #endif
 
