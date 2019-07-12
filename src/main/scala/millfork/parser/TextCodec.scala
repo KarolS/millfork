@@ -139,6 +139,8 @@ object TextCodec {
       case (_, "petscr") => TextCodec.CbmScreencodes
       case (_, "atascii") => TextCodec.Atascii
       case (_, "atari") => TextCodec.Atascii
+      case (_, "atasciiscr") => TextCodec.AtasciiScreencodes
+      case (_, "atariscr") => TextCodec.AtasciiScreencodes
       case (_, "bbc") => TextCodec.Bbc
       case (_, "sinclair") => TextCodec.Sinclair
       case (_, "apple2") => TextCodec.Apple2
@@ -347,7 +349,25 @@ object TextCodec {
     "\ufffd" * 11 +
       0x20.to(0x5f).map(_.toChar).mkString +
       "♢abcdefghijklmnopqrstuvwxyz♠|",
-    Map('♥' -> 0, '·' -> 0x14), Map.empty, MinimalEscapeSequencesWithBraces + ("n" -> List(0x9b))
+    Map('♥' -> 0, '·' -> 0x14), Map.empty, MinimalEscapeSequencesWithoutBraces ++ Seq(
+      "n" -> List(0x9b),
+      "up" -> List(0x1c),
+      "down" -> List(0x1d),
+      "left" -> List(0x1e),
+      "right" -> List(0x1f),
+      "b" -> List(0x7e),
+    )
+  )
+
+  val AtasciiScreencodes = new TextCodec("ATASCII-Screen",
+    0x20.to(0x3f).map(_.toChar).mkString +
+      0x40.to(0x5f).map(_.toChar).mkString +
+      "♡" +
+      "\ufffd" * 15 +
+      "♣\ufffd–\ufffd•" +
+      "\ufffd" * 7 + "↑↓←→"+
+      "♢abcdefghijklmnopqrstuvwxyz♠|",
+    Map('♥' -> 0x40, '·' -> 0x54), Map.empty, MinimalEscapeSequencesWithoutBraces
   )
 
   val Bbc = new TextCodec("BBC",

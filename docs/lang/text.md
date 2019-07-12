@@ -30,6 +30,10 @@
 * `iso_de`, `iso_no`, `iso_se`, `iso_yu` – various variants of ISO/IEC-646
  
 * `iso_dk`, `iso_fi` – aliases for `iso_no` and `iso_se` respectively
+ 
+* `atascii` or `atari` – ATASCII as seen on Atari 8-bit computers
+ 
+* `atasciiscr` or `atariscr` – screencodes used by Atari 8-bit computers
 
 When programming for Commodore,
 use `pet` for strings you're printing using standard I/O routines
@@ -65,11 +69,13 @@ control codes for changing the text background color
 
 ##### Escape sequence availability
 
-Encoding | new line | braces | backspace | cursor movement | text colour and reverse | background colour
---|--|--|--|--|--|--
-`pet`              | yes | no  | no  | yes | yes | no
-`petscr`           | no  | no  | no  | no  | no  | no
-`sinclair`         | yes | yes | no  | yes | yes | yes
-`ascii`, `iso_*`   | yes | yes | yes | no  | no  | no
-`apple2`           | no  | yes | no  | no  | no  | no
+Encoding | new line | braces | backspace | cursor movement | text colour and reverse | background colour  
+--|--|--|--|--|--|--  
+`pet`              | yes | no  | no  | yes | yes | no  
+`petscr`           | no  | no  | no  | no  | no  | no  
+`sinclair`         | yes | yes | no  | yes | yes | yes  
+`ascii`, `iso_*`   | yes | yes | yes | no  | no  | no  
+`apple2`           | no  | yes | no  | no  | no  | no  
+`atascii`          | yes | no  | yes | yes | no  | no  
+`atasciiscr`       | no  | no  | no  | no  | no  | no  
 all the rest       | yes | yes | no  | no  | no  | no
