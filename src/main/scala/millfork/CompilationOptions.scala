@@ -214,6 +214,8 @@ case class CompilationOptions(platform: Platform,
       "CPUFEATURE_6502_ILLEGALS" -> toLong(platform.cpuFamily == CpuFamily.M6502 && flag(CompilationFlag.EmitIllegals)),
       "CPUFEATURE_Z80_ILLEGALS" -> toLong(flag(CompilationFlag.EmitZ80Opcodes) && flag(CompilationFlag.EmitIllegals)),
       "CPUFEATURE_8085_ILLEGALS" -> toLong(flag(CompilationFlag.EmitIntel8080Opcodes) && flag(CompilationFlag.EmitIllegals)),
+      "BIG_ENDIAN" -> toLong(Cpu.isBigEndian(platform.cpu)),
+      "LITTLE_ENDIAN" -> toLong(!Cpu.isBigEndian(platform.cpu)),
       "INIT_RW_MEMORY" -> toLong(platform.ramInitialValuesBank.isDefined),
       "SYNTAX_INTEL" -> toLong(platform.cpuFamily == CpuFamily.I80 && flag(CompilationFlag.UseIntelSyntaxForInput)),
       "SYNTAX_ZILOG" -> toLong(platform.cpuFamily == CpuFamily.I80 && !flag(CompilationFlag.UseIntelSyntaxForInput)),
@@ -268,6 +270,11 @@ object CpuFamily extends Enumeration {
       case Intel8086 | Intel80186 => I86
       case Cpu.Motorola6809 => M6809
     }
+  }
+
+  def isBigEndian(family: CpuFamily.Value): Boolean = family match {
+    case M6502 | I80 | I86 | ARM => false
+    case M6800 | M6809 | M68K => true
   }
 }
 
@@ -475,6 +482,8 @@ object Cpu extends Enumeration {
       case CpuFamily.M6809 => 2
       case _ => ???
     }
+
+  def isBigEndian(cpu: Cpu.Value): Boolean = CpuFamily.isBigEndian(CpuFamily.forType(cpu))
 }
 
 object CompilationFlag extends Enumeration {

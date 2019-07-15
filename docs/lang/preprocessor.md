@@ -57,6 +57,10 @@ The following features are defined based on the chosen CPU and compilation optio
 * `INIT_RW_MEMORY` – 1 if the option `ram_init_segment` is defined, 0 otherwise.
 See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
 
+* `BIG_ENDIAN` – 1 if the platform is big-endian, 0 otherwise (currently all supported platforms are little-endian)
+
+* `LITTLE_ENDIAN` – 1 if the platform is little-endian, 0 otherwise (currently all supported platforms are little-endian)
+
 * `OPTIMIZE_FOR_SIZE`, `OPTIMIZE_FOR_SPEED`, `OPTIMIZE_INLINE`, `OPTIMIZE_IPO`
 – 1 if given optimization setting is enabled, 0 otherwise
 
