@@ -40,7 +40,7 @@ Therefore, it's recommended to stick to mappers that have a fixed bank at the en
 
 Mappers that should be fine: NROM (0), CNROM (1), UxROM(2), MMC2 (9), MMC3 (4), MMC4 (10), MMC6 (4).
 
-Mappers that can have arbitrary bank at the end and are therefore not recommended: MMC1 (1), MMC5 (5).
+Mappers that can have arbitrary bank at the end are therefore not recommended: MMC1 (1), MMC5 (5).
 
 You should define at least three segments:
 

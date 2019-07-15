@@ -23,13 +23,13 @@ It is imported automatically, you don't need to add any import statements.
 If you are targeting both RAM-based and ROM-based platforms, wrap the call in `#if INIT_RW_MEMORY`...`#endif`,
 as the `init_rw_memory` function is not available for RAM-based targets. For example:
 
-      void main() {
-      #if INIT_RW_MEMORY
-          // do a bankswitch to the SEGMENT segment if applicable
-          init_rw_memory()
-      #endif
-          // ... rest of the code
-      }    
+          void main() {
+          #if INIT_RW_MEMORY
+              // do a bankswitch to the SEGMENT segment if applicable
+              init_rw_memory()
+          #endif
+              // ... rest of the code
+          }    
       
 If the default implementation of `init_rw_memory` is unsatisfactory for your needs,
 consider implementing your own and putting it in the `init_rw_memory` module

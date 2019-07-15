@@ -89,17 +89,25 @@ However, if the command-line option `-flenient-encoding` is used,
 then literals using `default` and `scr` encodings replace unsupported characters with supported ones.
 If the replacement is one character long, only a warning is issued, otherwise an error is raised.
 
+## Struct constructors
+
+You can create a constant of a given struct type by listing constant values of fields as arguments:
+
+    struct point { word x, word y }
+    point(5,6)
+    
+
 ## Array initialisers 
 
 An array is initialized with either:
 
-* a string literal
+* (only byte arrays) a string literal
 
-* a `file` expression
+* (only byte arrays) a `file` expression
 
 * a `for`-style expression
 
-* a format, followed by an array initializer:
+* (only byte arrays) a format, followed by an array initializer:
 
    *   `@word` (=`@word_le`): for every term of the array initializer, emit two bytes, first being the low byte of the value, second being the high byte:      
        `@word [$1122]` is equivalent to `[$22, $11]`
@@ -114,18 +122,18 @@ An array is initialized with either:
    *   `@struct`: every term of the initializer is interpreted as a struct constructor (see below) 
    and treated as a list of bytes with no padding   
        `@struct [s(1, 2)]` is equivalent to `[1, 2]` when `struct s {byte x, byte y}` is defined  
-       `@struct [s(1, 2), s(3, 4)]` is equivalent to `[1, 0, 2, 0, 3, 0, 4, 0]` when `struct s {word x, word y}` is defined  
-   
+       `@struct [s(1, 2), s(3, 4)]` is equivalent to `[1, 0, 2, 0, 3, 0, 4, 0]` on little-endian machines when `struct s {word x, word y}` is defined  
 
-* a list of byte literals and/or other array initializers, surrounded by brackets:
+* a list of literals and/or other array initializers, surrounded by brackets:
 
-
-    array a = [1, 2]
-    array b = "----" scr
-    array c = ["hello world!" ascii, 13]
-    array d = file("d.bin")
-    array e = file("d.bin", 128, 256)
-    array f = for x,0,until,8 [x * 3 + 5]  // equivalent to [5, 8, 11, 14, 17, 20, 23, 26]
+        array a = [1, 2]
+        array b = "----" scr
+        array c = ["hello world!" ascii, 13]
+        array d = file("d.bin")
+        array e = file("d.bin", 128, 256)
+        array f = for x,0,until,8 [x * 3 + 5]  // equivalent to [5, 8, 11, 14, 17, 20, 23, 26]
+        array(point) g = [point(2,3), point(5,6)]
+        array(point) i = for x,0,until,100 [point(x, x+1)]
 
 Trailing commas (`[1, 2,]`) are not allowed.
 

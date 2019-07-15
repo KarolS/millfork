@@ -412,6 +412,7 @@ class ArraySuite extends FunSuite with Matchers {
         |
         | array(word) a = [1,2,3]
         | array(coord) c = [coord(1,2),coord(3,4)]
+        | array(coord) h @$8000 = for i,0,until,100 [coord(i,i)]
         |
         | word output @$c000
         | coord output2 @$c002

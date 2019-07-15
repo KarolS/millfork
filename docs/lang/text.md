@@ -69,7 +69,7 @@ control codes for changing the text background color
 
 ##### Escape sequence availability
 
-Encoding | new line | braces | backspace | cursor movement | text colour and reverse | background colour  
+Encoding | new line | braces | backspace | cursor movement | text colour, reverse | background colour  
 --|--|--|--|--|--|--  
 `pet`              | yes | no  | no  | yes | yes | no  
 `petscr`           | no  | no  | no  | no  | no  | no  
