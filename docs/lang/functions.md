@@ -1,4 +1,4 @@
-[< back to index](../README.md)
+[< back to index](../doc_index.md)
 
 # Function definitions
 

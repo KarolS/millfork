@@ -4,7 +4,7 @@
 
 Millfork focuses on performance, compactness, simplicity and readability.
 
-* [**Documentation index**](README.md)
+* [**Documentation index**](doc_index.md)
 
 * [**Getting started**](api/getting-started.md)
 

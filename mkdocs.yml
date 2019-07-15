@@ -2,7 +2,7 @@ site_name: Millfork documentation
 theme: readthedocs
 nav:
   - Home: index.md
-  - Index: README.md
+  - Index: doc_index.md
   - FAQ: various/faq.md
   - User guide:
     - Getting started: api/getting-started.md
