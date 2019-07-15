@@ -24,7 +24,8 @@ Millfork focuses on performance, compactness, simplicity and readability.
 
 #### Contact
 
-Send issues, questions, feature requests and patches to https://github.com/KarolS/millfork/issues/
+Send issues, questions, feature requests and patches to
+[https://github.com/KarolS/millfork/issues/](https://github.com/KarolS/millfork/issues/).
 
 #### License
 
