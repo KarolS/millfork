@@ -1,4 +1,4 @@
-[< back to index](../index.md)
+[< back to index](../README.md)
 
 # Using 6502 assembly within Millfork programs
 

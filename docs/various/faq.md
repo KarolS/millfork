@@ -1,4 +1,4 @@
-[< back to index](index.md)
+[< back to index](../README.md)
 
 # Frequently Asked Questions
 
@@ -20,7 +20,7 @@ Large programs in Millfork have been developed for Commodore 64.
 Millfork was also tested (via emulators) to run trivial programs on other 8-bit Commodore computers, 
 Atari 8-bit computers, Apple II, BBC Micro, ZX Spectrum 48k, NEC PC-88, MSX, CP/M, NES, Game Boy, Atari 2600 and MS-DOS.
 
-Support for other devices using supported processors can be easily added, usually without even modifying the compiler.
+Support for other devices using supported processors can be easily added, usually without modifying the compiler.
 
 ### What microprocessors are supported?
 
@@ -68,11 +68,9 @@ Unfortunately not:
 
 * Floating point math support is absent.
 
-* There are no complex datatypes yet.
+* Pointer arithmetic is very limited.
 
-* There are no arrays other than byte arrays.
-
-* There are no pointers other than byte pointers.
+* Millfork preprocessor is less powerful than C preprocessor.
 
 * There is no support for linking with external libraries not written in Millfork.
 You either need to rewrite foreign assembly into Millfork assembly syntax,

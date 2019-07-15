@@ -1,4 +1,4 @@
-[< back to index](../index.md)
+[< back to index](../README.md)
 
 # Text encodings ans escape sequences
 

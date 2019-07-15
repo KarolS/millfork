@@ -1,9 +1,11 @@
-[< back to index](../index.md)
+[< back to index](../README.md)
 
 ## joy
 
 The module contains global variables representing the state of the one-button joystick.
 If the program is not using any joystick driver, the state of these variables is undefined.
+
+To actually use this module, an appropriate joystick module must be used, such as `c64_joy`, `nes_joy` or `gb_joy`.
 
 #### `sbyte input_dx`
 
@@ -35,6 +37,8 @@ The `mouse` module automatically imports the `x_coord` module.
 
 The module contains global variables representing the state of the mouse.
 If the program is not using any mouse driver, the state of these variables is undefined.
+
+To actually use this module, an appropriate mouse module must be used, such as `c1531`.
 
 #### `x_coord mouse_x`
 

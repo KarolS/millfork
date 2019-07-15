@@ -1,70 +1,35 @@
-# Documentation
+![](./logo_transparent.png)
 
- **★ WORK IN PROGRESS ★**
+**Millfork** is a middle-level programming language for 8-bit microprocessors.
 
+Millfork focuses on performance, compactness, simplicity and readability.
 
-## Compiler usage
+* [**Documentation index**](README.md)
 
-* [Getting started](api/getting-started.md)
+* [**Getting started**](api/getting-started.md)
 
-* [Command-line option reference](api/command-line.md)
+* [**List of supported platforms**](api/target-platforms.md)
 
-* [Target platform reference](api/target-platforms.md)
+* [**Example programs**](https://github.com/KarolS/millfork/tree/master/examples)
 
-* [Defining a custom platform](api/custom-platform.md)
+* [**Millfork wiki**](https://github.com/KarolS/millfork/wiki)
 
-## Language reference
+* [**Benchmarks**](https://github.com/KarolS/millfork-benchmarks)
 
-* [Preprocessor](lang/preprocessor.md)
+* [**FAQ**](various/faq.md)
 
-* [Syntax](lang/syntax.md)
+* [**Downloads**](https://github.com/KarolS/millfork/releases/)  
 
-* [Types](lang/types.md)
+* [**Source code**](https://github.com/KarolS/millfork)
 
-* [Literals](lang/literals.md)
+#### Contact
 
-* [List of text encodings and escape sequences](lang/text.md)
+Send issues, questions, feature requests and patches to https://github.com/KarolS/millfork/issues/
 
-* [Operators reference](lang/operators.md)
+#### License
 
-* [Functions](lang/functions.md)
+Millfork is © by Karol Stasiak, and is released under the GNU Public License version 3.
 
-* [Inline 6502 assembly syntax](lang/assembly.md)
+Millfork standard include files are © by Karol Stasiak, and are released under the zlib License.
 
-* [Inline 8080/LR35902/Z80 assembly syntax](lang/assemblyz80.md)
-
-* [Important guidelines regarding reentrancy](lang/reentrancy.md)
-
-## Library reference
-
-* [`stdlib` module](stdlib/stdlib.md)
-
-* [`string` module](stdlib/string.md)
-
-* [`stdio` module](stdlib/stdio.md)
-
-* [Modules for reading input devices](stdlib/input.md)
-
-* [Other cross-platform modules (`keyboard`, `err`, `random`)](stdlib/other.md)
-
-* [Definitions available on only some platforms](stdlib/frequent.md)
-
-* [C64-only modules](stdlib/c64.md)
-
-* [`cbm_file` module](stdlib/cbm_file.md)
-
-* [NES-only modules](stdlib/nes.md)
-
-* [Game Boy–only modules](stdlib/gb.md)
-
-## Implementation details
-
-* [Variable storage](abi/variable-storage.md)
-
-* [Calling convention](abi/calling-convention.md)
-
-* [Undefined behaviour](abi/undefined-behaviour.md)
-
-* [Undocumented instruction support](abi/undocumented.md)
-
-* [Reference for labels in generated assembly code](abi/generated-labels.md)
+This means you are allowed to develop Millfork programs, both free and proprietary, open- and closed-source, without any extra obligations or requirements. 

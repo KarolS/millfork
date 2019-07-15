@@ -59,18 +59,7 @@ Therefore, no attribution is needed if you are developing and distributing Millf
 
 ## More info
 
-* [Documentation](docs/index.md)
+* [Documentation](docs/README.md) (external version: [https://millfork.readthedocs.io](https://millfork.readthedocs.io))
 
 * [Example programs](examples/README.md)
 
-## Planned features
-
-* stdlib improvements
-
-* more 6502 targets: Oric computers, PC-Engine/Turbografx-16, Atari Lynx
-
-* more Z80 targets: TI-83, Sega Master System
- 
-* better support for 65816, Sharp LR35902 and eZ80
-
-* support for SuperFamicom/SNES and Apple IIgs

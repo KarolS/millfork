@@ -30,6 +30,8 @@
 
 * [Galencia starfield](c64/galencia.mfk) – a port of the starfield effect from the game *Galencia* 
 
+* [Space Poker \[external link\]](https://github.com/KarolS/spacepoker) – a game made for the 2018 Reset C64 Craptastic 4KB Game Competition
+
 ### Other examples
 
 * Multifile ([source code](c64/multifile.mfk), [platform definition](c64/multifile.ini)) –

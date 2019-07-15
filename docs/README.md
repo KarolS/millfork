@@ -1,7 +1,6 @@
-# Documentation
+# Documentation index
 
- **★ WORK IN PROGRESS ★**
-
+* [Home page](index.md)
 
 ## Compiler usage
 
@@ -68,3 +67,16 @@
 * [Undocumented instruction support](abi/undocumented.md)
 
 * [Reference for labels in generated assembly code](abi/generated-labels.md)
+
+## External links
+
+* [Example programs](https://github.com/KarolS/millfork/tree/master/examples)
+
+* [Millfork wiki](https://github.com/KarolS/millfork/wiki)
+
+* [Benchmarks](https://github.com/KarolS/millfork-benchmarks)
+
+* [Downloads](https://github.com/KarolS/millfork/releases/)  
+
+* [Source code](https://github.com/KarolS/millfork)
+

@@ -1,4 +1,4 @@
-[< back to index](../index.md)
+[< back to index](../README.md)
 
 # Command-line options
 
@@ -15,16 +15,19 @@
 *  `-o <file>` – Output filename, without extension.
 Extension will be added automatically,
 `.prg` for Commodore (including LUnix/LNG),
-`.a2` for Apple,
+`.crt` for Commodore cartridges,
 `.xex` for Atari computers,
-`.bin` for Atari VCS,
-`.nes` for NES,
-no extension for BBC micro program file,
-`.inf` for BBC Micro metadata,
-`.d88` for PC-88 disk images,
-`.com` for CP/M executables,
+`.a2` for Apple,
+`.dsk` for PC-88 disk images,
+`.tap` for ZX-Spectrum tape images,
 `.rom` for MSX cartridge images,
-`.tap` for ZX-Spectrum tape images.
+`.com` for CP/M executables,
+`.nes` for NES/Famicom,
+`.bin` for Atari 2600,
+no extension for BBC micro program file,
+`.inf` for BBC Micro file metadata,
+`.asm` for assembly output,
+`.lbl`, `.nl`, `.fns`, or `.sym` for label file.
 
 * `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file and the extension is `.asm`.
 

@@ -1,0 +1,55 @@
+site_name: Millfork documentation
+theme: readthedocs
+nav:
+  - Home: index.md
+  - Index: README.md
+  - FAQ: various/faq.md
+  - User guide:
+    - Getting started: api/getting-started.md
+    - Command-line option reference: api/command-line.md
+    - Target platform reference: api/target-platforms.md
+    - Defining a custom platform: api/custom-platform.md
+    - Differences between ROM and RAM targets: api/rom-vs-ram.md
+    - Platform-specific guides:
+        - Apple 2: api/apple2-programming-guide.md
+        - Amstrad CPC: api/cpc-programming-guide.md
+        - Commodore 64: api/commodore-programming-guide.md
+        - C64 with LUnix: api/lunix-programming-guide.md
+        - BBC Micro: api/bbcmicro-programming-guide.md
+        - Game Boy: api/gb-programming-guide.md
+        - NES/Famicom: api/famicom-programming-guide.md
+  - Language reference:
+    - Preprocessor: lang/preprocessor.md
+    - Syntax: lang/syntax.md
+    - Types: lang/types.md
+    - Literals: lang/literals.md
+    - Text encodings: lang/text.md
+    - Operators: lang/operators.md
+    - Functions: lang/functions.md
+    - Inline 6502 assembly: lang/assembly.md
+    - Inline 8080/LR35902/Z80 assembly: lang/assemblyz80.md
+    - Reentrancy guidelines: lang/reentrancy.md
+  - Library reference:
+    - stdlib module: stdlib/stdlib.md
+    - string module: stdlib/string.md
+    - stdio module: stdlib/stdio.md
+    - keyboard, err, random: stdlib/other.md
+    - joy, mouse, x_coord: stdlib/input.md
+    - Platform-dependent modules: stdlib/frequent.md
+    - cbm_file module: stdlib/cbm_file.md
+    - C64-only modules: stdlib/c64.md
+    - NES-only modules: stdlib/nes.md
+    - Game Boy–only modules: stdlib/gb.md
+  - Implementation details:
+    - Calling convention: abi/calling-convention.md
+    - Generated labels: abi/generated-labels.md
+    - Inlining: abi/inlining.md
+    - Undefined behaviour: abi/undefined-behaviour.md
+    - Undocumented instruction support: abi/undocumented.md
+    - Variable storage: abi/variable-storage.md
+  - External links:
+    - Downloads: https://github.com/KarolS/millfork/releases/
+    - Source code: https://github.com/KarolS/millfork
+    - Example programs: https://github.com/KarolS/millfork/tree/master/examples
+    - Millfork wiki: https://github.com/KarolS/millfork/wiki
+    - Benchmarks: https://github.com/KarolS/millfork-benchmarks

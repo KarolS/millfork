@@ -1,4 +1,4 @@
-[< back to index](../index.md)
+[< back to index](../README.md)
 
 # Getting started
 
@@ -21,6 +21,12 @@ Compile it using the following commandline:
 java -jar millfork.jar hello_world.mfk -o hello_world -t c64
 ```
 
+or if you're using a Windows native build:
+
+```
+millfork hello_world.mfk -o hello_world -t c64
+```
+
 Run the output executable (here using the VICE emulator):
 
 ```
@@ -31,20 +37,7 @@ x64 hello_world.prg
 
 The following options are obligatory when compiling your sources:
 
-* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended:  
-`prg` for Commodore;
-`crt` for Commodore cartridges;
-`xex` for Atari computers;
-`a2` for Apple;
-`dsk` for PC-88;
-`tap` for ZX Spectrum;
-`rom` for MSX cartridges;
-`com` for CP/M;
-`nes` for Famicom;
-`bin` for Atari 2600;
-`inf` for BBC file metadata;
-`asm` for assembly output;
-`lbl`, `nl`, `fns`, or `sym` for label file
+* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended.
 
 * `-t PLATFORM` – specifies the target platform.
 Each platform is defined in an `.ini` file in the include directory.
