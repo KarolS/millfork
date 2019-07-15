@@ -83,6 +83,14 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
 
             }
         }) -> Nil
+      case s: GotoStatement =>
+        env.eval(s.target) match {
+          case Some(e) => List(ZLine(JP, NoRegisters, e)) -> Nil
+          case None =>
+            Z80ExpressionCompiler.compileToHL(ctx, s.target) ++ List(ZLine(JP, OneRegister(ZRegister.HL), Constant.Zero)) -> Nil
+        }
+      case s: LabelStatement =>
+        List(ZLine.label(env.prefix + s.name)) -> Nil
       case Assignment(destination, source) =>
         val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
         val targetType = AbstractExpressionCompiler.getExpressionType(ctx, destination)

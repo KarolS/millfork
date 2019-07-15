@@ -328,6 +328,7 @@ for <variable> : [ <comma separated expressions> ]  {
 * `<comma separated expressions>` – traverse every value in the list, in the given order.
 Values do not have to be constant.
 If a value is not a constant and its value changes while executing the loop, the behaviour is undefined.
+Jumps using `goto` across the scope of this kind of loop are disallowed.
 
 ### `break` and `continue` statements
 
@@ -344,6 +345,31 @@ continue for
 continue while
 continue do
 continue <variable>
+```
+
+### `goto` and `label`
+
+Syntax:
+
+```
+goto <expression>
+label <name>
+```
+
+The `label` statement defines a constant pointer that refers to the current position in the code.
+Such labels are only visible in the scope of the local function.
+
+The `goto` expression jumps to the pointer value of the expression.
+
+Jumping using `goto` across the scope of for loop that uses a fixed list or across functions is not allowed.
+
+Computed gotos are supported:
+
+```
+pointer p
+p = x
+goto p
+label x
 ```
     
 ### `asm` statements

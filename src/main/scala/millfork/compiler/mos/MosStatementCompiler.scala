@@ -277,6 +277,14 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 }
             }
         }) -> Nil
+      case s: GotoStatement =>
+        env.eval(s.target) match {
+          case Some(e) => List(AssemblyLine.absolute(JMP, e)) -> Nil
+          case None =>
+            MosExpressionCompiler.compileToZReg(ctx, s.target) ++ List(AssemblyLine(JMP, Indirect, env.get[ThingInMemory]("__reg.loword").toAddress)) -> Nil
+        }
+      case s: LabelStatement =>
+        List(AssemblyLine.label(env.prefix + s.name)) -> Nil
       case s: IfStatement =>
         compileIfStatement(ctx, s)
       case s: WhileStatement =>

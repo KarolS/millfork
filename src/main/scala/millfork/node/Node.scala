@@ -467,6 +467,14 @@ case class ReturnStatement(value: Option[Expression]) extends ExecutableStatemen
   override def getAllExpressions: List[Expression] = value.toList
 }
 
+case class GotoStatement(target: Expression) extends ExecutableStatement {
+  override def getAllExpressions: List[Expression] = List(target)
+}
+
+case class LabelStatement(name: String) extends ExecutableStatement {
+  override def getAllExpressions: List[Expression] = Nil
+}
+
 case class EmptyStatement(toTypecheck: List[ExecutableStatement]) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = toTypecheck.flatMap(_.getAllExpressions)
 }

@@ -39,4 +39,6 @@ Currently, such functions may be evaluated either once or twice. This might be f
 
 * when using modifying operators: calling functions on the right-hand-side index expression than modify any of the variables used on the left hand side
 
+* jumping across the scope of for loop that uses a fixed list or across functions
+
 The above list is not exhaustive.

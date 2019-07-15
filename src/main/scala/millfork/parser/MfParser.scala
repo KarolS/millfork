@@ -380,6 +380,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def keywordStatement: P[Seq[ExecutableStatement]] = P(
     returnOrDispatchStatement |
+      gotoStatement |
+      labelStatement |
       ifStatement |
       whileStatement |
       forStatement |
@@ -436,6 +438,10 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   } yield Seq(ReturnDispatchStatement(indexer, parameters.map(_._2.toList).getOrElse(Nil), branches.toList))
 
   val returnOrDispatchStatement: P[Seq[ExecutableStatement]] = "return" ~ !letterOrDigit ~/ HWS ~ (dispatchStatementBody | mfExpression(nonStatementLevel, false).?.map(ReturnStatement).map(Seq(_)))
+
+  val gotoStatement: P[Seq[ExecutableStatement]] = "goto" ~ !letterOrDigit ~/ HWS ~ mfExpression(nonStatementLevel, false).map(GotoStatement).map(Seq(_))
+
+  val labelStatement: P[Seq[ExecutableStatement]] = "label" ~ !letterOrDigit ~/ HWS ~ identifier.map(LabelStatement).map(Seq(_))
 
   def ifStatement: P[Seq[ExecutableStatement]] = for {
     condition <- "if" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel, false)

@@ -210,6 +210,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   val things: mutable.Map[String, Thing] = mutable.Map()
   val pointiesUsed: mutable.Map[String, Set[String]] = mutable.Map()
   val removedThings: mutable.Set[String] = mutable.Set()
+  val knownLocalLabels: mutable.Set[(String, Option[Position])] = mutable.Set()
 
   private def addThing(t: Thing, position: Option[Position]): Unit = {
     if (assertNotDefined(t.name, position)) {
@@ -938,6 +939,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val pointies = collectPointies(stmt.statements.getOrElse(Seq.empty))
     pointiesUsed(stmt.name) = pointies
     val w = get[Type]("word")
+    val p = get[Type]("pointer")
     val name = stmt.name
     val resultType = get[Type](stmt.resultType)
     if (stmt.name == "main") {
@@ -1022,6 +1024,50 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case a: ArrayDeclarationStatement => env.registerArray(a, options)
           case _ => ()
         }
+        def scanForLabels(statement: Statement): Unit = statement match {
+          case c: CompoundStatement => c.getChildStatements.foreach(scanForLabels)
+          case LabelStatement(labelName) => env.knownLocalLabels += (labelName -> statement.position)
+          case _ => ()
+        }
+        statements.foreach(scanForLabels)
+        for ((knownLabel, position) <- env.knownLocalLabels) {
+          env.addThing(knownLabel, ConstantThing(env.prefix + knownLabel, Label(env.prefix + knownLabel).toAddress, p), position)
+        }
+
+        // not all in-function gotos are allowed; warn about the provably wrong ones:
+        def checkLabels(statements: Seq[Statement]) = {
+          def getAllSafeLabels(statements: Seq[Statement]): Seq[String] = statements.flatMap {
+            case _: ForEachStatement => Nil
+            case c: CompoundStatement => getAllSafeLabels(c.getChildStatements)
+            case LabelStatement(labelName) => Seq(labelName)
+            case _ => Nil
+          }
+          def getAllSafeGotos(statements: Seq[Statement]):Seq[String] = statements.flatMap {
+            case _: ForEachStatement => Nil
+            case c: CompoundStatement => getAllSafeGotos(c.getChildStatements)
+            case GotoStatement(VariableExpression(labelName)) if env.knownLocalLabels.exists(_._1.==(labelName)) => Seq(labelName)
+            case _ => Nil
+          }
+          def doOnlyCheck(position: Option[Position], statements: Seq[Statement]): Unit = {
+            val l = getAllSafeLabels(statements).toSet
+            val g = getAllSafeGotos(statements).toSet
+            val bad = g.&(env.knownLocalLabels.map(_._1)).--(l)
+            if (bad.nonEmpty) {
+              log.warn("Detected cross-loop gotos to labels " + bad.mkString(", "), position)
+            }
+          }
+          def recurse(statements: Seq[Statement]):Unit = statements.foreach {
+            case c: ForEachStatement =>
+              doOnlyCheck(c.position, c.body)
+              recurse(c.body)
+            case c: CompoundStatement => recurse(c.getChildStatements)
+            case _ => Nil
+          }
+          doOnlyCheck(stmt.position, statements)
+          recurse(statements)
+        }
+        checkLabels(statements)
+
         val executableStatements = statements.flatMap {
           case e: ExecutableStatement => Some(e)
           case _ => None
