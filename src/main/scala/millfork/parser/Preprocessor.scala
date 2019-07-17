@@ -124,7 +124,12 @@ object Preprocessor {
                 }
               }
             case "else" =>
-              if (param != "") log.error("#else shouldn't have a parameter", pos)
+              if (param != "") {
+                log.error("#else shouldn't have a parameter", pos)
+                if (param.startsWith("if ")) {
+                  log.error("Did you mean: #elseif")
+                }
+              }
               if (ifStack.isEmpty)  log.error("Unmatched #else", pos)
               else {
                 val i = ifStack.top
@@ -141,6 +146,18 @@ object Preprocessor {
                 if (param == "") log.error("#pragma should have a parameter", pos)
                 pragmas += param -> lineNo
               }
+            case "ifdef" =>
+              log.error("Invalid preprocessor directive: #" + keyword, pos)
+              log.error("Did you mean: #if defined(" + param + ")")
+            case "ifndef" =>
+              log.error("Invalid preprocessor directive: #" + keyword, pos)
+              log.error("Did you mean: #if not(defined(" + param + "))")
+            case "elif" | "elsif" =>
+              log.error("Invalid preprocessor directive: #" + keyword, pos)
+              log.error("Did you mean: #elseif")
+            case "undef" =>
+              log.error("Invalid preprocessor directive: #" + keyword, pos)
+              log.error("A once defined feature cannot be undefined")
             case _ =>
               log.error("Invalid preprocessor directive: #" + keyword, pos)
 
