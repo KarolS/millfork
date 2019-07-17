@@ -311,6 +311,12 @@ sealed trait DeclarationStatement extends Statement {
   def name: String
 }
 
+sealed trait BankedDeclarationStatement extends DeclarationStatement {
+  def bank: Option[String]
+  def name: String
+  def withChangedBank(bank: String): BankedDeclarationStatement
+}
+
 case class TypeDefinitionStatement(name: String, parent: String) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
 }
@@ -325,8 +331,10 @@ case class VariableDeclarationStatement(name: String,
                                         register: Boolean,
                                         initialValue: Option[Expression],
                                         address: Option[Expression],
-                                        alignment: Option[MemoryAlignment]) extends DeclarationStatement {
+                                        alignment: Option[MemoryAlignment]) extends BankedDeclarationStatement {
   override def getAllExpressions: List[Expression] = List(initialValue, address).flatten
+
+  override def withChangedBank(bank: String): BankedDeclarationStatement = copy(bank = Some(bank))
 }
 
 trait ArrayContents extends Node {
@@ -416,8 +424,10 @@ case class ArrayDeclarationStatement(name: String,
                                      address: Option[Expression],
                                      const: Boolean,
                                      elements: Option[ArrayContents],
-                                     alignment: Option[MemoryAlignment]) extends DeclarationStatement {
+                                     alignment: Option[MemoryAlignment]) extends BankedDeclarationStatement {
   override def getAllExpressions: List[Expression] = List(length, address).flatten ++ elements.fold(List[Expression]())(_.getAllExpressions)
+
+  override def withChangedBank(bank: String): BankedDeclarationStatement = copy(bank = Some(bank))
 }
 
 case class ParameterDeclaration(typ: String,
@@ -441,8 +451,10 @@ case class FunctionDeclarationStatement(name: String,
                                         assembly: Boolean,
                                         interrupt: Boolean,
                                         kernalInterrupt: Boolean,
-                                        reentrant: Boolean) extends DeclarationStatement {
+                                        reentrant: Boolean) extends BankedDeclarationStatement {
   override def getAllExpressions: List[Expression] = address.toList ++ statements.getOrElse(Nil).flatMap(_.getAllExpressions)
+
+  override def withChangedBank(bank: String): BankedDeclarationStatement = copy(bank = Some(bank))
 }
 
 sealed trait ExecutableStatement extends Statement

@@ -102,7 +102,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val atomWithIntel: P[Expression] = P(position() ~ (variableAtom | literalAtomWithIntel | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
-  val globalVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(true)
+  val globalVariableDefinition: P[Seq[BankedDeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)
 
   def singleVariableDefinition: P[(Position, String, Option[Expression], Option[Expression], Option[MemoryAlignment])] = for {
@@ -113,7 +113,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       alignment = None // TODO
     } yield (p, name, addr, initialValue, alignment)
 
-  def variableDefinition(implicitlyGlobal: Boolean): P[Seq[DeclarationStatement]] = for {
+  def variableDefinition(implicitlyGlobal: Boolean): P[Seq[BankedDeclarationStatement]] = for {
     p <- position()
     bank <- bankDeclaration
     flags <- variableFlags ~ HWS
@@ -479,7 +479,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     condition <- "while" ~ !letterOrDigit ~/ HWS ~/ mfExpression(nonStatementLevel, false)
   } yield Seq(DoWhileStatement(body.toList, Nil, condition))
 
-  val functionDefinition: P[Seq[DeclarationStatement]] = for {
+  val functionDefinition: P[Seq[BankedDeclarationStatement]] = for {
     p <- position()
     bank <- bankDeclaration
     flags <- functionFlags ~ HWS
@@ -560,9 +560,22 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     fields <- compoundTypeFields ~/ Pass
   } yield Seq(UnionDefinitionStatement(name, fields).pos(p))
 
+  val segmentBlock: P[Seq[BankedDeclarationStatement]] = for {
+   bankName <- "segment" ~ AWS ~ "(" ~ AWS ~ identifier ~ AWS ~ ")" ~ AWS ~ "{" ~/ AWS
+   body <- locatableDefinition.rep(sep = EOL)
+   _ <- AWS ~ "}" ~/ Pass
+  } yield {
+    body.flatten.map{ stmt =>
+      if (stmt.bank.isEmpty) stmt.withChangedBank(bankName)
+      else stmt
+    }
+  }
+
+  def locatableDefinition: P[Seq[BankedDeclarationStatement]] = segmentBlock | arrayDefinition | functionDefinition | globalVariableDefinition
+
   val program: Parser[Program] = for {
     _ <- Start ~/ AWS ~/ Pass
-    definitions <- (importStatement | arrayDefinition | aliasDefinition | enumDefinition | structDefinition | unionDefinition | functionDefinition | globalVariableDefinition).rep(sep = EOL)
+    definitions <- (importStatement | aliasDefinition | enumDefinition | structDefinition | unionDefinition | locatableDefinition).rep(sep = EOL)
     _ <- AWS ~ End
   } yield Program(definitions.flatten.toList)
 

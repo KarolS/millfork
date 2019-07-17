@@ -155,6 +155,20 @@ TODO
 
 A function can be declared at the top level. For more details, see [Functions](./functions.md)
 
+### Segment blocks
+
+Instead of repeating the segment name in multiple declarations, you can wrap them in a block:
+
+    segment (s) {
+        byte x
+        word y    
+    } 
+    
+is equivalent to:
+
+    segment (s) byte x
+    segment (s) word y
+
 ## `import` statements
 
     import <module>

@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Added `segment` block statement.
+
 * Added goto.
 
 * Added arrays of elements of size greater than byte.
