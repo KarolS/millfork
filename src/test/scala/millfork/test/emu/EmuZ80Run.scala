@@ -111,6 +111,8 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
           tmp
         }
         val program = nodeOptimizations.foldLeft(withLibraries.applyImportantAliases)((p, opt) => p.applyNodeOptimization(opt, options))
+        program.checkSegments(log, platform.codeAllocators.keySet)
+        log.assertNoErrors("Failed")
         val callGraph = new StandardCallGraph(program, log)
         val env = new Environment(None, "", CpuFamily.I80, options)
         env.collectDeclarations(program, options)

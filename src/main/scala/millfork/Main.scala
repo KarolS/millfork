@@ -217,6 +217,8 @@ object Main {
       OptimizationPresets.NodeOpt0.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
     }
     val callGraph = new StandardCallGraph(program, options.log)
+    program.checkSegments(options.log, platform.codeAllocators.keySet)
+    options.log.assertNoErrors("Build failed due to undefined segments")
 
     val env = new Environment(None, "", platform.cpuFamily, options)
     env.collectDeclarations(program, options)

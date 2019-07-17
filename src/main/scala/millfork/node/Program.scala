@@ -1,6 +1,7 @@
 package millfork.node
 
 import millfork.CompilationOptions
+import millfork.error.Logger
 import millfork.node.opt.NodeOptimization
 
 /**
@@ -18,6 +19,17 @@ case class Program(declarations: List[DeclarationStatement]) {
     })
   }
 
+  def checkSegments(log: Logger, existingBanks: Set[String]): Unit = {
+    declarations.foreach {
+      case s: BankedDeclarationStatement =>
+        s.bank.foreach{ b =>
+          if (!existingBanks(b)) {
+            log.error(s"Cannot allocate ${s.name}: Segment $b doesn't exist")
+          }
+        }
+      case _ =>
+    }
+  }
   def applyNodeOptimization(o: NodeOptimization, options: CompilationOptions) = Program(o.optimize(declarations, options).asInstanceOf[List[DeclarationStatement]])
   def +(p:Program): Program = Program(this.declarations ++ p.declarations)
 }
