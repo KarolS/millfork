@@ -591,6 +591,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   private def evalImpl(e: Expression, vv: Option[Map[String, Constant]]): Option[Constant] = {
     e match {
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
+      case _:TextLiteralExpression => ???
       case ConstantArrayElementExpression(c) => Some(c)
       case GeneratedConstantExpression(c, t) => Some(c)
       case VariableExpression(name) =>

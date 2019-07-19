@@ -111,7 +111,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     stmt match {
       case Assignment(ve@VariableExpression(v), arg) if trackableVars(v) =>
         cv = search(arg, cv)
-        Assignment(ve, optimizeExpr(arg, cv)).pos(pos) -> (env.eval(arg, currentVarValues) match {
+        Assignment(ve, optimizeExpr(arg, cv)).pos(pos) -> (env.eval(optimizeExpr(arg, Map()), currentVarValues) match {
           case Some(c) => cv + (v -> c)
           case None => cv - v
         })
