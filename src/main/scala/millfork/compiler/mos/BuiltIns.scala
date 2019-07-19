@@ -704,9 +704,59 @@ object BuiltIns {
           AssemblyLine.immediate(CPX, constant.hiByte),
           AssemblyLine.relative(BNE, Label(x)))
       case _ =>
-        // TODO comparing expressions
-        ctx.log.error("Too complex expressions in comparison", lhs.position.orElse(rhs.position))
-        (Nil, Nil, Nil, Nil, Nil)
+        val lc = MosExpressionCompiler.compileToAX(ctx, lhs)
+        val rc = MosExpressionCompiler.compileToAX(ctx, rhs)
+        (lc, rc, effectiveComparisonType) match {
+          case (
+            List(lcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), lch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage, _)),
+            _,
+            ComparisonType.NotEqual
+            ) =>
+            return rc ++ List(
+              lcl.copy(opcode = CMP),
+              AssemblyLine.relative(BNE, Label(x)),
+              lch.copy(opcode = CPX),
+              AssemblyLine.relative(BNE, Label(x)))
+          case (
+            _,
+            List(rcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), rch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage, _)),
+            ComparisonType.NotEqual
+            ) =>
+            return lc ++ List(
+              rcl.copy(opcode = CMP),
+              AssemblyLine.relative(BNE, Label(x)),
+              rch.copy(opcode = CPX),
+              AssemblyLine.relative(BNE, Label(x)))
+          case (
+            List(lcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), lch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage, _)),
+            _,
+            ComparisonType.Equal
+            ) =>
+            val skip = ctx.nextLabel("cp")
+            return rc ++ List(
+              lcl.copy(opcode = CMP),
+              AssemblyLine.relative(BNE, skip),
+              lch.copy(opcode = CPX),
+              AssemblyLine.relative(BEQ, Label(x)),
+              AssemblyLine.label(skip))
+          case (
+            _,
+            List(rcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), rch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage, _)),
+            ComparisonType.Equal
+            ) =>
+            val skip = ctx.nextLabel("cp")
+            return lc ++ List(
+              rcl.copy(opcode = CMP),
+              AssemblyLine.relative(BNE, Label(skip)),
+              rch.copy(opcode = CPX),
+              AssemblyLine.relative(BEQ, Label(x)),
+              AssemblyLine.label(skip))
+          case _ =>
+            // TODO comparing expressions
+            ctx.log.error("Too complex expressions in comparison", lhs.position.orElse(rhs.position))
+            (Nil, Nil, Nil, Nil, Nil)
+        }
+
     }
     val lType = MosExpressionCompiler.getExpressionType(ctx, lhs)
     val rType = MosExpressionCompiler.getExpressionType(ctx, rhs)
