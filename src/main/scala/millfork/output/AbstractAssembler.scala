@@ -92,7 +92,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case AssertByte(inner) =>
         val value = deepConstResolve(inner)
         if (value.toByte == value) value else {
-          log.error("Invalid relative jump: " + c)
+          log.error("Invalid relative jump: " + c + " calculated offset: " + value)
           -2 // spin
         }
       case MemoryAddressConstant(th) =>

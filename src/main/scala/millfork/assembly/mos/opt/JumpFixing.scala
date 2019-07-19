@@ -2,12 +2,11 @@ package millfork.assembly.mos.opt
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, Opcode}
-import millfork.assembly.mos.Opcode._
-import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
-import millfork.error.ConsoleLogger
 import millfork.CompilationOptions
 import millfork.assembly.Elidability
+import millfork.assembly.mos.Opcode._
+import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, Opcode}
+import millfork.env.{Label, MemoryAddressConstant, NormalFunction, ThingInMemory}
 
 /**
   * @author Karol Stasiak
@@ -46,32 +45,41 @@ object JumpFixing {
       case _ => None
     }.toMap
     var changed = false
+
+    def makeLong(line: AssemblyLine) = {
+      changed = true
+      val op = line.opcode
+      val long: List[AssemblyLine] = op match {
+        case BRA => List(line.copy(opcode = JMP, addrMode = AddrMode.Absolute))
+        case BSR => List(line.copy(opcode = JSR, addrMode = AddrMode.Absolute))
+        case _ =>
+          val label = generateNextLabel()
+          List(
+            AssemblyLine.relative(negate(op), label),
+            line.copy(opcode = JMP, addrMode = AddrMode.Absolute),
+            AssemblyLine.label(label)
+          )
+      }
+      options.log.debug("Changing branch from short to long")
+      if (options.log.traceEnabled) {
+        options.log.trace(line.toString)
+        options.log.trace("     ↓")
+        long.foreach(l => options.log.trace(l.toString))
+      }
+      long
+    }
+
     val result = code.zipWithIndex.flatMap {
-      case (line@AssemblyLine(op, AddrMode.Relative, MemoryAddressConstant(Label(label)), Elidability.Elidable, _), ix) =>
-        labelOffsets.get(label).fold(List(line)) { labelOffset =>
-          val thisOffset = offsets(ix)
-          if (invalidShortJump(thisOffset, labelOffset)) {
-            changed = true
-            val long: List[AssemblyLine] = op match {
-              case BRA => List(line.copy(opcode = JMP, addrMode = AddrMode.Absolute))
-              case BSR => List(line.copy(opcode = JSR, addrMode = AddrMode.Absolute))
-              case _ =>
-                val label = generateNextLabel()
-                List(
-                  AssemblyLine.relative(negate(op), label),
-                  line.copy(opcode = JMP, addrMode = AddrMode.Absolute),
-                  AssemblyLine.label(label)
-                )
-            }
-            options.log.debug("Changing branch from short to long")
-            if (options.log.traceEnabled) {
-              options.log.trace(line.toString)
-              options.log.trace("     ↓")
-              long.foreach(l => options.log.trace(l.toString))
-            }
-            long
-          } else List(line)
+      case (line@AssemblyLine(_, AddrMode.Relative, MemoryAddressConstant(th: ThingInMemory), Elidability.Elidable, _), ix) =>
+        labelOffsets.get(th.name) match {
+          case None => makeLong(line)
+          case Some(labelOffset) =>
+            val thisOffset = offsets(ix)
+            if (invalidShortJump(thisOffset, labelOffset)) makeLong(line)
+            else List(line)
         }
+      case (line@AssemblyLine(_, AddrMode.Relative, _, Elidability.Elidable, _), _) =>
+        makeLong(line)
       case (line, _) => List(line)
     }
     if (changed) apply(f, result, options) else result
