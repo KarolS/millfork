@@ -277,7 +277,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       for {
         head <- tightMfExpression(allowIntelHex, allowTopLevelIndexing) ~/ HWS
         maybeOperator <- (StringIn(allowedOperators: _*).! ~ !CharIn(Seq('/', '=', '-', '+', ':', '>', '<', '\''))).?
-        maybeTail <- maybeOperator.fold[P[Option[List[(String, Expression)]]]](Pass.map(_ => None))(o => (HWS ~/ inner ~/ HWS).map(x2 => Some((o -> x2.head) :: x2.tail)))
+        maybeTail <- maybeOperator.fold[P[Option[List[(String, Expression)]]]](Pass.map(_ => None))(o => (AWS ~/ inner ~/ HWS).map(x2 => Some((o -> x2.head) :: x2.tail)))
       } yield {
         maybeTail.fold[SeparatedList[Expression, String]](SeparatedList.of(head))(t => SeparatedList(head, t))
       }
