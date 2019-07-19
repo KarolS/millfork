@@ -36,6 +36,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def errorConstant(msg: String, position: Option[Position] = None): Constant = {
     log.error(msg, position)
+    log.info("Did you forget to import an appropriate module?")
     Constant.Zero
   }
 
