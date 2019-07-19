@@ -270,7 +270,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         ))
       case (ForDirection.DownTo, _, _) =>
         // TODO: smarter countdown if end is not a constant
-        val endMinusOne = SumExpression(List(true -> f.end, false -> LiteralExpression(1, 1)), decimal = false).pos(p)
+        val endMinusOne = SumExpression(List(false -> f.end, true -> LiteralExpression(1, 1)), decimal = false).pos(p)
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
           IfStatement(
