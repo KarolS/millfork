@@ -667,8 +667,16 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(TAY), AssemblyLine.implied(INY))
     },
+    (Elidable & HasOpcode(ADC) & HasImmediate(1) & HasClear(State.D) & HasClear(State.C)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(TAY), AssemblyLine.implied(INY))
+    },
     (Elidable & HasOpcode(SEC) & HasClear(State.D)) ~
       (Elidable & HasOpcode(SBC) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(TAY), AssemblyLine.implied(DEY))
+    },
+    (Elidable & HasOpcode(SBC) & HasImmediate(1) & HasClear(State.D) & HasSet(State.C)) ~
       (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(TAY), AssemblyLine.implied(DEY))
     },
@@ -677,8 +685,16 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(TAX), AssemblyLine.implied(INX))
     },
+    (Elidable & HasOpcode(ADC) & HasImmediate(1) & HasClear(State.D) & HasClear(State.C)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(TAX), AssemblyLine.implied(INX))
+    },
     (Elidable & HasOpcode(SEC) & HasClear(State.D)) ~
       (Elidable & HasOpcode(SBC) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.implied(TAX), AssemblyLine.implied(DEX))
+    },
+    (Elidable & HasOpcode(SBC) & HasImmediate(1) & HasClear(State.D) & HasSet(State.C)) ~
       (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.A, State.C, State.V)) ~~> { code =>
       List(AssemblyLine.implied(TAX), AssemblyLine.implied(DEX))
     },
