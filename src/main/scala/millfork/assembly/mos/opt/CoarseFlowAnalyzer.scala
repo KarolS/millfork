@@ -86,24 +86,24 @@ object CoarseFlowAnalyzer {
           case AssemblyLine0(op, Immediate | WordImmediate, NumericConstant(nn, _)) if FlowAnalyzerForImmediate.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForImmediate.get(op)(nn.toInt, currentStatus)
 
-          case AssemblyLine0(STA, _, MemoryAddressConstant(th: Thing))
+          case AssemblyLine0(STA, ZeroPage | Absolute | LongAbsolute, MemoryAddressConstant(th: Thing))
             if th.name == "__sp" =>
             currentStatus = FlowAnalyzerForTheRest.get(STA)(currentStatus, None, true)
             staSpIsNow = true
 
-          case AssemblyLine0(op, _, MemoryAddressConstant(th: Thing))
+          case AssemblyLine0(op, ZeroPage | Absolute | LongAbsolute, MemoryAddressConstant(th: Thing))
             if th.name == "__sp" &&  FlowAnalyzerForTheRest.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, None, true)
 
-          case AssemblyLine0(op, _, MemoryAddressConstant(th: Thing))
+          case AssemblyLine0(op, ZeroPage | Absolute | LongAbsolute, MemoryAddressConstant(th: Thing))
             if th.name == "__reg" &&  FlowAnalyzerForTheRest.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, Some(0), false)
 
-          case AssemblyLine0(op, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(n, _)))
+          case AssemblyLine0(op, ZeroPage | Absolute | LongAbsolute, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th: Thing), NumericConstant(n, _)))
             if th.name == "__reg" &&  FlowAnalyzerForTheRest.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, Some(n.toInt), false)
 
-          case AssemblyLine0(op, _, _) if FlowAnalyzerForTheRest.hasDefinition(op) =>
+          case AssemblyLine0(op, ZeroPage | Absolute | LongAbsolute | Relative | LongRelative, _) if FlowAnalyzerForTheRest.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForTheRest.get(op)(currentStatus, None, false)
 
           case AssemblyLine0(opcode, addrMode, _) =>

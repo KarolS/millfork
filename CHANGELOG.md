@@ -16,6 +16,8 @@
 
 * 6502: Fixed expressions of form `p[i] <<= 1`.
 
+* 6502: Fixed optimizations involving the zeropage pseudoregister.
+
 * Other fixes and improvements.
 
 ## 0.3.4

@@ -389,7 +389,7 @@ object ZeropageRegisterOptimizations {
   val LoadingKnownValue = new RuleBasedAssemblyOptimization("Loading known value from register",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
     MultipleAssemblyRules((0 to 4).map{ zregIndex =>
-      (Elidable & HasOpcodeIn(LDA, ADC, SBC, CMP, EOR, AND, ORA, LDX, LDY, CPX, CPY) & RefersToOrUses("__reg", zregIndex) & MatchZpReg(1, zregIndex)) ~~> { (code, ctx) =>
+      (Elidable & HasOpcodeIn(LDA, ADC, SBC, CMP, EOR, AND, ORA, LDX, LDY, CPX, CPY) & RefersTo("__reg", zregIndex) & MatchZpReg(1, zregIndex)) ~~> { (code, ctx) =>
         List(AssemblyLine.immediate(code.head.opcode, ctx.get[Int](1)))
       }
     })
