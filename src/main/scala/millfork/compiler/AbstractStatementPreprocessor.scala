@@ -366,10 +366,10 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
           if (dot && ok) {
             val pointer = result match {
               case DerefExpression(inner, 0, _) =>
-                inner
+                optimizeExpr(inner, currentVarValues).pos(pos)
               case DerefExpression(inner, offset, targetType) =>
                 ("pointer." + targetType.name) <| SumExpression(List(
-                  false -> ("pointer" <| inner),
+                  false -> ("pointer" <| optimizeExpr(inner, currentVarValues).pos(pos)),
                   false -> LiteralExpression(offset, 2)
                 ), decimal = false)
               case IndexedExpression(name, index) =>
@@ -391,16 +391,44 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 ok = false
             }
           } else if (ok) {
+            val (actualFieldName, pointerWrap): (String, Int) = AbstractExpressionCompiler.getActualFieldNameAndPointerWrap(fieldName)
             val currentResultType = AbstractExpressionCompiler.getExpressionType(env, env.log, result)
             result = currentResultType match {
               case PointerType(_, _, Some(target)) =>
-                val subvariables = env.getSubvariables(target).filter(x => x._1 == "." + fieldName)
+                val subvariables = env.getSubvariables(target).filter(x => x._1 == "." + actualFieldName)
                 if (subvariables.isEmpty) {
-                  ctx.log.error(s"Type `${target.name}` does not contain field `$fieldName`", result.position)
+                  ctx.log.error(s"Type `${target.name}` does not contain field `$actualFieldName`", result.position)
                   ok = false
                   LiteralExpression(0, 1)
                 } else {
-                  DerefExpression(optimizeExpr(result, currentVarValues).pos(pos), subvariables.head._2, subvariables.head._3)
+                  val inner = optimizeExpr(result, currentVarValues).pos(pos)
+                  val fieldOffset = subvariables.head._2
+                  val fieldType = subvariables.head._3
+                  pointerWrap match {
+                    case 0 =>
+                      DerefExpression(inner, fieldOffset, fieldType)
+                    case 1 =>
+                      ("pointer." + fieldType.name) <| SumExpression(List(
+                        false -> ("pointer" <| inner),
+                        false -> LiteralExpression(fieldOffset, 2)
+                      ), decimal = false)
+                    case 2 =>
+                     SumExpression(List(
+                        false -> ("pointer" <| inner),
+                        false -> LiteralExpression(fieldOffset, 2)
+                      ), decimal = false)
+                    case 10 =>
+                      "lo" <| SumExpression(List(
+                        false -> ("pointer" <| inner),
+                        false -> LiteralExpression(fieldOffset, 2)
+                      ), decimal = false)
+                    case 11 =>
+                      "hi" <| SumExpression(List(
+                        false -> ("pointer" <| inner),
+                        false -> LiteralExpression(fieldOffset, 2)
+                      ), decimal = false)
+                    case _ => throw new IllegalStateException
+                  }
                 }
               case _ =>
                 ctx.log.error("Invalid pointer type on the left-hand side of `->`", result.position)

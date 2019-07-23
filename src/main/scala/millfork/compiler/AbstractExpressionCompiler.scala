@@ -273,7 +273,16 @@ object AbstractExpressionCompiler {
       case DerefDebuggingExpression(_, 2) => w
       case DerefExpression(_, _, typ) => typ
       case IndirectFieldExpression(inner, firstIndices, fieldPath) =>
-        var currentType = getExpressionType(env, log, inner)
+        var currentType = inner match {
+          case VariableExpression(arrName) =>
+            env.maybeGet[Thing](arrName + ".array") match {
+              case Some(a: MfArray) =>
+                env.get[Type]("pointer." + a.elementType)
+              case _ =>
+                getExpressionType(env, log, inner)
+            }
+          case _ => getExpressionType(env, log, inner)
+        }
         var ok = true
         for(_ <- firstIndices) {
           currentType match {
@@ -289,24 +298,36 @@ object AbstractExpressionCompiler {
         for ((dot, fieldName, indices) <- fieldPath) {
           if (dot && ok) {
             fieldName match {
-              case "addr" => env.get[Type]("pointer")
-              case "pointer" => env.get[Type]("pointer." + currentType.name)
-              case "addr.hi" => b
-              case "addr.lo" => b
-              case "pointer.hi" => b
-              case "pointer.lo" => b
+              case "addr" => currentType = env.get[Type]("pointer")
+              case "pointer" => currentType = env.get[Type]("pointer." + currentType.name)
+              case "addr.hi" => currentType = b
+              case "addr.lo" => currentType = b
+              case "pointer.hi" => currentType = b
+              case "pointer.lo" => currentType = b
+              case _ =>
                 log.error(s"Unexpected subfield `$fieldName`", expr.position)
                 ok = false
             }
           } else if (ok) {
+            val (actualFieldName, pointerWrap): (String, Int) = getActualFieldNameAndPointerWrap(fieldName)
             currentType match {
               case PointerType(_, _, Some(targetType)) =>
-                val tuples = env.getSubvariables(targetType).filter(x => x._1 == "." + fieldName)
+                val tuples = env.getSubvariables(targetType).filter(x => x._1 == "." + actualFieldName)
                 if (tuples.isEmpty) {
-                  log.error(s"Type `$targetType` doesn't have field named `$fieldName`", expr.position)
+                  log.error(s"Type `$targetType` doesn't have field named `$actualFieldName`", expr.position)
                   ok = false
                 } else {
-                  currentType = tuples.head._3
+                  pointerWrap match {
+                    case 0 =>
+                      currentType = tuples.head._3
+                    case 1 =>
+                      currentType = env.get[Type]("pointer." + tuples.head._3)
+                    case 2 =>
+                      currentType = env.get[Type]("pointer")
+                    case 10 | 11 =>
+                      currentType = b
+                    case _ => throw new IllegalStateException
+                  }
                 }
               case _ =>
                 log.error(s"Type `$currentType` is not a pointer type", expr.position)
@@ -415,6 +436,24 @@ object AbstractExpressionCompiler {
     }
     expr.typeCache = t
     t
+  }
+
+  def getActualFieldNameAndPointerWrap(fieldName: String): (String, Int) = {
+    if (fieldName.endsWith(".pointer")) {
+      fieldName.stripSuffix(".pointer") -> 1
+    } else if (fieldName.endsWith(".addr")) {
+      fieldName.stripSuffix(".addr") -> 2
+    } else if (fieldName.endsWith(".addr.hi")) {
+      fieldName.stripSuffix(".addr.hi") -> 11
+    } else if (fieldName.endsWith(".pointer.hi")) {
+      fieldName.stripSuffix(".pointer.hi") -> 11
+    } else if (fieldName.endsWith(".addr.lo")) {
+      fieldName.stripSuffix(".addr.lo") -> 10
+    } else if (fieldName.endsWith(".pointer.lo")) {
+      fieldName.stripSuffix(".pointer.lo") -> 10
+    } else {
+      fieldName -> 0
+    }
   }
 
   def checkIndexType(ctx: CompilationContext, pointy: Pointy, index: Expression): Unit = {

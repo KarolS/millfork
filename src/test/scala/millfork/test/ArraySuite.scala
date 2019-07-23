@@ -429,6 +429,33 @@ class ArraySuite extends FunSuite with Matchers {
     }
   }
 
+  test("Pointers to array elements") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+      """
+        | struct coord { byte x, byte y }
+        |
+        | array(coord) c = [coord(1,2),coord(3,4)]
+        | array(byte) z = "hello!"
+        |
+        | word output @$c000
+        |
+        | void main () {
+        |   output = 354
+        |   output += word(c[0].pointer)
+        |   output -= c[0].addr
+        |   output += word(c[0].x.pointer)
+        |   output -= word(c[0].x.addr)
+        |   output += word(pointer.coord(c.addr)->x.addr)
+        |   output -= word(pointer.coord(c.addr)->x.pointer)
+        |   output += word(z[0].pointer)
+        |   output -= z[0].addr
+        | }
+        |
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(354)
+    }
+  }
+
   test("Invalid array things that will become valid in the future") {
     ShouldNotCompile(
       """

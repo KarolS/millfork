@@ -246,6 +246,8 @@ Note that you cannot access a whole array element if it's bigger than 2 bytes, b
     a[2].b0       // ok
     a[2].loword   // ok
     a[2].pointer  // ok     
+    a[2].addr     // ok
+    a[2].b0.addr  // ok, equal to the above on little-endian targets
 
 ## Built-in functions
 

@@ -335,6 +335,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         e match {
           case (".", "pointer", _) => Seq(e)
           case (".", f, _) if f.startsWith("pointer.") => Seq(e)
+          case (".", "addr", _) => Seq(e)
+          case (".", f, _) if f.startsWith("addr.") => Seq(e)
           case (".", f, i) => Seq((".", "pointer", Nil), ("->", f, i))
           case _ => Seq(e)
         }
