@@ -80,7 +80,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
         val maxPossibleProfit = savedInCallers - extractedProcedureSize
         // (instances.length >=2) println(s"Instances: ${instances.length}, max profit: $maxPossibleProfit:  $instances")
         if (maxPossibleProfit > 0 && instances.length >= 2) {
-          println(s"Instances: ${instances.length}, max profit: $maxPossibleProfit:  $instances")
+          env.log.trace(s"Instances: ${instances.length}, max profit: $maxPossibleProfit:  $instances")
           instances.map(_ -> maxPossibleProfit)
         } else Nil // TODO
     }.toSeq
@@ -91,8 +91,8 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
       threshold = chunksWithThresholds.filter(c => c._2 >= threshold).map(_._2).min + 1
       chunks = chunksWithThresholds.filter(c => c._2 >= threshold).map(_._1)
     }
-    println(s"Requiring $threshold profit trimmed the chunk candidate list from ${chunksWithThresholds.size} to ${chunks.size}")
-    if (chunks.length < 20) println(s"Chunks: ${chunks.length} $chunks") else println(s"Chunks: ${chunks.length}")
+    env.log.debug(s"Requiring $threshold profit trimmed the chunk candidate list from ${chunksWithThresholds.size} to ${chunks.size}")
+    if (chunks.length < 20) env.log.debug(s"Chunks: ${chunks.length} $chunks") else env.log.debug(s"Chunks: ${chunks.length}")
     val candidates: Seq[(Int, Map[List[T], Seq[CodeChunk[T]]])] = powerSet(chunks)((set, chunk) => !set.exists(_ & chunk)).filter(_.nonEmpty).filter(set => (for {
       x <- set
       y <- set
@@ -117,12 +117,12 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
 //    candidates.sortBy(_._1).foreach {
 //      case (profit, map) =>
 //        if (profit > 0) {
-//          println(s"Profit: $profit ${map.map { case (_, instances) => s"${instances.length}×${instances.head}" }.mkString(" ; ")}")
+//          env.log.trace(s"Profit: $profit ${map.map { case (_, instances) => s"${instances.length}×${instances.head}" }.mkString(" ; ")}")
 //        }
 //    }
     if (candidates.nonEmpty) {
       val best = candidates.maxBy(_._1)
-      //println(s"Best extraction candidate: $best")
+      //env.log.debug(s"Best extraction candidate: $best")
       val allAffectedFunctions = best._2.values.flatten.map(_.functionName).toSet
       val toRemove = allAffectedFunctions.map(_ -> mutable.Set[Int]()).toMap
       val toReplace = allAffectedFunctions.map(_ -> mutable.Map[Int, String]()).toMap
@@ -346,7 +346,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
         result += CodeChunk(functionName, cursor, cursor + good.length)(removePositionInfo(good))
         cursor += good.length
       } else {
-        //println(s"Snippets in $functionName: $result")
+        //env.log.debug(s"Snippets in $functionName: $result")
         return result.toList
       }
     }
@@ -358,11 +358,11 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
     def pwr(t: Iterable[A], ps: Set[Set[A]]): Set[Set[A]] =
       if (t.isEmpty) ps
       else {
-        println(s"Powerset size so far: ${ps.size} Remaining chunks: ${t.size}")
+        env.log.trace(s"Powerset size so far: ${ps.size} Remaining chunks: ${t.size}")
         pwr(t.tail, ps ++ (ps.filter(p => f(p, t.head)) map (_ + t.head)))
       }
     val ps = pwr(t, Set(Set.empty[A]))
-    println("Powerset size: "+  ps.size)
+    env.log.trace("Powerset size: " +  ps.size)
     ps
   }
 }
