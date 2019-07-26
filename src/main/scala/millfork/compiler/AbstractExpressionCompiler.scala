@@ -139,8 +139,12 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
       return
     }
     params.foreach { param =>
-      if (!getExpressionType(ctx, param).isInstanceOf[BooleanType])
-        ctx.log.fatal("Parameter should be boolean", param.position)
+      getExpressionType(ctx, param) match {
+        case _: BooleanType =>
+        case FatBooleanType =>
+        case _=>
+          ctx.log.fatal("Parameter should be boolean", param.position)
+      }
     }
   }
 
@@ -150,8 +154,12 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
       return
     }
     params.foreach { param =>
-      if (!getExpressionType(ctx, param).isInstanceOf[BooleanType])
-        ctx.log.fatal("Parameter should be boolean", param.position)
+      getExpressionType(ctx, param) match {
+        case _: BooleanType =>
+        case FatBooleanType =>
+        case _=>
+          ctx.log.fatal("Parameter should be boolean", param.position)
+      }
     }
   }
 

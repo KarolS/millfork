@@ -16,7 +16,6 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
 
 
   def compile(ctx: CompilationContext, statement: ExecutableStatement): (List[ZLine], List[ZLine])= {
-    ctx.log.trace(statement.toString)
     val options = ctx.options
     val env = ctx.env
     val ret = Z80Compiler.restoreRegistersAndReturn(ctx)
@@ -53,6 +52,9 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
               Z80ExpressionCompiler.compileToHL(ctx, e) ++ fixStackOnReturn(ctx) ++
                 List(ZLine.implied(DISCARD_A), ZLine.implied(DISCARD_BC)) ++ ret
           }
+          case FatBooleanType =>
+            Z80ExpressionCompiler.compileToFatBooleanInA(ctx, e) ++ fixStackOnReturn(ctx) ++
+              List(ZLine.implied(DISCARD_F), ZLine.implied(DISCARD_HL), ZLine.implied(DISCARD_BC), ZLine.implied(DISCARD_DE), ZLine.implied(RET))
           case t =>
             AbstractExpressionCompiler.checkAssignmentType(ctx, e, ctx.function.returnType)
             t.size match {
@@ -97,9 +99,17 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         AbstractExpressionCompiler.checkAssignmentType(ctx, source, targetType)
         (sourceType.size match {
           case 0 =>
-            ctx.log.error("Cannot assign a void expression", statement.position)
-            Z80ExpressionCompiler.compile(ctx, source, ZExpressionTarget.NOTHING, BranchSpec.None) ++
-              Z80ExpressionCompiler.compile(ctx, destination, ZExpressionTarget.NOTHING, BranchSpec.None)
+            sourceType match {
+              case _:ConstantBooleanType =>
+                Z80ExpressionCompiler.compileToA(ctx, source) ++ Z80ExpressionCompiler.storeA(ctx, destination, signedSource = false)
+              case _:BooleanType =>
+                  // TODO: optimize
+                Z80ExpressionCompiler.compileToFatBooleanInA(ctx, source) ++ Z80ExpressionCompiler.storeA(ctx, destination, signedSource = false)
+              case _ =>
+                ctx.log.error("Cannot assign a void expression", statement.position)
+                Z80ExpressionCompiler.compile(ctx, source, ZExpressionTarget.NOTHING, BranchSpec.None) ++
+                  Z80ExpressionCompiler.compile(ctx, destination, ZExpressionTarget.NOTHING, BranchSpec.None)
+            }
           case 1 => Z80ExpressionCompiler.compileToA(ctx, source) ++ Z80ExpressionCompiler.storeA(ctx, destination, sourceType.isSigned)
           case 2 =>
             ctx.env.eval(source) match {
@@ -311,8 +321,15 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
 
   def areBlocksLarge(blocks: List[ZLine]*): Boolean = false
 
-  override def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[ZLine] =
-    Z80ExpressionCompiler.compile(ctx, expr, ZExpressionTarget.NOTHING, branching)
+  override def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[ZLine] = {
+    if (AbstractExpressionCompiler.getExpressionType(ctx, expr) == FatBooleanType) {
+      val prepareA = Z80ExpressionCompiler.compile(ctx, expr, ZExpressionTarget.A, branching)
+      if (Z80ExpressionCompiler.areSZFlagsBasedOnA(prepareA)) prepareA
+      else prepareA :+ ZLine.register(OR, ZRegister.A)
+    } else {
+      Z80ExpressionCompiler.compile(ctx, expr, ZExpressionTarget.NOTHING, branching)
+    }
+  }
 
   override def replaceLabel(ctx: CompilationContext, line: ZLine, from: String, to: String): ZLine = line.parameter match {
     case MemoryAddressConstant(Label(l)) if l == from => line.copy(parameter = MemoryAddressConstant(Label(to)))

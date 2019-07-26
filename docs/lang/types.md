@@ -79,6 +79,8 @@ Its actual value is defined using the feature `NULLPTR`, by default it's 0.
 
 TODO
 
+* `bool` – a 1-byte boolean value
+
 ## Special types
 
 * `void` – a unit type containing no information, can be only used as a return type for a function.

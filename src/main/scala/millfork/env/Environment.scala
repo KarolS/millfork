@@ -417,6 +417,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(falseType, None)
     addThing(ConstantThing("true", NumericConstant(1, 0), trueType), None)
     addThing(ConstantThing("false", NumericConstant(0, 0), falseType), None)
+    addThing(FatBooleanType, None)
     val nullptrValue = options.features.getOrElse("NULLPTR", 0L)
     val nullptrConstant = NumericConstant(nullptrValue, 2)
     addThing(ConstantThing("nullptr", nullptrConstant, NullType), None)

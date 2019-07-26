@@ -24,7 +24,7 @@ class SymonTestRam(mem: MemoryBank) extends Device(0x0000, 0xffff, "RAM") {
 
   override def write(i: Int, i1: Int): Unit = {
     if (!mem.writeable(i)) {
-      throw new RuntimeException(s"Can't write to $$${i.toHexString}")
+      throw new RuntimeException(s"Can't write $$${i1.&(0xff).toHexString} to $$${i.toHexString}")
     }
     mem.output(i) = i1.toByte
   }

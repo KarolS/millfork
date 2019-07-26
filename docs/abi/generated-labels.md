@@ -14,6 +14,8 @@ where `11111` is a sequential number and `xx` is the type:
 
 * `bc` – array bounds checking (`-fbounds-checking`)
 
+* `bo` – boolean type conversions
+
 * `c8` – constant `#8` for `BIT` when immediate addressing is not available
 
 * `co` – greater-than comparison

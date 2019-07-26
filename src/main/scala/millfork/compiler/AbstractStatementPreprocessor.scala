@@ -214,7 +214,8 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         search(arg, cv - v)
       case FunctionCallExpression(name, params)
         if hiddenEffectFreeFunctions(name) || env.maybeGet[Type](name).isDefined =>
-        params.map(p => search(p, cv)).reduce(commonVV)
+        if (params.isEmpty) cv // to handle compilation errors
+        else params.map(p => search(p, cv)).reduce(commonVV)
       case FunctionCallExpression(_, _) => cv -- nonreentrantVars
       case SumExpression(params, _) => params.map(p => search(p._2, cv)).reduce(commonVV)
       case HalfWordExpression(arg, _) => search(arg, cv)

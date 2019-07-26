@@ -25,7 +25,11 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
 
   def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
-    MosExpressionCompiler.compile(ctx, expr, Some(b, RegisterVariable(MosRegister.A, b)), branching)
+    val prepareA = MosExpressionCompiler.compile(ctx, expr, Some(b, RegisterVariable(MosRegister.A, b)), branching)
+    if (AbstractExpressionCompiler.getExpressionType(ctx, expr) == FatBooleanType) {
+      if (MosExpressionCompiler.areNZFlagsBasedOnA(prepareA)) prepareA
+      else prepareA :+ AssemblyLine.immediate(CMP, 0)
+    } else prepareA
   }
 
   override def replaceLabel(ctx: CompilationContext, line: AssemblyLine, from: String, to: String): AssemblyLine = line.parameter match {
@@ -249,6 +253,10 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + "`return")) ++
                   stackPointerFixBeforeReturn(ctx) ++ returnInstructions
             }
+          case FatBooleanType =>
+            MosExpressionCompiler.compileToFatBooleanInA(ctx, e) ++
+              stackPointerFixBeforeReturn(ctx, preserveA = true) ++
+              List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
           case _ =>
             AbstractExpressionCompiler.checkAssignmentType(ctx, e, m.returnType)
             m.returnType.size match {

@@ -1,6 +1,6 @@
 package millfork.compiler.mos
 
-import millfork.CompilationFlag
+import millfork.{CompilationFlag, env}
 import millfork.assembly.Elidability
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
@@ -418,6 +418,83 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
   }
   val noop: List[AssemblyLine] = Nil
 
+  def areNZFlagsBasedOnA(code: List[AssemblyLine]): Boolean = {
+    for (line <- code.reverse) {
+      line.opcode match {
+        case TXA | LDA | ADC | EOR | SBC | AND | ORA | TYA | TZA | PLA | LAX => return true
+        case CMP => return line.addrMode == Immediate && line.parameter.isProvablyZero
+        case STA | STX | STY | STZ | SAX |
+             STA_W | STX_W | STY_W | STZ_W |
+             CLD | SED | CLV | SEI | CLI | SEC | CLC |
+             NOP => ()
+        case ASL | LSR | ROL | ROR | INC | DEC => return line.addrMode == Implied
+        case _ => return false
+      }
+    }
+    false
+  }
+
+  def compileToFatBooleanInA(ctx: CompilationContext, expr: Expression): List[AssemblyLine] = {
+    val env = ctx.env
+    val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, expr)
+    sourceType match {
+      case FatBooleanType | _:ConstantBooleanType =>
+        compileToA(ctx, expr)
+      case _: FlagBooleanType | BuiltInBooleanType =>
+        val label = env.nextLabel("bo")
+        val condition = compile(ctx, expr, None, BranchIfFalse(label))
+        if (condition.isEmpty) {
+          ???
+        }
+        val conditionWithoutJump = condition.init
+        val hasOnlyOneJump = !conditionWithoutJump.exists(_.refersTo(label))
+        // TODO: helper functions to convert flags to booleans, to make code smaller
+        if (hasOnlyOneJump) {
+          condition.last.opcode match {
+            case BCC =>
+              // our bool is in the carry flag
+              // 3 bytes 4 cycles
+              return conditionWithoutJump ++ List(AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL))
+            case BCS if !ctx.options.flag(CompilationFlag.OptimizeForSpeed) =>
+              // our bool is in the carry flag, negated
+              // 5 bytes 6 cycles
+              return conditionWithoutJump ++ List(AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL), AssemblyLine.immediate(EOR, 1))
+            case BPL if areNZFlagsBasedOnA(conditionWithoutJump) =>
+              // our bool is in the N flag and the 7th bit of A
+              // 4 bytes 6 cycles
+              return conditionWithoutJump ++ List(AssemblyLine.implied(ASL), AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL))
+            case BMI if areNZFlagsBasedOnA(conditionWithoutJump) && ctx.options.flag(CompilationFlag.OptimizeForSize)=>
+              // our bool is in the N flag and the 7th bit of A, negated
+              // 6 bytes 8 cycles
+              return conditionWithoutJump ++ List(AssemblyLine.implied(ASL), AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL), AssemblyLine.immediate(EOR, 1))
+            case _ =>
+          }
+        }
+        if (hasOnlyOneJump) {
+          condition.last.opcode match {
+            case BCC | BCS | BVC | BVS =>
+              // 7 bytes; for true: 5 cycles, for false 6 cycles
+              return conditionWithoutJump ++ List(
+                AssemblyLine.immediate(LDA, 0),
+                condition.last,
+                AssemblyLine.immediate(LDA, 1),
+                AssemblyLine.label(label))
+            case _ => ()
+          }
+        }
+        val skip = env.nextLabel("bo")
+        // at most 9 bytes; for true: 7 cycles, for false 5 cycles
+        condition ++ List(
+          AssemblyLine.immediate(LDA, 1),
+          AssemblyLine.absolute(JMP, Label(skip)),
+          AssemblyLine.label(label),
+          AssemblyLine.immediate(LDA, 0),
+          AssemblyLine.label(skip))
+      case _ =>
+        println(sourceType)
+        ???
+    }
+  }
 
   def compileToA(ctx: CompilationContext, expr: Expression): List[AssemblyLine] = {
     val env = ctx.env
@@ -523,6 +600,20 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case _ =>
     }
     val b = env.get[Type]("byte")
+    val exprType = AbstractExpressionCompiler.getExpressionType(ctx, expr)
+    if (branches != NoBranching) {
+      (exprType, branches) match {
+        case (FatBooleanType, _) =>
+          return compile(ctx, FunctionCallExpression("!=", List(expr, LiteralExpression(0, 1))), exprTypeAndVariable, branches)
+        case (ConstantBooleanType(_, false), BranchIfTrue(_)) | (ConstantBooleanType(_, true), BranchIfFalse(_))=>
+          return compile(ctx, expr, exprTypeAndVariable, NoBranching)
+        case (ConstantBooleanType(_, true), BranchIfTrue(x)) =>
+          return compile(ctx, expr, exprTypeAndVariable, NoBranching) :+ AssemblyLine.absolute(JMP, Label(x))
+        case (ConstantBooleanType(_, false), BranchIfFalse(x)) =>
+          return compile(ctx, expr, exprTypeAndVariable, NoBranching) :+ AssemblyLine.absolute(JMP, Label(x))
+        case _ => ()
+      }
+    }
     val w = env.get[Type]("word")
     expr match {
       case HalfWordExpression(expression, _) => ??? // TODO
@@ -1653,6 +1744,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             AssemblyLine.implied(PLA))
         }
       case (t, v: VariableInMemory) => t.size match {
+        case 0 => ???
         case 1 => v.typ.size match {
           case 1 =>
             AssemblyLine.variable(ctx, STA, v)
@@ -1876,7 +1968,11 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case VariableExpression(name) =>
         val v = env.get[Variable](name, target.position)
         // TODO check v.typ
-        compile(ctx, source, Some((sourceType, v)), NoBranching)
+        if (v.typ == FatBooleanType) {
+          compileToFatBooleanInA(ctx, source) ++ compileByteStorage(ctx, MosRegister.A, target)
+        } else {
+          compile(ctx, source, Some((sourceType, v)), NoBranching)
+        }
       case SeparateBytesExpression(h: LhsExpression, l: LhsExpression) =>
         compile(ctx, source, Some(w, RegisterVariable(MosRegister.AX, w)), NoBranching) ++
           compileByteStorage(ctx, MosRegister.A, l) ++ compileByteStorage(ctx, MosRegister.X, h)

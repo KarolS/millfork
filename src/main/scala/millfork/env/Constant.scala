@@ -269,7 +269,7 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
   override def quickSimplify: Constant = {
     val simplified = base.quickSimplify
     simplified match {
-      case NumericConstant(x, size) => if (index >= size) {
+      case NumericConstant(x, size) => if (index != 0 && index >= size) {
         Constant.Zero
       } else {
         NumericConstant((x >> (index * 8)) & 0xff, 1)

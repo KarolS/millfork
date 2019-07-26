@@ -21,6 +21,72 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
 
   def compileToA(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.A)
 
+  def compileToFatBooleanInA(ctx: CompilationContext, expression: Expression): List[ZLine] = {
+    val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, expression)
+    sourceType match {
+      case FatBooleanType | _: ConstantBooleanType => compileToA(ctx, expression)
+      case BuiltInBooleanType | _: FlagBooleanType =>
+        // TODO optimize if using CARRY
+        // TODO: helper functions to convert flags to booleans, to make code smaller
+        val label = ctx.env.nextLabel("bo")
+        val condition = Z80ExpressionCompiler.compile(ctx, expression, ZExpressionTarget.NOTHING, BranchIfFalse(label))
+        val conditionWithoutJump = condition.init
+        val hasOnlyOneJump = !conditionWithoutJump.exists(_.refersTo(label))
+        if (hasOnlyOneJump && (condition.last.opcode == JP || condition.last.opcode == JR)) {
+          import ZRegister._
+          condition.last.registers match {
+            case IfFlagClear(ZFlag.C) =>
+              // our bool is in the carry flag
+              return conditionWithoutJump ++ List(ZLine.ldImm8(A, 0), ZLine.implied(RLA))
+            case IfFlagSet(ZFlag.C) =>
+              // our bool is in the carry flag, negated
+              return conditionWithoutJump ++ List(ZLine.ldImm8(A, 0), ZLine.implied(CCF), ZLine.implied(RLA))
+            case IfFlagClear(ZFlag.S) if areSZFlagsBasedOnA(conditionWithoutJump) =>
+              // our bool is in the sign flag and the 7th bit of A
+              return conditionWithoutJump ++ List(ZLine.implied(RLCA), ZLine.imm8(AND, 1))
+            case IfFlagSet(ZFlag.S) if areSZFlagsBasedOnA(conditionWithoutJump) =>
+              // our bool is in the sign flag and the 7th bit of A, negated
+              return conditionWithoutJump ++ List(ZLine.implied(RLCA), ZLine.imm8(XOR, 1), ZLine.imm8(AND, 1))
+            case _ =>
+              // TODO: helper functions to convert flags to booleans, to make code smaller
+          }
+        }
+        if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) {
+          val skip = ctx.env.nextLabel("bo")
+          condition ++ List(
+            ZLine.ldImm8(ZRegister.A, 1),
+            ZLine.jumpR(ctx, skip),
+            ZLine.label(label),
+            ZLine.ldImm8(ZRegister.A, 0),
+            ZLine.label(skip)
+          )
+        } else {
+          conditionWithoutJump ++ List(
+            ZLine.ldImm8(ZRegister.A, 0),
+            condition.last,
+            ZLine.register(INC, ZRegister.A),
+            ZLine.label(label)
+          )
+        }
+      case _ =>
+        println(sourceType)
+        ???
+    }
+  }
+
+  def areSZFlagsBasedOnA(code: List[ZLine]): Boolean = {
+    for (line <- code.reverse) {
+      line.opcode match {
+        case ADD | SUB | SBC | ADC | XOR | OR | AND => return true
+        case CP => return line.registers == OneRegister(ZRegister.IMM_8) && line.parameter.isProvablyZero
+        case LD | LD_16 | NOP | POP => ()
+        case RR | RL | SLA | SLL | RRC | RLC | SRA | SRL => return line.registers == OneRegister(ZRegister.A)
+        case _ => return false
+      }
+    }
+    false
+  }
+
   def compile8BitTo(ctx: CompilationContext, expression: Expression, register: ZRegister.Value): List[ZLine] = {
     if (ZRegister.A == register) compileToA(ctx, expression) else {
       val toA = compileToA(ctx, expression)
@@ -239,6 +305,20 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     val env = ctx.env
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")
+    val exprType = AbstractExpressionCompiler.getExpressionType(ctx, expression)
+    if (branches != NoBranching) {
+      (exprType, branches) match {
+        case (FatBooleanType, _) =>
+          return compile(ctx, FunctionCallExpression("!=", List(expression, LiteralExpression(0, 1))), target, branches)
+        case (ConstantBooleanType(_, false), BranchIfTrue(_)) | (ConstantBooleanType(_, true), BranchIfFalse(_))=>
+          return compile(ctx, expression, target, NoBranching)
+        case (ConstantBooleanType(_, true), BranchIfTrue(x)) =>
+          return compile(ctx, expression, target, NoBranching) :+ ZLine.jump(x)
+        case (ConstantBooleanType(_, false), BranchIfFalse(x)) =>
+          return compile(ctx, expression, target, NoBranching) :+ ZLine.jump(x)
+        case _ => ()
+      }
+    }
     env.eval(expression) match {
       case Some(const) =>
         target match {

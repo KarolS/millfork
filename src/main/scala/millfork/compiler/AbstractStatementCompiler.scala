@@ -48,7 +48,8 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
       case ConstantBooleanType(_, true) =>
         List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
       case ConstantBooleanType(_, false) => Nil
-      case FlagBooleanType(_, jumpIfTrue, jumpIfFalse) =>
+      case _:FlagBooleanType | FatBooleanType =>
+        val (jumpIfTrue, jumpIfFalse) = getJumpIfTrueAndFalse(ctx, condType)
         if (largeBodyBlock) {
           val conditionBlock = compileExpressionForBranching(ctx, s.condition, NoBranching)
           List(labelChunk(start), conditionBlock, branchChunk(jumpIfTrue, middle), jmpChunk(end), labelChunk(middle), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
@@ -86,7 +87,8 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, jmpChunk(start), labelChunk(end)).flatten
       case ConstantBooleanType(_, false) =>
         List(bodyBlock, labelChunk(inc), incrementBlock, labelChunk(end)).flatten
-      case FlagBooleanType(_, jumpIfTrue, jumpIfFalse) =>
+      case _:FlagBooleanType | FatBooleanType =>
+        val (jumpIfTrue, jumpIfFalse) = getJumpIfTrueAndFalse(ctx, condType)
         val conditionBlock = compileExpressionForBranching(ctx, s.condition, NoBranching)
         if (largeBodyBlock) {
           List(labelChunk(start), bodyBlock, labelChunk(inc), incrementBlock, conditionBlock, branchChunk(jumpIfFalse, end), jmpChunk(start), labelChunk(end)).flatten
@@ -417,6 +419,13 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
     }
   }
 
+  private def getJumpIfTrueAndFalse(ctx: CompilationContext, condType: Type): (BranchingOpcodeMapping, BranchingOpcodeMapping) = condType match {
+    case FlagBooleanType(_, jumpIfTrue, jmpIfFalse) => jumpIfTrue -> jmpIfFalse
+    case FatBooleanType =>
+      val cz = ctx.env.get[FlagBooleanType]("clear_zero")
+      cz.jumpIfTrue -> cz.jumpIfFalse
+  }
+
   def compileIfStatement(ctx: CompilationContext, s: IfStatement): (List[T], List[T]) = {
     val condType = AbstractExpressionCompiler.getExpressionType(ctx, s.condition)
     val (thenBlock, extra1) = compile(ctx, s.thenBranch)
@@ -428,7 +437,8 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         compileExpressionForBranching(ctx, s.condition, NoBranching) ++ thenBlock
       case ConstantBooleanType(_, false) =>
         compileExpressionForBranching(ctx, s.condition, NoBranching) ++ elseBlock
-      case FlagBooleanType(_, jumpIfTrue, jumpIfFalse) =>
+      case _:FlagBooleanType | FatBooleanType =>
+        val (jumpIfTrue, jumpIfFalse) = getJumpIfTrueAndFalse(ctx, condType)
         (s.thenBranch, s.elseBranch) match {
           case (Nil, Nil) =>
             compileExpressionForBranching(ctx, s.condition, NoBranching)

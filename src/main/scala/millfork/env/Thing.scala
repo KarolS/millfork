@@ -118,10 +118,26 @@ case class UnionType(name: String, fields: List[(String, String)]) extends Compo
   override def isSigned: Boolean = false
 }
 
+case object FatBooleanType extends VariableType {
+  override def size: Int = 1
+
+  override def isSigned: Boolean = false
+
+  override def name: String = "bool"
+
+  override def isPointy: Boolean = false
+
+  override def isSubtypeOf(other: Type): Boolean = this == other
+
+  override def isAssignableTo(targetType: Type): Boolean = this == targetType
+}
+
 sealed trait BooleanType extends Type {
   def size = 0
 
   def isSigned = false
+
+  override def isAssignableTo(targetType: Type): Boolean = isCompatible(targetType) || targetType == FatBooleanType
 }
 
 case class ConstantBooleanType(name: String, value: Boolean) extends BooleanType
