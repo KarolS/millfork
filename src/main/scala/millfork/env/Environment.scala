@@ -599,7 +599,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   private def evalImpl(e: Expression, vv: Option[Map[String, Constant]]): Option[Constant] = {
     e match {
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
-      case _:TextLiteralExpression => ???
+      case tl:TextLiteralExpression => Some(getPointy(getTextLiteralArrayName(tl)).asInstanceOf[ConstantPointy].value)
       case ConstantArrayElementExpression(c) => Some(c)
       case GeneratedConstantExpression(c, t) => Some(c)
       case VariableExpression(name) =>
@@ -1158,6 +1158,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       get[Type]("function.void.to." + f.returnType.name)
     case p :: _ => // TODO: this only handles one type though!
       get[Type]("function." + p.name + ".to." + f.returnType.name)
+  }
+
+  def getTextLiteralArrayName(literal: TextLiteralExpression): String = {
+    val name = "textliteral$" ++ literal.characters.flatMap {
+      case LiteralExpression(n, _) =>
+        f"$n%02x"
+      case _ => ???
+    }
+    if (maybeGet[Thing](name).isEmpty) {
+      println("registering text literal")
+      root.registerArray(ArrayDeclarationStatement(name, None, None, "byte", None, const = true, Some(LiteralContents(literal.characters)), None).pos(literal.position), options)
+    }
+    name
   }
 
   private def registerAddressConstant(thing: ThingInMemory, position: Option[Position], options: CompilationOptions, targetType: Option[Type]): Unit = {

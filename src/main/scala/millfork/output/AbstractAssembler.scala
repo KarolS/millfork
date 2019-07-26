@@ -339,6 +339,15 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case _ =>
     }
 
+    // force early allocation of text literals:
+    env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach{
+      case thing@InitializedArray(_, _, items, _, _, _, _, _) =>
+        items.foreach(env.eval(_))
+      case InitializedMemoryVariable(_, _, _, value, _, _, _) =>
+        env.eval(value)
+      case _ =>
+    }
+
     if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
       env.allThings.things.foreach {
         case (_, m@UninitializedMemoryVariable(name, typ, _, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>

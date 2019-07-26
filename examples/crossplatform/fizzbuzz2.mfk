@@ -9,13 +9,9 @@ struct stage {
     pointer text
 }
 
-// can't put text literals directly in struct constructors yet
-array fizz = "fizz"z
-array buzz = "buzz"z
-
 array(stage) stages = [
-    stage(divisible3.pointer, fizz),
-    stage(divisible5.pointer, buzz)
+    stage(divisible3.pointer, "fizz"z),
+    stage(divisible5.pointer, "buzz"z)
 ]
 
 void main() {

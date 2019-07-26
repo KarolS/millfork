@@ -250,14 +250,6 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     }
   }
 
-  def genName(characters: List[Expression]): String = {
-    "textliteral$" ++ characters.flatMap{
-      case LiteralExpression(n, _) =>
-        f"$n%02x"
-      case _ => ???
-    }
-  }
-
   def optimizeExpr(expr: Expression, currentVarValues: VV): Expression = {
     val pos = expr.position
     // stdlib:
@@ -448,11 +440,8 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         DerefExpression(optimizeExpr(inner, currentVarValues), 0, env.get[VariableType]("byte")).pos(pos)
       case DerefDebuggingExpression(inner, 2) =>
         DerefExpression(optimizeExpr(inner, currentVarValues), 0, env.get[VariableType]("word")).pos(pos)
-      case TextLiteralExpression(characters) =>
-        val name = genName(characters)
-        if (ctx.env.maybeGet[Thing](name).isEmpty) {
-          ctx.env.root.registerArray(ArrayDeclarationStatement(name, None, None, "byte", None, const = true, Some(LiteralContents(characters)), None).pos(pos), ctx.options)
-        }
+      case e@TextLiteralExpression(characters) =>
+        val name = ctx.env.getTextLiteralArrayName(e)
         VariableExpression(name).pos(pos)
       case VariableExpression(v) if currentVarValues.contains(v) =>
         val constant = currentVarValues(v)
