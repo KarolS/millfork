@@ -26,7 +26,7 @@ void main() {
         for s,0,until,stages.length {
             if call(stages[s].predicate, i) {
                 printed = true
-                putstrz(stages[js].text)
+                putstrz(stages[s].text)
             }
         }
         if not(printed) {
