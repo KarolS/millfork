@@ -77,6 +77,9 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
     case s: Statement => getAllCalledFunctions(s.getAllExpressions)
     case s: VariableExpression => Set(
           s.name,
+          s.name.stripSuffix(".pointer"),
+          s.name.stripSuffix(".pointer.lo"),
+          s.name.stripSuffix(".pointer.hi"),
           s.name.stripSuffix(".addr"),
           s.name.stripSuffix(".hi"),
           s.name.stripSuffix(".lo"),

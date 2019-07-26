@@ -82,6 +82,14 @@ case class PointerType(name: String, targetName: String, var target: Option[Type
   override def pointerTargetName: String = targetName
 }
 
+case class FunctionPointerType(name: String, paramTypeName:String, returnTypeName: String, var paramType: Option[Type], var returnType: Option[Type]) extends VariableType {
+  def size = 2
+
+  override def isSigned: Boolean = false
+
+  override def isPointy: Boolean = false
+}
+
 case object NullType extends VariableType {
   override def size: Int = 2
 
@@ -91,9 +99,9 @@ case object NullType extends VariableType {
 
   override def isPointy: Boolean = true
 
-  override def isSubtypeOf(other: Type): Boolean = this == other || other.isPointy && other.size == 2
+  override def isSubtypeOf(other: Type): Boolean = this == other || (other.isPointy || other.isInstanceOf[FunctionPointerType]) && other.size == 2
 
-  override def isAssignableTo(targetType: Type): Boolean = this == targetType || targetType.isPointy && targetType.size == 2
+  override def isAssignableTo(targetType: Type): Boolean = this == targetType || (targetType.isPointy || targetType.isInstanceOf[FunctionPointerType]) && targetType.size == 2
 }
 
 case class EnumType(name: String, count: Option[Int]) extends VariableType {
@@ -340,6 +348,8 @@ sealed trait MangledFunction extends CallableThing {
   def params: ParamSignature
 
   def interrupt: Boolean
+
+  def canBePointedTo: Boolean
 }
 
 case class EmptyFunction(name: String,
@@ -348,6 +358,8 @@ case class EmptyFunction(name: String,
   override def params = EmptyFunctionParamSignature(paramType)
 
   override def interrupt = false
+
+  override def canBePointedTo: Boolean = false
 }
 
 case class MacroFunction(name: String,
@@ -356,6 +368,8 @@ case class MacroFunction(name: String,
                          environment: Environment,
                          code: List[ExecutableStatement]) extends MangledFunction {
   override def interrupt = false
+
+  override def canBePointedTo: Boolean = false
 }
 
 sealed trait FunctionInMemory extends MangledFunction with ThingInMemory {
@@ -381,6 +395,8 @@ case class ExternFunction(name: String,
   override def zeropage: Boolean = false
 
   override def isVolatile: Boolean = false
+
+  override def canBePointedTo: Boolean = !interrupt && returnType.size <= 2 && params.canBePointedTo && name !="call"
 }
 
 case class NormalFunction(name: String,
@@ -402,6 +418,8 @@ case class NormalFunction(name: String,
   override def zeropage: Boolean = false
 
   override def isVolatile: Boolean = false
+
+  override def canBePointedTo: Boolean = !interrupt && returnType.size <= 2 && params.canBePointedTo && name !="call"
 }
 
 case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing {
@@ -416,12 +434,16 @@ trait ParamSignature {
   def types: List[Type]
 
   def length: Int
+
+  def canBePointedTo: Boolean
 }
 
 case class NormalParamSignature(params: List[VariableInMemory]) extends ParamSignature {
   override def length: Int = params.length
 
   override def types: List[Type] = params.map(_.typ)
+
+  def canBePointedTo: Boolean = params.size <= 1 && params.forall(_.typ.size.<=(1))
 }
 
 sealed trait ParamPassingConvention {
@@ -464,17 +486,27 @@ object AssemblyParameterPassingBehaviour extends Enumeration {
   val Copy, ByReference, ByConstant = Value
 }
 
-case class AssemblyParam(typ: Type, variable: TypedThing, behaviour: AssemblyParameterPassingBehaviour.Value)
+case class AssemblyParam(typ: Type, variable: TypedThing, behaviour: AssemblyParameterPassingBehaviour.Value) {
+  def canBePointedTo: Boolean = behaviour == AssemblyParameterPassingBehaviour.Copy && (variable match {
+    case RegisterVariable(MosRegister.A | MosRegister.AX, _) => true
+    case ZRegisterVariable(ZRegister.A | ZRegister.HL, _) => true
+    case _ => false
+  })
+}
 
 
 case class AssemblyParamSignature(params: List[AssemblyParam]) extends ParamSignature {
   override def length: Int = params.length
 
   override def types: List[Type] = params.map(_.typ)
+
+  def canBePointedTo: Boolean = params.size <= 1 && params.forall(_.canBePointedTo)
 }
 
 case class EmptyFunctionParamSignature(paramType: Type) extends ParamSignature {
   override def length: Int = 1
 
   override def types: List[Type] = List(paramType)
+
+  def canBePointedTo: Boolean = false
 }

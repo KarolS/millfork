@@ -53,3 +53,8 @@ _lo_nibble_to_hex_lbl:
 macro asm void panic() {
     ? CALL _panic
 }
+
+noinline asm word call(word de) {
+    PUSH DE
+    RET
+}

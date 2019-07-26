@@ -59,12 +59,16 @@ abstract class CallGraph(program: Program, log: Logger) {
       case s: SumExpression =>
         s.expressions.foreach(expr => add(currentFunction, callingFunctions, expr._2))
       case x: VariableExpression =>
-        val varName = x.name.stripSuffix(".hi").stripSuffix(".lo").stripSuffix(".addr")
+        val varName = x.name.stripSuffix(".hi").stripSuffix(".lo").stripSuffix(".addr").stripSuffix(".pointer")
         everCalledFunctions += varName
+        entryPoints += varName // TODO: figure out how to interpret pointed-to functions
       case i: IndexedExpression =>
-        val varName = i.name.stripSuffix(".hi").stripSuffix(".lo").stripSuffix(".addr")
+        val varName = i.name.stripSuffix(".hi").stripSuffix(".lo").stripSuffix(".addr").stripSuffix(".pointer")
         everCalledFunctions += varName
+        entryPoints += varName
         add(currentFunction, callingFunctions, i.index)
+      case i: DerefExpression =>
+        add(currentFunction, callingFunctions, i.inner)
       case i: DerefDebuggingExpression =>
         add(currentFunction, callingFunctions, i.inner)
       case IndirectFieldExpression(root, firstIndices, fields) =>

@@ -8,7 +8,7 @@ import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.node.StandardCallGraph
-import millfork.parser.{MosParser, PreprocessingResult, Preprocessor}
+import millfork.parser.{MosParser, PreprocessingResult, Preprocessor, Z80Parser}
 import millfork._
 import millfork.compiler.m6809.M6809Compiler
 import millfork.compiler.z80.Z80Compiler
@@ -36,11 +36,27 @@ object ShouldNotCompile extends Matchers {
     log.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
+    if (source.contains("call(")) {
+      platform.cpuFamily match {
+        case CpuFamily.M6502 =>
+          effectiveSource += "\nnoinline asm word call(word ax) {\nJMP ((__reg.b2b3))\n}\n"
+        case CpuFamily.I80 =>
+          if (options.flag(CompilationFlag.UseIntelSyntaxForInput))
+            effectiveSource += "\nnoinline asm word call(word de) {\npush d\nret\n}\n"
+          else effectiveSource += "\nnoinline asm word call(word de) {\npush de\nret\n}\n"
+      }
+    }
     if (source.contains("import zp_reg"))
       effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
     log.setSource(Some(effectiveSource.linesIterator.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
-    val parserF = MosParser("", preprocessedSource, "", options, features)
+    val parserF =
+      platform.cpuFamily match {
+        case CpuFamily.M6502 =>
+          MosParser("", preprocessedSource, "", options, features)
+        case CpuFamily.I80 =>
+          Z80Parser("", preprocessedSource, "", options, features, options.flag(CompilationFlag.UseIntelSyntaxForInput))
+      }
     parserF.toAst match {
       case Success(program, _) =>
         log.assertNoErrors("Parse failed")

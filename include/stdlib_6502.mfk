@@ -47,4 +47,8 @@ macro asm void panic() {
     ? JSR _panic
 }
 
-array __constant8 = [8]
+const array __constant8 = [8]
+
+#if ZPREG_SIZE < 4
+const array call = [2]
+#endif

@@ -1,0 +1,102 @@
+package millfork.test
+
+import millfork.Cpu
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
+
+/**
+  * @author Karol Stasiak
+  */
+class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
+
+  test("Function pointers 1") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        |
+        | byte output @$c000
+        | void f1() {
+        |   output = 100
+        | }
+        |
+        | void main() {
+        |   function.void.to.void p1
+        |   p1 = f1.pointer
+        |   call(p1)
+        | }
+        |
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(100)
+    }
+  }
+
+  test("Function pointers 2") {
+    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      """
+        | const byte COUNT = 128
+        | array output0[COUNT] @$c000
+        | array output1[COUNT] @$c100
+        | array output2[COUNT] @$c200
+        | array output3[COUNT] @$c300
+        |
+        | void tabulate(pointer target, function.byte.to.byte f) {
+        |   byte i
+        |   for i,0,until,COUNT {
+        |     target[i] = call(f, i)
+        |   }
+        | }
+        |
+        | byte double(byte x) = x*2
+        | byte negate(byte x) = 0-x
+        | byte zero(byte x)   = 0
+        | byte id(byte x)     = x
+        |
+        | void main() {
+        |   tabulate(output0, zero.pointer)
+        |   tabulate(output1, id.pointer)
+        |   tabulate(output2, double.pointer)
+        |   tabulate(output3, negate.pointer)
+        | }
+        |
+      """.stripMargin) { m =>
+      for (i <- 0 until 0x80) {
+        m.readByte(0xc000 + i) should equal(0) withClue ("zero " + i)
+        m.readByte(0xc100 + i) should equal(i) withClue ("id " + i)
+        m.readByte(0xc200 + i) should equal(i * 2) withClue ("double " + i)
+        m.readByte(0xc300 + i) should equal((256 - i) & 0xff) withClue ("negate " + i)
+      }
+    }
+  }
+
+  test("Function pointers: invalid types") {
+    ShouldNotCompile(
+      """
+        |void main() {
+        | call(main.pointer, 1)
+        |}
+        |""".stripMargin)
+    ShouldNotCompile(
+      """
+        |void f(byte a) = 0
+        |void main() {
+        | call(f.pointer)
+        |}
+        |""".stripMargin)
+    ShouldNotCompile(
+      """
+        |enum e {}
+        |void f(e a) = 0
+        |void main() {
+        | call(f.pointer, 0)
+        |}
+        |""".stripMargin)
+    ShouldNotCompile(
+      """
+        |enum e {}
+        |void f(byte a) = 0
+        |void main() {
+        | call(f.pointer, e(7))
+        |}
+        |""".stripMargin)
+  }
+
+}

@@ -738,6 +738,37 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             })
           case f@FunctionCallExpression(name, params) =>
             name match {
+              case "call" =>
+                val callLine = ZLine(CALL, NoRegisters, env.get[ThingInMemory]("call").toAddress)
+                params match {
+                  case List(fp) =>
+                    getExpressionType(ctx, fp) match {
+                      case FunctionPointerType(_, _, _, _, Some(v)) if (v.name == "void") =>
+                        compileToDE(ctx, fp) :+ callLine
+                      case _ =>
+                        ctx.log.error("Not a function pointer", fp.position)
+                        compile(ctx, fp, ZExpressionTarget.NOTHING, BranchSpec.None)
+                    }
+                  case List(fp, param) =>
+                    getExpressionType(ctx, fp) match {
+                      case FunctionPointerType(_, _, _, Some(pt), Some(v)) =>
+                        if (pt.size != 1) {
+                          ctx.log.error("Invalid parameter type", param.position)
+                          compileToHL(ctx, fp) ++ compile(ctx, param, ZExpressionTarget.NOTHING)
+                        } else if (getExpressionType(ctx, param).isAssignableTo(pt)) {
+                          compileToDE(ctx, fp) ++ stashDEIfChanged(ctx, compileToA(ctx, param)) :+ callLine
+                        } else {
+                          ctx.log.error("Invalid parameter type", param.position)
+                          compileToHL(ctx, fp) ++ compile(ctx, param, ZExpressionTarget.NOTHING)
+                        }
+                      case _ =>
+                        ctx.log.error("Not a function pointer", fp.position)
+                        compile(ctx, fp, ZExpressionTarget.NOTHING) ++ compile(ctx, param, ZExpressionTarget.NOTHING)
+                    }
+                  case _ =>
+                    ctx.log.error("Invalid call syntax", f.position)
+                    Nil
+                }
               case "not" =>
                 assertBool(ctx, "not", params, 1)
                 compile(ctx, params.head, target, branches.flip)

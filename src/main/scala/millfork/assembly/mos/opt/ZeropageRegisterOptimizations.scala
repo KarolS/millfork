@@ -13,6 +13,7 @@ import millfork.error.FatalErrorReporting
 object ZeropageRegisterOptimizations {
 
   val functionsThatUsePseudoregisterAsInput: Map[String, Set[Int]] = Map(
+    "call" -> Set(2, 3),
     "__mul_u8u8u8" -> Set(0, 1),
     "__mod_u8u8u8u8" -> Set(0, 1),
     "__div_u8u8u8u8" -> Set(0, 1),

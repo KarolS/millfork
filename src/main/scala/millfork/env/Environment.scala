@@ -284,6 +284,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def get[T <: Thing : Manifest](name: String, position: Option[Position] = None): T = {
+    if (name.startsWith("function.") && implicitly[Manifest[T]].runtimeClass.isAssignableFrom(classOf[PointerType])) {
+      val tokens = name.stripPrefix("function.").split("\\.to\\.", 2)
+      if (tokens.length == 2) {
+        return FunctionPointerType(name, tokens(0), tokens(1), maybeGet[Type](tokens(0)), maybeGet[Type](tokens(1))).asInstanceOf[T]
+      }
+    }
     if (name.startsWith("pointer.") && implicitly[Manifest[T]].runtimeClass.isAssignableFrom(classOf[PointerType])) {
       val targetName = name.stripPrefix("pointer.")
       val target = maybeGet[VariableType](targetName)
@@ -1147,9 +1153,16 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  private def getFunctionPointerType(f: FunctionInMemory) = f.params.types match {
+    case List() =>
+      get[Type]("function.void.to." + f.returnType.name)
+    case p :: _ => // TODO: this only handles one type though!
+      get[Type]("function." + p.name + ".to." + f.returnType.name)
+  }
+
   private def registerAddressConstant(thing: ThingInMemory, position: Option[Position], options: CompilationOptions, targetType: Option[Type]): Unit = {
+    val b = get[Type]("byte")
     if (!thing.zeropage && options.flag(CompilationFlag.LUnixRelocatableCode)) {
-      val b = get[Type]("byte")
       val w = get[Type]("word")
       val relocatable = UninitializedMemoryVariable(thing.name + ".addr", w, VariableAllocationMethod.Static, None, defaultVariableAlignment(options, 2), isVolatile = false)
       val addr = relocatable.toAddress
@@ -1166,20 +1179,36 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addThing(ConstantThing(thing.name + ".rawaddr", rawaddr, get[Type]("pointer")), position)
       addThing(ConstantThing(thing.name + ".rawaddr.hi", rawaddr.hiByte, get[Type]("byte")), position)
       addThing(ConstantThing(thing.name + ".rawaddr.lo", rawaddr.loByte, get[Type]("byte")), position)
+      thing match {
+        case f: FunctionInMemory if f.canBePointedTo =>
+          val typedPointer = RelativeVariable(thing.name + ".pointer", addr, getFunctionPointerType(f), zeropage = false, None, isVolatile = false)
+          addThing(typedPointer, position)
+          addThing(RelativeVariable(thing.name + ".pointer.hi", addr + 1, b, zeropage = false, None, isVolatile = false), position)
+          addThing(RelativeVariable(thing.name + ".pointer.lo", addr, b, zeropage = false, None, isVolatile = false), position)
+        case _ =>
+      }
     } else {
       val addr = thing.toAddress
       addThing(ConstantThing(thing.name + ".addr", addr, get[Type]("pointer")), position)
-      addThing(ConstantThing(thing.name + ".addr.hi", addr.hiByte, get[Type]("byte")), position)
-      addThing(ConstantThing(thing.name + ".addr.lo", addr.loByte, get[Type]("byte")), position)
+      addThing(ConstantThing(thing.name + ".addr.hi", addr.hiByte, b), position)
+      addThing(ConstantThing(thing.name + ".addr.lo", addr.loByte, b), position)
       addThing(ConstantThing(thing.name + ".rawaddr", addr, get[Type]("pointer")), position)
-      addThing(ConstantThing(thing.name + ".rawaddr.hi", addr.hiByte, get[Type]("byte")), position)
-      addThing(ConstantThing(thing.name + ".rawaddr.lo", addr.loByte, get[Type]("byte")), position)
+      addThing(ConstantThing(thing.name + ".rawaddr.hi", addr.hiByte, b), position)
+      addThing(ConstantThing(thing.name + ".rawaddr.lo", addr.loByte, b), position)
       targetType.foreach { tt =>
         val pointerType = PointerType("pointer." + tt.name, tt.name, Some(tt))
         val typedPointer = RelativeVariable(thing.name + ".pointer", addr, pointerType, zeropage = false, None, isVolatile = false)
         addThing(ConstantThing(thing.name + ".pointer", addr, pointerType), position)
-        addThing(ConstantThing(thing.name + ".pointer.hi", addr.hiByte, get[Type]("byte")), position)
-        addThing(ConstantThing(thing.name + ".pointer.lo", addr.loByte, get[Type]("byte")), position)
+        addThing(ConstantThing(thing.name + ".pointer.hi", addr.hiByte, b), position)
+        addThing(ConstantThing(thing.name + ".pointer.lo", addr.loByte, b), position)
+      }
+      thing match {
+        case f: FunctionInMemory if f.canBePointedTo =>
+          val pointerType = getFunctionPointerType(f)
+          addThing(ConstantThing(thing.name + ".pointer", addr, pointerType), position)
+          addThing(ConstantThing(thing.name + ".pointer.hi", addr.hiByte, b), position)
+          addThing(ConstantThing(thing.name + ".pointer.lo", addr.loByte, b), position)
+        case _ =>
       }
     }
   }
@@ -1698,6 +1727,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (function.params.length != actualParams.length) {
         log.error(s"Invalid number of parameters for function `$name`", actualParams.headOption.flatMap(_._2.position))
       }
+      if (name == "call") return Some(function)
       function.params match {
         case NormalParamSignature(params) =>
           function.params.types.zip(actualParams).zip(params).foreach { case ((required, (actual, expr)), m) =>

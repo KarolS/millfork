@@ -156,6 +156,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     if (native16 && platform.cpu != millfork.Cpu.Sixteen) throw new IllegalStateException
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
+    if (source.contains("call(")) effectiveSource += "\nnoinline asm word call(word ax) {\nJMP ((__reg.b2b3))\n}\n"
     if (native16) effectiveSource +=
       """
         |

@@ -75,6 +75,25 @@ Its actual value is defined using the feature `NULLPTR`, by default it's 0.
 
 `nullptr` isn't directly assignable to non-pointer types. 
 
+## Function pointers
+
+For every type `A` of size 1 (or `void`) and every type `B` of size 1 or 2 (or `void`),
+there is a pointer type defined called `function.A.to.B`, which represents functions with a signature like this:
+
+    B function_name(A parameter)
+    B function_name()  // if A is void
+    
+Examples:
+
+    word i
+    function.void.to.word p1 = f1.pointer
+    i = call(p1)
+    function.byte.to.byte p2 = f2.pointer
+    i += call(p2, 7)
+    
+Using `call` on 6502 requires at least 4 bytes of zeropage pseudoregister. 
+
+
 ## Boolean types
 
 TODO

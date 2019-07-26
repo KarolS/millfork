@@ -8,6 +8,8 @@
 
 * Added `bool` type.
 
+* Added function pointers – so far quite limited.
+
 * Added arrays of elements of size greater than byte.
 
 * Improved passing of register parameters to assembly functions.

@@ -1,0 +1,38 @@
+
+import stdio
+
+bool divisible3(byte x) = x %% 3 == 0
+bool divisible5(byte x) = x %% 5 == 0
+
+struct stage {
+    function.byte.to.bool predicate
+    pointer text
+}
+
+// can't put text literals directly in struct constructors yet
+array fizz = "fizz"z
+array buzz = "buzz"z
+
+array(stage) stages = [
+    stage(divisible3.pointer, fizz),
+    stage(divisible5.pointer, buzz)
+]
+
+void main() {
+    byte i, s
+    bool printed
+    for i,1,to,100 {
+        printed = false
+        for s,0,until,stages.length {
+            if call(stages[s].predicate, i) {
+                printed = true
+                putstrz(stages[js].text)
+            }
+        }
+        if not(printed) {
+            putword(i)
+        }
+        putchar(' ')
+    }
+}
+

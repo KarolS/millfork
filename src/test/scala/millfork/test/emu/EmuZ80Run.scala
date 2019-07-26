@@ -92,6 +92,11 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     log.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
+    if (source.contains("call(")) {
+      if (options.flag(CompilationFlag.UseIntelSyntaxForInput))
+        effectiveSource += "\nnoinline asm word call(word de) {\npush d\nret\n}\n"
+      else effectiveSource += "\nnoinline asm word call(word de) {\npush de\nret\n}\n"
+    }
     log.setSource(Some(effectiveSource.linesIterator.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, pragmas) = Preprocessor.preprocessForTest(options, effectiveSource)
     // tests use Intel syntax only when forced to:

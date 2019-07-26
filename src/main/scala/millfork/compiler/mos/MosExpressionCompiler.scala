@@ -514,6 +514,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     compile(ctx, expr, Some(p -> env.get[Variable]("__reg.loword")), BranchSpec.None)
   }
 
+  def compileToZReg2(ctx: CompilationContext, expr: Expression): List[AssemblyLine] = {
+    val env = ctx.env
+    val p = env.get[Type]("pointer")
+    compile(ctx, expr, Some(p -> env.get[Variable]("__reg.b2b3")), BranchSpec.None)
+  }
+
   def getPhysicalPointerForDeref(ctx: CompilationContext, pointerExpression: Expression): (List[AssemblyLine], Constant, AddrMode.Value) = {
     pointerExpression match {
       case VariableExpression(name) =>
@@ -1162,6 +1168,36 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         var zeroExtend = false
         var resultVariable = ""
         val calculate: List[AssemblyLine] = name match {
+          case "call" =>
+            params match {
+              case List(fp) =>
+                getExpressionType(ctx, fp) match {
+                  case FunctionPointerType(_, _, _, _, Some(v)) if (v.name == "void") =>
+                    compileToZReg2(ctx, fp) :+ AssemblyLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                  case _ =>
+                    ctx.log.error("Not a function pointer", fp.position)
+                    compile(ctx, fp, None, BranchSpec.None)
+                }
+              case List(fp, param) =>
+                getExpressionType(ctx, fp) match {
+                  case FunctionPointerType(_, _, _, Some(pt), Some(v)) =>
+                    if (pt.size != 1) {
+                      ctx.log.error("Invalid parameter type", param.position)
+                      compile(ctx, fp, None, BranchSpec.None) ++ compile(ctx, param, None, BranchSpec.None)
+                    } else if (getExpressionType(ctx, param).isAssignableTo(pt)) {
+                      compileToA(ctx, param) ++ preserveRegisterIfNeeded(ctx, MosRegister.A, compileToZReg2(ctx, fp)) :+ AssemblyLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                    } else {
+                      ctx.log.error("Invalid parameter type", param.position)
+                      compile(ctx, fp, None, BranchSpec.None) ++ compile(ctx, param, None, BranchSpec.None)
+                    }
+                  case _ =>
+                    ctx.log.error("Not a function pointer", fp.position)
+                    compile(ctx, fp, None, BranchSpec.None) ++ compile(ctx, param, None, BranchSpec.None)
+                }
+              case _ =>
+                ctx.log.error("Invalid call syntax", f.position)
+                Nil
+            }
           case "not" =>
             assertBool(ctx, "not", params, 1)
             compile(ctx, params.head, exprTypeAndVariable, branches.flip)
@@ -2062,7 +2098,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     val reg = env.get[ThingInMemory]("__reg.loword")
                     (addr, addrSource) match {
                       case (MemoryAddressConstant(th1: Thing), MemoryAddressConstant(th2: Thing))
-                        if (th1.name == "__reg.loword" || th1.name == "__reg") && (th2.name == "__reg.loword" || th2.name == "__reg") =>
+                        if (th1.name == "__reg.loword" || th1.name == "__reg.b2b3" || th1.name == "__reg") && (th2.name == "__reg.loword" || th2.name == "__reg.b2b3" || th2.name == "__reg") =>
                         (MosExpressionCompiler.changesZpreg(prepareSource, 2) || MosExpressionCompiler.changesZpreg(prepareSource, 3),
                           MosExpressionCompiler.changesZpreg(prepareSource, 2) || MosExpressionCompiler.changesZpreg(prepareSource, 3)) match {
                           case (_, false) =>

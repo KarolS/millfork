@@ -264,12 +264,10 @@ Note that you cannot access a whole array element if it's bigger than 2 bytes, b
 Other kinds of expressions than the above (even `nonet(byte + byte + byte)`) will not work as expected.
 
 * `hi`, `lo`: most/least significant byte of a word  
-`hi(word)`
-
+`hi(word)`  
 Furthermore, any type that can be assigned to a variable can be used to convert
 either from one type either to another type of the same size,
-or from a 1-byte integer type to a compatible 2-byte integer type.
-
+or from a 1-byte integer type to a compatible 2-byte integer type.  
 `byte` → `word`  
 `word` → `pointer`  
 some enum → `byte`  
@@ -280,5 +278,13 @@ some enum → `word`
 
 * `sizeof`: size of the argument in bytes; the argument can be an expression or a type,
 and the result is a constant of either `byte` or `word` type, depending on situation
+
+* `call`: calls a function via a pointer;  
+the first argument is the pointer to the function;  
+the second argument, if present, is the argument to the called function.  
+The function can have max one parameter, of size max 1 byte, and may return a value of size max 2 bytes.
+You can't create typed pointers to other kinds of functions anyway.  
+If the pointed-to function returns a value, then the result of `call(...)` is the result of the function.  
+Using `call` on 6502 targets requires at least 4 bytes of zeropage pseudoregister. 
 
 

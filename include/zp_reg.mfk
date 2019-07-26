@@ -96,3 +96,11 @@ asm word __div_u16u8u16u8() {
 }
 
 #endif
+
+#if ZPREG_SIZE >= 4
+
+noinline asm word call(word ax) {
+    JMP ((__reg + 2))
+}
+
+#endif

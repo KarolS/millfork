@@ -260,7 +260,7 @@ object AbstractExpressionCompiler {
 
     val v = env.get[Type]("void")
     val w = env.get[Type]("word")
-    val t = expr match {
+    val t: Type = expr match {
       case LiteralExpression(_, size) =>
         size match {
           case 1 => b
@@ -371,6 +371,34 @@ object AbstractExpressionCompiler {
         toAllBooleanConstants(params) match {
           case Some(List(x)) => toType(!x)
           case _ => bool
+        }
+      case f@FunctionCallExpression("call", params) =>
+        params match {
+          case List(fp) =>
+            getExpressionType(env, log, fp) match {
+              case fpt@FunctionPointerType(_, _, _, Some(v), Some(r)) =>
+                if (v.name != "void"){
+                  log.error(s"Invalid function pointer type: $fpt", fp.position)
+                }
+                r
+              case fpt =>
+                log.error(s"Not a function pointer type: $fpt", fp.position)
+                v
+            }
+          case List(fp, pp) =>
+            getExpressionType(env, log, fp) match {
+              case fpt@FunctionPointerType(_, _, _, Some(p), Some(r)) =>
+                if (!getExpressionType(env, log, pp).isAssignableTo(p)){
+                  log.error(s"Invalid function pointer type: $fpt", fp.position)
+                }
+                r
+              case fpt =>
+                log.error(s"Not a function pointer type: $fpt", fp.position)
+                v
+            }
+          case _ =>
+            log.error("Invalid call(...) syntax; use either 1 or 2 arguments", f.position)
+            v
         }
       case FunctionCallExpression("hi", _) => b
       case FunctionCallExpression("lo", _) => b
