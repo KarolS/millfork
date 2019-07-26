@@ -946,8 +946,18 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 AssemblyLine(LDA, am, addr)) ++
               expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
           case _ =>
-            ctx.log.error("Cannot read a large object indirectly")
-            Nil
+            exprTypeAndVariable match {
+              case Some((variableType, variable)) =>
+                prepare ++ (0 until variableType.size).flatMap { i =>
+                  val load =
+                    if (i >= targetType.size) List(AssemblyLine.immediate(LDA, 0))
+                    else if (am == AbsoluteY) List(AssemblyLine.absolute(LDA, addr + offset + i))
+                    else if (i == 0) List(AssemblyLine.immediate(LDY, offset), AssemblyLine(LDA, am, addr))
+                    else List(AssemblyLine.implied(INY), AssemblyLine(LDA, am, addr))
+                  load ++ AssemblyLine.variable(ctx, STA, variable, i)
+                }
+              case None => Nil
+            }
         }
       case SumExpression(params, decimal) =>
         assertAllArithmetic(ctx, params.map(_._2))
@@ -1852,6 +1862,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
   def compileAssignment(ctx: CompilationContext, source: Expression, target: LhsExpression): List[AssemblyLine] = {
     val env = ctx.env
     val sourceType = AbstractExpressionCompiler.checkAssignmentTypeAndGetSourceType(ctx, source, target)
+    val lhsType = AbstractExpressionCompiler.getExpressionType(ctx, target)
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")
     target match {
@@ -1869,33 +1880,16 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         val (prepare, addr, am) = getPhysicalPointerForDeref(ctx, inner)
         env.eval(source) match {
           case Some(constant) =>
-            (targetType.size, am) match {
-              case (1, AbsoluteY) =>
-                prepare ++ List(
-                  AssemblyLine.immediate(LDA, constant),
-                  AssemblyLine.absolute(STA, addr + offset))
-              case (1, _) =>
-                prepare ++ List(
-                  AssemblyLine.immediate(LDY, offset),
-                  AssemblyLine.immediate(LDA, constant),
-                  AssemblyLine(STA, am, addr))
-              case (2, AbsoluteY) =>
-                prepare ++ List(
-                  AssemblyLine.immediate(LDA, constant.loByte),
-                  AssemblyLine.absolute(STA, addr + offset),
-                  AssemblyLine.immediate(LDA, constant.hiByte),
-                  AssemblyLine.absolute(STA, addr + offset + 1))
-              case (2, _) =>
-                prepare ++ List(
-                  AssemblyLine.immediate(LDY, offset),
-                  AssemblyLine.immediate(LDA, constant.loByte),
-                  AssemblyLine(STA, am, addr),
-                  AssemblyLine.implied(INY),
-                  AssemblyLine.immediate(LDA, constant.hiByte),
-                  AssemblyLine(STA, am, addr))
+            am match {
+              case AbsoluteY =>
+                prepare ++ (0 until targetType.size).flatMap(i => List(
+                  AssemblyLine.immediate(LDA, constant.subbyte(i)),
+                  AssemblyLine.absolute(STA, addr + offset + i)))
               case _ =>
-                ctx.log.error("Cannot assign to a large object indirectly", target.position)
-                Nil
+                prepare ++ (0 until targetType.size).flatMap(i => List(
+                  if (i == 0) AssemblyLine.immediate(LDY, offset) else AssemblyLine.implied(INY),
+                  AssemblyLine.immediate(LDA, constant.subbyte(i)),
+                  AssemblyLine(STA, am, addr)))
             }
           case None =>
             source match {
@@ -1911,23 +1905,116 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       AssemblyLine.variable(ctx, LDA, variable) ++ List(
                       AssemblyLine.immediate(LDY, offset),
                       AssemblyLine(STA, am, addr))
-                  case (2, AbsoluteY) =>
-                    prepare ++
-                      AssemblyLine.variable(ctx, LDA, variable) ++ List(
-                      AssemblyLine.absolute(STA, addr + offset)) ++
-                      AssemblyLine.variable(ctx, LDA, variable, 1) ++ List(
-                      AssemblyLine.absolute(STA, addr + offset + 1))
-                  case (2, _) =>
-                    prepare ++
-                      AssemblyLine.variable(ctx, LDA, variable) ++ List(
-                      AssemblyLine.immediate(LDY, offset),
-                      AssemblyLine(STA, am, addr)) ++
-                      AssemblyLine.variable(ctx, LDA, variable, 1) ++ List(
-                      AssemblyLine.implied(INY),
-                      AssemblyLine(STA, am, addr))
+                  case (_, AbsoluteY) =>
+                    prepare ++ (0 until targetType.size).flatMap { i =>
+                      val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
+                      load ++ List(
+                        AssemblyLine.absolute(STA, addr + offset + i))
+                    }
+                  case (_, _) =>
+                    prepare ++ (0 until targetType.size).flatMap { i =>
+                      val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
+                      load ++ List(
+                        if (i == 0) AssemblyLine.immediate(LDY, offset) else AssemblyLine.implied(INY),
+                        AssemblyLine(STA, am, addr))
+                    }
                   case _ =>
                     ctx.log.error("Cannot assign to a large object indirectly", target.position)
                     Nil
+                }
+              case DerefExpression(innerSource, sourceOffset, _) =>
+                val (prepareSource, addrSource, amSource) = getPhysicalPointerForDeref(ctx, innerSource)
+                (am, amSource) match {
+                  case (AbsoluteY, AbsoluteY) =>
+                    prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
+                      if (i >= sourceType.size) List(
+                        AssemblyLine.immediate(LDA, 0),
+                        AssemblyLine.absolute(STA, addr + offset + i))
+                      else List(
+                        AssemblyLine.absolute(LDA, addrSource + sourceOffset + i),
+                        AssemblyLine.absolute(STA, addr + offset + i))
+                    }
+                  case (AbsoluteY, _) =>
+                    prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
+                      if (i >= sourceType.size) List(
+                        AssemblyLine.immediate(LDA, 0),
+                        AssemblyLine.absolute(STA, addr + offset + i))
+                      else List(
+                        if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                        AssemblyLine(LDA, amSource, addrSource),
+                        AssemblyLine.absolute(STA, addr + offset + i))
+                    }
+                  case (_, AbsoluteY) =>
+                    prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
+                      if (i >= sourceType.size) List(
+                        if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                        AssemblyLine.immediate(LDA, 0),
+                        AssemblyLine(STA, am, addr))
+                      else List(
+                        if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                        AssemblyLine.absolute(LDA, addrSource + sourceOffset + i),
+                        AssemblyLine(STA, am, addr))
+                    }
+                  case (IndexedY, IndexedY) =>
+                    val reg = env.get[ThingInMemory]("__reg.loword")
+                    (addr, addrSource) match {
+                      case (MemoryAddressConstant(th1: Thing), MemoryAddressConstant(th2: Thing))
+                        if (th1.name == "__reg.loword" || th1.name == "__reg") && (th2.name == "__reg.loword" || th2.name == "__reg") =>
+                        (MosExpressionCompiler.changesZpreg(prepareSource, 2) || MosExpressionCompiler.changesZpreg(prepareSource, 3),
+                          MosExpressionCompiler.changesZpreg(prepareSource, 2) || MosExpressionCompiler.changesZpreg(prepareSource, 3)) match {
+                          case (_, false) =>
+                            prepare ++ List(
+                              AssemblyLine.zeropage(LDA, reg),
+                              AssemblyLine.zeropage(STA, reg, 2),
+                              AssemblyLine.zeropage(LDA, reg, 1),
+                              AssemblyLine.zeropage(STA, reg, 3)) ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
+                              if (i >= sourceType.size) List(
+                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                                AssemblyLine.immediate(LDA, 0),
+                                AssemblyLine.indexedY(STA, reg, 2))
+                              else List(
+                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                                AssemblyLine.indexedY(LDA, reg),
+                                AssemblyLine.indexedY(STA, reg, 2))
+                            }
+                          case (false, true) =>
+                            prepareSource ++ List(
+                              AssemblyLine.zeropage(LDA, reg),
+                              AssemblyLine.zeropage(STA, reg, 2),
+                              AssemblyLine.zeropage(LDA, reg, 1),
+                              AssemblyLine.zeropage(STA, reg, 3)) ++ prepare ++ (0 until targetType.size).flatMap { i =>
+                              if (i >= sourceType.size) List(
+                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                                AssemblyLine.immediate(LDA, 0),
+                                AssemblyLine.indexedY(STA, reg))
+                              else List(
+                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                                AssemblyLine.indexedY(LDA, reg, 2),
+                                AssemblyLine.indexedY(STA, reg))
+                            }
+                          case _ =>
+                            prepare ++ List(
+                              AssemblyLine.zeropage(LDA, reg, 1),
+                              AssemblyLine.implied(PHA),
+                              AssemblyLine.zeropage(LDA, reg),
+                              AssemblyLine.implied(PHA)) ++ fixTsx(fixTsx(prepareSource)) ++ List(
+                              AssemblyLine.implied(PLA),
+                              AssemblyLine.zeropage(STA, reg, 2),
+                              AssemblyLine.implied(PLA),
+                              AssemblyLine.zeropage(STA, reg, 3)) ++ (0 until targetType.size).flatMap { i =>
+                              if (i >= sourceType.size) List(
+                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                                AssemblyLine.immediate(LDA, 0),
+                                AssemblyLine.indexedY(STA, reg, 2))
+                              else List(
+                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                                AssemblyLine.indexedY(LDA, reg),
+                                AssemblyLine.indexedY(STA, reg, 2))
+                            }
+                        }
+                      case _ => ???
+                    }
+                  case _ => ???
                 }
               case _ =>
                 (targetType.size, am) match {

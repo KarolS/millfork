@@ -321,11 +321,11 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 case Some(NumericConstant(n, _)) if n >= 0 && (targetType.size * n) <= 127 =>
                   x match {
                     case _: PointerType =>
-                      DerefExpression(result, n.toInt, targetType)
+                      DerefExpression(result, targetType.size * n.toInt, targetType)
                     case _ =>
                       DerefExpression(
                         ("pointer." + targetType.name) <| result,
-                        n.toInt, targetType)
+                        targetType.size * n.toInt, targetType)
                   }
                 case _ =>
                   val scaledIndex = arraySizeInBytes match {
@@ -485,9 +485,6 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         targetType.size match {
           case 1 => IndexedExpression(name, optimizeExpr(index, Map())).pos(pos)
           case _ =>
-            if (targetType.size != 2) {
-              ctx.log.error("Cannot access a large array element directly", expr.position)
-            }
             val arraySizeInBytes = pointy match {
               case p:ConstantPointy => p.sizeInBytes
               case _ => None

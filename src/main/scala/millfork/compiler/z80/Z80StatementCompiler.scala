@@ -110,6 +110,14 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
                 val store = Z80ExpressionCompiler.storeHL(ctx, destination, sourceType.isSigned)
                 load ++ store
             }
+          case 3 =>
+            val load = Z80ExpressionCompiler.compile(ctx, source, ZExpressionTarget.EHL, BranchSpec.None)
+            val store = Z80ExpressionCompiler.storeEHL(ctx, destination, sourceType.isSigned)
+            load ++ store
+          case 4 =>
+            val load = Z80ExpressionCompiler.compile(ctx, source, ZExpressionTarget.DEHL, BranchSpec.None)
+            val store = Z80ExpressionCompiler.storeDEHL(ctx, destination, sourceType.isSigned)
+            load ++ store
           case s => Z80ExpressionCompiler.storeLarge(ctx, destination, source)
         }) -> Nil
       case s: IfStatement =>

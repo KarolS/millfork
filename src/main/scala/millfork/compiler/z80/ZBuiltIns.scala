@@ -469,7 +469,7 @@ object ZBuiltIns {
   def performLongInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcodeFirst: ZOpcode.Value, opcodeLater: ZOpcode.Value, size: Int, decimal: Boolean = false): List[ZLine] = {
     if (lhs.isInstanceOf[DerefExpression]) {
       ctx.log.error("Too complex left-hand-side expression", lhs.position)
-      return Z80ExpressionCompiler.compileToHL(ctx, lhs) ++ Z80ExpressionCompiler.compileToHL(ctx, rhs)
+      return Z80ExpressionCompiler.compile(ctx, lhs, ZExpressionTarget.NOTHING) ++ Z80ExpressionCompiler.compile(ctx, rhs, ZExpressionTarget.NOTHING)
     }
     if (size == 2 && !decimal) {
       // n × INC HL
@@ -532,6 +532,7 @@ object ZBuiltIns {
     val store = Z80ExpressionCompiler.compileByteStores(ctx, lhs, size, includeStep = false)
     val loadRight = Z80ExpressionCompiler.compileByteReads(ctx, rhs, size, ZExpressionTarget.BC)
     val rightIsBig = loadRight.exists(_.exists(l => l.changesRegister(ZRegister.HL) || l.changesRegister(ZRegister.DE)))
+    // TODO: don't evaluate LHS twice
     val (leftStasher, calcStasher, loadLeft) = if (rightIsBig) {
       (
         ((e: List[ZLine]) => Z80ExpressionCompiler.stashHLIfChanged(ctx, e)),

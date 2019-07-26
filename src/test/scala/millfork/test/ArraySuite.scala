@@ -3,12 +3,12 @@ package millfork.test
 import millfork.{Cpu, CpuFamily, OptimizationPresets}
 import millfork.assembly.mos.opt.{AlwaysGoodOptimizations, DangerousOptimizations}
 import millfork.test.emu._
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class ArraySuite extends FunSuite with Matchers {
+class ArraySuite extends FunSuite with Matchers with AppendedClues {
 
   test("Array assignment") {
     val src =
@@ -461,13 +461,6 @@ class ArraySuite extends FunSuite with Matchers {
       """
         | array(int32) a[7] @$c000
         | void main () {
-        |   a[0] = 2
-        | }
-      """.stripMargin)
-    ShouldNotCompile(
-      """
-        | array(int32) a[7] @$c000
-        | void main () {
         |   a[0] += 2
         | }
       """.stripMargin)
@@ -478,12 +471,139 @@ class ArraySuite extends FunSuite with Matchers {
         |   a[0] += 2
         | }
       """.stripMargin)
-    ShouldNotCompile(
+  }
+
+  test("Various large assignments involving arrays") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+      """
+        | array(int32) a[7] @$c000
+        | void main () {
+        |   a[0] = 2
+        | }
+      """.stripMargin) { m => }
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
       """
         | array(int32) a[7] @$c000
         | int32 main () {
         |   return a[4]
         | }
-      """.stripMargin)
+      """.stripMargin) { m => }
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+      """
+        | array(int32) a[7] @$c000
+        | noinline void f(byte i) {
+        |   a[i] = a[i+2]
+        | }
+        | void main () {
+        |   f(1)
+        | }
+      """.stripMargin) { m => }
+  }
+
+  test("Various large assignments involving arrays and arithmetic conversions") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+      """
+        | array(int32) a[7] @$c000
+        | array(int24) b[7] @$c100
+        | noinline void init() {
+        |   b[0] = 1
+        |   b[1] = 2
+        |   a[0].b3 = 4
+        |   a[1].b3 = 4
+        |   a[2].b3 = 4
+        |   a[3].b3 = 4
+        |   a[4].b3 = 4
+        |   a[5].b3 = 4
+        | }
+        | noinline byte id(byte x) = x
+        | void main () {
+        |   int24 tmp1
+        |   stack int24 tmp2
+        |   int32 tmp3
+        |   stack int32 tmp4
+        |   init()
+        |   a[id(0)] = b[id(0)]
+        |   memory_barrier()
+        |   tmp1 = b[id(0)]
+        |   memory_barrier()
+        |   tmp2 = b[id(0)]
+        |   memory_barrier()
+        |   a[id(1)] = tmp1
+        |   memory_barrier()
+        |   a[id(2)] = tmp2
+        |   memory_barrier()
+        |   tmp3 = b[id(0)]
+        |   memory_barrier()
+        |   tmp4 = b[id(0)]
+        |   memory_barrier()
+        |   a[id(3)] = tmp3
+        |   memory_barrier()
+        |   a[id(4)] = tmp4
+        | }
+      """.stripMargin) { m =>
+      m.readMedium(0xc100) should equal(1)
+      m.readMedium(0xc103) should equal(2)
+      m.readLong(0xc000) should equal(1)
+      m.readLong(0xc004) should equal(1)
+      m.readLong(0xc008) should equal(1)
+      m.readLong(0xc00c) should equal(1)
+      m.readLong(0xc010) should equal(1)
+    }
+  }
+
+  test("Various large assignments involving arrays and arithmetic conversions 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+      """
+        | array(int64) a[7] @$c000
+        | array(int40) b[7] @$c100
+        | noinline void init() {
+        |   b[0] = 1
+        |   b[1] = 2
+        |   a[0].b7 = 4
+        |   a[1].b7 = 4
+        |   a[2].b7 = 4
+        |   a[3].b7 = 4
+        |   a[4].b7 = 4
+        |   a[5].b7 = 4
+        | }
+        | noinline byte id(byte x) = x
+        | void main () {
+        |   int64 tmp1
+        |   stack int64 tmp2
+        |   int40 tmp3
+        |   stack int40 tmp4
+        |   init()
+        |   a[id(0)] = b[id(0)]
+        |   memory_barrier()
+        |   tmp1 = b[id(0)]
+        |   memory_barrier()
+        |   tmp2 = b[id(0)]
+        |   memory_barrier()
+        |   a[id(1)] = tmp1
+        |   memory_barrier()
+        |   a[id(2)] = tmp2
+        |   memory_barrier()
+        |   tmp3 = b[id(0)]
+        |   memory_barrier()
+        |   tmp4 = b[id(0)]
+        |   memory_barrier()
+        |   a[id(3)] = tmp3
+        |   memory_barrier()
+        |   a[id(4)] = tmp4
+        | }
+      """.stripMargin) { m =>
+      m.readLong(0xc100) should equal(1) withClue "init b[0]"
+      m.readLong(0xc105) should equal(2) withClue "init b[1]"
+      m.readLong(0xc000) should equal(1) withClue "b0..b3 of a[0] initted from b[0]"
+      m.readLong(0xc004) should equal(0) withClue "b4..b7 of a[0] initted from b[0]"
+      m.readLong(0xc008) should equal(1) withClue "b0..b3 of a[1] initted from static int64"
+      m.readLong(0xc00c) should equal(0) withClue "b4..b7 of a[1] initted from static int64"
+      m.readLong(0xc010) should equal(1) withClue "b0..b3 of a[2] initted from stack int64"
+      m.readLong(0xc014) should equal(0) withClue "b4..b7 of a[2] initted from stack int64"
+      m.readLong(0xc018) should equal(1) withClue "b0..b3 of a[3] initted from static int40"
+      m.readLong(0xc01c) should equal(0) withClue "b4..b7 of a[3] initted from static int40"
+      m.readLong(0xc020) should equal(1) withClue "b0..b3 of a[4] initted from stack int40"
+      m.readLong(0xc024) should equal(0) withClue "b4..b7 of a[4] initted from stack int40"
+    }
   }
 }
