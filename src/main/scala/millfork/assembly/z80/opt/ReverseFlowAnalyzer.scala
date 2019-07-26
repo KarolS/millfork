@@ -484,7 +484,7 @@ object ReverseFlowAnalyzer {
           case ZLine0(LD_DESP, _, _) =>
             currentImportance = currentImportance.copy(d = Unimportant, e = Unimportant)
           case _ =>
-            currentImportance = finalImportance // TODO
+            currentImportance = finalImportance.copy(memIx = currentImportance.memIx, memIy = currentImportance.memIy) // TODO
         }
       }
     }

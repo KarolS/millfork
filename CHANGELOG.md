@@ -18,6 +18,8 @@
 
 * 6502: Fixed optimizations involving the zeropage pseudoregister.
 
+* Z80: Fixed optimizations in functions using stack variables.
+
 * Other fixes and improvements.
 
 ## 0.3.4
