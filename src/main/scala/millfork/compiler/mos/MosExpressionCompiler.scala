@@ -1519,6 +1519,13 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     if (nf.interrupt) {
                       ctx.log.error(s"Calling an interrupt function `${f.functionName}`", expr.position)
                     }
+                    if (nf.name == "main" && ctx.options.flag(CompilationFlag.SoftwareStack)) {
+                      if (nf.stackVariablesSize != 0 || env.things.values.exists(_.isInstanceOf[StackVariable])) {
+                        ctx.log.error("Calling the main function when using software stack is not allowed", expr.position)
+                      } else {
+                        ctx.log.warn("Calling the main function when using software stack is not allowed", expr.position)
+                      }
+                    }
                   case _ => ()
                 }
                 val result = function.params match {

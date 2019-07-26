@@ -131,6 +131,7 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
     if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
       val stackPointer = ctx.env.get[ThingInMemory]("__sp")
       if (m.name == "main") {
+        // TODO: what about recursive calls to main?
         List(
           AssemblyLine.immediate(LDX, 0xff - m.stackVariablesSize),
           AssemblyLine.absolute(STX, stackPointer)).map(_.position(m.position))
@@ -152,6 +153,7 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
             AssemblyLine.immediate(SBX, m.stackVariablesSize),
             AssemblyLine.implied(TXS)).map(_.position(m.position)) // this TXS is fine, it won't appear in 65816 code
       }
+      // TODO: be smarter in case of large stack frames:
       if (ctx.prologueShouldAvoidA && ctx.options.flag(CompilationFlag.EmitCmosOpcodes)) {
         return List.fill(m.stackVariablesSize)(AssemblyLine.implied(PHX)).map(_.position(m.position))
       }
