@@ -209,6 +209,8 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 `mutable unsigned byte /= unsigned byte` (zpreg)  
 `mutable word /= unsigned byte` (zpreg)
 
+There are no `||=`, `&&=` or `>>>>=` operators.
+
 ## Indexing
 
 While Millfork does not consider indexing an operator, this is a place as good as any to discuss it.

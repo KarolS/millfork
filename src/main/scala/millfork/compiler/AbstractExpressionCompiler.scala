@@ -416,6 +416,8 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression("+=", _) => v
       case FunctionCallExpression("-=", _) => v
       case FunctionCallExpression("*=", _) => v
+      case FunctionCallExpression("/=", _) => v
+      case FunctionCallExpression("%%=", _) => v
       case FunctionCallExpression("+'=", _) => v
       case FunctionCallExpression("-'=", _) => v
       case FunctionCallExpression("*'=", _) => v
