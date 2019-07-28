@@ -470,8 +470,8 @@ object Cpu extends Enumeration {
     case "intel80286" => Intel80186
     case "i80286" => Intel80186
     case "80286" => Intel80186
-      // disabled for now
-//    case "6809" => Motorola6809
+      // undocumented for now
+    case "6809" => Motorola6809
     case _ => log.fatal("Unknown CPU achitecture: " + name)
   }
 

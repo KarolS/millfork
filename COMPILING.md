@@ -57,6 +57,7 @@ Test suite is useful if you plan on modifying the compiler. Some test dependenci
         https://github.com/sethm/symon/tree/71905fdb1998ee4f142260879504bc46cf27648f
         https://github.com/andrew-hoffman/halfnes/tree/061
         https://github.com/trekawek/coffee-gb/tree/coffee-gb-1.0.0
+        https://github.com/sorenroug/osnine-java/tree/1b4e059c5886fe01e8901c70684f7eedefe65010
         
 * for each of them, run `maven package` and `maven install`
 

@@ -32,6 +32,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     case CpuFamily.M6502 => 0x101
     case CpuFamily.I80 => 0
     case CpuFamily.I86 => 0
+    case CpuFamily.M6809 => 0
   }
 
   def errorConstant(msg: String, position: Option[Position] = None): Constant = {
@@ -449,36 +450,36 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     addThing(ConstantThing("$0000", NumericConstant(0, 2), p), None)
     addThing(FlagBooleanType("set_carry",
-      BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C)),
-      BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C))),
+      BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C), MOpcode.BCS),
+      BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C), MOpcode.BCC)),
       None)
     addThing(FlagBooleanType("clear_carry",
-      BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C)),
-      BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C))),
+      BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C), MOpcode.BCC),
+      BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C), MOpcode.BCS)),
       None)
     addThing(FlagBooleanType("set_overflow",
-      BranchingOpcodeMapping(Opcode.BVS, IfFlagSet(ZFlag.P)),
-      BranchingOpcodeMapping(Opcode.BVC, IfFlagClear(ZFlag.P))),
+      BranchingOpcodeMapping(Opcode.BVS, IfFlagSet(ZFlag.P), MOpcode.BVS),
+      BranchingOpcodeMapping(Opcode.BVC, IfFlagClear(ZFlag.P), MOpcode.BVC)),
       None)
     addThing(FlagBooleanType("clear_overflow",
-      BranchingOpcodeMapping(Opcode.BVC, IfFlagClear(ZFlag.P)),
-      BranchingOpcodeMapping(Opcode.BVS, IfFlagSet(ZFlag.P))),
+      BranchingOpcodeMapping(Opcode.BVC, IfFlagClear(ZFlag.P), MOpcode.BVC),
+      BranchingOpcodeMapping(Opcode.BVS, IfFlagSet(ZFlag.P), MOpcode.BVS)),
       None)
     addThing(FlagBooleanType("set_zero",
-      BranchingOpcodeMapping(Opcode.BEQ, IfFlagSet(ZFlag.Z)),
-      BranchingOpcodeMapping(Opcode.BNE, IfFlagClear(ZFlag.Z))),
+      BranchingOpcodeMapping(Opcode.BEQ, IfFlagSet(ZFlag.Z), MOpcode.BEQ),
+      BranchingOpcodeMapping(Opcode.BNE, IfFlagClear(ZFlag.Z), MOpcode.BNE)),
       None)
     addThing(FlagBooleanType("clear_zero",
-      BranchingOpcodeMapping(Opcode.BNE, IfFlagClear(ZFlag.Z)),
-      BranchingOpcodeMapping(Opcode.BEQ, IfFlagSet(ZFlag.Z))),
+      BranchingOpcodeMapping(Opcode.BNE, IfFlagClear(ZFlag.Z), MOpcode.BNE),
+      BranchingOpcodeMapping(Opcode.BEQ, IfFlagSet(ZFlag.Z), MOpcode.BEQ)),
       None)
     addThing(FlagBooleanType("set_negative",
-      BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S)),
-      BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S))),
+      BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S), MOpcode.BMI),
+      BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S), MOpcode.BPL)),
       None)
     addThing(FlagBooleanType("clear_negative",
-      BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S)),
-      BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S))),
+      BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S), MOpcode.BPL),
+      BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S), MOpcode.BMI)),
       None)
     builtinsAdded = true
   }

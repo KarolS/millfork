@@ -46,7 +46,7 @@ object EmuUnoptimizedCrossPlatformRun {
     }
     if (Settings.enableMotorola6809Tests && platforms.contains(Cpu.Motorola6809)) {
       println(f"Running 6809")
-      verifier(mx)
+      verifier(mo)
     }
   }
 }

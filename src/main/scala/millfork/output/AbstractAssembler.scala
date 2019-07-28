@@ -70,13 +70,24 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     mem.banks(bank).initialized(addr + 1) = true
     mem.banks(bank).readable(addr) = true
     mem.banks(bank).readable(addr + 1) = true
-    value match {
-      case NumericConstant(x, _) =>
-        if (x > 0xffff) log.error("Word overflow")
-        mem.banks(bank).output(addr) = x.toByte
-        mem.banks(bank).output(addr + 1) = (x >> 8).toByte
-      case _ =>
-        wordsToWriteLater += ((bank, addr, value))
+    if (platform.isBigEndian) {
+      value match {
+        case NumericConstant(x, _) =>
+          if (x > 0xffff) log.error("Word overflow")
+          mem.banks(bank).output(addr) = (x >> 8).toByte
+          mem.banks(bank).output(addr + 1) = x.toByte
+        case _ =>
+          wordsToWriteLater += ((bank, addr, value))
+      }
+    } else {
+      value match {
+        case NumericConstant(x, _) =>
+          if (x > 0xffff) log.error("Word overflow")
+          mem.banks(bank).output(addr) = x.toByte
+          mem.banks(bank).output(addr + 1) = (x >> 8).toByte
+        case _ =>
+          wordsToWriteLater += ((bank, addr, value))
+      }
     }
   }
 
@@ -538,8 +549,13 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     }
     for ((bank, addr, b) <- wordsToWriteLater) {
       val value = deepConstResolve(b)
-      mem.banks(bank).output(addr) = value.toByte
-      mem.banks(bank).output(addr + 1) = value.>>>(8).toByte
+      if (platform.isBigEndian) {
+        mem.banks(bank).output(addr) = value.>>>(8).toByte
+        mem.banks(bank).output(addr + 1) = value.toByte
+      } else {
+        mem.banks(bank).output(addr) = value.toByte
+        mem.banks(bank).output(addr + 1) = value.>>>(8).toByte
+      }
     }
 
     for (bank <- mem.banks.keys) {

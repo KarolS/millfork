@@ -205,6 +205,20 @@ object M6809Register extends Enumeration {
     case D | X | Y | U | S | PC => 2
     case A | B | DP | CC => 1
   }
+  def registerPushMask(register: M6809Register.Value): Int = {
+    register match {
+      case CC => 1
+      case A => 2
+      case B => 4
+      case D => 6
+      case X => 0x10
+      case Y => 0x20
+      case U => 0x40
+      case S => 0x40
+      case PC => 0x80
+      case DP => 0
+    }
+  }
 }
 
 //case class Indexing(child: Expression, register: Register.Value) extends Expression

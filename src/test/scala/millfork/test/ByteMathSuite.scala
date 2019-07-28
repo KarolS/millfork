@@ -41,7 +41,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000, a
         | void main () {
@@ -52,7 +52,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Byte addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000, a
         | void main () {

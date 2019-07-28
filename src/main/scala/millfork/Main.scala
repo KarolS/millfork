@@ -16,7 +16,7 @@ import millfork.env.Environment
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.StandardCallGraph
 import millfork.output._
-import millfork.parser.{MosSourceLoadingQueue, ZSourceLoadingQueue}
+import millfork.parser.{MSourceLoadingQueue, MosSourceLoadingQueue, ZSourceLoadingQueue}
 
 
 
@@ -82,6 +82,7 @@ object Main {
       case CpuFamily.M6502 => assembleForMos(c, platform, options)
       case CpuFamily.I80 => assembleForI80(c, platform, options)
       case CpuFamily.I86 => assembleForI86(c, platform, options)
+      case CpuFamily.M6809 => assembleForM6809(c, platform, options)
     }
 
     if (c.outputAssembly) {
@@ -289,6 +290,39 @@ object Main {
 
     // compile
     val assembler = new Z80Assembler(program, env, platform)
+    val result = assembler.assemble(callGraph, assemblyOptimizations, options)
+    options.log.assertNoErrors("Codegen failed")
+    options.log.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
+    options.log.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
+    options.log.debug(f"Gain:                   ${(100L * (assembler.unoptimizedCodeSize - assembler.optimizedCodeSize) / assembler.unoptimizedCodeSize.toDouble).round}%5d%%")
+    options.log.debug(f"Initialized variables: ${assembler.initializedVariablesSize}%5d B")
+    result
+  }
+
+  private def assembleForM6809(c: Context, platform: Platform, options: CompilationOptions): AssemblerOutput = {
+    val optLevel = c.optimizationLevel.getOrElse(0)
+    val unoptimized = new MSourceLoadingQueue(
+      initialFilenames = c.inputFileNames,
+      includePath = c.includePath,
+      options = options).run()
+
+    val program = if (optLevel > 0) {
+      OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
+    } else {
+      OptimizationPresets.NodeOpt0.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
+    }
+    val callGraph = new StandardCallGraph(program, options.log)
+
+    val env = new Environment(None, "", platform.cpuFamily, options)
+    env.collectDeclarations(program, options)
+
+    val assemblyOptimizations = optLevel match {
+      case 0 => Nil
+      case _ => Nil
+    }
+
+    // compile
+    val assembler = new M6809Assembler(program, env, platform)
     val result = assembler.assemble(callGraph, assemblyOptimizations, options)
     options.log.assertNoErrors("Codegen failed")
     options.log.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")

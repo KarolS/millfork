@@ -10,10 +10,12 @@ import millfork.assembly.m6809.MLine
 import millfork.compiler.m6809.M6809Compiler
 import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
+import millfork.error.ConsoleLogger
 import millfork.node.opt.NodeOptimization
 import millfork.node.{Program, StandardCallGraph}
 import millfork.output.{M6809Assembler, MemoryBank}
-import millfork.parser.{PreprocessingResult, Preprocessor, Z80Parser}
+import millfork.parser.{M6809Parser, MosParser, PreprocessingResult, Preprocessor, Z80Parser}
+import org.roug.osnine.{BusStraight, MC6809}
 import org.scalatest.Matchers
 
 import scala.collection.JavaConverters._
@@ -55,15 +57,23 @@ object EmuM6809Run {
 }
 
 class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization], assemblyOptimizations: List[AssemblyOptimization[MLine]]) extends Matchers {
-  def inline: Boolean = false
-
-  def optimizeForSize: Boolean = false
-
-  private val TooManyCycles: Long = 1500000
 
   def apply(source: String): MemoryBank = {
     apply2(source)._2
   }
+
+  def emitIllegals = false
+
+  def inline = false
+
+  def blastProcessing = false
+
+  def optimizeForSize = false
+
+  private val TooManyCycles: Long = 1000000
+
+  private def formatBool(b: Int, c: Char): Char = if (b != 0) c else '-'
+
 
   def apply2(source: String): (Timings, MemoryBank) = {
     Console.out.flush()
@@ -71,43 +81,47 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
     val log = TestErrorReporting.log
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val extraFlags = Map(
-      CompilationFlag.DangerousOptimizations -> true,
+    val options = CompilationOptions(platform, Map(
       CompilationFlag.EnableInternalTestSyntax -> true,
+      CompilationFlag.DecimalMode -> true,
+      CompilationFlag.LenientTextEncoding -> true,
+      CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.OptimizeStdlib -> this.inline,
-      CompilationFlag.OptimizeForSize -> this.optimizeForSize,
+      CompilationFlag.InterproceduralOptimization -> true,
+      CompilationFlag.CompactReturnDispatchParams -> true,
       CompilationFlag.SubroutineExtraction -> optimizeForSize,
-      CompilationFlag.EmitIllegals -> false,
-      CompilationFlag.LenientTextEncoding -> true)
-    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0, Map(), JobContext(log, new LabelGenerator))
-    println(cpu)
-    println(options.flags.filter(_._2).keys.toSeq.sorted)
+      CompilationFlag.OptimizeForSize -> optimizeForSize,
+      CompilationFlag.OptimizeForSpeed -> blastProcessing,
+      CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
+      //      CompilationFlag.CheckIndexOutOfBounds -> true,
+    ), None, 0, Map(), JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
+//    if (source.contains("call(")) effectiveSource += "\nnoinline asm word call(word d) {\n\n}\n"
     log.setSource(Some(effectiveSource.linesIterator.toIndexedSeq))
-    val PreprocessingResult(preprocessedSource, features, pragmas) = Preprocessor.preprocessForTest(options, effectiveSource)
-    // tests use Intel syntax only when forced to:
-    val parserF = Z80Parser("", preprocessedSource, "", options, features, pragmas.contains("intel_syntax"))
+    val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
+    val parserF = M6809Parser("", preprocessedSource, "", options, features)
     parserF.toAst match {
       case Success(unoptimized, _) =>
         log.assertNoErrors("Parse failed")
 
-
         // prepare
         val withLibraries = {
           var tmp = unoptimized
-//          tmp += EmuM6809Run.cachedMath(cpu) // TODO: add this only after you implement maths
-          if (source.contains("import stdio")) {
-            tmp += EmuM6809Run.cachedStdio(cpu)
-          }
+          if(source.contains("import stdio"))
+            tmp += EmuRun.cachedStdio
+          if(!options.flag(CompilationFlag.DecimalMode) && (source.contains("+'") || source.contains("-'") || source.contains("<<'") || source.contains("*'")))
+            tmp += EmuRun.cachedBcd
           tmp
         }
         val program = nodeOptimizations.foldLeft(withLibraries.applyImportantAliases)((p, opt) => p.applyNodeOptimization(opt, options))
+        program.checkSegments(log, platform.codeAllocators.keySet)
+        log.assertNoErrors("Failed")
         val callGraph = new StandardCallGraph(program, log)
-        val env = new Environment(None, "", CpuFamily.I80, options)
+        val env = new Environment(None, "", CpuFamily.M6809, options)
         env.collectDeclarations(program, options)
 
         val hasOptimizations = assemblyOptimizations.nonEmpty
@@ -127,12 +141,12 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
 
 
         // compile
-        val env2 = new Environment(None, "", CpuFamily.I80, options)
+        val env2 = new Environment(None, "", CpuFamily.M6502, options)
         env2.collectDeclarations(program, options)
         val assembler = new M6809Assembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options)
         println(";;; compiled: -----------------")
-        output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("////; DISCARD_")).foreach(println)
+        output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
         println(";;; ---------------------------")
         assembler.labelMap.foreach { case (l, (_, addr)) => println(f"$l%-15s $$$addr%04x") }
 
@@ -150,17 +164,12 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
         }
 
         val memoryBank = assembler.mem.banks("default")
-        (0x1f0 until 0x200).foreach(i => memoryBank.readable(i) = true)
-        (0xff00 to 0xffff).foreach{i =>
-          memoryBank.readable(i) = true
-          memoryBank.writeable(i) = true
+        if (source.contains("return [")) {
+          for (_ <- 0 until 10; i <- 0xfffe.to(0, -1)) {
+            if (memoryBank.readable(i)) memoryBank.readable(i + 1) = true
+          }
         }
-
-        (0x200 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
-        val timings = platform.cpu match {
-          case _ =>
-            Timings(-1, -1) -> memoryBank
-        }
+        val timings =  run(log, memoryBank, platform.codeAllocators("default").startAt)
         log.clearErrors()
         timings
       case f: Failure[_, _] =>
@@ -168,8 +177,37 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
         println(f.extra.toString)
         println(f.lastParser.toString)
         log.error("Syntax error", Some(parserF.lastPosition))
-        fail("Parsing error")
+        fail("syntax error")
     }
   }
 
+  private def debugState(q: MC6809): Unit =
+    println(f"D=${q.d.get()}%04X X=${q.x.get()}%04X Y=${q.y.get()}%04X U=${q.u.get()}%04X S=${q.s.get()}%04X PC=${q.pc.get()}%04X " +
+      formatBool(q.cc.bit_e, 'E') +formatBool(q.cc.bit_f, 'F') + formatBool(q.cc.bit_h, 'H') +
+      formatBool(q.cc.bit_i, 'I') + formatBool(q.cc.bit_n, 'N') + formatBool(q.cc.bit_z, 'Z') +
+      formatBool(q.cc.bit_v, 'V') + formatBool(q.cc.bit_c, 'C'))
+
+  def run(log: ConsoleLogger, memoryBank: MemoryBank, startAt: Int): (Timings, MemoryBank) = {
+    (0x200 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
+    val bus = new BusStraight()
+    bus.addMemorySegment(new M6809Memory(memoryBank, startAt))
+    val cpu = new MC6809(bus)
+    bus.clearNMI()
+    cpu.pc.set(startAt)
+    cpu.s.set(0xfff0)
+
+//    val method = classOf[MC6809].getDeclaredMethod("setTraceInstructions", classOf[Boolean])
+//    method.setAccessible(true)
+//    method.invoke(cpu, true.asInstanceOf[AnyRef])
+
+//    debugState(cpu)
+    while (cpu.pc.get() > 2) {
+      cpu.execute()
+//      debugState(cpu)
+      bus.getCycleCounter should be < TooManyCycles
+    }
+    Timings(bus.getCycleCounter, bus.getCycleCounter) -> memoryBank
+  }
 }
+
+

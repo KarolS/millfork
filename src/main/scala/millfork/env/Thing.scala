@@ -464,6 +464,12 @@ case class ByZRegister(register: ZRegister.Value) extends ParamPassingConvention
   override def inNonInlinedOnly = false
 }
 
+case class ByM6809Register(register: M6809Register.Value) extends ParamPassingConvention {
+  override def inInlinedOnly = false
+
+  override def inNonInlinedOnly = false
+}
+
 case class ByVariable(name: String) extends ParamPassingConvention {
   override def inInlinedOnly = false
 

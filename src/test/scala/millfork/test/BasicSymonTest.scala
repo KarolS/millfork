@@ -80,13 +80,13 @@ class BasicSymonTest extends FunSuite with Matchers {
    output += 1
  }
       """
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(src){m =>
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(src){m =>
       m.readByte(0xc000) should equal(src.count(_ == '+'))
     }
   }
 
   test("Byte assignment") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | void main () {
@@ -98,7 +98,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Preallocated variables") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output [2] @$c000
         | byte number = 4
@@ -114,7 +114,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Preallocated variables 2") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | word number = 344
@@ -127,7 +127,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Else if") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | void main () {
@@ -145,7 +145,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Segment syntax") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | segment(default)byte output @$c000
         | segment(default)array x[3]
@@ -174,7 +174,7 @@ class BasicSymonTest extends FunSuite with Matchers {
   }
 
   test("Deep alias test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | alias a = output
