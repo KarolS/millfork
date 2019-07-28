@@ -166,10 +166,18 @@ For better debugging on NES, RAM segments should use bank number `$ff`.
     
     * `startaddr` – little-endian 16-bit address of the first used byte of the compiled output (not necessarily the segment start)
     
+    * `startaddr_be` – the same, but big-endian
+    
     * `startpage` – the high byte of `startaddr`
     
     * `endaddr` – little-endian 16-bit address of the last used byte of the compiled output (usually not the segment end)
     
+    * `endaddr_be` – the same, but big-endian
+    
+    * `length` – little-endian 16-bit length of the compiled output; `endaddr - startaddr + 1`
+    
+    * `length_be` – the same, but big-endian
+
     * `allocated` – all used bytes
     
     * `pagecount` – the number of pages used by all used bytes (including partially filled pages)

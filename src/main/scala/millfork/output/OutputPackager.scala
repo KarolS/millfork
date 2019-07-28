@@ -45,6 +45,13 @@ object StartAddressOutput extends OutputPackager {
   }
 }
 
+object StartAddressOutputBe extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    val b = mem.banks(bank)
+    Array(b.start.>>(8).toByte, b.start.toByte)
+  }
+}
+
 object StartPageOutput extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
@@ -56,6 +63,13 @@ object EndAddressOutput extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     Array(b.end.toByte, b.end.>>(8).toByte)
+  }
+}
+
+object EndAddressOutputBe extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    val b = mem.banks(bank)
+    Array(b.end.>>(8).toByte, b.end.toByte)
   }
 }
 
@@ -71,5 +85,21 @@ object AllocatedDataOutput extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     b.output.slice(b.start, b.end + 1)
+  }
+}
+
+object AllocatedDataLength extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    val b = mem.banks(bank)
+    val size = b.end - b.start + 1
+    Array(size.toByte, size.>>(8).toByte)
+  }
+}
+
+object AllocatedDataLengthBe extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    val b = mem.banks(bank)
+    val size = b.end - b.start + 1
+    Array(size.>>(8).toByte, size.toByte)
   }
 }

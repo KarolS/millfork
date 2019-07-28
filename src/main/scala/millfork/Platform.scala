@@ -42,6 +42,8 @@ class Platform(
   def hasZeroPage: Boolean = cpuFamily == CpuFamily.M6502
 
   def cpuFamily: CpuFamily.Value = CpuFamily.forType(this.cpu)
+
+  def isBigEndian: Boolean = CpuFamily.isBigEndian(cpuFamily)
 }
 
 object Platform {
@@ -207,10 +209,14 @@ object Platform {
     val os = conf.getSection("output")
     val outputPackager = SequenceOutput(os.get(classOf[String], "format", "").split("[, \n\t\r]+").filter(_.nonEmpty).map {
       case "startaddr" => StartAddressOutput
+      case "startaddr_be" => StartAddressOutputBe
       case "startpage" => StartPageOutput
       case "endaddr" => EndAddressOutput
+      case "endaddr_be" => EndAddressOutputBe
       case "pagecount" => PageCountOutput
       case "allocated" => AllocatedDataOutput
+      case "length" => AllocatedDataLength
+      case "length_be" => AllocatedDataLengthBe
       case "d88" => D88Output
       case "tap" => TapOutput
       case n => n.split(":").filter(_.nonEmpty) match {
