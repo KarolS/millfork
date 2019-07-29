@@ -2,6 +2,10 @@
 
 ## Current version
 
+* **Breaking change!**
+The `petscii` encoding now uses the $C0-$DE range for uppercase characters instead of $60-$7E.
+This matches both the CC65 behaviour and the return values from `readkey()`.
+
 * Added `segment` block statement.
 
 * Added goto.

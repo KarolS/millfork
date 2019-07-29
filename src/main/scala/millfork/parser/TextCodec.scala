@@ -278,8 +278,11 @@ object TextCodec {
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
-      "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ",
-    Map('^' -> 0x5E, '♥' -> 0x73, '♡' -> 0x73, '♠' -> 0x61, '♣' -> 0x78, '♢' -> 0x7A, '•' -> 0x71), Map.empty, Map(
+      "\ufffd" * 32 + // 60-7f
+      "\ufffd" * 32 + // 80-9f
+      "\ufffd" * 32 + // a0-bf
+      "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ", // c0-df
+    Map('^' -> 0x5E, '♥' -> 0x73, '♡' -> 0x73, '♠' -> 0xC1, '♣' -> 0xD8, '♢' -> 0xDA, '•' -> 0xD1), Map.empty, Map(
       "n" -> List(13),
       "q" -> List('\"'.toInt),
       "apos" -> List('\''.toInt),
