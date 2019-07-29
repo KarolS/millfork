@@ -1,10 +1,10 @@
 package millfork.compiler.m6809
 
-import millfork.assembly.m6809.{Indexed, MLine, MOpcode, TwoRegisters}
+import millfork.assembly.m6809.{DAccumulatorIndexed, Indexed, MLine, MOpcode, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{ConstantBooleanType, ConstantPointy, FatBooleanType, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, Variable}
+import millfork.env.{Constant, ConstantBooleanType, ConstantPointy, FatBooleanType, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, Variable, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -272,6 +272,11 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     }
   }
 
+  def stashBIfNeeded(ctx: CompilationContext, lines: List[MLine]): List[MLine] = {
+    // TODO: only push if needed
+    MLine.pp(PSHS, M6809Register.B) :: (lines :+ MLine.pp(PULS, M6809Register.B))
+  }
+
   def storeB(ctx: CompilationContext, target: LhsExpression): List[MLine] = {
     target match {
       case VariableExpression(name) =>
@@ -283,6 +288,21 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         ctx.env.getPointy(name) match {
           case p: ConstantPointy =>
             compileToX(ctx, index) :+ MLine(STB, Indexed(M6809Register.X, indirect = false), p.value)
+          case v: VariablePointy =>
+            ctx.env.eval(index) match {
+              case Some(ix) => List(MLine.absolute(LDX, v.addr), MLine(STB, Indexed(M6809Register.X, indirect = false), ix * v.elementType.size))
+              case _ =>
+                v.indexType.size match {
+                  case 1 =>
+                    stashBIfNeeded(ctx,
+                      compileToD(ctx, index) :+ MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero)) :+
+                      MLine(STB, Indexed(M6809Register.X, indirect = false), Constant.Zero)
+                }
+            }
+          case v: StackVariablePointy =>
+            ctx.env.eval(index) match {
+              case Some(ix) => List(MLine.userstack(LDX, v.offset), MLine(STB, Indexed(M6809Register.X, indirect = false), ix * v.elementType.size))
+            }
         }
     }
   }

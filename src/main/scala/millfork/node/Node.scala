@@ -352,19 +352,19 @@ case class VariableDeclarationStatement(name: String,
 }
 
 trait ArrayContents extends Node {
-  def getAllExpressions: List[Expression]
+  def getAllExpressions(bigEndian: Boolean): List[Expression]
   def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents
 }
 
 case class LiteralContents(contents: List[Expression]) extends ArrayContents {
-  override def getAllExpressions: List[Expression] = contents
+  override def getAllExpressions(bigEndian: Boolean): List[Expression] = contents
 
   override def replaceVariable(variable: String, expression: Expression): ArrayContents =
     LiteralContents(contents.map(_.replaceVariable(variable, expression)))
 }
 
 case class ForLoopContents(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: ArrayContents) extends ArrayContents {
-  override def getAllExpressions: List[Expression] = start :: end :: body.getAllExpressions.map(_.replaceVariable(variable, LiteralExpression(0, 1)))
+  override def getAllExpressions(bigEndian: Boolean): List[Expression] = start :: end :: body.getAllExpressions(bigEndian).map(_.replaceVariable(variable, LiteralExpression(0, 1)))
 
   override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
     if (variableToReplace == variable) this else ForLoopContents(
@@ -376,39 +376,44 @@ case class ForLoopContents(variable: String, start: Expression, end: Expression,
 }
 
 case class CombinedContents(contents: List[ArrayContents]) extends ArrayContents {
-  override def getAllExpressions: List[Expression] = contents.flatMap(_.getAllExpressions)
+  override def getAllExpressions(bigEndian: Boolean): List[Expression] = contents.flatMap(_.getAllExpressions(bigEndian))
 
   override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
     CombinedContents(contents.map(_.replaceVariable(variableToReplace, expression)))
 }
 
 case class ProcessedContents(processor: String, values: ArrayContents) extends ArrayContents {
-  override def getAllExpressions: List[Expression] = processor match {
-    case "word" | "word_le" =>
-      values.getAllExpressions.flatMap(expr => List(
+  private def normalizeProcessor(bigEndian: Boolean): String = processor match {
+    case "word" =>  if (bigEndian) "word_be" else "word_le"
+    case "long" =>  if (bigEndian) "long_be" else "long_le"
+    case x => x
+  }
+  override def getAllExpressions(bigEndian: Boolean): List[Expression] = normalizeProcessor(bigEndian) match {
+    case "word_le" =>
+      values.getAllExpressions(bigEndian).flatMap(expr => List(
         FunctionCallExpression("lo", List(expr)).pos(expr.position),
         FunctionCallExpression("hi", List(expr)).pos(expr.position)
       ))
     case "word_be" =>
-      values.getAllExpressions.flatMap(expr => List(
+      values.getAllExpressions(bigEndian).flatMap(expr => List(
         FunctionCallExpression("hi", List(expr)).pos(expr.position),
         FunctionCallExpression("lo", List(expr)).pos(expr.position)
       ))
-    case "long" | "long_le" =>
-      values.getAllExpressions.flatMap(expr => List(
+    case "long_le" =>
+      values.getAllExpressions(bigEndian).flatMap(expr => List(
         FunctionCallExpression("lo", List(expr)).pos(expr.position),
         FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8, 1))).pos(expr.position))).pos(expr.position),
         FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(16, 1))).pos(expr.position))).pos(expr.position),
         FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(24, 1))).pos(expr.position))).pos(expr.position)
       ))
     case "long_be" =>
-      values.getAllExpressions.flatMap(expr => List(
+      values.getAllExpressions(bigEndian).flatMap(expr => List(
         FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(24, 1))).pos(expr.position))).pos(expr.position),
         FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(16, 1))).pos(expr.position))).pos(expr.position),
         FunctionCallExpression("lo", List(FunctionCallExpression(">>", List(expr, LiteralExpression(8, 1))).pos(expr.position))).pos(expr.position),
         FunctionCallExpression("lo", List(expr)).pos(expr.position)
       ))
-    case "struct" => values.getAllExpressions // not used for emitting actual arrays
+    case "struct" => values.getAllExpressions(bigEndian) // not used for emitting actual arrays
   }
 
   override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
@@ -438,8 +443,9 @@ case class ArrayDeclarationStatement(name: String,
                                      address: Option[Expression],
                                      const: Boolean,
                                      elements: Option[ArrayContents],
-                                     alignment: Option[MemoryAlignment]) extends BankedDeclarationStatement {
-  override def getAllExpressions: List[Expression] = List(length, address).flatten ++ elements.fold(List[Expression]())(_.getAllExpressions)
+                                     alignment: Option[MemoryAlignment],
+                                     bigEndian: Boolean) extends BankedDeclarationStatement {
+  override def getAllExpressions: List[Expression] = List(length, address).flatten ++ elements.fold(List[Expression]())(_.getAllExpressions(bigEndian))
 
   override def withChangedBank(bank: String): BankedDeclarationStatement = copy(bank = Some(bank))
 }
@@ -473,8 +479,8 @@ case class FunctionDeclarationStatement(name: String,
 
 sealed trait ExecutableStatement extends Statement
 
-case class RawBytesStatement(contents: ArrayContents) extends ExecutableStatement {
-  override def getAllExpressions: List[Expression] = contents.getAllExpressions
+case class RawBytesStatement(contents: ArrayContents, bigEndian: Boolean) extends ExecutableStatement {
+  override def getAllExpressions: List[Expression] = contents.getAllExpressions(bigEndian)
 }
 
 sealed trait CompoundStatement extends ExecutableStatement {

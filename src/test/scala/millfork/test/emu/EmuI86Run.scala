@@ -74,7 +74,7 @@ class EmuI86Run(nodeOptimizations: List[NodeOptimization], assemblyOptimizations
   }
 
   def apply2(source: String): (Timings, MemoryBank) = {
-    if (!Settings.enableIntel8086Tests) return Timings(-1, -1) -> new MemoryBank(0)
+    if (!Settings.enableIntel8086Tests) return Timings(-1, -1) -> new MemoryBank(0, false)
     Console.out.flush()
     Console.err.flush()
     val log = TestErrorReporting.log

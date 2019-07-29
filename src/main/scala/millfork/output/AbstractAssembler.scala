@@ -30,7 +30,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   var initializedVariablesSize: Int = 0
   protected val log: Logger = rootEnv.log
 
-  val mem = new CompiledMemory(platform.bankNumbers.toList)
+  val mem = new CompiledMemory(platform.bankNumbers.toList, platform.isBigEndian)
   val labelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
   private val bytesToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
   private val wordsToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
@@ -139,7 +139,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         s.typ.size match {
           case 0 => 0
           case 1 => deepConstResolve(s.subbyte(0))
-          case 2 => deepConstResolve(s.subword(0))
+          case 2 => deepConstResolve(s.subword(0)) // TODO: endianness?
           case _ => ???
         }
       case CompoundConstant(operator, lc, rc) =>
@@ -188,6 +188,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   def bytePseudoopcode: String
 
   def deduplicate(options: CompilationOptions, compiledFunctions: mutable.Map[String, CompiledFunction[T]]): Unit
+
+  protected def subbyte(c: Constant, index: Int, totalSize: Int): Constant = if (platform.isBigEndian) c.subbyteBe(index, totalSize) else c.subbyte(index)
 
   def assemble(callGraph: CallGraph, unfilteredOptimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions): AssemblerOutput = {
     mem.programName = options.outputFileName.getOrElse("MILLFORK")
@@ -291,7 +293,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           env.eval(item) match {
             case Some(c) =>
               for(i <- 0 until elementType.size) {
-                writeByte(bank, index, c.subbyte(i))
+                writeByte(bank, index, subbyte(c, i, elementType.size))
                 bank0.occupied(index) = true
                 bank0.initialized(index) = true
                 bank0.writeable(index) = true
@@ -302,7 +304,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           }
         }
         items.flatMap(expr => env.eval(expr) match {
-          case Some(c) => List.tabulate(elementType.size)(i => c.subbyte(i).quickSimplify.toString)
+          case Some(c) =>
+            List.tabulate(elementType.size)(i => subbyte(c, i, elementType.size).quickSimplify.toString)
           case None => List.fill(elementType.size)("<? unknown constant ?>")
         }).grouped(16).foreach { group =>
           assembly.append("    " + bytePseudoopcode + " " + group.mkString(", "))
@@ -382,9 +385,12 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             val c = thing.toAddress
             writeByte(bank, index, 0x2c.toByte) // BIT abs
             index += 1
+            if (platform.isBigEndian) {
+              throw new IllegalStateException("LUnix cannot run on big-endian architectures")
+            }
             for (i <- 0 until typ.size) {
-              writeByte(bank, index, c.subbyte(i))
-              assembly.append("    " + bytePseudoopcode + " " + c.subbyte(i).quickSimplify)
+              writeByte(bank, index, subbyte(c, i, typ.size))
+              assembly.append("    " + bytePseudoopcode + " " + subbyte(c, i, typ.size).quickSimplify)
               index += 1
             }
             initializedVariablesSize += typ.size
@@ -431,14 +437,14 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             env.eval(item) match {
               case Some(c) =>
                 for (i <- 0 until elementType.size) {
-                  writeByte(bank, index, c.subbyte(i))
+                  writeByte(bank, index, subbyte(c, i, elementType.size))
                   index += 1
                 }
               case None => log.error(s"Non-constant contents of array `$name`", item.position)
             }
           }
           items.flatMap(expr => env.eval(expr) match {
-            case Some(c) => List.tabulate(elementType.size)(i => c.subbyte(i).quickSimplify.toString)
+            case Some(c) => List.tabulate(elementType.size)(i => subbyte(c, i, elementType.size).quickSimplify.toString)
             case None => List.fill(elementType.size)("<? unknown constant ?>")
           }).grouped(16).foreach { group =>
             assembly.append("    " + bytePseudoopcode + " " + group.mkString(", "))
@@ -464,8 +470,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           env.eval(value) match {
             case Some(c) =>
               for (i <- 0 until typ.size) {
-                writeByte(bank, index, c.subbyte(i))
-                assembly.append("    " + bytePseudoopcode + " " + c.subbyte(i).quickSimplify)
+                writeByte(bank, index, subbyte(c, i, typ.size))
+                assembly.append("    " + bytePseudoopcode + " " + subbyte(c, i, typ.size).quickSimplify)
                 index += 1
               }
             case None =>

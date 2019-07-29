@@ -47,9 +47,11 @@ object MLine {
 
   def immediate(opcode: MOpcode.Value, param: Constant): MLine = MLine(opcode, Immediate, param)
 
-  def immediate(opcode: MOpcode.Value, param: Int): MLine = MLine(opcode, Immediate, NumericConstant(param, Constant.minimumSize(param)))
+  def immediate(opcode: MOpcode.Value, param: Int): MLine = MLine(opcode, Immediate, Constant(param))
 
   def absolute(opcode: MOpcode.Value, param: Constant): MLine = MLine(opcode, Absolute(false), param)
+
+  def userstack(opcode: MOpcode.Value, offset: Int): MLine = MLine(opcode, Indexed(M6809Register.U, indirect = false), Constant(offset))
 
   def variable(opcode: MOpcode.Value, variable: Variable, offset: Int = 0): MLine = {
     variable match {

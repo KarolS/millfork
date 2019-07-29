@@ -21,6 +21,8 @@ case class CompilationOptions(platform: Platform,
   def log: Logger = jobContext.log
   @inline
   def nextLabel: LabelGenerator = jobContext.nextLabel
+  @inline
+  def isBigEndian: Boolean = platform.isBigEndian
 
   val flags: Map[CompilationFlag.Value, Boolean] = CompilationFlag.values.map { f =>
     f -> commandLineFlags.getOrElse(f, platform.flagOverrides.getOrElse(f, Cpu.defaultFlags(platform.cpu)(f)))

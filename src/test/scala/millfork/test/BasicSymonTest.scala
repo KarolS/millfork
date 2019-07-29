@@ -140,7 +140,7 @@ class BasicSymonTest extends FunSuite with Matchers {
         |  }
         | }
       """.stripMargin) { m =>
-      m.readWord(0xc000) should equal(4)
+      m.readByte(0xc000) should equal(4)
     }
   }
 

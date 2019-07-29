@@ -25,7 +25,7 @@ abstract class MacroExpander[T <: AbstractCode] {
     def h(s: String) = if (s == paramName) target.asInstanceOf[VariableExpression].name else s
 
     (stmt match {
-      case RawBytesStatement(contents) => RawBytesStatement(contents.replaceVariable(paramName, target))
+      case RawBytesStatement(contents, be) => RawBytesStatement(contents.replaceVariable(paramName, target), be)
       case ExpressionStatement(e) => ExpressionStatement(e.replaceVariable(paramName, target))
       case ReturnStatement(e) => ReturnStatement(e.map(f))
       case ReturnDispatchStatement(i, ps, bs) => ReturnDispatchStatement(i.replaceVariable(paramName, target), ps.map(fx), bs.map {

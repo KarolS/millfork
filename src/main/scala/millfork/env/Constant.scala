@@ -69,6 +69,8 @@ sealed trait Constant {
     }
   }
 
+  def subbyteBe(index: Int, totalSize: Int): Constant = subbyte(totalSize - 1 - index)
+
   def subword(index: Int): Constant = {
     if (requiredSize <= index) Constant.Zero
     else {
@@ -146,7 +148,20 @@ case class StructureConstant(typ: StructType, fields: List[Constant]) extends Co
     for ((fv, (ft, _)) <- fields.zip(typ.mutableFieldsWithTypes)) {
       val fs = ft.size
       if (index < offset + fs) {
-        return fv.subbyte(index - offset)
+        val indexInField = index - offset
+        return fv.subbyte(indexInField)
+      }
+      offset += fs
+    }
+    Constant.Zero
+  }
+  override def subbyteBe(index: Int, totalSize: Int): Constant = {
+    var offset = 0
+    for ((fv, (ft, _)) <- fields.zip(typ.mutableFieldsWithTypes)) {
+      val fs = ft.size
+      if (index < offset + fs) {
+        val indexInField = index - offset
+        return fv.subbyteBe(indexInField, fs)
       }
       offset += fs
     }

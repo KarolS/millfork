@@ -1169,7 +1169,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     if (maybeGet[Thing](name).isEmpty) {
       println("registering text literal")
-      root.registerArray(ArrayDeclarationStatement(name, None, None, "byte", None, const = true, Some(LiteralContents(literal.characters)), None).pos(literal.position), options)
+      root.registerArray(ArrayDeclarationStatement(name, None, None, "byte", None, const = true, Some(LiteralContents(literal.characters)), None, options.isBigEndian).pos(literal.position), options)
     }
     name
   }
@@ -1341,11 +1341,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     case CombinedContents(xs) => xs.flatMap(extractArrayContents)
     case pc@ProcessedContents("struct", xs: CombinedContents) =>
       checkIfArrayContentsAreSimple(xs)
-      xs.getAllExpressions.flatMap(x => extractStructArrayContents(x, None))
+      xs.getAllExpressions(options.isBigEndian).flatMap(x => extractStructArrayContents(x, None))
     case pc@ProcessedContents("struct", _) =>
       log.error(s"Invalid struct array contents", pc.position)
       Nil
-    case pc@ProcessedContents(f, xs) => pc.getAllExpressions
+    case pc@ProcessedContents(f, xs) => pc.getAllExpressions(options.isBigEndian)
     case ForLoopContents(v, start, end, direction, body) =>
       (eval(start), eval(end)) match {
         case (Some(NumericConstant(s, sz1)), Some(NumericConstant(e, sz2))) =>
@@ -1412,7 +1412,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               case VariableExpression(name) =>
                 maybeGet[Type](name) match {
                   case Some(typ@EnumType(_, Some(count))) =>
-                    typ -> NumericConstant(count, 1)
+                    typ -> NumericConstant(count, Constant.minimumSize(count))
                   case Some(typ) =>
                     log.error(s"Type $name cannot be used as an array index", l.position)
                     w -> Constant.Zero
@@ -1666,6 +1666,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val b = get[VariableType]("byte")
     val w = get[VariableType]("word")
     if (typ.name == "__reg$type") {
+      if (options.isBigEndian) {
+        throw new IllegalArgumentException("__reg$type on 6809???")
+      }
       return (".lo", 0, b) ::
         (".hi", 1, b) ::
         (".loword", 0, w) ::
@@ -1678,10 +1681,23 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     typ match {
       case _: PlainType => typ.size match {
-        case 2 => List(
+        case 2 => if (options.isBigEndian) List(
+          (".lo", 1, b),
+          (".hi", 0, b)
+        ) else List(
           (".lo", 0, b),
           (".hi", 1, b))
-        case 3 => List(
+        case 3 => if (options.isBigEndian) List(
+          (".loword", 1, w),
+          (".loword.lo", 2, b),
+          (".loword.hi", 1, b),
+          (".hiword", 0, w),
+          (".hiword.lo", 1, b),
+          (".hiword.hi", 0, b),
+          (".b0", 2, b),
+          (".b1", 1, b),
+          (".b2", 0, b)
+        ) else List(
           (".loword", 0, w),
           (".loword.lo", 0, b),
           (".loword.hi", 1, b),
@@ -1691,7 +1707,18 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           (".b0", 0, b),
           (".b1", 1, b),
           (".b2", 2, b))
-        case 4 => List(
+        case 4 => if (options.isBigEndian) List(
+          (".loword", 2, w),
+          (".hiword", 0, w),
+          (".loword.lo", 3, b),
+          (".loword.hi", 2, b),
+          (".hiword.lo", 1, b),
+          (".hiword.hi", 0, b),
+          (".b0", 3, b),
+          (".b1", 2, b),
+          (".b2", 1, b),
+          (".b3", 0, b)
+        ) else List(
           (".loword", 0, w),
           (".hiword", 2, w),
           (".loword.lo", 0, b),
@@ -1701,22 +1728,36 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           (".b0", 0, b),
           (".b1", 1, b),
           (".b2", 2, b),
-          (".b3", 3, b))
+          (".b3", 3, b)
+        )
         case sz if sz > 4 =>
-          (".lo", 0, b) ::
-            (".loword", 0, w) ::
-            (".loword.lo", 0, b) ::
-            (".loword.hi", 1, b) ::
-            List.tabulate(sz){ i => (".b" + i, i, b) }
+          if (options.isBigEndian) {
+            (".lo", sz - 1, b) ::
+              (".loword", sz - 2, w) ::
+              (".loword.lo", sz - 1, b) ::
+              (".loword.hi", sz - 2, b) ::
+              List.tabulate(sz){ i => (".b" + i, sz - 1 - i, b) }
+          } else {
+            (".lo", 0, b) ::
+              (".loword", 0, w) ::
+              (".loword.lo", 0, b) ::
+              (".loword.hi", 1, b) ::
+              List.tabulate(sz){ i => (".b" + i, i, b) }
+          }
         case _ => Nil
       }
-      case p: PointerType =>
-        List(
-          (".raw", 0, p),
-          (".raw.lo", 0, b),
-          (".raw.hi", 1, b),
-          (".lo", 0, b),
-          (".hi", 1, b))
+      case p: PointerType => if (options.isBigEndian) List(
+        (".raw", 0, p),
+        (".raw.lo", 1, b),
+        (".raw.hi", 0, b),
+        (".lo", 1, b),
+        (".hi", 0, b)
+      ) else List(
+        (".raw", 0, p),
+        (".raw.lo", 0, b),
+        (".raw.hi", 1, b),
+        (".lo", 0, b),
+        (".hi", 1, b))
       case s: StructType =>
         val builder = new ListBuffer[(String, Int, VariableType)]
         var offset = 0

@@ -40,7 +40,7 @@ class StructSuite extends FunSuite with Matchers {
   }
 
   test("Nested structs") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Intel8086)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Intel8086, Cpu.Motorola6809)("""
         | struct inner { word x, word y }
         | struct s {
         |   word w
@@ -53,7 +53,11 @@ class StructSuite extends FunSuite with Matchers {
         |   output.b = 5
         |   output.w.hi = output.b
         |   output.p = output.w.addr
+        |   #if BIG_ENDIAN
+        |   output.p[1] = 6
+        |   #else
         |   output.p[0] = 6
+        |   #endif
         |   output.i.x.lo = 55
         |   output.i.x.hi = s.p.offset
         |   output.i.y = 777
@@ -62,14 +66,13 @@ class StructSuite extends FunSuite with Matchers {
       m.readWord(0xc000) should equal(0x506)
       m.readByte(0xc002) should equal(5)
       m.readWord(0xc003) should equal(0xc000)
-      m.readByte(0xc005) should equal(55)
-      m.readByte(0xc006) should equal(3)
+      m.readWord(0xc005) should equal(3 * 256 + 55)
       m.readWord(0xc007) should equal(777)
     }
   }
 
   test("Basic union support") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Intel8086)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Intel8086, Cpu.Motorola6809)("""
         | struct point { byte x, byte y }
         | union point_or_word { point p, word w }
         | word output @$c000
@@ -80,7 +83,11 @@ class StructSuite extends FunSuite with Matchers {
         |   output = u.w
         | }
       """.stripMargin) { m =>
-      m.readWord(0xc000) should equal(0x201)
+      if (m.isBigEndian) {
+        m.readWord(0xc000) should equal(0x102)
+      } else {
+        m.readWord(0xc000) should equal(0x201)
+      }
     }
   }
 

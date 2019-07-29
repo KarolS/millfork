@@ -69,7 +69,7 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
     case ReturnDispatchStatement(index, params, branches) =>
       getAllCalledFunctions(List(index)) ++ getAllCalledFunctions(params) ++ getAllCalledFunctions(branches.map(b => b.function))
     case s: ArrayDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.elements.toList)
-    case s: ArrayContents => getAllCalledFunctions(s.getAllExpressions)
+    case s: ArrayContents => getAllCalledFunctions(s.getAllExpressions(false)) // endianness doesn't matter here at all
     case s: FunctionDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.statements.getOrElse(Nil))
     case Assignment(VariableExpression(_), expr) => getAllCalledFunctions(expr :: Nil)
     case MosAssemblyStatement(Opcode.JSR, _, VariableExpression(name), Elidability.Elidable) => (name -> false) :: Nil

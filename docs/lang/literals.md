@@ -109,14 +109,16 @@ An array is initialized with either:
 
 * (only byte arrays) a format, followed by an array initializer:
 
-   *   `@word` (=`@word_le`): for every term of the array initializer, emit two bytes, first being the low byte of the value, second being the high byte:      
-       `@word [$1122]` is equivalent to `[$22, $11]`
+   *   `@word_le`: for every term of the array initializer, emit two bytes, first being the low byte of the value, second being the high byte:      
+       `@word_le [$1122]` is equivalent to `[$22, $11]`
    
    *   `@word_be` – like the above, but opposite:  
        `@word_be [$1122]` is equivalent to `[$11, $22]`
        
-   *   `@long` (=`@long_le`), `@long_be`: similar, but with four bytes      
-       `@long [$11223344]` is equivalent to `[$44, $33, $22, $11]`  
+   *   `@word`: equivalent to `@word_le` on little-endian architectures and `@word_be` on big-endian architectures
+       
+   *   `@long`, `@long_le`, `@long_be`: similar, but with four bytes      
+       `@long_le [$11223344]` is equivalent to `[$44, $33, $22, $11]`  
        `@long_be [$11223344]` is equivalent to `[$11, $22, $33, $44]`
        
    *   `@struct`: every term of the initializer is interpreted as a struct constructor (see below) 

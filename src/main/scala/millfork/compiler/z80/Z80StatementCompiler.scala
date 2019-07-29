@@ -206,7 +206,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
         }
       case ExpressionStatement(e) =>
         Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING) -> Nil
-      case RawBytesStatement(contents) =>
+      case RawBytesStatement(contents, _) =>
         env.extractArrayContents(contents).map { expr =>
           env.eval(expr) match {
             case Some(c) => ZLine(BYTE, NoRegisters, c, elidability = Elidability.Fixed)

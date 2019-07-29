@@ -100,7 +100,7 @@ object UnusedFunctions extends NodeOptimization {
   def getAllCalledFunctions(expressions: List[Node]): List[String] = expressions.flatMap {
     case s: VariableDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.initialValue.toList)
     case s: ArrayDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.elements.toList)
-    case s: ArrayContents => getAllCalledFunctions(s.getAllExpressions)
+    case s: ArrayContents => getAllCalledFunctions(s.getAllExpressions(false)) // endianness doesn't matter here at all
     case s: FunctionDeclarationStatement => getAllCalledFunctions(s.address.toList) ++ getAllCalledFunctions(s.statements.getOrElse(Nil))
     case Assignment(target, expr) => getAllCalledFunctions(target :: expr :: Nil)
     case s: ReturnDispatchStatement =>

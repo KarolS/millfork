@@ -17,6 +17,18 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         // TODO: clean stack
         // TODO: RTI
         List(MLine.inherent(RTS)) -> Nil
+      case ReturnStatement(Some(e)) =>
+        // TODO: clean stack
+        // TODO: RTI
+        val rts = List(MLine.inherent(RTS))
+        val eval = ctx.function.returnType.size match {
+          case 0 =>
+            ctx.log.error("Cannot return anything from a void function", statement.position)
+            M6809ExpressionCompiler.compile(ctx, e, MExpressionTarget.NOTHING)
+          case 1 => M6809ExpressionCompiler.compileToB(ctx, e)
+          case 2 => M6809ExpressionCompiler.compileToD(ctx, e)
+        }
+        (eval ++ rts) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>
         ctx.env.evalForAsm(expression) match {
           case Some(e) => List(MLine(opcode, addrMode, e, elidability)) -> Nil
@@ -62,7 +74,8 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
 
   override def branchChunk(opcode: BranchingOpcodeMapping, labelName: String): List[MLine] = ???
 
-  override def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[MLine] = ???
+  override def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[MLine] =
+    M6809ExpressionCompiler.compile(ctx, expr, MExpressionTarget.NOTHING, branching)
 
   override def replaceLabel(ctx: CompilationContext, line: MLine, from: String, to: String): MLine = ???
 

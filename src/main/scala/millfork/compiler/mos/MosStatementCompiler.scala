@@ -179,7 +179,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           case _ => a
         }
         List(AssemblyLine(o, actualAddrMode, c, e)) -> Nil
-      case RawBytesStatement(contents) =>
+      case RawBytesStatement(contents, _) =>
         env.extractArrayContents(contents).map { expr =>
           env.eval(expr) match {
             case Some(c) => AssemblyLine(BYTE, RawByte, c, elidability = Elidability.Fixed)
