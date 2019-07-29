@@ -1085,9 +1085,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 val store = expressionStorageFromAW(ctx, exprTypeAndVariable, expr.position)
                 calculate ++ store
               } else {
-                val calculate = PseudoregisterBuiltIns.compileWordAdditionToAX(ctx, params, decimal = decimal)
-                val store = expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
-                calculate ++ store
+                PseudoregisterBuiltIns.compileWordAdditionViaAX(ctx, exprTypeAndVariable, expr.position, params, decimal = decimal)
               }
             case _ =>
               ctx.log.error("Non-in-place addition or subtraction of variables larger than 2 bytes is not supported", expr.position)

@@ -80,6 +80,19 @@ class ShiftSuite extends FunSuite with Matchers {
       """.stripMargin)(_.readWord(0xc000) should equal(0x180))
   }
 
+  test("Word shifting via pseudoregister 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos/*, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086*/)("""
+        | word output @$c000
+        | void main () {
+        |   word w
+        |   w = three()
+        |   output = w << 1
+        | }
+        | word three() { return 3 }
+        | word identity(word w) { return w }
+      """.stripMargin)(_.readWord(0xc000) should equal(6))
+  }
+
   test("Variable shifting") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | word output0 @$c000

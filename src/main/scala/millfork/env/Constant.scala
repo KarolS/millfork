@@ -20,6 +20,7 @@ sealed trait Constant {
 
   def toIntelString: String
 
+  def isQuiteNegative: Boolean = false
   def isProvablyZero: Boolean = false
   def isProvably(value: Int): Boolean = false
   def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = false
@@ -105,10 +106,10 @@ sealed trait Constant {
   def fitsInto(typ: Type): Boolean = true // TODO
 
   final def succ: Constant = (this + 1).quickSimplify
-
 }
 
 case class AssertByte(c: Constant) extends Constant {
+  override def isQuiteNegative: Boolean = c.isQuiteNegative
   override def isProvablyGreaterOrEqualThan(other: Constant): Boolean = c.isProvablyGreaterOrEqualThan(other)
   override def isProvablyZero: Boolean = c.isProvablyZero
   override def isProvably(i: Int): Boolean = c.isProvably(i)
@@ -185,6 +186,7 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
       throw new IllegalArgumentException(s"The constant $value is too big")
     }
   }
+  override def isQuiteNegative: Boolean = value < 0
   override def isProvablyGreaterOrEqualThan(other: Constant): Boolean = value >= 0 && (other match {
     case NumericConstant(o, _) if o >= 0  => value >= o
     case _ => false
@@ -326,6 +328,13 @@ object MathOperator extends Enumeration {
 }
 
 case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Constant) extends Constant {
+
+  override def isQuiteNegative: Boolean = operator match {
+      case MathOperator.Minus =>
+        lhs.isQuiteNegative || lhs.isInstanceOf[NumericConstant] && rhs.isInstanceOf[MemoryAddressConstant]
+      case _ =>
+        false
+  }
 
   override def isProvablyNonnegative: Boolean = {
     import MathOperator._

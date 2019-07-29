@@ -9,10 +9,86 @@ import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node._
 
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+
 /**
   * @author Karol Stasiak
   */
 object PseudoregisterBuiltIns {
+
+  def compileWordAdditionViaAX(ctx: CompilationContext, target: Option[(Type, Variable)], position: Option[Position], params: List[(Boolean, Expression)], decimal: Boolean): List[AssemblyLine] = {
+    val b = ctx.env.get[Type]("byte")
+    val w = ctx.env.get[Type]("word")
+    val store = MosExpressionCompiler.expressionStorageFromAX(ctx, target, position)
+    if (!decimal && params.length == 2) {
+      store match {
+        case List(AssemblyLine0(STA, Absolute | ZeroPage, _), AssemblyLine0(STX, Absolute | ZeroPage, _)) =>
+          val reads = params.map(p => p._1 -> MosExpressionCompiler.compileToAX(ctx, p._2))
+          fastBinaryWordAddition(reads, store.map(x => List(x.copy(opcode = STA)))).foreach(return _)
+        case _ =>
+      }
+    }
+    compileWordAdditionToAX(ctx, params, decimal = decimal) ++ store
+  }
+
+  private def fastBinaryWordAddition(reads: List[(Boolean, List[AssemblyLine])], stores: List[List[AssemblyLine]]): Option[List[AssemblyLine]] = {
+    val countYs = reads.count(_._2.exists(_.concernsY))
+    if (countYs > 1 || countYs == 1 && stores.exists(_.exists(_.concernsY))) return None
+    val result = ListBuffer[AssemblyLine]()
+    var hard = Option.empty[List[AssemblyLine]]
+    val niceReads = mutable.ListBuffer[(List[AssemblyLine], List[AssemblyLine])]()
+    var constant = Constant.Zero
+    var counter = 0
+    for ((subtract, read) <- reads) {
+      read match {
+        case List(AssemblyLine0(LDA, Immediate, l), AssemblyLine0(LDX, Immediate, h)) =>
+          if (subtract) constant -= h.asl(8).+(l).quickSimplify
+          else constant += h.asl(8).+(l).quickSimplify
+        case List(l@AssemblyLine0(LDA, Absolute | ZeroPage | Immediate, _), h@AssemblyLine0(LDX, Absolute | ZeroPage | Immediate, _)) =>
+          if (subtract) niceReads.+=(List(AssemblyLine.implied(SEC), l.copy(opcode = SBC)) -> List(h.copy(opcode = SBC)))
+          else niceReads += (List(AssemblyLine.implied(CLC), l.copy(opcode = ADC)) -> List(h.copy(opcode = ADC)))
+          counter += 1
+        case _ =>
+          if (hard.isDefined || subtract) return None
+          hard = Some(read)
+          counter += 1
+      }
+    }
+    if (!constant.isProvablyZero) {
+      counter += 1
+    }
+    if (counter > 2) {
+      return None
+    }
+    hard match {
+      case Some(ax) =>
+        niceReads.prepend(ax -> List(AssemblyLine.implied(TXA)))
+        if (!constant.isProvablyZero) {
+          if (constant.isQuiteNegative) {
+            niceReads += List(AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, constant.loByte)) -> List(AssemblyLine.immediate(ADC, constant.hiByte))
+          } else {
+            val negC = Constant.Zero.-(constant).quickSimplify.quickSimplify
+            niceReads += List(AssemblyLine.implied(SEC), AssemblyLine.immediate(SBC, negC.loByte)) -> List(AssemblyLine.immediate(SBC, negC.hiByte))
+          }
+        }
+      case None =>
+        if (constant.isProvablyZero) {
+          if (niceReads.nonEmpty && niceReads.head._1.head.opcode == SEC) return None
+          niceReads(0) = (List(niceReads.head._1.last.copy(opcode = LDA)) -> List(niceReads.head._2.last.copy(opcode = LDA)))
+        } else {
+          niceReads.prepend(List(AssemblyLine.immediate(LDA, constant.loByte)) -> List(AssemblyLine.immediate(LDA, constant.hiByte)))
+        }
+    }
+    for (b <- 0 to 1) {
+      for (read <- niceReads) {
+        if (b == 0) result ++= read._1
+        else result ++= read._2
+      }
+      result ++= stores(b)
+    }
+    Some(result.toList)
+  }
 
   def compileWordAdditionToAX(ctx: CompilationContext, params: List[(Boolean, Expression)], decimal: Boolean): List[AssemblyLine] = {
     val b = ctx.env.get[Type]("byte")
@@ -200,6 +276,27 @@ object PseudoregisterBuiltIns {
   }
 
 
+  private def compileFastWordBitOpsToAX(reads: List[List[AssemblyLine]], op: Opcode.Value): Option[List[AssemblyLine]] = {
+    val resultLo = mutable.ListBuffer[AssemblyLine]()
+    val resultHi = mutable.ListBuffer[AssemblyLine]()
+    for(read <- reads) {
+      read match {
+        case List(l@AssemblyLine0(LDA, Immediate | Absolute | ZeroPage, _), h@AssemblyLine0(LDX, Immediate | Absolute | ZeroPage, _)) =>
+          if (resultHi.isEmpty) {
+            resultHi += h.copy(opcode = LDA)
+            resultLo += l
+          } else {
+            resultHi += h.copy(opcode = op)
+            resultLo += l.copy(opcode = op)
+          }
+        case _ => return None
+      }
+    }
+    resultHi += AssemblyLine.implied(TAX)
+    resultHi ++= resultLo
+    Some(resultHi.toList)
+  }
+
   def compileWordBitOpsToAX(ctx: CompilationContext, params: List[Expression], op: Opcode.Value): List[AssemblyLine] = {
     if (ctx.options.zpRegisterSize < 2) {
       ctx.log.error("Word bit operation requires the zeropage pseudoregister", params.headOption.flatMap(_.position))
@@ -208,6 +305,8 @@ object PseudoregisterBuiltIns {
     if (params.isEmpty) {
       return List(AssemblyLine.immediate(LDA, 0), AssemblyLine.immediate(LDX, 0))
     }
+    compileFastWordBitOpsToAX(params.map(p => MosExpressionCompiler.compileToAX(ctx, p)), op).foreach(return _)
+
     val b = ctx.env.get[Type]("byte")
     val w = ctx.env.get[Type]("word")
     val reg = ctx.env.get[VariableInMemory]("__reg")
@@ -292,6 +391,31 @@ object PseudoregisterBuiltIns {
     ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
         List(AssemblyLine.zeropage(LDA, reg), AssemblyLine.zeropage(LDX, reg, 1))
+      case Some(NumericConstant(1, _)) if (firstParamCompiled match {
+        case List(
+        AssemblyLine0(LDA, ZeroPage | Absolute | Immediate, _),
+        AssemblyLine0(STA, ZeroPage, _),
+        AssemblyLine0(LDA, ZeroPage | Absolute | Immediate, _),
+        AssemblyLine0(STA, ZeroPage, _)) => true
+        case _ => false
+      }) =>
+        if (left) {
+          List(
+            firstParamCompiled(0),
+            AssemblyLine.implied(ASL),
+            AssemblyLine.zeropage(STA, reg),
+            firstParamCompiled(2),
+            AssemblyLine.implied(ROL),
+            AssemblyLine.implied(TAX),
+            AssemblyLine.zeropage(LDA, reg))
+        } else {
+          List(
+            firstParamCompiled(2),
+            AssemblyLine.implied(LSR),
+            AssemblyLine.implied(TAX),
+            firstParamCompiled(0),
+            AssemblyLine.implied(ROR))
+        }
       case Some(NumericConstant(v, _)) if v > 0 && unrollShift(ctx, v, 2, 4) =>
         if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
           firstParamCompiled ++
