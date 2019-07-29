@@ -149,6 +149,19 @@ If the declared size and the size deduced from the `<initial_values>` don't matc
 * `<initial_values>` is an array literal, see [Literals](./literals.md).
 Local arrays can have initial values only if they're const.
 
+Each array has an associated constant defined that contains its length
+and, if the indices are numeric, another constant that contains the last index of the array:
+
+    array x[5]
+    x.length        // equals 5
+    x.lastindex     // equals 4
+    
+    enum e { ... }
+    array y[e]
+    y.length        // equals e.count
+    // y.lastindex  // doesn't exist
+    
+
 TODO
 
 ### Function declarations

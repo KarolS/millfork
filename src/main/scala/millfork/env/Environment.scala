@@ -1458,6 +1458,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 }
                 if (length < 256) {
                   addThing(ConstantThing(arrayName + ".length", lengthConst, b), stmt.position)
+                } else {
+                  addThing(ConstantThing(arrayName + ".length", lengthConst, w), stmt.position)
+                }
+                if (length > 0 && indexType.isArithmetic) {
+                  if (length <= 256) {
+                    addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 1), b), stmt.position)
+                  } else {
+                    addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 2), w), stmt.position)
+                  }
                 }
               case _ => log.error(s"Array `${stmt.name}` has weird length", stmt.position)
             }
@@ -1531,6 +1540,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
         if (length < 256) {
           addThing(ConstantThing(arrayName + ".length", NumericConstant(length, 1), b), stmt.position)
+        } else {
+          addThing(ConstantThing(arrayName + ".length", NumericConstant(length, 2), w), stmt.position)
+        }
+        if (length > 0 && indexType.isArithmetic) {
+          if (length <= 256) {
+            addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 1), b), stmt.position)
+          } else {
+            addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 2), w), stmt.position)
+          }
         }
     }
   }
