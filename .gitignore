@@ -9,6 +9,9 @@ src/test/scala/experiments/
 # doesn't work yet
 examples/lunix/
 
+# may become a feature in the future
+*.tbl
+
 # hidden files
 *.~
 

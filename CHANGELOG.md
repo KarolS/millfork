@@ -6,6 +6,8 @@
 The `petscii` encoding now uses the $C0-$DE range for uppercase characters instead of $60-$7E.
 This matches both the CC65 behaviour and the return values from `readkey()`.
 
+* Added support for the Japanese version of Commodore 64.
+
 * Added `segment` block statement.
 
 * Added goto.
@@ -15,6 +17,8 @@ This matches both the CC65 behaviour and the return values from `readkey()`.
 * Added function pointers – so far quite limited.
 
 * Added arrays of elements of size greater than byte.
+
+* Added `.length` for large arrays and `.lastindex` for numerically indexed arrays.
 
 * Improved passing of register parameters to assembly functions.
 
