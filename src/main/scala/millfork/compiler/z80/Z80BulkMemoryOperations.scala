@@ -22,7 +22,7 @@ object Z80BulkMemoryOperations {
   def compileMemcpy(ctx: CompilationContext, target: IndexedExpression, source: IndexedExpression, f: ForStatement): List[ZLine] = {
     val sourceOffset = removeVariableOnce(f.variable, source.index).getOrElse(return compileForStatement(ctx, f)._1)
     if (!sourceOffset.isPure) return compileForStatement(ctx, f)._1
-    val sourceIndexExpression = SumExpression(List(false -> sourceOffset, false -> f.start), decimal = false)
+    val sourceIndexExpression = sourceOffset #+# f.start
     val calculateSource = Z80ExpressionCompiler.calculateAddressToHL(ctx, IndexedExpression(source.name, sourceIndexExpression).pos(source.position), forWriting = false)
     compileMemoryBulk(ctx, target, f,
       useDEForTarget = true,
@@ -47,18 +47,18 @@ object Z80BulkMemoryOperations {
 
     def compileForZ80(targetOffset: Expression): List[ZLine] = {
       val targetIndexExpression = f.direction match {
-        case ForDirection.DownTo => SumExpression(List(false -> targetOffset, false -> f.end), decimal = false)
-        case _ => SumExpression(List(false -> targetOffset, false -> f.start), decimal = false)
+        case ForDirection.DownTo => targetOffset #+# f.end
+        case _ => targetOffset #+# f.start
       }
       val array = if (target.name != f.variable) target.name else "$0000"
       val calculateAddress = Z80ExpressionCompiler.calculateAddressToHL(ctx, IndexedExpression(array, targetIndexExpression).pos(targetIndexExpression.position), forWriting = true)
       val calculateSize = f.direction match {
         case ForDirection.DownTo =>
-          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.start, true -> f.end), decimal = false)))
+          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, f.start #-# f.end))
         case ForDirection.To | ForDirection.ParallelTo =>
-          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.end, true -> f.start), decimal = false)))
+          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, f.end #-# f.start))
         case ForDirection.Until | ForDirection.ParallelUntil =>
-          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, SumExpression(List(false -> f.end, true -> f.start, true -> LiteralExpression(1, 1)), decimal = false)))
+          Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToBC(ctx, f.end #-# f.start #-# 1))
       }
       val (incOp, ldOp) = f.direction match {
         case ForDirection.DownTo => DEC_16 -> LDDR
@@ -134,14 +134,14 @@ object Z80BulkMemoryOperations {
     val target1Offset = removeVariableOnce(f.variable, target2.index).getOrElse(return compileForStatement(ctx, f)._1)
     val target2Offset = removeVariableOnce(f.variable, target2.index).getOrElse(return compileForStatement(ctx, f)._1)
     val target1IndexExpression = if (c.countDownDespiteSyntax) {
-      SumExpression(List(false -> target1Offset, false -> f.end, true -> LiteralExpression(1, 1)), decimal = false)
+      target1Offset #+# f.end #-# 1
     } else {
-      SumExpression(List(false -> target1Offset, false -> f.start), decimal = false)
+      target1Offset #+# f.start
     }
     val target2IndexExpression = if (c.countDownDespiteSyntax) {
-      SumExpression(List(false -> target2Offset, false -> f.end, true -> LiteralExpression(1, 1)), decimal = false)
+      target2Offset #+# f.end #-# 1
     } else {
-      SumExpression(List(false -> target2Offset, false -> f.start), decimal = false)
+      target2Offset #+# f.start
     }
     val fused = target1.name == target2.name && ((ctx.env.eval(target1Offset), ctx.env.eval(target2Offset)) match {
       case (Some(a), Some(b)) => a == b
@@ -209,7 +209,7 @@ object Z80BulkMemoryOperations {
     val countDownDespiteSyntax = f.direction == ForDirection.ParallelTo || f.direction == ForDirection.ParallelUntil
     val initC = if (useC) Z80ExpressionCompiler.compile8BitTo(ctx, f.direction match {
       case ForDirection.ParallelTo => f.end
-      case ForDirection.ParallelUntil => SumExpression(List(false -> f.end, true -> LiteralExpression(1, 1)), decimal = false)
+      case ForDirection.ParallelUntil => f.end #-# 1
       case _ => f.start
     }, ZRegister.C) else Nil
     val nextC = if (useC) List(ZLine.register(if (countDown) DEC else INC, ZRegister.C)) else Nil
@@ -397,7 +397,6 @@ object Z80BulkMemoryOperations {
                         extraAddressCalculations: Boolean => (List[ZLine], List[ZLine]),
                         loadA: ZOpcode.Value => List[ZLine],
                         z80Bulk: Boolean => Option[ZOpcode.Value]): List[ZLine] = {
-    val one = LiteralExpression(1, 1)
     val targetOffset = removeVariableOnce(f.variable, target.index).getOrElse(return compileForStatement(ctx, f)._1)
     if (!targetOffset.isPure) return compileForStatement(ctx, f)._1
     val indexVariableSize = ctx.env.get[Variable](f.variable).typ.size
@@ -406,13 +405,13 @@ object Z80BulkMemoryOperations {
     val decreasing = f.direction == ForDirection.DownTo || decreasingDespiteSyntax
     val plusOne = f.direction == ForDirection.To || f.direction == ForDirection.DownTo || f.direction == ForDirection.ParallelTo
     val byteCountExpression =
-      if (f.direction == ForDirection.DownTo) SumExpression(List(false -> f.start, false -> one, true -> f.end), decimal = false)
-      else if (plusOne) SumExpression(List(false -> f.end, false -> one, true -> f.start), decimal = false)
-      else SumExpression(List(false -> f.end, true -> f.start), decimal = false)
+      if (f.direction == ForDirection.DownTo) f.start #+# 1 #-# f.end
+      else if (plusOne) f.end #+# 1 #-# f.start
+      else f.end #-# f.start
     val targetIndexExpression = if (decreasingDespiteSyntax) {
-      SumExpression(List(false -> targetOffset, false -> f.end, true -> one), decimal = false)
+      targetOffset #+# f.end #-# 1
     } else {
-      SumExpression(List(false -> targetOffset, false -> f.start), decimal = false)
+      targetOffset #+# f.start
     }
     val ldr = z80Bulk(decreasing)
     val smallCount = indexVariableSize == 1 && (ldr.isEmpty || !ctx.options.flag(CompilationFlag.EmitZ80Opcodes))

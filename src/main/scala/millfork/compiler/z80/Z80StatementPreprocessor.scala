@@ -131,7 +131,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
           Assignment(
             VariableExpression(newVariables(name, f.variable)),
             FunctionCallExpression("pointer", List(
-              SumExpression(List(false -> VariableExpression(name + ".addr"), false -> optStart), decimal = false)
+              VariableExpression(name + ".addr") #+# optStart
             )))
         }).toList :+ ForStatement(f.variable, optStart, optimizeExpr(f.end, Map()), newDirection, optimizeStmts(newBody, Map())._1),
         Nil

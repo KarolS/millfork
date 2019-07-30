@@ -126,20 +126,14 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
       ExpressionStatement(FunctionCallExpression("+=", List(vex, one)).pos(p)).pos(p)
     } else {
       Assignment(vex, FunctionCallExpression(indexType.name, List(
-        SumExpression(List(
-          false -> FunctionCallExpression("byte", List(vex)).pos(p),
-          false -> LiteralExpression(1,1).pos(p),
-        ), decimal = false).pos(p)
+        FunctionCallExpression("byte", List(vex)).pos(p) #+# 1
       )).pos(p)).pos(p)
     }
     val decrement = if (arithmetic) {
           ExpressionStatement(FunctionCallExpression("-=", List(vex, one)).pos(p)).pos(p)
         } else {
           Assignment(vex, FunctionCallExpression(indexType.name, List(
-            SumExpression(List(
-              false -> FunctionCallExpression("byte", List(vex)).pos(p),
-              true -> LiteralExpression(1,1).pos(p),
-            ), decimal = false).pos(p)
+            FunctionCallExpression("byte", List(vex)).pos(p) #-# 1
           )).pos(p)).pos(p)
         }
     val names = Set("", "for", f.variable)
@@ -213,11 +207,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           Assignment(
             vex,
             FunctionCallExpression("lo", List(
-              SumExpression(List(
-                false -> f.start,
-                false -> LiteralExpression(1, 2).pos(p)),
-                decimal = false
-              ).pos(p)
+              (f.start #+# LiteralExpression(1, 2).pos(p)).pos(p)
             )).pos(p)
           ).pos(p),
           DoWhileStatement(
@@ -272,7 +262,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         ))
       case (ForDirection.DownTo, _, _) =>
         // TODO: smarter countdown if end is not a constant
-        val endMinusOne = SumExpression(List(false -> f.end, true -> LiteralExpression(1, 1)), decimal = false).pos(p)
+        val endMinusOne = (f.end #-# 1).pos(p)
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
           IfStatement(

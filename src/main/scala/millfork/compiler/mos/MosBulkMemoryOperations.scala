@@ -21,11 +21,11 @@ object MosBulkMemoryOperations {
     ctx.env.getPointy(target.name)
     val sizeExpr = f.direction match {
       case ForDirection.DownTo =>
-        SumExpression(List(false -> f.start, true -> f.end, false -> LiteralExpression(1, 1)), decimal = false)
+        f.start #-# f.end #+# 1
       case ForDirection.To | ForDirection.ParallelTo =>
-        SumExpression(List(false -> f.end, true -> f.start, false -> LiteralExpression(1, 1)), decimal = false)
+        f.end #-# f.start #+# 1
       case ForDirection.Until | ForDirection.ParallelUntil =>
-        SumExpression(List(false -> f.end, true -> f.start), decimal = false)
+        f.end #-# f.start
     }
     val reg = ctx.env.get[VariableInMemory]("__reg.loword")
     val w = ctx.env.get[Type]("word")
@@ -37,7 +37,7 @@ object MosBulkMemoryOperations {
     val loadReg =
       if (useTwoRegs) {
         import millfork.assembly.mos.AddrMode._
-        val first = MosExpressionCompiler.compile(ctx, SumExpression(List(false -> f.start, false -> target.index), decimal = false), Some(w -> reg), BranchSpec.None)
+        val first = MosExpressionCompiler.compile(ctx, f.start #+# target.index, Some(w -> reg), BranchSpec.None)
         first ++ (first match {
           case List(AssemblyLine0(LDA, Immediate, l), AssemblyLine0(LDA, ZeroPage, r0), AssemblyLine0(LDA, Immediate, h), AssemblyLine0(LDA, ZeroPage, r1))
             if (r1-r0).quickSimplify.isProvably(1) =>
@@ -57,7 +57,7 @@ object MosBulkMemoryOperations {
               AssemblyLine.immediate(ADC, 0),
               AssemblyLine.zeropage(STA, reg, 3))
         })
-      }else MosExpressionCompiler.compile(ctx, SumExpression(List(false -> f.start, false -> target.index), decimal = false), Some(w -> reg), BranchSpec.None)
+      } else MosExpressionCompiler.compile(ctx, f.start #+# target.index, Some(w -> reg), BranchSpec.None)
 
     val loadSource = MosExpressionCompiler.compileToA(ctx, source)
     val loadAll = if (MosExpressionCompiler.changesZpreg(loadSource, 0) || MosExpressionCompiler.changesZpreg(loadSource, 1)) {
@@ -193,7 +193,7 @@ object MosBulkMemoryOperations {
     val (prepareZpreg, addrMode, parameter) = env.getPointy(targetExpression.name) match {
       case _: VariablePointy | _:StackVariablePointy =>
         val offsetExpr = GeneratedConstantExpression(offset, env.get[Type]("word"))
-        val pz = MosExpressionCompiler.compileToZReg(ctx, SumExpression(List(false -> VariableExpression(targetExpression.name), false -> offsetExpr), decimal = false))
+        val pz = MosExpressionCompiler.compileToZReg(ctx, VariableExpression(targetExpression.name) #+# offsetExpr)
         (pz, AddrMode.IndexedY, reg.toAddress)
       case c: ConstantPointy =>
         if (indexVariable.typ.size == 1) (Nil, AddrMode.AbsoluteX, c.value)

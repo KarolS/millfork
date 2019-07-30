@@ -1168,7 +1168,6 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case _ => ???
     }
     if (maybeGet[Thing](name).isEmpty) {
-      println("registering text literal")
       root.registerArray(ArrayDeclarationStatement(name, None, None, "byte", None, const = true, Some(LiteralContents(literal.characters)), None, options.isBigEndian).pos(literal.position), options)
     }
     name

@@ -130,10 +130,10 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
       case Assignment(target:IndexedExpression, arg) if isWordPointy(target.name) =>
         cv = search(arg, cv)
         cv = search(target, cv)
-        Assignment(DerefExpression(SumExpression(List(
-          false -> FunctionCallExpression("pointer", List(VariableExpression(target.name).pos(pos))).pos(pos),
-          false -> FunctionCallExpression("<<", List(optimizeExpr(target.index, cv), LiteralExpression(1, 1))).pos(pos)
-        ), decimal = false), 0, env.getPointy(target.name).elementType).pos(pos), optimizeExpr(arg, cv)).pos(pos) -> cv
+        Assignment(DerefExpression(
+          FunctionCallExpression("pointer", List(VariableExpression(target.name).pos(pos))).pos(pos) #+#
+            FunctionCallExpression("<<", List(optimizeExpr(target.index, cv), LiteralExpression(1, 1))).pos(pos),
+          0, env.getPointy(target.name).elementType).pos(pos), optimizeExpr(arg, cv)).pos(pos) -> cv
       case Assignment(target:IndexedExpression, arg) =>
         cv = search(arg, cv)
         cv = search(target, cv)
@@ -340,10 +340,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                     }
                   }
                   // TODO: re-cast pointer type
-                  DerefExpression(("pointer." + targetType.name) <| SumExpression(List(
-                    false -> result,
-                    false -> optimizeExpr(scaledIndex, Map())
-                  ), decimal = false), 0, targetType)
+                  DerefExpression(("pointer." + targetType.name) <| (
+                    result #+# optimizeExpr(scaledIndex, Map())
+                  ), 0, targetType)
               }
             case _ =>
               ctx.log.error("Not a pointer type on the left-hand side of `[`", pos)
@@ -361,10 +360,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
               case DerefExpression(inner, 0, _) =>
                 optimizeExpr(inner, currentVarValues).pos(pos)
               case DerefExpression(inner, offset, targetType) =>
-                ("pointer." + targetType.name) <| SumExpression(List(
-                  false -> ("pointer" <| optimizeExpr(inner, currentVarValues).pos(pos)),
-                  false -> LiteralExpression(offset, 2)
-                ), decimal = false)
+                ("pointer." + targetType.name) <| (
+                  ("pointer" <| optimizeExpr(inner, currentVarValues).pos(pos)) #+# LiteralExpression(offset, 2)
+                )
               case IndexedExpression(name, index) =>
                 ctx.log.fatal("Oops!")
               case _ =>
@@ -401,25 +399,19 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                     case 0 =>
                       DerefExpression(inner, fieldOffset, fieldType)
                     case 1 =>
-                      ("pointer." + fieldType.name) <| SumExpression(List(
-                        false -> ("pointer" <| inner),
-                        false -> LiteralExpression(fieldOffset, 2)
-                      ), decimal = false)
+                      ("pointer." + fieldType.name) <| (
+                        ("pointer" <| inner) #+# LiteralExpression(fieldOffset, 2)
+                      )
                     case 2 =>
-                     SumExpression(List(
-                        false -> ("pointer" <| inner),
-                        false -> LiteralExpression(fieldOffset, 2)
-                      ), decimal = false)
+                      ("pointer" <| inner) #+# LiteralExpression(fieldOffset, 2)
                     case 10 =>
-                      "lo" <| SumExpression(List(
-                        false -> ("pointer" <| inner),
-                        false -> LiteralExpression(fieldOffset, 2)
-                      ), decimal = false)
+                      "lo" <| (
+                        ("pointer" <| inner) #+# LiteralExpression(fieldOffset, 2)
+                      )
                     case 11 =>
-                      "hi" <| SumExpression(List(
-                        false -> ("pointer" <| inner),
-                        false -> LiteralExpression(fieldOffset, 2)
-                      ), decimal = false)
+                      "hi" <| (
+                         ("pointer" <| inner) #+# LiteralExpression(fieldOffset, 2)
+                      )
                     case _ => throw new IllegalStateException
                   }
                 }
@@ -497,10 +489,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 case _ => "*" <| ("word" <| index, LiteralExpression(targetType.size, 1))
               }
             }
-            DerefExpression(SumExpression(List(
-              false -> ("pointer" <| VariableExpression(name).pos(pos)),
-              false -> optimizeExpr(scaledIndex, Map())
-            ), decimal = false), 0, pointy.elementType).pos(pos)
+            DerefExpression(
+              ("pointer" <| VariableExpression(name).pos(pos)) #+# optimizeExpr(scaledIndex, Map()),
+              0, pointy.elementType).pos(pos)
         }
       case _ => expr // TODO
     }

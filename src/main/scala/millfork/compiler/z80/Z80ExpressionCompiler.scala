@@ -752,11 +752,16 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case List(fp, param) =>
                     getExpressionType(ctx, fp) match {
                       case FunctionPointerType(_, _, _, Some(pt), Some(v)) =>
-                        if (pt.size != 1) {
+                        if (pt.size > 2 || pt.size < 1) {
                           ctx.log.error("Invalid parameter type", param.position)
                           compileToHL(ctx, fp) ++ compile(ctx, param, ZExpressionTarget.NOTHING)
                         } else if (getExpressionType(ctx, param).isAssignableTo(pt)) {
-                          compileToDE(ctx, fp) ++ stashDEIfChanged(ctx, compileToA(ctx, param)) :+ callLine
+                          pt.size match {
+                            case 1 =>
+                              compileToDE(ctx, fp) ++ stashDEIfChanged(ctx, compileToA(ctx, param)) :+ callLine
+                            case 2 =>
+                              compileToDE(ctx, fp) ++ stashDEIfChanged(ctx, compileToHL(ctx, param)) :+ callLine
+                          }
                         } else {
                           ctx.log.error("Invalid parameter type", param.position)
                           compileToHL(ctx, fp) ++ compile(ctx, param, ZExpressionTarget.NOTHING)

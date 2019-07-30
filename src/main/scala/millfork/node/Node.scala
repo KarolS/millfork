@@ -35,6 +35,15 @@ sealed trait Expression extends Node {
   def getPointies: Seq[String]
   def isPure: Boolean
   def getAllIdentifiers: Set[String]
+
+  def #+#(smallInt: Int): Expression = (this #+# LiteralExpression(smallInt, 1).pos(this.position)).pos(this.position)
+  def #+#(that: Expression): Expression = that match {
+    case SumExpression(params, false) => SumExpression((false -> this) :: params, decimal = false)
+    case _ => SumExpression(List(false -> this, false -> that), decimal = false)
+  }
+  def #-#(smallInt: Int): Expression = (this #-# LiteralExpression(smallInt, 1).pos(this.position)).pos(this.position)
+  def #-#(that: Expression): Expression = SumExpression(List(false -> this, true -> that), decimal = false)
+
   @transient var typeCache: Type = _
 }
 
@@ -99,7 +108,7 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
     SeparateBytesExpression(
       hi.replaceVariable(variable, actualParam),
       lo.replaceVariable(variable, actualParam)).pos(position)
-  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = 
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
     SeparateBytesExpression(
           hi.replaceIndexedExpression(predicate, replacement),
           lo.replaceIndexedExpression(predicate, replacement)).pos(position)
@@ -112,12 +121,22 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
 case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Boolean) extends Expression {
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     SumExpression(expressions.map { case (n, e) => n -> e.replaceVariable(variable, actualParam) }, decimal).pos(position)
-  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = 
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
     SumExpression(expressions.map { case (n, e) => n -> e.replaceIndexedExpression(predicate, replacement) }, decimal).pos(position)
   override def containsVariable(variable: String): Boolean = expressions.exists(_._2.containsVariable(variable))
   override def getPointies: Seq[String] = expressions.flatMap(_._2.getPointies)
   override def isPure: Boolean = expressions.forall(_._2.isPure)
   override def getAllIdentifiers: Set[String] = expressions.map(_._2.getAllIdentifiers).fold(Set[String]())(_ ++ _)
+
+  override def #+#(that: Expression): Expression =
+    if (decimal) super.#+#(that)
+    else that match {
+      case SumExpression(params, false) => SumExpression(expressions ++ params, decimal = false)
+      case _ => SumExpression(expressions :+ (false -> that), decimal = false)
+    }
+  override def #-#(that: Expression): Expression =
+    if (decimal) super.#-#(that)
+    else SumExpression(expressions :+ (true -> that), decimal = false)
 }
 
 case class FunctionCallExpression(functionName: String, expressions: List[Expression]) extends Expression {

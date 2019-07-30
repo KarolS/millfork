@@ -15,7 +15,7 @@ import scala.collection.GenTraversableOnce
 object Z80Shifting {
 
   private def calculateIterationCountPlus1(ctx: CompilationContext, rhs: Expression) = {
-    Z80ExpressionCompiler.compile8BitTo(ctx, SumExpression(List(false -> rhs, false -> LiteralExpression(1, 1)), decimal = false), ZRegister.B)
+    Z80ExpressionCompiler.compile8BitTo(ctx, rhs #+# 1, ZRegister.B)
   }
 
   private def fixAfterShiftIfNeeded(extendedOps: Boolean, left: Boolean, i: Long): List[ZLine] =

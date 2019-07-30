@@ -686,7 +686,6 @@ object PseudoregisterBuiltIns {
   }
 
   def doesMemoryAccessOverlap(l1: List[AssemblyLine], l2: List[AssemblyLine]): Boolean = {
-    print()
     for{
       a1 <- l1
       if a1.addrMode != Immediate && a1.addrMode != Implied
