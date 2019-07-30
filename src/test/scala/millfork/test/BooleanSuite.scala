@@ -138,4 +138,21 @@ class BooleanSuite extends FunSuite with Matchers {
       """.stripMargin
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readByte(0xc000) should equal(code.sliding(4).count(_ == "pass")))
   }
+
+  test("Fat boolean optimization") {
+    val code ="""
+      | byte output @$c000
+      | noinline bool f(byte x) = x & 1 != 0
+      | noinline bool g(byte x) = x & 1 == 0
+      | void main () {
+      |   output = 5
+      |   if f(3) { output += 1 }
+      |   if g(2) { output += 1 }
+      |   if f(2) { output += 100 }
+      |   if g(3) { output += 100 }
+      | }
+      |
+      """.stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readByte(0xc000) should equal(7))
+  }
 }

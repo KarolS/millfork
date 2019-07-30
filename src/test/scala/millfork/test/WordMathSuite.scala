@@ -236,6 +236,23 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
     }
   }
 
+  test("Word addition 5") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+        | word output @$c000
+        | void main () {
+        |   word v
+        |   word u
+        |   v = $308
+        |   output = $102
+        |   barrier()
+        |   output = (output.lo:output.hi) + v
+        | }
+        | noinline void barrier() { }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should equal(0x509)
+    }
+  }
+
   test("Word bit ops 2") {
     EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
         | word output @$c000

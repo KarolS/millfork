@@ -72,4 +72,21 @@ class BitOpSuite extends FunSuite with Matchers {
         | noinline void barrier(){}
       """.stripMargin)(_.readWord(0xc000) should equal(0xc00c))
   }
+
+  test("Bit testing optimizations") {
+    val code ="""
+      | byte output @$c000
+      | noinline byte f() = 5
+      | noinline bool g(byte x) = x & 1 == 0
+      | void main () {
+      |   byte x
+      |   x = f()
+      |
+      |   if x & 4 == 0 { x = 0 } else { x = 2 }
+      |   output = x
+      | }
+      |
+      """.stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readByte(0xc000) should equal(2))
+  }
 }

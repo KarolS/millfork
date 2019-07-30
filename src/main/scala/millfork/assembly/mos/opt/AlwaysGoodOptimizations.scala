@@ -2849,7 +2849,7 @@ object AlwaysGoodOptimizations {
     },
   )
 
-  val ConstantInlinedShifting = new RuleBasedAssemblyOptimization("Constant inlined shifting",
+  lazy val ConstantInlinedShifting = new RuleBasedAssemblyOptimization("Constant inlined shifting",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
 
     // TODO: set limits on the loop iteration to avoid huge unrolled code
@@ -2874,7 +2874,7 @@ object AlwaysGoodOptimizations {
 
   )
 
-  val SimplifiableComparison = new RuleBasedAssemblyOptimization("Simplifiable comparison",
+  lazy val SimplifiableComparison = new RuleBasedAssemblyOptimization("Simplifiable comparison",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
 
     (Elidable & HasOpcode(LDA)) ~
@@ -2907,6 +2907,149 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.A) & HasAddrModeIn(Absolute, ZeroPage, Immediate)) ~~> { code =>
       List(code.last.copy(opcode = CPY))
     },
+
+  )
+
+  private val powersOf2: List[(Int, Int)] = List(
+    1 -> 0,
+    2 -> 1,
+    4 -> 2,
+    8 -> 3,
+    16 -> 4,
+    32 -> 5,
+    64 -> 6
+  )
+
+  lazy val OptimizableMasking = new RuleBasedAssemblyOptimization("Simplifiable masking",
+      needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+
+    MultipleAssemblyRules((for{
+        (sourceMask, sourceShift) <- powersOf2
+        (targetMask, targetShift) <- powersOf2
+        shiftOp = if (sourceShift > targetShift) LSR else ASL
+        shift = if (sourceShift > targetShift) sourceShift - targetShift else targetShift - sourceShift
+        if shift < 2
+    } yield {
+      List(
+
+        // LDA:
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BEQ) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDA) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcodeIn(JMP, BNE, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C)) ~~>
+          (c => c.head :: List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BNE) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDA) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcodeIn(JMP, BEQ, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C)) ~~>
+          (c => List(c.head, AssemblyLine.immediate(EOR, sourceMask).pos(c(1).source)) ++ List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BEQ) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
+          (Elidable & HasOpcodeIn(JMP, BNE, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDA) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C)) ~~>
+          (c => List(c.head, AssemblyLine.immediate(EOR, sourceMask).pos(c(1).source)) ++ List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BNE) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
+          (Elidable & HasOpcodeIn(JMP, BEQ, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDA) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C)) ~~>
+          (c => c.head ::  List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source))),
+
+        // LDY
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BEQ) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDY) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcodeIn(JMP, BNE, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & (HasOpcode(LDY) & HasImmediate(0) | HasOpcode(TAY))) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.A)) ~~>
+          (c => c.head :: List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source)) ++ List(AssemblyLine.implied(TAY))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BNE) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDY) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcodeIn(JMP, BEQ, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDY) & HasImmediate(0)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.A)) ~~>
+          (c => List(c.head, AssemblyLine.immediate(EOR, sourceMask).pos(c(1).source)) ++ List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source)) ++ List(AssemblyLine.implied(TAY))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BEQ) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDY) & HasImmediate(0)) ~
+          (Elidable & HasOpcodeIn(JMP, BNE, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDY) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.A)) ~~>
+          (c => List(c.head, AssemblyLine.immediate(EOR, sourceMask).pos(c(1).source)) ++ List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source)) ++ List(AssemblyLine.implied(TAY))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BNE) & MatchParameter(10)) ~
+          (Elidable & (HasOpcode(LDY) & HasImmediate(0) | HasOpcode(TAY))) ~
+          (Elidable & HasOpcodeIn(JMP, BEQ, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDY) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.A)) ~~>
+          (c => c.head ::  List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source)) ++ List(AssemblyLine.implied(TAY))),
+
+
+        // LDX
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BEQ) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDX) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcodeIn(JMP, BNE, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & (HasOpcode(LDX) & HasImmediate(0) | HasOpcode(TAX))) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.A)) ~~>
+          (c => c.head :: List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source)) ++ List(AssemblyLine.implied(TAX))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BNE) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDX) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcodeIn(JMP, BEQ, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDX) & HasImmediate(0)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.A)) ~~>
+          (c => List(c.head, AssemblyLine.immediate(EOR, sourceMask).pos(c(1).source)) ++ List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source)) ++ List(AssemblyLine.implied(TAX))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BEQ) & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDX) & HasImmediate(0)) ~
+          (Elidable & HasOpcodeIn(JMP, BNE, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDX) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.A)) ~~>
+          (c => List(c.head, AssemblyLine.immediate(EOR, sourceMask).pos(c(1).source)) ++ List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source)) ++ List(AssemblyLine.implied(TAX))),
+
+        (HasOpcode(AND) & HasImmediate(sourceMask)) ~
+          (Elidable & HasOpcode(BNE) & MatchParameter(10)) ~
+          (Elidable & (HasOpcode(LDX) & HasImmediate(0) | HasOpcode(TAX))) ~
+          (Elidable & HasOpcodeIn(JMP, BEQ, BRA, BPL) & MatchParameter(11)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10)) ~
+          (Elidable & HasOpcode(LDX) & HasImmediate(targetMask)) ~
+          (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(11) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.A)) ~~>
+          (c => c.head ::  List.fill(shift)(AssemblyLine.implied(shiftOp).pos(c(2).source)) ++ List(AssemblyLine.implied(TAX)))
+
+        
+        )
+      }).flatten)
 
   )
 }

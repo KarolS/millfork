@@ -80,6 +80,8 @@ object PseudoregisterBuiltIns {
           niceReads.prepend(List(AssemblyLine.immediate(LDA, constant.loByte)) -> List(AssemblyLine.immediate(LDA, constant.hiByte)))
         }
     }
+    if (doesMemoryAccessOverlap(niceReads.flatMap(_._1).toList, stores(1))) return None
+    if (doesMemoryAccessOverlap(niceReads.flatMap(_._2).toList, stores(0))) return None
     for (b <- 0 to 1) {
       for (read <- niceReads) {
         if (b == 0) result ++= read._1
@@ -122,11 +124,15 @@ object PseudoregisterBuiltIns {
       return List(AssemblyLine.immediate(LDA, 0), AssemblyLine.immediate(LDX, 0))
     }
     val reg = ctx.env.get[VariableInMemory]("__reg.loword")
-    val head = params.head match {
+    val addToRegs = params.map{ case (sub, param) => addToReg(ctx, param, sub, decimal) }
+    val newHead = params.indices.find{ i =>
+      !params(i)._1 && addToRegs(i).exists(l => l.opcode == PHA || l.opcode == PHA_W)
+    }.getOrElse(0)
+    val head = params(newHead) match {
       case (false, e) => MosExpressionCompiler.compile(ctx, e, Some(MosExpressionCompiler.getExpressionType(ctx, e) -> reg), BranchSpec.None)
       case (true, e) => ???
     }
-    params.tail.foldLeft[List[AssemblyLine]](head){case (code, (sub, param)) => code ++ addToReg(ctx, param, sub, decimal)} ++ List(
+    params.indices.filter(_ != newHead).foldLeft[List[AssemblyLine]](head){case (code, index) => code ++ addToRegs(index)} ++ List(
       AssemblyLine.zeropage(LDA, reg),
       AssemblyLine.zeropage(LDX, reg, 1),
     )
@@ -152,11 +158,15 @@ object PseudoregisterBuiltIns {
       return List(AssemblyLine.accu16, AssemblyLine.immediate(LDA_W, 0), AssemblyLine.accu8)
     }
     val reg = ctx.env.get[VariableInMemory]("__reg.loword")
-    val head = params.head match {
+    val addToRegs = params.map{ case (sub, param) => addToReg(ctx, param, sub, decimal) }
+    val newHead = params.indices.find{ i =>
+      !params(i)._1 && addToRegs(i).exists(l => l.opcode == PHA || l.opcode == PHA_W)
+    }.getOrElse(0)
+    val head = params(newHead) match {
       case (false, e) => MosExpressionCompiler.compile(ctx, e, Some(MosExpressionCompiler.getExpressionType(ctx, e) -> reg), BranchSpec.None)
       case (true, e) => ???
     }
-    params.tail.foldLeft[List[AssemblyLine]](head){case (code, (sub, param)) => code ++ addToReg(ctx, param, sub, decimal)} ++ List(
+    params.indices.filter(_ != newHead).foldLeft[List[AssemblyLine]](head){case (code, index) => code ++ addToRegs(index)} ++ List(
       AssemblyLine.accu16,
       AssemblyLine.zeropage(LDA_W, reg),
       AssemblyLine.accu8
@@ -238,8 +248,7 @@ object PseudoregisterBuiltIns {
             AssemblyLine.zeropage(STA, reg),
             AssemblyLine.zeropage(LDA, reg, 1),
             h.copy(opcode = op),
-            AssemblyLine.zeropage(STA, reg, 1),
-            AssemblyLine.zeropage(LDA, reg)))
+            AssemblyLine.zeropage(STA, reg, 1)))
         case List(
         AssemblyLine0(REP, Immediate, NumericConstant(0x20, _)),
         l@AssemblyLine0(LDA_W, addrMode, _),
@@ -674,5 +683,19 @@ object PseudoregisterBuiltIns {
     case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
     case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(2, _))) if th.name == "__reg" => true
     case _ => false
+  }
+
+  def doesMemoryAccessOverlap(l1: List[AssemblyLine], l2: List[AssemblyLine]): Boolean = {
+    print()
+    for{
+      a1 <- l1
+      if a1.addrMode != Immediate && a1.addrMode != Implied
+      a2 <- l2
+      if a2.addrMode != Immediate && a2.addrMode != Implied
+      if (a1.opcode == STA) != (a2.opcode == STA)
+    } {
+      if (a1.parameter == a2.parameter) return true
+    }
+    false
   }
 }
