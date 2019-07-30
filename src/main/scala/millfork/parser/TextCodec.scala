@@ -58,7 +58,7 @@ class TextCodec(val name: String,
   }
   private def encodeChar(log: Logger, position: Option[Position], c: Char, lenient: Boolean): Option[List[Int]] = {
       if (decompositions.contains(c)) {
-        Some(decompositions(c).toList.flatMap(x => encodeChar(log, position, x, lenient).getOrElse(Nil)))
+        Some(decompositions(c).toList.flatMap(x => encodeChar(log, position, x, lenient).getOrElse(List(x.toInt))))
       } else if (extra.contains(c)) Some(List(extra(c))) else {
         val index = map.indexOf(c)
         if (index >= 0) {
@@ -156,6 +156,14 @@ object TextCodec {
       case (_, "iso_se") => TextCodec.IsoIec646Se
       case (_, "iso_fi") => TextCodec.IsoIec646Se
       case (_, "iso_yu") => TextCodec.IsoIec646Yu
+      case (_, "msx_intl") => TextCodec.MsxWest
+      case (_, "msx_us") => TextCodec.MsxWest
+      case (_, "msx_uk") => TextCodec.MsxWest
+      case (_, "msx_de") => TextCodec.MsxWest
+      case (_, "msx_fr") => TextCodec.MsxWest
+      case (_, "msx_es") => TextCodec.MsxWest
+      case (_, "msx_ru") => TextCodec.MsxRu
+      case (_, "msx_jp") => TextCodec.MsxJp
       case (p, _) =>
         log.error(s"Unknown string encoding: `$name`", p)
         TextCodec.Ascii
@@ -193,6 +201,11 @@ object TextCodec {
     (("カキクケコサシスセソタチツテトハヒフヘホ")).zip(
       "ガギグゲゴザジズゼゾダヂヅデドバビブベボ").map { case (u, v) => v -> (u + "゛") }.toMap ++
       "ハヒフヘホ".zip("パピプペポ").map { case (h, p) => p -> (h + "゜") }.toMap
+  }
+  private val StandardHiraganaDecompositions: Map[Char, String] = {
+    (("かきくけこさしすせそたちつてとはひふへほ")).zip(
+      "がぎぐげござじずぜぞだぢづでどばびぶべぼ").map { case (u, v) => v -> (u + "゛") }.toMap ++
+      "はひふへほ".zip("ぱぴぷぺぽ").map { case (h, p) => p -> (h + "゜") }.toMap
   }
 
   val Ascii = new TextCodec("ASCII", 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty, AsciiEscapeSequences)
@@ -521,8 +534,78 @@ object TextCodec {
       "円年月日時分秒" +
       "\ufffd" * 3 + "\\",
     Map('¯' -> '~'.toInt, '‾' -> '~'.toInt, '♥' -> 0xE9) ++
-      1.to(0x3F).map(i => (i + 0xff60).toChar -> (i + 0xA1)).toMap,
+      1.to(0x3F).map(i => (i + 0xff60).toChar -> (i + 0xA0)).toMap,
       StandardKatakanaDecompositions, MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
+  )
+
+  val MsxWest = new TextCodec("MSX-International",
+    "\ufffd" * 32 +
+      (0x20 to 0x7e).map(_.toChar).mkString("") +
+      "\ufffd" +
+      "ÇüéâäàåçêëèïîìÄÅ" +
+      "ÉæÆôöòûùÿÖÜ¢£¥₧ƒ" +
+      "áíóúñÑªº¿⌐¬½¼¡«»" +
+      "ÃãĨĩÕõŨũĲĳ¾\ufffd\ufffd‰¶§" +
+      "\ufffd" * 24 +
+      "Δ\ufffdω\ufffd\ufffd\ufffd\ufffd\ufffd" +
+      "αβΓΠΣσµγΦθΩδ∞∅∈∩" +
+      "≡±≥≤\ufffd\ufffd÷\ufffd\ufffd\ufffd\ufffd\ufffdⁿ²",
+    Map('ß' -> 0xE1, '¦' -> 0x7C),
+    Map('♥' -> "\u0001C", '♡' -> "\u0001C", '♢' -> "\u0001D", '♢' -> "\u0001D", '♣' -> "\u0001E", '♠' -> "\u0001F", '·' -> "\u0001G") ,
+    MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
+  )
+
+  val MsxRu = new TextCodec("MSX-RU",
+    "\ufffd" * 32 +
+      (0x20 to 0x7e).map(_.toChar).mkString("") +
+      "\ufffd" +
+      "\ufffd" * 16 +
+      "\ufffd" * 8 +
+      "Δ\ufffdω\ufffd\ufffd\ufffd\ufffd\ufffd" +
+      "αβΓΠΣσµγΦθΩδ∞∅∈∩" +
+      "≡±≥≤\ufffd\ufffd÷\ufffd\ufffd\ufffd\ufffd\ufffdⁿ²\ufffd\ufffd" +
+      "юабцдефгхийклмнопярстужвьызшэщчъ" +
+      "ЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩ",
+    Map('ß' -> 0xA1, '¦' -> 0x7C),
+    Map('♥' -> "\u0001C", '♡' -> "\u0001C", '♢' -> "\u0001D", '♢' -> "\u0001D", '♣' -> "\u0001E", '♠' -> "\u0001F", '·' -> "\u0001G"),
+    MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
+  )
+
+  val MsxJp = new TextCodec("MSX-JP",
+    "\ufffd" * 32 +
+      (0x20 to 0x7e).map(c => if (c == 0x5c) '¥' else c.toChar).mkString("") +
+      "\ufffd" +
+      "♠♡♣♢\uffdd·をぁぃぅぇぉゃゅょっ" +
+      "　あいうえおかきくけこさしすせそ" +
+      jisHalfwidthKatakanaOrder +
+      "たちつてとなにぬねのはひふへほま" +
+      "みむめもやゆよらりるれろわん" +
+      "" +
+      "",
+    Map('♥' -> 0x81, '¦' -> 0x7C) ++
+      1.to(0x3F).map(i => (i + 0xff60).toChar -> (i + 0xA0)).toMap,
+    Map(
+      '月' -> "\u0001A",
+      '火' -> "\u0001B",
+      '水' -> "\u0001C",
+      '木' -> "\u0001D",
+      '金' -> "\u0001E",
+      '土' -> "\u0001F",
+      '日' -> "\u0001G",
+      '年' -> "\u0001H",
+      '円' -> "\u0001I",
+      '時' -> "\u0001J",
+      '分' -> "\u0001K",
+      '秒' -> "\u0001L",
+      '百' -> "\u0001M",
+      '千' -> "\u0001N",
+      '万' -> "\u0001O",
+      '大' -> "\u0001]",
+      '中' -> "\u0001^",
+      '小' -> "\u0001_"
+    ) ++
+      StandardHiraganaDecompositions ++ StandardKatakanaDecompositions,
+    MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
   )
 
   val lossyAlternatives: Map[Char, List[String]] = {

@@ -20,6 +20,8 @@ This matches both the CC65 behaviour and the return values from `readkey()`.
 
 * Added `.length` for large arrays and `.lastindex` for numerically indexed arrays.
 
+* New text encodings: `petjp`, `petscrjp`, `msx_intl`, `msx_jp`, `msx_ru`.
+
 * Improved passing of register parameters to assembly functions.
 
 * Enabled declaring multiple variables in one line.

@@ -1,0 +1,19 @@
+import stdio
+
+void main() {
+    putstrz("This is an encoding test."z)
+    new_line()
+    putstrz("This should be in Spanish: "z)
+    new_line()
+    putstrz("¡Hola compañeros~♥!"msx_intlz)
+    new_line()
+    putstrz("This should be in Russian: "z)
+    new_line()
+    putstrz("Привет друзья~♥!"msx_ruz)
+    new_line()
+    putstrz("This should be in Japanese: "z)
+    new_line()
+    putstrz("ともだち、おはよう~♥!"msx_jpz)
+    new_line()
+    while true {}
+}

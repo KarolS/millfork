@@ -34,6 +34,10 @@
 * `iso_de`, `iso_no`, `iso_se`, `iso_yu` – various variants of ISO/IEC-646
  
 * `iso_dk`, `iso_fi` – aliases for `iso_no` and `iso_se` respectively
+
+* `msx_intl`, `msx_jp`, `msx_ru` – MSX character encoding, International, Japanese and Russian respectively
+
+* `msx_us`, `msx_uk`, `msx_fr`, `msx_de` – aliases for `msx_intl`
  
 * `atascii` or `atari` – ATASCII as seen on Atari 8-bit computers
  
@@ -73,19 +77,22 @@ control codes for changing the text background color
 
 ##### Character availability
 
-Encoding | lowercase letters | backslash | pound | yen and katakana | card suits  
+Encoding | lowercase letters | backslash | pound | yen | katakana | card suits  
 --|--|--|--|--|--|--  
-`pet`, `origpet`   | yes¹ | no  | no  | no   | yes¹  
-`oldpet`           | yes² | no  | no  | no   | yes²  
-`petscr`           | yes¹ | no  | yes | no   | yes¹  
-`petjp`            | no   | no  | no  | yes³ | yes³  
-`petscrjp`         | no   | no  | no  | yes³ | yes³  
-`sinclair`, `bbc`  | yes  | yes | yes | no   | no  
-`apple2`           | no   | yes | no  | no   | no  
-`atascii`          | yes  | yes | no  | no   | yes  
-`atasciiscr`       | yes  | yes | no  | no   | yes  
-`jis`              | yes  | no  | no  | yes  | no  
-all the rest       | yes  | yes | no  | no   | no  
+`pet`, `origpet`   | yes¹ | no  | no  | no   | no   | yes¹  
+`oldpet`           | yes² | no  | no  | no   | no   | yes²  
+`petscr`           | yes¹ | no  | yes | no   | no   | yes¹  
+`petjp`            | no   | no  | no  | yes  | yes³ | yes³  
+`petscrjp`         | no   | no  | no  | yes  | yes³ | yes³  
+`sinclair`, `bbc`  | yes  | yes | yes | no   | no   | no  
+`apple2`           | no   | yes | no  | no   | no   | no  
+`atascii`          | yes  | yes | no  | no   | no   | yes  
+`atasciiscr`       | yes  | yes | no  | no   | no   | yes  
+`jis`              | yes  | no  | no  | yes  | yes  | no  
+`msx_intl`         | yes  | yes | yes | yes  | no   | yes   
+`msx_jp`           | yes  | no  | no  | yes  | yes  | yes   
+`msx_ru`           | yes  | yes | no  | no   | no   | yes   
+all the rest       | yes  | yes | no  | no   | no   | no  
   
 1. `pet`, `origpet` and petscr` cannot display card suit symbols and lowercase letters at the same time.
 Card suit symbols are only available in graphics mode,
