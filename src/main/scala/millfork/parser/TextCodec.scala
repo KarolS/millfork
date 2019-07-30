@@ -131,12 +131,16 @@ object TextCodec {
       case (_, "ascii") => TextCodec.Ascii
       case (_, "petscii") => TextCodec.Petscii
       case (_, "pet") => TextCodec.Petscii
+      case (_, "petsciijp") => TextCodec.PetsciiJp
+      case (_, "petjp") => TextCodec.PetsciiJp
       case (_, "oldpetscii") => TextCodec.OldPetscii
       case (_, "oldpet") => TextCodec.OldPetscii
       case (_, "origpetscii") => TextCodec.OriginalPetscii
       case (_, "origpet") => TextCodec.OriginalPetscii
       case (_, "cbmscr") => TextCodec.CbmScreencodes
       case (_, "petscr") => TextCodec.CbmScreencodes
+      case (_, "cbmscrjp") => TextCodec.CbmScreencodesJp
+      case (_, "petscrjp") => TextCodec.CbmScreencodesJp
       case (_, "atascii") => TextCodec.Atascii
       case (_, "atari") => TextCodec.Atascii
       case (_, "atasciiscr") => TextCodec.AtasciiScreencodes
@@ -185,13 +189,20 @@ object TextCodec {
     "lbrace" -> List('{'.toInt),
     "rbrace" -> List('}'.toInt))
 
+  private val StandardKatakanaDecompositions: Map[Char, String] = {
+    (("カキクケコサシスセソタチツテトハヒフヘホ")).zip(
+      "ガギグゲゴザジズゼゾダヂヅデドバビブベボ").map { case (u, v) => v -> (u + "゛") }.toMap ++
+      "ハヒフヘホ".zip("パピプペポ").map { case (h, p) => p -> (h + "゜") }.toMap
+  }
+
   val Ascii = new TextCodec("ASCII", 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty, AsciiEscapeSequences)
 
   val Apple2 = new TextCodec("APPLE-II", 0.until(255).map { i =>
     if (i < 0xa0) NotAChar
     else if (i < 0xe0) (i - 128).toChar
     else NotAChar
-  }.mkString, Map.empty, Map.empty, MinimalEscapeSequencesWithBraces)
+  }.mkString,
+    ('a' to 'z').map(l => l -> (l - 'a' + 0xC1)).toMap, Map.empty, MinimalEscapeSequencesWithBraces)
 
   val IsoIec646De = new TextCodec("ISO-IEC-646-DE",
     "\ufffd" * 32 +
@@ -274,6 +285,34 @@ object TextCodec {
     Map.empty, MinimalEscapeSequencesWithoutBraces
   )
 
+  val CbmScreencodesJp = new TextCodec("CBM-Screen-JP",
+    "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]↑←" + // 00-1f
+      0x20.to(0x3f).map(_.toChar).mkString +
+      "タチツテトナニヌネノハヒフヘホマ" + // 40-4f
+      "ミムメモヤユヨラリルレロワン゛゜" + // 50-5f
+      "\ufffd円年月\ufffd\ufffdヲ\ufffd" + // 60-67
+      "πアイウエオカキクケコサシスセソ" + // 70-7f
+      "",
+    Map('^' -> 0x1E, '\\' -> 0x1C,
+      '♥' -> 0x44, '♡' -> 0x44, '♠' -> 0x41, '♣' -> 0x7B, '♢' -> 0x42, '•' -> 0x5D,
+      'ー' -> '-'.toInt, 0xff70.toChar -> '-'.toInt, 0xff66.toChar -> 0x66,
+      'ヮ' -> 0x5C, 'ヵ' -> 0x76, 'ヶ' -> 0x79,
+      'ァ' -> 0x71, 0xff67.toChar -> 0x71,
+      'ィ' -> 0x72, 0xff68.toChar -> 0x72,
+      'ゥ' -> 0x73, 0xff69.toChar -> 0x73,
+      'ェ' -> 0x74, 0xff6a.toChar -> 0x74,
+      'ォ' -> 0x75, 0xff6b.toChar -> 0x75,
+      'ャ' -> 0x54, 0xff6c.toChar -> 0x54,
+      'ュ' -> 0x55, 0xff6d.toChar -> 0x55,
+      'ョ' -> 0x56, 0xff6e.toChar -> 0x56,
+      'ッ' -> 0x42, 0xff6f.toChar -> 0x42
+    ) ++
+      ('a' to 'z').map(l => l -> (l - 'a' + 1)) ++
+      (1 to 0xf).map(i => (i + 0xff70).toChar -> (i + 0x70)) ++
+      (0x10 to 0x2f).map(i => (i + 0xff70).toChar -> (i + 0x40)),
+    StandardKatakanaDecompositions, MinimalEscapeSequencesWithoutBraces
+  )
+
   val Petscii = new TextCodec("PETSCII",
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
@@ -283,6 +322,53 @@ object TextCodec {
       "\ufffd" * 32 + // a0-bf
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ", // c0-df
     Map('^' -> 0x5E, '♥' -> 0xD3, '♡' -> 0xD3, '♠' -> 0xC1, '♣' -> 0xD8, '♢' -> 0xDA, '•' -> 0xD1), Map.empty, Map(
+      "n" -> List(13),
+      "q" -> List('\"'.toInt),
+      "apos" -> List('\''.toInt),
+      "up" -> List(0x91),
+      "down" -> List(0x11),
+      "left" -> List(0x9d),
+      "right" -> List(0x1d),
+      "white" -> List(5),
+      "black" -> List(0x90),
+      "red" -> List(0x1c),
+      "blue" -> List(0x1f),
+      "green" -> List(0x1e),
+      "cyan" -> List(0x9f),
+      "purple" -> List(0x9c),
+      "yellow" -> List(0x9e),
+      "reverse" -> List(0x12),
+      "reverseoff" -> List(0x92)
+    )
+  )
+
+  val PetsciiJp = new TextCodec("PETSCII-JP",
+    "\ufffd" * 32 +
+      0x20.to(0x3f).map(_.toChar).mkString +
+      "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]↑←" +
+      "\ufffd" * 32 + // 60-7f
+      "\ufffd" * 32 + // 80-9f
+      "\ufffd円年月\ufffd\ufffdヲ\ufffd" + // a0-a7
+      "\ufffd" * 8 + // a8-af
+      "πアイウエオカキクケコサシスセソ" + // b0-bf
+      "タチツテトナニヌネノハヒフヘホマ" + // c0-cf
+      "ミムメモヤユヨラリルレロワン゛゜", // d0-df
+    Map('^' -> 0x5E, '\\' -> 0x5C,
+      '♥' -> 0xC4, '♡' -> 0x73, '♠' -> 0xC1, '♣' -> 0xBB, '♢' -> 0xC2, '•' -> 0xDD,
+      'ー' -> '-'.toInt, 0xff70.toChar -> '-'.toInt, 0xff66.toChar -> 0xa6,
+      'ヮ' -> 0xDC, 'ヵ' -> 0xB6, 'ヶ' -> 0xB9,
+      'ァ' -> 0xB1, 0xff67.toChar -> 0xB1,
+      'ィ' -> 0xB2, 0xff68.toChar -> 0xB2,
+      'ゥ' -> 0xB3, 0xff69.toChar -> 0xB3,
+      'ェ' -> 0xB4, 0xff6a.toChar -> 0xB4,
+      'ォ' -> 0xB5, 0xff6b.toChar -> 0xB5,
+      'ャ' -> 0xD4, 0xff6c.toChar -> 0xD4,
+      'ュ' -> 0xD5, 0xff6d.toChar -> 0xD5,
+      'ョ' -> 0xD6, 0xff6e.toChar -> 0xD6,
+      'ッ' -> 0xC2, 0xff6f.toChar -> 0xC2) ++
+      ('a' to 'z').map(l => l -> l.toUpper.toInt) ++
+      (1 to 0x2f).map(i => (i+0xff70).toChar -> (i+0xb0)),
+    StandardKatakanaDecompositions, Map(
       "n" -> List(13),
       "q" -> List('\"'.toInt),
       "apos" -> List('\''.toInt),
@@ -436,9 +522,7 @@ object TextCodec {
       "\ufffd" * 3 + "\\",
     Map('¯' -> '~'.toInt, '‾' -> '~'.toInt, '♥' -> 0xE9) ++
       1.to(0x3F).map(i => (i + 0xff60).toChar -> (i + 0xA1)).toMap,
-      (("カキクケコサシスセソタチツテトハヒフヘホ")).zip(
-        "ガギグゲゴザジズゼゾダヂヅデドバビブベボ").map { case (u, v) => v -> (u + "゛") }.toMap ++
-      "ハヒフヘホ".zip("パピプペポ").map { case (h, p) => p -> (h + "゜") }.toMap, MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
+      StandardKatakanaDecompositions, MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
   )
 
   val lossyAlternatives: Map[Char, List[String]] = {

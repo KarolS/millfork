@@ -13,13 +13,17 @@
 
 * `pet` or `petscii` – PETSCII (ASCII-like character set used by Commodore machines from VIC-20 onward)
 
+* `petjp` or `petsciijp` – PETSCII as used on Japanese versions of Commodore 64
+
 * `origpet` or `origpetscii` – old PETSCII (Commodore PET with original ROMs)
 
 * `oldpet` or `oldpetscii` – old PETSCII (Commodore PET with newer ROMs)
 
 * `cbmscr` or `petscr` – Commodore screencodes
 
-* `apple2` – Apple II charset ($A0–$CF)
+* `cbmscrjp` or `petscrjp` – Commodore screencodes as used on Japanese versions of Commodore 64
+
+* `apple2` – Apple II charset ($A0–$DF)
 
 * `bbc` – BBC Micro character set
 
@@ -67,15 +71,46 @@ control codes for changing the text background color
 
 * `{reverse}`, `{reverseoff}` – inverted mode on/off
 
+##### Character availability
+
+Encoding | lowercase letters | backslash | pound | yen and katakana | card suits  
+--|--|--|--|--|--|--  
+`pet`, `origpet`   | yes¹ | no  | no  | no   | yes¹  
+`oldpet`           | yes² | no  | no  | no   | yes²  
+`petscr`           | yes¹ | no  | yes | no   | yes¹  
+`petjp`            | no   | no  | no  | yes³ | yes³  
+`petscrjp`         | no   | no  | no  | yes³ | yes³  
+`sinclair`, `bbc`  | yes  | yes | yes | no   | no  
+`apple2`           | no   | yes | no  | no   | no  
+`atascii`          | yes  | yes | no  | no   | yes  
+`atasciiscr`       | yes  | yes | no  | no   | yes  
+`jis`              | yes  | no  | no  | yes  | no  
+all the rest       | yes  | yes | no  | no   | no  
+  
+1. `pet`, `origpet` and petscr` cannot display card suit symbols and lowercase letters at the same time.
+Card suit symbols are only available in graphics mode,
+in which lowercase letters are displayed as uppercase and uppercase letters are displayed as symbols. 
+
+2.  `oldpet` cannot display card suit symbols and lowercase letters at the same time.
+Card suit symbols are only available in graphics mode, in which lowercase letters are displayed as symbols. 
+
+3. `petjp` and `petscrjp` cannot display card suit symbols and katakana at the same time
+Card suit symbols are only available in graphics mode, in which katakana is displayed as symbols. 
+
+If the encoding does not support lowercase letters (e.g. `apple2`, `petjp`, `petscrjp`),
+then text and character literals containing lowercase letters are automatically converted to uppercase. 
+
 ##### Escape sequence availability
 
-Encoding | new line | braces | backspace | cursor movement | text colour, reverse | background colour  
+Encoding | new line | braces | backspace | cursor movement | text colour | reverse | background colour  
 --|--|--|--|--|--|--  
-`pet`              | yes | no  | no  | yes | yes | no  
-`petscr`           | no  | no  | no  | no  | no  | no  
-`sinclair`         | yes | yes | no  | yes | yes | yes  
-`ascii`, `iso_*`   | yes | yes | yes | no  | no  | no  
-`apple2`           | no  | yes | no  | no  | no  | no  
-`atascii`          | yes | no  | yes | yes | no  | no  
-`atasciiscr`       | no  | no  | no  | no  | no  | no  
-all the rest       | yes | yes | no  | no  | no  | no
+`pet`,`petjp`       | yes | no  | no  | yes | yes | yes | no  
+`origpet`           | yes | no  | no  | yes | no  | yes | no  
+`oldpet`            | yes | no  | no  | yes | no  | yes | no  
+`petscr`, `petscrjp`| no  | no  | no  | no  | no  | no  | no  
+`sinclair`          | yes | yes | no  | yes | yes | yes | yes  
+`ascii`, `iso_*`    | yes | yes | yes | no  | no  | no  | no  
+`apple2`            | no  | yes | no  | no  | no  | no  | no  
+`atascii`           | yes | no  | yes | yes | no  | no  | no  
+`atasciiscr`        | no  | no  | no  | no  | no  | no  | no  
+all the rest        | yes | yes | no  | no  | no  | no  | no
