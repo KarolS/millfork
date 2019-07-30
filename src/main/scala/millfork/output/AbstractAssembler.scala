@@ -4,13 +4,16 @@ import millfork.assembly._
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env._
 import millfork.error.Logger
-import millfork.node.{CallGraph, NiceFunctionProperty, Program}
+import millfork.node.{CallGraph, Expression, LiteralExpression, NiceFunctionProperty, Program}
 import millfork._
 import millfork.assembly.z80.ZLine
 
 import scala.collection.mutable
 import DecimalUtils._
 import millfork.node.NiceFunctionProperty.IsLeaf
+import millfork.parser.TextCodec
+
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * @author Karol Stasiak
@@ -303,13 +306,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             case None => log.error(s"Non-constant contents of array `$name`", item.position)
           }
         }
-        items.flatMap(expr => env.eval(expr) match {
-          case Some(c) =>
-            List.tabulate(elementType.size)(i => subbyte(c, i, elementType.size).quickSimplify.toString)
-          case None => List.fill(elementType.size)("<? unknown constant ?>")
-        }).grouped(16).foreach { group =>
-          assembly.append("    " + bytePseudoopcode + " " + group.mkString(", "))
-        }
+        printArrayToAssemblyOutput(assembly, name, elementType, items)
         initializedVariablesSize += thing.sizeInBytes
       case thing@InitializedArray(name, Some(_), items, _, _, _, _, _) => ???
       case f: NormalFunction if f.address.isDefined =>
@@ -443,12 +440,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               case None => log.error(s"Non-constant contents of array `$name`", item.position)
             }
           }
-          items.flatMap(expr => env.eval(expr) match {
-            case Some(c) => List.tabulate(elementType.size)(i => subbyte(c, i, elementType.size).quickSimplify.toString)
-            case None => List.fill(elementType.size)("<? unknown constant ?>")
-          }).grouped(16).foreach { group =>
-            assembly.append("    " + bytePseudoopcode + " " + group.mkString(", "))
-          }
+          printArrayToAssemblyOutput(assembly, name, elementType, items)
           initializedVariablesSize += items.length
           justAfterCode += bank -> index
         case m@InitializedMemoryVariable(name, None, typ, value, _, alignment, _) if !readOnlyPass=>
@@ -585,6 +577,26 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case OutputStyle.PerBank => platform.bankNumbers.keys.toList
     }).map(b => b -> platform.outputPackager.packageOutput(mem, b)).toMap
     AssemblerOutput(code, assembly.toArray, labelMap.toList)
+  }
+
+  private def printArrayToAssemblyOutput(assembly: ArrayBuffer[String], name: String, elementType: Type, items: Seq[Expression]): Unit = {
+    if (name.startsWith("textliteral$")) {
+      val chars = items.lastOption match {
+        case Some(LiteralExpression(0, _)) => items.init
+        case _ => items
+      }
+      val text = chars.map {
+        case LiteralExpression(i, _) if i >= 0 && i <= 255 => platform.defaultCodec.decode(i.toInt)
+        case _ => TextCodec.NotAChar
+      }.mkString("")
+      if (!text.contains(TextCodec.NotAChar) && !text.exists(c => c.isControl)) assembly.append(s"    ; \"$text\"")
+    }
+    items.flatMap(expr => env.eval(expr) match {
+      case Some(c) => List.tabulate(elementType.size)(i => subbyte(c, i, elementType.size).quickSimplify.toString)
+      case None => List.fill(elementType.size)("<? unknown constant ?>")
+    }).grouped(16).foreach { group =>
+      assembly.append("    " + bytePseudoopcode + " " + group.mkString(", "))
+    }
   }
 
   def injectLabels(labelMap: Map[String, (Int, Int)], code: List[T]): List[T]
