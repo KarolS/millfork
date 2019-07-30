@@ -270,7 +270,7 @@ object TextCodec {
     "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
       0x20.to(0x3f).map(_.toChar).mkString +
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ",
-    Map('^' -> 0x3E, '♥' -> 0x53, '♡' -> 0x53, '♠' -> 0x41, '♣' -> 0x58, '♢' -> 0x5A, '•' -> 0x51),
+    Map('^' -> 0x1E, '♥' -> 0x53, '♡' -> 0x53, '♠' -> 0x41, '♣' -> 0x58, '♢' -> 0x5A, '•' -> 0x51),
     Map.empty, MinimalEscapeSequencesWithoutBraces
   )
 
@@ -282,7 +282,7 @@ object TextCodec {
       "\ufffd" * 32 + // 80-9f
       "\ufffd" * 32 + // a0-bf
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ", // c0-df
-    Map('^' -> 0x5E, '♥' -> 0x73, '♡' -> 0x73, '♠' -> 0xC1, '♣' -> 0xD8, '♢' -> 0xDA, '•' -> 0xD1), Map.empty, Map(
+    Map('^' -> 0x5E, '♥' -> 0xD3, '♡' -> 0xD3, '♠' -> 0xC1, '♣' -> 0xD8, '♢' -> 0xDA, '•' -> 0xD1), Map.empty, Map(
       "n" -> List(13),
       "q" -> List('\"'.toInt),
       "apos" -> List('\''.toInt),
