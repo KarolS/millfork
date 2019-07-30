@@ -8,6 +8,8 @@
 
 * [Fizzbuzz 2](crossplatform/fizzbuzz2.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – an alternative, more extensible implemententation of fizzbuzz
 
+* [Fizzbuzz JP](crossplatform/fizzbuzz_jp.mfk) (PC-88/Japanese C64) – Fizzbuzz, but in Japanese
+
 * [Text encodings](crossplatform/text_encodings.mfk) (C64/ZX Spectrum) – examples of text encoding features
 
 * [Echo](crossplatform/echo.mfk) (C64/C16/ZX Spectrum/PC-88/MSX)– simple text input and output
@@ -56,5 +58,3 @@ how to create a program made of multiple files loaded on demand
 * [Colors](vcs/colors.mfk) – simple static rasterbars
 
 ## PC-88 examples
-
-* [Fizzbuzz88](pc88/fizzbuzz88.mfk) – Fizzbuzz, but in Japanese

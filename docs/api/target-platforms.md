@@ -33,6 +33,8 @@ see [the Commodore programming guide](./commodore-programming-guide.md) for more
 Certain language features work differently on this target.
 Read [the LUnix programming guide](./lunix-programming-guide.md) for more info.
 
+* `c64jp` – Japanese version of Commodore 64 (different memory layout and character set)
+
 * `c16` – Commodore 16
 
 * `plus4` – Commodore Plus/4

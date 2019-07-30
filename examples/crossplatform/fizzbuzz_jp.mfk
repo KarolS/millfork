@@ -1,6 +1,7 @@
 import stdio
 
 void main() {
+    ensure_mixedcase()
     byte i
     for i,1,to,100 {
         if i %% 15 == 0 {
