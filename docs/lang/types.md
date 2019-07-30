@@ -77,7 +77,7 @@ Its actual value is defined using the feature `NULLPTR`, by default it's 0.
 
 ## Function pointers
 
-For every type `A` of size 1 (or `void`) and every type `B` of size 1 or 2 (or `void`),
+For every type `A` of size 1 or 2 (or `void`) and every type `B` of size 1 or 2 (or `void`),
 there is a pointer type defined called `function.A.to.B`, which represents functions with a signature like this:
 
     B function_name(A parameter)
@@ -90,9 +90,12 @@ Examples:
     i = call(p1)
     function.byte.to.byte p2 = f2.pointer
     i += call(p2, 7)
+    function.word.to.byte p3 = f3.pointer
+    i += call(p2, 7)
     
 Using `call` on 6502 requires at least 4 bytes of zeropage pseudoregister. 
 
+The value of the pointer `f.pointer` may not be the same as the value of the function address `f.addr`. 
 
 ## Boolean types
 

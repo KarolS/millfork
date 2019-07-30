@@ -282,7 +282,7 @@ and the result is a constant of either `byte` or `word` type, depending on situa
 * `call`: calls a function via a pointer;  
 the first argument is the pointer to the function;  
 the second argument, if present, is the argument to the called function.  
-The function can have max one parameter, of size max 1 byte, and may return a value of size max 2 bytes.
+The function can have max one parameter, of size max 2 bytes, and may return a value of size max 2 bytes.
 You can't create typed pointers to other kinds of functions anyway.  
 If the pointed-to function returns a value, then the result of `call(...)` is the result of the function.  
 Using `call` on 6502 targets requires at least 4 bytes of zeropage pseudoregister. 

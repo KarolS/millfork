@@ -1,7 +1,7 @@
 package millfork.env
 
 import millfork.assembly.BranchingOpcodeMapping
-import millfork.{CompilationFlag, CompilationOptions}
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
 import millfork.node._
 import millfork.output.{MemoryAlignment, NoAlignment}
 
@@ -350,6 +350,8 @@ sealed trait MangledFunction extends CallableThing {
   def interrupt: Boolean
 
   def canBePointedTo: Boolean
+
+  def requiresTrampoline(compilationOptions: CompilationOptions): Boolean = false
 }
 
 case class EmptyFunction(name: String,
@@ -380,6 +382,10 @@ sealed trait FunctionInMemory extends MangledFunction with ThingInMemory {
 
   override def bank(compilationOptions: CompilationOptions): String =
     declaredBank.getOrElse(compilationOptions.platform.defaultCodeBank)
+
+  override def canBePointedTo: Boolean = !interrupt && returnType.size <= 2 && params.canBePointedTo && name !="call"
+
+  override def requiresTrampoline(compilationOptions: CompilationOptions): Boolean = params.requireTrampoline(compilationOptions)
 }
 
 case class ExternFunction(name: String,
@@ -395,8 +401,6 @@ case class ExternFunction(name: String,
   override def zeropage: Boolean = false
 
   override def isVolatile: Boolean = false
-
-  override def canBePointedTo: Boolean = !interrupt && returnType.size <= 2 && params.canBePointedTo && name !="call"
 }
 
 case class NormalFunction(name: String,
@@ -418,8 +422,6 @@ case class NormalFunction(name: String,
   override def zeropage: Boolean = false
 
   override def isVolatile: Boolean = false
-
-  override def canBePointedTo: Boolean = !interrupt && returnType.size <= 2 && params.canBePointedTo && name !="call"
 }
 
 case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing {
@@ -436,6 +438,8 @@ trait ParamSignature {
   def length: Int
 
   def canBePointedTo: Boolean
+
+  def requireTrampoline(compilationOptions: CompilationOptions): Boolean
 }
 
 case class NormalParamSignature(params: List[VariableInMemory]) extends ParamSignature {
@@ -443,7 +447,13 @@ case class NormalParamSignature(params: List[VariableInMemory]) extends ParamSig
 
   override def types: List[Type] = params.map(_.typ)
 
-  def canBePointedTo: Boolean = params.size <= 1 && params.forall(_.typ.size.<=(1))
+  def canBePointedTo: Boolean = params.size <= 1 && params.forall(_.typ.size.<=(2))
+
+  def requireTrampoline(compilationOptions: CompilationOptions): Boolean = compilationOptions.platform.cpuFamily match {
+    case CpuFamily.M6502 => params.exists(_.typ.size.>=(2))
+    case _ => false
+  }
+
 }
 
 sealed trait ParamPassingConvention {
@@ -507,6 +517,9 @@ case class AssemblyParamSignature(params: List[AssemblyParam]) extends ParamSign
   override def types: List[Type] = params.map(_.typ)
 
   def canBePointedTo: Boolean = params.size <= 1 && params.forall(_.canBePointedTo)
+
+  override def requireTrampoline(compilationOptions: CompilationOptions): Boolean =
+    false // all pointable functions with this kind of signature by definition use the pure register-cased parameter passing convention
 }
 
 case class EmptyFunctionParamSignature(paramType: Type) extends ParamSignature {
@@ -515,4 +528,6 @@ case class EmptyFunctionParamSignature(paramType: Type) extends ParamSignature {
   override def types: List[Type] = List(paramType)
 
   def canBePointedTo: Boolean = false
+
+  override def requireTrampoline(compilationOptions: CompilationOptions): Boolean = false
 }

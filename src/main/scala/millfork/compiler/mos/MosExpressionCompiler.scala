@@ -128,17 +128,19 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
   }
 
   def preserveRegisterIfNeeded(ctx: CompilationContext, register: MosRegister.Value, code: List[AssemblyLine]): List[AssemblyLine] = {
-    val state = register match {
-      case MosRegister.A => State.A
-      case MosRegister.X => State.X
-      case MosRegister.Y => State.Y
+    val states = register match {
+      case MosRegister.A => Seq(State.A)
+      case MosRegister.AX | MosRegister.XA => Seq(State.A, State.X)
+      case MosRegister.X => Seq(State.X)
+      case MosRegister.AY | MosRegister.YA => Seq(State.A, State.Y)
+      case MosRegister.Y => Seq(State.Y)
     }
 
     val cmos = ctx.options.flag(CompilationFlag.EmitCmosOpcodes)
-    if (AssemblyLine.treatment(code, state) != Treatment.Unchanged) {
+    if (states.exists(state => AssemblyLine.treatment(code, state) != Treatment.Unchanged)) {
       register match {
         case MosRegister.A => AssemblyLine.implied(PHA) +: fixTsx(code) :+ AssemblyLine.implied(PLA)
-        case MosRegister.X => if (cmos) {
+        case MosRegister.X | MosRegister.AX | MosRegister.XA => if (cmos) {
           List(
             AssemblyLine.implied(PHA),
             AssemblyLine.implied(PHX),
@@ -157,7 +159,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             AssemblyLine.implied(PLA),
           )
         }
-        case MosRegister.Y => if (cmos) {
+        case MosRegister.Y | MosRegister.AY | MosRegister.YA => if (cmos) {
           List(
             AssemblyLine.implied(PHA),
             AssemblyLine.implied(PHY),
@@ -1179,11 +1181,17 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case List(fp, param) =>
                 getExpressionType(ctx, fp) match {
                   case FunctionPointerType(_, _, _, Some(pt), Some(v)) =>
-                    if (pt.size != 1) {
+                    if (pt.size > 2 || pt.size < 1) {
                       ctx.log.error("Invalid parameter type", param.position)
                       compile(ctx, fp, None, BranchSpec.None) ++ compile(ctx, param, None, BranchSpec.None)
                     } else if (getExpressionType(ctx, param).isAssignableTo(pt)) {
-                      compileToA(ctx, param) ++ preserveRegisterIfNeeded(ctx, MosRegister.A, compileToZReg2(ctx, fp)) :+ AssemblyLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                      pt.size match {
+                        case 1 =>
+                          compileToA(ctx, param) ++ preserveRegisterIfNeeded(ctx, MosRegister.A, compileToZReg2(ctx, fp)) :+ AssemblyLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                        case 2 =>
+                          compileToAX(ctx, param) ++ preserveRegisterIfNeeded(ctx, MosRegister.AX, compileToZReg2(ctx, fp)) :+ AssemblyLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                      }
+
                     } else {
                       ctx.log.error("Invalid parameter type", param.position)
                       compile(ctx, fp, None, BranchSpec.None) ++ compile(ctx, param, None, BranchSpec.None)

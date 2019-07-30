@@ -60,3 +60,16 @@ Such functions should be marked as written in assembly and should have their par
 
 * `<expression>` is an expression. It is equivalent to a function body of form `{ return <expression> }`.  
 
+The address of an non-macro function `f` is a constant `f.addr`. 
+
+Non-macro, non-interrupt functions which have max one parameter of size max 2 bytes
+and return `void` or a value of size max 2 bytes,
+can be accessed via a pointer.
+
+    void f() {}
+    
+    function.void.to.void p = f.pointer
+    
+    call(p)
+
+The value of the pointer `f.pointer` may not be the same as the value of the function address `f.addr`. 

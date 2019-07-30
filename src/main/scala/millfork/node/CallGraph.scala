@@ -47,6 +47,7 @@ abstract class CallGraph(program: Program, log: Logger) {
         aliases += name -> target
       case f: FunctionDeclarationStatement =>
         allFunctions += f.name
+        allFunctions += f.name + ".trampoline" // TODO: ???
         if (f.address.isDefined || f.interrupt) entryPoints += f.name
         f.statements.getOrElse(Nil).foreach(s => this.add(Some(f.name), Nil, s))
       case s: Statement =>
@@ -59,7 +60,13 @@ abstract class CallGraph(program: Program, log: Logger) {
       case s: SumExpression =>
         s.expressions.foreach(expr => add(currentFunction, callingFunctions, expr._2))
       case x: VariableExpression =>
-        val varName = x.name.stripSuffix(".hi").stripSuffix(".lo").stripSuffix(".addr").stripSuffix(".pointer")
+        val varName0 = x.name.stripSuffix(".hi").stripSuffix(".lo")
+        if (varName0.endsWith(".pointer")) {
+          val trampolineName = varName0.stripSuffix(".pointer") + ".trampoline"
+          everCalledFunctions += trampolineName
+          entryPoints += trampolineName
+        }
+        val varName = varName0.stripSuffix(".addr").stripSuffix(".pointer")
         everCalledFunctions += varName
         entryPoints += varName // TODO: figure out how to interpret pointed-to functions
       case i: IndexedExpression =>
@@ -88,6 +95,8 @@ abstract class CallGraph(program: Program, log: Logger) {
     paramEdges ++= paramEdges.flatMap {
       case (a,b) => aliases.get(b).map(a -> _)
     }
+
+    callEdges ++= everCalledFunctions.filter(_.endsWith(".trampoline")).map(t => t -> t.stripSuffix(".trampoline"))
 
     var changed = true
     while (changed) {

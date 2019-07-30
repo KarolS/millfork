@@ -99,4 +99,27 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
         |""".stripMargin)
   }
 
+  test("Function pointers 3") {
+    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Z80)(
+      """
+        | const byte COUNT = 128
+        | array(word) output0[COUNT] @$c000
+        | noinline void fill(function.word.to.word f) {
+        |   byte i
+        |   for i,0,until,COUNT {
+        |     output0[i] = call(f, word(i))
+        |   }
+        | }
+        | word id(word x) = x
+        | void main() {
+        |   fill(id.pointer)
+        | }
+        |
+      """.stripMargin) { m =>
+      for (i <- 0 until 0x80) {
+        m.readByte(0xc000 + i * 2) should equal(i) withClue ("id " + i)
+      }
+    }
+  }
+
 }

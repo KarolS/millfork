@@ -24,7 +24,7 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
       case _ => None
     }.toSet
     val foreignVariables = f.environment.root.things.values.flatMap {
-      case other: NormalFunction =>
+      case other: NormalFunction if !other.name.endsWith(".trampoline") =>
         val address = other.address match {
           case Some(NumericConstant(addr, _)) => "$" + addr.toHexString
           case _ => ""

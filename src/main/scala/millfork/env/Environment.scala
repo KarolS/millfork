@@ -979,7 +979,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         log.error(s"Non-macro function `$name` cannot have inlinable parameters", stmt.position)
     }
 
-    val env = new Environment(Some(this), name + "$", cpuFamily, options)
+    val isTrampoline = stmt.name.endsWith(".trampoline")
+    val env = if (isTrampoline) {
+      // let's hope nothing goes wrong with this:
+      get[FunctionInMemory](stmt.name.stripSuffix(".trampoline")).environment
+    } else {
+      new Environment(Some(this), name + "$", cpuFamily, options)
+    }
     stmt.params.foreach(p => env.registerParameter(p, options))
     def params: ParamSignature = if (stmt.assembly) {
       AssemblyParamSignature(stmt.params.map {
@@ -1194,10 +1200,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addThing(ConstantThing(thing.name + ".rawaddr.lo", rawaddr.loByte, get[Type]("byte")), position)
       thing match {
         case f: FunctionInMemory if f.canBePointedTo =>
-          val typedPointer = RelativeVariable(thing.name + ".pointer", addr, getFunctionPointerType(f), zeropage = false, None, isVolatile = false)
+          val actualAddr = if (f.requiresTrampoline(options)) {
+            registerFunctionTrampoline(f).toAddress
+          } else {
+            addr
+          }
+          val typedPointer = RelativeVariable(thing.name + ".pointer", actualAddr, getFunctionPointerType(f), zeropage = false, None, isVolatile = false)
           addThing(typedPointer, position)
-          addThing(RelativeVariable(thing.name + ".pointer.hi", addr + 1, b, zeropage = false, None, isVolatile = false), position)
-          addThing(RelativeVariable(thing.name + ".pointer.lo", addr, b, zeropage = false, None, isVolatile = false), position)
+          addThing(RelativeVariable(thing.name + ".pointer.hi", actualAddr + 1, b, zeropage = false, None, isVolatile = false), position)
+          addThing(RelativeVariable(thing.name + ".pointer.lo", actualAddr, b, zeropage = false, None, isVolatile = false), position)
         case _ =>
       }
     } else {
@@ -1218,11 +1229,48 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       thing match {
         case f: FunctionInMemory if f.canBePointedTo =>
           val pointerType = getFunctionPointerType(f)
-          addThing(ConstantThing(thing.name + ".pointer", addr, pointerType), position)
-          addThing(ConstantThing(thing.name + ".pointer.hi", addr.hiByte, b), position)
-          addThing(ConstantThing(thing.name + ".pointer.lo", addr.loByte, b), position)
+          val actualAddr = if (f.requiresTrampoline(options)) {
+            registerFunctionTrampoline(f).toAddress
+          } else {
+            addr
+          }
+          addThing(ConstantThing(thing.name + ".pointer", actualAddr, pointerType), position)
+          addThing(ConstantThing(thing.name + ".pointer.hi", actualAddr.hiByte, b), position)
+          addThing(ConstantThing(thing.name + ".pointer.lo", actualAddr.loByte, b), position)
         case _ =>
       }
+    }
+  }
+
+  def registerFunctionTrampoline(function: FunctionInMemory): FunctionInMemory = {
+    options.platform.cpuFamily match {
+      case CpuFamily.M6502 =>
+        function.params match {
+          case NormalParamSignature(List(param)) =>
+            import Opcode._
+            import AddrMode._
+            val localNameForParam = param.name.stripPrefix(function.name + '$')
+            root.registerFunction(FunctionDeclarationStatement(
+              function.name + ".trampoline",
+              function.returnType.name,
+              List(ParameterDeclaration(param.typ.name, ByMosRegister(MosRegister.AX))),
+              Some(function.bank(options)),
+              None, None,
+              Some(List(
+                MosAssemblyStatement(STA, Absolute, VariableExpression(localNameForParam), Elidability.Volatile),
+                MosAssemblyStatement(STX, Absolute, VariableExpression(localNameForParam) #+# 1, Elidability.Volatile),
+                MosAssemblyStatement(JMP, Absolute, VariableExpression(function.name + ".addr"), Elidability.Elidable)
+              )),
+              isMacro = false,
+              inlinable = Some(false),
+              assembly = true,
+              interrupt = false,
+              kernalInterrupt = false,
+              reentrant = false
+            ), options)
+            get[FunctionInMemory](function.name + ".trampoline")
+        }
+      case _ => function
     }
   }
 
