@@ -589,7 +589,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         case LiteralExpression(i, _) if i >= 0 && i <= 255 => platform.defaultCodec.decode(i.toInt)
         case _ => TextCodec.NotAChar
       }.mkString("")
-      if (!text.contains(TextCodec.NotAChar) && !text.exists(c => c.isControl)) assembly.append(s"    ; \"$text\"")
+      if (!text.contains(TextCodec.NotAChar) && !text.exists(c => c.isControl)) assembly.append("    ; \"" + text + "\"")
     }
     items.flatMap(expr => env.eval(expr) match {
       case Some(c) => List.tabulate(elementType.size)(i => subbyte(c, i, elementType.size).quickSimplify.toString)
