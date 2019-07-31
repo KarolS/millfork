@@ -196,13 +196,18 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       case s: ContinueStatement =>
         compileContinueStatement(ctx, s) -> Nil
       case ExpressionStatement(e@FunctionCallExpression(name, params)) =>
-        env.lookupFunction(name, params.map(p => Z80ExpressionCompiler.getExpressionType(ctx, p) -> p)) match {
-          case Some(i: MacroFunction) =>
-            val (paramPreparation, inlinedStatements) = Z80MacroExpander.inlineFunction(ctx, i, params, e.position)
-            val (main, extra) = compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)
-            paramPreparation ++ main -> extra
+        env.maybeGet[Type](name) match {
+          case Some(_) =>
+            params.flatMap(p => Z80ExpressionCompiler.compile(ctx, p, ZExpressionTarget.NOTHING)) -> Nil
           case _ =>
-            Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING) -> Nil
+            env.lookupFunction(name, params.map(p => Z80ExpressionCompiler.getExpressionType(ctx, p) -> p)) match {
+              case Some(i: MacroFunction) =>
+                val (paramPreparation, inlinedStatements) = Z80MacroExpander.inlineFunction(ctx, i, params, e.position)
+                val (main, extra) = compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)
+                paramPreparation ++ main -> extra
+              case _ =>
+                Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING) -> Nil
+            }
         }
       case ExpressionStatement(e) =>
         Z80ExpressionCompiler.compile(ctx, e, ZExpressionTarget.NOTHING) -> Nil
