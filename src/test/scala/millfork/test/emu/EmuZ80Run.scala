@@ -162,14 +162,18 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         }
 
         val memoryBank = assembler.mem.banks("default")
-        (0x1f0 until 0x200).foreach(i => memoryBank.readable(i) = true)
+        (0x1ed until 0x200).foreach(i => memoryBank.readable(i) = true)
         (0xff00 to 0xffff).foreach{i =>
           memoryBank.readable(i) = true
           memoryBank.writeable(i) = true
         }
 
+        // LD SP,$fffe
         // CALL $0200
         // HALT
+        memoryBank.output(0x1ed) = 0x31.toByte
+        memoryBank.output(0x1ee) = 0xFE.toByte
+        memoryBank.output(0x1ef) = 0xFF.toByte
         memoryBank.output(0x1f0) = 0xCD.toByte
         memoryBank.output(0x1f1) = 0
         memoryBank.output(0x1f2) = 2
@@ -187,12 +191,15 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
           case millfork.Cpu.Z80 | millfork.Cpu.Intel8080 =>
             val cpu = new Z80Core(Z80Memory(memoryBank), DummyIO)
             cpu.reset()
-            cpu.setProgramCounter(0x1f0)
+            cpu.setProgramCounter(0x1ed)
             cpu.resetTStates()
             while (!cpu.getHalt) {
               cpu.executeOneInstruction()
               if (resetN) {
                 resetNMethod.invoke(cpu)
+              }
+              if (cpu.getSP.&(0xffff) < 0xd002) {
+                throw new IllegalStateException("stack overflow")
               }
 //              dump(cpu)
               cpu.getTStates should be < TooManyCycles
@@ -202,7 +209,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
           case millfork.Cpu.Sharp =>
             var ticks = 0L
             val cpu = GameboyStubs(memoryBank).cpu
-            cpu.getRegisters.setPC(0x1f0)
+            cpu.getRegisters.setPC(0x1ed)
             while (cpu.getState != Cpu.State.HALTED) {
               cpu.tick()
 //              dump(cpu)
