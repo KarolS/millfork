@@ -493,4 +493,51 @@ class ComparisonSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(11)
     }
   }
+
+  test("Various word comparisons") {
+    val code =
+      """
+        |  byte output @$c000
+        |  void main() {
+        |    word small1,medium1,big1
+        |    stack word small2,medium2,big2
+        |    small1 = id(1)
+        |    small2 = id(1)
+        |    medium1 = id(256)
+        |    medium2 = id(256)
+        |    big1 = id(5423)
+        |    big2 = id(5423)
+        |    output = 0
+        |    if small1 == small2 { output += 1 } // ↑
+        |    if medium1 == medium2 { output += 1 } // ↑
+        |    if big1 == big2 { output += 1 } // ↑
+        |    if big2 > small2 { output += 1 } // ↑
+        |    if big2 > small1 { output += 1 } // ↑
+        |    if big1 > small2 { output += 1 } // ↑
+        |    if big1 > small1 { output += 1 } // ↑
+        |    if big2 >= small2 { output += 1 } // ↑
+        |    if big2 >= small1 { output += 1 } // ↑
+        |    if big1 >= small2 { output += 1 } // ↑
+        |    if big1 >= small1 { output += 1 } // ↑
+        |    if small1 == 1 { output += 1 } // ↑
+        |    if small2 == 1 { output += 1 } // ↑
+        |    if 1 == small1 { output += 1 } // ↑
+        |    if 1 == small2 { output += 1 } // ↑
+        |    if big1 == 5423 { output += 1 } // ↑
+        |    if big2 == 5423 { output += 1 } // ↑
+        |    if 5423 == big1 { output += 1 } // ↑
+        |    if 5423 == big2 { output += 1 } // ↑
+        |    if big1 != 6523 { output += 1 } // ↑
+        |    if big2 != 6523 { output += 1 } // ↑
+        |    if 6523 != big1 { output += 1 } // ↑
+        |    if 6523 != big2 { output += 1 } // ↑
+        |    if small2 != medium2 { output += 1 } // ↑
+        |    if small2 != medium1 { output += 1 } // ↑
+        |    if small1 != medium2 { output += 1 } // ↑
+        |    if small1 != medium1 { output += 1 } // ↑
+        |  }
+        |  noinline word id(word x) = x
+        |""".stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(code) {m => m.readByte(0xc000) should equal (code.count(_ == '↑'))}
+  }
 }

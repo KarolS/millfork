@@ -661,15 +661,15 @@ object BuiltIns {
       case (_, Some(lc), rv: VariableExpression, None) =>
         return compileWordComparison(ctx, ComparisonType.flip(compType), rhs, lhs, branches)
       case (v: VariableExpression, None, _, Some(rc)) =>
-        val lva = env.get[VariableInMemory](v.name)
+        val lva = env.get[Variable](v.name)
         (Nil,
           AssemblyLine.variable(ctx, CMP, lva, 1),
           AssemblyLine.variable(ctx, CMP, lva, 0),
           List(AssemblyLine.immediate(CMP, rc.hiByte.quickSimplify)),
           List(AssemblyLine.immediate(CMP, rc.loByte.quickSimplify)))
       case (lv: VariableExpression, None, rv: VariableExpression, None) =>
-        val lva = env.get[VariableInMemory](lv.name)
-        val rva = env.get[VariableInMemory](rv.name)
+        val lva = env.get[Variable](lv.name)
+        val rva = env.get[Variable](rv.name)
         (Nil,
           AssemblyLine.variable(ctx, CMP, lva, 1),
           AssemblyLine.variable(ctx, CMP, lva, 0),
