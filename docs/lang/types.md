@@ -122,7 +122,7 @@ then the enumeration is considered _plain_. Plain enumeration types can be used 
 For plain enumerations, a constant `<name>.count` is defined,
 equal to the number of variants in the enumeration.
 
-Assigment between numeric types and enumerations is not possible without an explicit type cast:
+Assignment between numeric types and enumerations is not possible without an explicit type cast:
 
     enum E { EA, EB }
     byte b

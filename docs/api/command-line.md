@@ -138,7 +138,7 @@ Default: 4 if targeting a 6502-based architecture, 0 otherwise.
                     
 * `-fdecimal-mode`, `-fno-decimal-mode` –
 Whether hardware decimal mode should be used (6502 only).
-If disabled, a sofware decimal mode will be used.  
+If disabled, a software decimal mode will be used.  
 `.ini` equivalent: `decimal_mode`.
 Default: no if targeting Ricoh, yes otherwise.
 

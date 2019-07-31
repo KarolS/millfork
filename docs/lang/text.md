@@ -94,7 +94,7 @@ Encoding | lowercase letters | backslash | pound | yen | katakana | card suits
 `msx_ru`           | yes  | yes | no  | no   | no   | yes   
 all the rest       | yes  | yes | no  | no   | no   | no  
   
-1. `pet`, `origpet` and petscr` cannot display card suit symbols and lowercase letters at the same time.
+1. `pet`, `origpet` and `petscr` cannot display card suit symbols and lowercase letters at the same time.
 Card suit symbols are only available in graphics mode,
 in which lowercase letters are displayed as uppercase and uppercase letters are displayed as symbols. 
 
@@ -110,7 +110,7 @@ then text and character literals containing lowercase letters are automatically 
 ##### Escape sequence availability
 
 Encoding | new line | braces | backspace | cursor movement | text colour | reverse | background colour  
---|--|--|--|--|--|--  
+--|--|--|--|--|--|--|--  
 `pet`,`petjp`       | yes | no  | no  | yes | yes | yes | no  
 `origpet`           | yes | no  | no  | yes | no  | yes | no  
 `oldpet`            | yes | no  | no  | yes | no  | yes | no  

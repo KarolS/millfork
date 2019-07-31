@@ -21,7 +21,7 @@ It is not allowed in any other places.
 
 String literals can be used as either array initializers or expressions of type `pointer`.
 
-String literals are equivalent to constanr arrays. Writing to them via their pointer is undefined behaviour.
+String literals are equivalent to constant arrays. Writing to them via their pointer is undefined behaviour.
 
 If a string literal is used as an expression, then the text data will be located in the default code segment,
 regardless of which code segment the current function is located it. This may be subject to change in future releases.
@@ -97,7 +97,7 @@ You can create a constant of a given struct type by listing constant values of f
     point(5,6)
     
 
-## Array initialisers 
+## Array initializers 
 
 An array is initialized with either:
 

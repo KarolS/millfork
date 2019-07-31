@@ -76,6 +76,6 @@ TODO: buggy.
 
 #### void putbyte_safe(byte b)
 
-Wrires a byte from file.
+Writes a byte from file.
 Sets `errno`.   
 TODO: buggy.

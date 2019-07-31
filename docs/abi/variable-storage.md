@@ -56,7 +56,7 @@ The implementation depends on the target architecture:
     it's implemented as a separate 256-byte memory area plus a single byte for the stack pointer,
     exclusively for local stack variables; using it can help against stack overflows
 
-* on 8080 and LR35902, the address is calculated from the stackpointer into the HL register pair
+* on 8080 and LR35902, the address is calculated from the stack pointer into the HL register pair
 
 * on Z80, the IX register is used as the base pointer; unlike all the previous platforms,
 this makes stack-allocated variables independent from other stack operations
