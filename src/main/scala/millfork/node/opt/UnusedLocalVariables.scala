@@ -74,7 +74,7 @@ object UnusedLocalVariables extends NodeOptimization {
     case s: ArrayDeclarationStatement =>
       if (localsToRemove(s.name)) None else Some(s)
     case s@ExpressionStatement(FunctionCallExpression(op, VariableExpression(n) :: params)) if op.endsWith("=") =>
-      if (localsToRemove(n)) {
+      if (localsToRemove(extractThingName(n))) {
         params.flatMap {
           case VariableExpression(_) => None
           case LiteralExpression(_, _) => None
@@ -82,14 +82,14 @@ object UnusedLocalVariables extends NodeOptimization {
         }
       } else Some(s)
     case s@Assignment(VariableExpression(n), VariableExpression(_)) =>
-      if (localsToRemove(n)) Nil else Some(s)
+      if (localsToRemove(extractThingName(n))) Nil else Some(s)
     case s@Assignment(VariableExpression(n), LiteralExpression(_, _)) =>
-      if (localsToRemove(n)) Nil else Some(s)
+      if (localsToRemove(extractThingName(n))) Nil else Some(s)
     case s@Assignment(VariableExpression(n), expr) =>
-      if (localsToRemove(n)) Some(ExpressionStatement(expr).pos(s.position)) else Some(s)
+      if (localsToRemove(extractThingName(n))) Some(ExpressionStatement(expr).pos(s.position)) else Some(s)
     case s@Assignment(SeparateBytesExpression(he@VariableExpression(h), le@VariableExpression(l)), expr) =>
-      if (localsToRemove(h)) {
-        if (localsToRemove(l))
+      if (localsToRemove(extractThingName(h))) {
+        if (localsToRemove(extractThingName(l)))
           Some(ExpressionStatement(expr).pos(s.position))
         else
           Some(Assignment(
@@ -100,7 +100,7 @@ object UnusedLocalVariables extends NodeOptimization {
             expr
           ).pos(s.position))
       } else {
-        if (localsToRemove(l))
+        if (localsToRemove(extractThingName(l)))
           Some(Assignment(
             SeparateBytesExpression(
               VariableExpression(h).pos(he.position),
@@ -112,13 +112,13 @@ object UnusedLocalVariables extends NodeOptimization {
           Some(s)
       }
     case s@Assignment(SeparateBytesExpression(h, VariableExpression(l)), expr) =>
-      if (localsToRemove(l)) Some(Assignment(
+      if (localsToRemove(extractThingName(l))) Some(Assignment(
         SeparateBytesExpression(h, BlackHoleExpression).pos(h.position),
         expr
       ).pos(s.position))
       else Some(s)
     case s@Assignment(SeparateBytesExpression(he@VariableExpression(h), l), expr) =>
-      if (localsToRemove(h)) Some(Assignment(
+      if (localsToRemove(extractThingName(h))) Some(Assignment(
         SeparateBytesExpression(BlackHoleExpression, l).pos(he.position), expr
       ).pos(s.position))
       else Some(s)
