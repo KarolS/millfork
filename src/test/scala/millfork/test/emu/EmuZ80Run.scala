@@ -199,6 +199,8 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
                 resetNMethod.invoke(cpu)
               }
               if (cpu.getSP.&(0xffff) < 0xd002) {
+                log.debug("stack dump:")
+                (0xD000 until 0xD0FF).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
                 throw new IllegalStateException("stack overflow")
               }
 //              dump(cpu)
