@@ -2240,17 +2240,17 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcode(BCS) & MatchParameter(0)) ~
       (Elidable & HasOpcodeIn(JMP, BCC) & MatchParameter(1)) ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
-      code(1).copy(opcode = BCC) :: code.drop(2)
+      code(1).copy(opcode = BCC, addrMode = Relative) :: code.drop(2)
     },
     (Elidable & HasOpcode(BMI) & MatchParameter(0)) ~
       (Elidable & HasOpcodeIn(JMP, BPL) & MatchParameter(1)) ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
-      code(1).copy(opcode = BPL) :: code.drop(2)
+      code(1).copy(opcode = BPL, addrMode = Relative) :: code.drop(2)
     },
     (Elidable & HasOpcode(BPL) & MatchParameter(0)) ~
       (Elidable & HasOpcodeIn(JMP, BMI) & MatchParameter(1)) ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> { (code, ctx) =>
-      code(1).copy(opcode = BMI) :: code.drop(2)
+      code(1).copy(opcode = BMI, addrMode = Relative) :: code.drop(2)
     },
   )
 
