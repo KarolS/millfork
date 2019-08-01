@@ -493,8 +493,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           AssemblyLine.immediate(LDA, 0),
           AssemblyLine.label(skip))
       case _ =>
-        println(sourceType)
-        ???
+        ctx.log.fatal(s"Cannot assign `${sourceType.name}` to `bool`", expr.position)
     }
   }
 
@@ -599,14 +598,6 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
   def compile(ctx: CompilationContext, expr: Expression, exprTypeAndVariable: Option[(Type, Variable)], branches: BranchSpec): List[AssemblyLine] = {
     val env = ctx.env
-    env.eval(expr) match {
-      case Some(value) =>
-        return exprTypeAndVariable.fold(noop) { case (exprType, target) =>
-          assertCompatible(exprType, target.typ)
-          compileConstant(ctx, value, target)
-        }
-      case _ =>
-    }
     val b = env.get[Type]("byte")
     val exprType = AbstractExpressionCompiler.getExpressionType(ctx, expr)
     if (branches != NoBranching) {
@@ -621,6 +612,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           return compile(ctx, expr, exprTypeAndVariable, NoBranching) :+ AssemblyLine.absolute(JMP, Label(x))
         case _ => ()
       }
+    }
+    env.eval(expr) match {
+      case Some(value) =>
+        return exprTypeAndVariable.fold(noop) { case (exprType, target) =>
+          assertCompatible(exprType, target.typ)
+          compileConstant(ctx, value, target)
+        }
+      case _ =>
     }
     val w = env.get[Type]("word")
     expr match {

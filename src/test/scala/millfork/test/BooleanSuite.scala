@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -154,5 +154,48 @@ class BooleanSuite extends FunSuite with Matchers {
       |
       """.stripMargin
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readByte(0xc000) should equal(7))
+  }
+
+  test("Constant booleans") {
+    val code ="""
+      | word output @$c000
+      | noinline bool f(byte x) = x & 1 != 0
+      | noinline bool g(byte x) = x & 1 == 0
+      | void main () {
+      |   output = 5
+      |   if f(3) && true { output += 1 }
+      |   if f(3) && false { output += 100 }
+      |   if g(2) && true { output += 1 }
+      |   if g(2) && false { output += 100 }
+      |   if f(2) && true { output += 100 }
+      |   if f(2) && false { output += 100 }
+      |   if g(3) && true { output += 100 }
+      |   if g(3) && false { output += 100 }
+      |
+      |   if f(3) || true { output += 1 }
+      |   if f(3) || false { output += 1 }
+      |   if g(2) || true { output += 1 }
+      |   if g(2) || false { output += 1 }
+      |   if f(2) || true { output += 1 }
+      |   if f(2) || false { output += 100 }
+      |   if g(3) || true { output += 1 }
+      |   if g(3) || false { output += 100 }
+      | }
+      |
+      """.stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readWord(0xc000) should equal(13))
+  }
+
+  test("Constant booleans mini") {
+    val code ="""
+      | byte output @$c000
+      | noinline byte f(byte x) = x
+      | void main () {
+      |   output = 5
+      |   if f(3) != 0 && false { output += 100 }
+      | }
+      |
+      """.stripMargin
+    EmuUnoptimizedRun(code).readWord(0xc000) should equal(5)
   }
 }
