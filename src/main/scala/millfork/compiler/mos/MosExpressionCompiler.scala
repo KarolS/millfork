@@ -921,6 +921,16 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             case RegisterVariable(r, _) => r
             case _ => MosRegister.A
           }
+          val loRegister = register match {
+            case MosRegister.AX => MosRegister.A
+            case MosRegister.AY => MosRegister.A
+            case MosRegister.AW => MosRegister.A
+            case MosRegister.XA => MosRegister.X
+            case MosRegister.XY => MosRegister.X
+            case MosRegister.YA => MosRegister.Y
+            case MosRegister.YX => MosRegister.Y
+            case _ => register
+          }
           val suffix = target match {
             case RegisterVariable(_, _) => Nil
             case target: VariableInMemory =>
@@ -936,8 +946,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   List.tabulate(target.typ.size - 1)(i => AssemblyLine.variable(ctx, STA, target, i + 1)).flatten
               }
           }
-          val load = register match {
-            case MosRegister.A | MosRegister.AX | MosRegister.AY => LDA
+          val load = loRegister match {
+            case MosRegister.A => LDA
             case MosRegister.X => LDX
             case MosRegister.Y => LDY
           }
@@ -956,7 +966,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
           def loadFromReg() = {
             val reg = ctx.env.get[VariableInMemory]("__reg")
-            register match {
+            loRegister match {
               case MosRegister.A =>
                 List(AssemblyLine.indexedY(LDA, reg))
               case MosRegister.X =>
@@ -983,7 +993,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             case (p: VariablePointy, _, 0 | 1, _) if !p.zeropage =>
               prepareWordIndexing(ctx, p, indexExpr) ++ loadFromReg()
             case (p:VariablePointy, None, 0 | 1, _) =>
-              register match {
+              loRegister match {
                 case MosRegister.A =>
                   List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedY(LDA, p.addr))
                 case MosRegister.Y =>
@@ -993,7 +1003,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               }
             case (p:VariablePointy, Some(_), 0 | 1, _) =>
               val calculatingIndex = compile(ctx, indexExpr, Some(b, RegisterVariable(MosRegister.Y, b)), NoBranching)
-              register match {
+              loRegister match {
                 case MosRegister.A =>
                   calculatingIndex :+ AssemblyLine.indexedY(LDA, p.addr)
                 case MosRegister.X =>
@@ -1002,7 +1012,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   calculatingIndex ++ List(AssemblyLine.indexedY(LDA, p.addr), AssemblyLine.implied(TAY))
               }
             case (p: StackVariablePointy, _, 0 | 1, _) if ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes) =>
-              register match {
+              loRegister match {
                 case MosRegister.A =>
                   List(AssemblyLine.immediate(LDY, constantIndex), AssemblyLine.indexedSY(LDA, p.offset))
                 case MosRegister.Y =>
@@ -1018,8 +1028,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           }
           register match {
             case MosRegister.A | MosRegister.X | MosRegister.Y => result ++ suffix
-            case MosRegister.AX => result :+ AssemblyLine.immediate(LDX, 0)
-            case MosRegister.AY => result :+ AssemblyLine.immediate(LDY, 0)
+            case MosRegister.AX | MosRegister.YX => result :+ AssemblyLine.immediate(LDX, 0) // TODO: signedness?
+            case MosRegister.AY | MosRegister.XY => result :+ AssemblyLine.immediate(LDY, 0)
+            case MosRegister.AW => result ++ List(AssemblyLine.implied(XBA), AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(XBA))
           }
         }
       case DerefExpression(inner, offset, targetType) =>
