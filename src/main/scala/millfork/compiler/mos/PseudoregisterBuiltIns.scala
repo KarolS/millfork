@@ -288,6 +288,7 @@ object PseudoregisterBuiltIns {
   private def compileFastWordBitOpsToAX(reads: List[List[AssemblyLine]], op: Opcode.Value): Option[List[AssemblyLine]] = {
     val resultLo = mutable.ListBuffer[AssemblyLine]()
     val resultHi = mutable.ListBuffer[AssemblyLine]()
+    var complex = Option.empty[List[AssemblyLine]]
     for(read <- reads) {
       read match {
         case List(l@AssemblyLine0(LDA, Immediate | Absolute | ZeroPage, _), h@AssemblyLine0(LDX, Immediate | Absolute | ZeroPage, _)) =>
@@ -298,12 +299,43 @@ object PseudoregisterBuiltIns {
             resultHi += h.copy(opcode = op)
             resultLo += l.copy(opcode = op)
           }
-        case _ => return None
+        case _ =>
+          if (complex.isDefined) return None
+          else complex = Some(read)
       }
     }
-    resultHi += AssemblyLine.implied(TAX)
-    resultHi ++= resultLo
-    Some(resultHi.toList)
+    complex match {
+      case Some(x) =>
+        if (resultHi.isEmpty) {
+          if (resultLo.isEmpty) return Some(x)
+          else return None
+        } else {
+          if (resultLo.isEmpty) return None
+          if (resultHi.exists(_.concernsX)) return None
+          if (resultLo.exists(_.concernsX)) return None
+          if (resultHi.head.opcode != LDA) return None
+          if (resultLo.head.opcode != LDA) return None
+          resultHi(0) = resultHi.head.copy(opcode = op)
+          resultLo(0) = resultLo.head.copy(opcode = op)
+        }
+        val index = x.lastIndexWhere(_.opcode.==(TAX))
+        if (index < 0) return None
+        val (handleHigh, taxAndHandleLo) = x.splitAt(index)
+        if (taxAndHandleLo.tail.exists(l => l.concernsX || (l.opcode match {
+          case TAX | CLC | SEC | CLD | SED => false
+          case LDA | ADC | SBC | AND | ORA | EOR => false
+          case ASL | LSR | ROL | ROR => false
+          case ANC | ALR | ARR => false
+          case NOP => false
+          case INC | DEC => l.addrMode != Implied
+          case _ => true
+        }))) return None
+        Some(handleHigh ++ resultHi ++ taxAndHandleLo ++ resultLo)
+      case None =>
+        resultHi += AssemblyLine.implied(TAX)
+        resultHi ++= resultLo
+        Some(resultHi.toList)
+    }
   }
 
   def compileWordBitOpsToAX(ctx: CompilationContext, params: List[Expression], op: Opcode.Value): List[AssemblyLine] = {

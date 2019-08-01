@@ -89,4 +89,17 @@ class BitOpSuite extends FunSuite with Matchers {
       """.stripMargin
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readByte(0xc000) should equal(2))
   }
+
+  test("Multiple words") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+        | word output @$c000
+        | void main () {
+        |   word v, w
+        |   v = $ee0e
+        |   barrier()
+        |   output = (v & $F0F0) | $0303
+        | }
+        | noinline void barrier(){}
+      """.stripMargin)(_.readWord(0xc000) should equal(0xE303))
+  }
 }
