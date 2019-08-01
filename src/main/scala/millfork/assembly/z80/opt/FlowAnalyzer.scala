@@ -1,6 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.CompilationOptions
+import millfork.assembly.OptimizationContext
 import millfork.assembly.z80.{ZLine, ZLine0, ZOpcode}
 import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
 
@@ -31,10 +32,10 @@ object FlowAnalyzer {
   private val EmptyCpuStatus = CpuStatus()
   private val EmptyCpuImportance = CpuImportance()
 
-  def analyze(f: NormalFunction, code: List[ZLine], options: CompilationOptions, req: FlowInfoRequirement.Value): List[(FlowInfo, ZLine)] = {
+  def analyze(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext, req: FlowInfoRequirement.Value): List[(FlowInfo, ZLine)] = {
     val forwardFlow = req match {
       case FlowInfoRequirement.BothFlows | FlowInfoRequirement.ForwardFlow =>
-        () => CoarseFlowAnalyzer.analyze(f, code, options)
+        () => CoarseFlowAnalyzer.analyze(f, code, optimizationContext)
       case FlowInfoRequirement.BackwardFlow | FlowInfoRequirement.JustLabels | FlowInfoRequirement.NoRequirement =>
         () => List.fill(code.size)(EmptyCpuStatus)
     }

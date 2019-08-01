@@ -243,7 +243,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             log.debug("Inlining " + f, function.position)
             inlinedFunctions += f -> c
             val tmp = mutable.Set[(NiceFunctionProperty, String)]()
-            gatherNiceFunctionProperties(tmp, f, c)
+            gatherNiceFunctionProperties(options, tmp, function, c)
             if (tmp.exists(_._1 == IsLeaf)) {
               functionsThatCanBeCalledFromInlinedFunctions += function.name
             }
@@ -254,7 +254,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             compiledFunctions(f) = NormalCompiledFunction(function.declaredBank.getOrElse(platform.defaultCodeBank), code, function.address.isDefined, function.alignment)
             optimizedCodeSize += code.map(_.sizeInBytes).sum
             if (options.flag(CompilationFlag.InterproceduralOptimization)) {
-              gatherNiceFunctionProperties(niceFunctionProperties, f, code)
+              gatherNiceFunctionProperties(options, niceFunctionProperties, function, code)
             }
         }
         function.environment.removedThings.foreach(env.removeVariable)
@@ -625,7 +625,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   def quickSimplify(code: List[T]): List[T]
 
-  def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[T]): Unit
+  def gatherNiceFunctionProperties(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: NormalFunction, code: List[T]): Unit
 
   def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[T]): List[T]
 

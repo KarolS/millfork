@@ -3,8 +3,10 @@ package millfork.assembly.mos.opt
 import millfork.assembly.OptimizationContext
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, OpcodeClasses}
-import millfork.assembly.opt.{AnyStatus, FlowCache}
+import millfork.assembly.opt.{AnyStatus, FlowCache, SingleStatus, Status}
 import millfork.env._
+import millfork.node.NiceFunctionProperty
+import scala.util.control.Breaks._
 
 /**
   * @author Karol Stasiak
@@ -17,6 +19,20 @@ object CoarseFlowAnalyzer {
     cache.get(code).foreach(return _)
     val compilationOptions = optimizationContext.options
     val niceFunctionProperties = optimizationContext.niceFunctionProperties
+    def extractNiceConstant[T](callee: String)(matcher: NiceFunctionProperty => Option[T]): Status[T] = {
+      var result: Status[T] = AnyStatus
+      breakable {
+        niceFunctionProperties.foreach{ np =>
+          if (np._2 == callee) matcher(np._1) match {
+            case Some(x) =>
+              result = SingleStatus(x)
+              break
+            case _ =>
+          }
+        }
+      }
+      result
+    }
     val ceFlag = compilationOptions.flag(CompilationFlag.Emit65CE02Opcodes)
     val cmosFlag = compilationOptions.flag(CompilationFlag.EmitCmosOpcodes)
     val initialStatus =
@@ -58,12 +74,37 @@ object CoarseFlowAnalyzer {
 
           case AssemblyLine0(JSR, _, MemoryAddressConstant(th)) =>
             currentStatus = initialStatus.copy(
-              a = if (niceFunctionProperties(DoesntChangeA -> th.name)) currentStatus.a else AnyStatus,
+              a =
+                if (niceFunctionProperties(DoesntChangeA -> th.name)) currentStatus.a
+                else extractNiceConstant(th.name){
+                  case SetsATo(x) => Some(x)
+                  case _ => None
+                },
               ah = if (niceFunctionProperties(DoesntChangeAH -> th.name)) currentStatus.ah else AnyStatus,
-              x = if (niceFunctionProperties(DoesntChangeX -> th.name)) currentStatus.x else AnyStatus,
+              x = if (niceFunctionProperties(DoesntChangeX -> th.name)) currentStatus.x
+              else extractNiceConstant(th.name){
+                case SetsXTo(x) => Some(x)
+                case _ => None
+              },
               eqSX = if (niceFunctionProperties(DoesntChangeX -> th.name)) currentStatus.eqSX else false,
               eqSpX = if (niceFunctionProperties(DoesntChangeX -> th.name)) currentStatus.eqSpX else false,
-              y = if (niceFunctionProperties(DoesntChangeY -> th.name)) currentStatus.y else AnyStatus,
+              y = if (niceFunctionProperties(DoesntChangeY -> th.name)) currentStatus.y
+              else extractNiceConstant(th.name){
+                case SetsYTo(x) => Some(x)
+                case _ => None
+              },
+              a0 = extractNiceConstant(th.name){
+                case Bit0OfA(x) => Some(x)
+                case _ => None
+              },
+              a7 = extractNiceConstant(th.name){
+                case Bit7OfA(x) => Some(x)
+                case _ => None
+              },
+              src = extractNiceConstant(th.name){
+                case SetsSourceOfNZ(x) => Some(x)
+                case _ => None
+              },
               iz = if (niceFunctionProperties(DoesntChangeIZ -> th.name)) currentStatus.iz else AnyStatus,
               c = if (niceFunctionProperties(DoesntChangeC -> th.name)) currentStatus.c else AnyStatus
             )

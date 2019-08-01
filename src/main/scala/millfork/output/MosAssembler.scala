@@ -1,12 +1,13 @@
 package millfork.output
 
-import millfork.assembly.mos.opt.{HudsonOptimizations, JumpFixing, JumpFollowing, JumpShortening}
+import millfork.assembly.mos.opt.{CoarseFlowAnalyzer, CpuStatus, HudsonOptimizations, JumpFixing, JumpFollowing, JumpShortening, SourceOfNZ}
 import millfork.assembly._
 import millfork.env._
 import millfork.error.{ConsoleLogger, FatalErrorReporting}
 import millfork.node.{MosNiceFunctionProperty, NiceFunctionProperty, Program}
 import millfork._
 import millfork.assembly.mos._
+import millfork.assembly.opt.{SingleStatus, Status}
 import millfork.compiler.mos.MosCompiler
 
 import scala.annotation.tailrec
@@ -105,16 +106,44 @@ class MosAssembler(program: Program,
 
   override def quickSimplify(code: List[AssemblyLine]): List[AssemblyLine] = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
 
-  override def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[AssemblyLine]): Unit = {
+  override def gatherNiceFunctionProperties(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: NormalFunction, code: List[AssemblyLine]): Unit = {
     import Opcode._
     import AddrMode._
     import MosNiceFunctionProperty._
     import NiceFunctionProperty._
+    val functionName = function.name
     if (isNaughty(code)) return
     val localLabels = code.flatMap {
       case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(l))) => Some(l)
       case _ => None
     }.toSet
+    if (code.exists {
+      case AssemblyLine0(op, _, MemoryAddressConstant(Label(l))) if OpcodeClasses.AllDirectJumps(op) => !localLabels(l)
+      case AssemblyLine0(op, _, _) if OpcodeClasses.AllDirectJumps(op) => true
+      case AssemblyLine0(BRK | RTI, _, _) => true
+      case _ => false
+    }) return
+    val optimizationContext = OptimizationContext(options, Map(), function.environment.maybeGet[ThingInMemory]("__reg"), Set())
+    val flow = CoarseFlowAnalyzer.analyze(function, code, optimizationContext)
+    def rtsPropertyScan[T](extractor: CpuStatus => Status[T])(niceFunctionProperty: Status[T] => Option[NiceFunctionProperty]): Unit = {
+      val statuses = code.zipWithIndex.flatMap{
+        case (AssemblyLine0(RTS, _, _), ix) => Some(extractor(flow(ix)))
+        case _ => None
+      }.toSet
+      statuses.toSeq match {
+        case Seq(only) =>
+          niceFunctionProperty(only).foreach { np =>
+            niceFunctionProperties += (np -> functionName)
+          }
+        case _ =>
+      }
+    }
+    def simpleRtsPropertyScan[T](extractor: CpuStatus => Status[T])(niceFunctionProperty: T => NiceFunctionProperty): Unit = {
+      rtsPropertyScan(extractor) {
+        case SingleStatus(x) => Some(niceFunctionProperty(x))
+        case _ => None
+      }
+    }
     def genericPropertyScan(niceFunctionProperty: NiceFunctionProperty)(predicate: AssemblyLine => Boolean): Unit = {
       val preserved = code.forall {
         case AssemblyLine0(JSR | BSR | JMP, Absolute | LongAbsolute, MemoryAddressConstant(th)) => niceFunctionProperties(niceFunctionProperty -> th.name)
@@ -171,6 +200,12 @@ class MosAssembler(program: Program,
       case AssemblyLine0(JMP, Absolute, th:Thing)  => th.name.startsWith(".")
       case _ => true
     }
+    simpleRtsPropertyScan(_.src)(SetsSourceOfNZ)
+    simpleRtsPropertyScan(_.a0)(Bit0OfA)
+    simpleRtsPropertyScan(_.a7)(Bit7OfA)
+    simpleRtsPropertyScan(_.a)(SetsATo)
+    simpleRtsPropertyScan(_.x)(SetsXTo)
+    simpleRtsPropertyScan(_.y)(SetsYTo)
   }
 
   override def bytePseudoopcode: String = "!byte"

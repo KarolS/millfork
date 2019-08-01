@@ -22,7 +22,7 @@ class VariableStatus(val paramVariables: Set[String],
 
 object VariableStatus {
   def apply(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext, typFilter: Type => Boolean): Option[VariableStatus] = {
-    val flow = FlowAnalyzer.analyze(f, code, optimizationContext.options, FlowInfoRequirement.BothFlows)
+    val flow = FlowAnalyzer.analyze(f, code, optimizationContext, FlowInfoRequirement.BothFlows)
     import millfork.node.ZRegister._
     val paramVariables = f.params match {
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>

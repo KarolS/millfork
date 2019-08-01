@@ -1,12 +1,16 @@
 package millfork.output
 
+import millfork.assembly.OptimizationContext
+import millfork.assembly.opt.{SingleStatus, Status}
 import millfork.{CompilationFlag, CompilationOptions, Cpu, Platform}
 import millfork.assembly.z80.{ZOpcode, _}
-import millfork.assembly.z80.opt.{ConditionalInstructions, JumpFollowing, JumpShortening}
+import millfork.assembly.z80.opt.{CoarseFlowAnalyzer, ConditionalInstructions, CpuStatus, JumpFollowing, JumpShortening}
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
+import millfork.node.Z80NiceFunctionProperty.{DoesntChangeBC, DoesntChangeDE, DoesntChangeHL, DoesntChangeIY, SetsATo}
 import millfork.node.{NiceFunctionProperty, Program, ZRegister}
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 /**
@@ -693,8 +697,68 @@ class Z80Assembler(program: Program,
 
   override def quickSimplify(code: List[ZLine]): List[ZLine] = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
 
-  override def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[ZLine]): Unit = {
-    // do nothing yet
+  override def gatherNiceFunctionProperties(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: NormalFunction, code: List[ZLine]): Unit = {
+    import ZOpcode._
+    val functionName = function.name
+    if (isNaughty(code)) return
+    val localLabels = code.flatMap {
+      case ZLine0(LABEL, _, MemoryAddressConstant(Label(l))) => Some(l)
+      case _ => None
+    }.toSet
+    if (code.exists {
+      case ZLine0(JP | JR, _, MemoryAddressConstant(Label(l))) => !localLabels(l)
+      case ZLine0(JP | JR, _, _) => true
+      case ZLine0(RST, _, _) => true
+      case _ => false
+    }) return
+    val optimizationContext = OptimizationContext(options, Map(), None, Set())
+    val flow = CoarseFlowAnalyzer.analyze(function, code, optimizationContext)
+    def retPropertyScan[T](extractor: CpuStatus => Status[T])(niceFunctionProperty: Status[T] => Option[NiceFunctionProperty]): Unit = {
+      val statuses = code.zipWithIndex.flatMap{
+        case (ZLine0(RET | RETI | RETN, _, _), ix) => Some(extractor(flow(ix)))
+        case _ => None
+      }.toSet
+      statuses.toSeq match {
+        case Seq(only) =>
+          niceFunctionProperty(only).foreach { np =>
+            niceFunctionProperties += (np -> functionName)
+          }
+        case _ =>
+      }
+    }
+    def simpleRetPropertyScan[T](extractor: CpuStatus => Status[T])(niceFunctionProperty: T => NiceFunctionProperty): Unit = {
+      retPropertyScan(extractor) {
+        case SingleStatus(x) => Some(niceFunctionProperty(x))
+        case _ => None
+      }
+    }
+    def genericPropertyScan(niceFunctionProperty: NiceFunctionProperty)(predicate: ZLine => Boolean): Unit = {
+      val preserved = code.forall {
+        case ZLine0(JP | JR, _, MemoryAddressConstant(Label(label))) => localLabels(label)
+        case ZLine0(CALL | JP | JR, _, MemoryAddressConstant(th)) => niceFunctionProperties(niceFunctionProperty -> th.name)
+        case ZLine0(CALL | JP | JR, _, _) => false
+        case l => predicate(l)
+      }
+      if (preserved) {
+        niceFunctionProperties += (niceFunctionProperty -> functionName)
+      }
+    }
+    genericPropertyScan(DoesntChangeHL)(l => !l.changesRegister(ZRegister.HL))
+    genericPropertyScan(DoesntChangeDE)(l => !l.changesRegister(ZRegister.DE))
+    genericPropertyScan(DoesntChangeBC)(l => !l.changesRegister(ZRegister.BC))
+    genericPropertyScan(DoesntChangeIY)(l => !l.changesRegister(ZRegister.IY))
+    simpleRetPropertyScan(_.a)(SetsATo)
+  }
+
+  @tailrec
+  private def isNaughty(code: List[ZLine]): Boolean = {
+    import ZOpcode._
+    code match {
+      case ZLine0(JP, OneRegister(_), _) :: _ => true
+      case ZLine0(PUSH, _, _) :: ZLine0(RET | RETI | RETN, _, _) :: _ => true
+      case _ :: xs => isNaughty(xs)
+      case Nil => false
+    }
   }
 
   override def bytePseudoopcode: String = "DB"

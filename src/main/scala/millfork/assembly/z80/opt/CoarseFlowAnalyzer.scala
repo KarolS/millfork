@@ -1,10 +1,14 @@
 package millfork.assembly.z80.opt
 
+import millfork.assembly.OptimizationContext
 import millfork.assembly.opt.{AnyStatus, FlowCache, SingleStatus, Status}
 import millfork.assembly.z80._
 import millfork.env._
-import millfork.node.ZRegister
-import millfork.{CompilationFlag, CompilationOptions, Cpu}
+import millfork.node.Z80NiceFunctionProperty.{DoesntChangeBC, DoesntChangeDE, DoesntChangeHL, SetsATo}
+import millfork.node.{NiceFunctionProperty, ZRegister}
+import millfork.CompilationFlag
+
+import scala.util.control.Breaks._
 
 /**
   * @author Karol Stasiak
@@ -13,14 +17,30 @@ object CoarseFlowAnalyzer {
 
   val cache = new FlowCache[ZLine, CpuStatus]("z80 forward")
 
-  def analyze(f: NormalFunction, code: List[ZLine], compilationOptions: CompilationOptions): List[CpuStatus] = {
+  def analyze(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[CpuStatus] = {
     cache.get(code).foreach(return _)
     val initialStatus = CpuStatus()
     val functionStartStatus = CpuStatus()
     val emptyStatus = CpuStatus()
     val flagArray = Array.fill[CpuStatus](code.length)(emptyStatus)
     val codeArray = code.toArray
+    val compilationOptions = optimizationContext.options
     val z80 = compilationOptions.flag(CompilationFlag.EmitZ80Opcodes)
+    val niceFunctionProperties = optimizationContext.niceFunctionProperties
+    def extractNiceConstant[T](callee: String)(matcher: NiceFunctionProperty => Option[T]): Status[T] = {
+      var result: Status[T] = AnyStatus
+      breakable {
+        niceFunctionProperties.foreach{ np =>
+          if (np._2 == callee) matcher(np._1) match {
+            case Some(x) =>
+              result = SingleStatus(x)
+              break
+            case _ =>
+          }
+        }
+      }
+      result
+    }
 
     val preservesB: Set[String] = Set("__mul_u8u8u8")
     val preservesC: Set[String] = if (z80) Set("__mul_u8u8u8") else Set()
@@ -65,12 +85,17 @@ object CoarseFlowAnalyzer {
             if (mayBeCalled) {
               val result = if (preservesStackVariables) initialStatus.copy(memIx = currentStatus.memIx) else initialStatus
               currentStatus = result.copy(
-                b = if (preservesB(n)) currentStatus.b else result.b,
-                c = if (preservesC(n)) currentStatus.c else result.c,
-                d = if (preservesD(n)) currentStatus.d else result.d,
-                e = if (preservesE(n)) currentStatus.e else result.e,
-                h = if (preservesH(n)) currentStatus.h else result.h,
-                l = if (preservesL(n)) currentStatus.l else result.l
+                b = if (preservesB(n) || niceFunctionProperties(DoesntChangeBC -> n)) currentStatus.b else result.b,
+                c = if (preservesC(n) || niceFunctionProperties(DoesntChangeBC -> n)) currentStatus.c else result.c,
+                d = if (preservesD(n) || niceFunctionProperties(DoesntChangeDE -> n)) currentStatus.d else result.d,
+                e = if (preservesE(n) || niceFunctionProperties(DoesntChangeDE-> n)) currentStatus.e else result.e,
+                h = if (preservesH(n) || niceFunctionProperties(DoesntChangeHL -> n)) currentStatus.h else result.h,
+                l = if (preservesL(n) || niceFunctionProperties(DoesntChangeHL -> n)) currentStatus.l else result.l,
+                hl = if (preservesH(n) && preservesL(n) || niceFunctionProperties(DoesntChangeHL -> n)) currentStatus.hl else result.hl,
+                a = extractNiceConstant(n){
+                  case SetsATo(a) => Some(a)
+                  case _ => None
+                },
               )
             }
 

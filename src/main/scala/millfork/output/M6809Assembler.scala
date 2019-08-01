@@ -23,7 +23,7 @@ class M6809Assembler(program: Program,
 
   override def quickSimplify(code: List[MLine]): List[MLine] = code
 
-  override def gatherNiceFunctionProperties(niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], functionName: String, code: List[MLine]): Unit = ()
+  override def gatherNiceFunctionProperties(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: NormalFunction, code: List[MLine]): Unit = ()
 
   override def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[MLine]): List[MLine] = code
 

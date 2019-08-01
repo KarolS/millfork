@@ -45,7 +45,7 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
   actualRules.foreach(_.pattern.validate(needsFlowInfo))
 
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
-    val taggedCode = FlowAnalyzer.analyze(f, code, optimizationContext.options, needsFlowInfo)
+    val taggedCode = FlowAnalyzer.analyze(f, code, optimizationContext, needsFlowInfo)
     val (changed, optimized) = optimizeImpl(f, taggedCode, optimizationContext)
     if (changed) optimized else code
   }

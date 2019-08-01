@@ -2,6 +2,7 @@ package millfork.node
 
 import millfork.assembly.Elidability
 import millfork.assembly.m6809.{MAddrMode, MOpcode}
+import millfork.assembly.mos.opt.SourceOfNZ
 import millfork.assembly.mos.{AddrMode, Opcode}
 import millfork.assembly.z80.{ZOpcode, ZRegisters}
 import millfork.env.{Constant, ParamPassingConvention, Type}
@@ -182,6 +183,12 @@ object MosNiceFunctionProperty {
   case object DoesntChangeC extends NiceFunctionProperty("C")
   case object DoesntConcernD extends NiceFunctionProperty("D")
   case object DoesntChangeZpRegister extends NiceFunctionProperty("reg")
+  case class SetsSourceOfNZ(sourceOfNZ: SourceOfNZ) extends NiceFunctionProperty(sourceOfNZ + "NZ")
+  case class SetsXTo(value: Int) extends NiceFunctionProperty("Y=" + value)
+  case class SetsYTo(value: Int) extends NiceFunctionProperty("Z=" + value)
+  case class SetsATo(value: Int) extends NiceFunctionProperty("A=" + value)
+  case class Bit0OfA(value: Boolean) extends NiceFunctionProperty("A0=" + value)
+  case class Bit7OfA(value: Boolean) extends NiceFunctionProperty("A7=" + value)
 }
 
 object Z80NiceFunctionProperty {
@@ -189,6 +196,7 @@ object Z80NiceFunctionProperty {
   case object DoesntChangeDE extends NiceFunctionProperty("DE")
   case object DoesntChangeHL extends NiceFunctionProperty("HL")
   case object DoesntChangeIY extends NiceFunctionProperty("IY")
+  case class SetsATo(value: Int) extends NiceFunctionProperty("A=" + value)
 }
 
 object MosRegister extends Enumeration {
