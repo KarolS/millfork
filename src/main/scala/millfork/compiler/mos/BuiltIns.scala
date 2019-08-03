@@ -260,6 +260,7 @@ object BuiltIns {
         val labelSkip = ctx.nextLabel("ss")
         val labelRepeat = ctx.nextLabel("sr")
         val loop = List(
+          AssemblyLine.immediate(CPX, 0),
           AssemblyLine.relative(BEQ, labelSkip),
           AssemblyLine.label(labelRepeat),
           AssemblyLine.implied(opcode),
