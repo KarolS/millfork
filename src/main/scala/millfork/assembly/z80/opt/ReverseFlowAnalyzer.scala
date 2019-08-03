@@ -191,6 +191,9 @@ object ReverseFlowAnalyzer {
   val readsH: Set[String] = Set("__divmod_u16u8u16u8", "call")
   val readsL: Set[String] = Set("__divmod_u16u8u16u8", "call")
 
+  val preservesH: Set[String] = Set("__mul_u8u8u8")
+  val preservesL: Set[String] = Set("__mul_u8u8u8")
+
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[ZLine]): List[CpuImportance] = {
     cache.get(code).foreach(return _)
@@ -366,9 +369,9 @@ object ReverseFlowAnalyzer {
                   c = if (readsC(n)) Important else Unimportant,
                   d = if (readsD(n)) Important else Unimportant,
                   e = if (readsE(n)) Important else Unimportant,
-                  h = if (readsH(n)) Important else Unimportant,
-                  l = if (readsL(n)) Important else Unimportant,
-                  hlNumeric = Unimportant,
+                  h = if (readsH(n)) Important else if (preservesH(n)) currentImportance.h else Unimportant,
+                  l = if (readsL(n)) Important else if (preservesL(n)) currentImportance.l else Unimportant,
+                  hlNumeric = if (preservesH(n) && preservesL(n)) currentImportance.hlNumeric else Unimportant,
                   iyh = Unimportant,
                   iyl = Unimportant,
                   zf = Unimportant,
@@ -438,9 +441,9 @@ object ReverseFlowAnalyzer {
                   c = if (readsC(n)) Important else Unimportant,
                   d = if (readsD(n)) Important else Unimportant,
                   e = if (readsE(n)) Important else Unimportant,
-                  h = if (readsH(n)) Important else Unimportant,
-                  l = if (readsL(n)) Important else Unimportant,
-                  hlNumeric = Unimportant,
+                  h = if (readsH(n)) Important else if (preservesH(n)) currentImportance.h else Unimportant,
+                  l = if (readsL(n)) Important else if (preservesL(n)) currentImportance.l else Unimportant,
+                  hlNumeric = if (preservesH(n) && preservesL(n)) currentImportance.hlNumeric else Unimportant,
                   iyh = Unimportant,
                   iyl = Unimportant,
                   zf = Unimportant,
