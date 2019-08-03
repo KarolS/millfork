@@ -30,9 +30,23 @@ This matches both the CC65 behaviour and the return values from `readkey()`.
 
 * 6502: Fixed expressions of form `p[i] <<= 1`.
 
-* 6502: Fixed optimizations involving the zeropage pseudoregister.
+* 6502: Fixed variable bit shifting. 
 
-* Z80: Fixed optimizations in functions using stack variables.
+* 8080/Z80: Fixed byte division.
+
+* Fixed many optimization bugs:
+
+    * incorrect removal of unused local variables;
+
+    * 6502: miscompilation when using the zeropage pseudoregister;
+
+    * 6502: stack overflow when inlining local variables into registers;
+
+    * 8080/Z80: compiler crash when compiling conditions;
+ 
+    * 8080/Z80: miscompilation near multiplication;
+
+    * Z80: miscompilation when using stack variables.
 
 * Other fixes and improvements.
 
