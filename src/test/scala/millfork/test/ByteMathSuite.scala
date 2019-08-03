@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUltraBenchmarkRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUltraBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -422,4 +422,24 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readByte(0xc003) should equal(x % y) withClue s"= $x %% $y"
     }
   }
+
+  test("Division bug repro"){
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+        s"""
+           | import zp_reg
+           | byte output_q1 @$$c000, output_m1 @$$c001
+           | array zeroes[256] = [for i,0,until,256 [0]]
+           | void main () {
+           |  byte a
+           |  byte b
+           |  a = 186
+           |  memory_barrier()
+           |  a /= zeroes[b] | 2
+           |  output_q1 = a
+           | }
+            """.
+          stripMargin) { m =>
+        m.readByte(0xc000) should equal(93)
+      }
+    }
 }

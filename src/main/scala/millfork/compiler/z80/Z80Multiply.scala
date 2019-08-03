@@ -47,7 +47,11 @@ object Z80Multiply {
           false
       }
     }
-    val productOfConstants = CompoundConstant(MathOperator.Times, otherConst, NumericConstant(numericConst & 0xff, 1)).quickSimplify
+    val productOfConstants = numericConst match {
+      case 0 => Constant.Zero
+      case 1 => otherConst
+      case _ => CompoundConstant(MathOperator.Times, otherConst, NumericConstant(numericConst & 0xff, 1)).quickSimplify
+    }
     (filteredParams, otherConst) match {
       case (Nil, NumericConstant(n, _)) => List(ZLine.ldImm8(ZRegister.A, (numericConst * n).toInt))
       case (Nil, _) => List(ZLine.ldImm8(ZRegister.A, productOfConstants))
@@ -156,7 +160,7 @@ object Z80Multiply {
     }
     val qb = Z80ExpressionCompiler.compileToA(ctx, q)
     val load = if (qb.exists(Z80ExpressionCompiler.changesHL)) {
-      pb ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, qb)
+      pb ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, qb) ++ List(ZLine.ld8(ZRegister.D, ZRegister.A))
     } else if (pb.exists(Z80ExpressionCompiler.changesDE)) {
       qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, pb)
     } else {

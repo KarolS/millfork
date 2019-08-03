@@ -434,6 +434,16 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.And => Constant.Zero
           case _ => CompoundConstant(operator, l, r)
         }
+      case (c, NumericConstant(1, 1)) =>
+        operator match {
+          case MathOperator.Times => c
+          case _ => CompoundConstant(operator, l, r)
+        }
+      case (NumericConstant(1, 1), c) =>
+        operator match {
+          case MathOperator.Times => c
+          case _ => CompoundConstant(operator, l, r)
+        }
       case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
         var size = ls max rs
         val bitmask = (1L << (8*size)) - 1
