@@ -1635,7 +1635,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             env.maybeGet[Type](f.functionName) match {
               case Some(typ) =>
                 val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
-                val newExprTypeAndVariable = exprTypeAndVariable.map(i => sourceType -> i._2)
+                val newExprTypeAndVariable = exprTypeAndVariable.map { i =>
+                  (if (i._1.size == sourceType.size) i._1 else sourceType) -> i._2
+                }
                 return compile(ctx, params.head, newExprTypeAndVariable, branches)
               case None =>
                 // fallthrough to the lookup below

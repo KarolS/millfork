@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.EmuCrossPlatformBenchmarkRun
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -67,6 +67,34 @@ class SignExtensionSuite extends FunSuite with Matchers {
         | }
       """.stripMargin){m =>
       m.readWord(0xc000) should equal(440)
+    }
+  }
+
+  test("Byte to Word") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
+        | word output @$c000
+        | void main () {
+        |   sbyte b
+        |   b = -1
+        |   memory_barrier()
+        |   output = byte(b)
+        | }
+      """.stripMargin){m =>
+      m.readWord(0xc000) should equal(0x00ff)
+    }
+  }
+
+  test("Byte to Word 2") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
+        | word output @$c000
+        | void main () {
+        |   sbyte b
+        |   b = -1
+        |   memory_barrier()
+        |   output = word(byte(b))
+        | }
+      """.stripMargin){m =>
+      m.readWord(0xc000) should equal(0x00ff)
     }
   }
 }
