@@ -470,10 +470,20 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
     divisionCase1(1, 1)
     divisionCase1(1, 5)
     divisionCase1(6, 5)
-    divisionCase2(420, 11)
-    divisionCase2(1210, 11)
-    divisionCase2(35000, 45)
-    divisionCase2(51462, 1)
+    divisionCase1(420, 11)
+    divisionCase1(1210, 11)
+    divisionCase1(35000, 45)
+    divisionCase1(127, 127)
+    divisionCase1(128, 127)
+    divisionCase1(51462, 1)
+  }
+
+  test("Word division 1 – large divisor") {
+    divisionCase1(127, 128)
+    divisionCase1(128, 128)
+    divisionCase1(45323, 250)
+    divisionCase1(4530, 200)
+    divisionCase1(9039, 247)
   }
 
   private def divisionCase1(x: Int, y: Int): Unit = {
@@ -515,6 +525,8 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
     divisionCase2(6, 5)
     divisionCase2(73, 5)
     divisionCase2(73, 8)
+    divisionCase2(127, 127)
+    divisionCase2(128, 127)
     divisionCase2(75, 5)
     divisionCase2(42, 11)
     divisionCase2(420, 11)
@@ -523,6 +535,14 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
     divisionCase2(35000, 2)
     divisionCase2(51462, 3)
     divisionCase2(51462, 1)
+  }
+
+  test("Word division 2 – large divisor") {
+    divisionCase2(127, 128)
+    divisionCase2(128, 128)
+    divisionCase2(45323, 250)
+    divisionCase2(4530, 200)
+    divisionCase2(9039, 247)
   }
 
   private def divisionCase2(x: Int, y: Int): Unit = {
@@ -566,14 +586,18 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
     divisionCase4(1, 4)
     divisionCase4(6, 8)
     divisionCase4(73, 16)
+    divisionCase4(2534, 2)
+    divisionCase4(2534, 32)
+    divisionCase4(35000, 2)
+    divisionCase4(51462, 4)
+    divisionCase4(51462, 1)
+  }
+
+  test("Word division 4 – large divisor") {
     divisionCase4(75, 128)
     divisionCase4(42, 128)
     divisionCase4(142, 128)
-    divisionCase2(2534, 2)
-    divisionCase2(2534, 32)
-    divisionCase2(35000, 2)
-    divisionCase2(51462, 4)
-    divisionCase2(51462, 1)
+    divisionCase4(9039, 247)
   }
 
   private def divisionCase4(x: Int, y: Int): Unit = {

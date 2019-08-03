@@ -32,6 +32,10 @@ This matches both the CC65 behaviour and the return values from `readkey()`.
 
 * 6502: Fixed variable bit shifting. 
 
+* 6502: Fixed word division by a divisor larger than 127.
+
+* 6502: Fixed byte multiplication.
+
 * 8080/Z80: Fixed byte division.
 
 * Fixed many optimization bugs:

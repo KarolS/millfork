@@ -699,19 +699,19 @@ object PseudoregisterBuiltIns {
     constPart
   }
 
-  def usesRegLo(code: List[AssemblyLine]): Boolean = code.forall{
+  def usesRegLo(code: List[AssemblyLine]): Boolean = code.exists{
     case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
     case AssemblyLine0(_, _, MemoryAddressConstant(th)) if th.name == "__reg" => true
     case _ => false
   }
 
-  def usesRegHi(code: List[AssemblyLine]): Boolean = code.forall{
+  def usesRegHi(code: List[AssemblyLine]): Boolean = code.exists{
     case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
     case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(1, _))) if th.name == "__reg" => true
     case _ => false
   }
 
-  def usesReg2(code: List[AssemblyLine]): Boolean = code.forall{
+  def usesReg2(code: List[AssemblyLine]): Boolean = code.exists{
     case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
     case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(2, _))) if th.name == "__reg" => true
     case _ => false

@@ -442,4 +442,23 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
         m.readByte(0xc000) should equal(93)
       }
     }
+
+  test("Multiplication bug repro") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+         | import zp_reg
+         | byte output @$c000
+         | array zeroes[256] = [for i,0,until,256 [0]]
+         | void main () {
+         |  byte a,b
+         |  a = 5
+         |  b = 5
+         |  memory_barrier()
+         |  output = a * (b * a)
+         | }
+          """.
+        stripMargin) { m =>
+      m.readByte(0xc000) should equal(125)
+    }
+  }
 }
