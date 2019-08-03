@@ -99,6 +99,7 @@ class ShiftSuite extends FunSuite with Matchers {
         | word output2 @$c002
         | byte output4 @$c004
         | byte output5 @$c005
+        | byte output6 @$c006
         | void main () {
         |   byte a
         |   a = b(3)
@@ -106,6 +107,7 @@ class ShiftSuite extends FunSuite with Matchers {
         |   output2 = $0001 << b(3)
         |   output4 = 1 << a
         |   output5 = 1 << b(3)
+        |   output6 = 1 << b(0)
         | }
         | noinline byte b(byte x) { return x }
       """.stripMargin){m =>
@@ -113,6 +115,7 @@ class ShiftSuite extends FunSuite with Matchers {
       m.readWord(0xc002) should equal(8)
       m.readByte(0xc004) should equal(8)
       m.readByte(0xc005) should equal(8)
+      m.readByte(0xc006) should equal(1)
     }
   }
 
