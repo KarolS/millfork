@@ -137,6 +137,9 @@ object Z80Comparisons {
     import ZOpcode._
     val calculateLeft = Z80ExpressionCompiler.compileToHL(ctx, l)
     val calculateRight = Z80ExpressionCompiler.compileToHL(ctx, r)
+    if (branches == NoBranching) {
+      return calculateLeft ++ calculateRight
+    }
     val fastEqualityComparison: Option[List[ZLine]] = (calculateLeft, calculateRight) match {
       case (List(ZLine0(LD_16, TwoRegisters(HL, IMM_16), NumericConstant(0, _))), _) =>
         Some(calculateRight ++ List(ZLine.ld8(A, H), ZLine.register(OR, L)))

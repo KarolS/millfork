@@ -156,6 +156,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case MathOperator.Shl => l << r
           case MathOperator.Shl9 => (l << r) & 0x1ff
           case MathOperator.Shr => l >>> r
+          case MathOperator.Shr9 => ((l & 0x1ff) >>> r) & 0xff
           case MathOperator.DecimalPlus => asDecimal(l, r, _ + _)
           case MathOperator.DecimalPlus9 => asDecimal(l, r, _ + _) & 0x1ff
           case MathOperator.DecimalMinus => asDecimal(l, r, _ - _)

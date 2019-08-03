@@ -268,6 +268,18 @@ object AbstractExpressionCompiler {
           case 3 => env.get[Type]("int24")
           case 4 => env.get[Type]("long")
         }
+      case ConstantArrayElementExpression(constant) =>
+        (constant.quickSimplify match {
+          case SubbyteConstant(_, _) => false -> 1
+          case NumericConstant(v, s) => (v < 0) -> s
+          case CompoundConstant(MathOperator.Minus, NumericConstant(_, ls), NumericConstant(_, rs)) => true -> (ls max rs)
+        }) match {
+          case (false, 1) => b
+          case (true, 1) => env.get[Type]("sbyte")
+          case (_, 2) => b
+          case (_, 3) => env.get[Type]("int24")
+          case (_, 4) => env.get[Type]("long")
+        }
       case GeneratedConstantExpression(_, typ) => typ
       case TextLiteralExpression(_) => env.get[Type]("pointer")
       case VariableExpression(name) =>
