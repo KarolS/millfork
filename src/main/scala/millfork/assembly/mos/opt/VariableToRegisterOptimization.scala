@@ -1106,7 +1106,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       case (AssemblyLine(TZA, _, _, _, s), _) :: xs if aCandidate.isDefined =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(AssemblyLine.immediate(CPZ, 0).pos(s) ::  _)
 
-      case (x, _) :: xs => inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs).map(x ::  _)
+      case (x, _) :: xs => tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(x ::  _)
 
       case Nil => done(Nil)
     }
