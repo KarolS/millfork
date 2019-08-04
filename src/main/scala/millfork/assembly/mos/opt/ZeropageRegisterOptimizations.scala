@@ -107,7 +107,7 @@ object ZeropageRegisterOptimizations {
       (Elidable & HasOpcode(JSR) & RefersTo("__mul_u16u8u16", 0)) ~~> { (code, ctx) =>
       val constant = ctx.get[Int](4)
       if (constant == 0) {
-          code.init :+ AssemblyLine.immediate(LDA, 0)
+          code.init ++ List(AssemblyLine.immediate(LDA, 0), AssemblyLine.immediate(LDX, 0))
       } else {
         val loAsl = code.head.copy(opcode = ASL, parameter = (code.head.parameter - 2).quickSimplify)
         val hiRol = code.head.copy(opcode = ROL, parameter = (code.head.parameter - 1).quickSimplify)

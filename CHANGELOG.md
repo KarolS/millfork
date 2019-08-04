@@ -47,6 +47,8 @@ This matches both the CC65 behaviour and the return values from `readkey()`.
     * 6502: miscompilation when using the zeropage pseudoregister;
 
     * 6502: stack overflow when inlining local variables into registers;
+    
+    * 6502: not setting the high byte to 0 when optimizing word multiplication by 0
 
     * 8080/Z80: compiler crash when compiling conditions;
  
