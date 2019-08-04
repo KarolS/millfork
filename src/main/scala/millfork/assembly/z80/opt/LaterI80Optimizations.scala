@@ -138,7 +138,7 @@ object LaterI80Optimizations {
       HasOpcode(LABEL).* ~
       (Elidable & HasOpcodeIn(ZOpcodeClasses.NoopDiscards)).*.capture(0) ~
       (Elidable & HasOpcode(RET) & HasRegisters(NoRegisters)) ~~> { (code, ctx) =>
-      ctx.get[List[ZLine]](0) ++ (code.head.copy(opcode = JP) :: code.tail)
+      code.head.copy(opcode = JP) :: code.tail
     },
   )
 

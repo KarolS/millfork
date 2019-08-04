@@ -825,7 +825,7 @@ object AlwaysGoodOptimizations {
     (Elidable & HasOpcode(JSR)) ~
       HasOpcode(LABEL).* ~
       NoopDiscardsFlags.*.capture(0) ~
-      HasOpcode(RTS) ~~> ((code, ctx) => ctx.get[List[AssemblyLine]](0) ++ (code.head.copy(opcode = JMP) :: code.tail)),
+      HasOpcode(RTS) ~~> ((code, ctx) => code.head.copy(opcode = JMP) :: code.tail),
   )
 
   val UnusedCodeRemoval = new RuleBasedAssemblyOptimization("Unreachable code removal",
