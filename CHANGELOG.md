@@ -42,6 +42,8 @@ This matches both the CC65 behaviour and the return values from `readkey()`.
 
     * incorrect removal of unused local variables;
     
+    * incorrect removal of certain type casts;
+    
     * broken parameter passing to tail calls;
 
     * 6502: miscompilation when using the zeropage pseudoregister;

@@ -752,9 +752,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 } else None
               case Some(_: UnionType) =>
                 None
-              case Some(_) =>
+              case Some(t) =>
                 if (params.size == 1) {
-                  eval(params.head)
+                  eval(params.head).map{ c =>
+                    (t.size, t.isSigned) match {
+                      case (1, false) => c.loByte
+                      case (2, false) => c.subword(0)
+                      case _ => c // TODO
+                    }
+                  }
                 } else None
               case _ => None
             }

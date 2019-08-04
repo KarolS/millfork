@@ -500,6 +500,12 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
   def pointlessCast(t1: String, expr: Expression): Boolean = {
     val typ1 = env.maybeGet[Type](t1).getOrElse(return false)
     val typ2 = getExpressionType(ctx, expr)
+    if (!typ1.isSigned) {
+      expr match {
+        case SumExpression(params, false) => if (params.exists(_._1)) return false
+        case _ =>
+      }
+    }
     typ1.name == typ2.name
   }
 

@@ -25,6 +25,7 @@ sealed trait Constant {
   def isProvably(value: Int): Boolean = false
   def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = false
   def isProvablyNonnegative: Boolean = false
+  final def isProvablyGreaterOrEqualThan(other: Int): Boolean = isProvablyGreaterOrEqualThan(Constant(other))
   def isProvablyGreaterOrEqualThan(other: Constant): Boolean = other match {
     case NumericConstant(0, _) => true
     case _ => false
@@ -615,4 +616,23 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
   override def isRelatedTo(v: Thing): Boolean = lhs.isRelatedTo(v) || rhs.isRelatedTo(v)
 
   override def refersTo(name: String): Boolean = lhs.refersTo(name) || rhs.refersTo(name)
+
+  override def subbyte(index: Int): Constant = {
+    if (index != 0) return super.subbyte(index)
+    operator match {
+      case MathOperator.Minus if lhs.isProvablyZero => ((lhs+256)-rhs).quickSimplify.subbyte(0).quickSimplify
+      case MathOperator.Shl if rhs.isProvablyGreaterOrEqualThan(8) => Constant.Zero
+      case _ => super.subbyte(index)
+    }
+  }
+
+  override def loByte: Constant = {
+    val result = operator match {
+      case MathOperator.Minus if lhs.isProvablyZero =>
+        ((lhs+256)-rhs).quickSimplify.loByte.quickSimplify
+      case MathOperator.Shl if rhs.isProvablyGreaterOrEqualThan(8) => Constant.Zero
+      case _ => super.loByte
+    }
+    result
+  }
 }
