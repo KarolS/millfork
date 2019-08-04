@@ -177,8 +177,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     }
     // if a jump leads inside the block, then it's internal
     // if a jump leads outside the block, then it's external
-    jumps --= labels
-    jumps.isEmpty
+    jumps == labels
   }
 
   def isStackPreservingBlock(i: Int): Boolean = {

@@ -48,6 +48,8 @@ This matches both the CC65 behaviour and the return values from `readkey()`.
 
     * 8080/Z80: compiler crash when compiling conditions;
  
+    * 8080/Z80: miscompilation of code after `if` statements;
+ 
     * 8080/Z80: miscompilation near multiplication;
 
     * Z80: miscompilation when using stack variables.
