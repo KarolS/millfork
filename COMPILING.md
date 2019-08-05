@@ -31,6 +31,7 @@ Setting up the test suite for Millfork is tricky, so if you don't need the tests
       "com.loomcom.symon" % "symon"
       "com.grapeshot" % "halfnes"
       "eu.rekawek.coffeegb" % "coffee-gb"
+      "roug.org.osnine" % "osnine-core"
 
 * navigate to the project directory 
 

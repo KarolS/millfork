@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.6
 
 * **Breaking change!**
 The `petscii` encoding now uses the $C0-$DE range for uppercase characters instead of $60-$7E.
