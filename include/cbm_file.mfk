@@ -193,19 +193,19 @@ array __cmd_format_disk = "n0:disk,01"z
 
 
 void rename_file(byte device, pointer old_name, pointer new_name) {
-    __cbm_cmd_buffer[0]='r'
+    __cbm_cmd_buffer[0] = 'r'
     __cmd_rename_copy_common(device, old_name, new_name)
 }
 
 void copy_file(byte device, pointer old_name, pointer new_name) {
-    __cbm_cmd_buffer[0]='c'
+    __cbm_cmd_buffer[0] = 'c'
     __cmd_rename_copy_common(device, old_name, new_name)
 }
 
 void __cmd_rename_copy_common(byte device, pointer old_name, pointer new_name) {
-    __cbm_cmd_buffer[1]='0'
-    __cbm_cmd_buffer[2]=':'
-    __cbm_cmd_buffer[3]=0
+    __cbm_cmd_buffer[1] = '0'
+    __cbm_cmd_buffer[2] = ':'
+    __cbm_cmd_buffer[3] = 0
     strzappend(__cbm_cmd_buffer, new_name)
     strzappendchar(__cbm_cmd_buffer, '=')
     strzappend(__cbm_cmd_buffer, old_name)
