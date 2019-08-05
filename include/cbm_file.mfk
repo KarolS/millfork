@@ -180,16 +180,12 @@ void __translate_st_to_errno() {
 byte getbyte_safe() {
     byte b
     b = getchar()
-    garbage[garbage_index] = b
-    garbage_index += 1
     __translate_st_to_errno()
     return b
 }
 
 void putbyte_safe(byte b) {
     putchar(b)
-    garbage[garbage_index] = b
-    garbage_index += 1
     __translate_st_to_errno()
 }
 
