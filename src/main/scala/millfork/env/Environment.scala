@@ -1004,6 +1004,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               AssemblyParam(typ, RegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
             case ByZRegister(reg) =>
               AssemblyParam(typ, ZRegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
+            case ByM6809Register(reg) =>
+              AssemblyParam(typ, M6809RegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
             case ByConstant(vn) =>
               AssemblyParam(typ, Placeholder(vn, typ), AssemblyParameterPassingBehaviour.ByConstant)
             case ByReference(vn) =>
@@ -1299,6 +1301,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
       case ByMosRegister(_) => ()
       case ByZRegister(_) => ()
+      case ByM6809Register(_) => ()
       case ByConstant(name) =>
         val v = ConstantThing(prefix + name, UnexpandedConstant(prefix + name, typ.size), typ)
         addThing(v, stmt.position)

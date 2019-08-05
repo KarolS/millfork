@@ -225,6 +225,11 @@ case class ZRegisterVariable(register: ZRegister.Value, typ: Type) extends Varia
   override def isVolatile: Boolean = false
 }
 
+case class M6809RegisterVariable(register: M6809Register.Value, typ: Type) extends Variable {
+  def name: String = register.toString
+  override def isVolatile: Boolean = false
+}
+
 case class Placeholder(name: String, typ: Type) extends Variable {
   override def isVolatile: Boolean = false
 }

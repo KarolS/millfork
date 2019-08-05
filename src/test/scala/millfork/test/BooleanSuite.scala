@@ -198,4 +198,34 @@ class BooleanSuite extends FunSuite with Matchers {
       """.stripMargin
     EmuUnoptimizedRun(code).readWord(0xc000) should equal(5)
   }
+
+  test("Builtin types") {
+    val code ="""
+      | byte output @$c000
+      | noinline asm set_carry f(byte a) {
+      | #if ARCH_6502
+      |   CLC
+      |   ADC #1
+      |   RTS
+      | #elseif ARCH_I80
+      |   ADD A,1
+      |   RET
+      | #elseif ARCH_6809
+      |   ADDA #1
+      |   RTS
+      | #else
+      |   #error
+      | #endif
+      | }
+      | void main () {
+      |   output = 0
+      |   if f(0) { output += 100 }
+      |   if f($ff) { output += 1 }
+      | }
+      |
+      """.stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(code){ m =>
+      m.readByte(0xc000) should equal(1)
+    }
+  }
 }
