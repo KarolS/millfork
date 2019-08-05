@@ -49,6 +49,10 @@ and `petscr` for strings you're copying to screen memory directly.
 
 ### Escape sequences
 
+Escape sequences allow for including characters in the string literals that would be otherwise impossible to type.
+
+Some escape sequences may expand to multiple characters. For example, in several encodings `{n}` expands to `{x0D}{x0A}`.
+
 ##### Available everywhere
 
 * `{q}` – double quote symbol

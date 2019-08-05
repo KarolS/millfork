@@ -76,6 +76,7 @@ Since various assemblers use different mnemonics for undocumented opcodes,
 Millfork supports multiple mnemonics per opcode. The default one is given first:
 
 Intel syntax | Zilog syntax    
+----|----
 **DSUB** | **DSUB**   
 **ARHL**, RRHL | **SRA HL**  
 **RLDE**, RDEL | **RL DE**  

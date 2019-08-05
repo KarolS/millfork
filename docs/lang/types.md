@@ -99,9 +99,44 @@ The value of the pointer `f.pointer` may not be the same as the value of the fun
 
 ## Boolean types
 
-TODO
+Boolean types can be used as conditions. They have two possible values, `true` and `false`, although 
 
-* `bool` – a 1-byte boolean value
+* `bool` – a 1-byte boolean value. An uninitialized variable of type `bool` may contain an invalid value.
+
+* several boolean types based on the CPU flags that may be used only as a return type for a function written in assembly:
+
+    true if flag set | true if flag clear | 6502 flag | 8080 flag | Z80 flag | LR35902 flag  
+    -----------------|--------------------|-----------|-----------|----------|-------------  
+    `set_carry`      | `clear_carry`      | C         | C         | C        | C  
+    `set_zero`       | `clear_zero`       | Z         | Z         | Z        | Z  
+    `set_overflow`   | `clear_overflow`   | V         | P¹        | P/V      | _n/a_²  
+    `set_negative`   | `clear_negative`   | N         | S         | S        | _n/a_²  
+
+    1\. 8080 does not have a dedicated overflow flag, so since Z80 reuses the P flag for overflow,
+    8080 uses the same type names for compatibility.
+    
+    2\. LR35902 does not support these types due to the lack of appropriate flags
+
+Examples:
+
+    bool f() = true
+    
+    void do_thing(bool b) { 
+        if b { do_one_thing() } 
+        else { do_another_thing() }
+    }
+    
+    asm set_carry always_true() {
+    #if ARCH_6502
+        SEC
+        ? RTS
+    #elseif ARCH_I80
+        SCF
+        ? RET
+    #else
+        #error
+    #endif
+    }
 
 ## Special types
 

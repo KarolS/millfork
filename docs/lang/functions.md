@@ -10,6 +10,14 @@ Syntax:
 
 `[segment (<segment>)] asm <return_type> <name> ( <params> ) @ <address> extern`
 
+Examples:
+
+    void do_nothing() { }
+    inline byte two() = 2
+    extern asm void chkout(byte a) @ $FFD2
+    segment(prgrom0) void main_loop(word w, byte x) align(fast) { // body omitted
+    
+
 * `<segment>`: segment name; if absent, then defaults to `default_code_segment` as defined for the platform (usually `default`)
 
 * `<modifiers>`: zero or more of the following:

@@ -14,7 +14,7 @@ even up to hardware damage.
 
 * stray pointers: indexing a pointer that doesn't point to a valid object or indexing it past the end of the pointed object leads to undefined behaviour
 
-* reading uninitialized variables: will return undefined values
+* reading uninitialized variables: will return undefined values and, if the type is `bool`, may put the program in an invalid state
 
 * reading variables used by return dispatch statements but not assigned a value: will return undefined values
 
@@ -40,5 +40,9 @@ Currently, such functions may be evaluated either once or twice. This might be f
 * when using modifying operators: calling functions on the right-hand-side index expression than modify any of the variables used on the left hand side
 
 * jumping across the scope of for loop that uses a fixed list or across functions
+
+* division by zero and modulo by zero
+
+* decimal addition and subtraction of values that are not binary-coded decimals
 
 The above list is not exhaustive.

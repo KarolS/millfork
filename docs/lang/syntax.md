@@ -22,6 +22,13 @@ Syntax:
 
 `[segment(<segment>)] [volatile] [<storage>] <type> <name> [@<address>] [= <initial_value>]`
 
+Examples:
+
+    byte a
+    volatile byte thing @ $D000
+    int24 x = 7
+    segment(s1) word w
+
 * `<segment>`: segment name; if absent, then defaults to `default`.
 
 * `volatile` means that the variable is volatile.
@@ -74,6 +81,10 @@ For every variable `x` larger than a byte, extra subvariables are defined:
 
 `const <type> <name> = <value>`
 
+Examples:
+
+    const byte two = 2
+
 TODO
 
 ### Alias definitions
@@ -104,7 +115,7 @@ This allows for overriding definitions of library functions by another library:
     void f() {}
     void g() {}
     alias f = g!
-    // now the original f is removed and all calls to f will call g instead
+    // the original f is removed and all calls to f will call g instead
 
 ### Array declarations
 
@@ -117,6 +128,16 @@ Regardless of where they were declared, arrays are considered static.
 Syntax:
 
 `[segment(<segment>)] [const] array [(<element type>)] <name> [[<size>]] [align ( <alignment> )] [@<address>] [= <initial_values>]`
+
+Examples:
+
+    array results[8]
+    array(word) words = [1,2,500]
+    array page [256] align(256)
+    segment(chrrom) const array graphics @ $0000 = file("tiles.chr")
+    array(byte) identity = [for i,0,until,256 [i]]
+    array text = "hello world"z
+    const array(room) rooms = [room(1,2), room(3,5)]
 
 * `<segment>`: segment name; if absent,
 then defaults to `default_code_segment` as defined for the platform if the array has initial values,
@@ -202,6 +223,8 @@ All starting modules are considered to be imported by all source files explicitl
 ### Expression statement
 
 TODO
+
+See also [the operator reference](./operators.md)
 
 ### `if` statement
 
@@ -374,6 +397,12 @@ continue do
 continue <variable>
 ```
 
+Labelless `break` and `continue` apply to the innermost `for`, `while` or `do-while` loop.
+
+`break for`, `continue do` etc. apply to the innermost loop of the given type.
+
+`break i` and `continue i` apply to the innermost `for` loop that uses the `i` variable.
+
 ### `goto` and `label`
 
 Syntax:
@@ -388,7 +417,7 @@ Such labels are only visible in the scope of the local function.
 
 The `goto` expression jumps to the pointer value of the expression.
 
-Jumping using `goto` across the scope of for loop that uses a fixed list or across functions is not allowed.
+Jumping using `goto` across the scope of `for` loop that uses a fixed list or across functions is not allowed.
 
 Computed gotos are supported:
 

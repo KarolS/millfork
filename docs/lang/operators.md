@@ -240,11 +240,14 @@ an access to the element of the array `a` at the location assigned to the key `i
 
 * otherwise: a compile error
 
-Note that you cannot access a whole array element if it's bigger than 2 bytes, but you can access its fields or take its pointer:
+Note that you cannot access a whole array element if it's bigger than 2 bytes (except in a simple assignment),
+but you can access its fields or take its pointer:
 
     array(int32) a[6]
     
     a[2]          // not ok
+    a[2] = 4      // ok, assignments are an exception
+    x = a[2]      // ok, assignments are an exception
     a[2].b0       // ok
     a[2].loword   // ok
     a[2].pointer  // ok     

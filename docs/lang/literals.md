@@ -48,6 +48,9 @@ Every encoding is guaranteed to support at least
 `{q}` for double quote 
 and `{apos}` for single quote/apostrophe.
 
+The number of bytes used to represent given characters may differ from the number of the characters.
+For example, the `petjp`, `msx_jp` and `jis` encodings represent ポ as two separate characters, and therefore two bytes.
+
 For the list of all text encodings and escape sequences, see [this page](./text.md).
 
 In some encodings, multiple characters are mapped to the same byte value,
@@ -80,7 +83,14 @@ Character literals are surrounded by single quotes and optionally followed by th
     'x' ascii
     'W'
 
+Character literals have to be separated from preceding operators with whitespace:
+
+    a='a'    // wrong 
+    a = 'a'  // ok 
+
 From the type system point of view, they are constants of type byte.
+
+If the character cannot be represented as one byte, an error is raised.
 
 For the list of all text encodings and escape sequences, see [this page](./text.md).
 
