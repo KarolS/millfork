@@ -2,7 +2,7 @@ import stdio
 
 const array p = [
     "this is an example", 13,
-    "of {red}multiline {yellow}{reverse}",
+    "of {red}multiline {blue}{reverse}",
 #if CBM
     "petscii",
 #else

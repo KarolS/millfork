@@ -17,5 +17,6 @@ void main() {
         }
         putchar(' ')
     }
+    while(true){}
 }
 

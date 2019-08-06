@@ -45,6 +45,7 @@ examples/lunix/
 *.rom
 HELLO
 HELLOCPC
+FIZZBUZZ
 
 #heap dumps
 java_pid*

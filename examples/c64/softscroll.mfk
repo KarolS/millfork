@@ -36,11 +36,11 @@ void main_loop() {
     scroll = 7
     while true {
         while vic_raster != row * 8 - 1 + 50 {}
-        stabilize(8)
+        stabilize(9)
         vic_38_columns()
         vic_set_scroll(scroll, 3)
         while vic_raster != row * 8 + 7 + 50 {}
-        stabilize(20)
+        stabilize(22)
         vic_40_columns()
         vic_set_scroll(0,3)
         if scroll == 0 {
