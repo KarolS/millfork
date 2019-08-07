@@ -2,13 +2,12 @@ import stdio
 
 const array p = [
     "this is an example", 13,
-    "of {red}multiline {blue}{reverse}",
+    "of {red}multiline ",
 #if CBM
-    "petscii",
+    "{reverse}{yellow}petscii{reverseoff} {white}text"
 #else
-    "ASCII",
+    "{reverse}{blue}ASCII{reverseoff} {black}text"
 #endif
-    "{reverseoff} {white}text"
 ]
 
 const array s = [
