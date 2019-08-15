@@ -1,5 +1,7 @@
 # Change log
 
+## Current version
+
 ## 0.3.6
 
 * **Breaking change!**
