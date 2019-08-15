@@ -487,7 +487,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val db = mem.banks("default")
         val ib = mem.banks(ivBank)
         val size = rwDataEnd - rwDataStart
-        if (size < 0) log.fatal("What")
+        if (size < 0) log.fatal("Negative writable memory size. It's a compiler bug.")
         val ivAddr = codeAllocators(ivBank).allocateBytes(ib, options, size, initialized = true, writeable = false, AllocationLocation.High, NoAlignment)
         labelMap += "__rwdata_init_start" -> (ib.index -> ivAddr)
         labelMap += "__rwdata_init_end" -> (ib.index -> (ivAddr + size))
