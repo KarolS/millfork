@@ -1,6 +1,8 @@
 package millfork.assembly.m6809
 
+import millfork.CompilationFlag
 import millfork.assembly.{AbstractCode, Elidability, SourceLine}
+import millfork.compiler.CompilationContext
 import millfork.env.{Constant, Label, MemoryVariable, NumericConstant, StackVariable, Variable, VariableInMemory}
 import millfork.node.{M6809Register, Position}
 
@@ -33,6 +35,9 @@ object MLine {
   def indexedS(opcode: MOpcode.Value, offset: Int = 0): MLine =
     MLine(opcode, Indexed(M6809Register.S, indirect = false), NumericConstant(offset, 1))
 
+  def indexedX(opcode: MOpcode.Value, offset: Constant): MLine =
+    MLine(opcode, Indexed(M6809Register.X, indirect = false), offset)
+
   def accessAndPullS(opcode: MOpcode.Value): MLine =
     MLine(opcode, PostIncremented(M6809Register.S, 1, indirect = false), Constant.Zero)
 
@@ -51,12 +56,21 @@ object MLine {
 
   def absolute(opcode: MOpcode.Value, param: Constant): MLine = MLine(opcode, Absolute(false), param)
 
-  def userstack(opcode: MOpcode.Value, offset: Int): MLine = MLine(opcode, Indexed(M6809Register.U, indirect = false), Constant(offset))
+  //def userstack(opcode: MOpcode.Value, offset: Int): MLine = MLine(opcode, Indexed(M6809Register.U, indirect = false), Constant(offset))
 
-  def variable(opcode: MOpcode.Value, variable: Variable, offset: Int = 0): MLine = {
+  def variablestack(ctx: CompilationContext, opcode: MOpcode.Value, offset: Int): MLine = {
+    if (ctx.options.flag(CompilationFlag.UseUForStack)) MLine(opcode, Indexed(M6809Register.U, indirect = false), Constant(offset))
+    else if (ctx.options.flag(CompilationFlag.UseYForStack)) MLine(opcode, Indexed(M6809Register.Y, indirect = false), Constant(offset))
+    else MLine(opcode, Indexed(M6809Register.S, indirect = false), Constant(ctx.extraStackOffset + offset))
+  }
+
+  def variable(ctx: CompilationContext, opcode : MOpcode.Value, variable: Variable, offset: Int = 0): MLine = {
     variable match {
       case v: VariableInMemory => MLine.absolute(opcode, v.toAddress)
-      case v: StackVariable => MLine(opcode, Indexed(M6809Register.U, indirect = false), NumericConstant(v.baseOffset, 1))
+      case v: StackVariable =>
+        if (ctx.options.flag(CompilationFlag.UseUForStack)) MLine(opcode, Indexed(M6809Register.U, indirect = false), NumericConstant(v.baseOffset, 1))
+        else if (ctx.options.flag(CompilationFlag.UseYForStack)) MLine(opcode, Indexed(M6809Register.Y, indirect = false), NumericConstant(v.baseOffset, 1))
+        else MLine(opcode, Indexed(M6809Register.S, indirect = false), NumericConstant(v.baseOffset + ctx.extraStackOffset, 1))
       case _ => ???
     }
   }
@@ -121,6 +135,38 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
           .sortBy(x => -M6809Register.registerPushMask(x)).map(_.toString).mkString(" ", ",", "")
     }
     s"    $opcode$suffix"
+  }
+
+  def changesRegister(reg: M6809Register.Value): Boolean = {
+    import M6809Register._
+    def overlaps(other: M6809Register.Value): Boolean = {
+      if (reg == D && (other == A || other == B))  true
+      else if (other == D && (reg == A || reg == B))  true
+      else reg == other
+    }
+    import MOpcode._
+    (opcode, addrMode) match {
+      case (_, InherentA) => reg == A
+      case (_, InherentB) => reg == B
+      case (PULU, set:RegisterSet) => reg == U || set.contains(reg)
+      case (PULS, set:RegisterSet) => reg == S || set.contains(reg)
+      case (PSHS, _) => reg == U
+      case (PSHU, _) => reg == S
+      case (TFR, TwoRegisters(_, dest)) => overlaps(dest)
+      case (EXG, TwoRegisters(r1, r2)) => overlaps(r1) || overlaps(r2)
+      case (op, _) if MOpcode.ChangesAAlways(op) => overlaps(A) || addrMode.changesRegister(reg)
+      case (op, _) if MOpcode.ChangesBAlways(op) => overlaps(B) || addrMode.changesRegister(reg)
+      case (LDB, _) => overlaps(B) || addrMode.changesRegister(reg)
+      case (LDD, _) => overlaps(D) || addrMode.changesRegister(reg)
+      case (LDU | LEAU, _) => reg == U || addrMode.changesRegister(reg)
+      case (LDS | LEAS, _) => reg == S || addrMode.changesRegister(reg)
+      case (LDX | LEAX, _) => reg == X || addrMode.changesRegister(reg)
+      case (LDY | LEAY, _) => reg == Y || addrMode.changesRegister(reg)
+      case (MUL, _) => overlaps(D)
+      case (ABX, _) => reg == X
+      case (NOP | SWI | SWI2 | SWI3 | SYNC, _) => false
+      case _ => true // TODO
+    }
   }
 }
 

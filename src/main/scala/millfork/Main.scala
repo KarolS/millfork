@@ -540,6 +540,12 @@ object Main {
     flag("-fuse-iy-for-stack").action { c =>
       c.changeFlag(CompilationFlag.UseIyForStack, true).changeFlag(CompilationFlag.UseIxForStack, false)
     }.description("Use IY as base pointer for stack variables (Z80 only)")
+    flag("-fuse-u-for-stack").action { c =>
+      c.changeFlag(CompilationFlag.UseIxForStack, true).changeFlag(CompilationFlag.UseUForStack, false)
+    }.description("Use U as base pointer for stack variables (6809 only)").hidden()
+    flag("-fuse-y-for-stack").action { c =>
+      c.changeFlag(CompilationFlag.UseIyForStack, true).changeFlag(CompilationFlag.UseYForStack, false)
+    }.description("Use Y as base pointer for stack variables (6809 only)").hidden()
     boolean("-fuse-ix-for-scratch", "-fno-use-ix-for-scratch").action { (c, v) =>
       if (v) {
         c.changeFlag(CompilationFlag.UseIxForScratch, true).changeFlag(CompilationFlag.UseIxForStack, false)
@@ -557,6 +563,9 @@ object Main {
     flag("-fno-use-index-for-stack").action { c =>
       c.changeFlag(CompilationFlag.UseIyForStack, false).changeFlag(CompilationFlag.UseIxForStack, false)
     }.description("Don't use either IX or IY as base pointer for stack variables (Z80 only)")
+    flag("-fno-use-uy-for-stack").action { c =>
+      c.changeFlag(CompilationFlag.UseUForStack, false).changeFlag(CompilationFlag.UseYForStack, false)
+    }.description("Don't use either U or Y as base pointer for stack variables (6809 only)").hidden()
     boolean("-fsoftware-stack", "-fno-software-stack").action { (c, v) =>
       c.changeFlag(CompilationFlag.SoftwareStack, v)
     }.description("Use software stack for stack variables (6502 only)")

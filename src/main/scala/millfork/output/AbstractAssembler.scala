@@ -142,7 +142,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         s.typ.size match {
           case 0 => 0
           case 1 => deepConstResolve(s.subbyte(0))
-          case 2 => deepConstResolve(s.subword(0)) // TODO: endianness?
+          case 2 => if (platform.isBigEndian) deepConstResolve(s.subwordReversed(0)) else deepConstResolve(s.subword(0)) // TODO: endianness?
           case _ => ???
         }
       case CompoundConstant(operator, lc, rc) =>

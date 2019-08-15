@@ -44,7 +44,10 @@ case class CompilationOptions(platform: Platform,
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(
       EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitEZ80Opcodes,
-      UseIyForStack, UseShadowRegistersForInterrupts)
+      UseIyForStack, UseIxForScratch, UseIyForScratch, UseShadowRegistersForInterrupts)
+
+    if (CpuFamily.forType(platform.cpu) != CpuFamily.M6809) invalids ++= Set(
+      UseUForStack, UseYForStack)
 
     invalids = invalids.filter(flags)
 
@@ -177,6 +180,9 @@ case class CompilationOptions(platform: Platform,
         }
       case CpuFamily.I86 =>
       case CpuFamily.M6809 =>
+        if (flags(UseUForStack) && flags(UseYForStack)) {
+          log.error("Cannot use both U and Y registers for stack variables simultaneously")
+        }
     }
   }
 
@@ -225,6 +231,8 @@ case class CompilationOptions(platform: Platform,
       "USES_ZPREG" -> toLong(platform.cpuFamily == CpuFamily.M6502 && zpRegisterSize > 0),
       "USES_IX_STACK" -> toLong(flag(CompilationFlag.UseIxForStack)),
       "USES_IY_STACK" -> toLong(flag(CompilationFlag.UseIyForStack)),
+      "USES_U_STACK" -> toLong(flag(CompilationFlag.UseUForStack)),
+      "USES_Y_STACK" -> toLong(flag(CompilationFlag.UseYForStack)),
       "USES_SOFTWARE_STACK" -> toLong(flag(CompilationFlag.SoftwareStack)),
       "USES_SHADOW_REGISTERS" -> toLong(flag(CompilationFlag.UseShadowRegistersForInterrupts)),
       "ZPREG_SIZE" -> (if (platform.cpuFamily == CpuFamily.M6502) zpRegisterSize.toLong else 0)
@@ -502,6 +510,8 @@ object CompilationFlag extends Enumeration {
   UseIxForScratch, UseIyForScratch,
   UseIntelSyntaxForInput,
   UseIntelSyntaxForOutput,
+  // compilation options for 6809
+  UseUForStack, UseYForStack,
   // optimization options:
   OptimizeForSize, OptimizeForSpeed, OptimizeForSonicSpeed, OptimizeForDebugging,
   DangerousOptimizations, InlineFunctions, InterproceduralOptimization,
@@ -540,6 +550,8 @@ object CompilationFlag extends Enumeration {
     "iy_stack" -> UseIyForStack,
     "ix_scratch" -> UseIxForScratch,
     "iy_scratch" -> UseIyForScratch,
+    "u_stack" -> UseUForStack,
+    "y_stack" -> UseYForStack,
     "software_stack" -> SoftwareStack,
     "use_shadow_registers_for_irq" -> UseShadowRegistersForInterrupts,
     "output_intel_syntax" -> UseIntelSyntaxForOutput,

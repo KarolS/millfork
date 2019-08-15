@@ -63,7 +63,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("In-place byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output[3] @$c000
         | byte a
@@ -77,7 +77,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("LHS evaluation during in-place byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output[1] @$c000
         | byte call_count @$c001
@@ -97,7 +97,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Parameter order") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | array arr[6]
@@ -179,7 +179,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def multiplyCase2(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       s"""
          | import zp_reg
          | byte output @$$c000

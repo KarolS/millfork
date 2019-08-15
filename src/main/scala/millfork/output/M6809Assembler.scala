@@ -90,12 +90,12 @@ class M6809Assembler(program: Program,
       case MLine0(TFR, TwoRegisters(source, target), param)
         if M6809Register.registerSize(source) == M6809Register.registerSize(target) && param.isProvablyZero =>
         writeByte(bank, index, 0x1f)
-        writeByte(bank, index, registerCode(source) * 16 + registerCode(target))
+        writeByte(bank, index + 1, registerCode(source) * 16 + registerCode(target))
         index + 2
       case MLine0(EXG, TwoRegisters(source, target), param)
         if M6809Register.registerSize(source) == M6809Register.registerSize(target) && param.isProvablyZero =>
         writeByte(bank, index, 0x1e)
-        writeByte(bank, index, registerCode(source) * 16 + registerCode(target))
+        writeByte(bank, index + 1, registerCode(source) * 16 + registerCode(target))
         index + 2
       case l@MLine0(op, RegisterSet(set), param) if param.isProvablyZero && M6809Assembler.pushpull.contains(op) =>
         writeByte(bank, index, M6809Assembler.pushpull(op))

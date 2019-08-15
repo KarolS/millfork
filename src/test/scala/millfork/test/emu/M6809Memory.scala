@@ -22,6 +22,7 @@ class M6809Memory(memoryBank: MemoryBank, resetVector: Int) extends MemorySegmen
 
   override def load(addr: Int): Int = {
     if (!memoryBank.readable(addr)) {
+      println(s"Accessing memory for read at $$${addr.toHexString}")
       ???
     }
     memoryBank.readByte(addr)
@@ -29,6 +30,7 @@ class M6809Memory(memoryBank: MemoryBank, resetVector: Int) extends MemorySegmen
 
   override def store(addr: Int, `val`: Int): Unit = {
     if (!memoryBank.writeable(addr)) {
+      println(s"Accessing memory for write at $$${addr.toHexString}")
       ???
     }
     memoryBank.output(addr) = `val`.toByte

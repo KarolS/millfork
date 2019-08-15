@@ -29,6 +29,7 @@ case class M6809Parser(filename: String,
     case "d" => ByM6809Register(M6809Register.D)
     case "x" => ByM6809Register(M6809Register.X)
     case "y" => ByM6809Register(M6809Register.Y)
+    case "u" => ByM6809Register(M6809Register.U)
     case x => log.fatal(s"Unknown assembly parameter passing convention: `$x`")
   }
   override val asmParamDefinition: P[ParameterDeclaration] = for {

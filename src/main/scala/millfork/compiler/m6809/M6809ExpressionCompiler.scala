@@ -4,7 +4,7 @@ import millfork.assembly.m6809.{DAccumulatorIndexed, Indexed, MLine, MOpcode, Tw
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{Constant, ConstantBooleanType, ConstantPointy, FatBooleanType, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, Variable, VariablePointy}
+import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, M6809RegisterVariable, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, Variable, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -12,7 +12,7 @@ import scala.collection.GenTraversableOnce
   * @author Karol Stasiak
   */
 object MExpressionTarget extends Enumeration {
-  val A, B, D, X, Y, NOTHING = Value
+  val A, B, D, X, Y, U, NOTHING = Value
 
   def toLd(r: Value): MOpcode.Value = r match {
     case A => LDA
@@ -20,18 +20,20 @@ object MExpressionTarget extends Enumeration {
     case D => LDD
     case X => LDX
     case Y => LDY
+    case U => LDU
     case _ => ???
   }
 
   def toLea(r: Value): MOpcode.Value = r match {
     case X => LEAX
     case Y => LEAY
+    case U => LEAU
     case _ => ???
   }
 
   def size(r: Value): Int = r match {
     case A | B => 1
-    case D | X | Y => 2
+    case D | X | Y | U => 2
     case NOTHING => 0
   }
 
@@ -73,13 +75,13 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
           case 1 =>
             targetSize match {
               case 0 => Nil
-              case 1 => List(MLine.variable(toLd(target), variable))
-              case 2 => List(MLine.variable(LDB, variable)) ++ zeroextendB(ctx, target, exprType.isSigned)
+              case 1 => List(MLine.variable(ctx, toLd(target), variable))
+              case 2 => List(MLine.variable(ctx, LDB, variable)) ++ zeroextendB(ctx, target, exprType.isSigned)
             }
           case 2 =>
             targetSize match {
               case 0 => Nil
-              case 2 => List(MLine.variable(toLd(target), variable))
+              case 2 => List(MLine.variable(ctx, toLd(target), variable))
             }
         }
       case LiteralExpression(c, _) =>
@@ -89,6 +91,45 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         }
       case DerefExpression(inner, offset, _) =>
         compileToX(ctx, inner) :+ MLine(toLd(target), Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+      case IndexedExpression(name, index) =>
+        env.getPointy(name) match {
+          case c: ConstantPointy =>
+            val (variableIndex, constIndex) = env.evalVariableAndConstantSubParts(index)
+            val constantOffset = (c.value + constIndex).quickSimplify
+            variableIndex match {
+              case (Some(ix)) =>
+                compileToX(ctx, ix) ++ (
+                  targetSize match {
+                    case 0 => Nil
+                    case 1 => List(MLine.indexedX(toLd(target), constantOffset))
+                    case 2 => List(MLine.indexedX(LDB, constantOffset)) ++ zeroextendB(ctx, target, exprType.isSigned)
+                  })
+              case None =>
+                targetSize match {
+                  case 0 => Nil
+                  case 1 => List(MLine.absolute(toLd(target), constantOffset))
+                  case 2 => List(MLine.absolute(LDB, constantOffset)) ++ zeroextendB(ctx, target, exprType.isSigned)
+                }
+            }
+          case v:VariablePointy =>
+            val (prepareIndex, offset): (List[MLine], Constant) = ctx.env.eval(index) match {
+              case Some(ix) => List(MLine.absolute(LDX, v.addr)) -> (ix * v.elementType.size).quickSimplify
+              case _ =>
+                v.indexType.size match {
+                  case 1 =>
+                    (compileToD(ctx, index) :+ MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero)) -> Constant.Zero
+                }
+            }
+            prepareIndex ++ (targetSize match {
+              case 0 => Nil
+              case 1 => List(MLine.indexedX(toLd(target), offset))
+              case 2 => List(MLine.indexedX(LDB, offset)) ++ zeroextendB(ctx, target, exprType.isSigned)
+            })
+          case v:StackVariablePointy =>
+            ctx.env.eval(index) match {
+              case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(LDB, ix * v.elementType.size))
+            }
+        }
       case e@SumExpression(expressions, decimal) =>
         getArithmeticParamMaxSize(ctx, expressions.map(_._2)) match {
           case 1 => M6809Buitins.compileByteSum(ctx, e, fromScratch = true) ++ targetifyB(ctx, target, isSigned = false)
@@ -112,12 +153,12 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, ANDB, MathOperator.And, 0xff) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, ANDA, ANDB, MathOperator.And, 0xffff) ++ targetifyB(ctx, target, isSigned = false)
             }
-          case "|" => ???
+          case "|" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, ORB, MathOperator.Or, 0) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, ORA, ORB, MathOperator.Or, 0) ++ targetifyB(ctx, target, isSigned = false)
             }
-          case "^" => ???
+          case "^" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, EORB, MathOperator.Exor, 0) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, EORA, EORB, MathOperator.Exor, 0) ++ targetifyB(ctx, target, isSigned = false)
@@ -242,19 +283,53 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
           case ">>>>=" => ???
           case _ =>
             val f = lookupFunction(ctx, fce)
-            f.params match {
-              case NormalParamSignature(Nil) => //ok
+            val prepareParams: List[MLine] = f.params match {
+              case NormalParamSignature(List(param)) if param.typ.size == 1 =>
+                compileToB(ctx, params.head)
+              case NormalParamSignature(List(param)) if param.typ.size == 2 =>
+                compileToD(ctx, params.head)
+              case NormalParamSignature(signature) =>
+                params.zip(signature).flatMap { case (paramExpr, paramVar) =>
+                  val callCtx = callingContext(ctx, f.name, paramVar)
+                  paramVar.typ.size match {
+                    case 1 =>
+                      compileToB(ctx, paramExpr) ++ storeB(callCtx, VariableExpression(paramVar.name + "`aa"))
+                    case 2 =>
+                      compileToD(ctx, paramExpr) ++ storeD(callCtx, VariableExpression(paramVar.name + "`aa"))
+                    case _ =>
+                      ???
+                  }
+                }
+              case AssemblyParamSignature(signature) =>
+                params.zip(signature).flatMap { case (e, a) =>
+                  val compiled = a.variable match {
+                    case M6809RegisterVariable(M6809Register.A, _) => compileToA(ctx, e)
+                    case M6809RegisterVariable(M6809Register.B, _) => compileToB(ctx, e)
+                    case M6809RegisterVariable(M6809Register.D, _) => compileToD(ctx, e)
+                    case M6809RegisterVariable(M6809Register.X, _) => compileToX(ctx, e)
+                    case M6809RegisterVariable(M6809Register.Y, _) => compileToY(ctx, e)
+                    case M6809RegisterVariable(M6809Register.U, _) => compileToU(ctx, e)
+                    case _ => ???
+                  }
+                  if (compiled.length > 1) ???
+                  compiled
+                }
               case _ => ???
             }
-            f match {
+            val actualCall = f match {
               case nf:NormalFunction =>
+                List(MLine.absolute(JSR, nf.toAddress))
+              case nf:ExternFunction =>
                 List(MLine.absolute(JSR, nf.toAddress))
               case _ => ???
             }
+            prepareParams ++ actualCall
         }
       case _ => ???
     }
   }
+
+  def compileToA(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.A)
 
   def compileToB(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.B)
 
@@ -262,12 +337,17 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
 
   def compileToX(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.X)
 
+  def compileToY(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.Y)
+
+  def compileToU(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.U)
+
   def zeroextendB(ctx: CompilationContext, target: MExpressionTarget.Value, isSigned: Boolean): List[MLine] = {
-    val extendToA = if (isSigned) MLine.immediate(LDA, 0) else MLine.inherent(SEX)
+    val extendToA = if (isSigned) MLine.inherent(SEX) else MLine.immediate(LDA, 0)
     target match {
       case MExpressionTarget.D => List(extendToA)
       case MExpressionTarget.X => List(extendToA, MLine.tfr(M6809Register.D, M6809Register.X))
       case MExpressionTarget.Y => List(extendToA, MLine.tfr(M6809Register.D, M6809Register.Y))
+      case MExpressionTarget.U => List(extendToA, MLine.tfr(M6809Register.D, M6809Register.U))
       case _ => ???
     }
   }
@@ -281,27 +361,34 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     target match {
       case VariableExpression(name) =>
         val variable = ctx.env.get[Variable](name)
-        List(MLine.variable(STB, variable))
+        List(MLine.variable(ctx, STB, variable))
       case DerefExpression(inner, offset, _) =>
-        compileToX(ctx, inner) :+ MLine(STB, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+        compileToX(ctx, inner) :+ MLine.indexedX(STB, NumericConstant(offset, 2))
       case IndexedExpression(name, index) =>
         ctx.env.getPointy(name) match {
           case p: ConstantPointy =>
-            compileToX(ctx, index) :+ MLine(STB, Indexed(M6809Register.X, indirect = false), p.value)
+            val (variableIndex, constOffset) = ctx.env.evalVariableAndConstantSubParts(index)
+            val effectiveBase = (p.value + constOffset).quickSimplify
+            variableIndex match {
+              case Some(ix) =>
+                stashBIfNeeded(ctx, compileToX(ctx, ix)) :+ MLine.indexedX(STB, effectiveBase)
+              case None =>
+                List(MLine.absolute(STB, effectiveBase))
+            }
           case v: VariablePointy =>
             ctx.env.eval(index) match {
-              case Some(ix) => List(MLine.absolute(LDX, v.addr), MLine(STB, Indexed(M6809Register.X, indirect = false), ix * v.elementType.size))
+              case Some(ix) => List(MLine.absolute(LDX, v.addr), MLine.indexedX(STB, ix * v.elementType.size))
               case _ =>
                 v.indexType.size match {
                   case 1 =>
                     stashBIfNeeded(ctx,
                       compileToD(ctx, index) :+ MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero)) :+
-                      MLine(STB, Indexed(M6809Register.X, indirect = false), Constant.Zero)
+                      MLine.indexedX(STB, Constant.Zero)
                 }
             }
           case v: StackVariablePointy =>
             ctx.env.eval(index) match {
-              case Some(ix) => List(MLine.userstack(LDX, v.offset), MLine(STB, Indexed(M6809Register.X, indirect = false), ix * v.elementType.size))
+              case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(STB, ix * v.elementType.size))
             }
         }
     }
@@ -311,7 +398,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     target match {
       case VariableExpression(name) =>
         val variable = ctx.env.get[Variable](name)
-        List(MLine.variable(STD, variable))
+        List(MLine.variable(ctx, STD, variable))
       case DerefExpression(inner, offset, _) =>
         compileToX(ctx, inner) :+ MLine(STD, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
     }
@@ -321,14 +408,14 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     case MExpressionTarget.NOTHING => Nil
     case MExpressionTarget.B => Nil
     case MExpressionTarget.A => List(MLine.tfr(M6809Register.B, M6809Register.A))
-    case MExpressionTarget.D | MExpressionTarget.X | MExpressionTarget.Y => zeroextendB(ctx, target, isSigned)
+    case MExpressionTarget.D | MExpressionTarget.X | MExpressionTarget.Y | MExpressionTarget.U => zeroextendB(ctx, target, isSigned)
   }
 
   def targetifyA(ctx: CompilationContext, target: MExpressionTarget.Value, isSigned: Boolean): List[MLine] = target match {
     case MExpressionTarget.NOTHING => Nil
     case MExpressionTarget.A => Nil
     case MExpressionTarget.B => List(MLine.tfr(M6809Register.A, M6809Register.B))
-    case MExpressionTarget.D | MExpressionTarget.X | MExpressionTarget.Y =>
+    case MExpressionTarget.D | MExpressionTarget.X | MExpressionTarget.Y | MExpressionTarget.U =>
       List(MLine.tfr(M6809Register.A, M6809Register.B)) ++ zeroextendB(ctx, target, isSigned)
   }
 
@@ -337,6 +424,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     case MExpressionTarget.D => Nil
     case MExpressionTarget.X => List(MLine.tfr(M6809Register.D, M6809Register.X))
     case MExpressionTarget.Y => List(MLine.tfr(M6809Register.D, M6809Register.Y))
+    case MExpressionTarget.U => List(MLine.tfr(M6809Register.D, M6809Register.U))
   }
 
 

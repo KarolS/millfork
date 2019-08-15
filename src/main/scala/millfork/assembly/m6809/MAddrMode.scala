@@ -6,6 +6,8 @@ import millfork.node.{M6809Register, Position}
   * @author Karol Stasiak
   */
 sealed trait MAddrMode {
+  def changesRegister(reg: M6809Register.Value): Boolean = false
+
   def makeIndirect(position: Position): MAddrMode
 }
 
@@ -14,10 +16,14 @@ case object Inherent extends MAddrMode {
 }
 
 case object InherentA extends MAddrMode {
+  override def changesRegister(reg: M6809Register.Value): Boolean = reg == M6809Register.A || reg == M6809Register.D
+
   def makeIndirect(position: Position): MAddrMode = ???
 }
 
 case object InherentB extends MAddrMode {
+  override def changesRegister(reg: M6809Register.Value): Boolean = reg == M6809Register.B || reg == M6809Register.D
+
   def makeIndirect(position: Position): MAddrMode = ???
 }
 
@@ -70,10 +76,14 @@ case class DAccumulatorIndexed(base: M6809Register.Value, indirect: Boolean) ext
 }
 
 case class PostIncremented(base: M6809Register.Value, amount: Int, indirect: Boolean) extends MAddrMode {
+  override def changesRegister(reg: M6809Register.Value): Boolean = reg == base
+
   def makeIndirect(position: Position): MAddrMode = copy(indirect = true)
 }
 
 case class PreDecremented(base: M6809Register.Value, amount: Int, indirect: Boolean) extends MAddrMode {
+  override def changesRegister(reg: M6809Register.Value): Boolean = reg == base
+
   def makeIndirect(position: Position): MAddrMode = copy(indirect = true)
 }
 

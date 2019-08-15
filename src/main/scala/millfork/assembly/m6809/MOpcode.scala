@@ -42,6 +42,9 @@ object MOpcode extends Enumeration {
   val Prefixed: Set[MOpcode.Value] = PrefixedBy10 ++ PrefixedBy11
   val CanHaveInherentAccumulator: Set[MOpcode.Value] = Set(ASL, ASR, CLR, COM, DEC, INC, LSR, NEG, ROL, ROR, TST)
   val Branching: Set[MOpcode.Value] = Set(BRA, BRN, BHI, BLS, BCC, BCS, BNE, BEQ, BVC, BVS, BPL, BMI, BGE, BLT, BGT, BLE)
+  val ChangesAAlways: Set[MOpcode.Value] = Set(ADDA, ADCA, SUBA, SBCA, ANDA, ORA, EORA, SEX, DAA)
+  val ChangesBAlways: Set[MOpcode.Value] = Set(ADDB, ADCB, SUBB, SBCB, ANDB, ORB, EORB)
+  val ChangesDAlways: Set[MOpcode.Value] = Set(ADDD, SUBD, ANDB, ORB, EORB)
 
   def lookup(opcode: String, position: Some[Position], log: Logger): (MOpcode.Value, Option[MAddrMode]) = {
     val o = opcode.toUpperCase(Locale.ROOT)

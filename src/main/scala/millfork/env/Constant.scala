@@ -81,6 +81,14 @@ sealed trait Constant {
     }
   }
 
+  def subwordReversed(index: Int): Constant = {
+    if (requiredSize <= index) Constant.Zero
+    else {
+      // TODO: check if ok
+      CompoundConstant(MathOperator.Or, CompoundConstant(MathOperator.Shl, subbyte(index), NumericConstant(8, 1)), subbyte(index + 1)).quickSimplify
+    }
+  }
+
   def subconstant(offset: Int, length: Int): Constant = {
     if (offset == 0 && length == requiredSize) {
       this

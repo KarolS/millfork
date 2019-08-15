@@ -28,7 +28,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
     m.readByte(0xc000) should equal(5)
     m.readByte(0xc001) should equal(6)
     m.readByte(0xc002) should equal(7)
-    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(src) { m =>
+    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(src) { m =>
       m.readByte(0xc000) should equal(5)
       m.readByte(0xc001) should equal(6)
       m.readByte(0xc002) should equal(7)
@@ -53,7 +53,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
       m.readByte(0xc002) should equal(1)
       m.readByte(0xc007) should equal(6)
     }
-    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(src) { m =>
+    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(src) { m =>
       m.readByte(0xc002) should equal(1)
       m.readByte(0xc007) should equal(6)
     }
@@ -118,7 +118,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Array simple read") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | array a[7]
