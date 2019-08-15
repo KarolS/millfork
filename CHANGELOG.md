@@ -2,6 +2,10 @@
 
 ## Current version
 
+* Added `nullchar` constant as the null terminator for strings and `NULLCHAR` feature to define its value.
+
+* Added `vectrex` text encoding.
+
 ## 0.3.6
 
 * **Breaking change!**

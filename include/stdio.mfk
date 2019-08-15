@@ -26,7 +26,7 @@ asm void putstrz(pointer hl) @$5550 extern
 void putstrz(pointer str) {
     byte index
     index = 0
-    while str[index] != 0 {
+    while str[index] != nullchar {
         putchar(str[index])
         index += 1
     }

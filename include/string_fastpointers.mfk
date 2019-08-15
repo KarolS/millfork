@@ -3,7 +3,7 @@
 byte strzlen(pointer str) {
     pointer end
     end = str
-    while end[0] != 0 {
+    while end[0] != nullchar {
         end += 1
     }
     return lo(end - str)
@@ -11,8 +11,8 @@ byte strzlen(pointer str) {
 
 sbyte strzcmp(pointer str1, pointer str2) {
     while true {
-        if str1[0] == 0 {
-            if str2[0] == 0 {
+        if str1[0] == nullchar {
+            if str2[0] == nullchar {
                 return 0
             } else {
                 return -1
@@ -33,5 +33,5 @@ void strzcopy(pointer dest, pointer src) {
         dest[0] = c
         src += 1
         dest += 1
-    } while c != 0
+    } while c != nullchar
 }

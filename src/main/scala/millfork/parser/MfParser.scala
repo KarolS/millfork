@@ -68,12 +68,12 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (zt) {
       log.error("Zero-terminated encoding is not a valid encoding for a character literal", Some(p))
     }
-    co.encode(options.log, Some(p), c.toList, lenient = lenient) match {
+    co.encode(options.log, Some(p), c.toList, options, lenient = lenient) match {
       case List(value) =>
         LiteralExpression(value, 1)
       case _ =>
         log.error(s"Character `$c` cannot be encoded as one byte", Some(p))
-        LiteralExpression(0, 1)
+        LiteralExpression(co.stringTerminator, 1)
     }
   }
 
@@ -87,8 +87,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val textLiteral: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
       case (p, s, ((co, zt), lenient)) =>
-        val characters = co.encode(options.log, None, s, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
-        if (zt) characters :+ LiteralExpression(0,1)
+        val characters = co.encode(options.log, None, s, options, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
+        if (zt) characters :+ LiteralExpression(co.stringTerminator, 1)
         else characters
     }
 

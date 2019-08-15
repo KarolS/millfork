@@ -43,6 +43,8 @@
  
 * `atasciiscr` or `atariscr` – screencodes used by Atari 8-bit computers
 
+* `vectrex` – built-in Vectrex font
+
 When programming for Commodore,
 use `pet` for strings you're printing using standard I/O routines
 and `petscr` for strings you're copying to screen memory directly.
@@ -60,6 +62,12 @@ Some escape sequences may expand to multiple characters. For example, in several
 * `{apos}` – apostrophe/single quote
 
 * `{x00}`–`{xff}` – a character of the given hexadecimal value
+
+* `{copyright_year}` – this expands to the current year in digits
+
+* `{program_name}` – this expands to the name of the output file without the file extension
+
+* `{program_name_upper}` – the same, but uppercased
 
 ##### Available only in some encodings
 
@@ -79,6 +87,8 @@ control codes for changing the text background color
 
 * `{reverse}`, `{reverseoff}` – inverted mode on/off
 
+* `{yen}`, `{pound}`, `{copy}` – yen symbol, pound symbol, copyright symbol
+
 ##### Character availability
 
 Encoding | lowercase letters | backslash | pound | yen | katakana | card suits  
@@ -96,6 +106,7 @@ Encoding | lowercase letters | backslash | pound | yen | katakana | card suits
 `msx_intl`         | yes  | yes | yes | yes  | no   | yes   
 `msx_jp`           | yes  | no  | no  | yes  | yes  | yes   
 `msx_ru`           | yes  | yes | no  | no   | no   | yes   
+`vectrex`          | no   | yes | no  | no   | no   | no   
 all the rest       | yes  | yes | no  | no   | no   | no  
   
 1. `pet`, `origpet` and `petscr` cannot display card suit symbols and lowercase letters at the same time.
@@ -124,4 +135,5 @@ Encoding | new line | braces | backspace | cursor movement | text colour | rever
 `apple2`            | no  | yes | no  | no  | no  | no  | no  
 `atascii`           | yes | no  | yes | yes | no  | no  | no  
 `atasciiscr`        | no  | no  | no  | no  | no  | no  | no  
+`vectrex`           | no  | no  | no  | no  | no  | no  | no  
 all the rest        | yes | yes | no  | no  | no  | no  | no

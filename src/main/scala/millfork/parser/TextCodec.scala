@@ -1,8 +1,9 @@
 package millfork.parser
 
+import java.time.LocalDate
 import java.util.Locale
 
-import millfork.CompilationOptions
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.Position
 
@@ -10,6 +11,7 @@ import millfork.node.Position
   * @author Karol Stasiak
   */
 class TextCodec(val name: String,
+                val stringTerminator: Int,
                 private val map: String,
                 private val extra: Map[Char, Int],
                 private val decompositions: Map[Char, String],
@@ -56,17 +58,17 @@ class TextCodec(val name: String,
     if (s.forall(isPrintable)) f"`$s%s` ($u%s)"
     else u
   }
-  private def encodeChar(log: Logger, position: Option[Position], c: Char, lenient: Boolean): Option[List[Int]] = {
+  private def encodeChar(log: Logger, position: Option[Position], c: Char, options: CompilationOptions, lenient: Boolean): Option[List[Int]] = {
       if (decompositions.contains(c)) {
-        Some(decompositions(c).toList.flatMap(x => encodeChar(log, position, x, lenient).getOrElse(List(x.toInt))))
+        Some(decompositions(c).toList.flatMap(x => encodeChar(log, position, x, options, lenient).getOrElse(List(x.toInt))))
       } else if (extra.contains(c)) Some(List(extra(c))) else {
         val index = map.indexOf(c)
         if (index >= 0) {
           Some(List(index))
         } else if (lenient) {
-          val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeChar(log, position, alt, lenient = false).isDefined)).getOrElse("")
+          val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeChar(log, position, alt, options, lenient = false).isDefined)).getOrElse("")
           log.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", position)
-          Some(alternative.toList.flatMap(encodeChar(log, position, _, lenient = false).get))
+          Some(alternative.toList.flatMap(encodeChar(log, position, _, options, lenient = false).get))
         } else {
           None
         }
@@ -74,33 +76,45 @@ class TextCodec(val name: String,
     }
 
 
-  def encode(log: Logger, position: Option[Position], s: List[Char], lenient: Boolean): List[Int] = s match {
-    case '{' :: tail =>
-      val (escSeq, closingBrace) = tail.span(_ != '}')
-      closingBrace match {
-        case '}' :: xs =>
-          encodeEscapeSequence(log, escSeq.mkString(""), position, lenient) ++ encode(log, position, xs, lenient)
-        case _ =>
-          log.error(f"Unclosed escape sequence", position)
-          Nil
-      }
-    case head :: tail =>
-      (encodeChar(log, position, head, lenient) match {
-        case Some(x) => x
-        case None =>
-          log.error(f"Invalid character ${format(head)} in string", position)
-          Nil
-      }) ++ encode(log, position, tail, lenient)
-    case Nil => Nil
+  def encode(log: Logger, position: Option[Position], s: List[Char], options: CompilationOptions, lenient: Boolean): List[Int] = {
+    val lenient = options.flag(CompilationFlag.LenientTextEncoding)
+    s match {
+      case '{' :: tail =>
+        val (escSeq, closingBrace) = tail.span(_ != '}')
+        closingBrace match {
+          case '}' :: xs =>
+            encodeEscapeSequence(log, escSeq.mkString(""), position, options, lenient) ++ encode(log, position, xs, options, lenient)
+          case _ =>
+            log.error(f"Unclosed escape sequence", position)
+            Nil
+        }
+      case head :: tail =>
+        (encodeChar(log, position, head, options, lenient) match {
+          case Some(x) => x
+          case None =>
+            log.error(f"Invalid character ${format(head)} in string", position)
+            Nil
+        }) ++ encode(log, position, tail, options, lenient)
+      case Nil => Nil
+    }
   }
 
-  private def encodeEscapeSequence(log: Logger, escSeq: String, position: Option[Position], lenient: Boolean): List[Int] = {
+  private def encodeEscapeSequence(log: Logger, escSeq: String, position: Option[Position], options: CompilationOptions, lenient: Boolean): List[Int] = {
     if (escSeq.length == 3 && (escSeq(0) == 'X' || escSeq(0) == 'x' || escSeq(0) == '$')){
       try {
         return List(Integer.parseInt(escSeq.tail, 16))
       } catch {
         case _: NumberFormatException =>
       }
+    }
+    if (escSeq == "program_name_upper") {
+      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").toUpperCase(Locale.ROOT).toList, options, lenient)
+    }
+    if (escSeq == "program_name") {
+      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").toList, options, lenient)
+    }
+    if (escSeq == "copyright_year") {
+      return encode(log, position, LocalDate.now.getYear.toString.toList, options, lenient)
     }
     escapeSequences.getOrElse(escSeq, {
       if (lenient) {
@@ -164,6 +178,7 @@ object TextCodec {
       case (_, "msx_es") => TextCodec.MsxWest
       case (_, "msx_ru") => TextCodec.MsxRu
       case (_, "msx_jp") => TextCodec.MsxJp
+      case (_, "vectrex") => TextCodec.Vectrex
       case (p, _) =>
         log.error(s"Unknown string encoding: `$name`", p)
         TextCodec.Ascii
@@ -208,16 +223,16 @@ object TextCodec {
       "はひふへほ".zip("ぱぴぷぺぽ").map { case (h, p) => p -> (h + "゜") }.toMap
   }
 
-  val Ascii = new TextCodec("ASCII", 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty, AsciiEscapeSequences)
+  val Ascii = new TextCodec("ASCII", 0, 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty, AsciiEscapeSequences)
 
-  val Apple2 = new TextCodec("APPLE-II", 0.until(255).map { i =>
+  val Apple2 = new TextCodec("APPLE-II", 0, 0.until(255).map { i =>
     if (i < 0xa0) NotAChar
     else if (i < 0xe0) (i - 128).toChar
     else NotAChar
   }.mkString,
     ('a' to 'z').map(l => l -> (l - 'a' + 0xC1)).toMap, Map.empty, MinimalEscapeSequencesWithBraces)
 
-  val IsoIec646De = new TextCodec("ISO-IEC-646-DE",
+  val IsoIec646De = new TextCodec("ISO-IEC-646-DE", 0,
     "\ufffd" * 32 +
       " !\"#$%^'()*+,-./0123456789:;<=>?" +
       "§ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ^_" +
@@ -233,7 +248,7 @@ object TextCodec {
     )
   )
 
-  val IsoIec646Se = new TextCodec("ISO-IEC-646-SE",
+  val IsoIec646Se = new TextCodec("ISO-IEC-646-SE", 0,
     "\ufffd" * 32 +
       " !\"#¤%^'()*+,-./0123456789:;<=>?" +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÅ^_" +
@@ -255,7 +270,7 @@ object TextCodec {
     )
   )
 
-  val IsoIec646No = new TextCodec("ISO-IEC-646-NO",
+  val IsoIec646No = new TextCodec("ISO-IEC-646-NO", 0,
     "\ufffd" * 32 +
       " !\"#$%^'()*+,-./0123456789:;<=>?" +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ^_" +
@@ -282,7 +297,7 @@ object TextCodec {
   )
 
 
-  val IsoIec646Yu = new TextCodec("ISO-IEC-646-YU",
+  val IsoIec646Yu = new TextCodec("ISO-IEC-646-YU", 0,
     "\ufffd" * 32 +
       " !\"#$%^'()*+,-./0123456789:;<=>?" +
       "ŽABCDEFGHIJKLMNOPQRSTUVWXYZŠĐĆČ_" +
@@ -290,15 +305,18 @@ object TextCodec {
     Map('Ë' -> '$'.toInt, 'ë' -> '_'.toInt),
     Map.empty, AsciiEscapeSequences)
 
-  val CbmScreencodes = new TextCodec("CBM-Screen",
+  val CbmScreencodes = new TextCodec("CBM-Screen", 0,
     "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
       0x20.to(0x3f).map(_.toChar).mkString +
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ",
     Map('^' -> 0x1E, '♥' -> 0x53, '♡' -> 0x53, '♠' -> 0x41, '♣' -> 0x58, '♢' -> 0x5A, '•' -> 0x51),
-    Map.empty, MinimalEscapeSequencesWithoutBraces
+    Map.empty, MinimalEscapeSequencesWithoutBraces ++ Map(
+      "pound" -> List(0x1c),
+      "pi" -> List(0x5f),
+    )
   )
 
-  val CbmScreencodesJp = new TextCodec("CBM-Screen-JP",
+  val CbmScreencodesJp = new TextCodec("CBM-Screen-JP", 0,
     "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]↑←" + // 00-1f
       0x20.to(0x3f).map(_.toChar).mkString +
       "タチツテトナニヌネノハヒフヘホマ" + // 40-4f
@@ -323,10 +341,13 @@ object TextCodec {
       ('a' to 'z').map(l => l -> (l - 'a' + 1)) ++
       (1 to 0xf).map(i => (i + 0xff70).toChar -> (i + 0x70)) ++
       (0x10 to 0x2f).map(i => (i + 0xff70).toChar -> (i + 0x40)),
-    StandardKatakanaDecompositions, MinimalEscapeSequencesWithoutBraces
+    StandardKatakanaDecompositions, MinimalEscapeSequencesWithoutBraces ++ Map(
+      "pi" -> List(0x70),
+      "yen" -> List(0x1c),
+    )
   )
 
-  val Petscii = new TextCodec("PETSCII",
+  val Petscii = new TextCodec("PETSCII", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
@@ -337,6 +358,8 @@ object TextCodec {
     Map('^' -> 0x5E, '♥' -> 0xD3, '♡' -> 0xD3, '♠' -> 0xC1, '♣' -> 0xD8, '♢' -> 0xDA, '•' -> 0xD1), Map.empty, Map(
       "n" -> List(13),
       "q" -> List('\"'.toInt),
+      "pound" -> List(0x5c),
+      "pi" -> List(0xdf),
       "apos" -> List('\''.toInt),
       "up" -> List(0x91),
       "down" -> List(0x11),
@@ -355,7 +378,7 @@ object TextCodec {
     )
   )
 
-  val PetsciiJp = new TextCodec("PETSCII-JP",
+  val PetsciiJp = new TextCodec("PETSCII-JP", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]↑←" +
@@ -385,6 +408,8 @@ object TextCodec {
       "n" -> List(13),
       "q" -> List('\"'.toInt),
       "apos" -> List('\''.toInt),
+      "yen" -> List(0x5c),
+      "pi" -> List(0xb0),
       "up" -> List(0x91),
       "down" -> List(0x11),
       "left" -> List(0x9d),
@@ -402,7 +427,18 @@ object TextCodec {
     )
   )
 
-  val OldPetscii = new TextCodec("Old PETSCII",
+  val Vectrex = new TextCodec("Vectrex", 0x80,
+    "\ufffd" * 32 +
+      0x20.to(0x3f).map(_.toChar).mkString +
+      "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_" +
+      "\ufffd↑\ufffd↓\ufffd\ufffd\ufffd©\ufffd\ufffd\ufffd\ufffd∞",
+      ('a' to 'z').map(l => l -> l.toUpper.toInt).toMap,
+    Map.empty, Map(
+      "copy" -> List('g'.toInt)
+    )
+  )
+
+  val OldPetscii = new TextCodec("Old PETSCII", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@abcdefghijklmnopqrstuvwxyz[\\]↑←" +
@@ -413,6 +449,7 @@ object TextCodec {
     Map('^' -> 0x5E, '♥' -> 0xD3, '♡' -> 0xD3, '♠' -> 0xC1, '♣' -> 0xC8, '♢' -> 0xDA, '•' -> 0xD1), Map.empty, Map(
       "n" -> List(13),
       "q" -> List('\"'.toInt),
+      "pi" -> List(0xdf),
       "apos" -> List('\''.toInt),
       "up" -> List(0x91),
       "down" -> List(0x11),
@@ -423,7 +460,7 @@ object TextCodec {
     )
   )
 
-  val OriginalPetscii = new TextCodec("Original PETSCII",
+  val OriginalPetscii = new TextCodec("Original PETSCII", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]↑←" +
@@ -435,6 +472,7 @@ object TextCodec {
       "n" -> List(13),
       "q" -> List('\"'.toInt),
       "apos" -> List('\''.toInt),
+      "pi" -> List(0xdf),
       "up" -> List(0x91),
       "down" -> List(0x11),
       "left" -> List(0x9d),
@@ -444,7 +482,7 @@ object TextCodec {
     )
   )
 
-  val Atascii = new TextCodec("ATASCII",
+  val Atascii = new TextCodec("ATASCII", 0,
     "♡" +
     "\ufffd" * 15 +
       "♣\ufffd–\ufffd•" +
@@ -461,7 +499,7 @@ object TextCodec {
     )
   )
 
-  val AtasciiScreencodes = new TextCodec("ATASCII-Screen",
+  val AtasciiScreencodes = new TextCodec("ATASCII-Screen", 0,
     0x20.to(0x3f).map(_.toChar).mkString +
       0x40.to(0x5f).map(_.toChar).mkString +
       "♡" +
@@ -472,14 +510,18 @@ object TextCodec {
     Map('♥' -> 0x40, '·' -> 0x54), Map.empty, MinimalEscapeSequencesWithoutBraces
   )
 
-  val Bbc = new TextCodec("BBC",
+  val Bbc = new TextCodec("BBC", 0,
     "\ufffd" * 32 +
       0x20.to(0x5f).map(_.toChar).mkString +
       "£" + 0x61.to(0x7E).map(_.toChar).mkString + "©",
-    Map('↑' -> '^'.toInt), Map.empty, MinimalEscapeSequencesWithBraces + ("n" -> List(13))
+    Map('↑' -> '^'.toInt), Map.empty, MinimalEscapeSequencesWithBraces ++ Map(
+      "n" -> List(13),
+      "pound" -> List(0x60),
+      "copy" -> List(0x7f),
+    )
   )
 
-  val Sinclair = new TextCodec("Sinclair",
+  val Sinclair = new TextCodec("Sinclair", 0,
     "\ufffd" * 32 +
       0x20.to(0x5f).map(_.toChar).mkString +
       "£" + 0x61.to(0x7E).map(_.toChar).mkString + "©",
@@ -487,6 +529,8 @@ object TextCodec {
       "n" -> List(13),
       "q" -> List('\"'.toInt),
       "apos" -> List('\''.toInt),
+      "pound" -> List(0x60),
+      "copy" -> List(0x7f),
       "lbrace" -> List('{'.toInt),
       "rbrace" -> List('}'.toInt),
       "up" -> List(11),
@@ -521,7 +565,7 @@ object TextCodec {
     "ミムメモヤユヨラリルレロワン゛゜"
 
   //noinspection ScalaUnnecessaryParentheses
-  val Jis = new TextCodec("JIS-X-0201",
+  val Jis = new TextCodec("JIS-X-0201", 0,
     "\ufffd" * 32 +
       ' '.to('Z').mkString +
       "[¥]^_" +
@@ -535,10 +579,13 @@ object TextCodec {
       "\ufffd" * 3 + "\\",
     Map('¯' -> '~'.toInt, '‾' -> '~'.toInt, '♥' -> 0xE9) ++
       1.to(0x3F).map(i => (i + 0xff60).toChar -> (i + 0xA0)).toMap,
-      StandardKatakanaDecompositions, MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
+      StandardKatakanaDecompositions, MinimalEscapeSequencesWithBraces ++ Map(
+      "n" -> List(13, 10),
+      "yen" -> List(0x5c)
+    )
   )
 
-  val MsxWest = new TextCodec("MSX-International",
+  val MsxWest = new TextCodec("MSX-International", 0,
     "\ufffd" * 32 +
       (0x20 to 0x7e).map(_.toChar).mkString("") +
       "\ufffd" +
@@ -552,10 +599,14 @@ object TextCodec {
       "≡±≥≤\ufffd\ufffd÷\ufffd\ufffd\ufffd\ufffd\ufffdⁿ²",
     Map('ß' -> 0xE1, '¦' -> 0x7C),
     Map('♥' -> "\u0001C", '♡' -> "\u0001C", '♢' -> "\u0001D", '♢' -> "\u0001D", '♣' -> "\u0001E", '♠' -> "\u0001F", '·' -> "\u0001G") ,
-    MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
+    MinimalEscapeSequencesWithBraces ++ Map(
+      "n" -> List(13, 10),
+      "pound" -> List(0x9c),
+      "yen" -> List(0x9d),
+    )
   )
 
-  val MsxRu = new TextCodec("MSX-RU",
+  val MsxRu = new TextCodec("MSX-RU", 0,
     "\ufffd" * 32 +
       (0x20 to 0x7e).map(_.toChar).mkString("") +
       "\ufffd" +
@@ -571,7 +622,7 @@ object TextCodec {
     MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
   )
 
-  val MsxJp = new TextCodec("MSX-JP",
+  val MsxJp = new TextCodec("MSX-JP", 0,
     "\ufffd" * 32 +
       (0x20 to 0x7e).map(c => if (c == 0x5c) '¥' else c.toChar).mkString("") +
       "\ufffd" +
@@ -605,7 +656,10 @@ object TextCodec {
       '小' -> "\u0001_"
     ) ++
       StandardHiraganaDecompositions ++ StandardKatakanaDecompositions,
-    MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
+    MinimalEscapeSequencesWithBraces ++ Map(
+      "n" -> List(13, 10),
+      "yen" -> List(0x5c)
+    )
   )
 
   val lossyAlternatives: Map[Char, List[String]] = {

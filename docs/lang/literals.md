@@ -36,7 +36,9 @@ Two encoding names are special and refer to platform-specific encodings:
 `default` and `scr`.
 
 You can also append `z` to the name of the encoding to make the string zero-terminated.
-This means that the string will have one extra byte appended, equal to 0.
+This means that the string will have one extra byte appended, equal to `nullchar`.
+The exact value of `nullchar` is encoding-dependent: in the `vectrex` encoding it's $80,
+in other encodings it's 0 (this might be a subject to change in future versions).
 
     "this is a zero-terminated string" asciiz
     "this is also a zero-terminated string"z
