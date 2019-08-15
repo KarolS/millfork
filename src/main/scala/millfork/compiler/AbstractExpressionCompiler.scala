@@ -213,10 +213,20 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 object AbstractExpressionCompiler {
   @inline
   def getExpressionType(ctx: CompilationContext, expr: Expression): Type = {
-    getExpressionType(ctx.env, ctx.log, expr)
+    getExpressionTypeImpl(ctx.env, ctx.log, expr, loosely = false)
+  }
+  @inline
+  def getExpressionTypeLoosely(ctx: CompilationContext, expr: Expression): Type = {
+    getExpressionTypeImpl(ctx.env, ctx.log, expr, loosely = true)
   }
 
-  def getExpressionType(env: Environment, log: Logger, expr: Expression): Type = {
+  @inline
+  def getExpressionType(env: Environment, log: Logger, expr: Expression): Type = getExpressionTypeImpl(env, log, expr, loosely = false)
+
+  @inline
+  def getExpressionTypeLoosely(env: Environment, log: Logger, expr: Expression): Type = getExpressionTypeImpl(env, log, expr, loosely = true)
+
+  def getExpressionTypeImpl(env: Environment, log: Logger, expr: Expression, loosely: Boolean): Type = {
     if (expr.typeCache ne null) expr.typeCache
     val b = env.get[Type]("byte")
     val bool = env.get[Type]("bool$")
@@ -235,7 +245,7 @@ object AbstractExpressionCompiler {
         mask = (1L << (8 * maxSize)) - 1
         signMask = ~mask
         signTest = if (signMask == 0) Long.MaxValue else signMask >> 1
-        types = exprs.map(e => getExpressionType(env, log, e))
+        types = exprs.map(e => getExpressionTypeImpl(env, log, e, loosely))
         if types.forall(_.size.<(8))
         signednesses = types.flatMap {
           case d: DerivedPlainType => Some(d.isSigned)
@@ -249,7 +259,7 @@ object AbstractExpressionCompiler {
     }
     def toAllBooleanConstants(exprs: List[Expression]): Option[List[Boolean]] = {
       for {
-        types <- Some(exprs.map(e => getExpressionType(env, log, e)))
+        types <- Some(exprs.map(e => getExpressionTypeImpl(env, log, e, loosely)))
         if types.forall(_.isInstanceOf[ConstantBooleanType])
         bools = types.map(_.asInstanceOf[ConstantBooleanType].value)
         if bools.nonEmpty
@@ -283,9 +293,24 @@ object AbstractExpressionCompiler {
       case GeneratedConstantExpression(_, typ) => typ
       case TextLiteralExpression(_) => env.get[Type]("pointer")
       case VariableExpression(name) =>
-        env.get[TypedThing](name, expr.position).typ
+        if (loosely) {
+          env.maybeGet[TypedThing](name) match {
+            case Some(t) => t.typ
+            case None =>
+              if (name.endsWith(".lo") || name.endsWith(".hi")) {
+                b
+              } else if (name.endsWith(".addr")) {
+                env.get[Type]("pointer")
+              } else {
+                log.error(s"TypedThing `$name` is not defined", expr.position)
+                b
+              }
+          }
+        } else {
+          env.get[TypedThing](name, expr.position).typ
+        }
       case HalfWordExpression(param, _) =>
-        getExpressionType(env, log, param)
+        getExpressionTypeImpl(env, log, param, loosely)
         b
       case IndexedExpression(name, _) =>
         env.getPointy(name).elementType
@@ -299,9 +324,9 @@ object AbstractExpressionCompiler {
               case Some(a: MfArray) =>
                 env.get[Type]("pointer." + a.elementType)
               case _ =>
-                getExpressionType(env, log, inner)
+                getExpressionTypeImpl(env, log, inner, loosely)
             }
-          case _ => getExpressionType(env, log, inner)
+          case _ => getExpressionTypeImpl(env, log, inner, loosely)
         }
         var ok = true
         for(_ <- firstIndices) {
@@ -370,10 +395,10 @@ object AbstractExpressionCompiler {
         }
         if (ok) currentType else b
       case SeparateBytesExpression(hi, lo) =>
-        if (getExpressionType(env, log, hi).size > 1) log.error("Hi byte too large", hi.position)
-        if (getExpressionType(env, log, lo).size > 1) log.error("Lo byte too large", lo.position)
+        if (getExpressionTypeImpl(env, log, hi, loosely).size > 1) log.error("Hi byte too large", hi.position)
+        if (getExpressionTypeImpl(env, log, lo, loosely).size > 1) log.error("Lo byte too large", lo.position)
         w
-      case SumExpression(params, _) => params.map { case (_, e) => getExpressionType(env, log, e).size }.max match {
+      case SumExpression(params, _) => params.map { case (_, e) => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
         case 1 => b
         case 2 => w
         case _ => log.error("Adding values bigger than words", expr.position); w
@@ -387,7 +412,7 @@ object AbstractExpressionCompiler {
       case f@FunctionCallExpression("call", params) =>
         params match {
           case List(fp) =>
-            getExpressionType(env, log, fp) match {
+            getExpressionTypeImpl(env, log, fp, loosely) match {
               case fpt@FunctionPointerType(_, _, _, Some(v), Some(r)) =>
                 if (v.name != "void"){
                   log.error(s"Invalid function pointer type: $fpt", fp.position)
@@ -398,9 +423,9 @@ object AbstractExpressionCompiler {
                 v
             }
           case List(fp, pp) =>
-            getExpressionType(env, log, fp) match {
+            getExpressionTypeImpl(env, log, fp, loosely) match {
               case fpt@FunctionPointerType(_, _, _, Some(p), Some(r)) =>
-                if (!getExpressionType(env, log, pp).isAssignableTo(p)){
+                if (!getExpressionTypeImpl(env, log, pp, loosely).isAssignableTo(p)){
                   log.error(s"Invalid function pointer type: $fpt", fp.position)
                 }
                 r
@@ -414,29 +439,29 @@ object AbstractExpressionCompiler {
         }
       case FunctionCallExpression("hi", _) => b
       case FunctionCallExpression("lo", _) => b
-      case FunctionCallExpression("sin", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
-      case FunctionCallExpression("cos", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
-      case FunctionCallExpression("tan", params) => if (params.size < 2) b else getExpressionType(env, log, params(1))
+      case FunctionCallExpression("sin", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
+      case FunctionCallExpression("cos", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
+      case FunctionCallExpression("tan", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("sizeof", params) => env.evalSizeof(params.head).requiredSize match {
         case 1 => b
         case 2 => w
       }
-      case FunctionCallExpression("%%", params) => params.map { e => getExpressionType(env, log, e).size } match {
+      case FunctionCallExpression("%%", params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size } match {
         case List(1, 1) | List(2, 1) => b
         case List(1, 2) | List(2, 2) => w
         case _ => log.error("Combining values bigger than words", expr.position); w
       }
-      case FunctionCallExpression("*" | "|" | "&" | "^" | "/", params) => params.map { e => getExpressionType(env, log, e).size }.max match {
+      case FunctionCallExpression("*" | "|" | "&" | "^" | "/", params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
         case 1 => b
         case 2 => w
         case _ => log.error("Combining values bigger than words", expr.position); w
       }
       case FunctionCallExpression("<<", List(a1, a2)) =>
-        if (getExpressionType(env, log, a2).size > 1) log.error("Shift amount too large", a2.position)
-        getExpressionType(env, log, a1)
+        if (getExpressionTypeImpl(env, log, a2, loosely).size > 1) log.error("Shift amount too large", a2.position)
+        getExpressionTypeImpl(env, log, a1, loosely)
       case FunctionCallExpression(">>", List(a1, a2)) =>
-        if (getExpressionType(env, log, a2).size > 1) log.error("Shift amount too large", a2.position)
-        getExpressionType(env, log, a1)
+        if (getExpressionTypeImpl(env, log, a2, loosely).size > 1) log.error("Shift amount too large", a2.position)
+        getExpressionTypeImpl(env, log, a1, loosely)
       case FunctionCallExpression("<<'", _) => b
       case FunctionCallExpression(">>'", _) => b
       case FunctionCallExpression(">>>>", _) => b
@@ -526,6 +551,13 @@ object AbstractExpressionCompiler {
     val sourceType = getExpressionType(ctx, source)
     if (!sourceType.isAssignableTo(targetType)) {
       ctx.log.error(s"Cannot assign `$sourceType` to `$targetType`", source.position)
+    }
+  }
+
+  def checkAssignmentTypeLoosely(env: Environment, source: Expression, targetType: Type): Unit = {
+    val sourceType = getExpressionTypeLoosely(env, env.log, source)
+    if (!sourceType.isAssignableTo(targetType)) {
+      env.log.error(s"Cannot assign `$sourceType` to `$targetType`", source.position)
     }
   }
 

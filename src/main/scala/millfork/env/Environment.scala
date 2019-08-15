@@ -1567,7 +1567,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
         val address = stmt.address.map(a => eval(a).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant address", stmt.position)))
         for (element <- contents) {
-          AbstractExpressionCompiler.checkAssignmentType(this, element, e)
+          AbstractExpressionCompiler.checkAssignmentTypeLoosely(this, element, e)
         }
         val array = InitializedArray(arrayName + ".array", address, contents, declaredBank = stmt.bank, indexType, e, readOnly = stmt.const, alignment)
         if (!stmt.const && options.platform.ramInitialValuesBank.isDefined && array.bank(options) != "default") {

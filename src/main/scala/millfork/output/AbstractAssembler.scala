@@ -429,7 +429,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           labelMap(name) = bank0.index -> index
           if (!readOnlyPass) {
             rwDataStart = rwDataStart.min(index)
-            rwDataEnd = rwDataEnd.min(index + thing.sizeInBytes)
+            rwDataEnd = rwDataEnd.max(index + thing.sizeInBytes)
           }
           assembly.append("* = $" + index.toHexString)
           assembly.append(name + ":")

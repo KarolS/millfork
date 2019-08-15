@@ -7,4 +7,4 @@ const array __vectors @$A000 = [
 ]
 
 segment(prgrom)
-array __boot_signature @$A004 = [$41, $30, $C3, $C2, $CD]
+const array __boot_signature @$A004 = [$41, $30, $C3, $C2, $CD]

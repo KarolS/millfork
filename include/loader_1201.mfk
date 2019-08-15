@@ -2,7 +2,7 @@
 #warn loader_1201 module should be only used on Commodore targets
 #endif
 
-array _basic_loader @$1201 = [
+const array _basic_loader @$1201 = [
     $0b,
     $12,
     10,

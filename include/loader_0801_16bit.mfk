@@ -2,7 +2,7 @@
 #warn loader_0801_16bit module should be only used on Commodore targets
 #endif
 
-array _basic_loader @$801 = [
+const array _basic_loader @$801 = [
     $0b,
     $08,
     10,

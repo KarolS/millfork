@@ -2,7 +2,7 @@
 #warn loader_1c01 module should be only used on Commodore targets
 #endif
 
-array _basic_loader @$1C01 = [
+const array _basic_loader @$1C01 = [
     $0b,
     $1C,
     10,
