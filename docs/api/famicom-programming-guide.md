@@ -18,6 +18,7 @@ It should not be defined as `interrupt`, the handler is, so your routine shouldn
 The minimal Famicom program thus looks like this:
 
     void main() {
+        init_rw_memory()
         // initialize things
         while(true) { }
     }

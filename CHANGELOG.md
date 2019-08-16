@@ -2,9 +2,17 @@
 
 ## Current version
 
+* Added preliminary support for EasyFlash.
+
+* Allowed defining custom output padding byte value.
+
+* Allowed passing non-decimal numbers to the `-D` option.
+
 * Added `nullchar` constant as the null terminator for strings and `NULLCHAR` feature to define its value.
 
 * Added `vectrex` text encoding.
+
+* Fixed several serious bugs related to cartridge-based targets.
 
 ## 0.3.6
 

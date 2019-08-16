@@ -150,6 +150,8 @@ Default: `after_code`.
 * `segment_NAME_bank` – the bank number the segment belongs to. Default: `0`.
 For better debugging on NES, RAM segments should use bank number `$ff`.
 
+* `segment_NAME_fill` – the byte value used to fill gaps and other unused space in the bank. Default: `0`.
+
 #### `[output]` section
  
 * `style` – how multi-segment programs should be output:

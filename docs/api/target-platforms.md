@@ -25,6 +25,9 @@ see [the Commodore programming guide](./commodore-programming-guide.md) for more
 
 * `c64_crt16k` – Commodore 64, 16K ROM cartridge
 
+* `c64_ef_small` – Commodore 64, EasyFlash cartridge, 72K of program code. 
+See [the EasyFlash programming guide](./easyflash-programming-guide.md) for more info.
+
 * `c64_scpu` – Commodore 64 with SuperCPU in emulation mode
 
 * `c64_scpu16` – Commodore 64 with SuperCPU in native, 16-bit mode (very buggy)
