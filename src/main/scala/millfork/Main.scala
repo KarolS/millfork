@@ -412,12 +412,30 @@ object Main {
     parameter("-D", "--define").placeholder("<feature>=<value>").action { (p, c) =>
       val tokens = p.split('=')
       if (tokens.length == 2) {
+        import java.lang.Long.parseLong
         assertNone(c.features.get(tokens(0)), "Feature already defined")
         try {
-          c.copy(features = c.features + (tokens(0) -> tokens(1).toLong))
+          val parsed = if (tokens(1).startsWith("$")) {
+            parseLong(tokens(1).tail, 16)
+          } else if (tokens(1).startsWith("%")) {
+            parseLong(tokens(1).tail, 2)
+          } else if (tokens(1).endsWith("h") || tokens(1).endsWith("H")) {
+            parseLong(tokens(1).init, 16)
+          } else if (tokens(1).startsWith("0B") || tokens(1).startsWith("0b")) {
+            parseLong(tokens(1).drop(2), 2)
+          } else if (tokens(1).startsWith("0X") || tokens(1).startsWith("0x")) {
+            parseLong(tokens(1).drop(2), 16)
+          } else if (tokens(1).startsWith("0Q") || tokens(1).startsWith("0q")) {
+            parseLong(tokens(1).drop(2), 4)
+          } else if (tokens(1).startsWith("0O") || tokens(1).startsWith("0o")) {
+            parseLong(tokens(1).drop(2), 8)
+          } else {
+            tokens(1).toLong
+          }
+          c.copy(features = c.features + (tokens(0) -> parsed))
         } catch {
           case _:java.lang.NumberFormatException =>
-            errorReporting.fatal("Invalid syntax for -D option")
+            errorReporting.fatal(s"Invalid number used in -D option: ${tokens(1)}")
         }
       } else {
         errorReporting.fatal("Invalid syntax for -D option")
