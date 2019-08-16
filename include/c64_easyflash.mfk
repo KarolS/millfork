@@ -1,0 +1,133 @@
+import err
+
+inline asm void switch_hirom(byte a) {
+    ? and #$3F
+    ! sta $DE01
+    ? rts
+}
+
+#if EAPI_ADDR
+
+    #if EAPI_ADDR & $ff != 0
+        #warn EAPI_ADDR should be page-aligned
+    #endif
+    #if EAPI_ADDR < $200
+        #error EAPI_ADDR cannot be less than $200
+    #endif
+
+    #use EAPI_ADDR
+    array __eapi_copy[$300] @ EAPI_ADDR
+
+#else
+
+    array __eapi_copy[$300] align(256)
+
+#endif
+
+// address, value, returns true if ok
+asm clear_carry eapi_write_flash(pointer xy, byte a) @ $DF80 extern
+// bank, page ($80, $A0 or $E0), returns true if ok
+asm clear_carry eapi_erase_sector(byte a, byte y) @ $DF83 extern
+// bank
+asm void eapi_set_bank(byte a) @ $DF86 extern
+// returns bank
+asm byte eapi_get_bank() @ $DF89 extern
+// bank mode, address
+asm void eapi_set_ptr(byte a, pointer xy) @ $DF8C extern
+// length.b2, length.loword
+asm void eapi_set_len(byte a, word xy) @ $DF8F extern
+asm byte eapi_read_flash_inc() @ $DF92 extern
+asm clear_carry eapi_write_flash_inc(byte a) @ $DF95 extern
+asm void eapi_set_slot(byte a) @ $DF98 extern
+asm void eapi_init_again() @ __eapi_copy.addr+20 extern
+
+segment(hirom0) {
+
+    // this code will actually be located at $FFC0, as EasyFlash boots in the Ultimax mode
+
+    asm void __coldStart() @$BFD8 {
+        sei
+        ldx #$ff
+        txs
+        cld
+        lda #8
+        sta $d016
+
+        __coldStart_wait_for_ram:
+        sta $0100, x
+        dex
+        bne __coldStart_wait_for_ram
+
+        ldx #$40
+        __coldStart_l1:
+        lda __startUpCode+$4000, x
+        sta $0100, x
+        dex
+        bpl __coldStart_l1
+        jmp $0100
+    }
+
+    // this will be copied to the stack anyway
+    asm void __startUpCode() @$BF98 {
+        lda #$87
+        sta $de02
+        lda #$7f
+        sta $dc00
+        ldx #$ff
+        stx $dc02
+        inx
+        stx $dc03
+        lda $dc01
+        stx $dc02
+        stx $dc00
+        and #$e0
+        cmp #$e0
+        bne __startUpCode_kill
+        ldx #0
+        stx $d016
+        jsr $ff84
+        jsr $ff87
+        jsr $ff8a
+        jsr $ff81
+        jmp $8000
+        __startUpCode_kill:
+        lda #4
+        sta $de02
+        jmp ($fffc)
+        __startUpCode_end:
+    }
+
+
+    // sets errno
+    // if errno==err_ok, then returns the number of slots (<64) or the number of banks + 64 (>=64)
+    // if errno!=err_ok, then returns EAPI error code
+    asm byte eapi_init() @$BB00 {
+        ? ldx #0
+        __eapi_init_loop:
+        lda $B800,x
+        sta __eapi_copy,x
+        lda $B900,x
+        sta __eapi_copy+$100,x
+        lda $BA00,x
+        sta __eapi_copy+$200,x
+        dex
+        bne __eapi_init_loop
+        jsr __eapi_copy+20
+        bcc __eapi_init_success
+        ldx #err_fail
+        bne __eapi_init_end
+        __eapi_init_success:
+        ldx #err_ok
+        sta errno
+        ? tya
+        __eapi_init_end:
+        stx errno
+        ? rts
+    }
+
+    const array(pointer) __vectors @$BFFA = [
+        $FFFE,
+        __coldStart.addr + $4000,
+        $4040
+    ]
+}
