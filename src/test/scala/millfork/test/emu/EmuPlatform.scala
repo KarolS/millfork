@@ -36,6 +36,7 @@ object EmuPlatform {
     false,
     false,
     Map("default" -> 0, "second" -> 2, "third" -> 3),
+    Map("default" -> 0, "second" -> 0, "third" -> 0),
     "default",
     None,
     ViceDebugOutputFormat,

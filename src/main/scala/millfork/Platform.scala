@@ -34,6 +34,7 @@ class Platform(
                 val generateBbcMicroInfFile: Boolean,
                 val generateGameBoyChecksums: Boolean,
                 val bankNumbers: Map[String, Int],
+                val bankFill: Map[String, Int],
                 val defaultCodeBank: String,
                 val ramInitialValuesBank: Option[String],
                 val outputLabelsFormat: DebugOutputFormat,
@@ -169,6 +170,10 @@ object Platform {
       case "" => 0
       case x => parseNumber(x)
     })).toMap
+    val bankFills = banks.map(b => b -> (as.get(classOf[String], s"segment_${b}_fill", "00") match {
+      case "" => 0
+      case x => parseNumber(x)
+    })).toMap
 
     // TODO: validate stuff
     banks.foreach(b => {
@@ -274,6 +279,7 @@ object Platform {
       generateBbcMicroInfFile,
       generateGameBoyChecksums,
       bankNumbers,
+      bankFills,
       defaultCodeBank,
       ramInitialValuesBank,
       debugOutputFormat,

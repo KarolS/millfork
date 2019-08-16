@@ -5,12 +5,21 @@ import scala.collection.mutable
 /**
   * @author Karol Stasiak
   */
-class CompiledMemory(bankNames: List[(String, Int)], bigEndian: Boolean) {
+class CompiledMemory(bankNames: List[(String, Int)], bankFills: Map[String, Int], bigEndian: Boolean) {
   var programName = "MILLFORK"
-  val banks: mutable.Map[String, MemoryBank] = mutable.Map(bankNames.map(p => p._1 -> new MemoryBank(p._2, bigEndian)): _*)
+  val banks: mutable.Map[String, MemoryBank] = mutable.Map(bankNames.map{p =>
+    val bank = new MemoryBank(p._2, bigEndian)
+    bank.fill(bankFills.getOrElse(p._1, 0))
+    p._1 -> bank
+  }: _*)
 }
 
 class MemoryBank(val index: Int, val isBigEndian: Boolean) {
+
+  def fill(value: Int): Unit = {
+    output.indices.foreach(i => output(i) = value.toByte)
+  }
+
   def readByte(addr: Int): Int = output(addr) & 0xff
 
   def readWord(addr: Int): Int =

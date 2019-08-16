@@ -33,7 +33,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   var initializedVariablesSize: Int = 0
   protected val log: Logger = rootEnv.log
 
-  val mem = new CompiledMemory(platform.bankNumbers.toList, platform.isBigEndian)
+  val mem = new CompiledMemory(platform.bankNumbers.toList, platform.bankFill, platform.isBigEndian)
   val labelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
   private val bytesToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
   private val wordsToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
