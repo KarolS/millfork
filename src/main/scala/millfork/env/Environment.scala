@@ -626,7 +626,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case _: DerefExpression => None
       case _: IndirectFieldExpression => None
       case _: DerefDebuggingExpression => None
-      case HalfWordExpression(param, hi) => evalImpl(e, vv).map(c => if (hi) c.hiByte else c.loByte)
+      case HalfWordExpression(param, hi) => evalImpl(param, vv).map(c => if (hi) c.hiByte else c.loByte)
       case SumExpression(params, decimal) =>
         params.map {
           case (minus, param) => (minus, evalImpl(param, vv))
@@ -785,11 +785,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
       case ConstantArrayElementExpression(c) => Some(c)
       case VariableExpression(name) =>
-        maybeGet[ConstantThing](name).map(_.value).orElse(maybeGet[ThingInMemory](name).map(_.toAddress))
+        val result = maybeGet[ConstantThing](name).map(_.value).orElse(maybeGet[ThingInMemory](name).map(_.toAddress))
+        if (result.isEmpty) log.warn(s"$name is not known")
+        result
       case IndexedExpression(name, index) => (evalForAsm(VariableExpression(name)), evalForAsm(index)) match {
         case (Some(a), Some(b)) => Some(CompoundConstant(MathOperator.Plus, a, b).quickSimplify)
       }
-      case HalfWordExpression(param, hi) => evalForAsm(e).map(c => if (hi) c.hiByte else c.loByte)
+      case HalfWordExpression(param, hi) => evalForAsm(param).map(c => if (hi) c.hiByte else c.loByte)
       case SumExpression(params, decimal) =>
         params.map {
           case (minus, param) => (minus, evalForAsm(param))
