@@ -440,16 +440,33 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(ConstantThing("__zeropage_usage", __zeropage_usage, b), None)
     def addUnexpandedWordConstant(name: String): Unit = {
       val c = UnexpandedConstant(name, 2)
+      addThing(ConstantThing(name, c, w), None)
+      addThing(ConstantThing(name + ".hi", c.hiByte, b), None)
+      addThing(ConstantThing(name + ".lo", c.loByte, b), None)
+    }
+    def addUnexpandedByteConstant(name: String): Unit = {
+      val c = UnexpandedConstant(name, 1)
+      addThing(ConstantThing(name, c, b), None)
+    }
+    def addUnexpandedPointerConstant(name: String): Unit = {
+      val c = UnexpandedConstant(name, 2)
       addThing(ConstantThing(name, c, p), None)
       addThing(ConstantThing(name + ".hi", c.hiByte, b), None)
       addThing(ConstantThing(name + ".lo", c.loByte, b), None)
     }
-    addUnexpandedWordConstant("__rwdata_start")
-    addUnexpandedWordConstant("__rwdata_end")
+    addUnexpandedPointerConstant("__rwdata_start")
+    addUnexpandedPointerConstant("__rwdata_end")
     if (options.platform.ramInitialValuesBank.isDefined) {
-      addUnexpandedWordConstant("__rwdata_init_start")
-      addUnexpandedWordConstant("__rwdata_init_end")
+      addUnexpandedPointerConstant("__rwdata_init_start")
+      addUnexpandedPointerConstant("__rwdata_init_end")
       addUnexpandedWordConstant("__rwdata_size")
+    }
+    for(segment <- options.platform.bankNumbers.keys) {
+      addUnexpandedPointerConstant(s"segment.$segment.start")
+      addUnexpandedPointerConstant(s"segment.$segment.heapstart")
+      addUnexpandedPointerConstant(s"segment.$segment.end")
+      addUnexpandedWordConstant(s"segment.$segment.length")
+      addUnexpandedByteConstant(s"segment.$segment.bank")
     }
     addThing(ConstantThing("$0000", NumericConstant(0, 2), p), None)
     addThing(FlagBooleanType("set_carry",

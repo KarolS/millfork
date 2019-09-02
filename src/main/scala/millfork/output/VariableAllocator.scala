@@ -95,6 +95,9 @@ class AfterCodeByteAllocator(startIfNoCode: Int, val endBefore: Int) extends Byt
 
 class VariableAllocator(zpBytes: List[Int], private val bytes: ByteAllocator) {
 
+  def startAt: Int = bytes.startAt
+  def endBefore: Int = bytes.endBefore
+
   def totalHimemSize: Int = bytes.endBefore - bytes.startAt
 
   val zeropage: ByteAllocator = new ZeropageAllocator(zpBytes)

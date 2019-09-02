@@ -541,6 +541,14 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     labelMap += "__rwdata_start" -> (defaultBank -> rwDataStart)
     labelMap += "__rwdata_end" -> (defaultBank -> rwDataEnd)
     labelMap += "__heap_start" -> (defaultBank -> variableAllocators("default").heapStart)
+    for (segment <- platform.bankNumbers.keys) {
+      val allocator = options.platform.variableAllocators(segment)
+      labelMap += s"segment.$segment.start" -> (defaultBank -> allocator.startAt)
+      labelMap += s"segment.$segment.end" -> (defaultBank -> (allocator.endBefore - 1))
+      labelMap += s"segment.$segment.heapstart" -> (defaultBank -> allocator.heapStart)
+      labelMap += s"segment.$segment.length" -> (defaultBank -> (allocator.endBefore - allocator.startAt))
+      labelMap += s"segment.$segment.bank" -> (defaultBank -> platform.bankNumbers(segment))
+    }
 
     env = rootEnv.allThings
 

@@ -22,6 +22,8 @@
 
 * [Literals](lang/literals.md)
 
+* [Predefined constants](lang/predefined_constants.md)
+
 * [List of text encodings and escape sequences](lang/text.md)
 
 * [Operators reference](lang/operators.md)
