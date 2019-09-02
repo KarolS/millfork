@@ -116,6 +116,9 @@ class TextCodec(val name: String,
     if (escSeq == "copyright_year") {
       return encode(log, position, LocalDate.now.getYear.toString.toList, options, lenient)
     }
+    if (escSeq == "null" || escSeq == "nullchar") {
+      return List(stringTerminator)
+    }
     escapeSequences.getOrElse(escSeq, {
       if (lenient) {
         log.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", position)

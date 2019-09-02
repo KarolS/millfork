@@ -69,6 +69,8 @@ Some escape sequences may expand to multiple characters. For example, in several
 
 * `{program_name_upper}` – the same, but uppercased
 
+* `{nullchar}` – the null terminator for strings (`"{nullchar}"` is equivalent to `""z`)
+
 ##### Available only in some encodings
 
 * `{n}` – new line
