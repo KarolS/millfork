@@ -204,11 +204,11 @@ object Platform {
         l
     }
 
-    val codeAllocators = banks.map(b => b -> new UpwardByteAllocator(bankStarts(b), bankCodeEnds(b)))
+    val codeAllocators = banks.map(b => b -> new UpwardByteAllocator(bankStarts(b), bankCodeEnds(b) + 1))
     val variableAllocators = banks.map(b => b -> new VariableAllocator(
       if (b == "default" && CpuFamily.forType(cpu) == CpuFamily.M6502) freeZpBytes else Nil, bankDataStarts(b) match {
-        case None => new AfterCodeByteAllocator(bankStarts(b), bankEnds(b))
-        case Some(start) => new UpwardByteAllocator(start, bankEnds(b))
+        case None => new AfterCodeByteAllocator(bankStarts(b), bankEnds(b) + 1)
+        case Some(start) => new UpwardByteAllocator(start, bankEnds(b) + 1)
       }))
 
     val os = conf.getSection("output")
