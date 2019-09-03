@@ -4,6 +4,10 @@
 
 The `string` module automatically imports the `err` module.  
 
+All the functions are designed to work for the strings in the default encoding.
+If passed a string in an encoding that has a different null terminator,
+then the results are undefined and the program will most likely crash or freeze.
+
 #### `byte strzlen(pointer str)`
 
 Calculates the length of a null-terminated string.  

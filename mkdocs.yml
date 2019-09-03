@@ -23,6 +23,7 @@ nav:
     - Syntax: lang/syntax.md
     - Types: lang/types.md
     - Literals: lang/literals.md
+    - Predefined constants: lang/predefined_constants.md
     - Text encodings: lang/text.md
     - Operators: lang/operators.md
     - Functions: lang/functions.md
@@ -35,6 +36,7 @@ nav:
     - stdio module: stdlib/stdio.md
     - keyboard, err, random: stdlib/other.md
     - joy, mouse, x_coord: stdlib/input.md
+    - encconv module: stdlib/encconv.md
     - Platform-dependent modules: stdlib/frequent.md
     - cbm_file module: stdlib/cbm_file.md
     - C64-only modules: stdlib/c64.md
