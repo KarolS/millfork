@@ -19,9 +19,9 @@ trait NodeOptimization {
     var result = set
     var lastSize = set.size
     do {
-      lastSize = set.size
+      lastSize = result.size
       result = result.flatMap(name => aliases.get(name).fold(Set(name))(Set(_, name)))
-    } while(lastSize != set.size)
+    } while(lastSize != result.size)
     result
   }
 
