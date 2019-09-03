@@ -54,6 +54,8 @@ The following features are defined based on the chosen CPU and compilation optio
 `CPUFEATURE_8080`, `CPUFEATURE_8085`, `CPUFEATURE_GAMEBOY`, `CPUFEATURE_Z80`,
 `CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_8085_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS` – 1 if given instruction subset is enabled, 0 otherwise
 
+* `ENCODING_SAME` - 1 if the encodings `default` and `src` are the same, 0 otherwise.
+
 * `INIT_RW_MEMORY` – 1 if the option `ram_init_segment` is defined, 0 otherwise.
 See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
 

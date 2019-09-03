@@ -245,7 +245,9 @@ object Platform {
       debugOutputFormatName.toLowerCase(Locale.ROOT),
       log.fatal(s"Invalid label file format: `$debugOutputFormatName`"))
 
-    val builtInFeatures = builtInCpuFeatures(cpu)
+    val builtInFeatures = builtInCpuFeatures(cpu) ++ Map(
+      "ENCODING_SAME" -> toLong(codec.name == srcCodec.name)
+    )
 
     import scala.collection.JavaConverters._
     val ds = conf.getSection("define")
@@ -286,9 +288,10 @@ object Platform {
       outputStyle)
   }
 
+  @inline
+  private def toLong(b: Boolean): Long = if (b) 1L else 0L
+
   def builtInCpuFeatures(cpu: Cpu.Value): Map[String, Long] = {
-    @inline
-    def toLong(b: Boolean): Long = if (b) 1L else 0L
     Map[String, Long](
       "ARCH_6502" -> toLong(CpuFamily.forType(cpu) == CpuFamily.M6502),
       "CPU_6502" -> toLong(Set(Cpu.Mos, Cpu.StrictMos, Cpu.Ricoh, Cpu.StrictRicoh)(cpu)),

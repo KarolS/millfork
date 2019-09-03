@@ -8,6 +8,8 @@
 
 * Allowed passing non-decimal numbers to the `-D` option.
 
+* Added the `encconv` module.
+
 * Added `nullchar` constant as the null terminator for strings and `NULLCHAR` feature to define its value.
 
 * Added `vectrex` text encoding.

@@ -1,0 +1,119 @@
+#if ENCODING_SAME
+
+#if ARCH_6502
+inline byte __byte_identity(byte a) { ? rts }
+#elseif ARCH_I80
+#pragma zilog_syntax
+inline byte __byte_identity(byte a) { ? ret }
+#else
+inline byte __byte_identity(byte a) = a
+#endif
+
+alias from_screencode = __byte_identity
+alias to_screencode = __byte_identity
+
+#else
+
+alias from_screencode = __from_screencode
+alias to_screencode = __to_screencode
+
+#endif
+
+
+// conversions for particular encoding pairs:
+
+#if ARCH_6502
+
+asm byte petscii_to_petscr(byte a) {
+    cmp #$20
+    bcc __petscii_to_petscr_ddRev
+    cmp #$60
+    bcc __petscii_to_petscr_dd1
+    cmp #$80
+    bcc __petscii_to_petscr_dd2
+    cmp #$a0
+    bcc __petscii_to_petscr_dd3
+    cmp #$c0
+    bcc __petscii_to_petscr_dd4
+    cmp #$ff
+    bcc __petscii_to_petscr_ddRev
+    lda #$5e
+    rts
+__petscii_to_petscr_dd2:
+    and #$5f
+    rts
+__petscii_to_petscr_dd3:
+    ora #$40
+    rts
+__petscii_to_petscr_dd4:
+    eor #$c0
+    rts
+__petscii_to_petscr_dd1:
+    and #$3f
+    rts
+__petscii_to_petscr_ddRev:
+    eor #$80
+    rts
+}
+
+asm byte petscr_to_petscii(byte a) {
+    cmp #$20
+    bcs __petscr_to_petscii_40
+    ora #$40
+    rts
+__petscr_to_petscii_40:
+    cmp #$40
+    bcs __petscr_to_petscii_60
+    rts
+__petscr_to_petscii_60:
+    cmp #$60
+    bcs __petscr_to_petscii_80
+    eor #$80
+    rts
+__petscr_to_petscii_80:
+    cmp #$80
+    bcs __petscr_to_petscii_a0
+    eor #$c0
+    rts
+__petscr_to_petscii_a0:
+    cmp #$a0
+    bcs __petscr_to_petscii_c0
+    eor #$80
+    rts
+__petscr_to_petscii_c0:
+    eor #$40
+    rts
+}
+
+asm byte atascii_to_atasciiscr(byte a) {
+    and #$7f
+    cmp #$20
+    bcs __atascii_to_atasciiscr_60
+    ora #$40
+    rts
+__atascii_to_atasciiscr_60:
+    cmp #$60
+    bcs __atascii_to_atasciiscr_end
+    sec
+    sbc #$20
+__atascii_to_atasciiscr_end:
+    rts
+}
+
+
+asm byte atasciiscr_to_atascii(byte a) {
+    and #$7f
+    cmp #$40
+    bcs __atascii_to_atasciiscr_60
+    clc
+    adc #$20
+    rts
+__atascii_to_atasciiscr_60:
+    cmp #$60
+    bcs __atascii_to_atasciiscr_end
+    and #$1f
+__atascii_to_atasciiscr_end:
+    rts
+}
+
+#endif

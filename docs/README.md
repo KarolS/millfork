@@ -22,6 +22,8 @@
 
 * [Literals](lang/literals.md)
 
+* [Predefined constants](lang/predefined_constants.md)
+
 * [List of text encodings and escape sequences](lang/text.md)
 
 * [Operators reference](lang/operators.md)
@@ -43,6 +45,8 @@
 * [`stdio` module](stdlib/stdio.md)
 
 * [Modules for reading input devices](stdlib/input.md)
+
+* [`encconv` module](stdlib/encconv.md)
 
 * [Other cross-platform modules (`keyboard`, `err`, `random`)](stdlib/other.md)
 

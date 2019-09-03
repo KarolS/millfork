@@ -46,6 +46,8 @@
 
 * [Modules for reading input devices](stdlib/input.md)
 
+* [`encconv` module](stdlib/encconv.md)
+
 * [Other cross-platform modules (`keyboard`, `err`, `random`)](stdlib/other.md)
 
 * [Definitions available on only some platforms](stdlib/frequent.md)

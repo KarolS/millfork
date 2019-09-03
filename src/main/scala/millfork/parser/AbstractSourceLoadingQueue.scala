@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.{CompilationFlag, CompilationOptions, Tarjan}
-import millfork.node.{ImportStatement, Position, Program}
+import millfork.node.{AliasDefinitionStatement, DeclarationStatement, ImportStatement, Position, Program}
 
 import scala.collection.mutable
 import scala.collection.convert.ImplicitConversionsToScala._
@@ -22,6 +22,20 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
   def standardModules: IndexedSeq[String]
 
   def enqueueStandardModules(): Unit
+
+  def pseudoModules: List[DeclarationStatement] = {
+    val encodingConversionAliases = (options.platform.defaultCodec.name, options.platform.screenCodec.name) match {
+      case (TextCodec.Petscii.name, TextCodec.CbmScreencodes.name) |
+           (TextCodec.PetsciiJp.name, TextCodec.CbmScreencodesJp.name)=>
+        List(AliasDefinitionStatement("__from_screencode", "petscr_to_petscii", important = false),
+          AliasDefinitionStatement("__to_screencode", "petscii_to_petscr", important = false))
+      case (TextCodec.Atascii.name, TextCodec.AtasciiScreencodes.name)=>
+        List(AliasDefinitionStatement("__from_screencode", "atasciiscr_to_atascii", important = false),
+          AliasDefinitionStatement("__to_screencode", "atascii_to_atasciiscr", important = false))
+      case _ => Nil
+    }
+    encodingConversionAliases
+  }
 
   def run(): Program = {
     for {
@@ -90,6 +104,7 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     }
     val parser = createParser(shortFileName, src, parentDir, featureConstants, pragmas.keySet)
     options.log.addSource(shortFileName, src.linesIterator.toIndexedSeq)
+    parsedModules.put("pseudomodule\u0000", Program(pseudoModules))
     parser.toAst match {
       case Success(prog, _) =>
         parsedModules.synchronized {
