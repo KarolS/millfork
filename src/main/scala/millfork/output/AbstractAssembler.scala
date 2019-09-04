@@ -274,7 +274,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
     }
 
-    val objectsThatMayBeUnused = Set("__mul_u8u8u8", "__constant8", "identity$", "__mul_u16u8u16", "__divmod_u16u8u16u8", "__mod_u8u8u8u8", "__div_u8u8u8u8") ++
+    val objectsThatMayBeUnused = Set("__constant8", "identity$",
+      "__mul_u8u8u8", "__mul_u16u8u16", "__mul_u16u16u16",
+      "__mod_u8u8u8u8", "__div_u8u8u8u8",
+      "__divmod_u16u8u16u8", "__mod_u16u8u16u8", "__div_u16u8u16u8",
+      "__divmod_u16u16u16u16", "__mod_u16u16u16u16", "__div_u16u16u16u16") ++
       compiledFunctions.keySet.filter(_.endsWith(".trampoline"))
     val unusedRuntimeObjects = objectsThatMayBeUnused.filterNot(name =>{
       compiledFunctions.exists{

@@ -897,7 +897,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     targetifyA(ctx, target, Z80Multiply.compile8BitMultiply(ctx, params), isSigned = false)
                   case 2 =>
                     //noinspection ZeroIndexToHead
-                    targetifyHL(ctx, target, Z80Multiply.compile16And8BitMultiplyToHL(ctx, params(0), params(1)))
+                    targetifyHL(ctx, target, Z80Multiply.compile16BitMultiplyToHL(ctx, params(0), params(1)))
                 }
               case "|" =>
                 getArithmeticParamMaxSize(ctx, params) match {
@@ -1073,7 +1073,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 1 =>
                     Z80Multiply.compile8BitInPlaceMultiply(ctx, l, r)
                   case 2 =>
-                    Z80Multiply.compile16And8BitInPlaceMultiply(ctx, l, r)
+                    Z80Multiply.compile16BitInPlaceMultiply(ctx, l, r)
                 }
               case "/=" | "%%=" =>
                 assertSizesForDivision(ctx, params, inPlace = true)

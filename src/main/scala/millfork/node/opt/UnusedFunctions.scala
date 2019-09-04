@@ -13,8 +13,10 @@ object UnusedFunctions extends NodeOptimization {
   private val operatorImplementations: List[(String, Int, String)] = List(
     ("*", 2, "__mul_u8u8u8"),
     ("*", 3, "__mul_u16u8u16"),
+    ("*", 4, "__mul_u16u16u16"),
     ("*=", 2, "__mul_u8u8u8"),
     ("*=", 2, "__mul_u16u8u16"),
+    ("*=", 4, "__mul_u16u16u16"),
     ("/=", 0, "__divmod_u16u8u16u8"),
     ("/", 0, "__divmod_u16u8u16u8"),
     ("%%=", 0, "__divmod_u16u8u16u8"),
@@ -31,6 +33,7 @@ object UnusedFunctions extends NodeOptimization {
     ("/", 2, "__mod_u16u8u16u8"),
     ("/=", 2, "__div_u16u8u16u8"),
     ("/", 2, "__div_u16u8u16u8"),
+    // TODO: u16u16u16u16 division
     ("+'", 4, "__adc_decimal"),
     ("+'=", 4, "__adc_decimal"),
     ("-'", 4, "__sub_decimal"),

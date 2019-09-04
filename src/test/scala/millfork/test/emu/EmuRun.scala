@@ -37,9 +37,16 @@ object EmuRun {
         ), None, 4, Map(), JobContext(TestErrorReporting.log, new LabelGenerator))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
     TestErrorReporting.log.info(s"Parsing $filename")
-    MosParser("", preprocessedSource, "", options, features).toAst match {
+    val parser = MosParser("", preprocessedSource, "", options, features)
+    parser.toAst match {
       case Success(x, _) => Some(x)
-      case _ => None
+      case f: Failure[_, _] =>
+        TestErrorReporting.log.error(f.toString)
+        TestErrorReporting.log.error(f.extra.toString)
+        TestErrorReporting.log.error(f.lastParser.toString)
+        TestErrorReporting.log.error("Syntax error", Some(parser.lastPosition))
+        TestErrorReporting.log.error("Parsing error")
+        None
     }
   }
 

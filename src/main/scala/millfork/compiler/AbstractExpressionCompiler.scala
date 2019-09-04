@@ -50,31 +50,22 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     val lSize = lType.size
     val rType = getExpressionType(ctx, params(1))
     val rSize = rType.size
+    if (lSize != 1 && lSize != 2) {
+      ctx.log.error("Long multiplication not supported", params.head.position)
+    }
+    if (rSize != 1 && rSize != 2) {
+      ctx.log.error("Long multiplication not supported", params.head.position)
+    }
     if (inPlace) {
-      if (lSize != 1 && lSize != 2) {
-        ctx.log.error("Long multiplication not supported", params.head.position)
-      }
-      if (rSize != 1) {
-        ctx.log.error("Long multiplication not supported", params.head.position)
-      }
-      if (lSize == 2 && rType.isSigned) {
+      if (lSize == 2 && rSize == 1 && rType.isSigned) {
         ctx.log.error("Signed multiplication not supported", params.head.position)
       }
     } else {
-      if (lSize > 2 || rSize > 2 || lSize + rSize > 3) {
-        ctx.log.error("Long multiplication not supported", params.head.position)
-      }
-      if (lSize == 2 && rType.isSigned) {
+      if (lSize == 2 && rSize == 1 && rType.isSigned) {
         ctx.log.error("Signed multiplication not supported", params.head.position)
       }
-      if (rSize == 2 && lType.isSigned) {
+      if (rSize == 2 && lSize == 1 && lType.isSigned) {
         ctx.log.error("Signed multiplication not supported", params.head.position)
-      }
-      if (lSize + rSize > 2) {
-        if (params.size != 2) {
-          ctx.log.error("Cannot multiply more than 2 large numbers at once", params.headOption.flatMap(_.position))
-          return
-        }
       }
     }
   }

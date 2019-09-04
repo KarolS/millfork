@@ -92,6 +92,7 @@ TODO
 `byte * byte` (zpreg)  
 `word * byte` (zpreg)  
 `byte * word` (zpreg)
+`word * word` (zpreg)
 
 * `/`, `%%`: unsigned division and unsigned modulo  
 `unsigned byte / unsigned byte` (zpreg)  
@@ -201,6 +202,7 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 `mutable byte *= constant byte`  
 `mutable byte *= byte` (zpreg)  
 `mutable word *= unsigned byte` (zpreg)
+`mutable word *= word` (zpreg)
 
 * `*'=`: decimal multiplication in place  
 `mutable byte *'= constant byte`

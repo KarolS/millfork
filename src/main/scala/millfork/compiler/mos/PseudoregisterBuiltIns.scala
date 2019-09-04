@@ -574,13 +574,61 @@ object PseudoregisterBuiltIns {
 
   private def isPowerOfTwoUpTo15(n: Long): Boolean = if (n <= 0 || n >= 0x8000) false else 0 == ((n-1) & n)
 
+  def compileWordWordMultiplication(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression): List[AssemblyLine] = {
+    if (ctx.options.zpRegisterSize < 4) {
+      ctx.log.error("Variable word-word multiplication requires the zeropage pseudoregister of size at least 4", param1OrRegister.flatMap(_.position))
+      return Nil
+    }
+    val w = ctx.env.get[Type]("word")
+    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val load: List[AssemblyLine] = param1OrRegister match {
+      case Some(param1) =>
+        val code1 = MosExpressionCompiler.compile(ctx, param1, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+        val code2 = MosExpressionCompiler.compile(ctx, param2, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+        if (!usesRegLo(code2) && !usesRegHi(code2)) {
+          code1 ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 2), AssemblyLine.zeropage(STX, reg, 3))
+        } else if (!usesReg2(code1) && !usesReg3(code1)) {
+          code2 ++ List(AssemblyLine.zeropage(STA, reg, 2), AssemblyLine.zeropage(STX, reg, 3)) ++ code1 ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1))
+        } else {
+          code2 ++ List(
+            AssemblyLine.implied(PHA),
+            AssemblyLine.implied(TXA),
+            AssemblyLine.implied(PHA)
+          ) ++ code1 ++ List(
+            AssemblyLine.zeropage(STA, reg),
+            AssemblyLine.zeropage(STX, reg, 1),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 3),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 2)
+          )
+        }
+      case None =>
+        val code2 = MosExpressionCompiler.compile(ctx, param2, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+        if (!usesRegLo(code2) && !usesRegHi(code2)) {
+          List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 2), AssemblyLine.zeropage(STX, reg, 3))
+        } else {
+          List(AssemblyLine.implied(PHA), AssemblyLine.implied(TXA), AssemblyLine.implied(PHA)) ++ code2 ++ List(
+            AssemblyLine.zeropage(STA, reg, 2),
+            AssemblyLine.zeropage(STX, reg, 3),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 1),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg)
+          )
+        }
+    }
+    load :+ AssemblyLine.absoluteOrLongAbsolute(JSR, ctx.env.get[FunctionInMemory]("__mul_u16u16u16"), ctx.options)
+  }
+
   def compileWordMultiplication(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, storeInRegLo: Boolean): List[AssemblyLine] = {
     if (ctx.options.zpRegisterSize < 3) {
-      ctx.log.error("Variable word multiplication requires the zeropage pseudoregister of size at least 3", param1OrRegister.flatMap(_.position))
+      ctx.log.error("Variable word-byte multiplication requires the zeropage pseudoregister of size at least 3", param1OrRegister.flatMap(_.position))
       return Nil
     }
     (param1OrRegister.fold(2)(e => AbstractExpressionCompiler.getExpressionType(ctx, e).size),
       AbstractExpressionCompiler.getExpressionType(ctx, param2).size) match {
+      case (2, 2) => return compileWordWordMultiplication(ctx, param1OrRegister, param2)
       case (1, 2) => return compileWordMultiplication(ctx, Some(param2), param1OrRegister.get, storeInRegLo)
       case (2 | 1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", param2.position)
@@ -714,6 +762,12 @@ object PseudoregisterBuiltIns {
   def usesReg2(code: List[AssemblyLine]): Boolean = code.exists{
     case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
     case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(2, _))) if th.name == "__reg" => true
+    case _ => false
+  }
+
+  def usesReg3(code: List[AssemblyLine]): Boolean = code.exists{
+    case AssemblyLine0(JSR | BSR | TCD | TDC, _, _) => true
+    case AssemblyLine0(_, _, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(3, _))) if th.name == "__reg" => true
     case _ => false
   }
 

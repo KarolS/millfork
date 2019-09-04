@@ -42,8 +42,9 @@ object CoarseFlowAnalyzer {
       result
     }
 
-    val preservesB: Set[String] = Set("__mul_u8u8u8")
-    val preservesC: Set[String] = if (z80) Set("__mul_u8u8u8") else Set()
+    // TODO: u16u16u16u16 division
+    val preservesB: Set[String] = Set("__mul_u8u8u8", "__mul_u16u16u16")
+    val preservesC: Set[String] = if (z80) Set("__mul_u8u8u8", "__mul_u16u16u16") else Set("__mul_u16u16u16")
     val preservesD: Set[String] = Set()
     val preservesE: Set[String] = Set("__divmod_u16u8u16u8")
     val preservesH: Set[String] = Set("__mul_u8u8u8")

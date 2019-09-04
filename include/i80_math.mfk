@@ -83,7 +83,7 @@ __divmod_u16u8u16u8_skip:
     ? RET
 }
 
-inline asm word __mul_u16u8u16() {
+noinline asm word __mul_u16u8u16() {
     ? LD HL,0
     ? LD B,8
 __mul_u16u8u16_loop:
@@ -107,3 +107,46 @@ __mul_u16u8u16_skip:
 #endif
     ? RET
 }
+
+#if CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
+noinline asm word __mul_u16u16u16() {
+    ld hl,0
+    ld a,16
+__mul_u16u16u16_loop:
+    add hl,hl
+    rl e
+    rl d
+    jr nc,__mul_u16u16u16_skip
+    add hl,bc
+__mul_u16u16u16_skip:
+    dec a
+    jr nz,__mul_u16u16u16_loop
+    ret
+}
+#else
+noinline asm word __mul_u16u16u16() {
+    ld hl,0
+    call __mul_u16u16u16_q
+    call __mul_u16u16u16_q
+    call __mul_u16u16u16_q
+    jp __mul_u16u16u16_q
+}
+noinline asm word __mul_u16u16u16_q(word hl) {
+    call __mul_u16u16u16_s
+    call __mul_u16u16u16_s
+    call __mul_u16u16u16_s
+    jp __mul_u16u16u16_s
+}
+noinline asm word __mul_u16u16u16_s(word hl) {
+    add hl,hl
+    ld a,e
+    add a,e
+    ld e,a
+    ld a,d
+    adc a,d
+    ld d,a
+    ret nc
+    add hl,bc
+    ret
+}
+#endif

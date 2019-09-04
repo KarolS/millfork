@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Added full 16-bit multiplication. 
+
 * Added preliminary support for EasyFlash.
 
 * Allowed defining custom output padding byte value.

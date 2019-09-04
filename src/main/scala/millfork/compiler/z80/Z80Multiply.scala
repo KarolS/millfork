@@ -30,6 +30,14 @@ object Z80Multiply {
   }
 
   /**
+    * Compiles HL = BC * DE
+    */
+  private def multiplication16And16(ctx: CompilationContext): List[ZLine] = {
+    List(ZLine(ZOpcode.CALL, NoRegisters,
+      ctx.env.get[ThingInMemory]("__mul_u16u16u16").toAddress))
+  }
+
+  /**
     * Calculate A = l * r
     */
   def compile8BitMultiply(ctx: CompilationContext, params: List[Expression]): List[ZLine] = {
@@ -256,13 +264,35 @@ object Z80Multiply {
       result.toList
     }
 
+  def compile16x16BitMultiplyToHL(ctx: CompilationContext, l: Expression, r: Expression): List[ZLine] = {
+    (ctx.env.eval(l), ctx.env.eval(r)) match {
+      case (None, Some(c)) =>
+        Z80ExpressionCompiler.compileToDE(ctx, l) ++ List(ZLine.ldImm16(ZRegister.BC, c)) ++ multiplication16And16(ctx)
+      case (Some(c), None) =>
+        Z80ExpressionCompiler.compileToDE(ctx, r) ++ List(ZLine.ldImm16(ZRegister.BC, c)) ++ multiplication16And16(ctx)
+      case (Some(c), Some(d)) =>
+        List(ZLine.ldImm16(ZRegister.HL, CompoundConstant(MathOperator.Times, c, d).quickSimplify.subword(0)))
+      case _ =>
+        val ld = Z80ExpressionCompiler.compileToDE(ctx, l)
+        val rb = Z80ExpressionCompiler.compileToBC(ctx, r)
+        val loadRegisters = (ld.exists(Z80ExpressionCompiler.changesBC), rb.exists(Z80ExpressionCompiler.changesDE)) match {
+          case (true, true) => ld ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, rb)
+          case (false, true) => rb ++ ld
+          case (true, false) => ld ++ rb
+          case (false, false) => ld ++ rb
+        }
+        loadRegisters ++ multiplication16And16(ctx)
+    }
+  }
+
   /**
     * Calculate HL = l * r
     */
-  def compile16And8BitMultiplyToHL(ctx: CompilationContext, l: Expression, r: Expression): List[ZLine] = {
+  def compile16BitMultiplyToHL(ctx: CompilationContext, l: Expression, r: Expression): List[ZLine] = {
     (AbstractExpressionCompiler.getExpressionType(ctx, l).size,
       AbstractExpressionCompiler.getExpressionType(ctx, r).size) match {
-      case (1, 2) => return compile16And8BitMultiplyToHL(ctx, r, l)
+      case (2, 2) => return compile16x16BitMultiplyToHL(ctx, l, r)
+      case (1, 2) => return compile16BitMultiplyToHL(ctx, r, l)
       case (2 | 1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", l.position)
     }
@@ -280,8 +310,8 @@ object Z80Multiply {
   /**
     * Calculate l = l * r
     */
-  def compile16And8BitInPlaceMultiply(ctx: CompilationContext, l: LhsExpression, r: Expression): List[ZLine] = {
-    compile16And8BitMultiplyToHL(ctx, l, r) ++ Z80ExpressionCompiler.storeHL(ctx, l, signedSource = false)
+  def compile16BitInPlaceMultiply(ctx: CompilationContext, l: LhsExpression, r: Expression): List[ZLine] = {
+    compile16BitMultiplyToHL(ctx, l, r) ++ Z80ExpressionCompiler.storeHL(ctx, l, signedSource = false)
   }
 
   /**

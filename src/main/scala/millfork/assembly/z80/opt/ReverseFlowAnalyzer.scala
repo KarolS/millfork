@@ -183,11 +183,12 @@ object ReverseFlowAnalyzer {
 
   val cache = new FlowCache[ZLine, CpuImportance]("z80 reverse")
 
+  // TODO: u16u16u16u16 division
   val readsA: Set[String] = Set("__mul_u8u8u8", "__mul_u16u8u16", "call")
-  val readsB: Set[String] = Set("")
-  val readsC: Set[String] = Set("")
-  val readsD: Set[String] = Set("__mul_u8u8u8","__mul_u16u8u16", "__divmod_u16u8u16u8", "call")
-  val readsE: Set[String] = Set("__mul_u16u8u16", "call")
+  val readsB: Set[String] = Set("__mul_u16u16u16")
+  val readsC: Set[String] = Set("__mul_u16u16u16")
+  val readsD: Set[String] = Set("__mul_u8u8u8","__mul_u16u8u16", "__divmod_u16u8u16u8", "call", "__mul_u16u16u16")
+  val readsE: Set[String] = Set("__mul_u16u8u16", "call", "__mul_u16u16u16")
   val readsH: Set[String] = Set("__divmod_u16u8u16u8", "call")
   val readsL: Set[String] = Set("__divmod_u16u8u16u8", "call")
 

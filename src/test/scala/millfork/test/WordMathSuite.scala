@@ -1,6 +1,6 @@
 package millfork.test
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCmosBenchmarkRun, EmuCrossPlatformBenchmarkRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCmosBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -626,6 +626,42 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readByte(0xc002) should equal(x % y) withClue s"= $x %% $y"
       m.readWord(0xc004) should equal(x / y) withClue s"= $x / $y"
       m.readByte(0xc006) should equal(x % y) withClue s"= $x %% $y"
+    }
+  }
+
+  test("Word/word multiplication 1") {
+    multiplyCaseWW1(0, 0)
+    multiplyCaseWW1(0, 5)
+    multiplyCaseWW1(7, 0)
+    multiplyCaseWW1(2, 5)
+    multiplyCaseWW1(7, 2)
+    multiplyCaseWW1(100, 2)
+    multiplyCaseWW1(1000, 2)
+    multiplyCaseWW1(2, 1000)
+    multiplyCaseWW1(1522, 1000)
+    multiplyCaseWW1(54, 4)
+    multiplyCaseWW1(35000, 9)
+    multiplyCaseWW1(43, 35000)
+    multiplyCaseWW1(53459, 48233)
+  }
+
+  private def multiplyCaseWW1(x: Int, y: Int): Unit = {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+      s"""
+         | import zp_reg
+         | word output0 @$$c000
+         | word output1 @$$c002
+         | word output2 @$$c004
+         | void main () {
+         |  output0 = $x
+         |  output0 *= word($y)
+         |  output1 = id($x) * id($y)
+         | }
+         | noinline word id(word w) = w
+          """.
+        stripMargin){m =>
+      m.readWord(0xc000) should equal((x * y) & 0xffff) withClue s"= $x * $y (c000)"
+      m.readWord(0xc002) should equal((x * y) & 0xffff) withClue s"= $x * $y (c002)"
     }
   }
 }
