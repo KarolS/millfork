@@ -99,4 +99,7 @@ The compiler emits COM files.
 
 * `dos_com` – a COM file for DOS on IBM PC. (very experimental)
 
+* `x16_experimental` – Commander X16; very experimental,
+as both the target configuration *and* the device itself are in their experimental phases.
+
 The primary and most tested platform is Commodore 64.

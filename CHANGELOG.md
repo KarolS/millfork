@@ -2,11 +2,15 @@
 
 ## Current version
 
+* `sizeof` now supports arrays.
+
 * Added `-R` option for specifying extra commandline parameters for emulators.
 
 * Added full 16-bit multiplication. 
 
 * Added preliminary support for EasyFlash.
+
+* Added preliminary support for Commander X16.
 
 * Allowed defining custom output padding byte value.
 

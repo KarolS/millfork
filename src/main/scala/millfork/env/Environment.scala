@@ -599,8 +599,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case Some(thing) => thing match {
             case t: Type => t.size
             case v: Variable => v.typ.size
-            case a: InitializedArray => a.elementType.size * a.contents.length
-            case a: UninitializedArray => a.sizeInBytes
+            case a: MfArray => a.sizeInBytes
+            case ConstantThing(_,  MemoryAddressConstant(a: MfArray), _) => a.sizeInBytes
             case x =>
               log.error("Invalid parameter for expr: " + name)
               1

@@ -4,7 +4,7 @@
 
 * [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – simple text output
 
-* [Fizzbuzz](crossplatform/fizzbuzz.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – everyone's favourite programming task
+* [Fizzbuzz](crossplatform/fizzbuzz.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/X16) – everyone's favourite programming task
 
 * [Fizzbuzz 2](crossplatform/fizzbuzz2.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – an alternative, more extensible implemententation of fizzbuzz
 
@@ -61,3 +61,9 @@ how to create a program made of multiple files loaded on demand
 
 * [Encoding test](msx/encoding_test.mfk) – text encoding test; displays three lines of text in three different languages,
 no more one of which will display correctly depending on the default font of your computer.
+
+# Commander X16 examples
+
+* [Palette](x16/palette.mfk) – displays the default 256-colour palette.
+
+* [Balls](x16/palette.mfk) – 16 sprites using 240 colours.

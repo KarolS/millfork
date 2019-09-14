@@ -84,7 +84,7 @@ See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
 
 * `WIDESCREEN` – 1 if the horizontal screen resolution, ignoring borders, is greater than 256, 0 otherwise
 
-* `CBM` – 1 if the target is an 8-bit Commodore computer, 0 otherwise
+* `CBM` – 1 if the target is an 8-bit Commodore computer (or a compatible one), 0 otherwise
 
 * `CBM_64_COMPAT` – 1 if the target is an 8-bit Commodore computer compatible with Commodore 64, 0 otherwise
 
