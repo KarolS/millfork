@@ -60,6 +60,8 @@ Unlike `-I`, this does not replace the default include directory and allows usin
 
 * `-r <program>` – Run given program after successful compilation. Useful for automatically launching emulators without any external scripting.
 
+* `-R <param>` – Adds a parameter to the command line of the program run with `-r`. All `-R` options are added in order, before the output file name.
+
 * `-D <feature>=<value>` – Defines a feature value for the preprocessor.
 
 * `-finput_intel_syntax`, `-finput_zilog_syntax` –

@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Added `-R` option for specifying extra commandline parameters for emulators.
+
 * Added full 16-bit multiplication. 
 
 * Added preliminary support for EasyFlash.

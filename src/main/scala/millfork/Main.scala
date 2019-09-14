@@ -135,8 +135,9 @@ object Main {
     errorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
     c.runFileName.foreach{ program =>
       val outputAbsolutePath = Paths.get(defaultPrgOutput).toAbsolutePath.toString
-      errorReporting.debug(s"Running: $program $outputAbsolutePath")
-      new ProcessBuilder(program, outputAbsolutePath).start()
+      val cmdline = program +: c.runParams :+ outputAbsolutePath
+      errorReporting.debug(s"Running: ${cmdline.mkString(" ")}")
+      new ProcessBuilder(cmdline.toArray: _*).directory(new File(program).getParentFile).start()
     }
     if (platform.generateBbcMicroInfFile) {
       val start = platform.codeAllocators("default").startAt
@@ -408,6 +409,10 @@ object Main {
       assertNone(c.runFileName, "Run program already defined")
       c.copy(runFileName = Some(p))
     }.description("Program to run after successful compilation.")
+
+    parameter("-R", "--run-param").placeholder("<param>").action { (p, c) =>
+      c.copy(runParams = c.runParams :+ p)
+    }.description("Adds a commandline parameter to the program launched with -r")
 
     parameter("-D", "--define").placeholder("<feature>=<value>").action { (p, c) =>
       val tokens = p.split('=')

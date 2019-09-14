@@ -37,9 +37,9 @@ x64 hello_world.prg
 
 The following options are obligatory when compiling your sources:
 
-* `-o FILENAME` – specifies the base name for your output file, an appropriate file extension will be appended.
+* `-o <FILENAME>` – specifies the base name for your output file, an appropriate file extension will be appended.
 
-* `-t PLATFORM` – specifies the target platform.
+* `-t <PLATFORM>` – specifies the target platform.
 Each platform is defined in an `.ini` file in the include directory.
 For the list of supported platforms, see [Supported platforms](target-platforms.md)
 
@@ -58,7 +58,7 @@ You may be also interested in the following:
 
 * `-g` – additionally generate a label file
 
-* `-r PROGRAM` – automatically launch given program after successful compilation
+* `-r <PROGRAM>` – automatically launch given program after successful compilation; you can supply extra params for it with `-R <PARAM>`
 
 * `-Wall` – enable all warnings
 
