@@ -302,4 +302,24 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc000) should equal(0x203)
     }
   }
+
+  test("Word pointers and byte-to-word promotions") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080) (
+      """
+        |pointer.word p
+        |word output @$c000
+        |void main () {
+        | p = output.pointer
+        | p[0] = f()
+        |}
+        |noinline word g() = $100
+        |noinline byte f() {
+        |  g()
+        |  return 5
+        |}
+      """.stripMargin
+    ){ m =>
+      m.readWord(0xc000) should equal(5)
+    }
+  }
 }

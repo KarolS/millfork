@@ -22,6 +22,8 @@
 
 * Added `vectrex` text encoding.
 
+* 6502: Fixed arithmetic promotion bugs for function return values.
+
 * Fixed several serious bugs related to cartridge-based targets.
 
 ## 0.3.6

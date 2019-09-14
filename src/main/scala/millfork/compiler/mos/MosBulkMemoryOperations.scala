@@ -354,7 +354,7 @@ object MosBulkMemoryOperations {
     val loadTarget = if (target.typ.size == 2) MosExpressionCompiler.compileToAX(ctx, targetExpression) else MosExpressionCompiler.compileToA(ctx, targetExpression)
     val storeTarget =
       if (target.typ.size == 2) MosExpressionCompiler.expressionStorageFromAX(ctx, Some(target.typ -> target), targetExpression.position)
-      else MosExpressionCompiler.expressionStorageFromA(ctx, Some(target.typ -> target), targetExpression.position)
+      else MosExpressionCompiler.expressionStorageFromA(ctx, Some(target.typ -> target), targetExpression.position, signedSource = false)
 
     Some(loadTarget ++ frame._1 ++ body ++ frame._2 ++ storeTarget)
   }
