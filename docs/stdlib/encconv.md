@@ -63,7 +63,7 @@ Control characters ≥$80 are not supported.
 
 Available only on 6502-based platforms.
 
-#### byte atasciiscr_to_atasciiscii(byte)
+#### byte atasciiscr_to_atascii(byte)
 
 Converts a byte from a Atari screencode to ATASCII.  
 Characters that share their ATASCII code with control characters are supported,
