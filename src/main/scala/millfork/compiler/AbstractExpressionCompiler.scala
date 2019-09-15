@@ -77,14 +77,23 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     val lSize = lType.size
     val rType = getExpressionType(ctx, params(1))
     val rSize = rType.size
-    if (lSize > 2 || rSize > 2) {
+    if (lSize != 1 && lSize != 2) {
       ctx.log.error("Long division not supported", params.head.position)
     }
-    if (rSize > 1) {
-      ctx.log.error("Division by words not supported", params.head.position)
+    if (rSize != 1 && rSize != 2) {
+      ctx.log.error("Long division not supported", params.head.position)
     }
-    if (lType.isSigned || rType.isSigned) {
-      ctx.log.error("Signed division not supported", params.head.position)
+    if (inPlace) {
+      if (lSize == 2 && rSize == 1 && rType.isSigned) {
+        ctx.log.error("Signed division not supported", params.head.position)
+      }
+    } else {
+      if (lSize == 2 && rSize == 1 && rType.isSigned) {
+        ctx.log.error("Signed division not supported", params.head.position)
+      }
+      if (rSize == 2 && lSize == 1 && lType.isSigned) {
+        ctx.log.error("Signed division not supported", params.head.position)
+      }
     }
   }
 

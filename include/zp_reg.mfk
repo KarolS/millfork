@@ -200,7 +200,6 @@ noinline asm word __divmod_u16u16u16u16() {
     ? PHA
     ? LDA __reg+2
     ? PHA
-    ? TSX
 #else
     ? LDA __reg+2
     ? STA __reg+4
@@ -218,6 +217,7 @@ noinline asm word __divmod_u16u16u16u16() {
 #if ZPREG_SIZE < 6
     ? LDA #16
     ? PHA
+    ? TSX
 #else
     ? LDX #16
 #endif

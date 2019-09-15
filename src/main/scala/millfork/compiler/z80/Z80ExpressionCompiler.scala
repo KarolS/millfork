@@ -1092,27 +1092,29 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         Nil
                     }
                   case 2 =>
-                    if (f.functionName == "%%=") {
+                    val modulo = f.functionName == "%%="
+                    val rhsWord = getExpressionType(ctx, r).size == 2
+                    if (modulo && !rhsWord) {
                       calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
                         case Some((LocalVariableAddressViaHL, List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)))) =>
-                          Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r, modulo = true) ++ List(
+                          Z80Multiply.compileUnsignedWordDivision(ctx, Right(l), r, modulo = true, rhsWord = false) ++ List(
                             ZLine.ldAbs8(addr, ZRegister.A),
                             ZLine.register(XOR, ZRegister.A),
                             ZLine.ldAbs8(addr+1, ZRegister.A)
                           )
                         case Some((lvo@LocalVariableAddressViaHL, code)) =>
-                          code ++ stashHLIfChanged(ctx, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r, modulo = true)) ++ List(
+                          code ++ stashHLIfChanged(ctx, Z80Multiply.compileUnsignedWordDivision(ctx, Left(lvo), r, modulo = true, rhsWord = false)) ++ List(
                             ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
                             ZLine.register(INC_16, ZRegister.HL),
                             ZLine.ldImm8(ZRegister.MEM_HL, 0)
                           )
                         case Some((lvo@LocalVariableAddressViaIX(offset), code)) =>
-                          code ++ Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r, modulo = true) ++ List(
+                          code ++ Z80Multiply.compileUnsignedWordDivision(ctx, Left(lvo), r, modulo = true, rhsWord = false) ++ List(
                             ZLine.ldViaIx(offset, ZRegister.A),
                             ZLine.ld0ViaIx(offset + 1)
                           )
                         case Some((lvo@LocalVariableAddressViaIY(offset), code)) =>
-                          code ++ Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r, modulo = true) ++ List(
+                          code ++ Z80Multiply.compileUnsignedWordDivision(ctx, Left(lvo), r, modulo = true, rhsWord = false) ++ List(
                             ZLine.ldViaIy(offset, ZRegister.A),
                             ZLine.ld0ViaIy(offset + 1)
                           )
@@ -1125,7 +1127,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         case Some((lvo@LocalVariableAddressViaHL, code)) =>
                           code ++
                             stashHLIfChanged(ctx,
-                              Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(LocalVariableAddressViaHL), r, modulo = false) ++ (
+                              Z80Multiply.compileUnsignedWordDivision(ctx, Left(LocalVariableAddressViaHL), r, modulo, rhsWord) ++ (
                                 if (ctx.options.flags(CompilationFlag.EmitIntel8080Opcodes)) List(ZLine.implied(EX_DE_HL))
                                 else List(ZLine.ld8(ZRegister.E, ZRegister.L), ZLine.ld8(ZRegister.D, ZRegister.H))
                                 )
@@ -1137,11 +1139,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                           )
                         case Some((lvo@LocalVariableAddressViaIX(offset), code)) =>
                           code ++
-                            Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r, modulo = false) ++
+                            Z80Multiply.compileUnsignedWordDivision(ctx, Left(lvo), r, modulo, rhsWord) ++
                             storeHLViaIX(ctx, offset, 2, signedSource = false)
                         case Some((lvo@LocalVariableAddressViaIY(offset), code)) =>
                           code ++
-                            Z80Multiply.compileUnsignedWordByByteDivision(ctx, Left(lvo), r, modulo = false) ++
+                            Z80Multiply.compileUnsignedWordDivision(ctx, Left(lvo), r, modulo, rhsWord) ++
                             storeHLViaIY(ctx, offset, 2, signedSource = false)
                         case _ =>
                           ctx.log.error("Invalid left-hand side", l.position)
@@ -1153,14 +1155,15 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 assertSizesForDivision(ctx, params, inPlace = false)
                 val (l, r, size) = assertArithmeticBinary(ctx, params)
                 val modulo = f.functionName == "%%"
+                val rhsWord = getExpressionType(ctx, r).size == 2
                 size match {
                   case 1 =>
                     targetifyA(ctx, target, Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, modulo), isSigned = false)
                   case 2 =>
-                    if (modulo) {
-                      targetifyA(ctx, target, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r, modulo = true), isSigned = false)
+                    if (modulo && !rhsWord) {
+                      targetifyA(ctx, target, Z80Multiply.compileUnsignedWordDivision(ctx, Right(l), r, modulo = true, rhsWord = false), isSigned = false)
                     } else {
-                      targetifyHL(ctx, target, Z80Multiply.compileUnsignedWordByByteDivision(ctx, Right(l), r, modulo = false))
+                      targetifyHL(ctx, target, Z80Multiply.compileUnsignedWordDivision(ctx, Right(l), r, modulo, rhsWord))
                     }
                 }
               case "*'=" =>

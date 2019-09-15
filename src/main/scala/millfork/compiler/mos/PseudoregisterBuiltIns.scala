@@ -683,9 +683,58 @@ object PseudoregisterBuiltIns {
     load ++ calculate
   }
 
+  def compileWordWordDivision(ctx: CompilationContext, param1OrRegister: Option[Expression], param2: Expression, modulo: Boolean): List[AssemblyLine] = {
+    if (ctx.options.zpRegisterSize < 4) {
+      ctx.log.error("Variable word-word division requires the zeropage pseudoregister of size at least 4", param1OrRegister.flatMap(_.position))
+      return Nil
+    }
+    val w = ctx.env.get[Type]("word")
+    val reg = ctx.env.get[VariableInMemory]("__reg")
+    val load: List[AssemblyLine] = param1OrRegister match {
+      case Some(param1) =>
+        val code1 = MosExpressionCompiler.compile(ctx, param1, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+        val code2 = MosExpressionCompiler.compile(ctx, param2, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+        if (!usesRegLo(code2) && !usesRegHi(code2)) {
+          code1 ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 2), AssemblyLine.zeropage(STX, reg, 3))
+        } else if (!usesReg2(code1) && !usesReg3(code1)) {
+          code2 ++ List(AssemblyLine.zeropage(STA, reg, 2), AssemblyLine.zeropage(STX, reg, 3)) ++ code1 ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1))
+        } else {
+          code2 ++ List(
+            AssemblyLine.implied(PHA),
+            AssemblyLine.implied(TXA),
+            AssemblyLine.implied(PHA)
+          ) ++ code1 ++ List(
+            AssemblyLine.zeropage(STA, reg),
+            AssemblyLine.zeropage(STX, reg, 1),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 3),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 2)
+          )
+        }
+      case None =>
+        val code2 = MosExpressionCompiler.compile(ctx, param2, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)
+        if (!usesRegLo(code2) && !usesRegHi(code2)) {
+          List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ code2 ++ List(AssemblyLine.zeropage(STA, reg, 2), AssemblyLine.zeropage(STX, reg, 3))
+        } else {
+          List(AssemblyLine.implied(PHA), AssemblyLine.implied(TXA), AssemblyLine.implied(PHA)) ++ code2 ++ List(
+            AssemblyLine.zeropage(STA, reg, 2),
+            AssemblyLine.zeropage(STX, reg, 3),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg, 1),
+            AssemblyLine.implied(PLA),
+            AssemblyLine.zeropage(STA, reg)
+          )
+        }
+    }
+    val functionName = if(modulo) "__mod_u16u16u16u16" else "__div_u16u16u16u16"
+    load :+ AssemblyLine.absoluteOrLongAbsolute(JSR, ctx.env.get[FunctionInMemory](functionName), ctx.options)
+  }
+
   def compileUnsignedWordByByteDivision(ctx: CompilationContext, param1: Expression, param2: Expression, modulo: Boolean): List[AssemblyLine] = {
     (AbstractExpressionCompiler.getExpressionType(ctx, param1).size,
       AbstractExpressionCompiler.getExpressionType(ctx, param2).size) match {
+      case (2 | 1, 2) => return compileWordWordDivision(ctx, Some(param1), param2, modulo)
       case (2 | 1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", param2.position)
     }

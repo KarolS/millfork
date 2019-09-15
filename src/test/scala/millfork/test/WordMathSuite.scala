@@ -664,4 +664,40 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc002) should equal((x * y) & 0xffff) withClue s"= $x * $y (c002)"
     }
   }
+
+  test("Word/word division 1") {
+    divisionCaseWW1(0, 1)
+    divisionCaseWW1(0, 1000)
+    divisionCaseWW1(1, 1000)
+    divisionCaseWW1(1, 1)
+    divisionCaseWW1(1000, 1)
+    divisionCaseWW1(1000, 1000)
+    divisionCaseWW1(1000, 33)
+    divisionCaseWW1(33000, 999)
+    divisionCaseWW1(33000, 256)
+    divisionCaseWW1(33000, 16)
+    divisionCaseWW1(33000, 1024)
+  }
+
+  private def divisionCaseWW1(x: Int, y: Int): Unit = {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      s"""
+         | import zp_reg
+         | word output0 @$$c000
+         | word output1 @$$c002
+         | void main () {
+         |  output0 = $x
+         |  memory_barrier()
+         |  output0 /= word($y)
+         |  output1 = $x
+         |  memory_barrier()
+         |  output1 %%= word($y)
+         | }
+         | noinline word id(word w) = w
+          """.
+        stripMargin){m =>
+      m.readWord(0xc000) should equal((x / y) & 0xffff) withClue s"= $x / $y (c000)"
+      m.readWord(0xc002) should equal((x % y) & 0xffff) withClue s"= $x %% $y (c002)"
+    }
+  }
 }

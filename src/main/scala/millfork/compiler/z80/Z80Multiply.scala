@@ -116,9 +116,9 @@ object Z80Multiply {
   }
 
   /**
-    * Calculate HL = p / q and A = p %% q
+    * Calculate HL = p / q and/or (if rhsWord then HL else A) = p %% q
     */
-  def compileUnsignedWordByByteDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, Expression], q: Expression, modulo: Boolean): List[ZLine] = {
+  def compileUnsignedWordDivision(ctx: CompilationContext, p: Either[LocalVariableAddressOperand, Expression], q: Expression, modulo: Boolean, rhsWord: Boolean): List[ZLine] = {
     val pb = p match {
       case Right(pp) => Z80ExpressionCompiler.compileToHL(ctx, pp)
       case Left(LocalVariableAddressViaHL) => List(
@@ -136,14 +136,16 @@ object Z80Multiply {
         return pb
       case Some(NumericConstant(1, _)) =>
         if (modulo) {
-          return pb :+ ZLine.ldImm8(ZRegister.A, 0)
+          if (rhsWord) return pb :+ ZLine.ldImm16(ZRegister.HL, 0)
+          else return pb :+ ZLine.ldImm8(ZRegister.A, 0)
         } else {
           return pb
         }
       case Some(NumericConstant(qc, _)) if qc <= 255 && isPowerOfTwoUpTo15(qc) =>
         val count = Integer.numberOfTrailingZeros(qc.toInt)
         if (modulo) {
-          return pb ++ List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.imm8(ZOpcode.AND, qc.toInt - 1))
+          if (rhsWord) return pb ++ List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.imm8(ZOpcode.AND, qc.toInt - 1), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0))
+          else return pb ++ List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.imm8(ZOpcode.AND, qc.toInt - 1))
         } else {
           val extendedOps = ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)
           val shiftHL = if (extendedOps) {
@@ -164,17 +166,43 @@ object Z80Multiply {
           }
           return pb ++ shiftHL
         }
+      case Some(NumericConstant(256, _)) if rhsWord =>
+        if (modulo) return pb ++ List(ZLine.ldImm8(ZRegister.H, 0))
+        else  return pb ++ List(ZLine.ld8(ZRegister.L, ZRegister.H), ZLine.ldImm8(ZRegister.H, 0))
+      case Some(NumericConstant(qc, _)) if modulo && rhsWord && qc <= 0xffff && isPowerOfTwoUpTo15(qc) =>
+        return pb ++ List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.imm8(ZOpcode.AND, (qc.toInt >> 8) - 1), ZLine.ld8(ZRegister.H, ZRegister.A))
       case _ =>
     }
-    val qb = Z80ExpressionCompiler.compileToA(ctx, q)
-    val load = if (qb.exists(Z80ExpressionCompiler.changesHL)) {
-      pb ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, qb) ++ List(ZLine.ld8(ZRegister.D, ZRegister.A))
-    } else if (pb.exists(Z80ExpressionCompiler.changesDE)) {
-      qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, pb)
+    if (!rhsWord) {
+      val qb = Z80ExpressionCompiler.compileToA(ctx, q)
+      val load = if (qb.exists(Z80ExpressionCompiler.changesHL)) {
+        pb ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, qb) ++ List(ZLine.ld8(ZRegister.D, ZRegister.A))
+      } else if (pb.exists(Z80ExpressionCompiler.changesDE)) {
+        qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A)) ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, pb)
+      } else {
+        pb ++ qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A))
+      }
+      load :+ ZLine(ZOpcode.CALL, NoRegisters, ctx.env.get[FunctionInMemory]("__divmod_u16u8u16u8").toAddress)
     } else {
-      pb ++ qb ++ List(ZLine.ld8(ZRegister.D, ZRegister.A))
+      val qb = Z80ExpressionCompiler.compileToDE(ctx, q)
+      val load = if (qb.exists(Z80ExpressionCompiler.changesHL)) {
+        pb ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, qb)
+      } else if (pb.exists(Z80ExpressionCompiler.changesDE)) {
+        qb ++ Z80ExpressionCompiler.stashDEIfChanged(ctx, pb)
+      } else {
+        pb ++ qb
+      }
+      if (modulo) {
+        load :+ ZLine(ZOpcode.CALL, NoRegisters, ctx.env.get[FunctionInMemory]("__divmod_u16u16u16u16").toAddress)
+      } else if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
+        load ++ List(ZLine(ZOpcode.CALL, NoRegisters, ctx.env.get[FunctionInMemory]("__divmod_u16u16u16u16").toAddress), ZLine.implied(ZOpcode.EX_DE_HL))
+      } else {
+        load ++ List(
+          ZLine(ZOpcode.CALL, NoRegisters, ctx.env.get[FunctionInMemory]("__divmod_u16u16u16u16").toAddress),
+          ZLine.ld8(ZRegister.H, ZRegister.D),
+          ZLine.ld8(ZRegister.L, ZRegister.E))
+      }
     }
-    load :+ ZLine(ZOpcode.CALL, NoRegisters, ctx.env.get[FunctionInMemory]("__divmod_u16u8u16u8").toAddress)
   }
 
   /**
@@ -216,7 +244,7 @@ object Z80Multiply {
           compileUnsignedByteDivisionImpl(ctx, p, qq.toInt, modulo)
         }
       case _ =>
-        val call = compileUnsignedWordByByteDivision(ctx, p, q, modulo = modulo)
+        val call = compileUnsignedWordDivision(ctx, p, q, modulo = modulo, rhsWord = false)
         if (modulo) {
           call
         } else {

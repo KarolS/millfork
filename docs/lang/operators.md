@@ -97,6 +97,7 @@ TODO
 * `/`, `%%`: unsigned division and unsigned modulo  
 `unsigned byte / unsigned byte` (zpreg)  
 `word / unsigned byte` (zpreg)  
+`word / word` (zpreg)  
 `constant word / constant word`  
 `constant long / constant long`
 
@@ -210,6 +211,7 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 * `/=`, `%%=`: unsigned division and modulo in place  
 `mutable unsigned byte /= unsigned byte` (zpreg)  
 `mutable word /= unsigned byte` (zpreg)
+`mutable word /= word` (zpreg)
 
 There are no `||=`, `&&=` or `>>>>=` operators.
 
