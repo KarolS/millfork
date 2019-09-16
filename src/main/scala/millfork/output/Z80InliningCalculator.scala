@@ -1,9 +1,8 @@
 package millfork.output
 
-import millfork.JobContext
+import millfork.{CompilationOptions, JobContext}
 import millfork.assembly.Elidability
 import millfork.assembly.z80._
-import millfork.compiler.AbstractCompiler
 import millfork.env._
 
 import scala.collection.GenTraversableOnce
@@ -17,6 +16,14 @@ object Z80InliningCalculator extends AbstractInliningCalculator[ZLine] {
 
   private val badOpcodes = Set(RET, RETI, RETN, CALL, BYTE, POP, PUSH)
   private val jumpingRelatedOpcodes = Set(LABEL, JP, JR)
+
+  override def calculateExpectedSizeAfterInlining(options: CompilationOptions, params: ParamSignature, code: List[ZLine]): Int = {
+    var sum = 0
+    for (c <- code) {
+      sum += c.sizeInBytes
+    }
+    sum
+  }
 
   override def codeForInlining(fname: String, functionsThatCanBeCalledFromInlinedFunctions: Set[String], code: List[ZLine]): Option[List[ZLine]] = {
     if (code.isEmpty) return None

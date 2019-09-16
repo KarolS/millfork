@@ -445,6 +445,8 @@ trait ParamSignature {
   def canBePointedTo: Boolean
 
   def requireTrampoline(compilationOptions: CompilationOptions): Boolean
+
+  def paramThingNames: Set[String]
 }
 
 case class NormalParamSignature(params: List[VariableInMemory]) extends ParamSignature {
@@ -458,6 +460,8 @@ case class NormalParamSignature(params: List[VariableInMemory]) extends ParamSig
     case CpuFamily.M6502 => params.exists(_.typ.size.>=(2))
     case _ => false
   }
+
+  def paramThingNames: Set[String] = params.map(_.name).toSet
 
 }
 
@@ -525,6 +529,8 @@ case class AssemblyParamSignature(params: List[AssemblyParam]) extends ParamSign
 
   override def requireTrampoline(compilationOptions: CompilationOptions): Boolean =
     false // all pointable functions with this kind of signature by definition use the pure register-cased parameter passing convention
+
+  def paramThingNames: Set[String] = params.map(_.variable.name).toSet
 }
 
 case class EmptyFunctionParamSignature(paramType: Type) extends ParamSignature {
@@ -535,4 +541,6 @@ case class EmptyFunctionParamSignature(paramType: Type) extends ParamSignature {
   def canBePointedTo: Boolean = false
 
   override def requireTrampoline(compilationOptions: CompilationOptions): Boolean = false
+
+  def paramThingNames: Set[String] = Set.empty
 }

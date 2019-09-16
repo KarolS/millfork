@@ -236,7 +236,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val code = compileFunction(function, optimizations, options, inlinedFunctions, labelMap.toMap, niceFunctionProperties.toSet)
         val strippedCodeForInlining = for {
           limit <- potentiallyInlineable.get(f)
-          if code.map(_.sizeInBytes).sum <= limit
+          if inliningCalculator.calculateExpectedSizeAfterInlining(options, function.params, code) <= limit
           s <- inliningCalculator.codeForInlining(f, functionsThatCanBeCalledFromInlinedFunctions, code)
         } yield s
         strippedCodeForInlining match {

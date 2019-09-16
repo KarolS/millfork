@@ -1,6 +1,6 @@
 package millfork.output
 
-import millfork.JobContext
+import millfork.{CompilationOptions, JobContext}
 import millfork.assembly.Elidability
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos.{AddrMode, _}
@@ -16,10 +16,38 @@ import scala.collection.mutable
 
 object MosInliningCalculator extends AbstractInliningCalculator[AssemblyLine] {
 
-  private val sizes = Seq(64, 64, 8, 6, 5, 5, 4)
-
   private val badOpcodes = Set(RTI, RTS, JSR, BRK, RTL, BSR, BYTE) ++ OpcodeClasses.ChangesStack
   private val jumpingRelatedOpcodes = Set(LABEL, JMP) ++ OpcodeClasses.ShortBranching
+  def calculateExpectedSizeAfterInlining(options: CompilationOptions, params: ParamSignature, code: List[AssemblyLine]): Int =  {
+      var sum = 0
+      var beforeParams = true
+      val paramNames = params.paramThingNames
+      for ((c, ix) <- code.zipWithIndex) {
+        import Opcode._
+        import millfork.assembly.mos.AddrMode._
+        sum += (c match {
+          case AssemblyLine0(LABEL, _, _) if ix == 0  => 0
+
+          case AssemblyLine0(
+          LDA | LDX | LDY | LDZ,
+          Absolute | ZeroPage,
+          MemoryAddressConstant(thing))
+            if beforeParams && paramNames(extractThingName(thing.name))
+          => 1 // a guess of how likely parameter copying can be avoided
+
+          case AssemblyLine0(
+          STA | STX | STY | STZ,
+          Absolute | ZeroPage | LongAbsolute,
+          _)
+          => c.sizeInBytes
+
+          case _ =>
+            beforeParams = false
+            c.sizeInBytes
+        })
+      }
+    sum
+    }
 
   def codeForInlining(fname: String, functionsThatCanBeCalledFromInlinedFunctions: Set[String], code: List[AssemblyLine]): Option[List[AssemblyLine]] = {
     if (code.isEmpty) return None

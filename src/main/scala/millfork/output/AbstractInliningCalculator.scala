@@ -1,10 +1,11 @@
 package millfork.output
 
-import millfork.JobContext
-import millfork.assembly.{AbstractCode, Elidability}
+import millfork.assembly.m6809.MOpcode
 import millfork.assembly.mos.Opcode
 import millfork.assembly.z80.ZOpcode
-import millfork.compiler.AbstractCompiler
+import millfork.{CompilationOptions, JobContext}
+import millfork.assembly.{AbstractCode, Elidability}
+import millfork.env.ParamSignature
 import millfork.node._
 
 import scala.collection.mutable
@@ -16,8 +17,10 @@ import scala.collection.mutable
 case class InliningResult(potentiallyInlineableFunctions: Map[String, Int], nonInlineableFunctions: Set[String])
 
 abstract class AbstractInliningCalculator[T <: AbstractCode] {
+
   def codeForInlining(fname: String, functionsThatCanBeCalledFromInlinedFunctions: Set[String], code: List[T]): Option[List[T]]
   def inline(code: List[T], inlinedFunctions: Map[String, List[T]], jobContext: JobContext): List[T]
+  def calculateExpectedSizeAfterInlining(options: CompilationOptions, params: ParamSignature, code: List[T]): Int
 
   private val sizes = Seq(64, 64, 8, 6, 5, 5, 4)
 
@@ -74,6 +77,7 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
     case Assignment(VariableExpression(_), expr) => getAllCalledFunctions(expr :: Nil)
     case MosAssemblyStatement(Opcode.JSR, _, VariableExpression(name), Elidability.Elidable) => (name -> false) :: Nil
     case Z80AssemblyStatement(ZOpcode.CALL, _, _, VariableExpression(name), Elidability.Elidable) => (name -> false) :: Nil
+    case M6809AssemblyStatement(MOpcode.JSR, _, VariableExpression(name), Elidability.Elidable) => (name -> false) :: Nil
     case s: Statement => getAllCalledFunctions(s.getAllExpressions)
     case s: VariableExpression => Set(
           s.name,
@@ -93,5 +97,15 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
     case IndexedExpression(arr, index) => (arr -> true) :: getAllCalledFunctions(List(index))
     case SeparateBytesExpression(h, l) => getAllCalledFunctions(List(h, l))
     case _ => Nil
+  }
+
+  protected def extractThingName(fullName: String): String = {
+    var result = fullName.takeWhile(_ != '.')
+    if (result.length == fullName.length) return result
+    val suffix = fullName.drop(result.length)
+    if (suffix == ".return" || suffix.startsWith(".return.")) {
+      result += ".return"
+    }
+    result
   }
 }

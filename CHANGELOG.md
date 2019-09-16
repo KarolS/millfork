@@ -28,6 +28,8 @@
 
 * 6502: Few minor optimization improvements.
 
+* 6502: Inlining improvements.
+
 ## 0.3.6
 
 * **Breaking change!**
