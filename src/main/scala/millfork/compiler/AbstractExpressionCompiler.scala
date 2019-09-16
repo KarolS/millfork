@@ -276,7 +276,7 @@ object AbstractExpressionCompiler {
           case 1 => b
           case 2 => w
           case 3 => env.get[Type]("int24")
-          case 4 => env.get[Type]("long")
+          case 4 => env.get[Type]("int32")
         }
       case ConstantArrayElementExpression(constant) =>
         (constant.quickSimplify match {
@@ -288,7 +288,7 @@ object AbstractExpressionCompiler {
           case (true, 1) => env.get[Type]("sbyte")
           case (_, 2) => b
           case (_, 3) => env.get[Type]("int24")
-          case (_, 4) => env.get[Type]("long")
+          case (_, 4) => env.get[Type]("int32")
         }
       case GeneratedConstantExpression(_, typ) => typ
       case TextLiteralExpression(_) => env.get[Type]("pointer")
@@ -401,7 +401,9 @@ object AbstractExpressionCompiler {
       case SumExpression(params, _) => params.map { case (_, e) => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
         case 1 => b
         case 2 => w
-        case _ => log.error("Adding values bigger than words", expr.position); w
+        case 3 => env.get[Type]("int24")
+        case 4 => env.get[Type]("int32")
+        case _ => log.error("Adding values bigger than longs", expr.position); env.get[Type]("int32")
       }
       case FunctionCallExpression("nonet", _) => w
       case FunctionCallExpression("not", params) =>
