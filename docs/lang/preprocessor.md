@@ -141,7 +141,7 @@ TODO
 
 ### `#fatal/#error/#warn/#info`
 
-    #error fatal error message
+    #fatal fatal error message
     #error error message
     #warn warning message
     #info informational message

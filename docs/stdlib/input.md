@@ -13,7 +13,7 @@ Horizontal joystick movement. 1 if right, -1 if left, 0 if neither.
 
 #### `sbyte input_dy`
 
-Vertical joystick movement. 1 if right, -1 if left, 0 if neither.
+Vertical joystick movement. 1 if down, -1 if up, 0 if neither.
 
 #### `byte input_btn`
 
