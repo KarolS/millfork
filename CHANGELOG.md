@@ -26,6 +26,8 @@
 
 * Fixed several serious bugs related to cartridge-based targets.
 
+* 6502: Few minor optimization improvements.
+
 ## 0.3.6
 
 * **Breaking change!**

@@ -1583,6 +1583,18 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(ANC) & MatchImmediate(1)) ~~> { (lines, ctx) =>
       lines.init.tail :+ AssemblyLine.immediate(ANC, CompoundConstant(MathOperator.And, ctx.get[Constant](0), ctx.get[Constant](1)))
     },
+    (Elidable & HasOpcode(ROR) & HasAddrMode(Implied)) ~
+      (Linear & Not(ChangesA) & Not(ReadsNOrZ) & Not(ReadsC) & Not(ReadsA)).* ~
+      (HasOpcodeIn(AND, ANC) & MatchNumericImmediate(1)) ~
+      Where(ctx => ctx.get[Int](1).&(0x80) == 0)~~> { (lines, ctx) =>
+      lines.head.copy(opcode = LSR) :: lines.tail
+    },
+    (Elidable & HasOpcode(ROL) & HasAddrMode(Implied)) ~
+      (Linear & Not(ChangesA) & Not(ReadsNOrZ) & Not(ReadsC) & Not(ReadsA)).* ~
+      (HasOpcodeIn(AND, ANC) & MatchNumericImmediate(1)) ~
+      Where(ctx => ctx.get[Int](1).&(1) == 0)~~> { (lines, ctx) =>
+      lines.head.copy(opcode = ASL) :: lines.tail
+    },
   )
 
   val SimplifiableIndexChanging = new RuleBasedAssemblyOptimization("Simplifiable index changing",
