@@ -20,7 +20,7 @@ For build instructions, see [Build instructions](./COMPILING.md).
     
     * other Commodore computers: C16, Plus/4, C128, PET, VIC-20 (stock or with RAM extensions)
     
-    * other 6502-based machines: Famicom/NES, Atari 8-bit computers, BBC Micro, Apple II+/IIe/Enhanced IIe, Atari 2600 (experimental)
+    * other 6502-based machines: Famicom/NES, Atari 8-bit computers, BBC Micro, Apple II+/IIe/Enhanced IIe, Atari 2600 (experimental), Commander X16 (experimental)
     
     * Z80-based machines: ZX Spectrum 48k, NEC PC-88, Amstrad CPC, MSX
     

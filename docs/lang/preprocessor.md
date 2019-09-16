@@ -112,6 +112,8 @@ See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
 
 * `NULLPTR` – physical value of `nullptr`, default 0
 
+* `VERA_VERSION` – on Commander X16, the version of the VERA chip: `7` for 0.7, `8` for 0.8
+
 ### Built-in preprocessor functions and operators
 
 The `defined` function returns 1 if the feature is defined, 0 otherwise.  

@@ -2,12 +2,12 @@ void main() {
     word i
     byte hn, ln
     // 256-colour text mode for layer 0
-    vera_poke($40000, $21)
+    vera_poke(VERA_LAYER_1, $21)
     // 8×8 tiles, 64×64 tile map
-    vera_poke($40001, $35)
+    vera_poke(VERA_LAYER_1+1, $35)
     // 2× zoom in
-    vera_poke($40041, $40)
-    vera_poke($40042, $40)
+    vera_poke(VERA_COMPOSER_CTRL+1, $40)
+    vera_poke(VERA_COMPOSER_CTRL+2, $40)
     i = 0
     while i < $2000 {
         vera_poke(i, $A0)

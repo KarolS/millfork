@@ -42,6 +42,7 @@ nav:
     - C64-only modules: stdlib/c64.md
     - NES-only modules: stdlib/nes.md
     - Game Boy–only modules: stdlib/gb.md
+    - X16–only modules: stdlib/x16.md
   - Implementation details:
     - Calling convention: abi/calling-convention.md
     - Generated labels: abi/generated-labels.md

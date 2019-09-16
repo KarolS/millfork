@@ -33,9 +33,9 @@ void main () {
         vy[i] = 1 - (rand() & 2)
     }
     vera_upload_large($10000, sprite_bitmap.addr, sizeof(sprite_bitmap))
-    vera_upload_large($40800, sprites.addr, sizeof(sprites))
+    vera_upload_large(VERA_SPRITES, sprites.addr, sizeof(sprites))
     // enable sprites:
-    vera_poke($40020, 1)
+    vera_poke(VERA_SPRITE_CTRL, 1)
     while true {
         for i,0,paralleluntil,SPRITE_COUNT {
             p = sprites[i].pointer
@@ -50,7 +50,7 @@ void main () {
             if y == 0 { vy[i] = 1 }
             if y >= 480-32 { vy[i] = 0-1 }
         }
-        vera_upload_large($40800, sprites.addr, sizeof(sprites))
+        vera_upload_large(VERA_SPRITES, sprites.addr, sizeof(sprites))
     }
 }
 

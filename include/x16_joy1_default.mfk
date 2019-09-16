@@ -1,0 +1,5 @@
+// set X16 joypad in port 1 as the default
+
+import x16_joy
+
+alias read_joy = read_joy1

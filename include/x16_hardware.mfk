@@ -1,9 +1,35 @@
-// TODO: bankswitching
 
+#if VERA_VERSION == 7
+
+const int24 VERA_COMPOSER_CTRL = $40040
+const int24 VERA_PALETTE = $40200
+const int24 VERA_LAYER_1 = $40000
+const int24 VERA_LAYER_2 = $40010
+const int24 VERA_SPRITE_CTRL = $40020
+const int24 VERA_SPRITES = $40800
 
 volatile byte vera_addr_hi @ $9f20
 volatile byte vera_addr_mi @ $9f21
 volatile byte vera_addr_lo @ $9f22
+
+#elseif VERA_VERSION == 8
+
+const int24 VERA_COMPOSER_CTRL = $F0000
+const int24 VERA_PALETTE = $F1000
+const int24 VERA_LAYER_1 = $F2000
+const int24 VERA_LAYER_2 = $F3000
+const int24 VERA_SPRITE_CTRL = $F4000
+const int24 VERA_SPRITES = $F5000
+
+volatile byte vera_addr_hi @ $9f22
+volatile byte vera_addr_mi @ $9f21
+volatile byte vera_addr_lo @ $9f20
+volatile int24 vera_addr @ $9f20
+
+#else
+#error Unsupported VERA_VERSION
+#endif
+
 volatile byte vera_data1 @ $9f23
 volatile byte vera_data2 @ $9f24
 volatile byte vera_ctrl @ $9f25
@@ -23,10 +49,19 @@ asm void set_vera_layer_internal(pointer.vera_layer_setup ax, byte y) {
     sta __reg
     stx __reg+1
     stz vera_ctrl
+#if VERA_VERSION == 7
     lda $14
     sta vera_addr_hi
     stz vera_addr_mi
     sty vera_addr_lo
+#elseif VERA_VERSION == 8
+    lda $1F
+    sta vera_addr_hi
+    sty vera_addr_mi
+    stz vera_addr_lo
+#else
+#error Unsupported VERA_VERSION
+#endif
     ldy #0
     __set_layer_internal_loop:
     lda (__reg),y
@@ -37,13 +72,25 @@ asm void set_vera_layer_internal(pointer.vera_layer_setup ax, byte y) {
     ? rts
 }
 
-asm void set_vera_layer0(pointer.vera_layer_setup ax) {
+asm void set_vera_layer1(pointer.vera_layer_setup ax) {
+#if VERA_VERSION == 7
     ? ldy #0
+#elseif VERA_VERSION == 8
+    ? ldy #$20
+#else
+#error Unsupported VERA_VERSION
+#endif
     ? jmp set_vera_layer_internal
 }
 
-asm void set_vera_layer1(pointer.vera_layer_setup ax) {
-    ? ldy #0
+asm void set_vera_layer2(pointer.vera_layer_setup ax) {
+#if VERA_VERSION == 7
+    ? ldy #$10
+#elseif VERA_VERSION == 8
+    ? ldy #$30
+#else
+#error Unsupported VERA_VERSION
+#endif
     ? jmp set_vera_layer_internal
 }
 
@@ -87,7 +134,7 @@ inline void vera_upload(int24 address, pointer source, byte size) {
         ? ldy #0
         __vera_upload_loop:
         ? lda (__reg),y
-        ? sta vera_data1
+        ! sta vera_data1
         ? iny
         ? cpy size
         ? bne __vera_upload_loop
@@ -100,4 +147,14 @@ struct vera_sprite_data {
     word y
     byte ctrl0
     byte ctrl1
+}
+
+inline asm void set_ram_bank(byte a) {
+    ! STA $9F61
+    ? RTS
+}
+
+inline asm void set_rom_bank(byte a) {
+    ! STA $9F60
+    ? RTS
 }

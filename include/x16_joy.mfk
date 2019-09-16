@@ -1,0 +1,89 @@
+
+void x16_reset_joy() {
+	input_dx = 0
+	input_dy = 0
+	input_a = 0
+	input_b = 0
+	input_x = 0
+	input_y = 0
+	input_start = 0
+	input_select = 0
+	input_l = 0
+	input_r = 0
+}
+
+alias reset_joy = x16_reset_joy!
+
+// TODO: be more controller-agnostic?
+
+// SNES:B NES:A keyboard:Ctrl
+alias input_b = input_btn
+
+// SNES:A
+byte input_a
+
+// SNES:X
+byte input_x
+
+// SNES:Y NES:B keyboard:Alt
+byte input_y
+
+// SNES/NES:Start keyboard:Enter
+byte input_start
+
+// SNES/NES:Select keyboard:Space
+byte input_select
+
+// SNES:L
+byte input_l
+
+// SNES:R
+byte input_r
+
+void read_joy1() {
+    x16_reset_joy()
+    read_also_joy1()
+}
+void read_joy2() {
+    x16_reset_joy()
+    read_also_joy2()
+}
+asm void read_also_joy1() {
+    JSR $FF06
+    LDA $F1
+    BNE __read_also_joy1_skip
+    LDA $EF
+    JSR x16_joy_byte0
+    LDA $F0
+    JSR x16_joy_byte1
+__read_also_joy1_skip:
+    RTS
+}
+asm void read_also_joy2() {
+    JSR $FF06
+    LDA $F4
+    BNE __read_also_joy2_skip
+    LDA $F2
+    JSR x16_joy_byte0
+    LDA $F3
+    JSR x16_joy_byte1
+__read_also_joy2_skip:
+    RTS
+}
+
+void x16_joy_byte0(byte value) {
+	if value & 8 == 0 { input_dy -= 1 }
+	if value & 4 == 0 { input_dy += 1 }
+	if value & 2 == 0 { input_dx -= 1 }
+	if value & 1 == 0 { input_dx += 1 }
+	if value & 16 == 0 { input_start += 1 }
+	if value & 32 == 0 { input_select += 1 }
+	if value & 64 == 0 { input_y += 1 }
+	if value & 128 == 0 { input_b += 1 }
+}
+void x16_joy_byte1(byte value) {
+	if value & 16 == 0 { input_r += 1 }
+	if value & 32 == 0 { input_l += 1 }
+	if value & 64 == 0 { input_x += 1 }
+	if value & 128 == 0 { input_a += 1 }
+}

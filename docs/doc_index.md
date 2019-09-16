@@ -60,6 +60,8 @@
 
 * [Game Boy–only modules](stdlib/gb.md)
 
+* [X16–only modules](stdlib/x16.md)
+
 ## Implementation details
 
 * [Variable storage](abi/variable-storage.md)
