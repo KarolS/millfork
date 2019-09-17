@@ -20,9 +20,11 @@
 
 * Added `nullchar` constant as the null terminator for strings and `NULLCHAR` feature to define its value.
 
-* Added `vectrex` text encoding.
+* Added `vectrex`, `msx_br` and `koi7n2` text encodings.
 
 * 6502: Fixed arithmetic promotion bugs for function return values.
+
+* Fixed parsing of `zp_bytes` in platform definitions.
 
 * Fixed several serious bugs related to cartridge-based targets.
 
