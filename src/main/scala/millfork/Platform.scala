@@ -322,7 +322,7 @@ object Platform {
       if (segments.length != 2) {
         log.fatal(s"Invalid range: `$s`")
       }
-      Range(parseNumber(segments(0).trim()), parseNumber(segments(1).trim()), step)
+      Range(parseNumber(segments(0).trim()), parseNumber(segments(1).trim()) + 1, step)
     } else {
       Seq(parseNumber(s.trim()))
     }
