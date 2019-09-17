@@ -35,13 +35,15 @@
  
 * `iso_dk`, `iso_fi` – aliases for `iso_no` and `iso_se` respectively
 
-* `msx_intl`, `msx_jp`, `msx_ru` – MSX character encoding, International, Japanese and Russian respectively
+* `msx_intl`, `msx_jp`, `msx_ru`, `msx_br` – MSX character encoding, International, Japanese, Russian and Brazilian respectively
 
 * `msx_us`, `msx_uk`, `msx_fr`, `msx_de` – aliases for `msx_intl`
  
 * `atascii` or `atari` – ATASCII as seen on Atari 8-bit computers
  
 * `atasciiscr` or `atariscr` – screencodes used by Atari 8-bit computers
+
+* `koi7n2` or `short_koi` – KOI-7 N2
 
 * `vectrex` – built-in Vectrex font
 
@@ -93,23 +95,24 @@ control codes for changing the text background color
 
 ##### Character availability
 
-Encoding | lowercase letters | backslash | pound | yen | katakana | card suits  
---|--|--|--|--|--|--  
-`pet`, `origpet`   | yes¹ | no  | no  | no   | no   | yes¹  
-`oldpet`           | yes² | no  | no  | no   | no   | yes²  
-`petscr`           | yes¹ | no  | yes | no   | no   | yes¹  
-`petjp`            | no   | no  | no  | yes  | yes³ | yes³  
-`petscrjp`         | no   | no  | no  | yes  | yes³ | yes³  
-`sinclair`, `bbc`  | yes  | yes | yes | no   | no   | no  
-`apple2`           | no   | yes | no  | no   | no   | no  
-`atascii`          | yes  | yes | no  | no   | no   | yes  
-`atasciiscr`       | yes  | yes | no  | no   | no   | yes  
-`jis`              | yes  | no  | no  | yes  | yes  | no  
-`msx_intl`         | yes  | yes | yes | yes  | no   | yes   
-`msx_jp`           | yes  | no  | no  | yes  | yes  | yes   
-`msx_ru`           | yes  | yes | no  | no   | no   | yes   
-`vectrex`          | no   | yes | no  | no   | no   | no   
-all the rest       | yes  | yes | no  | no   | no   | no  
+Encoding | lowercase letters | backslash | pound | yen | intl | card suits  
+---------|-------------------|-----------|-------|-----|------|-----------  
+`pet`, `origpet`    | yes¹ | no  | no  | no   | none      | yes¹  
+`oldpet`            | yes² | no  | no  | no   | none      | yes²  
+`petscr`            | yes¹ | no  | yes | no   | none      | yes¹  
+`petjp`             | no   | no  | no  | yes  | katakana³ | yes³  
+`petscrjp`          | no   | no  | no  | yes  | katakana³ | yes³  
+`sinclair`, `bbc`   | yes  | yes | yes | no   | none      | no  
+`apple2`            | no   | yes | no  | no   | none      | no  
+`atascii`           | yes  | yes | no  | no   | none      | yes  
+`atasciiscr`        | yes  | yes | no  | no   | none      | yes  
+`jis`               | yes  | no  | no  | yes  | both kana | no  
+`msx_intl`,`msx_br` | yes  | yes | yes | yes  | Western   | yes   
+`msx_jp`            | yes  | no  | no  | yes  | katakana  | yes   
+`msx_ru`            | yes  | yes | no  | no   | Russian⁴   | yes   
+`koi7n2`            | no   | yes | no  | no   | Russian⁵  | no   
+`vectrex`           | no   | yes | no  | no   | none      | no   
+all the rest        | yes  | yes | no  | no   | none      | no  
   
 1. `pet`, `origpet` and `petscr` cannot display card suit symbols and lowercase letters at the same time.
 Card suit symbols are only available in graphics mode,
@@ -118,16 +121,23 @@ in which lowercase letters are displayed as uppercase and uppercase letters are 
 2.  `oldpet` cannot display card suit symbols and lowercase letters at the same time.
 Card suit symbols are only available in graphics mode, in which lowercase letters are displayed as symbols. 
 
-3. `petjp` and `petscrjp` cannot display card suit symbols and katakana at the same time
+3. `petjp` and `petscrjp` cannot display card suit symbols and katakana at the same time.
 Card suit symbols are only available in graphics mode, in which katakana is displayed as symbols. 
 
-If the encoding does not support lowercase letters (e.g. `apple2`, `petjp`, `petscrjp`),
+4. Letter **Ё** and uppercase **Ъ** are not available.
+
+5. Only uppercase. Letters **Ё** and **Ъ** are not available.
+
+If the encoding does not support lowercase letters (e.g. `apple2`, `petjp`, `petscrjp`, `koi7n2`, `vectrex`),
 then text and character literals containing lowercase letters are automatically converted to uppercase. 
+Only unaccented Latin and Cyrillic letters will be converted as such.
+Accented Latin letters will not be converted and will fail to compile without `-flenient-encoding`.     
+To detect if your default encoding does not support lowercase letters, test `'A' == 'a'`.
 
 ##### Escape sequence availability
 
 Encoding | new line | braces | backspace | cursor movement | text colour | reverse | background colour  
---|--|--|--|--|--|--|--  
+---------|----------|--------|-----------|-----------------|-------------|---------|------------------  
 `pet`,`petjp`       | yes | no  | no  | yes | yes | yes | no  
 `origpet`           | yes | no  | no  | yes | no  | yes | no  
 `oldpet`            | yes | no  | no  | yes | no  | yes | no  
@@ -137,5 +147,7 @@ Encoding | new line | braces | backspace | cursor movement | text colour | rever
 `apple2`            | no  | yes | no  | no  | no  | no  | no  
 `atascii`           | yes | no  | yes | yes | no  | no  | no  
 `atasciiscr`        | no  | no  | no  | no  | no  | no  | no  
+`msx_*`             | yes | yes | yes | yes | no  | no  | no  
+`koi7n2`            | yes | no  | yes | no  | no  | no  | no  
 `vectrex`           | no  | no  | no  | no  | no  | no  | no  
 all the rest        | yes | yes | no  | no  | no  | no  | no

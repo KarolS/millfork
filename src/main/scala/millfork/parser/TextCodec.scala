@@ -181,7 +181,10 @@ object TextCodec {
       case (_, "msx_es") => TextCodec.MsxWest
       case (_, "msx_ru") => TextCodec.MsxRu
       case (_, "msx_jp") => TextCodec.MsxJp
+      case (_, "msx_br") => TextCodec.MsxBr
       case (_, "vectrex") => TextCodec.Vectrex
+      case (_, "koi7n2") => TextCodec.Koi7N2
+      case (_, "short_koi") => TextCodec.Koi7N2
       case (p, _) =>
         log.error(s"Unknown string encoding: `$name`", p)
         TextCodec.Ascii
@@ -441,6 +444,25 @@ object TextCodec {
     )
   )
 
+  val Koi7N2 = new TextCodec("KOI-7 N2", 0,
+    "\ufffd" * 32 +
+      " !\"#¤%&'()*+,-./" +
+      "0123456789:;<=>?" +
+      "@ABCDEFGHIJKLMNO" +
+      "PQRSTUVWXYZ[\\]^_" +
+      "ЮАБЦДЕФГХИЙКЛМНО" +
+      "ПЯРСТУЖВЬЫЗШЭЩЧ",
+    Map('↑' -> 0x5E, '$' -> 0x24) ++
+      ('a' to 'z').map(l => l -> l.toUpper.toInt).toMap ++
+      ('а' to 'я').filter(_ != 'ъ').map(l => l -> l.toUpper.toInt).toMap,
+    Map.empty, Map(
+      "n" -> List(13), // TODO: ?
+      "b" -> List(8), // TODO: ?
+      "q" -> List('\"'.toInt),
+      "apos" -> List('\''.toInt)
+    )
+  )
+
   val OldPetscii = new TextCodec("Old PETSCII", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
@@ -600,10 +622,41 @@ object TextCodec {
       "Δ\ufffdω\ufffd\ufffd\ufffd\ufffd\ufffd" +
       "αβΓΠΣσµγΦθΩδ∞∅∈∩" +
       "≡±≥≤\ufffd\ufffd÷\ufffd\ufffd\ufffd\ufffd\ufffdⁿ²",
-    Map('ß' -> 0xE1, '¦' -> 0x7C),
+    Map('ß' -> 0xE1, '¦' -> 0x7C, 'Ő' -> 0xB4, 'ő' -> 0xB5, 'Ű' -> 0xB6, 'ű' -> 0xB7),
     Map('♥' -> "\u0001C", '♡' -> "\u0001C", '♢' -> "\u0001D", '♢' -> "\u0001D", '♣' -> "\u0001E", '♠' -> "\u0001F", '·' -> "\u0001G") ,
     MinimalEscapeSequencesWithBraces ++ Map(
+      "right" -> List(0x1c),
+      "left" -> List(0x1d),
+      "up" -> List(0x1e),
+      "down" -> List(0x1f),
+      "b" -> List(8),
       "n" -> List(13, 10),
+      "pound" -> List(0x9c),
+      "yen" -> List(0x9d),
+    )
+  )
+
+  val MsxBr = new TextCodec("MSX-BR", 0,
+    "\ufffd" * 32 +
+      (0x20 to 0x7e).map(_.toChar).mkString("") +
+      "\ufffd" +
+      "ÇüéâÁà\ufffdçêÍÓÚÂÊÔÀ" +
+      "ÉæÆôöòûùÿÖÜ¢£¥₧ƒ" +
+      "áíóúñÑªº¿⌐¬½¼¡«»" +
+      "ÃãĨĩÕõŨũĲĳ¾\ufffd\ufffd‰¶§" +
+      "\ufffd" * 24 +
+      "Δ\ufffdω\ufffd\ufffd\ufffd\ufffd\ufffd" +
+      "αβΓΠΣσµγΦθΩδ∞∅∈∩" +
+      "≡±≥≤\ufffd\ufffd÷\ufffd\ufffd\ufffd\ufffd\ufffdⁿ²",
+    Map('ß' -> 0xE1, '¦' -> 0x7C, 'Ő' -> 0xB4, 'ő' -> 0xB5, 'Ű' -> 0xB6, 'ű' -> 0xB7),
+    Map('♥' -> "\u0001C", '♡' -> "\u0001C", '♢' -> "\u0001D", '♢' -> "\u0001D", '♣' -> "\u0001E", '♠' -> "\u0001F", '·' -> "\u0001G") ,
+    MinimalEscapeSequencesWithBraces ++ Map(
+      "right" -> List(0x1c),
+      "left" -> List(0x1d),
+      "up" -> List(0x1e),
+      "down" -> List(0x1f),
+      "n" -> List(13, 10),
+      "b" -> List(8),
       "pound" -> List(0x9c),
       "yen" -> List(0x9d),
     )
@@ -617,12 +670,19 @@ object TextCodec {
       "\ufffd" * 8 +
       "Δ\ufffdω\ufffd\ufffd\ufffd\ufffd\ufffd" +
       "αβΓΠΣσµγΦθΩδ∞∅∈∩" +
-      "≡±≥≤\ufffd\ufffd÷\ufffd\ufffd\ufffd\ufffd\ufffdⁿ²\ufffd\ufffd" +
+      "≡±≥≤\ufffd\ufffd÷\ufffd\ufffd\ufffd\ufffd\ufffdⁿ²\ufffd¤" +
       "юабцдефгхийклмнопярстужвьызшэщчъ" +
       "ЮАБЦДЕФГХИЙКЛМНОПЯРСТУЖВЬЫЗШЭЩ",
     Map('ß' -> 0xA1, '¦' -> 0x7C),
     Map('♥' -> "\u0001C", '♡' -> "\u0001C", '♢' -> "\u0001D", '♢' -> "\u0001D", '♣' -> "\u0001E", '♠' -> "\u0001F", '·' -> "\u0001G"),
-    MinimalEscapeSequencesWithBraces + ("n" -> List(13, 10))
+    MinimalEscapeSequencesWithBraces ++ Map(
+      "right" -> List(0x1c),
+      "left" -> List(0x1d),
+      "up" -> List(0x1e),
+      "down" -> List(0x1f),
+      "b" -> List(8),
+      "n" -> List(13, 10)
+    )
   )
 
   val MsxJp = new TextCodec("MSX-JP", 0,
@@ -660,6 +720,11 @@ object TextCodec {
     ) ++
       StandardHiraganaDecompositions ++ StandardKatakanaDecompositions,
     MinimalEscapeSequencesWithBraces ++ Map(
+      "right" -> List(0x1c),
+      "left" -> List(0x1d),
+      "up" -> List(0x1e),
+      "down" -> List(0x1f),
+      "b" -> List(8),
       "n" -> List(13, 10),
       "yen" -> List(0x5c)
     )
@@ -668,19 +733,33 @@ object TextCodec {
   val lossyAlternatives: Map[Char, List[String]] = {
     val allowLowercase: Map[Char, List[String]] = ('A' to 'Z').map(c => c -> List(c.toString.toLowerCase(Locale.ROOT))).toMap
     val allowUppercase: Map[Char, List[String]] = ('a' to 'z').map(c => c -> List(c.toString.toUpperCase(Locale.ROOT))).toMap
+    val allowLowercaseCyr: Map[Char, List[String]] = ('а' to 'я').map(c => c -> List(c.toString.toUpperCase(Locale.ROOT))).toMap
+    val allowUppercaseCyr: Map[Char, List[String]] = ('а' to 'я').map(c => c -> List(c.toString.toUpperCase(Locale.ROOT))).toMap
      val ligaturesAndSymbols: Map[Char, List[String]] = Map(
+       // commonly used alternative forms:
        '¦' -> List("|"),
        '|' -> List("¦"),
+       // Eszett:
        'ß' -> List("ss", "SS"),
+       'β' -> List("ß"),
+       // various ligatures:
        'ﬀ' -> List("ff", "FF"),
        'ﬂ' -> List("fl", "FL"),
        'ﬁ' -> List("fi", "FI"),
        'ﬃ' -> List("ffi", "FFI"),
        'ﬄ' -> List("ffl", "FFL"),
+       'ĳ' -> List("ij", "IJ"),
+       'Ĳ' -> List("IJ", "ij"),
+       // fractions:
        '½' -> List("1/2"),
        '¼' -> List("1/4"),
        '¾' -> List("3/4"),
+       // currencies:
+       '₧' -> List("Pt", "PT"),
+       '¢' -> List("c", "C"),
+       '$' -> List("¤"),
        '¥' -> List("Y", "y"),
+       // kanji:
        '円' -> List("¥", "Y", "y"),
        '年' -> List("Y", "y"),
        '月' -> List("M", "m"),
@@ -688,11 +767,13 @@ object TextCodec {
        '時' -> List("h", "H"),
        '分' -> List("m", "M"),
        '秒' -> List("s", "S"),
+       // card suits:
        '♥' -> List("H", "h"),
        '♠' -> List("S", "s"),
        '♡' -> List("H", "h"),
        '♢' -> List("D", "d"),
        '♣' -> List("C", "c"),
+       // Eastern punctuation:
        '。' -> List("."),
        '、' -> List(","),
        '・' -> List("-"),
@@ -701,33 +782,52 @@ object TextCodec {
        '」' -> List("]", ")"),
        '。' -> List("."),
        '。' -> List("."),
+       // quote marks:
+       '«' -> List("\""),
+       '»' -> List("\""),
+       '‟' -> List("\""),
+       '”' -> List("\""),
+       '„' -> List("\""),
+       '’' -> List("\'"),
+       '‘' -> List("\'"),
+       // pi:
+       'π' -> List("Π"),
+       'Π' -> List("π"),
+       // alternative symbols:
        '^' -> List("↑"),
        '↑' -> List("^"),
        '‾' -> List("~"),
        '¯' -> List("~"),
-       '«' -> List("\""),
-       '»' -> List("\""),
        '§' -> List("#"),
        '[' -> List("("),
        ']' -> List(")"),
        '{' -> List("("),
        '}' -> List(")"),
-       '§' -> List("#"),
-       '§' -> List("#"),
-       '©' -> List("(C)"),
-       'İ' -> List("I", "i"),
+       '©' -> List("(C)", "(c)"),
+       '®' -> List("(R)", "(r)"),
+       '‰' -> List("%."),
+       '×' -> List("x"),
+       '÷' -> List("/"),
        'ª' -> List("a", "A"),
        'º' -> List("o", "O"),
-       '‰' -> List("%."),
-       '÷' -> List("/"),
-       'ĳ' -> List("ij", "IJ"),
-       'Ĳ' -> List("IJ", "ij"),
+       // Turkish I with dot:
+       'İ' -> List("I", "i"),
+       // partially supported Russian letters:
+       'ё' -> List("е", "Ё", "Е"),
+       'Ё' -> List("Е", "ё", "е"),
+       'Ъ' -> List("ъ"),
+       'ъ' -> List("Ъ"),
+       // Latin lookalikes for Cyrillic:
+       'і' -> List("i", "I"),
+       'І' -> List("I", "i"),
+       'ј' -> List("j", "J"),
+       'Ј' -> List("J", "j"),
      )
     val accentedLetters: Map[Char, List[String]] = List(
       "áàäãåąāǎă" -> "a",
       "çčċćĉ" -> "c",
-      "đď" -> "d",
-      "ð" -> "dh",
+      "ðď" -> "d",
+      "đ" -> "dj",
       "éèêëęēėě" -> "e",
       "ğǧĝģġ" -> "g",
       "ħĥ" -> "h",
@@ -760,7 +860,7 @@ object TextCodec {
       else fw -> List(hw.toString)
     }.toMap
     val halfWidth = (0xff61 to 0xff9f).map{ c => c.toChar -> List(jisHalfwidthKatakanaOrder(c - 0xff60).toString)}.toMap
-    allowLowercase ++ allowUppercase ++ ligaturesAndSymbols ++ accentedLetters ++ hiragana ++ fullWidth ++ halfWidth
+    allowLowercase ++ allowUppercase ++ allowLowercaseCyr ++ allowUppercaseCyr ++ ligaturesAndSymbols ++ accentedLetters ++ hiragana ++ fullWidth ++ halfWidth
   }
 
 }

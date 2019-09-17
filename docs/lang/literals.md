@@ -76,6 +76,8 @@ For example, if `-flenient-encoding` is enabled, then a literal `"£¥↑ž©ß"
 
 * `"?¥^z(C)ss"` if the default encoding is `jisx`
 
+* `"£¥^z(C)β"` if the default encoding is `msx_intl`
+
 Note that the final length of the string may vary.
 
 ## Character literals
