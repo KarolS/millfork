@@ -97,8 +97,9 @@ control codes for changing the text background color
 
 Encoding | lowercase letters | backslash | pound | yen | intl | card suits  
 ---------|-------------------|-----------|-------|-----|------|-----------  
-`pet`, `origpet`    | yes¹ | no  | no  | no   | none      | yes¹  
-`oldpet`            | yes² | no  | no  | no   | none      | yes²  
+`pet`,              | yes¹ | no  | yes | no   | none      | yes¹  
+`origpet`           | yes¹ | yes | no  | no   | none      | yes¹  
+`oldpet`            | yes² | yes | no  | no   | none      | yes²  
 `petscr`            | yes¹ | no  | yes | no   | none      | yes¹  
 `petjp`             | no   | no  | no  | yes  | katakana³ | yes³  
 `petscrjp`          | no   | no  | no  | yes  | katakana³ | yes³  
