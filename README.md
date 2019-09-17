@@ -57,6 +57,8 @@ The compiler is distributed under GPLv3 (see [LICENSE](LICENSE)).
 The standard include files (located in the `include` directory) are distributed under a more permissive Zlib license (see [include/LICENSE](include/LICENSE)).
 Therefore, no attribution is needed if you are developing and distributing Millfork programs.
 
+The documentation is distributed under the [CC-0 license](https://creativecommons.org/publicdomain/zero/1.0/).
+
 ## More info
 
 * [Documentation](docs/README.md) (external version: [https://millfork.readthedocs.io](https://millfork.readthedocs.io))
