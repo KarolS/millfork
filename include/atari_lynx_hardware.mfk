@@ -1,0 +1,182 @@
+#if not(ATARI_LYNX)
+#warn atari lynx module should be only used on atari lynx
+#endif
+
+word TMPADRL  	@$fc00
+word TILTACUM  	@$fc02
+word HOFF		@$fc04
+word VOFF		@$fc06
+word VIDBASE	@$fc08
+word COLLBASE	@$fc0a
+word VIDADRL	@$fc0c
+word COLLADRL	@$fc0e
+word SCBNEXT	@$fc10
+word SPRDLINE	@$fc12 
+word HPOSSTRT	@$fc14
+word VPOSSTRT	@$fc16
+word SPRHSIZ	@$fc18
+word SPRVSIZ	@$fc1a
+word STRETCH	@$fc1c
+word TILT		@$fc1e
+word SPRDOFF	@$fc20
+word SPRVPOS	@$fc22
+word COLLOFF	@$fc24
+word VSIZACUM	@$fc26
+word HSIZOFF	@$fc28
+word VSIZOFF	@$fc2a
+word SCBADR		@$fc2c
+word PROCADR	@$fc2e
+byte SPRCTRL0	@$fc80
+byte SPRCTRL1	@$fc81
+byte SPRCOLL	@$fc82
+byte SPRINT 	@$fc83 
+
+byte SUZYBUSEN 	@$fc90
+byte SPRGO		@$fc91
+byte SPRSYS		@$fc92
+
+byte JOYSTICK 	@$fcb0
+byte SWITCHES 	@$fcb1
+
+word DISPADR		@$fd94
+byte SUZYDONEACK 	@$fd90
+byte CPUSLEEP 		@$fd91
+byte DISPCTRL		@$fd92
+byte PBKUP			@$fd93
+
+byte INTSET			@$fd81	
+
+byte TIMER0_reload	@$fd00 
+byte TIMER0_ctrl	@$fd01 
+byte TIMER0_count	@$fd02 
+byte TIMER0_ctrl2	@$fd03 
+
+byte TIMER1_reload	@$fd04 
+byte TIMER1_ctrl	@$fd05 
+byte TIMER1_count	@$fd06 
+byte TIMER1_ctrl2	@$fd07 
+
+//	video vertical position
+byte TIMER2_reload	@$fd08 
+byte TIMER2_ctrl	@$fd09 
+byte TIMER2_count	@$fd0a 
+byte TIMER2_ctrl2	@$fd0b
+
+byte RASTER			@$fd0a 
+
+byte TIMER3_reload	@$fd0c 
+byte TIMER3_ctrl	@$fd0d 
+byte TIMER3_count	@$fd0e 
+byte TIMER3_ctrl2	@$fd0f 
+
+byte TIMER4_reload	@$fd10 
+byte TIMER4_ctrl	@$fd11 
+byte TIMER4_count	@$fd12 
+byte TIMER4_ctrl2	@$fd13 
+
+byte TIMER5_reload	@$fd14 
+byte TIMER5_ctrl	@$fd15 
+byte TIMER5_count	@$fd16 
+byte TIMER5_ctrl2	@$fd17 
+
+byte TIMER6_reload	@$fd18 
+byte TIMER6_ctrl	@$fd19 
+byte TIMER6_count	@$fd1a 
+byte TIMER6_ctrl2	@$fd1b
+
+byte TIMER7_reload	@$fd1c 
+byte TIMER7_ctrl	@$fd1d 
+byte TIMER7_count	@$fd1e 
+byte TIMER7_ctrl2	@$fd1f 
+
+const byte DISPLAY_COLOR=%1000
+const byte DISPLAY_4bpp=%0100
+const byte DISPLAY_FLIPPED=%0010
+const byte DISPLAY_ENABLE=%0001
+
+//	suzy sprite type
+const byte TYPE_BACKGROUND 	=00
+const byte TYPE_BACKNONCOLL =01
+const byte TYPE_BSHADOW     =02
+const byte TYPE_BOUNDARY    =03
+const byte TYPE_NORMAL      =04
+const byte TYPE_NONCOLL     =05
+const byte TYPE_XOR         =06
+const byte TYPE_SHADOW      =07
+
+//	suzy drawing flags
+const byte LITERAL          =$80
+const byte PACKED           =$00
+const byte ALGO3            =$40
+const byte RENONE           =$00
+const byte REHV             =$10
+const byte REHVS            =$20
+const byte REHVST           =$30
+const byte REUSEPAL         =$08
+const byte SKIP             =$04
+const byte DRAWUP           =$02
+const byte DRAWLEFT         =$01
+
+const byte BPP_1			= %00000000
+const byte BPP_2			= %01000000
+const byte BPP_3			= %10000000
+const byte BPP_4			= %11000000
+const byte HFLIP			= $20 
+const byte VFLIP			= $10 
+
+array(byte) palette_ram_green[16] @$FDA0
+array(byte) palette_ram_blue_red[16] @$FDb0
+
+//joystick
+
+const byte BTN_A= %00000001 
+const byte BTN_B= %00000010 
+const byte BTN_R= %00010000 
+const byte BTN_L= %00100000 
+const byte BTN_D= %01000000 
+const byte BTN_U= %10000000 
+
+inline void read_joy1() {
+	reset_joy()  
+	if JOYSTICK & BTN_U != 0 { input_dy += 1 }
+	if JOYSTICK & BTN_D != 0 { input_dy -= 1 }
+	if JOYSTICK & BTN_R != 0 { input_dx += 1 }
+	if JOYSTICK & BTN_L != 0 { input_dx -= 1 }
+
+	if JOYSTICK & BTN_A != 0 { input_btn |= 1 }
+	if JOYSTICK & BTN_B != 0 { input_btn |= 2 }
+}
+
+void lynx_init() {
+	//	vid memory to the furthest point from code 
+	//	right at the top of ram 
+	DISPADR=$dc00
+	VIDBASE=$dc00
+	COLLBASE=$bc00 
+	//	reset Horizontal and Vertical offset regs
+	HOFF = 0
+	VOFF = 0
+	//	suzy and display 
+	SPRSYS = 0
+	SPRINT = $f3 
+	DISPCTRL = DISPLAY_COLOR | DISPLAY_4bpp | DISPLAY_ENABLE
+	SUZYBUSEN = 1
+	//	set 60hz display 
+	TIMER0_reload=$9e
+	TIMER0_ctrl=$18 
+	TIMER2_reload=$68 
+	TIMER2_ctrl=$1f 
+//	TIMER2_ctrl = %11011000
+	PBKUP=$29
+}
+
+//	wait for suzy to finish rendering 
+void lynx_wait_suzy() {
+	asm {
+waitsuzy:    
+	stz CPUSLEEP
+	lda SPRSYS
+	lsr
+	bcs waitsuzy
+	}
+}
