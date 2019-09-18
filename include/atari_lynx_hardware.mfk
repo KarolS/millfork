@@ -2,8 +2,8 @@
 #warn atari lynx module should be only used on atari lynx
 #endif
 
-word TMPADRL  		@$fc00
-word TILTACUM  		@$fc02
+word TMPADRL			@$fc00
+word TILTACUM		@$fc02
 word HOFF			@$fc04
 word VOFF			@$fc06
 word VIDBASE		@$fc08
