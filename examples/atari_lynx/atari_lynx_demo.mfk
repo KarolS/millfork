@@ -111,6 +111,8 @@ pointer source
 		lynx_wait_suzy()
 		SUZYDONEACK = 0
 
+		//	check for button held 
+		//	if so , we scale the sprite 
 
 		if input_btn!=0 {
 			if input_dx==$ff {
@@ -127,6 +129,8 @@ pointer source
 			}
 		}
 		else {
+		//	or just move it
+
 			if input_dy==$ff {
 				demosp.ypos+=1
 			}
