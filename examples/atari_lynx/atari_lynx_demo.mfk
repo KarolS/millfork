@@ -1,0 +1,243 @@
+
+import joy 
+import atari_lynx_hardware
+
+// BUILD with millfork demo.mfk -t atari_lynx -o lynx 
+// the lynx.o file will have the correct header to load into Handy Emulator 
+
+//	highly recommended to use compressed atari bitmap formats for art via 
+// 	https://github.com/Wookie/sprpck 
+// 	sprpck.exe -a080014 -v logo.pcx logo
+	
+// 	from CC64 suzy.h
+//	this is the suzy sprite format 
+//	this is the largest type supported 
+//	see atari lynx hardware documents found here 
+//  https://atarilynxdeveloper.wordpress.com/documentation/ 
+
+struct SCB_REHVST_PAL {
+	byte spctrl0
+	byte spctrl1
+	byte spcollision
+	word next 
+	word image 
+	word xpos 
+	word ypos 
+	word width 
+	word height
+	word stretch
+	word tilt
+	byte remap01
+	byte remap23
+	byte remap45
+	byte remap67
+	byte remap89
+	byte remapAB
+	byte remapCD
+	byte remapEF
+}
+SCB_REHVST_PAL demosp @$5000
+
+void initDemoSprite() {
+
+	//	set Bits per pixel and type of sprite SEE atari_lynx.mfk for options 
+	demosp.spctrl0 = BPP_4 | TYPE_BACKNONCOLL
+	//	set the sprite format, here we use the most complex one. 
+	demosp.spctrl1 = REHVST
+	demosp.spcollision = 0
+	//	set location
+	demosp.xpos = 80
+	demosp.ypos = 51
+	//	atari sprites are a chain so to draw more you add them to the prior sprite's next 
+	demosp.next = 0 
+	//	width is defined as 8:8 fixed point , where $100 = 1.00,$200 = 2.0,$80=0.5 etc 
+	demosp.width = $100 
+	demosp.height = $100 
+
+	demosp.tilt = 0
+	demosp.stretch = 0
+
+	//	image to use
+	demosp.image = background_sprite.addr
+
+	//	you can remap any pen per sprite if you wish 
+	//	more useful for BPP_1-BPP_3
+	demosp.remap01 = $01
+	demosp.remap23 = $23
+	demosp.remap45 = $45
+	demosp.remap67 = $67
+	demosp.remap89 = $89
+	demosp.remapAB = $ab
+	demosp.remapCD = $cd
+	demosp.remapEF = $ef
+}
+
+void main() {
+byte i 
+byte t
+pointer dest 
+pointer source
+
+	//	see atari_lynx_hardware.mfk
+	// 	we set suzy to $dc00 for display address
+	//	60hz display as recommended 
+
+	lynx_init()
+	initDemoSprite()
+
+	//	copy the palette
+	i = 0
+	for t,0,until,16 {
+		palette_ram_green[t]=palette[i]
+		palette_ram_blue_red[t]=palette[i+1]
+		i+=2
+	}
+
+	while true {
+		//	wait for the "raster" to hit 60 
+		//	while we wait set the blue + red to the current raster pos 
+		while RASTER!=60 {
+			palette_ram_blue_red[0]=RASTER
+		}
+		read_joy1()
+
+		//	tell suzy to process our commands
+		VIDBASE = $dc00
+		SPRGO = 1
+		SCBNEXT=demosp.addr
+		SUZYDONEACK = 1
+
+		//	wait until finished 
+		lynx_wait_suzy()
+		SUZYDONEACK = 0
+
+
+		if input_btn!=0 {
+			if input_dx==$ff {
+				demosp.width-=1
+			}
+			if input_dx==$01 {
+				demosp.width+=1
+			}
+			if input_dy==$ff {
+				demosp.height-=1
+			}
+			if input_dy==$01 {
+				demosp.height+=1
+			}
+		}
+		else {
+			if input_dy==$ff {
+				demosp.ypos+=1
+			}
+			if input_dy==$01 {
+				demosp.ypos-=1
+			}
+			if input_dx==$ff {
+				demosp.xpos-=1
+			}
+			if input_dx==$01 {
+				demosp.xpos+=1
+			}
+		}
+	}
+}
+
+//	image encoded with sprpack 
+
+array background_sprite=[
+	$18, $15, $10, $23, $BC, $7A, $80, $8C, $0B, $49, $08, $8C,
+	$8B, $89, $52, $91, $01, $88, $74, $20, $98, $80, $A0, $00,
+	$1A, $15, $14, $24, $35, $C4, $A9, $75, $68, $80, $B4, $B0,
+	$9E, $CD, $71, $68, $5B, $0E, $15, $46, $44, $20, $88, $80,
+	$9C, $00, $15, $15, $1C, $23, $BC, $7A, $88, $81, $69, $A1,
+	$11, $90, $D4, $38, $75, $0E, $3D, $43, $5E, $01, $00, $12,
+	$15, $24, $03, $C5, $A8, $F4, $96, $9E, $10, $10, $D4, $39,
+	$74, $1E, $78, $40, $00, $12, $15, $24, $20, $21, $E2, $D4,
+	$38, $B4, $F0, $08, $40, $43, $CC, $A8, $F6, $B8, $00, $11,
+	$15, $2C, $21, $A1, $E5, $53, $80, $42, $10, $86, $B6, $A1,
+	$C1, $A8, $0A, $C0, $12, $15, $30, $22, $3A, $AA, $58, $40,
+	$4B, $10, $10, $84, $35, $B5, $3E, $AD, $14, $80, $13, $15,
+	$38, $24, $35, $C7, $A4, $04, $05, $70, $20, $86, $87, $97,
+	$41, $E8, $C8, $98, $00, $12, $15, $3C, $24, $13, $C6, $A2,
+	$84, $05, $B0, $50, $86, $87, $97, $41, $E8, $69, $40, $11,
+	$15, $3C, $02, $10, $D3, $51, $01, $B0, $80, $80, $87, $99,
+	$41, $E8, $08, $C0, $0E, $78, $38, $20, $2D, $88, $0A, $C2,
+	$5B, $D4, $DE, $86, $88, $00, $07, $78, $3C, $1E, $0F, $07,
+	$80, $07, $78, $3C, $1E, $0F, $07, $80, $07, $78, $3C, $1E,
+	$0F, $07, $80, $01, $17, $85, $07, $84, $10, $10, $F1, $28,
+	$3D, $0D, $28, $16, $90, $10, $D3, $54, $64, $42, $05, $80,
+	$8A, $61, $60, $13, $97, $50, $84, $21, $A1, $E2, $54, $BA,
+	$84, $C0, $5A, $78, $08, $20, $2F, $88, $43, $40, $11, $86,
+	$88, $23, $3C, $4A, $0F, $43, $50, $05, $A7, $84, $01, $F0,
+	$18, $78, $00, $11, $08, $40, $43, $C5, $A8, $F4, $A4, $0B,
+	$4E, $08, $0B, $E2, $30, $2F, $08, $00, $14, $84, $87, $89,
+	$52, $EA, $15, $81, $69, $61, $01, $7C, $46, $04, $21, $01,
+	$0F, $40, $5A, $00, $10, $3D, $43, $5A, $05, $A5, $03, $E0,
+	$30, $10, $8E, $D1, $3A, $12, $B0, $00, $12, $35, $42, $5C,
+	$05, $A4, $03, $E0, $30, $10, $86, $8B, $89, $41, $E8, $C8,
+	$A0, $00, $13, $1D, $07, $A1, $AF, $02, $D1, $81, $F0, $18,
+	$20, $47, $68, $3C, $5A, $0F, $46, $B4, $C0, $14, $15, $07,
+	$A0, $2F, $08, $01, $68, $81, $01, $7C, $46, $04, $E1, $0D,
+	$0F, $26, $A1, $24, $00, $0E, $16, $BC, $06, $05, $D1, $84,
+	$05, $D1, $01, $60, $38, $42, $00, $07, $78, $3C, $1E, $0F,
+	$07, $80, $07, $78, $3C, $1E, $0F, $07, $80, $07, $78, $3C,
+	$1E, $0F, $07, $80, $07, $78, $3C, $1E, $0F, $07, $80, $01,
+	$16, $35, $47, $B5, $A1, $0D, $0F, $1A, $A1, $22, $00, $F1,
+	$6A, $3D, $AF, $00, $84, $25, $35, $0E, $10, $00, $15, $35,
+	$47, $B5, $81, $19, $E3, $54, $78, $44, $11, $AE, $3D, $47,
+	$B5, $E1, $10, $94, $D4, $38, $40, $16, $0F, $12, $A3, $DA,
+	$B0, $8D, $71, $AA, $3D, $A2, $08, $8F, $2E, $A0, $2E, $08,
+	$4A, $6A, $1C, $20, $00, $14, $88, $F1, $2A, $3D, $A9, $08,
+	$09, $E8, $3C, $50, $88, $F2, $E9, $C1, $09, $4D, $43, $84,
+	$00, $18, $10, $47, $78, $35, $1E, $D3, $84, $24, $3C, $6A,
+	$80, $A4, $23, $BC, $9A, $8F, $53, $02, $12, $9A, $87, $08,
+	$00, $19, $86, $88, $28, $3D, $5D, $A5, $08, $8F, $1A, $83,
+	$D0, $D5, $84, $77, $93, $41, $E8, $0A, $82, $12, $9A, $87,
+	$08, $00, $19, $97, $50, $84, $26, $35, $DA, $40, $80, $87,
+	$8B, $52, $EA, $16, $84, $35, $54, $1E, $86, $A4, $21, $29,
+	$A8, $70, $80, $17, $15, $43, $44, $11, $D1, $18, $43, $4D,
+	$41, $E8, $6B, $C2, $40, $3C, $AA, $87, $24, $21, $29, $A8,
+	$70, $80, $17, $0D, $07, $A1, $25, $09, $0D, $71, $AA, $3C,
+	$2F, $01, $04, $77, $97, $50, $13, $84, $25, $35, $0E, $10,
+	$00, $0F, $2E, $C0, $44, $09, $D7, $81, $C2, $02, $CD, $30,
+	$40, $55, $A2, $00, $07, $78, $3C, $1E, $0F, $07, $80, $07,
+	$78, $3C, $1E, $0F, $07, $80, $07, $78, $3C, $1E, $0F, $07,
+	$80, $07, $78, $3C, $1E, $0F, $07, $80, $01, $14, $35, $47,
+	$B5, $E1, $01, $45, $4E, $44, $34, $75, $2E, $A1, $78, $08,
+	$21, $29, $A8, $70, $80, $16, $35, $47, $B5, $E1, $30, $1A,
+	$E2, $D0, $7A, $62, $03, $21, $A8, $C8, $BC, $06, $10, $94,
+	$D4, $38, $40, $13, $35, $47, $B5, $E0, $10, $90, $EF, $1E,
+	$A1, $A1, $00, $EB, $C0, $A0, $9A, $0F, $08, $00, $11, $35,
+	$47, $B5, $E0, $40, $8D, $71, $EA, $1A, $F0, $38, $42, $53,
+	$50, $E1, $00, $0E, $35, $47, $B5, $E0, $40, $8E, $F1, $EA,
+	$1C, $F0, $78, $18, $00, $0F, $35, $47, $B5, $E0, $40, $8E,
+	$F1, $EA, $1C, $60, $78, $B0, $44, $00, $11, $35, $47, $B5,
+	$E0, $40, $8E, $F1, $EA, $1C, $50, $86, $BE, $97, $50, $E1,
+	$00, $12, $35, $47, $B5, $E0, $40, $8E, $F1, $EA, $1C, $50,
+	$8E, $F3, $E9, $55, $0E, $10, $00, $11, $35, $47, $B5, $E0,
+	$40, $8E, $F2, $28, $A1, $1D, $E7, $D2, $AA, $1C, $20, $00,
+	$10, $35, $47, $B5, $E0, $40, $86, $A6, $8A, $11, $DE, $7D,
+	$2A, $A1, $C2, $00, $07, $78, $3C, $1E, $0F, $07, $80, $07,
+	$78, $3C, $1E, $0F, $07, $80, $07, $78, $3C, $1E, $0F, $07,
+	$80, $07, $78, $3C, $1E, $0F, $07, $80, $00
+	]
+//	colors are 0000GGGG,BBBBRRRR
+array palette = [
+				$00,$10,
+				$02,$33,
+				$04,$65,
+				$03,$77,
+				$08,$A8,
+				$0C,$C7,
+				$08,$93,
+				$04,$41,
+				$03,$39,
+				$06,$49,
+				$09,$3E,
+				$06,$7D,
+				$09,$7D,
+				$07,$36,
+				$0C,$4C,
+				$0E,$BF
+				]
