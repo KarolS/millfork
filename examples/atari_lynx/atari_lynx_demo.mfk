@@ -1,8 +1,4 @@
-
-import joy 
-import atari_lynx_hardware
-
-// BUILD with millfork demo.mfk -t atari_lynx -o lynx 
+// BUILD with millfork demo.mfk -t atari_lynx -o lynx
 // the lynx.o file will have the correct header to load into Handy Emulator 
 
 //	highly recommended to use compressed atari bitmap formats for art via 
@@ -99,7 +95,7 @@ pointer source
 		while RASTER!=60 {
 			palette_ram_blue_red[0]=RASTER
 		}
-		read_joy1()
+		read_joy()
 
 		//	tell suzy to process our commands
 		VIDBASE = $dc00
@@ -115,34 +111,19 @@ pointer source
 		//	if so , we scale the sprite 
 
 		if input_btn!=0 {
-			if input_dx==$ff {
-				demosp.width-=1
-			}
-			if input_dx==$01 {
-				demosp.width+=1
-			}
-			if input_dy==$ff {
-				demosp.height-=1
-			}
-			if input_dy==$01 {
-				demosp.height+=1
-			}
+            demosp.width += input_dx
+            demosp.height += input_dy
 		}
 		else {
 		//	or just move it
-
+            // FIXME: word-subbyte doesn't work yet
 			if input_dy==$ff {
 				demosp.ypos+=1
 			}
 			if input_dy==$01 {
 				demosp.ypos-=1
 			}
-			if input_dx==$ff {
-				demosp.xpos-=1
-			}
-			if input_dx==$01 {
-				demosp.xpos+=1
-			}
+            demosp.xpos += input_dx
 		}
 	}
 }

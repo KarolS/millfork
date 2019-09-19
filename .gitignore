@@ -43,6 +43,7 @@ examples/lunix/
 *.com
 *.gb
 *.rom
+*.o
 HELLO
 HELLOCPC
 FIZZBUZZ

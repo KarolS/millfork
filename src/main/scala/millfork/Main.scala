@@ -181,7 +181,7 @@ object Main {
         "vic20", "vic20_3k", "vic20_8k", "vic20_a000",
         "c16", "plus4", "pet", "c128",
         "a8", "bbcmicro", "apple2",
-        "nes_mmc4", "nes_small", "vcs", "gb_small",
+        "nes_mmc4", "nes_small", "atari_lynx", "vcs", "gb_small",
         "zxspectrum", "zxspectrum_8080", "pc88", "cpc464", "msx_crt",
         "cpm", "cpm_z80", "dos_com")
       case Right(path) =>

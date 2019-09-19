@@ -1,6 +1,10 @@
-#FFFFFF#if not(ATARI_LYNX)
+#if not(ATARI_LYNX)
 #warn atari lynx module should be only used on atari lynx
 #endif
+
+import joy
+
+// TODO: mark them correctly as volatile:
 
 word TMPADRL			@$fc00
 word TILTACUM		@$fc02
@@ -31,12 +35,12 @@ byte SPRCTRL1		@$fc81
 byte SPRCOLL		@$fc82
 byte SPRINT 		@$fc83 
 
-byte SUZYBUSEN 		$fc90
-byte SPRGO			$fc91
-byte SPRSYS			$fc92
+byte SUZYBUSEN 		@$fc90
+byte SPRGO			@$fc91
+byte SPRSYS			@$fc92
 	
-byte JOYSTICK 		$fcb0
-byte SWITCHES 		$fcb1
+volatile byte JOYSTICK 		@$fcb0
+volatile byte SWITCHES 		@$fcb1
 
 word DISPADR		@$fd94
 byte SUZYDONEACK 	@$fd90
@@ -46,48 +50,48 @@ byte PBKUP			@$fd93
 
 byte INTSET			@$fd81	
 
-byte TIMER0_reload	@$fd00 
-byte TIMER0_ctrl	@$fd01 
-byte TIMER0_count	@$fd02 
-byte TIMER0_ctrl2	@$fd03 
+volatile byte TIMER0_reload	@$fd00
+volatile byte TIMER0_ctrl	@$fd01
+volatile byte TIMER0_count	@$fd02
+volatile byte TIMER0_ctrl2	@$fd03
 
-byte TIMER1_reload	@$fd04 
-byte TIMER1_ctrl	@$fd05 
-byte TIMER1_count	@$fd06 
-byte TIMER1_ctrl2	@$fd07 
+volatile byte TIMER1_reload	@$fd04
+volatile byte TIMER1_ctrl	@$fd05
+volatile byte TIMER1_count	@$fd06
+volatile byte TIMER1_ctrl2	@$fd07
 
 //	video vertical position
-byte TIMER2_reload	@$fd08 
-byte TIMER2_ctrl	@$fd09 
-byte TIMER2_count	@$fd0a 
-byte TIMER2_ctrl2	@$fd0b
+volatile byte TIMER2_reload	@$fd08
+volatile byte TIMER2_ctrl	@$fd09
+volatile byte TIMER2_count	@$fd0a
+volatile byte TIMER2_ctrl2	@$fd0b
 
-byte RASTER			@$fd0a 
+volatile byte RASTER			@$fd0a
 
-byte TIMER3_reload	@$fd0c 
-byte TIMER3_ctrl	@$fd0d 
-byte TIMER3_count	@$fd0e 
-byte TIMER3_ctrl2	@$fd0f 
+volatile byte TIMER3_reload	@$fd0c
+volatile byte TIMER3_ctrl	@$fd0d
+volatile byte TIMER3_count	@$fd0e
+volatile byte TIMER3_ctrl2	@$fd0f
 
-byte TIMER4_reload	@$fd10 
-byte TIMER4_ctrl	@$fd11 
-byte TIMER4_count	@$fd12 
-byte TIMER4_ctrl2	@$fd13 
+volatile byte TIMER4_reload	@$fd10
+volatile byte TIMER4_ctrl	@$fd11
+volatile byte TIMER4_count	@$fd12
+volatile byte TIMER4_ctrl2	@$fd13
 
-byte TIMER5_reload	@$fd14 
-byte TIMER5_ctrl	@$fd15 
-byte TIMER5_count	@$fd16 
-byte TIMER5_ctrl2	@$fd17 
+volatile byte TIMER5_reload	@$fd14
+volatile byte TIMER5_ctrl	@$fd15
+volatile byte TIMER5_count	@$fd16
+volatile byte TIMER5_ctrl2	@$fd17
 
-byte TIMER6_reload	@$fd18 
-byte TIMER6_ctrl	@$fd19 
-byte TIMER6_count	@$fd1a 
-byte TIMER6_ctrl2	@$fd1b
+volatile byte TIMER6_reload	@$fd18
+volatile byte TIMER6_ctrl	@$fd19
+volatile byte TIMER6_count	@$fd1a
+volatile byte TIMER6_ctrl2	@$fd1b
 
-byte TIMER7_reload	@$fd1c 
-byte TIMER7_ctrl	@$fd1d 
-byte TIMER7_count	@$fd1e 
-byte TIMER7_ctrl2	@$fd1f 
+volatile byte TIMER7_reload	@$fd1c
+volatile byte TIMER7_ctrl	@$fd1d
+volatile byte TIMER7_count	@$fd1e
+volatile byte TIMER7_ctrl2	@$fd1f
 
 const byte DISPLAY_COLOR=%1000
 const byte DISPLAY_4bpp=%0100
@@ -134,17 +138,28 @@ const byte BTN_B=%00000010
 const byte BTN_R=%00010000 
 const byte BTN_L=%00100000 
 const byte BTN_D=%01000000 
-const byte BTN_U=%10000000 
+const byte BTN_U=%10000000
 
-inline void read_joy1() {
+alias input_a = input_btn
+byte input_b
+
+void lynx_reset_joy() {
+	input_dx = 0
+	input_dy = 0
+	input_btn = 0
+    input_b = 0
+}
+alias reset_joy = lynx_reset_joy!
+
+inline void read_joy() {
 	reset_joy()  
 	if JOYSTICK & BTN_U != 0 { input_dy += 1 }
 	if JOYSTICK & BTN_D != 0 { input_dy -= 1 }
 	if JOYSTICK & BTN_R != 0 { input_dx += 1 }
 	if JOYSTICK & BTN_L != 0 { input_dx -= 1 }
 
-	if JOYSTICK & BTN_A != 0 { input_btn |= 1 }
-	if JOYSTICK & BTN_B != 0 { input_btn |= 2 }
+	if JOYSTICK & BTN_A != 0 { input_a = 1 }
+	if JOYSTICK & BTN_B != 0 { input_b = 1 }
 }
 
 void lynx_init() {
