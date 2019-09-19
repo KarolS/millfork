@@ -41,6 +41,7 @@ nav:
     - cbm_file module: stdlib/cbm_file.md
     - C64-only modules: stdlib/c64.md
     - NES-only modules: stdlib/nes.md
+    - Lynx-only modules: stdlib/lynx.md
     - Game Boy–only modules: stdlib/gb.md
     - X16–only modules: stdlib/x16.md
   - Implementation details:

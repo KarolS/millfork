@@ -49,6 +49,10 @@ how to create a program made of multiple files loaded on demand
 
 * [MMC4 example](nes/nestest_mmc4.mfk) – the same thing as above, but uses a MMC4 mapper just to test bankswitching
 
+## Atari Lynx examples
+
+* [Lynx demo example](atari_lynx/atari_lynx_demo.mfk) – a simple sprite demo
+
 ## Game Boy examples
 
 * [GB test example](gb/gbtest.mfk) – a partial port of the NES example, with a rudimentary experimental text output implementation

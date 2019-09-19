@@ -8,6 +8,8 @@
 
 * Added full 16-bit multiplication and unsigned division. 
 
+* Added preliminary support for Atari Lynx (thanks to @Nullious)
+
 * Added preliminary support for EasyFlash.
 
 * Added preliminary support for Commander X16.

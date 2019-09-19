@@ -58,6 +58,8 @@
 
 * [NES-only modules](stdlib/nes.md)
 
+* [Atari Lynx-only modules](stdlib/lynx.md)
+
 * [Game Boy–only modules](stdlib/gb.md)
 
 * [X16–only modules](stdlib/x16.md)

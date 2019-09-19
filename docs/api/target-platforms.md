@@ -61,6 +61,8 @@ The compiler emits NES files.
 For more complex programs, you need to create your own "platform" definition.  
 Read [the NES programming guide](./famicom-programming-guide.md) for more info.
 
+* `atari_lynx` – Atari Lynx
+
 * `vcs` – Atari VCS (also known as Atari 2600), 4K cartridge (experimental)
 
 * `a8` – Atari 8-bit computers.
