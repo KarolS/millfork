@@ -35,9 +35,9 @@ byte SPRCTRL1		@$fc81
 byte SPRCOLL		@$fc82
 byte SPRINT 		@$fc83 
 
-byte SUZYBUSEN 		@$fc90
-byte SPRGO			@$fc91
-byte SPRSYS			@$fc92
+volatile byte SUZYBUSEN  @$fc90
+volatile byte SPRGO      @$fc91
+volatile byte SPRSYS     @$fc92
 	
 volatile byte JOYSTICK 		@$fcb0
 volatile byte SWITCHES 		@$fcb1
