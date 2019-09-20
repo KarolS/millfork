@@ -1355,7 +1355,6 @@ object BuiltIns {
               }
           }
         }
-        val label = ctx.nextLabel("de")
         return doDec(targetBytes)
       case Some(NumericConstant(-1, _)) if canUseIncDec && !subtract =>
         if (ctx.options.flags(CompilationFlag.Emit65CE02Opcodes)) {
@@ -1378,7 +1377,9 @@ object BuiltIns {
         return doDec(targetBytes)
       case Some(constant) =>
         addendSize = targetSize
-        Nil -> List.tabulate(targetSize)(i => List(AssemblyLine.immediate(LDA, constant.subbyte(i))))
+        Nil -> List.tabulate(targetSize)(i => List(AssemblyLine.immediate(LDA,
+          if (i >= addendType.size && constant.isProvablyNegative(addendType)) NumericConstant(-1, 1) else constant.subbyte(i)
+        )))
       case None =>
         addendSize match {
           case 1 =>
@@ -1436,17 +1437,17 @@ object BuiltIns {
           case _ => addend match {
             case vv: VariableExpression =>
               val source = env.get[Variable](vv.name)
-              Nil -> List.tabulate(addendSize)(i => AssemblyLine.variable(ctx, LDA, source, i))
+              Nil -> List.tabulate(targetSize)(i => AssemblyLine.variable(ctx, LDA, source, i))
             case f: FunctionCallExpression =>
               val jsr = MosExpressionCompiler.compile(ctx, addend, None, BranchSpec.None)
               val result = ctx.env.get[VariableInMemory](f.functionName + ".return")
-              jsr -> List.tabulate(addendSize)(i => AssemblyLine.variable(ctx, LDA, result, i))
+              jsr -> List.tabulate(targetSize)(i => AssemblyLine.variable(ctx, LDA, result, i))
           }
         }
     }
     val addendByteRead = addendByteRead0 ++ List.fill((targetSize - addendByteRead0.size) max 0)(List(AssemblyLine.immediate(LDA, 0)))
 
-    if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes)) {
+    if (ctx.options.flags(CompilationFlag.EmitNative65816Opcodes) && !addendType.isSigned)  {
       (removeTsx(targetBytes), calculateRhs, removeTsx(addendByteRead)) match {
         case (
           List(List(AssemblyLine0(STA, ta1, tl)), List(AssemblyLine0(STA, ta2, th))),
@@ -1520,12 +1521,32 @@ object BuiltIns {
         }
         buffer ++= targetBytes(i)
       } else if (subtract) {
-        if (addendSize < targetSize && addendType.isSigned) {
-          // TODO: sign extension
-          ???
+        if (i >= addendSize) {
+          if (addendType.isSigned && !decimal) {
+            buffer += AssemblyLine.implied(TXA)
+            buffer ++= staTo(ADC, targetBytes(i))
+          } else {
+            buffer ++= staTo(LDA, targetBytes(i))
+            buffer ++= wrapInSedCldIfNeeded(decimal, ldTo(SBC, addendByteRead(i)))
+          }
+        } else {
+          if (addendType.isSigned && i == addendSize - 1 && extendAtLeastOneByte && !decimal) {
+            val label = ctx.nextLabel("sx")
+            buffer ++= addendByteRead(i)
+            buffer += AssemblyLine.immediate(EOR, 0xff)
+            buffer += AssemblyLine.implied(PHA)
+            buffer += AssemblyLine.immediate(ORA, 0x7f)
+            buffer += AssemblyLine.relative(BMI, label)
+            buffer += AssemblyLine.immediate(LDA, 0)
+            buffer += AssemblyLine.label(label)
+            buffer += AssemblyLine.implied(TAX)
+            buffer += AssemblyLine.implied(PLA)
+            buffer ++= staTo(ADC, targetBytes(i))
+          } else {
+            buffer ++= staTo(LDA, targetBytes(i))
+            buffer ++= wrapInSedCldIfNeeded(decimal, ldTo(SBC, addendByteRead(i)))
+          }
         }
-        buffer ++= staTo(LDA, targetBytes(i))
-        buffer ++= wrapInSedCldIfNeeded(decimal, ldTo(SBC, addendByteRead(i)))
         buffer ++= targetBytes(i)
       } else {
         if (i >= addendSize) {

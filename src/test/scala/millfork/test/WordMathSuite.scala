@@ -700,4 +700,37 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc002) should equal((x % y) & 0xffff) withClue s"= $x %% $y (c002)"
     }
   }
+
+  test("Sign extension in subtraction") {
+    for {
+      i <- Seq(5324, 6453, 1500)
+      j <- Seq(0, 1, -1, -3, -7, -128, 127)
+//      i <- Seq(5324)
+//      j <- Seq(-1)
+    } {
+      EmuUnoptimizedCrossPlatformRun(/*Cpu.Mos, */Cpu.Z80)(
+        s"""
+           | word output0 @$$c000
+           | word output1 @$$c002
+           | word output2 @$$c004
+           | void main () {
+           |  sbyte tmp
+           |  output0 = $i
+           |  output2 = $i
+           |  tmp = $j
+           |  memory_barrier()
+           |  output1 = output0 - sbyte(${j&0xff})
+           |  memory_barrier()
+           |  output0 -= sbyte(${j&0xff})
+           |  output2 -= tmp
+           | }
+           | noinline word id(word w) = w
+            """.
+          stripMargin){m =>
+        m.readWord(0xc000) should equal((i - j) & 0xffff) withClue s"= $i - $j (c000)"
+        m.readWord(0xc002) should equal((i - j) & 0xffff) withClue s"= $i - $j (c002)"
+        m.readWord(0xc004) should equal((i - j) & 0xffff) withClue s"= $i - $j (c004)"
+      }
+    }
+  }
 }

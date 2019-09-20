@@ -573,7 +573,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 None -> Constant.Zero
               case Some(t: Type) =>
                 if (t.isSigned) Some(e) -> Constant.Zero
-                else variable -> constant
+                else variable -> constant.fitInto(t)
               case _ =>
                 // dunno what to do
                 Some(e) -> Constant.Zero
@@ -768,18 +768,17 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             maybeGet[Type](name) match {
               case Some(t: StructType) =>
                 if (params.size == t.fields.size) {
-                  sequence(params.map(eval)).map(fields => StructureConstant(t, fields))
+                  sequence(params.map(eval)).map(fields => StructureConstant(t, fields.zip(t.fields).map{
+                    case (fieldConst, fieldDesc) =>
+                      fieldConst.fitInto(get[Type](fieldDesc.typeName))
+                  }))
                 } else None
               case Some(_: UnionType) =>
                 None
               case Some(t) =>
                 if (params.size == 1) {
                   eval(params.head).map{ c =>
-                    (t.size, t.isSigned) match {
-                      case (1, false) => c.loByte
-                      case (2, false) => c.subword(0)
-                      case _ => c // TODO
-                    }
+                     c.fitInto(t)
                   }
                 } else None
               case _ => None
@@ -892,15 +891,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           value = eval(v).getOrElse(errorConstant(s"Enum constant `${stmt.name}.$name` is not a constant", stmt.position))
         case _ =>
       }
-      addThing(ConstantThing(name, value, t), stmt.position)
+      addThing(ConstantThing(name, value.fitInto(t), t), stmt.position)
       value += 1
     }
   }
 
   def registerStruct(stmt: StructDefinitionStatement): Unit = {
     stmt.fields.foreach{ f =>
-      if (Environment.invalidFieldNames.contains(f._2)) {
-        log.error(s"Invalid field name: `${f._2}`", stmt.position)
+      if (Environment.invalidFieldNames.contains(f.fieldName)) {
+        log.error(s"Invalid field name: `${f.fieldName}`", stmt.position)
       }
     }
     addThing(StructType(stmt.name, stmt.fields), stmt.position)
@@ -908,8 +907,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def registerUnion(stmt: UnionDefinitionStatement): Unit = {
     stmt.fields.foreach{ f =>
-      if (Environment.invalidFieldNames.contains(f._2)) {
-        log.error(s"Invalid field name: `${f._2}`", stmt.position)
+      if (Environment.invalidFieldNames.contains(f.fieldName)) {
+        log.error(s"Invalid field name: `${f.fieldName}`", stmt.position)
       }
     }
     addThing(UnionType(stmt.name, stmt.fields), stmt.position)
@@ -924,7 +923,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         else {
           val newPath = path + name
           var sum = 0
-          for( (fieldType, _) <- s.fields) {
+          for( FieldDesc(fieldType, _) <- s.fields) {
             val fieldSize = getTypeSize(fieldType, newPath)
             if (fieldSize < 0) return -1
             sum += fieldSize
@@ -935,7 +934,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
           val b = get[Type]("byte")
           var offset = 0
-          for( (fieldType, fieldName) <- s.fields) {
+          for( FieldDesc(fieldType, fieldName) <- s.fields) {
             addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(offset, 1), b), None)
             offset += getTypeSize(fieldType, newPath)
           }
@@ -946,7 +945,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         else {
           val newPath = path + name
           var max = 0
-          for( (fieldType, _) <- s.fields) {
+          for( FieldDesc(fieldType, _) <- s.fields) {
             val fieldSize = getTypeSize(fieldType, newPath)
             if (fieldSize < 0) return -1
             max = max max fieldSize
@@ -956,7 +955,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             log.error(s"Union `$name` is larger than 255 bytes")
           }
           val b = get[Type]("byte")
-          for ((fieldType, fieldName) <- s.fields) {
+          for (FieldDesc(fieldType, fieldName) <- s.fields) {
             addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(0, 1), b), None)
           }
           max
@@ -1358,7 +1357,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               List.fill(tt.size)(LiteralExpression(0, 1))
             } else {
               tt.fields.zip(fieldValues).flatMap {
-                case ((fieldTypeName, _), expr) => extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
+                case (FieldDesc(fieldTypeName, _), expr) => extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
               }
             }
           case _ =>
@@ -1392,7 +1391,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               List.fill(tt.size)(LiteralExpression(0, 1))
             } else {
               tt.fields.zip(fieldValues).flatMap {
-                case ((fieldTypeName, _), expr) => extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
+                case (FieldDesc(fieldTypeName, _), expr) => extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
               }
             }
           case _ =>
@@ -1649,7 +1648,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (stmt.register) log.error(s"`$name` is a constant and cannot be in a register", position)
       if (stmt.address.isDefined) log.error(s"`$name` is a constant and cannot have an address", position)
       if (stmt.initialValue.isEmpty) log.error(s"`$name` is a constant and requires a value", position)
-      val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", position))
+      val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", position)).fitInto(typ)
       if (constantValue.requiredSize > typ.size) log.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
       for((suffix, offset, t) <- getSubvariables(typ)) {
@@ -1839,7 +1838,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case s: StructType =>
         val builder = new ListBuffer[(String, Int, VariableType)]
         var offset = 0
-        for((typeName, fieldName) <- s.fields) {
+        for(FieldDesc(typeName, fieldName) <- s.fields) {
           val typ = get[VariableType](typeName)
           val suffix = "." + fieldName
           builder += ((suffix, offset, typ))
@@ -1851,7 +1850,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         builder.toList
       case s: UnionType =>
         val builder = new ListBuffer[(String, Int, VariableType)]
-        for((typeName, fieldName) <- s.fields) {
+        for(FieldDesc(typeName, fieldName) <- s.fields) {
           val typ = get[VariableType](typeName)
           val suffix = "." + fieldName
           builder += ((suffix, 0, typ))
@@ -1937,11 +1936,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     things.values.foreach {
       case st@StructType(_, fields) =>
         st.mutableFieldsWithTypes = fields.map {
-          case (tn, name) => get[Type](tn) -> name
+          case FieldDesc(tn, name) => get[Type](tn) -> name
         }
       case ut@UnionType(_, fields) =>
         ut.mutableFieldsWithTypes = fields.map {
-          case (tn, name) => get[Type](tn) -> name
+          case FieldDesc(tn, name) => get[Type](tn) -> name
         }
       case _ => ()
     }

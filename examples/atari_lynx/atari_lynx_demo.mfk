@@ -116,13 +116,7 @@ pointer source
 		}
 		else {
 		//	or just move it
-            // FIXME: word-subbyte doesn't work yet
-			if input_dy==$ff {
-				demosp.ypos+=1
-			}
-			if input_dy==$01 {
-				demosp.ypos-=1
-			}
+			demosp.ypos -= input_dy
             demosp.xpos += input_dx
 		}
 	}

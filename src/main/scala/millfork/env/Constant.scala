@@ -25,6 +25,7 @@ sealed trait Constant {
   def isProvably(value: Int): Boolean = false
   def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = false
   def isProvablyNonnegative: Boolean = false
+  def isProvablyNegative(asType: Type): Boolean = false
   final def isProvablyGreaterOrEqualThan(other: Int): Boolean = isProvablyGreaterOrEqualThan(Constant(other))
   def isProvablyGreaterOrEqualThan(other: Constant): Boolean = other match {
     case NumericConstant(0, _) => true
@@ -114,6 +115,15 @@ sealed trait Constant {
 
   def fitsInto(typ: Type): Boolean = true // TODO
 
+  def fitInto(typ: Type): Constant = {
+    // TODO:
+    typ.size match {
+      case 1 => loByte
+      case 2 => subword(0)
+      case _ => this
+    }
+  }
+
   final def succ: Constant = (this + 1).quickSimplify
 }
 
@@ -123,6 +133,7 @@ case class AssertByte(c: Constant) extends Constant {
   override def isProvablyZero: Boolean = c.isProvablyZero
   override def isProvably(i: Int): Boolean = c.isProvably(i)
   override def isProvablyNonnegative: Boolean = c.isProvablyNonnegative
+  override def isProvablyNegative(asType: Type): Boolean = c.isProvablyNegative(asType)
   override def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = c.isProvablyInRange(startInclusive, endInclusive)
   override def fitsProvablyIntoByte: Boolean = true
 
@@ -204,6 +215,11 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   override def isProvablyZero: Boolean = value == 0
   override def isProvably(i: Int): Boolean = value == i
   override def isProvablyNonnegative: Boolean = value >= 0
+  override def isProvablyNegative(asType: Type): Boolean = {
+    if (!asType.isSigned) return false
+    if (asType.size >= 8) return value < 0
+    value.&(0x1L.<<(8 * asType.size - 1)) != 0
+  }
   override def fitsProvablyIntoByte: Boolean = requiredSize == 1
   override def isProvablyDivisibleBy256: Boolean = (value & 0xff) == 0
 
@@ -249,6 +265,19 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
         case 4 => value == (value & 0xffffffffL)
         case _ => true
       }
+    }
+  }
+
+  override def fitInto(typ: Type): Constant = {
+    if (typ.size >= 8) {
+      return NumericConstant(value, typ.size)
+    }
+    val actualBits = 1L.<<(8 * typ.size).-(1).&(value)
+    if (isProvablyNegative(typ)) {
+      val sx = (-1L).<<(8 * typ.size)
+      NumericConstant(sx | actualBits, typ.size)
+    } else {
+      NumericConstant(actualBits, typ.size)
     }
   }
 }

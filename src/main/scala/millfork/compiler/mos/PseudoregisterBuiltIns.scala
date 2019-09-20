@@ -38,7 +38,7 @@ object PseudoregisterBuiltIns {
     val result = ListBuffer[AssemblyLine]()
     var hard = Option.empty[List[AssemblyLine]]
     val niceReads = mutable.ListBuffer[(List[AssemblyLine], List[AssemblyLine])]()
-    var constant = Constant.Zero
+    var constant: Constant = NumericConstant(0, 2)
     var counter = 0
     for ((subtract, read) <- reads) {
       read match {
@@ -99,7 +99,7 @@ object PseudoregisterBuiltIns {
       val (variablePart, constPart) = ctx.env.evalVariableAndConstantSubParts(SumExpression(params, decimal = false))
       variablePart match {
         case None =>
-          return MosExpressionCompiler.compileConstant(ctx, constPart, RegisterVariable(MosRegister.AX, w))
+          return MosExpressionCompiler.compileConstant(ctx, constPart, w, RegisterVariable(MosRegister.AX, w))
         case Some(v) =>
           val typ = MosExpressionCompiler.getExpressionType(ctx, v)
           if (typ.size == 1 && !typ.isSigned) {
@@ -146,7 +146,7 @@ object PseudoregisterBuiltIns {
       val (variablePart, constPart) = ctx.env.evalVariableAndConstantSubParts(SumExpression(params, decimal = false))
       variablePart match {
         case None =>
-          return MosExpressionCompiler.compileConstant(ctx, constPart, RegisterVariable(MosRegister.AW, w))
+          return MosExpressionCompiler.compileConstant(ctx, constPart, w, RegisterVariable(MosRegister.AW, w))
         case Some(v) =>
       }
     }

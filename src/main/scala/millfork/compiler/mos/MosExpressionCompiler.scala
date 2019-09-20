@@ -16,7 +16,7 @@ import millfork.output.NoAlignment
   */
 object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
-  def compileConstant(ctx: CompilationContext, expr: Constant, target: Variable): List[AssemblyLine] = {
+  def compileConstant(ctx: CompilationContext, expr: Constant, exprType: Type, target: Variable): List[AssemblyLine] = {
     target match {
       case RegisterVariable(MosRegister.A, _) => List(AssemblyLine(LDA, Immediate, expr))
       case RegisterVariable(MosRegister.AW, _) =>
@@ -617,7 +617,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case Some(value) =>
         return exprTypeAndVariable.fold(noop) { case (exprType, target) =>
           assertCompatible(exprType, target.typ)
-          compileConstant(ctx, value, target)
+          compileConstant(ctx, value, exprType, target)
         }
       case _ =>
     }
@@ -627,17 +627,17 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case LiteralExpression(value, size) =>
         exprTypeAndVariable.fold(noop) { case (exprType, target) =>
           assertCompatible(exprType, target.typ)
-          compileConstant(ctx, NumericConstant(value, size), target)
+          compileConstant(ctx, NumericConstant(value, size), exprType, target)
         }
       case GeneratedConstantExpression(value, _) =>
         exprTypeAndVariable.fold(noop) { case (exprType, target) =>
           assertCompatible(exprType, target.typ)
-          compileConstant(ctx, value, target)
+          compileConstant(ctx, value, exprType, target)
         }
       case VariableExpression(name) =>
         exprTypeAndVariable.fold(noop) { case (exprType, target) =>
           assertCompatible(exprType, target.typ)
-          env.eval(expr).map(c => compileConstant(ctx, c, target)).getOrElse {
+          env.eval(expr).map(c => compileConstant(ctx, c, exprType, target)).getOrElse {
             env.get[TypedThing](name) match {
               case source: StackOffsetThing => compileStackOffset(ctx, target, source.offset, source.subbyte)
               case source: VariableInMemory =>
@@ -902,7 +902,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     }
                 }
               case source@ConstantThing(_, value, _) =>
-                compileConstant(ctx, value, target)
+                compileConstant(ctx, value, exprType, target)
             }
           }
         }
@@ -1080,7 +1080,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 if (neg) MathOperator.Minus else MathOperator.Plus
               }, c, v).quickSimplify
             }
-          exprTypeAndVariable.map(x => compileConstant(ctx, value.quickSimplify, x._2)).getOrElse(Nil)
+          exprTypeAndVariable.map(x => compileConstant(ctx, value.quickSimplify, exprType, x._2)).getOrElse(Nil)
         } else {
           getSumSize(ctx, params) match {
             case 1 =>
@@ -1244,7 +1244,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case Some(c) =>
                 exprTypeAndVariable match {
                   case Some((t, v)) =>
-                    compileConstant(ctx, c, v)
+                    compileConstant(ctx, c, w, v)
                   case _ =>
                     Nil
                 }
@@ -1259,7 +1259,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 case Some(c) =>
                   exprTypeAndVariable match {
                     case Some((t, v)) =>
-                      compileConstant(ctx, c, v)
+                      compileConstant(ctx, c, w, v)
                     case _ =>
                       Nil
                   }

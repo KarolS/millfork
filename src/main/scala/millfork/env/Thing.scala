@@ -112,14 +112,14 @@ case class EnumType(name: String, count: Option[Int]) extends VariableType {
 
 sealed trait CompoundVariableType extends VariableType
 
-case class StructType(name: String, fields: List[(String, String)]) extends CompoundVariableType {
+case class StructType(name: String, fields: List[FieldDesc]) extends CompoundVariableType {
   override def size: Int = mutableSize
   var mutableSize: Int = -1
   var mutableFieldsWithTypes: List[(Type, String)] = Nil
   override def isSigned: Boolean = false
 }
 
-case class UnionType(name: String, fields: List[(String, String)]) extends CompoundVariableType {
+case class UnionType(name: String, fields: List[FieldDesc]) extends CompoundVariableType {
   override def size: Int = mutableSize
   var mutableSize: Int = -1
   var mutableFieldsWithTypes: List[(Type, String)] = Nil

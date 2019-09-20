@@ -10,6 +10,8 @@ import millfork.output.MemoryAlignment
 
 case class Position(moduleName: String, line: Int, column: Int, cursor: Int)
 
+case class FieldDesc(typeName:String, fieldName: String)
+
 sealed trait Node {
   var position: Option[Position] = None
 }
@@ -455,11 +457,11 @@ case class EnumDefinitionStatement(name: String, variants: List[(String, Option[
   override def getAllExpressions: List[Expression] = variants.flatMap(_._2)
 }
 
-case class StructDefinitionStatement(name: String, fields: List[(String, String)]) extends DeclarationStatement {
+case class StructDefinitionStatement(name: String, fields: List[FieldDesc]) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
 }
 
-case class UnionDefinitionStatement(name: String, fields: List[(String, String)]) extends DeclarationStatement {
+case class UnionDefinitionStatement(name: String, fields: List[FieldDesc]) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
 }
 

@@ -538,12 +538,12 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     variants <- enumVariants ~/ Pass
   } yield Seq(EnumDefinitionStatement(name, variants).pos(p))
 
-  val compoundTypeField: P[(String, String)] = for {
+  val compoundTypeField: P[FieldDesc] = for {
     typ <- identifier ~/ HWS
     name <- identifier ~ HWS
-  } yield typ -> name
+  } yield FieldDesc(typ, name)
 
-  val compoundTypeFields: P[List[(String, String)]] =
+  val compoundTypeFields: P[List[FieldDesc]] =
     ("{" ~/ AWS ~ compoundTypeField.rep(sep = NoCut(EOLOrComma) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
 
   val structDefinition: P[Seq[StructDefinitionStatement]] = for {

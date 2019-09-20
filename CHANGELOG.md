@@ -24,7 +24,7 @@
 
 * Added `vectrex`, `msx_br` and `koi7n2` text encodings.
 
-* 6502: Fixed arithmetic promotion bugs for function return values.
+* Fixed arithmetic promotion bugs for signed values.
 
 * Fixed parsing of `zp_bytes` in platform definitions.
 

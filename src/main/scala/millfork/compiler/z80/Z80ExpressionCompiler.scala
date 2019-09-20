@@ -354,7 +354,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 import ZRegister._
                 v.typ.size match {
                   case 0 => ???
-                  case 1 => loadByte(v.toAddress, target, v.isVolatile)
+                  case 1 => loadByte(ctx, v.toAddress, target, v.isVolatile, v.typ.isSigned)
                   case 2 => target match {
                     case ZExpressionTarget.NOTHING => Nil
                     case ZExpressionTarget.HL =>
@@ -548,7 +548,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             }
           case i: IndexedExpression =>
             calculateAddressToHL(ctx, i, forWriting = false) match {
-              case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)) => loadByte(addr, target, volatile = false)
+              case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)) => loadByte(ctx, addr, target, volatile = false, signExtend = false)
               case code => code ++ loadByteViaHL(target)
             }
           case SumExpression(params, decimal) =>
@@ -1447,16 +1447,53 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def loadByte(sourceAddr: Constant, target: ZExpressionTarget.Value, volatile: Boolean): List[ZLine] = {
+  def loadByte(ctx: CompilationContext, sourceAddr: Constant, target: ZExpressionTarget.Value, volatile: Boolean, signExtend: Boolean): List[ZLine] = {
+    import ZRegister._
+    import ZLine.{ld8, ldImm8, ldAbs8, ldImm16}
     val elidability = if (volatile) Elidability.Volatile else Elidability.Elidable
     target match {
       case ZExpressionTarget.NOTHING => Nil
       case ZExpressionTarget.A => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability))
-      case ZExpressionTarget.HL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0))
-      case ZExpressionTarget.BC => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.C, ZRegister.A), ZLine.ldImm8(ZRegister.B, 0))
-      case ZExpressionTarget.DE => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.E, ZRegister.A), ZLine.ldImm8(ZRegister.D, 0))
-      case ZExpressionTarget.EHL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm8(ZRegister.E, 0))
-      case ZExpressionTarget.DEHL => List(ZLine.ldAbs8(ZRegister.A, sourceAddr, elidability), ZLine.ld8(ZRegister.L, ZRegister.A), ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm16(ZRegister.DE, 0))
+      case ZExpressionTarget.HL =>
+        if (signExtend) {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(L, A)) ++
+            signExtendHighestByte(ctx, A, signExtend) ++
+            List(ld8(H, A))
+        } else {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(L, A), ldImm8(H, 0))
+        }
+      case ZExpressionTarget.BC =>
+        if (signExtend) {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(L, A)) ++
+            signExtendHighestByte(ctx, A, signExtend) ++
+            List(ld8(H, A))
+        } else {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(C, A), ldImm8(B, 0))
+        }
+      case ZExpressionTarget.DE =>
+        if (signExtend) {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(E, A)) ++
+            signExtendHighestByte(ctx, A, signExtend) ++
+            List(ld8(D, A))
+        } else {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(E, A), ldImm8(D, 0))
+        }
+      case ZExpressionTarget.EHL =>
+        if (signExtend) {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(L, A)) ++
+            signExtendHighestByte(ctx, A, signExtend) ++
+            List(ld8(H, A), ld8(E, A))
+        } else {
+          List(ldAbs8(ZRegister.A, sourceAddr, elidability), ld8(L, A), ldImm8(H, 0), ldImm8(E, 0))
+        }
+      case ZExpressionTarget.DEHL =>
+        if (signExtend) {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(L, A)) ++
+            signExtendHighestByte(ctx, A, signExtend) ++
+            List(ld8(H, A), ld8(E, A), ld8(D, A))
+        } else {
+          List(ldAbs8(A, sourceAddr, elidability), ld8(L, A), ldImm8(H, 0), ldImm16(DE, 0))
+        }
     }
   }
 
