@@ -76,9 +76,9 @@ Reads the joypad from the port 1 and adds its readouts to the current readouts.
 Reads the joypad from the port 2 and adds its readouts to the current readouts.
 
 #### `void nes_reset_joy()`
+#### `alias reset_joy = nes_reset_joy!`
 
 Resets the state variables.
-Unlike `reset_joy`, this resets all the NES button states.
 
 ## nes_joy1_default
 

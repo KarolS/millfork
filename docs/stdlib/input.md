@@ -21,15 +21,17 @@ Vertical joystick movement. 1 if down, -1 if up, 0 if neither.
 
 #### `void reset_joy()`
 
-Resets the state variables.
-For platforms with more than one button, this resets only the main button state.
-On those platforms use the platform-specific functions instead. 
+Resets the state variables.  
+The default implementation resets only the main button.  
+May be overridden by a strong alias on some platforms that have more buttons.
 
 ## null_joy_default
 
 This module set the default joystick to no joystick. 
 
 #### `alias read_joy`
+
+A reserved name for reading the default joystick.
 
 ## mouse
 

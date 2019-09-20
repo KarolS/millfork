@@ -24,6 +24,8 @@
 
 * Added `vectrex`, `msx_br`, `koi7n2`, `iso15`, `zx80` and `zx81` text encodings.
 
+* `reset_joy` is now defined to always reset all joypad state variables.
+
 * Fixed arithmetic promotion bugs for signed values.
 
 * Fixed parsing of `zp_bytes` in platform definitions.

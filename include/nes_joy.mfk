@@ -19,11 +19,15 @@ macro void read_joy2() {
 }
 
 void nes_reset_joy() {
+	input_dx = 0
+	input_dy = 0
+	input_a = 0
 	input_b = 0
 	input_select = 0
 	input_start = 0
-	reset_joy()
 }
+
+alias reset_joy = nes_reset_joy!
 
 inline void read_also_joy1() {
     strobe_joypad()
