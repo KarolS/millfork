@@ -185,6 +185,12 @@ object TextCodec {
       case (_, "vectrex") => TextCodec.Vectrex
       case (_, "koi7n2") => TextCodec.Koi7N2
       case (_, "short_koi") => TextCodec.Koi7N2
+      case (_, "zx80") => TextCodec.Zx80
+      case (_, "zx81") => TextCodec.Zx81
+      case (_, "iso8859_15") => TextCodec.Iso8859_15
+      case (_, "latin0") => TextCodec.Iso8859_15
+      case (_, "latin9") => TextCodec.Iso8859_15
+      case (_, "iso15") => TextCodec.Iso8859_15
       case (p, _) =>
         log.error(s"Unknown string encoding: `$name`", p)
         TextCodec.Ascii
@@ -194,7 +200,7 @@ object TextCodec {
 
   val NotAChar = '\ufffd'
 
-  private val DefaultOverrides: Map[Char, Int] = ('\u2400' to '\u2420').map(c => c->(c.toInt - 0x2400)).toMap + ('\u2421' -> 127)
+  private lazy val DefaultOverrides: Map[Char, Int] = ('\u2400' to '\u2420').map(c => c->(c.toInt - 0x2400)).toMap + ('\u2421' -> 127)
 
   //noinspection ScalaUnusedSymbol
   private val AsciiEscapeSequences: Map[String, List[Int]] = Map(
@@ -218,27 +224,47 @@ object TextCodec {
     "lbrace" -> List('{'.toInt),
     "rbrace" -> List('}'.toInt))
 
-  private val StandardKatakanaDecompositions: Map[Char, String] = {
+  private lazy val StandardKatakanaDecompositions: Map[Char, String] = {
     (("カキクケコサシスセソタチツテトハヒフヘホ")).zip(
       "ガギグゲゴザジズゼゾダヂヅデドバビブベボ").map { case (u, v) => v -> (u + "゛") }.toMap ++
       "ハヒフヘホ".zip("パピプペポ").map { case (h, p) => p -> (h + "゜") }.toMap
   }
-  private val StandardHiraganaDecompositions: Map[Char, String] = {
+  private lazy val StandardHiraganaDecompositions: Map[Char, String] = {
     (("かきくけこさしすせそたちつてとはひふへほ")).zip(
       "がぎぐげござじずぜぞだぢづでどばびぶべぼ").map { case (u, v) => v -> (u + "゛") }.toMap ++
       "はひふへほ".zip("ぱぴぷぺぽ").map { case (h, p) => p -> (h + "゜") }.toMap
   }
 
-  val Ascii = new TextCodec("ASCII", 0, 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty, AsciiEscapeSequences)
+  lazy val Ascii = new TextCodec("ASCII", 0, 0.until(127).map { i => if (i < 32) NotAChar else i.toChar }.mkString, Map.empty, Map.empty, AsciiEscapeSequences)
 
-  val Apple2 = new TextCodec("APPLE-II", 0, 0.until(255).map { i =>
+  lazy val Iso8859_15 = new TextCodec("ISO 8859-15", 0,
+    "\ufffd" * 32 +
+      32.until(127).map { i => i.toChar }.mkString +
+      "\ufffd" +
+      "\ufffd" * 32 +
+      "\ufffd¡¢£€¥Š§š©ª«¬\ufffd®¯" +
+      "°±²³Žµ¶·ž¹º»ŒœŸ¿" +
+      "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ" +
+      "ÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß" +
+      "àáâãäåæçèéêëìíîï" +
+      "ðñòóôõö÷øùúûüýþÿ",
+    Map.empty, Map.empty, AsciiEscapeSequences ++ Map(
+      "cent" -> List(0xA2),
+      "pound" -> List(0xA3),
+      "euro" -> List(0xA4),
+      "yen" -> List(0xA5),
+      "copy" -> List(0xA9),
+    )
+  )
+
+  lazy val Apple2 = new TextCodec("APPLE-II", 0, 0.until(255).map { i =>
     if (i < 0xa0) NotAChar
     else if (i < 0xe0) (i - 128).toChar
     else NotAChar
   }.mkString,
     ('a' to 'z').map(l => l -> (l - 'a' + 0xC1)).toMap, Map.empty, MinimalEscapeSequencesWithBraces)
 
-  val IsoIec646De = new TextCodec("ISO-IEC-646-DE", 0,
+  lazy val IsoIec646De = new TextCodec("ISO-IEC-646-DE", 0,
     "\ufffd" * 32 +
       " !\"#$%^'()*+,-./0123456789:;<=>?" +
       "§ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ^_" +
@@ -254,7 +280,7 @@ object TextCodec {
     )
   )
 
-  val IsoIec646Se = new TextCodec("ISO-IEC-646-SE", 0,
+  lazy val IsoIec646Se = new TextCodec("ISO-IEC-646-SE", 0,
     "\ufffd" * 32 +
       " !\"#¤%^'()*+,-./0123456789:;<=>?" +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÅ^_" +
@@ -276,7 +302,7 @@ object TextCodec {
     )
   )
 
-  val IsoIec646No = new TextCodec("ISO-IEC-646-NO", 0,
+  lazy val IsoIec646No = new TextCodec("ISO-IEC-646-NO", 0,
     "\ufffd" * 32 +
       " !\"#$%^'()*+,-./0123456789:;<=>?" +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZÆØÅ^_" +
@@ -303,7 +329,7 @@ object TextCodec {
   )
 
 
-  val IsoIec646Yu = new TextCodec("ISO-IEC-646-YU", 0,
+  lazy val IsoIec646Yu = new TextCodec("ISO-IEC-646-YU", 0,
     "\ufffd" * 32 +
       " !\"#$%^'()*+,-./0123456789:;<=>?" +
       "ŽABCDEFGHIJKLMNOPQRSTUVWXYZŠĐĆČ_" +
@@ -322,7 +348,7 @@ object TextCodec {
     )
   )
 
-  val CbmScreencodesJp = new TextCodec("CBM-Screen-JP", 0,
+  lazy val CbmScreencodesJp = new TextCodec("CBM-Screen-JP", 0,
     "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]↑←" + // 00-1f
       0x20.to(0x3f).map(_.toChar).mkString +
       "タチツテトナニヌネノハヒフヘホマ" + // 40-4f
@@ -353,7 +379,7 @@ object TextCodec {
     )
   )
 
-  val Petscii = new TextCodec("PETSCII", 0,
+  lazy val Petscii = new TextCodec("PETSCII", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
@@ -384,7 +410,7 @@ object TextCodec {
     )
   )
 
-  val PetsciiJp = new TextCodec("PETSCII-JP", 0,
+  lazy val PetsciiJp = new TextCodec("PETSCII-JP", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]↑←" +
@@ -433,7 +459,7 @@ object TextCodec {
     )
   )
 
-  val Vectrex = new TextCodec("Vectrex", 0x80,
+  lazy val Vectrex = new TextCodec("Vectrex", 0x80,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_" +
@@ -444,7 +470,7 @@ object TextCodec {
     )
   )
 
-  val Koi7N2 = new TextCodec("KOI-7 N2", 0,
+  lazy val Koi7N2 = new TextCodec("KOI-7 N2", 0,
     "\ufffd" * 32 +
       " !\"#¤%&'()*+,-./" +
       "0123456789:;<=>?" +
@@ -463,7 +489,7 @@ object TextCodec {
     )
   )
 
-  val OldPetscii = new TextCodec("Old PETSCII", 0,
+  lazy val OldPetscii = new TextCodec("Old PETSCII", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@abcdefghijklmnopqrstuvwxyz[\\]↑←" +
@@ -485,7 +511,7 @@ object TextCodec {
     )
   )
 
-  val OriginalPetscii = new TextCodec("Original PETSCII", 0,
+  lazy val OriginalPetscii = new TextCodec("Original PETSCII", 0,
     "\ufffd" * 32 +
       0x20.to(0x3f).map(_.toChar).mkString +
       "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]↑←" +
@@ -507,7 +533,7 @@ object TextCodec {
     )
   )
 
-  val Atascii = new TextCodec("ATASCII", 0,
+  lazy val Atascii = new TextCodec("ATASCII", 0,
     "♡" +
     "\ufffd" * 15 +
       "♣\ufffd–\ufffd•" +
@@ -524,7 +550,7 @@ object TextCodec {
     )
   )
 
-  val AtasciiScreencodes = new TextCodec("ATASCII-Screen", 0,
+  lazy val AtasciiScreencodes = new TextCodec("ATASCII-Screen", 0,
     0x20.to(0x3f).map(_.toChar).mkString +
       0x40.to(0x5f).map(_.toChar).mkString +
       "♡" +
@@ -535,7 +561,7 @@ object TextCodec {
     Map('♥' -> 0x40, '·' -> 0x54), Map.empty, MinimalEscapeSequencesWithoutBraces
   )
 
-  val Bbc = new TextCodec("BBC", 0,
+  lazy val Bbc = new TextCodec("BBC", 0,
     "\ufffd" * 32 +
       0x20.to(0x5f).map(_.toChar).mkString +
       "£" + 0x61.to(0x7E).map(_.toChar).mkString + "©",
@@ -546,7 +572,7 @@ object TextCodec {
     )
   )
 
-  val Sinclair = new TextCodec("Sinclair", 0,
+  lazy val Sinclair = new TextCodec("Sinclair", 0,
     "\ufffd" * 32 +
       0x20.to(0x5f).map(_.toChar).mkString +
       "£" + 0x61.to(0x7E).map(_.toChar).mkString + "©",
@@ -583,6 +609,47 @@ object TextCodec {
     )
   )
 
+  lazy val Zx80 = new TextCodec("ZX80", 1,
+    " \ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd" +
+      "£$:?()-+*/=><;,." +
+      "0123456789" +
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+      "\ufffd" * (9 * 16) +
+      "\ufffd\ufffd\ufffd\ufffd\"",
+    ('a' to 'z').map(l => l -> (l - 'a' + 0x26)).toMap,
+    Map.empty, Map(
+      "pound" -> List(0x0c),
+      "q" -> List(0xd4),
+      "apos" -> List(212),
+      "n" -> List(0x76),
+      "b" -> List(0x77),
+      "up" -> List(0x70),
+      "down" -> List(0x71),
+      "left" -> List(0x72),
+      "right" -> List(0x73),
+    )
+  )
+
+  lazy val Zx81 = new TextCodec("ZX81", 11,
+    " \ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd" +
+      "£$:?()><=+-*/;,." +
+      "0123456789" +
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+      "\ufffd" * (8 * 16) +
+      "\"",
+    ('a' to 'z').map(l => l -> (l - 'a' + 0x26)).toMap,
+    Map.empty, Map(
+      "pound" -> List(0x0c),
+      "q" -> List(0xc0),
+      "n" -> List(0x76),
+      "b" -> List(0x77),
+      "up" -> List(0x70),
+      "down" -> List(0x71),
+      "left" -> List(0x72),
+      "right" -> List(0x73),
+    )
+  )
+
   private val jisHalfwidthKatakanaOrder: String =
     "\ufffd。「」、・ヲァィゥェォャュョッ" +
     "ーアイウエオカキクケコサシスセソ" +
@@ -590,7 +657,7 @@ object TextCodec {
     "ミムメモヤユヨラリルレロワン゛゜"
 
   //noinspection ScalaUnnecessaryParentheses
-  val Jis = new TextCodec("JIS-X-0201", 0,
+  lazy val Jis = new TextCodec("JIS-X-0201", 0,
     "\ufffd" * 32 +
       ' '.to('Z').mkString +
       "[¥]^_" +
@@ -610,7 +677,7 @@ object TextCodec {
     )
   )
 
-  val MsxWest = new TextCodec("MSX-International", 0,
+  lazy val MsxWest = new TextCodec("MSX-International", 0,
     "\ufffd" * 32 +
       (0x20 to 0x7e).map(_.toChar).mkString("") +
       "\ufffd" +
@@ -636,7 +703,7 @@ object TextCodec {
     )
   )
 
-  val MsxBr = new TextCodec("MSX-BR", 0,
+  lazy val MsxBr = new TextCodec("MSX-BR", 0,
     "\ufffd" * 32 +
       (0x20 to 0x7e).map(_.toChar).mkString("") +
       "\ufffd" +
@@ -662,7 +729,7 @@ object TextCodec {
     )
   )
 
-  val MsxRu = new TextCodec("MSX-RU", 0,
+  lazy val MsxRu = new TextCodec("MSX-RU", 0,
     "\ufffd" * 32 +
       (0x20 to 0x7e).map(_.toChar).mkString("") +
       "\ufffd" +
@@ -685,7 +752,7 @@ object TextCodec {
     )
   )
 
-  val MsxJp = new TextCodec("MSX-JP", 0,
+  lazy val MsxJp = new TextCodec("MSX-JP", 0,
     "\ufffd" * 32 +
       (0x20 to 0x7e).map(c => if (c == 0x5c) '¥' else c.toChar).mkString("") +
       "\ufffd" +
@@ -730,7 +797,7 @@ object TextCodec {
     )
   )
 
-  val lossyAlternatives: Map[Char, List[String]] = {
+  lazy val lossyAlternatives: Map[Char, List[String]] = {
     val allowLowercase: Map[Char, List[String]] = ('A' to 'Z').map(c => c -> List(c.toString.toLowerCase(Locale.ROOT))).toMap
     val allowUppercase: Map[Char, List[String]] = ('a' to 'z').map(c => c -> List(c.toString.toUpperCase(Locale.ROOT))).toMap
     val allowLowercaseCyr: Map[Char, List[String]] = ('а' to 'я').map(c => c -> List(c.toString.toUpperCase(Locale.ROOT))).toMap

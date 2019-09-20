@@ -22,7 +22,7 @@
 
 * Added `nullchar` constant as the null terminator for strings and `NULLCHAR` feature to define its value.
 
-* Added `vectrex`, `msx_br` and `koi7n2` text encodings.
+* Added `vectrex`, `msx_br`, `koi7n2`, `iso15`, `zx80` and `zx81` text encodings.
 
 * Fixed arithmetic promotion bugs for signed values.
 
