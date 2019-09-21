@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.8
 
 * `sizeof` now supports arrays.
 
