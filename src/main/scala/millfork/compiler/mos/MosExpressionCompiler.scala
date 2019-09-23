@@ -440,8 +440,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     val env = ctx.env
     val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, expr)
     sourceType match {
-      case FatBooleanType | _:ConstantBooleanType =>
+      case FatBooleanType =>
         compileToA(ctx, expr)
+      case t: ConstantBooleanType =>
+        List(AssemblyLine.immediate(LDA, if (t.value) 1 else 0))
       case _: FlagBooleanType | BuiltInBooleanType =>
         val label = env.nextLabel("bo")
         val condition = compile(ctx, expr, None, BranchIfFalse(label))

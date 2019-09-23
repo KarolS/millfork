@@ -4,7 +4,7 @@ import millfork.assembly.m6809.{DAccumulatorIndexed, Indexed, MLine, MOpcode, Tw
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, M6809RegisterVariable, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, Variable, VariablePointy}
+import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, M6809RegisterVariable, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, Type, Variable, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -282,6 +282,17 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
           case ">>'=" => ???
           case ">>>>=" => ???
           case _ =>
+            env.maybeGet[Type](fce.functionName) match {
+              case Some(typ) =>
+                val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
+                return sourceType.size match {
+                  case 1 => compileToB(ctx, params.head) ++ targetifyB(ctx, target, isSigned = sourceType.isSigned)
+                  case 2 => compileToD(ctx, params.head) ++ targetifyD(ctx, target)
+                  case _ => ???
+                }
+              case None =>
+              // fallthrough to the lookup below
+            }
             val f = lookupFunction(ctx, fce)
             val prepareParams: List[MLine] = f.params match {
               case NormalParamSignature(List(param)) if param.typ.size == 1 =>
@@ -332,6 +343,18 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
   def compileToA(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.A)
 
   def compileToB(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.B)
+
+  def compileToFatBooleanInB(ctx: CompilationContext, expr: Expression): List[MLine] = {
+    val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, expr)
+    sourceType match {
+      case FatBooleanType => compileToB(ctx, expr)
+      case t: ConstantBooleanType =>
+        List(MLine.immediate(MOpcode.LDB, if (t.value) 1 else 0))
+      case _ =>
+        println(sourceType)
+        ???
+    }
+  }
 
   def compileToD(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.D)
 

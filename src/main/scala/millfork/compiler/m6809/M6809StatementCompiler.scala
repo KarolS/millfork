@@ -5,7 +5,7 @@ import millfork.assembly.m6809.{MLine, NonExistent}
 import millfork.compiler.{AbstractCompiler, AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
 import millfork.node.{Assignment, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, IfStatement, M6809AssemblyStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{Label, ThingInMemory}
+import millfork.env.{FatBooleanType, Label, ThingInMemory}
 
 /**
   * @author Karol Stasiak
@@ -21,12 +21,17 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         // TODO: clean stack
         // TODO: RTI
         val rts = List(MLine.inherent(RTS))
-        val eval = ctx.function.returnType.size match {
-          case 0 =>
-            ctx.log.error("Cannot return anything from a void function", statement.position)
-            M6809ExpressionCompiler.compile(ctx, e, MExpressionTarget.NOTHING)
-          case 1 => M6809ExpressionCompiler.compileToB(ctx, e)
-          case 2 => M6809ExpressionCompiler.compileToD(ctx, e)
+        val eval = ctx.function.returnType match {
+          case FatBooleanType =>
+            M6809ExpressionCompiler.compileToFatBooleanInB(ctx, e)
+          case _ =>
+            ctx.function.returnType.size match {
+              case 0 =>
+                ctx.log.error("Cannot return anything from a void function", statement.position)
+                M6809ExpressionCompiler.compile(ctx, e, MExpressionTarget.NOTHING)
+              case 1 => M6809ExpressionCompiler.compileToB(ctx, e)
+              case 2 => M6809ExpressionCompiler.compileToD(ctx, e)
+            }
         }
         (eval ++ rts) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>

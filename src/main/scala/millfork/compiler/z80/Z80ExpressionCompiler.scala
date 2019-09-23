@@ -24,7 +24,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
   def compileToFatBooleanInA(ctx: CompilationContext, expression: Expression): List[ZLine] = {
     val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, expression)
     sourceType match {
-      case FatBooleanType | _: ConstantBooleanType => compileToA(ctx, expression)
+      case FatBooleanType => compileToA(ctx, expression)
+      case t: ConstantBooleanType =>
+        List(ZLine.ldImm8(ZRegister.A, if (t.value) 1 else 0))
       case BuiltInBooleanType | _: FlagBooleanType =>
         // TODO optimize if using CARRY
         // TODO: helper functions to convert flags to booleans, to make code smaller

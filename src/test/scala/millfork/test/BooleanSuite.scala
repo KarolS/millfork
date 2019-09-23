@@ -228,4 +228,22 @@ class BooleanSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(1)
     }
   }
+
+  test("Returning const bools") {
+    val code ="""
+      | byte outputF @$c000
+      | byte outputT @$c001
+      | noinline bool f(byte x) = 1==2
+      | noinline bool t(byte x) = 1==1
+      | void main () {
+      |   outputF = byte(f(7))
+      |   outputT = byte(t(7))
+      | }
+      |
+      """.stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code){ m =>
+      m.readByte(0xc000) should equal(0)
+      m.readByte(0xc001) should equal(1)
+    }
+  }
 }
