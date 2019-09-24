@@ -26,6 +26,19 @@ sbyte strzcmp(pointer str1, pointer str2) {
     }
 }
 
+#if CPUFEATURE_Z80 || CPUFEATURE_8080
+void strzcopy(pointer dest, pointer src) {
+    asm {
+        ? LD HL,(src)
+        ? LD DE,(dest)
+    ___strzcopy_loop:
+        LD A,(HL)
+        LD (DE),A
+        ? CP nullchar
+        ? JP NZ, ___strzcopy_loop
+    }
+}
+#else
 void strzcopy(pointer dest, pointer src) {
     byte c
     do {
@@ -35,3 +48,4 @@ void strzcopy(pointer dest, pointer src) {
         dest += 1
     } while c != nullchar
 }
+#endif
