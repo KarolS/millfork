@@ -1,6 +1,16 @@
 # Change log
 
-## Currrent version
+## Current version
+
+* Added the ability to define custom segment layouts.
+
+* Fixed bugs with constant booleans.
+
+* Fixes bugs with arithmetic promotions of signed values. 
+
+* 8080: Optimized some library functions.
+
+* Updated to Scala 2.12.10.
 
 ## 0.3.8
 
