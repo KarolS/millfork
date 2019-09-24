@@ -18,6 +18,8 @@ class NullLogger extends Logger {
 
   override def traceEnabled: Boolean = false
 
+  override def debugEnabled: Boolean = false
+
   override def warn(msg: String, position: Option[Position]): Unit = ()
 
   override def error(msg: String, position: Option[Position]): Unit = ()

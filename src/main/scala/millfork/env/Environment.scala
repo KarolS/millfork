@@ -787,6 +787,21 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }.map(_.quickSimplify)
 
+  def debugConstness(item: Expression): Unit = {
+    if (!log.debugEnabled) return
+    if (eval(item).isEmpty) {
+      log.debug(s"$item is not const!")
+      item match {
+        case FunctionCallExpression(_, expressions) => expressions.foreach(debugConstness)
+        case SumExpression(expressions, _) => expressions.map(_._2).foreach(debugConstness)
+        case SeparateBytesExpression(b1, b2) =>
+          debugConstness(b1)
+          debugConstness(b2)
+        case _ =>
+      }
+    }
+  }
+
   private def constantOperation(op: MathOperator.Value, params: List[Expression]) = {
     params.map(eval).reduceLeft[Option[Constant]] { (oc, om) =>
       for {

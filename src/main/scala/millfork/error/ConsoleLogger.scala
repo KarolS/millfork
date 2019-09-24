@@ -51,6 +51,8 @@ class ConsoleLogger extends Logger {
 
   override def traceEnabled: Boolean = verbosity >= 2
 
+  override def debugEnabled: Boolean = verbosity >= 1
+
   override def trace(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 2) return
     println("TRACE: " + f(position) + msg)

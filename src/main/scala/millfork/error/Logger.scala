@@ -18,6 +18,8 @@ trait Logger {
 
   def traceEnabled: Boolean
 
+  def debugEnabled: Boolean
+
   def warn(msg: String, position: Option[Position] = None): Unit
 
   def error(msg: String, position: Option[Position] = None): Unit
