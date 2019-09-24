@@ -87,6 +87,8 @@ class M6809Assembler(program: Program,
         index
       case MLine0(op, NonExistent, _) if MOpcode.NoopDiscard(op) =>
         index
+      case MLine0(CHANGED_MEM, _, _) =>
+        index
       case MLine0(TFR, TwoRegisters(source, target), param)
         if M6809Register.registerSize(source) == M6809Register.registerSize(target) && param.isProvablyZero =>
         writeByte(bank, index, 0x1f)

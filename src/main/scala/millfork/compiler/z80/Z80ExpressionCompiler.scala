@@ -1202,8 +1202,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 env.maybeGet[Type](f.functionName) match {
                   case Some(typ) =>
                     val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
-                    return sourceType.size match {
-                      case 1 => targetifyA(ctx, target, compileToA(ctx, params.head), isSigned = sourceType.isSigned)
+                    return typ.size match {
+                        // TODO: alternating signedness?
+                      case 1 => targetifyA(ctx, target, compileToA(ctx, params.head), isSigned = typ.isSigned)
                       case 2 => targetifyHL(ctx, target, compileToHL(ctx, params.head))
                       case _ => ???
                     }
@@ -1213,8 +1214,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 lookupFunction(ctx, f) match {
                   case function: MacroFunction =>
                     val (paramPreparation, statements) = Z80MacroExpander.inlineFunction(ctx, function, params, expression.position)
-                    paramPreparation ++ statements.map {
-                      case _ => ???
+                    paramPreparation ++ statements.flatMap { s =>
+                      Z80StatementCompiler.compile(ctx, s) match {
+                        case (code, Nil) => code
+                        case (code, _) => ctx.log.error("Invalid statement in macro expansion", expression.position); code
+                      }
                     }
                   case function: EmptyFunction =>
                     ??? // TODO: type conversion?

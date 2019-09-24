@@ -4,6 +4,7 @@ import millfork.env._
 import millfork.node._
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.assembly.AbstractCode
+import millfork.output.NoAlignment
 
 /**
   * @author Karol Stasiak
@@ -572,7 +573,12 @@ object AbstractExpressionCompiler {
 
   def lookupFunction(env: Environment, log: Logger, f: FunctionCallExpression): MangledFunction = {
     val paramsWithTypes = f.expressions.map(x => getExpressionType(env, log, x) -> x)
-    env.lookupFunction(f.functionName, paramsWithTypes).getOrElse(
-      log.fatal(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position))
+    env.lookupFunction(f.functionName, paramsWithTypes).getOrElse {
+      log.error(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position)
+      val signature = NormalParamSignature(paramsWithTypes.map { case (t, _) =>
+        UninitializedMemoryVariable("?", t, VariableAllocationMethod.Auto, None, NoAlignment, isVolatile = false)
+      })
+      ExternFunction(f.functionName, NullType, signature, Constant.Zero, env, None)
+    }
   }
 }

@@ -4,7 +4,7 @@ import millfork.assembly.m6809.{DAccumulatorIndexed, Indexed, MLine, MOpcode, Tw
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, M6809RegisterVariable, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, Type, Variable, VariablePointy}
+import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FunctionInMemory, M6809RegisterVariable, MacroFunction, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, Type, Variable, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -285,8 +285,9 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             env.maybeGet[Type](fce.functionName) match {
               case Some(typ) =>
                 val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
-                return sourceType.size match {
-                  case 1 => compileToB(ctx, params.head) ++ targetifyB(ctx, target, isSigned = sourceType.isSigned)
+                return typ.size match {
+                  // TODO: alternating signedness?
+                  case 1 => compileToB(ctx, params.head) ++ targetifyB(ctx, target, isSigned = typ.isSigned)
                   case 2 => compileToD(ctx, params.head) ++ targetifyD(ctx, target)
                   case _ => ???
                 }
@@ -294,47 +295,71 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               // fallthrough to the lookup below
             }
             val f = lookupFunction(ctx, fce)
-            val prepareParams: List[MLine] = f.params match {
-              case NormalParamSignature(List(param)) if param.typ.size == 1 =>
-                compileToB(ctx, params.head)
-              case NormalParamSignature(List(param)) if param.typ.size == 2 =>
-                compileToD(ctx, params.head)
-              case NormalParamSignature(signature) =>
-                params.zip(signature).flatMap { case (paramExpr, paramVar) =>
-                  val callCtx = callingContext(ctx, f.name, paramVar)
-                  paramVar.typ.size match {
-                    case 1 =>
-                      compileToB(ctx, paramExpr) ++ storeB(callCtx, VariableExpression(paramVar.name + "`aa"))
-                    case 2 =>
-                      compileToD(ctx, paramExpr) ++ storeD(callCtx, VariableExpression(paramVar.name + "`aa"))
-                    case _ =>
+            f match {
+              case function: MacroFunction =>
+                val (paramPreparation, statements) = M6809MacroExpander.inlineFunction(ctx, function, params, expr.position)
+                paramPreparation ++ statements.flatMap { s =>
+                  M6809StatementCompiler.compile(ctx, s) match {
+                    case (code, Nil) => code
+                    case (code, _) => ctx.log.error("Invalid statement in macro expansion", fce.position); code
+                  }
+                }
+              case _:FunctionInMemory =>
+                val prepareParams: List[MLine] = f.params match {
+                  case NormalParamSignature(List(param)) if param.typ.size == 1 =>
+                    compileToB(ctx, params.head)
+                  case NormalParamSignature(List(param)) if param.typ.size == 2 =>
+                    compileToD(ctx, params.head)
+                  case NormalParamSignature(signature) =>
+                    params.zip(signature).flatMap { case (paramExpr, paramVar) =>
+                      val callCtx = callingContext(ctx, f.name, paramVar)
+                      paramVar.typ.size match {
+                        case 1 =>
+                          compileToB(ctx, paramExpr) ++ storeB(callCtx, VariableExpression(paramVar.name + "`aa"))
+                        case 2 =>
+                          compileToD(ctx, paramExpr) ++ storeD(callCtx, VariableExpression(paramVar.name + "`aa"))
+                        case _ =>
+                          ???
+                      }
+                    }
+                  case AssemblyParamSignature(signature) =>
+                    params.zip(signature).flatMap { case (e, a) =>
+                      val compiled = a.variable match {
+                        case M6809RegisterVariable(M6809Register.A, _) => compileToA(ctx, e)
+                        case M6809RegisterVariable(M6809Register.B, _) => compileToB(ctx, e)
+                        case M6809RegisterVariable(M6809Register.D, _) => compileToD(ctx, e)
+                        case M6809RegisterVariable(M6809Register.X, _) => compileToX(ctx, e)
+                        case M6809RegisterVariable(M6809Register.Y, _) => compileToY(ctx, e)
+                        case M6809RegisterVariable(M6809Register.U, _) => compileToU(ctx, e)
+                        case _ => ???
+                      }
+                      if (compiled.length > 1) ???
+                      compiled
+                    }
+                  case _ => ???
+                }
+                val actualCall = f match {
+                  case nf:NormalFunction =>
+                    List(MLine.absolute(JSR, nf.toAddress))
+                  case nf:ExternFunction =>
+                    List(MLine.absolute(JSR, nf.toAddress))
+                  case _ =>
+                    println("Unsupported function: "  + f.name)
+                    ???
+                }
+                val storeResult = f.returnType.size match {
+                  case 1 => targetifyB(ctx, target, f.returnType.isSigned)
+                  case 2 => targetifyD(ctx, target)
+                  case _ =>
+                    if (target == MExpressionTarget.NOTHING) {
+                      Nil
+                    } else {
+                      println("Unsupported function: " + f.name)
                       ???
-                  }
+                    }
                 }
-              case AssemblyParamSignature(signature) =>
-                params.zip(signature).flatMap { case (e, a) =>
-                  val compiled = a.variable match {
-                    case M6809RegisterVariable(M6809Register.A, _) => compileToA(ctx, e)
-                    case M6809RegisterVariable(M6809Register.B, _) => compileToB(ctx, e)
-                    case M6809RegisterVariable(M6809Register.D, _) => compileToD(ctx, e)
-                    case M6809RegisterVariable(M6809Register.X, _) => compileToX(ctx, e)
-                    case M6809RegisterVariable(M6809Register.Y, _) => compileToY(ctx, e)
-                    case M6809RegisterVariable(M6809Register.U, _) => compileToU(ctx, e)
-                    case _ => ???
-                  }
-                  if (compiled.length > 1) ???
-                  compiled
-                }
-              case _ => ???
+                prepareParams ++ actualCall ++ storeResult
             }
-            val actualCall = f match {
-              case nf:NormalFunction =>
-                List(MLine.absolute(JSR, nf.toAddress))
-              case nf:ExternFunction =>
-                List(MLine.absolute(JSR, nf.toAddress))
-              case _ => ???
-            }
-            prepareParams ++ actualCall
         }
       case _ => ???
     }

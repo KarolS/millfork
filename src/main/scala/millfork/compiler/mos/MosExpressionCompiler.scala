@@ -1638,10 +1638,26 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             env.maybeGet[Type](f.functionName) match {
               case Some(typ) =>
                 val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
-                val newExprTypeAndVariable = exprTypeAndVariable.map { i =>
-                  (if (i._1.size == sourceType.size) i._1 else sourceType) -> i._2
+                exprTypeAndVariable match {
+                  case None =>
+                    return compile(ctx, params.head, None, branches)
+                  case Some((_, targetVariable)) =>
+                    val targetType = targetVariable.typ
+                    val officialType: Type = if (targetType.size == typ.size) {
+                      typ
+                    } else if (targetType.size == sourceType.size) {
+                      targetType
+                    } else if (typ.isSigned == sourceType.isSigned) {
+                      targetType
+                    } else if (typ.size == 1) {
+                      return compileToA(ctx, f) ++ expressionStorageFromA(ctx, exprTypeAndVariable, position = expr.position, signedSource = typ.isSigned)
+                    } else if (typ.size == 2) {
+                      return compileToAX(ctx, f) ++ expressionStorageFromAX(ctx, exprTypeAndVariable, position = expr.position)
+                    } else {
+                      ctx.log.fatal(s"Cannot compile $typ($sourceType(...)) to $targetType")
+                    }
+                    return compile(ctx, params.head, Some(officialType -> targetVariable), branches)
                 }
-                return compile(ctx, params.head, newExprTypeAndVariable, branches)
               case None =>
                 // fallthrough to the lookup below
             }

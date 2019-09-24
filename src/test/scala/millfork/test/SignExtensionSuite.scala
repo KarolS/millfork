@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class SignExtensionSuite extends FunSuite with Matchers {
 
   test("Sbyte to Word") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   sbyte b
@@ -22,7 +22,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
     }
   }
   test("Sbyte to Word 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   output = b()
@@ -71,7 +71,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
   }
 
   test("Byte to Word") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   sbyte b
@@ -85,7 +85,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
   }
 
   test("Byte to Word 2") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   sbyte b
@@ -97,4 +97,31 @@ class SignExtensionSuite extends FunSuite with Matchers {
       m.readWord(0xc000) should equal(0x00ff)
     }
   }
+
+  test("Returning sbyte as word") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)("""
+        | word output @$c000
+        | void main () {
+        |   output = f($ff)
+        | }
+        | noinline word f(byte x) = sbyte(x)
+      """.stripMargin){m =>
+      m.readWord(0xc000) should equal(0xffff)
+    }
+  }
+
+  test("Check multilayered conversions of signed and unsigned types") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+        |long output @$c000
+        |noinline sbyte f() = $FE
+        |void main() {
+        |  // should yield $0000fffe
+        |  output = word(f())
+        |}
+        |""".stripMargin) { m =>
+      m.readLong(0xc000) should equal(0xfffe)
+    }
+  }
+
 }

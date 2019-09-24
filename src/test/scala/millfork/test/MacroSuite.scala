@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class MacroSuite extends FunSuite with Matchers {
 
   test("Most basic test") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | macro void run(byte x) {
         |    output = x
@@ -29,7 +29,7 @@ class MacroSuite extends FunSuite with Matchers {
   }
 
   test("Macros in assembly") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | macro void run(byte x) {
         |    output = x
