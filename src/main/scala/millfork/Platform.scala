@@ -34,6 +34,7 @@ class Platform(
                 val generateBbcMicroInfFile: Boolean,
                 val generateGameBoyChecksums: Boolean,
                 val bankNumbers: Map[String, Int],
+                val bankLayouts: Map[String, Seq[String]],
                 val bankFill: Map[String, Int],
                 val defaultCodeBank: String,
                 val ramInitialValuesBank: Option[String],
@@ -174,6 +175,24 @@ object Platform {
       case "" => 0
       case x => parseNumber(x)
     })).toMap
+    // needed for ZX81
+    val bankLayouts = banks.map(b => b -> {
+      val layout = as.get(classOf[String], s"segment_${b}_layout", "main,*").split(',').map(_.trim).toSeq
+      if (layout.isEmpty) {
+        log.error(s"Layout for segment $b shouldn't be empty")
+      } else {
+        if (!layout.contains("*")) {
+          log.error(s"Layout for segment $b should contain *")
+        }
+        if (layout.toSet.size != layout.size) {
+          log.error(s"Layout for segment $b should contains duplicates")
+        }
+        if (ramInitialValuesBank.contains(b) && layout.last != "*") {
+          log.warn(s"Layout for the ram_init_segment $b does not end with *")
+        }
+      }
+      layout
+    }).toMap
 
     // TODO: validate stuff
     banks.foreach(b => {
@@ -281,6 +300,7 @@ object Platform {
       generateBbcMicroInfFile,
       generateGameBoyChecksums,
       bankNumbers,
+      bankLayouts,
       bankFills,
       defaultCodeBank,
       ramInitialValuesBank,

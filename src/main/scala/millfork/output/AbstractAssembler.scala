@@ -4,7 +4,7 @@ import millfork.assembly._
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env._
 import millfork.error.Logger
-import millfork.node.{CallGraph, Expression, LiteralExpression, NiceFunctionProperty, Program}
+import millfork.node.{CallGraph, Expression, FunctionCallExpression, LiteralExpression, NiceFunctionProperty, Program, SumExpression}
 import millfork._
 import millfork.assembly.z80.ZLine
 
@@ -211,6 +211,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
     val inliningResult = inliningCalculator.calculate(
         program,
+        platform.bankLayouts,
         options.flags(CompilationFlag.InlineFunctions) || options.flags(CompilationFlag.OptimizeForSonicSpeed),
         if (options.flags(CompilationFlag.OptimizeForSonicSpeed)) 4.0
         else if (options.flags(CompilationFlag.OptimizeForSpeed)) 1.3
@@ -310,7 +311,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
                 bank0.readable(index) = true
                 index += 1
               }
-            case None => log.error(s"Non-constant contents of array `$name`", item.position)
+            case None =>
+              env.debugConstness(item)
+              log.error(s"Non-constant contents of array `$name`: " + item, item.position)
           }
         }
         printArrayToAssemblyOutput(assembly, name, elementType, items)
@@ -338,148 +341,179 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val codeAllocators = platform.codeAllocators.mapValues(new VariableAllocator(Nil, _)).view.force
     var justAfterCode = platform.codeAllocators.mapValues(a => a.startAt).view.force
 
-    val sortedCompilerFunctions = compiledFunctions.toList.sortBy { case (name, cf) => if (name == "main") 0 -> "" else cf.orderKey }
-    sortedCompilerFunctions.filterNot(o => unusedRuntimeObjects(o._1)).foreach {
-      case (_, NormalCompiledFunction(_, _, true, _)) =>
-        // already done before
-      case (name, NormalCompiledFunction(bank, functionCode, false, alignment)) =>
-        val size = functionCode.map(_.sizeInBytes).sum
-        val bank0 = mem.banks(bank)
-        val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
-        labelMap(name) = bank0.index -> index
-        justAfterCode += bank -> outputFunction(bank, functionCode, index, assembly, options)
-      case _ =>
-    }
-    sortedCompilerFunctions.foreach {
-      case (name, RedirectedFunction(_, target, offset)) =>
-        val tuple = labelMap(target)
-        labelMap(name) = tuple._1 -> (tuple._2 + offset)
-      case _ =>
-    }
 
-    // force early allocation of text literals:
-    env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach{
-      case thing@InitializedArray(_, _, items, _, _, _, _, _) =>
-        items.foreach(env.eval(_))
-      case InitializedMemoryVariable(_, _, _, value, _, _, _) =>
-        env.eval(value)
-      case _ =>
-    }
-
-    if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
-      env.allThings.things.foreach {
-        case (_, m@UninitializedMemoryVariable(name, typ, _, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
-          val isUsed = compiledFunctions.values.exists{
-            case NormalCompiledFunction(_, functionCode, _, _)  => functionCode.exists(_.parameter.isRelatedTo(m))
-            case _ => false
-          }
-//          println(m.name -> isUsed)
-          if (isUsed) {
-            val bank = m.bank(options)
-            if (bank != "default") ???
-            val bank0 = mem.banks(bank)
-            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = m.alignment)
-            labelMap(name) = bank0.index -> (index + 1)
-            val altName = m.name.stripPrefix(env.prefix) + "`"
-            val thing = if (name.endsWith(".addr")) env.get[ThingInMemory](name.stripSuffix(".addr")) else env.get[ThingInMemory](name + ".array")
-            env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
-            assembly.append("* = $" + index.toHexString)
-            assembly.append("    " + bytePseudoopcode + " $2c")
-            assembly.append(name + ":")
-            val c = thing.toAddress
-            writeByte(bank, index, 0x2c.toByte) // BIT abs
-            index += 1
-            if (platform.isBigEndian) {
-              throw new IllegalStateException("LUnix cannot run on big-endian architectures")
-            }
-            for (i <- 0 until typ.size) {
-              writeByte(bank, index, subbyte(c, i, typ.size))
-              assembly.append("    " + bytePseudoopcode + " " + subbyte(c, i, typ.size).quickSimplify)
-              index += 1
-            }
-            initializedVariablesSize += typ.size
-            justAfterCode += bank -> index
-          }
-        case _ => ()
+    def getLayoutStage(name: String, segment: String): Int = {
+      var result = platform.bankLayouts(segment).indexOf(name)
+      if (result < 0) {
+        result = platform.bankLayouts(segment).indexOf("*")
       }
-      val index = codeAllocators("default").allocateBytes(mem.banks("default"), options, 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = NoAlignment)
-      writeByte("default", index, 2.toByte) // BIT abs
-      assembly.append("* = $" + index.toHexString)
-      assembly.append("    " + bytePseudoopcode + " 2 ;; end of LUnix relocatable segment")
-      justAfterCode += "default" -> (index + 1)
+      //      log.trace(s"Emit stage for ${name} is $result")
+      result
     }
-    env.getAllFixedAddressObjects.foreach {
-      case (bank, addr, size) =>
-        val bank0 = mem.banks(bank)
-        for(i <- 0 until size) bank0.occupied(addr + i) = true
-        variableAllocators(bank).notifyAboutHole(bank0, addr, size)
+
+    @inline
+    def getLayoutStageThing(th: ThingInMemory): Int = getLayoutStage(th.name, th.bank(options))
+
+    @inline
+    def getLayoutStageNcf(name: String, th: NormalCompiledFunction[_]): Int = getLayoutStage(name, th.segment)
+
+    val layoutStageCount = platform.bankLayouts.values.map(_.length).max
+    val defaultStage = platform.bankLayouts("default").indexOf("*")
+    if (defaultStage < 0) {
+      log.fatal("The layout for the default segment lacks *")
     }
     var rwDataStart = Int.MaxValue
     var rwDataEnd = 0
-    for(readOnlyPass <- Seq(true, false)) {
-      if (!readOnlyPass) {
-        if (options.platform.ramInitialValuesBank.isDefined) {
-          codeAllocators("default").notifyAboutEndOfCode(codeAllocators("default").heapStart)
+
+    val sortedCompilerFunctions = compiledFunctions.toList.sortBy { case (_, cf) => cf.orderKey }
+    for (layoutStage <- 0 until layoutStageCount) {
+      sortedCompilerFunctions.filterNot(o => unusedRuntimeObjects(o._1)).foreach {
+        case (_, NormalCompiledFunction(_, _, true, _)) =>
+        // already done before
+        case (name, th@NormalCompiledFunction(bank, functionCode, false, alignment)) if layoutStage == getLayoutStageNcf(name, th) =>
+          val size = functionCode.map(_.sizeInBytes).sum
+          val bank0 = mem.banks(bank)
+          val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
+          labelMap(name) = bank0.index -> index
+          justAfterCode += bank -> outputFunction(bank, functionCode, index, assembly, options)
+        case _ =>
+      }
+      sortedCompilerFunctions.foreach {
+        case (name, RedirectedFunction(segment, target, offset)) if (layoutStage == getLayoutStage(target, segment)) =>
+          val tuple = labelMap(target)
+          labelMap(name) = tuple._1 -> (tuple._2 + offset)
+        case _ =>
+      }
+      if (layoutStage == 0) {
+        // force early allocation of text literals:
+        env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
+          case thing@InitializedArray(_, _, items, _, _, _, _, _) =>
+            items.foreach(env.eval(_))
+          case InitializedMemoryVariable(_, _, _, value, _, _, _) =>
+            env.eval(value)
+          case _ =>
         }
       }
-      env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-        case thing@InitializedArray(name, None, items, _, _, elementType, readOnly, alignment) if readOnly == readOnlyPass =>
-          val bank = thing.bank(options)
-          if (options.platform.ramInitialValuesBank.isDefined && !readOnly && bank != "default") {
-            log.error(s"Preinitialized writable array `$name` should be defined in the `default` bank")
-          }
-          val bank0 = mem.banks(bank)
-          var index = codeAllocators(bank).allocateBytes(bank0, options, thing.sizeInBytes, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
-          labelMap(name) = bank0.index -> index
-          if (!readOnlyPass) {
-            rwDataStart = rwDataStart.min(index)
-            rwDataEnd = rwDataEnd.max(index + thing.sizeInBytes)
-          }
-          assembly.append("* = $" + index.toHexString)
-          assembly.append(name + ":")
-          for (item <- items) {
-            env.eval(item) match {
-              case Some(c) =>
-                for (i <- 0 until elementType.size) {
-                  writeByte(bank, index, subbyte(c, i, elementType.size))
-                  index += 1
-                }
-              case None => log.error(s"Non-constant contents of array `$name`", item.position)
+
+      if (layoutStage == defaultStage && options.flag(CompilationFlag.LUnixRelocatableCode)) {
+        env.allThings.things.foreach {
+          case (_, m@UninitializedMemoryVariable(name, typ, _, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
+            val isUsed = compiledFunctions.values.exists {
+              case NormalCompiledFunction(_, functionCode, _, _) => functionCode.exists(_.parameter.isRelatedTo(m))
+              case _ => false
             }
-          }
-          printArrayToAssemblyOutput(assembly, name, elementType, items)
-          initializedVariablesSize += items.length
-          justAfterCode += bank -> index
-        case m@InitializedMemoryVariable(name, None, typ, value, _, alignment, _) if !readOnlyPass=>
-          val bank = m.bank(options)
-          if (options.platform.ramInitialValuesBank.isDefined && bank != "default") {
-            log.error(s"Preinitialized variable `$name` should be defined in the `default` bank")
-          }
-          val bank0 = mem.banks(bank)
-          var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
-          labelMap(name) = bank0.index -> index
-          if (!readOnlyPass) {
-            rwDataStart = rwDataStart.min(index)
-            rwDataEnd = rwDataEnd.max(index + typ.size)
-          }
-          val altName = m.name.stripPrefix(env.prefix) + "`"
-          env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
-          assembly.append("* = $" + index.toHexString)
-          assembly.append(name + ":")
-          env.eval(value) match {
-            case Some(c) =>
+            //          println(m.name -> isUsed)
+            if (isUsed) {
+              val bank = m.bank(options)
+              if (bank != "default") ???
+              val bank0 = mem.banks(bank)
+              var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size + 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = m.alignment)
+              labelMap(name) = bank0.index -> (index + 1)
+              val altName = m.name.stripPrefix(env.prefix) + "`"
+              val thing = if (name.endsWith(".addr")) env.get[ThingInMemory](name.stripSuffix(".addr")) else env.get[ThingInMemory](name + ".array")
+              env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
+              assembly.append("* = $" + index.toHexString)
+              assembly.append("    " + bytePseudoopcode + " $2c")
+              assembly.append(name + ":")
+              val c = thing.toAddress
+              writeByte(bank, index, 0x2c.toByte) // BIT abs
+              index += 1
+              if (platform.isBigEndian) {
+                throw new IllegalStateException("LUnix cannot run on big-endian architectures")
+              }
               for (i <- 0 until typ.size) {
                 writeByte(bank, index, subbyte(c, i, typ.size))
                 assembly.append("    " + bytePseudoopcode + " " + subbyte(c, i, typ.size).quickSimplify)
                 index += 1
               }
-            case None =>
-              log.error(s"Non-constant initial value for variable `$name`")
-              index += typ.size
+              initializedVariablesSize += typ.size
+              justAfterCode += bank -> index
+            }
+          case _ => ()
+        }
+        val index = codeAllocators("default").allocateBytes(mem.banks("default"), options, 1, initialized = true, writeable = false, location = AllocationLocation.High, alignment = NoAlignment)
+        writeByte("default", index, 2.toByte) // BIT abs
+        assembly.append("* = $" + index.toHexString)
+        assembly.append("    " + bytePseudoopcode + " 2 ;; end of LUnix relocatable segment")
+        justAfterCode += "default" -> (index + 1)
+      }
+      if (layoutStage == 0) {
+        env.getAllFixedAddressObjects.foreach {
+          case (bank, addr, size) =>
+            val bank0 = mem.banks(bank)
+            for (i <- 0 until size) bank0.occupied(addr + i) = true
+            variableAllocators(bank).notifyAboutHole(bank0, addr, size)
+        }
+      }
+      for (readOnlyPass <- Seq(true, false)) {
+        if (layoutStage == defaultStage && !readOnlyPass) {
+          if (options.platform.ramInitialValuesBank.isDefined) {
+            codeAllocators("default").notifyAboutEndOfCode(codeAllocators("default").heapStart)
           }
-          initializedVariablesSize += typ.size
-          justAfterCode += bank -> index
-        case _ =>
+        }
+        env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
+          case thing@InitializedArray(name, None, items, _, _, elementType, readOnly, alignment) if readOnly == readOnlyPass && layoutStage == getLayoutStageThing(thing) =>
+            val bank = thing.bank(options)
+            if (options.platform.ramInitialValuesBank.isDefined && !readOnly && bank != "default") {
+              log.error(s"Preinitialized writable array `$name` should be defined in the `default` bank")
+            }
+            val bank0 = mem.banks(bank)
+            var index = codeAllocators(bank).allocateBytes(bank0, options, thing.sizeInBytes, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
+            labelMap(name) = bank0.index -> index
+            if (!readOnlyPass) {
+              rwDataStart = rwDataStart.min(index)
+              rwDataEnd = rwDataEnd.max(index + thing.sizeInBytes)
+            }
+            assembly.append("* = $" + index.toHexString)
+            assembly.append(name + ":")
+            for (item <- items) {
+              val w = env
+              env.eval(item) match {
+                case Some(c) =>
+                  for (i <- 0 until elementType.size) {
+                    writeByte(bank, index, subbyte(c, i, elementType.size))
+                    index += 1
+                  }
+                case None =>
+                  env.debugConstness(item)
+                  log.error(s"Non-constant contents of array `$name`:" + item, item.position)
+              }
+            }
+            printArrayToAssemblyOutput(assembly, name, elementType, items)
+            initializedVariablesSize += items.length
+            justAfterCode += bank -> index
+          case m@InitializedMemoryVariable(name, None, typ, value, _, alignment, _) if !readOnlyPass && layoutStage == getLayoutStageThing(m) =>
+            val bank = m.bank(options)
+            if (options.platform.ramInitialValuesBank.isDefined && bank != "default") {
+              log.error(s"Preinitialized variable `$name` should be defined in the `default` bank")
+            }
+            val bank0 = mem.banks(bank)
+            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
+            labelMap(name) = bank0.index -> index
+            if (!readOnlyPass) {
+              rwDataStart = rwDataStart.min(index)
+              rwDataEnd = rwDataEnd.max(index + typ.size)
+            }
+            val altName = m.name.stripPrefix(env.prefix) + "`"
+            env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))
+            assembly.append("* = $" + index.toHexString)
+            assembly.append(name + ":")
+            env.eval(value) match {
+              case Some(c) =>
+                for (i <- 0 until typ.size) {
+                  writeByte(bank, index, subbyte(c, i, typ.size))
+                  assembly.append("    " + bytePseudoopcode + " " + subbyte(c, i, typ.size).quickSimplify)
+                  index += 1
+                }
+              case None =>
+                env.debugConstness(value)
+                log.error(s"Non-constant initial value for variable `$name`")
+                index += typ.size
+            }
+            initializedVariablesSize += typ.size
+            justAfterCode += bank -> index
+          case _ =>
+        }
       }
     }
     if (rwDataEnd == 0 && rwDataStart == Int.MaxValue) {

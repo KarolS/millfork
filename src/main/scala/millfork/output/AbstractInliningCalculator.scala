@@ -25,6 +25,7 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
   private val sizes = Seq(64, 64, 8, 6, 5, 5, 4)
 
   def calculate(program: Program,
+                bankLayouts: Map[String, Seq[String]],
                 inlineByDefault: Boolean,
                 aggressivenessForNormal: Double,
                 aggressivenessForRecommended: Double): InliningResult = {
@@ -48,6 +49,7 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
           || f.interrupt
           || f.reentrant
           || f.name == "main"
+          || bankLayouts.values.exists(_.contains(f.name))
           || containsReturnDispatch(f.statements.getOrElse(Nil))) badFunctions += f.name
       case _ =>
     }

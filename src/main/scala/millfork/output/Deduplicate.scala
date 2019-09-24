@@ -174,7 +174,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
       val representative = if (set("main")) "main" else set.head
       options.log.debug(s"Functions [${set.mkString(",")}] are identical")
       for (function <- set) {
-        if (function != representative) {
+        if (function != representative && !options.platform.bankLayouts(segmentName).contains(function)) {
           result += function -> RedirectedFunction(segmentName, representative, 0)
         } else {
           segContents(function) match {
@@ -216,6 +216,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
         else getJump(code.last)
           .filter(segContents.contains)
           .filter(_ != name)
+          .filter(n => !options.platform.bankLayouts(segmentName).contains(n))
           .filter(_ != "main")
           .flatMap(to => follow(segContents, to))
           .map(name -> _)
@@ -250,6 +251,7 @@ abstract class Deduplicate[T <: AbstractCode](env: Environment, options: Compila
         else getJump(code.last)
           .filter(segContents.contains)
           .filter(_ != name)
+          .filter(n => !options.platform.bankLayouts(segmentName).contains(n))
           .filter(_ != "main")
           .map(name -> _)
       case _ => None

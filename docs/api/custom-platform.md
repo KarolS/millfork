@@ -152,6 +152,13 @@ For better debugging on NES, RAM segments should use bank number `$ff`.
 
 * `segment_NAME_fill` – the byte value used to fill gaps and other unused space in the bank. Default: `0`.
 
+* `segment_NAME_layout` – a comma-separated list of object names that defines in what order the objects are laid out in the segment.
+One item has to be `*`, it means "all the other objects".  
+For example, `a,b,*,c,d` means that the output will contain `a` first, then `b`, then everything else except for `c` and `d`,
+then `c` and finally `d`.
+If an object from that list does not exist, it is ignored.  
+Default: `main,*`
+
 #### `[output]` section
  
 * `style` – how multi-segment programs should be output:
