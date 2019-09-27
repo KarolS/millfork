@@ -1,0 +1,630 @@
+// Taken from Nerdy Nights Week 7's pong example game
+// (http://nintendoage.com/forum/messageview.cfm?catid=22&threadid=8747)
+//
+// Original example made by bunnyboy of nintendoage.com
+// Millfork adaptation by Garydos (https://github.com/Garydos)
+//
+// compile with -t nes_small
+
+import random
+import nes_joy
+
+// *STRUCT DEFINTIONS*
+
+struct Ball {
+    byte x,      // ball horizontal position
+    byte y,      // ball vertical position
+    byte up,     // 1 = ball moving up
+    byte down,   // 1 = ball moving down
+    byte left,   // 1 = ball moving left
+    byte right,  // 1 = ball moving right
+    byte speedx, // ball horizontal speed per frame
+    byte speedy  // ball vertical speed per frame
+}
+
+struct Sprite { //NES hardware sprite layout
+    byte y,         // Y Coordinate - 1
+    byte tile,      // tile index #
+    byte attrs,     // attributes
+    byte x          // X Coordinate
+}
+
+struct Paddle_Sprs {
+    Sprite paddletop,
+    Sprite paddlebody1,
+    Sprite paddlebody2,
+    Sprite paddlebottom
+}
+
+// *VARIABLES*
+
+byte paddle1ytop   // player 1 paddle top vertical position
+byte paddle2ytop   // player 2 paddle bottom vertical position
+byte score1     // player 1 score, 0-15
+byte score2     // player 2 score, 0-15
+Ball ball       // the ball
+array oam_buffer [256] @$200 // sprite buffer
+Sprite ball_spr @$200   //  ball's sprite
+Paddle_Sprs left_paddle_sprs @$204 //  left paddle's sprites
+Paddle_Sprs right_paddle_sprs @$214 // right paddle's sprites
+word framecounter   // counts the amount of frames that have passed
+
+volatile Gamestate gamestate // the current Gamestate
+
+
+// *CONSTANTS*
+
+enum Gamestate {
+    STATETITLE, // displaying title screen
+    STATEPLAYING, // move paddles/ball, check for collisions
+    STATEGAMEOVER // displaying game over screen
+}
+
+const byte RIGHTWALL      = $F4  // when ball reaches one of these, do something
+const byte TOPWALL        = $18
+const byte BOTTOMWALL     = $B0
+const byte LEFTWALL       = $04
+  
+const byte PADDLE1X       = $08  // horizontal position for paddles, doesnt move
+const byte PADDLE2X       = $F0
+
+const byte PADDLEHEIGHT   = $20  // height of each paddle in pixels
+
+// sprite tiles used by the paddles
+const byte PADDLETOPBOTSPR = $00
+const byte PADDLEBODYSPR = $01
+
+// sprite attributes used by the paddles
+const byte PADDLESPRATTR = $01
+const byte PADDLESPRATTRHFLIP = $41
+const byte PADDLESPRATTRVFLIP = $81
+const byte PADDLESPRATTRHVFLIP = $C1
+
+// sprite tiles and attributes used by the ball
+const byte BALLSPRATTR = $01
+const byte BALLSPR = $02
+
+// vram locations declared as constants for readability/convenience
+// *note that these do not correlate to CPU ram locations*
+const word ppu_pallete_ram = $3F00
+const word ppu_nametable_ram = $2000
+const word ppu_nametable_0_attr_ram = $23C0
+
+
+void main() {
+    //Set starting game state
+    gamestate = STATETITLE
+    //prepare the title screen gamestate
+    game_title_init()
+    while(true){} // all work is done in NMI
+}
+
+void nmi() {
+    //Push sprite information to the PPU through DMA transfer
+    ppu_oam_dma_write(oam_buffer.addr.hi)
+    
+    //Run graphics updates + game logic specific to each gamestate
+    main_game_logic()
+}
+
+void irq() {
+    
+}
+
+inline void main_game_logic() {
+    // use a return dispatch here
+    // to use different logic for each screen/gamestate
+    return [gamestate] {
+        STATETITLE    @ game_title_logic
+        STATEPLAYING  @ game_playing_logic
+        STATEGAMEOVER @ game_gameover_logic
+    }
+}
+
+void game_title_init() {
+    byte i
+    //for now, turn off the screen and nmi
+    ppu_ctrl = 0
+    ppu_mask = 0
+    
+    //initialize the sprites and palletes
+    init_graphics()
+    
+    //write a full screen of background data
+    
+    load_sky_background()
+    
+    //write the title screen message
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$018B) // point the PPU to the message's start
+    for i,0,until,$0B {
+        ppu_write_data(title_msg[i])
+    }
+    
+    //write the border
+    //top border
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$0020)
+    for i,0,until,$20 {
+        ppu_write_data($01)
+    }
+    //bottom border
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$0380)
+    for i,0,until,$20 {
+        ppu_write_data($01)
+    }
+    
+    //set ppu address increment to 32 so we can draw the left and right borders
+    //(allows us to draw to the nametable in vertical strips rather than horizontal)
+    ppu_ctrl = %00000100
+    
+    //left border
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram)
+    for i,0,until,$20 {
+        ppu_write_data($01)
+    }
+    //right border
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$1F)
+    for i,0,until,$20 {
+        ppu_write_data($01)
+    }
+    
+
+    framecounter = 0
+    ppu_set_scroll(0,0)
+    ppu_wait_vblank() //wait for next vblank before re-enabling NMI
+                      //so that we don't get messed up scroll registers
+    //re-enable the screen and nmi
+    ppu_ctrl = %10010000   // enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
+    ppu_mask = %00011110   // enable sprites, enable background, no clipping on left side
+}
+
+void game_title_logic() {
+    read_joy1()
+    if input_start != 0 {
+        rand_seed = framecounter //seed the random number generator with the amount of frames
+            //that have passed since the title screen was shown
+        gamestate = STATEPLAYING
+        game_playing_init()
+        return
+    }
+    framecounter += 1
+}
+
+inline asm void ppu_wait_vblank() {
+    vblankwait:
+        BIT $2002
+        ! BPL vblankwait
+    ? RTS
+}
+
+void game_playing_init() {
+    //for now, turn off the screen and nmi
+    ppu_ctrl = 0
+    ppu_mask = 0
+    
+    //write a full screen of data
+    load_sky_background()
+    draw_score_text_background()
+    draw_boundaries_background()
+    load_play_attribute_table()
+    //initialize the game
+    init_game()
+    reset_ball()
+    
+    ppu_set_scroll(0,0)
+    ppu_wait_vblank() //wait for next vblank before re-enabling NMI
+                      //so that we don't get messed up scroll registers
+    //re-enable the screen and nmi
+    ppu_ctrl = %10010000   // enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
+    ppu_mask = %00011110   // enable sprites, enable background, no clipping on left side
+}
+
+void game_playing_logic() {
+    draw_score()
+    //update scroll last because writes to vram also
+    //overwrite the scroll register
+    ppu_set_scroll(0,0)    // tell the ppu there is no background scrolling
+    
+    move_ball()
+    move_paddles()
+    check_paddle_collision()
+    update_sprites()
+    if score1 >= 15 || score2 >= 15{
+        //Someone's reached 15 points, the game is over,
+        //so set the state to game over and reset the
+        //framecounter
+        gamestate = STATEGAMEOVER
+        
+        //move all the sprites off screen
+        //in preperation for the gameover screen
+        ball_spr.y = $ef
+        
+        left_paddle_sprs.paddletop.y = $ef
+        left_paddle_sprs.paddlebody1.y = $ef
+        left_paddle_sprs.paddlebody2.y = $ef
+        left_paddle_sprs.paddlebottom.y = $ef
+        
+        right_paddle_sprs.paddletop.y = $ef
+        right_paddle_sprs.paddlebody1.y = $ef
+        right_paddle_sprs.paddlebody2.y = $ef
+        right_paddle_sprs.paddlebottom.y = $ef
+        
+        game_gameover_init()
+    }
+}
+
+void game_gameover_init() {
+    //for now, turn off nmi and sprites
+    ppu_ctrl = 0
+    ppu_mask = 0
+    
+    draw_score() //draw the final score
+    draw_game_over_screen() //draw the game over message
+    
+    framecounter = 0
+    ppu_set_scroll(0,0)    // tell the ppu there is no background scrolling
+    ppu_wait_vblank() //wait for next vblank before re-enabling NMI
+                      //so that we don't get messed up scroll registers
+    //re-enable the screen and nmi
+    ppu_ctrl = %10010000   // enable NMI, sprites from Pattern Table 0, background from Pattern Table 1
+    ppu_mask = %00011110   // enable sprites, enable background, no clipping on left side
+}
+
+void game_gameover_logic() {
+    if framecounter >= 240{
+        //3 seconds have passed,
+        //reset the game
+        simulate_reset()
+    }
+    framecounter += 1
+}
+
+void move_ball() {
+    if ball.up == 1 {
+        ball.y -= ball.speedy
+        if ball.y <= TOPWALL {
+            //bounce, ball now moving down
+            ball.down = 1
+            ball.up = 0
+        }
+    }
+    else if ball.down == 1 {
+        ball.y += ball.speedy
+        if ball.y + 8 >= BOTTOMWALL {
+            //bounce, ball now moving up
+            ball.down = 0
+            ball.up = 1
+        }
+    }
+    
+    if ball.right == 1 {
+        ball.x += ball.speedx
+        if ball.x >= RIGHTWALL {
+            // ball has gone past a paddle and hit the right wall
+            // give player1 a point and reset the ball
+            score1 += 1
+            reset_ball()
+        }
+    }
+    else if ball.left == 1 {
+        ball.x -= ball.speedx
+        if ball.x <= LEFTWALL {
+            // ball has gone past a paddle and hit the left wall
+            // give player2 a point and reset the ball
+            score2 += 1
+            reset_ball()
+        }
+    }
+}
+
+void move_paddles() {
+    // Player 1 controls
+    read_joy1()
+    if input_dy < 0 {  // Up button
+        if paddle1ytop > TOPWALL {
+            paddle1ytop -= 1
+        }
+    }
+    else if input_dy > 0 { // Down button
+        if (paddle1ytop + PADDLEHEIGHT) < BOTTOMWALL {
+            paddle1ytop += 1
+        }
+    }
+    
+    // Player 2 controls
+    read_joy2()
+    if input_dy < 0 {  // Up button
+        if paddle2ytop > TOPWALL {
+            paddle2ytop -= 1
+        }
+    }
+    else if input_dy > 0 { // Down button
+        if (paddle2ytop + PADDLEHEIGHT) < BOTTOMWALL {
+            paddle2ytop += 1
+        }
+    }
+}
+
+void check_paddle_collision() {
+    //Check left paddle collision
+    if ball.x <= PADDLE1X+8 && ball.y >= paddle1ytop && ball.y <= paddle1ytop + PADDLEHEIGHT {
+        //bounce the ball back, move it right
+        ball.left = 0
+        ball.right = 1
+    }
+    
+    //Check right paddle collision
+    if ball.x >= PADDLE2X-8 && ball.y >= paddle2ytop && ball.y <= paddle2ytop + PADDLEHEIGHT {
+        //bounce the ball back, move it left
+        ball.left = 1
+        ball.right = 0
+    }
+}
+
+inline void init_graphics() {
+    init_sprites()
+    load_palletes()
+}
+
+macro void load_palletes() {
+    byte i
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_pallete_ram) // point the PPU to palette ram
+    for i,0,until,$20 {
+        ppu_write_data(pallete[i])
+    }
+}
+
+inline void load_sky_background() {
+    word xx
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram) // point the PPU to palette ram
+    for xx,0,until,$0400 {
+        ppu_write_data($00) // $00 = sky
+    }
+}
+
+macro void draw_score_text_background() {
+    byte i
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$20) // point the PPU to score text's start
+    for i,0,until,$1C {
+        ppu_write_data(scorebackground[i])
+    }
+}
+
+macro void draw_boundaries_background() {
+    byte i
+    
+    //draw top boundary
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$40) // point the PPU to the top boundary's start
+    for i,0,until,$20 {
+        ppu_write_data($81) //write the top boundary tile
+    }
+    
+    //draw bottom boundary
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$02C0) // point the PPU to the top boundary's start
+    for i,0,until,$20 {
+        ppu_write_data($80) //write the bottom boundary tile
+    }
+}
+
+void draw_game_over_screen() {
+    byte i
+    
+    //draw the static game over message
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$0107) // point the PPU to the message's start
+    for i,0,until,$12 {
+        ppu_write_data(gameover_msg[i])
+    }
+    //draw the win message
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$01AC) // point the PPU to the message's start
+    if score1 >= score2 {
+        for i,0,until,$0B {
+            ppu_write_data(p1_win_msg[i])
+        }
+    }
+    else {
+        for i,0,until,$0B {
+            ppu_write_data(p2_win_msg[i])
+        }
+    }
+}
+
+void draw_p1_win_msg() {
+    byte i
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$0140) // point the PPU to the message's start
+    for i,0,until,$20 {
+        ppu_write_data(p1_win_msg[i])
+    }
+}
+
+void draw_p2_win_msg() {
+    byte i
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_ram+$0140) // point the PPU to the message's start
+    for i,0,until,$20 {
+        ppu_write_data(p2_win_msg[i])
+    }
+}
+
+macro void load_play_attribute_table() {
+    byte i
+    read_ppu_status() // read PPU status to reset the high/low latch
+    ppu_set_addr(ppu_nametable_0_attr_ram) // point the PPU to nametable 0's attribute table
+    for i,0,until,$10 {
+        ppu_write_data(attribute[i])
+    }
+}
+
+void init_sprites() {
+    byte i
+    for i,0,to,255 {
+        if (i & %00000011) == 0 {
+            //each sprite takes up 4 bytes, and we want to edit
+            //the y position of each sprite (0th byte)
+            //so we use the %00000011 mask to write every 4th byte (every 0th sprite byte)
+            
+            oam_buffer[i] = $ef // move the sprite off screen
+        }
+        else {
+            oam_buffer[i] = 0
+        }
+    }
+}
+
+void init_game() {
+    //Set some initial ball stats
+    ball.down = $00
+    ball.right = $01
+    ball.up = $00
+    ball.left = $00
+    ball.y = $50
+    ball.x = $80
+    ball.speedx = $02
+    ball.speedy = $02
+    
+    //Set initial paddle states
+    paddle1ytop = $70
+    paddle2ytop = $70
+}
+
+void update_sprites() {
+    //Update ball sprite
+    ball_spr.y = ball.y
+    ball_spr.tile = BALLSPR
+    ball_spr.attrs = BALLSPRATTR
+    ball_spr.x = ball.x
+    
+    //update paddle sprites
+    
+    // update top of left paddle
+    left_paddle_sprs.paddletop.y = paddle1ytop
+    left_paddle_sprs.paddletop.tile = PADDLETOPBOTSPR
+    left_paddle_sprs.paddletop.attrs = PADDLESPRATTRVFLIP
+    left_paddle_sprs.paddletop.x = PADDLE1X
+
+    // update body of left paddle
+    left_paddle_sprs.paddlebody1.y = paddle1ytop + 8
+    left_paddle_sprs.paddlebody1.tile = PADDLEBODYSPR
+    left_paddle_sprs.paddlebody1.attrs = PADDLESPRATTRVFLIP
+    left_paddle_sprs.paddlebody1.x = PADDLE1X
+    
+    left_paddle_sprs.paddlebody2.y = paddle1ytop + 16
+    left_paddle_sprs.paddlebody2.tile = PADDLEBODYSPR
+    left_paddle_sprs.paddlebody2.attrs = PADDLESPRATTRVFLIP
+    left_paddle_sprs.paddlebody2.x = PADDLE1X
+  
+    // update bottom of left paddle
+    left_paddle_sprs.paddlebottom.y = paddle1ytop + 24
+    left_paddle_sprs.paddlebottom.tile = PADDLETOPBOTSPR
+    left_paddle_sprs.paddlebottom.attrs = PADDLESPRATTR
+    left_paddle_sprs.paddlebottom.x = PADDLE1X
+    
+    // update top of right paddle
+    right_paddle_sprs.paddletop.y = paddle2ytop
+    right_paddle_sprs.paddletop.tile = PADDLETOPBOTSPR
+    right_paddle_sprs.paddletop.attrs = PADDLESPRATTRHVFLIP
+    right_paddle_sprs.paddletop.x = PADDLE2X
+
+    // update body of right paddle
+    right_paddle_sprs.paddlebody1.y = paddle2ytop + 8
+    right_paddle_sprs.paddlebody1.tile = PADDLEBODYSPR
+    right_paddle_sprs.paddlebody1.attrs = PADDLESPRATTRHVFLIP
+    right_paddle_sprs.paddlebody1.x = PADDLE2X
+    
+    right_paddle_sprs.paddlebody2.y = paddle2ytop + 16
+    right_paddle_sprs.paddlebody2.tile = PADDLEBODYSPR
+    right_paddle_sprs.paddlebody2.attrs = PADDLESPRATTRHVFLIP
+    right_paddle_sprs.paddlebody2.x = PADDLE2X
+  
+    // update bottom of right paddle
+    right_paddle_sprs.paddlebottom.y = paddle2ytop + 24
+    right_paddle_sprs.paddlebottom.tile = PADDLETOPBOTSPR
+    right_paddle_sprs.paddlebottom.attrs = PADDLESPRATTRHFLIP
+    right_paddle_sprs.paddlebottom.x = PADDLE2X
+}
+
+inline void draw_score() {
+    byte digit01
+    byte digit10
+    read_ppu_status() // read PPU status to reset the high/low latch
+    
+    //display player1's score
+    digit01 = score1 %% 10 //get the ones digit
+    digit10 = score1 / 10  //get the tens digit
+    digit10 %%= 10
+    
+    ppu_set_addr(ppu_nametable_ram+$29) // point the PPU to player1's score number
+    if digit10 > 0 {
+        ppu_write_data(digit10 + '0')
+    }
+    ppu_write_data(digit01 + '0')
+    
+    //display player2's score
+    digit01 = score2 %% 10 //get the ones digit
+    digit10 = score2 / 10  //get the tens digit
+    digit10 %%= 10
+    
+    ppu_set_addr(ppu_nametable_ram+$3C) // point the PPU to player2's score number
+    if digit10 > 0 {
+        ppu_write_data(digit10 + '0')
+    }
+    ppu_write_data(digit01 + '0')
+}
+
+void reset_ball() {
+    byte dir
+                
+    //randomize up/down motion
+    dir = rand()
+    dir = dir & %00000001 // dir is now either 0 or 1
+    ball.down = dir
+    ball.up = dir ^ %00000001 //flip the bit
+    
+    //randomize left/right motion
+    dir = rand()
+    dir = dir & %00000001 // dir is now either 0 or 1
+    ball.right = dir
+    ball.left = dir ^ %00000001 //flip the bit
+    
+    //reset the ball to the center and set its speed
+    ball.y = $50
+    ball.x = $80
+    ball.speedx = $02
+    ball.speedy = $02
+}
+
+//  *LEVEL GRAPHICS*
+
+//palletes for entire game (both title and play screens)
+const array pallete = [
+  $22,$29,$1A,$0F,  $22,$36,$17,$0F,  $22,$30,$21,$0F,  $22,$27,$17,$0F, //background palette
+  $22,$1C,$15,$14,  $22,$02,$38,$3C,  $22,$1C,$15,$14,  $22,$02,$38,$3C //sprite palette
+]
+
+const array scorebackground = "P1 Score-          P2 Score-" ascii
+const array gameover_msg = "G A M E    O V E R" ascii
+const array p1_win_msg =   "P1    Wins!" ascii
+const array p2_win_msg =   "P2    Wins!" ascii
+const array title_msg = "Press Start" ascii
+
+//attribute table for play screen graphics
+const array attribute = [
+  %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101,
+  %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101,
+  %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101
+]
+
+
+//  *CHARACTER ROM (GRAPHICS)*
+segment(chrrom) const array graphics @ $0000 = file("tiles.chr")
