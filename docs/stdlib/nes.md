@@ -4,13 +4,71 @@
 
 ## nes_hardware
 
-The `nes_hardware` module is imported automatically on NES targets.
+The `nes_hardware` module is imported automatically on NES targets. 
+It contains defintions for the NES's memory-mapped registers, as well 
+as some joypad and PPU management routines. 
 
-TODO
+#### `PPU memory-mapped registers`
+
+Named memory locations for interfacing with the PPU's memory-mapped registers.
+
+Available variables:
+
+*    `byte ppu_ctrl   @$2000`
+*    `byte ppu_mask   @$2001`
+*    `byte ppu_status @$2002`
+*    `byte oam_addr   @$2003`
+*    `byte oam_data   @$2004`
+*    `byte ppu_scroll @$2005`
+*    `byte ppu_addr   @$2006`
+*    `byte ppu_data   @$2007`
+*    `byte oam_dma    @$4014`
+
+#### `byte strobe_joypad()`
+
+Updates joypad1 by querying for new button states.
+
+#### `byte read_joypad1()`
+
+Get joypad1's state as a byte.
+
+#### `byte read_joypad2()`
+
+Get joypad2's state as a byte.
+
+#### `void simulate_reset()`
+
+Simulates a hardware reset by jumping to the reset vector,
+which then calls main().
+
+#### `void ppu_set_addr(word ax)`
+
+Sets the PPU to point at the VRAM address at ax, usually in preparation 
+for a write via ppu_write_data().
+
+#### `byte read_ppu_status()`
+
+Gets the PPU status byte.
+
+#### `void ppu_set_scroll(byte a, byte x)`
+
+Sets the PPU scroll register. Parameter a defines the horizontal 
+(X-axis) scroll value, and parameter x defines the vertical (Y-axis) 
+scroll value.
+
+#### `void ppu_write_data(byte a)`
+
+Writes a byte to the PPU's VRAM at the address the PPU 
+is currently pointing to. Usually used after a call to ppu_set_addr(). 
+
+#### `void ppu_oam_dma_write(byte a)`
+
+Initiates a DMA transfer of 256 bytes from CPU memory address $xx00-$xxFF 
+to PPU OAM memory, where xx is the hexadecimal representation of parameter a.
 
 ## nes_mmc4
 
-The `nes_mmc4` module is imported automatically on the NES MMC4 target.
+The `nes_mmc4` module is imported automatically on the NES MMC4 target 
 and contains routines related to MMC4 bankswitching.
 
 #### `void set_prg_bank(byte a)`
