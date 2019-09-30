@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Preliminary support for the CPU from ZX Spectrum Next.
+
 * Added the ability to define custom segment layouts.
 
 * Fixed bugs with constant booleans.
@@ -10,7 +12,15 @@
 
 * 8080: Optimized some library functions.
 
+* Optimized certain byte comparisons.
+
+* 6502: Optimized certain boolean conversions.
+
+* Unused built-in functions are now removed more accurately.
+
 * Updated to Scala 2.12.10.
+
+* Added another NES example (thanks to @Garydos).
 
 ## 0.3.8
 
@@ -20,7 +30,7 @@
 
 * Added full 16-bit multiplication and unsigned division. 
 
-* Added preliminary support for Atari Lynx (thanks to @Nullious)
+* Added preliminary support for Atari Lynx (thanks to @Nullious).
 
 * Added preliminary support for EasyFlash.
 
