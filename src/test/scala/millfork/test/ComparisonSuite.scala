@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuSuperOptimizedRun, EmuUltraBenchmarkRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuSuperOptimizedRun, EmuUltraBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -540,4 +540,45 @@ class ComparisonSuite extends FunSuite with Matchers {
         |""".stripMargin
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(code) {m => m.readByte(0xc000) should equal (code.count(_ == '↑'))}
   }
+
+  test("Comparison optimization") {
+    val code =
+      """
+        | noinline byte one() = 1
+        | noinline byte ten() = 10
+        | noinline byte ff() = $ff
+        | noinline byte zero() = 0
+        | byte output @$c000
+        | void main() {
+        |   output = 0
+        |   if zero() >= 0 { output += 1 } // ↑
+        |   if zero() <= 0 { output += 1 } // ↑
+        |   if one() > 0 { output += 1 } // ↑
+        |   if one() >= 0 { output += 1 } // ↑
+        |   if ten() > 0 { output += 1 } // ↑
+        |
+        |   if ten() <= $ff { output += 1 } // ↑
+        |   if ten() < $ff { output += 1 } // ↑
+        |   if ff() >= $ff { output += 1 } // ↑
+        |
+        |   if one() >= 1 { output += 1 } // ↑
+        |   if one() <= 1 { output += 1 } // ↑
+        |   if ten() >= 1 { output += 1 } // ↑
+        |   if ten() > 1 { output += 1 } // ↑
+        |   if zero() < 1 { output += 1 } // ↑
+        |   if zero() <= 1 { output += 1 } // ↑
+        |
+        |   if one() < 10 { output += 1 } // ↑
+        |   if one() <= 10 { output += 1 } // ↑
+        |   if ten() <= 10 { output += 1 } // ↑
+        |   if ten() >= 10 { output += 1 } // ↑
+        |   if ff() > 10 { output += 1 } // ↑
+        |   if ff() >= 10 { output += 1 } // ↑
+        | }
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(code) { m =>
+      m.readByte(0xc000) should equal(code.count(_ == '↑'))
+    }
+  }
+
 }

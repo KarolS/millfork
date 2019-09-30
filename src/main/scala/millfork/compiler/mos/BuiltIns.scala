@@ -446,6 +446,21 @@ object BuiltIns {
         }
       case _ =>
     }
+    (maybeConstant, compType) match {
+      case (Some(NumericConstant(0, _)), ComparisonType.GreaterUnsigned) =>
+        return compileByteComparison(ctx, ComparisonType.NotEqual, lhs, rhs, branches)
+      case (Some(NumericConstant(0, _)), ComparisonType.LessOrEqualUnsigned) =>
+        return compileByteComparison(ctx, ComparisonType.Equal, lhs, rhs, branches)
+      case (Some(NumericConstant(1, _)), ComparisonType.LessUnsigned) =>
+        return compileByteComparison(ctx, ComparisonType.Equal, lhs, rhs #-# 1, branches)
+      case (Some(NumericConstant(1, _)), ComparisonType.GreaterOrEqualUnsigned) =>
+        return compileByteComparison(ctx, ComparisonType.NotEqual, lhs, rhs #-# 1, branches)
+      case (Some(NumericConstant(n, 1)), ComparisonType.GreaterUnsigned) if n >= 1 && n <= 254 =>
+        return compileByteComparison(ctx, ComparisonType.GreaterOrEqualUnsigned, lhs, rhs #+# 1, branches)
+      case (Some(NumericConstant(n, 1)), ComparisonType.LessOrEqualUnsigned) if n >= 1 && n <= 254 =>
+        return compileByteComparison(ctx, ComparisonType.LessUnsigned, lhs, rhs #+# 1, branches)
+      case _ =>
+    }
     val cmpOp = if (ComparisonType.isSigned(compType)) SBC else CMP
     var comparingAgainstZero = false
     val secondParamCompiled0 = maybeConstant match {

@@ -21,19 +21,36 @@ object Z80Comparisons {
         FunctionCallExpression("^", List(r, LiteralExpression(0x80, 1).pos(r.position))).pos(r.position),
         branches)
     }
+    (ctx.env.eval(r), compType) match {
+      case (Some(NumericConstant(0, _)), GreaterUnsigned) =>
+        return compile8BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
+      case (Some(NumericConstant(0, _)), LessOrEqualUnsigned) =>
+        return compile8BitComparison(ctx, ComparisonType.Equal, l, r, branches)
+      case (Some(NumericConstant(1, _)), ComparisonType.LessUnsigned) =>
+        return compile8BitComparison(ctx, ComparisonType.Equal, l, r #-# 1, branches)
+      case (Some(NumericConstant(1, _)), ComparisonType.GreaterOrEqualUnsigned) =>
+        return compile8BitComparison(ctx, ComparisonType.NotEqual, l, r #-# 1, branches)
+      case (Some(NumericConstant(n, 1)), ComparisonType.GreaterUnsigned) if n >= 1 && n <= 254 =>
+        return compile8BitComparison(ctx, ComparisonType.GreaterOrEqualUnsigned, l, r #+# 1, branches)
+      case (Some(NumericConstant(n, 1)), ComparisonType.LessOrEqualUnsigned) if n >= 1 && n <= 254 =>
+        return compile8BitComparison(ctx, ComparisonType.LessUnsigned, l, r #+# 1, branches)
+      case _ =>
+    }
     compType match {
       case GreaterUnsigned | LessOrEqualUnsigned | GreaterSigned | LessOrEqualSigned =>
         return compile8BitComparison(ctx, ComparisonType.flip(compType), r, l, branches)
       case _ => ()
     }
-    val prepareAE = Z80ExpressionCompiler.compileToA(ctx, r) match {
+
+    var prepareAE = Z80ExpressionCompiler.compileToA(ctx, r) match {
       case List(ZLine0(ZOpcode.LD, TwoRegisters(ZRegister.A, ZRegister.IMM_8), param)) =>
         Z80ExpressionCompiler.compileToA(ctx, l) :+ ZLine.ldImm8(ZRegister.E, param)
       case compiledR => compiledR ++
         List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++
         Z80ExpressionCompiler.stashDEIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, l))
     }
-    val calculateFlags = if (ComparisonType.isSigned(compType) && ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+
+    var calculateFlags = if (ComparisonType.isSigned(compType) && ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
       val fixup = ctx.nextLabel("co")
       List(
         ZLine.register(ZOpcode.SUB, ZRegister.E),
@@ -43,6 +60,17 @@ object Z80Comparisons {
     } else if (ComparisonType.isSigned(compType) && !ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
       List(ZLine.register(ZOpcode.SUB, ZRegister.E))
     } else List(ZLine.register(ZOpcode.CP, ZRegister.E))
+
+    (prepareAE.last, calculateFlags.head) match {
+      case (
+        ZLine0(ZOpcode.LD, TwoRegisters(ZRegister.E, ZRegister.IMM_8), c),
+        ZLine0(op, OneRegister(ZRegister.E), _)
+        ) =>
+        prepareAE = prepareAE.init
+        calculateFlags = ZLine.imm8(op, c) :: calculateFlags.tail
+      case _ =>
+    }
+
     if (branches == NoBranching) return prepareAE ++ calculateFlags
     val (effectiveCompType, label) = branches match {
       case BranchIfFalse(la) => ComparisonType.negate(compType) -> la
