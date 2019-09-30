@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedIntel8080Run, EmuUnoptimizedIntel8085Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80Run}
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedIntel8080Run, EmuUnoptimizedIntel8085Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80NextRun, EmuUnoptimizedZ80Run}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -975,4 +975,41 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         | }
       """.stripMargin)
   }
+
+  test("Z80 Next instructions (Zilog syntax)") {
+    EmuUnoptimizedZ80NextRun(
+      """
+        | #pragma zilog_syntax
+        | asm void main () {
+        |   ret
+        |   ldix
+        |   ldws
+        |   ldirx
+        |   lddx
+        |   lddrx
+        |   ldpirx
+        |   outinb
+        |   mul
+        |   mul d,e
+        |   add hl,a
+        |   add de,a
+        |   add bc,a
+        |   add hl,1
+        |   add de,2
+        |   add bc,3
+        |   swapnib
+        |   mirror
+        |   mirror a
+        |   push $5555
+        |   nextreg 1,2
+        |   nextreg 1,a
+        |   pixeldn
+        |   pixelad
+        |   setae
+        |   test 8
+        |   ret
+        | }
+    """.stripMargin)
+  }
+
 }

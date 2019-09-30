@@ -43,7 +43,7 @@ case class CompilationOptions(platform: Platform,
       EmitIntel8085Opcodes, EmitIntel8080Opcodes, UseIxForStack, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.I80) invalids ++= Set(
-      EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitEZ80Opcodes,
+      EmitExtended80Opcodes, EmitZ80Opcodes, EmitSharpOpcodes, EmitEZ80Opcodes, EmitZ80NextOpcodes,
       UseIyForStack, UseIxForScratch, UseIyForScratch, UseShadowRegistersForInterrupts)
 
     if (CpuFamily.forType(platform.cpu) != CpuFamily.M6809) invalids ++= Set(
@@ -111,7 +111,7 @@ case class CompilationOptions(platform: Platform,
         }
       case CpuFamily.I80 =>
         if (flags(EmitIllegals)) {
-          if (platform.cpu != Z80 && platform.cpu != Intel8085) {
+          if (platform.cpu != Z80 && platform.cpu != Intel8085 && platform.cpu != Z80Next) {
             log.error("Illegal opcodes enabled for architecture that doesn't support them")
           }
         }
@@ -158,6 +158,11 @@ case class CompilationOptions(platform: Platform,
         if (flags(EmitSharpOpcodes)) {
           if (platform.cpu != Sharp) {
             log.error("Sharp LR35902 opcodes enabled for architecture that doesn't support them")
+          }
+        }
+        if (flags(EmitZ80NextOpcodes)) {
+          if (platform.cpu != Z80Next) {
+            log.error("ZX Spectrum Next opcodes enabled for architecture that doesn't support them")
           }
         }
         if (flags(EmitExtended80Opcodes)) {
@@ -221,6 +226,7 @@ case class CompilationOptions(platform: Platform,
       "CPUFEATURE_65816_NATIVE" -> toLong(flag(CompilationFlag.EmitNative65816Opcodes)),
       "CPUFEATURE_6502_ILLEGALS" -> toLong(platform.cpuFamily == CpuFamily.M6502 && flag(CompilationFlag.EmitIllegals)),
       "CPUFEATURE_Z80_ILLEGALS" -> toLong(flag(CompilationFlag.EmitZ80Opcodes) && flag(CompilationFlag.EmitIllegals)),
+      "CPUFEATURE_Z80_NEXT" -> toLong(flag(CompilationFlag.EmitZ80NextOpcodes)),
       "CPUFEATURE_8085_ILLEGALS" -> toLong(flag(CompilationFlag.EmitIntel8080Opcodes) && flag(CompilationFlag.EmitIllegals)),
       "BIG_ENDIAN" -> toLong(Cpu.isBigEndian(platform.cpu)),
       "LITTLE_ENDIAN" -> toLong(!Cpu.isBigEndian(platform.cpu)),
@@ -276,7 +282,7 @@ object CpuFamily extends Enumeration {
     import Cpu._
     cpu match {
       case Mos | StrictMos | Ricoh | StrictRicoh | Cmos | HuC6280 | CE02 | Sixteen => M6502
-      case Intel8080 | Intel8085 | StrictIntel8085 | Sharp | Z80 | StrictZ80 | EZ80 => I80
+      case Intel8080 | Intel8085 | StrictIntel8085 | Sharp | Z80 | StrictZ80 | EZ80 | Z80Next => I80
       case Intel8086 | Intel80186 => I86
       case Cpu.Motorola6809 => M6809
     }
@@ -347,6 +353,10 @@ object Cpu extends Enumeration {
     */
   val EZ80: Cpu.Value = Value
   /**
+    * The Z80 core from the ZX Spectrum Next
+    */
+  val Z80Next: Cpu.Value = Value
+  /**
     * The Sharp LR35902 processor
     */
   val Sharp: Cpu.Value = Value
@@ -370,11 +380,11 @@ object Cpu extends Enumeration {
   /**
     * Processors that can run code for Zilog Z80
     */
-  val Z80Compatible: Set[Cpu.Value] = Set(Z80, StrictZ80, EZ80)
+  val Z80Compatible: Set[Cpu.Value] = Set(Z80, StrictZ80, EZ80, Z80Next)
   /**
     * Processors that can run code for Intel 8080
     */
-  val Intel8080Compatible: Set[Cpu.Value] = Set(Intel8080, Intel8085, StrictIntel8085, Z80, StrictZ80, EZ80)
+  val Intel8080Compatible: Set[Cpu.Value] = Set(Intel8080, Intel8085, StrictIntel8085, Z80, StrictZ80, EZ80, Z80Next)
   /**
     * Processors that can run code for Intel 8085
     */
@@ -415,6 +425,8 @@ object Cpu extends Enumeration {
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitIntel8085Opcodes, UseIntelSyntaxForInput, UseIntelSyntaxForOutput)
     case StrictZ80 | Z80 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts)
+    case Z80Next =>
+      i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts, EmitIllegals, EmitZ80NextOpcodes)
     case EZ80 =>
       i80AlwaysDefaultFlags ++ Set(EmitIntel8080Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, UseIxForStack, UseShadowRegistersForInterrupts, EmitEZ80Opcodes)
     case Sharp =>
@@ -456,6 +468,7 @@ object Cpu extends Enumeration {
     case "strict2a07" => StrictRicoh
     case "z80" => Z80
     case "strictz80" => Z80
+    case "zx80next" => Z80Next
       // disabled for now:
 //    case "ez80" => EZ80
     case "gameboy"  => Sharp
@@ -504,7 +517,7 @@ object CompilationFlag extends Enumeration {
   EmitCmosOpcodes, EmitCmosNopOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
   PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, SoftwareStack,
   // compilation options for I80
-  EmitIntel8080Opcodes, EmitIntel8085Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, EmitEZ80Opcodes, EmitSharpOpcodes,
+  EmitIntel8080Opcodes, EmitIntel8085Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, EmitEZ80Opcodes, EmitSharpOpcodes, EmitZ80NextOpcodes,
   UseShadowRegistersForInterrupts,
   UseIxForStack, UseIyForStack,
   UseIxForScratch, UseIyForScratch,

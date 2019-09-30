@@ -52,7 +52,7 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `CPUFEATURE_65C02`, `CPUFEATURE_65CE02`, `CPUFEATURE_HUC6280`, `CPUFEATURE_65816_EMULATION`, `CPUFEATURE_65816_NATIVE`,
 `CPUFEATURE_8080`, `CPUFEATURE_8085`, `CPUFEATURE_GAMEBOY`, `CPUFEATURE_Z80`,
-`CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_8085_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS` – 1 if given instruction subset is enabled, 0 otherwise
+`CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_8085_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS`, `CPUFEATURE_Z80_NEXT` – 1 if given instruction subset is enabled, 0 otherwise
 
 * `ENCODING_SAME` - 1 if the encodings `default` and `src` are the same, 0 otherwise.
 

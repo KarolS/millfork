@@ -29,6 +29,8 @@ object ZOpcode extends Enumeration {
   LD_DESP, LD_DEHL, RRHL, RLDE, DSUB, RSTV, LHLX, SHLX,
   //sharp:
   LD_AHLI, LD_AHLD, LD_HLIA, LD_HLDA, SWAP, LDH_DA, LDH_AD, LDH_CA, LDH_AC, LD_HLSP, ADD_SP, STOP,
+  // next:
+  LDIX, LDWS, LDIRX, LDDX, LDDRX, LDPIRX, OUTINB, MUL, SWAPNIB, MIRROR, NEXTREG, PIXELDN, PIXELAD, SETAE, TEST,
   DISCARD_A, DISCARD_F, DISCARD_HL, DISCARD_BC, DISCARD_DE, DISCARD_IX, DISCARD_IY, CHANGED_MEM,
   LABEL, BYTE = Value
 }
@@ -69,19 +71,25 @@ object ZOpcodeClasses {
   val ChangesBCAlways: Set[ZOpcode.Value] = Set(
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,
+    LDIX, LDIRX, LDDX, LDDRX, LDPIRX,
     EXX, CALL, JR, JP, LABEL, DJNZ)
   val ChangesHLAlways: Set[ZOpcode.Value] = Set(
     INI, INIR, OUTI, OUTIR, IND, INDR, OUTD, OUTDR,
     LDI, LDIR, LDD, LDDR, CPI, CPIR, CPD, CPDR,
     LD_AHLI, LD_AHLD, LD_HLIA, LD_HLDA, LD_HLSP, DSUB,
     RRHL, LHLX,
+    LDWS, LDIX, LDIRX, LDDX, LDDRX, LDPIRX, PIXELAD, PIXELDN, OUTINB,
     EXX, EX_DE_HL, CALL, JR, JP, LABEL)
   val ChangesDEAlways: Set[ZOpcode.Value] = Set(
     LDI, LDIR, LDD, LDDR,
     LD_DESP, LD_DEHL, RLDE,
+    LDWS, LDIX, LDIRX, LDDX, LDDRX, LDPIRX, MUL,
     EXX, EX_DE_HL, CALL, JR, JP, LABEL)
   val ChangesOnlyRegister: Set[ZOpcode.Value] = Set(INC, DEC, INC_16, DEC_16, POP, EX_SP, IN_C, IN_IMM, RL, RR, RLC, RRC, SLA, SRA, SRL, SLL) ++ SET ++ RES
   val ChangesFirstRegister: Set[ZOpcode.Value] = Set(LD, LD_16, ADD_16, SBC_16)
-  val ChangesAAlways: Set[ZOpcode.Value] = Set(DAA, ADD, ADC, SUB, SBC, XOR, OR, AND, LD_AHLI, LD_AHLD, RIM)
+  val ChangesAAlways: Set[ZOpcode.Value] = Set(
+    DAA, ADD, ADC, SUB, SBC, XOR, OR, AND, LD_AHLI, LD_AHLD, RIM,
+    MIRROR, SETAE,
+  )
   val NonLinear: Set[ZOpcode.Value] = Set(JP, JR, CALL, LABEL, BYTE, EXX, EX_DE_HL, EX_SP, EXX, RET, RETI, RETN, HALT, RST, RSTV)
 }

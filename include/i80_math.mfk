@@ -4,9 +4,15 @@
 #endif
 
 #pragma zilog_syntax
-
-#if CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
-
+#if CPUFEATURE_Z80_NEXT
+inline asm byte __mul_u8u8u8() {
+    ? LD E,A
+    ? MUL
+    ? LD A, E
+    ? RET
+}
+#elseif CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
+//A = A * D
 noinline asm byte __mul_u8u8u8() {
     ? LD E,A
     ? LD A, 0

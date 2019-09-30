@@ -452,6 +452,20 @@ case class Z80Parser(filename: String,
           case (r1, e1, (r2, e2)) => merge(LD, LD_16, skipTargetA = false)((r1, e1, r2, e2))
         }
         case "ADD" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
+
+          case (ZRegister.HL, None, (ZRegister.A, None)) if options.flags(CompilationFlag.EmitZ80NextOpcodes) =>
+            (ADD_16, TwoRegisters(ZRegister.HL, ZRegister.A), None, zero)
+          case (ZRegister.DE, None, (ZRegister.A, None)) if options.flags(CompilationFlag.EmitZ80NextOpcodes) =>
+            (ADD_16, TwoRegisters(ZRegister.DE, ZRegister.A), None, zero)
+          case (ZRegister.BC, None, (ZRegister.A, None)) if options.flags(CompilationFlag.EmitZ80NextOpcodes) =>
+            (ADD_16, TwoRegisters(ZRegister.BC, ZRegister.A), None, zero)
+          case (ZRegister.HL, None, (ZRegister.IMM_8, Some(expr))) =>
+            (ADD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), None, expr)
+          case (ZRegister.DE, None, (ZRegister.IMM_8, Some(expr))) =>
+            (ADD_16, TwoRegisters(ZRegister.DE, ZRegister.IMM_16), None, expr)
+          case (ZRegister.BC, None, (ZRegister.IMM_8, Some(expr))) =>
+            (ADD_16, TwoRegisters(ZRegister.BC, ZRegister.IMM_16), None, expr)
+
           case (ZRegister.SP, None, (ZRegister.IMM_8, Some(expr))) if options.flags(CompilationFlag.EmitSharpOpcodes) =>
             (ADD_SP, OneRegister(ZRegister.IMM_8), None, expr)
           case (r1, e1, (r2, e2)) => merge(ADD, ADD_16, skipTargetA = true)((r1, e1, r2, e2))
@@ -465,6 +479,28 @@ case class Z80Parser(filename: String,
 
         case "DSUB" => imm(DSUB)
         case "RSTV" => imm(RSTV)
+
+        case "LDIX" => imm(LDIX)
+        case "LDWS" => imm(LDWS)
+        case "LDIRX" => imm(LDIRX)
+        case "LDDX" => imm(LDDX)
+        case "LDDRX" => imm(LDDRX)
+        case "LDPIRX" => imm(LDPIRX)
+        case "OUTINB" => imm(OUTINB)
+        case "SWAPNIB" => imm(SWAPNIB)
+        case "PIXELDN" => imm(PIXELDN)
+        case "PIXELAD" => imm(PIXELAD)
+        case "SETAE" => imm(SETAE)
+        case "MUL" => (("D"|"d") ~ HWS ~ "," ~/ HWS ~ ("E" | "e")).?.map { _ => (MUL, NoRegisters, None, zero)}
+        case "MIRROR" => ("A"|"a").?.map { _ => (MUL, NoRegisters, None, zero)}
+        case "NEXTREG" =>(param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
+          case (ZRegister.IMM_8, Some(n), (ZRegister.A, None)) => (NEXTREG, TwoRegisters(ZRegister.IMM_8, ZRegister.A), None, n)
+          case (ZRegister.IMM_8, Some(n), (ZRegister.IMM_8, Some(v))) => (NEXTREG, TwoRegisters(ZRegister.IMM_8, ZRegister.IMM_8), None, SeparateBytesExpression(v, n))
+          case _ =>
+            log.error("Invalid parameters for NEXTREG", Some(pos))
+            (NOP, NoRegisters, None, zero)
+        }
+        case "TEST" => one8Register(TEST)
 
         case _ =>
           log.error("Unsupported opcode " + opcode, Some(pos))

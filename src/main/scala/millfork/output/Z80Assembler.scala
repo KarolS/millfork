@@ -69,6 +69,8 @@ class Z80Assembler(program: Program,
 
     def requireIntel8085Illegals(): Unit = if (!options.flag(EmitIntel8085Opcodes) || !options.flag(EmitIllegals)) log.error("Unsupported instruction: " + instr)
 
+    def requireNext(): Unit = if (!options.flag(EmitZ80NextOpcodes)) log.error("Unsupported instruction: " + instr)
+
     def useSharpOpcodes():Boolean = {
       if (!options.flag(EmitSharpOpcodes) && !options.flag(EmitIntel8080Opcodes))
         log.error("Cannot determine which variant to emit : " + instr)
@@ -144,6 +146,47 @@ class Z80Assembler(program: Program,
         writeByte(bank, index, 0xed)
         writeByte(bank, index + 1, edImplieds(op))
         index + 2
+      case ZLine0(op, NoRegisters, _) if nextEdImplieds.contains(op) =>
+        requireNext()
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, nextEdImplieds(op))
+        index + 2
+      case ZLine0(ADD_16, TwoRegisters(r@(ZRegister.HL | ZRegister.BC | ZRegister.DE), ZRegister.A), _) =>
+        requireNext()
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x33 - internalRegisterIndex(r))
+        index + 2
+      case ZLine0(ADD_16, TwoRegisters(r@(ZRegister.HL | ZRegister.BC | ZRegister.DE), ZRegister.IMM_16), nn) =>
+        requireNext()
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x36 - internalRegisterIndex(r))
+        writeWord(bank, index + 2, nn)
+        index + 4
+      case ZLine0(PUSH, OneRegister(ZRegister.IMM_16), nn) =>
+        requireNext()
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x8A)
+        writeByte(bank, index + 2, nn.hiByte)
+        writeByte(bank, index + 3, nn.loByte)
+        index + 4
+      case ZLine0(TEST, OneRegister(ZRegister.IMM_8), nn) =>
+        requireNext()
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x27)
+        writeByte(bank, index + 2, nn)
+        index + 3
+      case ZLine0(NEXTREG, TwoRegisters(ZRegister.IMM_8, ZRegister.IMM_8), nn) =>
+        requireNext()
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x91)
+        writeWord(bank, index + 2, nn)
+        index + 4
+      case ZLine0(NEXTREG, TwoRegisters(ZRegister.IMM_8, ZRegister.A), nn) =>
+        requireNext()
+        writeByte(bank, index, 0xed)
+        writeByte(bank, index + 1, 0x92)
+        writeByte(bank, index + 2, nn)
+        index + 3
       case ZLine0(ADD_16, TwoRegisters(ZRegister.HL, source), _) =>
         writeByte(bank, index, 9 + 16 * internalRegisterIndex(source))
         index + 1
@@ -776,6 +819,7 @@ object Z80Assembler {
   val edImplieds: mutable.Map[ZOpcode.Value, Int] = mutable.Map[ZOpcode.Value, Int]()
   val oneRegister: mutable.Map[ZOpcode.Value, One] = mutable.Map[ZOpcode.Value, One]()
   val cbOneRegister: mutable.Map[ZOpcode.Value, One] = mutable.Map[ZOpcode.Value, One]()
+  val nextEdImplieds: mutable.Map[ZOpcode.Value, Int] = mutable.Map[ZOpcode.Value, Int]()
 
   do {
     import ZOpcode._
@@ -846,6 +890,20 @@ object Z80Assembler {
     cbOneRegister(SLA) = One(0x20, 1)
     cbOneRegister(SRA) = One(0x28, 1)
     cbOneRegister(SRL) = One(0x38, 1)
+
+    nextEdImplieds(LDIX) = 0xa4
+    nextEdImplieds(LDWS) = 0xa5
+    nextEdImplieds(LDIRX) = 0xb4
+    nextEdImplieds(LDDX) = 0xb5
+    nextEdImplieds(LDDRX) = 0xac
+    nextEdImplieds(LDPIRX) = 0xbc
+    nextEdImplieds(OUTINB) = 0x90
+    nextEdImplieds(MUL) = 0xa4
+    nextEdImplieds(SWAPNIB) = 0x23
+    nextEdImplieds(MIRROR) = 0x24
+    nextEdImplieds(PIXELDN) = 0x93
+    nextEdImplieds(PIXELAD) = 0x94
+    nextEdImplieds(SETAE) = 0x95
   } while (false)
 
 }

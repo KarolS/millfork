@@ -31,6 +31,8 @@ if a line ends with a backslash character, the value continues to the next line.
     
     * `strictz80` (Z80 without illegal instructions)
     
+    * `z80next` (Z80 core from ZX Spectrum Next)
+    
     * `i8080` (Intel 8080)
     
     * `i8085` (Intel 8085)

@@ -83,7 +83,8 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
       CompilationFlag.OptimizeStdlib -> this.inline,
       CompilationFlag.OptimizeForSize -> this.optimizeForSize,
       CompilationFlag.SubroutineExtraction -> optimizeForSize,
-      CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80 || cpu == millfork.Cpu.Intel8085),
+      CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80 || cpu == millfork.Cpu.Intel8085 || cpu == millfork.Cpu.Z80Next),
+      CompilationFlag.EmitZ80NextOpcodes -> (cpu == millfork.Cpu.Z80Next),
       CompilationFlag.LenientTextEncoding -> true)
     val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0, Map(), JobContext(log, new LabelGenerator))
     println(cpu)

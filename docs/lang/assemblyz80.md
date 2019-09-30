@@ -25,6 +25,8 @@ Only instructions available on the current CPU architecture are available.
 Intel syntax does not support instructions that are unavailable on the 8080.
 Undocumented Z80 instructions are not supported, except for `SLL`.
 
+Not all ZX Spectrum Next are supported. `JP (C)`, `BSLA` and similar instructions are not supported.
+
 Labels have to be followed by a colon and they can optionally be on a separate line.
 Indentation is not important:
 
