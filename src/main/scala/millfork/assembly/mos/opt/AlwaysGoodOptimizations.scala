@@ -52,6 +52,11 @@ object AlwaysGoodOptimizations {
     (HasOpcodeIn(ORA, EOR) & HasImmediate(1) & Elidable & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~
       (Linear & Not(ConcernsA)).* ~
       (HasOpcodeIn(LSR, ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C)) ~~> (_.tail),
+    (HasOpcode(LDA) & Elidable & MatchParameter(0)) ~
+      (HasOpcode(SEC) & Elidable) ~
+      (HasOpcode(SBC) & Elidable & MatchParameter(0) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
+      List(AssemblyLine.immediate(LDA, 0).mergePos(code.map(_.source)))
+    },
   ))
 
   val PointlessAccumulatorShifting = new RuleBasedAssemblyOptimization("Pointless accumulator shifting",
@@ -2919,6 +2924,57 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(CMP) & DoesntMatterWhatItDoesWith(State.A) & HasAddrModeIn(Absolute, ZeroPage, Immediate)) ~~> { code =>
       List(code.last.copy(opcode = CPY))
     },
+
+    (Elidable & HasOpcode(EOR) & MatchImmediate(0)) ~
+      (Elidable & HasOpcode(CMP) & MatchImmediate(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.C)) ~~> { (code, ctx) =>
+      List(code.last.copy(parameter = CompoundConstant(MathOperator.Exor, ctx.get[Constant](0), ctx.get[Constant](1))))
+    },
+
+    MultipleAssemblyRules(for {
+      cmpZero <- Seq(false, true)
+      rts <- Seq(false, true)
+      beq <- Seq(false, true)
+      nonzeroFirst <- Seq(false, true)
+    } yield {
+      (Elidable & HasOpcode(AND) & MatchNumericImmediate(0)) ~
+        Where(ctx => {
+          val mask = ctx.get[Int](0)
+          (mask == 1 || mask == 2 || mask == 4)
+        }) ~
+        (if (cmpZero) Elidable & HasOpcode(CMP) & HasImmediate(0) else Elidable & HasOpcode(CMP) & MatchNumericImmediate(0)) ~
+        (Elidable & HasOpcode(if (beq) BEQ else BNE) & MatchParameter(5)) ~
+        (Elidable & HasOpcode(LDA) & (if (nonzeroFirst) MatchNumericImmediate(1) else HasImmediate(0))) ~
+        (if (rts) Elidable & HasOpcode(RTS) else Elidable & HasOpcodeIn(JMP, BRA, if (nonzeroFirst) BNE else BEQ) & MatchParameter(6)) ~
+        (Elidable & HasOpcode(LABEL) & MatchParameter(5) & IsNotALabelUsedManyTimes) ~
+        (Elidable & HasOpcode(LDA) & (if (nonzeroFirst) HasImmediate(0) else MatchNumericImmediate(1))) ~
+        Where(ctx => {
+          val mask = ctx.get[Int](1)
+          (mask == 1 || mask == 2 || mask == 4)
+        }) ~
+        (Elidable & (if (rts) HasOpcode(RTS) else HasOpcode(LABEL) & MatchParameter(6) & IsNotALabelUsedManyTimes) & DoesntMatterWhatItDoesWith(State.C, State.Z, State.N)) ~~> { (code, ctx) =>
+        val inverted = cmpZero ^ beq ^ nonzeroFirst
+        val andMask = ctx.get[Int](0)
+        val positiveResult = ctx.get[Int](1)
+        val prepare = if (inverted) {
+          List(code.head, AssemblyLine.immediate(EOR, andMask))
+        } else {
+          List(code.head)
+        }
+        val shifts = (andMask, positiveResult) match {
+          case (1, 1) | (2, 2) | (4, 4) => Nil
+          case (1, 2) | (2, 4) => List(AssemblyLine.implied(ASL))
+          case (2, 1) | (4, 2) => List(AssemblyLine.implied(LSR))
+          case (1, 4) => List(AssemblyLine.implied(ASL), AssemblyLine.implied(ASL))
+          case (4, 1) => List(AssemblyLine.implied(LSR), AssemblyLine.implied(LSR))
+          case _ => ???
+        }
+        if (rts) {
+          prepare ++ shifts ++ List(code(4))
+        } else {
+          prepare ++ shifts
+        }
+      }
+    }),
 
   )
 
