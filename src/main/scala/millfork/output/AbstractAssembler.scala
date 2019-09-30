@@ -59,7 +59,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     mem.banks(bank).readable(addr) = true
     value match {
       case NumericConstant(x, _) =>
-        if (x > 0xff) log.error("Byte overflow")
+        if (x > 0xff) log.error("Byte overflow: " + x.toHexString)
         mem.banks(bank).output(addr) = x.toByte
       case _ =>
         bytesToWriteLater += ((bank, addr, value))
@@ -281,9 +281,17 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       "__divmod_u16u8u16u8", "__mod_u16u8u16u8", "__div_u16u8u16u8",
       "__divmod_u16u16u16u16", "__mod_u16u16u16u16", "__div_u16u16u16u16") ++
       compiledFunctions.keySet.filter(_.endsWith(".trampoline"))
-    val unusedRuntimeObjects = objectsThatMayBeUnused.filterNot(name =>{
+    val unusedRuntimeObjects0 = objectsThatMayBeUnused.filterNot(name =>{
       compiledFunctions.exists{
         case (fname, compiled) => fname != name && (compiled match {
+          case f:NormalCompiledFunction[_] => f.code.exists(_.refersTo(name))
+          case _ => false
+        })
+      }
+    })
+    val unusedRuntimeObjects = unusedRuntimeObjects0 ++ objectsThatMayBeUnused.filterNot(name =>{
+      compiledFunctions.exists{
+        case (fname, compiled) => fname != name && !unusedRuntimeObjects0(fname) && (compiled match {
           case f:NormalCompiledFunction[_] => f.code.exists(_.refersTo(name))
           case _ => false
         })
