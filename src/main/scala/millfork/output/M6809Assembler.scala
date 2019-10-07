@@ -211,7 +211,7 @@ class M6809Assembler(program: Program,
         index + 4
       case _ =>
         // TODO
-        throw new IllegalArgumentException("Not supported: " + instr)
+        throw new IllegalArgumentException("Not supported: " + instr + " " + instr.productIterator.mkString("/"))
     }
   }
 

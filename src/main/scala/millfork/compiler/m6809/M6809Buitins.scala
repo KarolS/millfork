@@ -34,6 +34,26 @@ object M6809Buitins {
     }
   }
 
+  def perform16BitInPlace(ctx: CompilationContext, l: LhsExpression, r: Expression, opcode: MOpcode.Value, commutative: Boolean): List[MLine] = {
+    val lc = M6809ExpressionCompiler.compileToD(ctx, l)
+    val rc = M6809ExpressionCompiler.compileToD(ctx, r)
+    (lc, rc) match {
+      case (List(ldl@MLine0(LDD, Absolute(false), _)), _) if opcode != SUBD =>
+        rc ++ List(ldl.copy(opcode = opcode), ldl.copy(opcode = STD))
+      case (_, List(ldr@MLine0(LDD, Absolute(false), _))) if lc.last.opcode == LDD =>
+        lc ++ List(ldr.copy(opcode = opcode), lc.last.copy(opcode = STD))
+      case _ if lc.last.opcode == LDD && commutative =>
+        // TODO: preserve X?
+        lc ++ List(MLine.pp(PSHS, M6809Register.D)) ++ rc ++ List(MLine.accessAndPullSTwice(opcode), lc.last.copy(opcode = STD))
+      case _ if lc.last.opcode == LDD =>
+        // TODO: preserve X?
+        rc ++ List(MLine.pp(PSHS, M6809Register.D)) ++ lc ++ List(MLine.accessAndPullSTwice(opcode), lc.last.copy(opcode = STD))
+      case _ =>
+        println(lc)
+        ???
+    }
+  }
+
 
   def split(ctx: CompilationContext, expr: SumExpression): (Constant, List[(Boolean, Expression)]) = {
     var constant = Constant.Zero
@@ -92,7 +112,7 @@ object M6809Buitins {
     for ((neg, load) <- addendReads) {
       if (result.isEmpty && fromScratch) {
         result ++= load
-        if (neg) result += MLine.inherent(NEG)
+        if (neg) result += MLine.inherentB(NEG)
       } else {
         load match {
           case List(l@MLine0(LDB, _, _)) =>
@@ -168,15 +188,112 @@ object M6809Buitins {
   }
 
   def compileWordSum(ctx: CompilationContext, expr: SumExpression, fromScratch: Boolean): List[MLine] = {
-    ???
+    if (expr.decimal) ???
+    val (constant, variable) = split(ctx, expr)
+    val addendReads = variable
+      .map(addend => addend._1 -> M6809ExpressionCompiler.compileToD(ctx, addend._2))
+      .map(code => (if (code._1) 1 else 0, complexityD(code._2)) -> code).sortBy(_._1).map(_._2)
+    val result = ListBuffer[MLine]()
+    for ((neg, load) <- addendReads) {
+      if (result.isEmpty && fromScratch) {
+        result ++= load
+        if (neg) {
+          result += MLine.immediate(EORA, 0xff)
+          result += MLine.immediate(EORB, 0xff)
+          result += MLine.immediate(ADDD, 1)
+        }
+      } else {
+        load match {
+          case List(l@MLine0(LDD, _, _)) =>
+            if (neg) {
+              result += l.copy(opcode = SUBD)
+            } else {
+              result += l.copy(opcode = ADDD)
+            }
+          case _ =>
+            if (neg) {
+              result += MLine.pp(PSHS, M6809Register.D)
+              result ++= load
+              // TODO: optimize
+              result += MLine.immediate(EORA, 0xff)
+              result += MLine.immediate(EORB, 0xff)
+              result += MLine.immediate(ADDD, 1)
+              result += MLine.accessAndPullSTwice(ADDD)
+            } else {
+              result += MLine.pp(PSHS, M6809Register.D)
+              result ++= load
+              result += MLine.accessAndPullSTwice(ADDD)
+            }
+        }
+      }
+    }
+    if (!constant.isProvablyZero) {
+      if (result.isEmpty) {
+        result += MLine.immediate(LDD, constant)
+      } else {
+        result += MLine.immediate(ADDD, constant)
+      }
+    }
+    result.toList
   }
   def compileWordBitwise(ctx: CompilationContext,
                          params: List[Expression],
                          fromScratch: Boolean,
-                         opcodeB: MOpcode.Value,
                          opcodeA: MOpcode.Value,
+                         opcodeB: MOpcode.Value,
                          op: MathOperator.Value,
                          empty: Int): List[MLine] = {
-    ???
+    val (constant, variable) = split(ctx, params, op, empty)
+    val addendReads = variable
+      .map(addend => M6809ExpressionCompiler.compileToD(ctx, addend))
+      .map(code => complexityD(code) -> code).sortBy(_._1).map(_._2)
+    val result = ListBuffer[MLine]()
+    for (load <- addendReads) {
+      if (result.isEmpty && fromScratch) {
+        result ++= load
+      } else {
+        load match {
+          case List(l@MLine0(LDD, Absolute(false), addr)) =>
+            result += l.copy(opcode = opcodeA)
+            result += l.copy(opcode = opcodeB, parameter = addr + 1)
+          case List(l@MLine0(LDD, Immediate, c)) =>
+            result += l.copy(opcode = opcodeA, parameter = c.hiByte)
+            result += l.copy(opcode = opcodeB, parameter = c.loByte)
+          case _ =>
+            result += MLine.pp(PSHS, M6809Register.D)
+            result ++= load
+            result += MLine.accessAndPullS(opcodeA)
+            result += MLine.accessAndPullS(opcodeB)
+        }
+      }
+    }
+    if (!constant.isProvably(empty)) {
+      if (result.isEmpty) {
+        result += MLine.immediate(LDD, constant)
+      } else {
+        result += MLine.immediate(opcodeA, constant.hiByte)
+        result += MLine.immediate(opcodeB, constant.loByte)
+      }
+    }
+    result.toList
   }
+
+  def compileByteShiftForB(ctx: CompilationContext, rhs:Expression, left: Boolean): List[MLine] = {
+    val op = if (left) MOpcode.ASL else MOpcode.LSR
+    ctx.env.eval(rhs) match {
+      case Some(NumericConstant(0, _)) => Nil
+      case Some(NumericConstant(n, _)) => List.fill(n.toInt)(MLine.inherentB(op))
+      case _ => ???
+    }
+  }
+
+  def compileWordShiftForD(ctx: CompilationContext, rhs:Expression, left: Boolean): List[MLine] = {
+    val op = if (left) List(MLine.inherentB(ASL), MLine.inherentA(ROL)) else List(MLine.inherentA(LSR), MLine.inherentB(ROR))
+    ctx.env.eval(rhs) match {
+      case Some(NumericConstant(0, _)) => Nil
+      case Some(NumericConstant(n, _)) => List.fill(n.toInt)(op).flatten
+      case _ => ???
+    }
+  }
+
 }

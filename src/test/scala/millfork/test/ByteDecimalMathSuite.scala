@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -364,6 +364,29 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
         toDecimal(m.readByte(0xc000)) should equal((i * j) % 100)
       }
     }
+  }
+
+  test("Decimal multiplication by non-constant") {
+    ShouldNotCompile(
+      """
+        | volatile byte x
+        | void main() {
+        |    byte tmp
+        |    tmp = 3
+        |    tmp *'= x
+        | }
+        |""".stripMargin)
+  }
+
+  test("Decimal multiplication of two variables") {
+    ShouldNotCompile(
+      """
+        | volatile byte x
+        | void main() {
+        |    byte tmp
+        |    tmp = x *' x
+        | }
+        |""".stripMargin)
   }
 
   test("Decimal comparison") {

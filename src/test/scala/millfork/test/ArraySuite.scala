@@ -468,7 +468,11 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
       """
         | array(word) a[7] @$c000
         | void main () {
+        |   // the 6809 backend is apparently too smart right now and this actually works!:
         |   a[0] += 2
+        |   #if ARCH_6809
+        |   a[0]*'a[1]
+        |   #endif
         | }
       """.stripMargin)
   }

@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class NonetSuite extends FunSuite with Matchers {
 
   test("Nonet operations") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output [5] @$c000
         | void main () {
@@ -45,7 +45,7 @@ class NonetSuite extends FunSuite with Matchers {
   }
 
   test("Nonet left shift") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output0 @$c000
         | word output1 @$c002
@@ -119,7 +119,7 @@ class NonetSuite extends FunSuite with Matchers {
   }
 
   test("Nonet shift right") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output0 @$c000
         | byte output1 @$c002
@@ -141,7 +141,7 @@ class NonetSuite extends FunSuite with Matchers {
   }
 
   test("Nonet shift right 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output0 @$c000
         | byte output1 @$c002

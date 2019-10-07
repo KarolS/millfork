@@ -20,6 +20,7 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
       case ReturnStatement(Some(e)) =>
         // TODO: clean stack
         // TODO: RTI
+        AbstractExpressionCompiler.checkAssignmentType(ctx, e, ctx.function.returnType)
         val rts = List(MLine.inherent(RTS))
         val eval = ctx.function.returnType match {
           case FatBooleanType =>
@@ -42,7 +43,9 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
             ???
         }
       case Assignment(destination, source) =>
-        AbstractExpressionCompiler.getExpressionType(ctx, destination).size match {
+        val destinationType = AbstractExpressionCompiler.getExpressionType(ctx, destination)
+        AbstractExpressionCompiler.checkAssignmentType(ctx, source, destinationType)
+        destinationType.size match {
           case 1 => (M6809ExpressionCompiler.compileToB(ctx, source) ++ M6809ExpressionCompiler.storeB(ctx, destination)) -> Nil
           case 2 => (M6809ExpressionCompiler.compileToD(ctx, source) ++ M6809ExpressionCompiler.storeD(ctx, destination)) -> Nil
         }
@@ -68,7 +71,8 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         }
       case _ =>
         println(statement)
-        ???
+        ctx.log.error("Not implemented yet", statement.position)
+        Nil -> Nil
     }
     code._1.map(_.positionIfEmpty(statement.position)) -> code._2.map(_.positionIfEmpty(statement.position))
   }

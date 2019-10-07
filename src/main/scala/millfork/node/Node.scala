@@ -44,6 +44,8 @@ sealed trait Expression extends Node {
     case SumExpression(params, false) => SumExpression((false -> this) :: params, decimal = false)
     case _ => SumExpression(List(false -> this, false -> that), decimal = false)
   }
+  def #*#(smallInt: Int): Expression =
+    if (smallInt == 1) this else FunctionCallExpression("*", List(this, LiteralExpression(smallInt, 1).pos(this.position))).pos(this.position)
   def #-#(smallInt: Int): Expression = (this #-# LiteralExpression(smallInt, 1).pos(this.position)).pos(this.position)
   def #-#(that: Expression): Expression = SumExpression(List(false -> this, true -> that), decimal = false)
 

@@ -3,7 +3,7 @@ package millfork.assembly.m6809
 import millfork.CompilationFlag
 import millfork.assembly.{AbstractCode, Elidability, SourceLine}
 import millfork.compiler.CompilationContext
-import millfork.env.{Constant, Label, MemoryVariable, NumericConstant, StackVariable, Variable, VariableInMemory}
+import millfork.env.{Constant, Label, MemoryVariable, NumericConstant, StackVariable, ThingInMemory, Variable, VariableInMemory}
 import millfork.node.{M6809Register, Position}
 
 /**
@@ -55,6 +55,8 @@ object MLine {
   def immediate(opcode: MOpcode.Value, param: Int): MLine = MLine(opcode, Immediate, Constant(param))
 
   def absolute(opcode: MOpcode.Value, param: Constant): MLine = MLine(opcode, Absolute(false), param)
+
+  def absolute(opcode: MOpcode.Value, param: ThingInMemory): MLine = MLine(opcode, Absolute(false), param.toAddress)
 
   //def userstack(opcode: MOpcode.Value, offset: Int): MLine = MLine(opcode, Indexed(M6809Register.U, indirect = false), Constant(offset))
 
@@ -112,12 +114,12 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
       case Absolute(true) => s" [$parameter]"
       case Indexed(base, false) => s" $parameter,$base"
       case Indexed(base, true) => s" [$parameter,$base]"
-      case DAccumulatorIndexed(base, false) => " D,$base"
-      case DAccumulatorIndexed(base, true) => " [D,$base]"
-      case AAccumulatorIndexed(base, false) => " A,$base"
-      case AAccumulatorIndexed(base, true) => " [A,$base]"
-      case BAccumulatorIndexed(base, false) => " B,$base"
-      case BAccumulatorIndexed(base, true) => " [B,$base]"
+      case DAccumulatorIndexed(base, false) => s" D,$base"
+      case DAccumulatorIndexed(base, true) => s" [D,$base]"
+      case AAccumulatorIndexed(base, false) => s" A,$base"
+      case AAccumulatorIndexed(base, true) => s" [A,$base]"
+      case BAccumulatorIndexed(base, false) => s" B,$base"
+      case BAccumulatorIndexed(base, true) => s" [B,$base]"
       case PreDecremented(base, 1, false) => s" ,-$base"
       case PreDecremented(base, 2, false) => s" ,--$base"
       case PreDecremented(base, 1, true) => s" [-$base]"
@@ -146,8 +148,8 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
     }
     import MOpcode._
     (opcode, addrMode) match {
-      case (_, InherentA) => reg == A
-      case (_, InherentB) => reg == B
+      case (_, InherentA) => overlaps(A)
+      case (_, InherentB) => overlaps(B)
       case (PULU, set:RegisterSet) => reg == U || set.contains(reg)
       case (PULS, set:RegisterSet) => reg == S || set.contains(reg)
       case (PSHS, _) => reg == U

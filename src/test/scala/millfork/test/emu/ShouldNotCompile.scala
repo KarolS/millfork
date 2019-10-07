@@ -8,7 +8,7 @@ import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.node.StandardCallGraph
-import millfork.parser.{MosParser, PreprocessingResult, Preprocessor, Z80Parser}
+import millfork.parser.{M6809Parser, MosParser, PreprocessingResult, Preprocessor, Z80Parser}
 import millfork._
 import millfork.compiler.m6809.M6809Compiler
 import millfork.compiler.z80.Z80Compiler
@@ -23,6 +23,7 @@ object ShouldNotCompile extends Matchers {
   def apply(source: String): Unit = {
     checkCase(Cpu.Mos, source)
     checkCase(Cpu.Z80, source)
+    checkCase(Cpu.Motorola6809, source)
   }
 
   private def checkCase(cpu: Cpu.Value, source: String) {
@@ -40,6 +41,8 @@ object ShouldNotCompile extends Matchers {
       platform.cpuFamily match {
         case CpuFamily.M6502 =>
           effectiveSource += "\nnoinline asm word call(word ax) {\nJMP ((__reg.b2b3))\n}\n"
+        case CpuFamily.M6809 =>
+          effectiveSource += "\nnoinline asm word call(word d) {\nJMP ,x\n}\n"
         case CpuFamily.I80 =>
           if (options.flag(CompilationFlag.UseIntelSyntaxForInput))
             effectiveSource += "\nnoinline asm word call(word de) {\npush d\nret\n}\n"
@@ -54,6 +57,8 @@ object ShouldNotCompile extends Matchers {
       platform.cpuFamily match {
         case CpuFamily.M6502 =>
           MosParser("", preprocessedSource, "", options, features)
+        case CpuFamily.M6809 =>
+          M6809Parser("", preprocessedSource, "", options, features)
         case CpuFamily.I80 =>
           Z80Parser("", preprocessedSource, "", options, features, options.flag(CompilationFlag.UseIntelSyntaxForInput))
       }

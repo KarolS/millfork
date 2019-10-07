@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
 class ShiftSuite extends FunSuite with Matchers {
 
   test("In-place shifting") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | array output [3] @$c000
         | void main () {
         |   output[0] = 1
@@ -20,7 +20,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Byte shifting") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | byte output @$c000
         | void main () {
         |   byte a
@@ -31,7 +31,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Word shifting") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   byte a
@@ -70,7 +70,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Word shifting via pseudoregister") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   output = identity(three() << 7)
@@ -81,7 +81,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Word shifting via pseudoregister 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos/*, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086*/)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   word w

@@ -100,7 +100,7 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
     log.verbosity = 999
     var effectiveSource = source
     if (!source.contains("_panic")) effectiveSource += "\n void _panic(){while(true){}}"
-//    if (source.contains("call(")) effectiveSource += "\nnoinline asm word call(word d) {\n\n}\n"
+    if (source.contains("call(")) effectiveSource += "\nnoinline asm word call(word d) {\nJMP ,X\n}\n"
     log.setSource(Some(effectiveSource.linesIterator.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF = M6809Parser("", preprocessedSource, "", options, features)

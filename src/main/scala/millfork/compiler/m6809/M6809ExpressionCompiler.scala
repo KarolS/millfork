@@ -4,7 +4,7 @@ import millfork.assembly.m6809.{DAccumulatorIndexed, Indexed, MLine, MOpcode, Tw
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FunctionInMemory, M6809RegisterVariable, MacroFunction, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, Type, Variable, VariablePointy}
+import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FunctionInMemory, FunctionPointerType, M6809RegisterVariable, MacroFunction, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -116,8 +116,11 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case Some(ix) => List(MLine.absolute(LDX, v.addr)) -> (ix * v.elementType.size).quickSimplify
               case _ =>
                 v.indexType.size match {
-                  case 1 =>
-                    (compileToD(ctx, index) :+ MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero)) -> Constant.Zero
+                  case 1 | 2 =>
+                    (compileToD(ctx, index) ++ List(
+                      MLine.absolute(LDX, v.addr),
+                      MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero)
+                    )) -> Constant.Zero
                 }
             }
             prepareIndex ++ (targetSize match {
@@ -133,35 +136,94 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
       case e@SumExpression(expressions, decimal) =>
         getArithmeticParamMaxSize(ctx, expressions.map(_._2)) match {
           case 1 => M6809Buitins.compileByteSum(ctx, e, fromScratch = true) ++ targetifyB(ctx, target, isSigned = false)
-          case 2 => M6809Buitins.compileWordSum(ctx, e, fromScratch = false) ++ targetifyD(ctx, target)
+          case 2 => M6809Buitins.compileWordSum(ctx, e, fromScratch = true) ++ targetifyD(ctx, target)
         }
       case fce@FunctionCallExpression(functionName, params) =>
         functionName match {
           case "not" => ???
-          case "nonet" => ???
+          case "nonet" =>
+            if (params.length != 1) {
+              ctx.log.error("Invalid number of parameters", fce.position)
+              Nil
+            } else {
+              ctx.env.eval(params.head) match {
+                case Some(c) =>
+                  target match {
+                    case MExpressionTarget.NOTHING => Nil
+                    case _ => List(MLine.immediate(toLd(target), c))
+                  }
+                case _ =>
+                  compileToB(ctx, params.head) ++ List(MLine.immediate(LDA, 0), MLine.inherentA(ROL)) ++ targetifyD(ctx, target)
+              }
+            }
           case "hi" =>
-            compileToD(ctx, params.head) ++ targetifyA(ctx, target, isSigned = false)
+            if (params.length != 1) {
+              ctx.log.error("Invalid number of parameters", fce.position)
+              Nil
+            } else {
+              compileToD(ctx, params.head) ++ targetifyA(ctx, target, isSigned = false)
+            }
           case "lo" =>
-            compileToD(ctx, params.head) ++ targetifyB(ctx, target, isSigned = false)
-          case "call" => ???
+            if (params.length != 1) {
+              ctx.log.error("Invalid number of parameters", fce.position)
+              Nil
+            } else {
+              compileToD(ctx, params.head) ++ targetifyB(ctx, target, isSigned = false)
+            }
+          case "call" =>
+            params match {
+              case List(fp) =>
+                getExpressionType(ctx, fp) match {
+                  case FunctionPointerType(_, _, _, _, Some(v)) if (v.name == "void") =>
+                    compileToX(ctx, fp) :+ MLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                  case _ =>
+                    ctx.log.error("Not a function pointer", fp.position)
+                    compile(ctx, fp, MExpressionTarget.NOTHING)
+                }
+              case List(fp, param) =>
+                getExpressionType(ctx, fp) match {
+                  case FunctionPointerType(_, _, _, Some(pt), Some(v)) =>
+                    if (pt.size > 2 || pt.size < 1) {
+                      ctx.log.error("Invalid parameter type", param.position)
+                      compile(ctx, fp, MExpressionTarget.NOTHING) ++ compile(ctx, param, MExpressionTarget.NOTHING)
+                    } else if (getExpressionType(ctx, param).isAssignableTo(pt)) {
+                      // TODO: optimal compile order
+                      pt.size match {
+                        case 1 =>
+                          compileToB(ctx, param) ++ stashBIfNeeded(ctx, compileToX(ctx, fp)) :+ MLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                        case 2 =>
+                          compileToD(ctx, param) ++ stashDIfNeeded(ctx, compileToX(ctx, fp)) :+ MLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                      }
+                    } else {
+                      ctx.log.error("Invalid parameter type", param.position)
+                      compile(ctx, fp, MExpressionTarget.NOTHING) ++ compile(ctx, param, MExpressionTarget.NOTHING)
+                    }
+                  case _ =>
+                    ctx.log.error("Not a function pointer", fp.position)
+                    compile(ctx, fp, MExpressionTarget.NOTHING) ++ compile(ctx, param, MExpressionTarget.NOTHING)
+                }
+              case _ =>
+                ctx.log.error("Invalid call syntax", fce.position)
+                Nil
+            }
           case "*" => ???
-          case "*'" => ???
+          case "*'" => ctx.log.error("Decimal multiplication not implemented yet", fce.position); Nil
           case "/" => ???
           case "%%" => ???
           case "&" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, ANDB, MathOperator.And, 0xff) ++ targetifyB(ctx, target, isSigned = false)
-              case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, ANDA, ANDB, MathOperator.And, 0xffff) ++ targetifyB(ctx, target, isSigned = false)
+              case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, ANDA, ANDB, MathOperator.And, 0xffff) ++ targetifyD(ctx, target)
             }
           case "|" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, ORB, MathOperator.Or, 0) ++ targetifyB(ctx, target, isSigned = false)
-              case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, ORA, ORB, MathOperator.Or, 0) ++ targetifyB(ctx, target, isSigned = false)
+              case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, ORA, ORB, MathOperator.Or, 0) ++ targetifyD(ctx, target)
             }
           case "^" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, EORB, MathOperator.Exor, 0) ++ targetifyB(ctx, target, isSigned = false)
-              case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, EORA, EORB, MathOperator.Exor, 0) ++ targetifyB(ctx, target, isSigned = false)
+              case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, EORA, EORB, MathOperator.Exor, 0) ++ targetifyD(ctx, target)
             }
           case "&&" =>
             assertBool(ctx, "&&", params)
@@ -190,7 +252,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             compileTransitiveRelation(ctx, "==", params, target, branches) { (l, r) =>
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, ComparisonType.Equal, l, r, branches)
-                case 2 => ???
+                case 2 => ctx.log.error("Word equality comparison not implemented yet", fce.position); Nil
                 case _ => ???
               }
             }
@@ -199,7 +261,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             compileTransitiveRelation(ctx, "!=", params, target, branches) { (l, r) =>
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
-                case 2 => ???
+                case 2 => ctx.log.error("Word inequality comparison not implemented yet", fce.position); Nil
                 case _ => ???
               }
             }
@@ -235,27 +297,44 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 case _ => ???
               }
             }
-          case "<<" => ???
+          case "<<" =>
+            getArithmeticParamMaxSize(ctx, params) match {
+              case 1 => compileToB(ctx, params(0)) ++ M6809Buitins.compileByteShiftForB(ctx, params(1), left = true) ++ targetifyB(ctx, target, isSigned = false)
+              case 2 => compileToD(ctx, params(0)) ++ M6809Buitins.compileWordShiftForD(ctx, params(1), left = true) ++ targetifyD(ctx, target)
+            }
           case ">>" => ???
-          case ">>>>" => ???
+            getArithmeticParamMaxSize(ctx, params) match {
+              case 1 => compileToB(ctx, params(0)) ++ M6809Buitins.compileByteShiftForB(ctx, params(1), left = false) ++ targetifyB(ctx, target, isSigned = false)
+              case 2 => compileToD(ctx, params(0)) ++ M6809Buitins.compileWordShiftForD(ctx, params(1), left = false) ++ targetifyD(ctx, target)
+            }
+          case ">>>>" =>
+            // TODO: this words, but is really suboptimal
+            getArithmeticParamMaxSize(ctx, params) match {
+              case 1 | 2 => compileToD(ctx, params(0)) ++
+                List(MLine.immediate(ANDA, 1)) ++
+                M6809Buitins.compileWordShiftForD(ctx, params(1), left = false) ++
+                targetifyB(ctx, target, isSigned = false)
+            }
           case "<<'" => ???
           case ">>'" => ???
           case "+=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, ADDB)
-              case _ => ???
+              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ADDD, commutative = true)
+              case _ => ctx.log.error("Long addition not implemented yet", fce.position); Nil
             }
           case "+'=" => ???
           case "-=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, SUBB)
+              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, SUBD, commutative = false)
               case _ => ???
             }
           case "-'=" => ???
           case "*=" => ???
-          case "*'=" => ???
+          case "*'=" => ctx.log.error("Decimal multiplication not implemented yet", fce.position); Nil
           case "/=" => ???
           case "%%=" => ???
           case "&=" =>
@@ -276,9 +355,33 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, EORB)
               case _ => ???
             }
-          case "<<=" => ???
+          case "<<=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            // TODO: optimize shifts directly in memory
+            size match {
+              case 1 => compileAddressToX(ctx, l) ++
+                List(MLine.indexedX(LDB, Constant.Zero)) ++
+                M6809Buitins.compileByteShiftForB(ctx, r, left = true) ++
+                List(MLine.indexedX(STB, Constant.Zero))
+              case 2 => compileAddressToX(ctx, l) ++
+                List(MLine.indexedX(LDD, Constant.Zero)) ++
+                M6809Buitins.compileWordShiftForD(ctx, r, left = true) ++
+                List(MLine.indexedX(STD, Constant.Zero))
+            }
           case "<<'=" => ???
-          case ">>=" => ???
+          case ">>=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            // TODO: optimize shifts directly in memory
+            size match {
+              case 1 => compileAddressToX(ctx, l) ++
+                List(MLine.indexedX(LDB, Constant.Zero)) ++
+                M6809Buitins.compileByteShiftForB(ctx, r, left = false) ++
+                List(MLine.indexedX(STB, Constant.Zero))
+              case 2 => compileAddressToX(ctx, l) ++
+                List(MLine.indexedX(LDD, Constant.Zero)) ++
+                M6809Buitins.compileWordShiftForD(ctx, r, left = false) ++
+                List(MLine.indexedX(STD, Constant.Zero))
+            }
           case ">>'=" => ???
           case ">>>>=" => ???
           case _ =>
@@ -401,8 +504,13 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
   }
 
   def stashBIfNeeded(ctx: CompilationContext, lines: List[MLine]): List[MLine] = {
-    // TODO: only push if needed
-    MLine.pp(PSHS, M6809Register.B) :: (lines :+ MLine.pp(PULS, M6809Register.B))
+    if (lines.exists(_.changesRegister(M6809Register.B))) MLine.pp(PSHS, M6809Register.B) :: (lines :+ MLine.pp(PULS, M6809Register.B))
+    else lines
+  }
+
+  def stashDIfNeeded(ctx: CompilationContext, lines: List[MLine]): List[MLine] = {
+    if (lines.exists(_.changesRegister(M6809Register.D))) MLine.pp(PSHS, M6809Register.D) :: (lines :+ MLine.pp(PULS, M6809Register.D))
+    else lines
   }
 
   def storeB(ctx: CompilationContext, target: LhsExpression): List[MLine] = {
@@ -415,6 +523,9 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
       case IndexedExpression(name, index) =>
         ctx.env.getPointy(name) match {
           case p: ConstantPointy =>
+            if (p.readOnly) {
+              ctx.log.error("Writing to a constant array", target.position)
+            }
             val (variableIndex, constOffset) = ctx.env.evalVariableAndConstantSubParts(index)
             val effectiveBase = (p.value + constOffset).quickSimplify
             variableIndex match {
@@ -428,7 +539,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case Some(ix) => List(MLine.absolute(LDX, v.addr), MLine.indexedX(STB, ix * v.elementType.size))
               case _ =>
                 v.indexType.size match {
-                  case 1 =>
+                  case 1 | 2 =>
                     stashBIfNeeded(ctx,
                       compileToD(ctx, index) :+ MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero)) :+
                       MLine.indexedX(STB, Constant.Zero)
@@ -448,7 +559,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         val variable = ctx.env.get[Variable](name)
         List(MLine.variable(ctx, STD, variable))
       case DerefExpression(inner, offset, _) =>
-        compileToX(ctx, inner) :+ MLine(STD, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+        stashDIfNeeded(ctx, compileToX(ctx, inner)) :+ MLine(STD, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
     }
   }
 
@@ -473,6 +584,28 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     case MExpressionTarget.X => List(MLine.tfr(M6809Register.D, M6809Register.X))
     case MExpressionTarget.Y => List(MLine.tfr(M6809Register.D, M6809Register.Y))
     case MExpressionTarget.U => List(MLine.tfr(M6809Register.D, M6809Register.U))
+  }
+
+  def compileAddressToX(ctx: CompilationContext, expr: LhsExpression): List[MLine] = {
+    expr match {
+      case VariableExpression(name) =>
+        val variable = ctx.env.get[VariableInMemory](name)
+        List(MLine.immediate(MOpcode.LDX, variable.toAddress))
+      case DerefExpression(inner, offset, _) =>
+        compileToX(ctx, inner) :+ MLine.indexedX(MOpcode.LEAX, Constant(offset))
+      case IndexedExpression(aname, index) =>
+        ctx.env.getPointy(aname) match {
+          case p: VariablePointy => compileToD(ctx, index #*# p.elementType.size) ++ List(MLine.absolute(ADDD, p.addr), MLine.tfr(M6809Register.D, M6809Register.X))
+          case p: ConstantPointy =>
+            if (p.sizeInBytes.exists(_ < 255)) {
+              compileToB(ctx, index #*# p.elementType.size) ++ List(MLine.immediate(LDX, p.value), MLine.inherent(ABX))
+            } else {
+              compileToX(ctx, index #*# p.elementType.size) :+ MLine.indexedX(LEAX, p.value)
+            }
+          case p:StackVariablePointy => compileToD(ctx, index #*# p.elementType.size) ++ List(MLine.variablestack(ctx, ADDD, p.offset), MLine.tfr(M6809Register.D, M6809Register.X))
+        }
+      case _ => ???
+    }
   }
 
 

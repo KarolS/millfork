@@ -10,7 +10,7 @@ import org.scalatest.{AppendedClues, FunSuite, Matchers}
 class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
 
   test("Function pointers 1") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
       """
         |
         | byte output @$c000
@@ -100,7 +100,7 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
   }
 
   test("Function pointers 3") {
-    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | const byte COUNT = 128
         | array(word) output0[COUNT] @$c000
@@ -117,7 +117,7 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
         |
       """.stripMargin) { m =>
       for (i <- 0 until 0x80) {
-        m.readByte(0xc000 + i * 2) should equal(i) withClue ("id " + i)
+        m.readWord(0xc000 + i * 2) should equal(i) withClue ("id " + i)
       }
     }
   }
