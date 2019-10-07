@@ -36,6 +36,8 @@
 
 * [Important guidelines regarding reentrancy](lang/reentrancy.md)
 
+* [List of keywords](lang/keywords.md)
+
 ## Library reference
 
 * [`stdlib` module](stdlib/stdlib.md)

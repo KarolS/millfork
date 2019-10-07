@@ -505,8 +505,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def assertNotDefined(name: String, position: Option[Position]): Boolean = {
-    if (builtinsAdded && Environment.keywords(name)) {
-      log.error(s"Cannot redefine a builtin keyword `$name`", position)
+    if (builtinsAdded && Environment.invalidNewIdentifiers(name)) {
+      if (Environment.predefinedFunctions(name)) {
+        log.error(s"Cannot redefine a builtin predefined function `$name`", position)
+      } else if (Environment.neverIdentifiers(name)) {
+        log.error(s"Cannot the keyword `$name` as a name", position)
+      } else if (Environment.invalidNewIdentifiers(name)) {
+        log.error(s"Cannot redefine a builtin predefined identifier `$name`", position)
+      }
       false
     } else if (things.contains(name) || parent.exists(_.things.contains(name)) || things.contains(name.stripPrefix(prefix))) {
       if (!name.contains('.')){
@@ -2120,13 +2126,30 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 }
 
 object Environment {
+  // built-in special-cased functions; can be considered keywords by some:
   val predefinedFunctions: Set[String] = Set("not", "hi", "lo", "nonet", "sizeof")
-  val keywords: Set[String] = Set(
-    "true", "false",
-    "byte", "sbyte", "word", "pointer", "void", "long",
-    "array", "const", "alias", "import", "static", "register", "stack", "volatile", "asm", "extern", "kernal_interrupt", "interrupt",
-    "for", "if", "do", "while", "else", "return", "default", "to", "until", "paralleluntil", "parallelto", "downto",
+  // built-in special-cased functions, not keywords, but assumed to work almost as such:
+  val specialFunctions: Set[String] = Set("sin", "cos", "tan", "call")
+  // keywords:
+  val neverIdentifiers: Set[String] = Set(
+    "array", "const", "alias", "import", "static", "register", "stack", "volatile", "asm", "extern", "kernal_interrupt", "interrupt", "reentrant", "segment",
+    "struct", "union", "enum",
+    "for", "if", "do", "while", "else", "return", "default",
+    "to", "until", "paralleluntil", "parallelto", "downto",
+    "break", "continue",
     "inline", "noinline"
   ) ++ predefinedFunctions
+  // predefined identifiers that cannot be overridden and do not name a type:
+  val neverValidTypeIdentifiers: Set[String] = Set(
+    "true", "false",
+  ) ++ neverIdentifiers
+  // predefined type identifiers:
+  val invalidNewIdentifiers: Set[String] = Set(
+    "byte", "sbyte", "word", "pointer", "void", "long", "bool",
+    "set_carry", "set_zero", "set_overflow", "set_negative",
+    "clear_carry", "clear_zero", "clear_overflow", "clear_negative",
+    "int8", "int16", "int24", "int32", "int40", "int48", "int56", "int64", "int72", "int80", "int88", "int96", "int104", "int112", "int120", "int128",
+    "signed8", "unsigned16") ++ neverValidTypeIdentifiers
+  // built-in special-cased field names; can be considered keywords by some:
   val invalidFieldNames: Set[String] = Set("addr", "rawaddr", "pointer", "return")
 }

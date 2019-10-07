@@ -30,6 +30,7 @@ nav:
     - Inline 6502 assembly: lang/assembly.md
     - Inline 8080/LR35902/Z80 assembly: lang/assemblyz80.md
     - Reentrancy guidelines: lang/reentrancy.md
+    - List of keywords: lang/keywords.md
   - Library reference:
     - stdlib module: stdlib/stdlib.md
     - string module: stdlib/string.md

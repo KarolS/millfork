@@ -486,7 +486,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     bank <- bankDeclaration
     flags <- functionFlags ~ HWS
     returnType <- identifier ~ SWS
-    if !InvalidReturnTypes(returnType)
+    if !Environment.neverValidTypeIdentifiers(returnType)
     name <- identifier ~ HWS
     params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
     alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ AWS
@@ -735,5 +735,4 @@ object MfParser {
 
   val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt")
 
-  val InvalidReturnTypes: Set[String] = Set("enum", "alias", "array", "const", "stack", "register", "static", "volatile", "import", "struct", "union")
 }
