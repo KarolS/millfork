@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotParse}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -53,9 +53,9 @@ class BasicSymonTest extends FunSuite with Matchers {
    output += 1
    output += 1
    output += 1
-   output += 1
-   output += 1
-   output += 1
+   output += 1 ;
+   output += 1 ;;
+   output += 1 ; //comment
    output += 1
    output += 1
    output += 1
@@ -253,5 +253,42 @@ class BasicSymonTest extends FunSuite with Matchers {
       """.stripMargin){ m =>
       m.readByte(0xc000) should equal(1)
     }
+  }
+
+  test("Semicolon syntax test") {
+    ShouldNotParse(
+      """
+        |void main() {
+        | a ; b
+        |}
+        |""".stripMargin)
+    ShouldNotParse(
+      """
+        |void main() {
+        | asm { ; }
+        |}
+        |""".stripMargin)
+    ShouldNotParse(
+      """
+        |void main() {
+        |  nop ; do absolutely nothing{}
+        |}
+        |""".stripMargin)
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |byte a,b
+        |void main() {
+        | a=b; // test
+        | b=a
+        | }
+        |""".stripMargin){_=>}
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | void main() {
+        | asm { ;hello
+        | nop ; do absolutely nothing
+        | }
+        | }
+        |""".stripMargin){_=>}
   }
 }

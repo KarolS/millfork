@@ -10,6 +10,9 @@ For information about assembly, see [Using assembly within Millfork programs](./
 
 Comments start with `//` and last until the end of line.
 
+Inside assembly blocks, including assembly functions, you can alternatively start comments with `;`.
+Such comments cannot contain braces.
+
 ## Declarations
 
 
@@ -219,6 +222,12 @@ The only exception to this rule is when the importing graph has a cycle, in whic
 All starting modules are considered to be imported by all source files explicitly mentioned on the command line.  
 
 ## Statements
+
+Statements are separated from each other with a new line, or with a semicolon followed by a new line.
+
+You cannot put two statements on one line.
+
+In statement blocks, the opening and closing braces do not need to be separated from the statements.
 
 ### Expression statement
 

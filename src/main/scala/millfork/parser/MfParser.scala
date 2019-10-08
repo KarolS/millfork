@@ -399,7 +399,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def statement: P[Seq[Statement]] = (position() ~ P(keywordStatement | arrayDefinition | localVariableDefinition | expressionStatement)).map { case (p, s) => s.map(_.pos(p)) }
 
-  def asmStatements: P[List[ExecutableStatement]] = ("{" ~/ AWS ~/ asmStatement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
+  def asmStatements: P[List[ExecutableStatement]] = ("{" ~/ AWS_asm ~/ asmStatement.rep(sep = NoCut(EOL_asm) ~ !"}" ~/ Pass) ~/ AWS_asm ~/ "}" ~/ Pass).map(_.toList)
 
   def statements: P[List[Statement]] = ("{" ~/ AWS ~ statement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.flatten.toList)
 
@@ -587,15 +587,23 @@ object MfParser {
 
   val comment: P[Unit] = P("//" ~/ CharsWhile(c => c != '\n' && c != '\r', min = 0) ~ ("\r\n" | "\r" | "\n"))
 
+  val semicolon: P[Unit] = P(";" ~/ CharsWhileIn("; \t", min = 0) ~ (comment | "\r\n" | "\r" | "\n"))
+
+  val semicolonComment: P[Unit] = P(";" ~/ CharsWhile(c => c != '\n' && c != '\r' && c != '{' && c != '}', min = 0) ~ ("\r\n" | "\r" | "\n"))
+
   val SWS: P[Unit] = P(CharsWhileIn(" \t", min = 1)).opaque("<horizontal whitespace>")
 
   val HWS: P[Unit] = P(CharsWhileIn(" \t", min = 0)).opaque("<horizontal whitespace>")
 
-  val AWS: P[Unit] = P((CharIn(" \t\n\r;") | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
+  val AWS: P[Unit] = P((CharIn(" \t\n\r") | NoCut(semicolon) | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
 
-  val EOL: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
+  val AWS_asm: P[Unit] = P((CharIn(" \t\n\r") | NoCut(semicolonComment) | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
 
-  val EOLOrComma: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | "," | comment).opaque("<first line break or comma>") ~ AWS).opaque("<line break or comma>")
+  val EOL: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | semicolon | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
+
+  val EOL_asm: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | comment | semicolonComment).opaque("<first line break>") ~ AWS).opaque("<line break>")
+
+  val EOLOrComma: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | "," | semicolon | comment).opaque("<first line break or comma>") ~ AWS).opaque("<line break or comma>")
 
   val letter: P[String] = P(CharIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_").!)
 

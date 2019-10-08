@@ -1,5 +1,6 @@
 package millfork.test
-import millfork.test.emu.{EmuBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedRun}
+import millfork.Cpu
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedRun}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -8,13 +9,13 @@ import org.scalatest.{AppendedClues, FunSuite, Matchers}
 class AssemblySuite extends FunSuite with Matchers with AppendedClues {
 
   test("Inline assembly") {
-    EmuBenchmarkRun(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | void main () {
         |  output = 0
         |  asm {
-        |    inc $c000
+        |    inc $c000 ; this is an assembly-style comment
         |  }
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(1))
