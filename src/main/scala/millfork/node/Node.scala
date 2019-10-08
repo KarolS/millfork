@@ -203,6 +203,16 @@ object Z80NiceFunctionProperty {
   case class SetsATo(value: Int) extends NiceFunctionProperty("A=" + value)
 }
 
+object M6809NiceFunctionProperty {
+  case object DoesntChangeA extends NiceFunctionProperty("A")
+  case object DoesntChangeB extends NiceFunctionProperty("B")
+  case object DoesntChangeX extends NiceFunctionProperty("X")
+  case object DoesntChangeY extends NiceFunctionProperty("Y")
+  case object DoesntChangeU extends NiceFunctionProperty("U")
+  case object DoesntChangeCF extends NiceFunctionProperty("C")
+  case class SetsBTo(value: Int) extends NiceFunctionProperty("B=" + value)
+}
+
 object MosRegister extends Enumeration {
   val A, X, Y, AX, AY, YA, XA, XY, YX, AW = Value
 }

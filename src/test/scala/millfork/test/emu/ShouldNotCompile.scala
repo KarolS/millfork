@@ -42,7 +42,7 @@ object ShouldNotCompile extends Matchers {
         case CpuFamily.M6502 =>
           effectiveSource += "\nnoinline asm word call(word ax) {\nJMP ((__reg.b2b3))\n}\n"
         case CpuFamily.M6809 =>
-          effectiveSource += "\nnoinline asm word call(word d) {\nJMP ,x\n}\n"
+          effectiveSource += "\nnoinline asm word call(word x) {\nJMP ,x\n}\n"
         case CpuFamily.I80 =>
           if (options.flag(CompilationFlag.UseIntelSyntaxForInput))
             effectiveSource += "\nnoinline asm word call(word de) {\npush d\nret\n}\n"

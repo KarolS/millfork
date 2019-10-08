@@ -10,6 +10,10 @@ import millfork.node.{M6809Register, Position}
   * @author Karol Stasiak
   */
 
+object MState extends Enumeration {
+  val A, B, X, Y, U, ZF, CF, HF, VF, NF = Value
+}
+
 object MLine0 {
 
   @inline
@@ -92,7 +96,14 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
 
   def mergePos(s: Seq[Option[SourceLine]]): MLine = if (s.isEmpty) this else pos(SourceLine.merge(this.source, s))
 
+  @inline
   def refersTo(name: String): Boolean = parameter.refersTo(name)
+
+  @inline
+  def elidable: Boolean = elidability == Elidability.Elidable
+
+  @inline
+  def notFixed: Boolean = elidability != Elidability.Fixed
 
   override def sizeInBytes: Int = 1 // TODO
 
@@ -152,8 +163,8 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
       case (_, InherentB) => overlaps(B)
       case (PULU, set:RegisterSet) => reg == U || set.contains(reg)
       case (PULS, set:RegisterSet) => reg == S || set.contains(reg)
-      case (PSHS, _) => reg == U
-      case (PSHU, _) => reg == S
+      case (PSHS, _) => reg == S
+      case (PSHU, _) => reg == U
       case (TFR, TwoRegisters(_, dest)) => overlaps(dest)
       case (EXG, TwoRegisters(r1, r2)) => overlaps(r1) || overlaps(r2)
       case (op, _) if MOpcode.ChangesAAlways(op) => overlaps(A) || addrMode.changesRegister(reg)
@@ -168,6 +179,116 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
       case (ABX, _) => reg == X
       case (NOP | SWI | SWI2 | SWI3 | SYNC, _) => false
       case _ => true // TODO
+    }
+  }
+
+  def readsRegister(reg: M6809Register.Value): Boolean = {
+    import M6809Register._
+    def overlaps(other: M6809Register.Value): Boolean = {
+      if (reg == D && (other == A || other == B))  true
+      else if (other == D && (reg == A || reg == B))  true
+      else reg == other
+    }
+    import MOpcode._
+    val readByAddrMode = addrMode match {
+      case InherentA => opcode != CLR && overlaps(A)
+      case InherentB => opcode != CLR && overlaps(B)
+      case Indexed(base, _) => overlaps(base)
+      case Absolute(_) | DirectPage | Inherent | Immediate => false
+      case DAccumulatorIndexed(base, _) => overlaps(D) || overlaps(base)
+      case AAccumulatorIndexed(base, _) => overlaps(A) || overlaps(base)
+      case BAccumulatorIndexed(base, _) => overlaps(B) || overlaps(base)
+      case TwoRegisters(source, dest) => opcode match {
+        case TFR => overlaps(source)
+        case EXG => overlaps(source) || overlaps(dest)
+      }
+      case RegisterSet(set) => opcode match {
+        case PSHS | PSHU => set.exists(overlaps)
+        case PULS | PULU => false
+      }
+      case LongRelative | Relative => false
+      case NonExistent => false
+      case RawByte => true
+      case _ => true
+    }
+    if (readByAddrMode) return true
+    opcode match {
+      case ADDA | SUBA | ADCA | SBCA | ORA | EORA | ANDA | CMPA | BITA | DAA => overlaps(A)
+      case ADDB | SUBB | ADCB | SBCB | ORB | EORB | ANDB | CMPB | BITB | SEX => overlaps(B)
+      case ADDD | SUBD | CMPD => overlaps(D)
+      case ABX => reg == X || overlaps(B)
+      case CMPX => reg == X
+      case CMPY => reg == Y
+      case CMPU => reg == U
+      case CMPS => reg == S
+      case STA => overlaps(A)
+      case STB => overlaps(B)
+      case STD => overlaps(D)
+      case STU => reg == U
+      case MUL => overlaps(D)
+      case ABX => reg == X || overlaps(B)
+      case NOP | SWI | SWI2 | SWI3 | SYNC => false
+      case INC | DEC | ROL | ROR | ASL | ASR | LSR | CLR | COM | NEG | TST => false // variants for A and B handled before
+      case op if Branching(op) => false
+      case JMP => false
+      case _ => true // TODO
+    }
+  }
+
+  def readsMemory(): Boolean = {
+    import MOpcode._
+    val opcodeIsForReading = opcode match {
+      case LDA | LDB | LDD | LDX | LDY | LDU | LDS | PULU | PULS => true
+      case ADDA | SUBA | ADCA | SBCA | ORA | EORA | ANDA | CMPA | BITA => true
+      case ADDB | SUBB | ADCB | SBCB | ORB | EORB | ANDB | CMPB | BITB => true
+      case INC | DEC | ROL | ROR | ASL | ASR | LSR | CLR | COM | NEG | TST => true
+      case STA | STB | STD | STX | STY | STS | STU | PSHU | PSHS  => false
+      case TFR | EXG | DAA | SEX | ABX | MUL => false
+      case _ => false // TODO: ???
+    }
+    addrMode match {
+      case InherentA => false
+      case InherentB => false
+      case Indexed(_, indirect) => indirect
+      case Absolute(indirect) => indirect || opcodeIsForReading
+      case DAccumulatorIndexed(_, indirect) => indirect || opcodeIsForReading
+      case AAccumulatorIndexed(_, indirect) => indirect || opcodeIsForReading
+      case BAccumulatorIndexed(_, indirect) => indirect || opcodeIsForReading
+      case RegisterSet(_) => opcodeIsForReading
+      case TwoRegisters(_, _) => false
+      case LongRelative | Relative => false
+      case NonExistent => false
+      case RawByte => true
+      case _ => true
+    }
+  }
+
+  def changesMemory(): Boolean = {
+    import MOpcode._
+    val opcodeIsForWriting = opcode match {
+      case LDA | LDB | LDD | LDX | LDY | LDU | LDS | PULU | PULS => false
+      case ADDA | SUBA | ADCA | SBCA | ORA | EORA | ANDA | CMPA | BITA => false
+      case ADDB | SUBB | ADCB | SBCB | ORB | EORB | ANDB | CMPB | BITB => false
+      case INC | DEC | ROL | ROR | ASL | ASR | LSR | CLR | COM | NEG | TST => true
+      case TST => false
+      case STA | STB | STD | STX | STY | STS | STU | PSHU | PSHS => true
+      case TFR | EXG | DAA | SEX | ABX | MUL => false
+      case _ => false // TODO: ???
+    }
+    addrMode match {
+      case InherentA => false
+      case InherentB => false
+      case Indexed(_, _) => opcodeIsForWriting
+      case Absolute(_) => opcodeIsForWriting
+      case DAccumulatorIndexed(_, _) => opcodeIsForWriting
+      case AAccumulatorIndexed(_, _) => opcodeIsForWriting
+      case BAccumulatorIndexed(_, _) => opcodeIsForWriting
+      case RegisterSet(_) => opcodeIsForWriting
+      case TwoRegisters(_, _) => false
+      case LongRelative | Relative => false
+      case NonExistent => false
+      case RawByte => true
+      case _ => true
     }
   }
 }

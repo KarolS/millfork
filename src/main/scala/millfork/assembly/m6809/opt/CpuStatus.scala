@@ -1,8 +1,9 @@
 package millfork.assembly.m6809.opt
 
+import millfork.assembly.m6809.MState
 import millfork.assembly.mos.State
 import millfork.assembly.opt._
-import millfork.env.Constant
+import millfork.env.{Constant, NumericConstant}
 
 //noinspection RedundantNewCaseClass
 case class CpuStatus(a: Status[Int] = UnknownStatus,
@@ -31,8 +32,17 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
   def nz: CpuStatus =
     this.copy(n = AnyStatus, z = AnyStatus)
 
-  def nz(i: Long): CpuStatus =
+  def nzB(i: Long): CpuStatus =
     this.copy(n = SingleStatus((i & 0x80) != 0), z = SingleStatus((i & 0xff) == 0))
+
+  def nzW(i: Long): CpuStatus =
+    this.copy(n = SingleStatus((i & 0x8000) != 0), z = SingleStatus((i & 0xffff) == 0))
+
+  def nzW(c: Constant): CpuStatus = c match {
+    case NumericConstant(i, _) =>
+      this.copy(n = SingleStatus((i & 0x8000) != 0), z = SingleStatus((i & 0xffff) == 0))
+    case _ => this.nz
+  }
 
   def ~(that: CpuStatus) = new CpuStatus(
     a = this.a ~ that.a,
@@ -49,6 +59,26 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     v = this.v ~ that.v
   )
 
+  def hasClear(state: MState.Value): Boolean = state match {
+    case MState.A => a.contains(0)
+    case MState.B => b.contains(0)
+    case MState.X => x.contains(0)
+    case MState.Y => y.contains(0)
+    case MState.U => u.contains(0)
+    case MState.ZF => z.contains(false)
+    case MState.NF => n.contains(false)
+    case MState.CF => c.contains(false)
+    case MState.VF => v.contains(false)
+    case _ => false
+  }
+
+  def hasSet(state: MState.Value): Boolean = state match {
+    case MState.ZF => z.contains(true)
+    case MState.NF => n.contains(true)
+    case MState.CF => c.contains(true)
+    case MState.VF => v.contains(true)
+    case _ => false
+  }
 }
 
 object CpuStatus {

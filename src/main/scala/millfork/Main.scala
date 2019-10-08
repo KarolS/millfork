@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util.Locale
 
+import millfork.assembly.m6809.opt.M6809OptimizationPresets
 import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.opt._
 import millfork.assembly.z80.opt.Z80OptimizationPresets
@@ -317,10 +318,7 @@ object Main {
     val env = new Environment(None, "", platform.cpuFamily, options)
     env.collectDeclarations(program, options)
 
-    val assemblyOptimizations = optLevel match {
-      case 0 => Nil
-      case _ => Nil
-    }
+    val assemblyOptimizations = M6809OptimizationPresets.forLevel(optLevel)
 
     // compile
     val assembler = new M6809Assembler(program, env, platform)

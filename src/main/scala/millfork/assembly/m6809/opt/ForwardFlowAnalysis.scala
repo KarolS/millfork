@@ -2,7 +2,8 @@ package millfork.assembly.m6809.opt
 
 import millfork.CompilationFlag
 import millfork.assembly.OptimizationContext
-import millfork.assembly.m6809.{MLine, MLine0}
+import millfork.assembly.m6809.{Immediate, MLine, MLine0}
+import millfork.assembly.opt.Status.SingleFalse
 import millfork.assembly.opt.{AnyStatus, FlowCache, SingleStatus, Status}
 import millfork.env._
 import millfork.node.{M6809Register, NiceFunctionProperty}
@@ -73,6 +74,21 @@ object ForwardFlowAnalysis {
 
           case MLine0(NOP, _, _) =>
             ()
+
+          case MLine0(LDA, Immediate, NumericConstant(n, _)) =>
+            currentStatus = currentStatus.copy(a = SingleStatus(n.toInt & 0xff), v = SingleFalse).nzB(n)
+          case MLine0(LDB, Immediate, NumericConstant(n, _)) =>
+            currentStatus = currentStatus.copy(b = SingleStatus(n.toInt & 0xff), v = SingleFalse).nzB(n)
+          case MLine0(LDD, Immediate, NumericConstant(n, _)) =>
+            currentStatus = currentStatus.copy(
+              a = SingleStatus(n.toInt.>>(8) & 0xff),
+              b = SingleStatus(n.toInt & 0xff),
+              v = SingleFalse
+            ).nzW(n)
+          case MLine0(LDX, Immediate, c) =>
+            currentStatus = currentStatus.copy(x = SingleStatus(c), v = SingleFalse).nzW(c)
+          case MLine0(LDY, Immediate, c) =>
+            currentStatus = currentStatus.copy(y = SingleStatus(c), v = SingleFalse).nzW(c)
 
           case MLine0(opcode, addrMode, _) =>
             // TODO

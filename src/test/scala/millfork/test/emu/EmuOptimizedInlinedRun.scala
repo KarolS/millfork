@@ -1,5 +1,6 @@
 package millfork.test.emu
 
+import millfork.assembly.m6809.opt.M6809OptimizationPresets
 import millfork.assembly.mos.opt.{LaterOptimizations, ZeropageRegisterOptimizations}
 import millfork.assembly.z80.opt.Z80OptimizationPresets
 import millfork.{Cpu, OptimizationPresets}
@@ -49,4 +50,7 @@ object EmuOptimizedInlinedSharpRun extends EmuZ80Run(Cpu.Sharp, OptimizationPres
   override def inline: Boolean = true
 }
 
+object EmuOptimizedInlinedM6809Run extends EmuM6809Run(Cpu.Motorola6809, OptimizationPresets.NodeOpt, M6809OptimizationPresets.Default) {
+  override def inline: Boolean = true
+}
 

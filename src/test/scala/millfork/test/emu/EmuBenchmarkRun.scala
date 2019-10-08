@@ -128,19 +128,19 @@ object EmuIntel8086BenchmarkRun {
 object EmuMotorola6809BenchmarkRun {
   def apply(source: String)(verifier: MemoryBank => Unit): Unit = {
     val (Timings(t0, _), m0) = EmuUnoptimizedM6809Run.apply2(source)
-//    val (Timings(t1, _), m1) = EmuOptimizedIntel8086Run.apply2(source)
-//    val (Timings(t2, _), m2) = EmuOptimizedInlinedIntel8086Run.apply2(source)
+    val (Timings(t1, _), m1) = EmuOptimizedM6809Run.apply2(source)
+    val (Timings(t2, _), m2) = EmuOptimizedInlinedM6809Run.apply2(source)
     println(f"Before optimization: $t0%7d")
-//    println(f"After optimization:  $t1%7d")
-//    println(f"After inlining:      $t2%7d")
-//    println(f"Gain:               ${(100L * (t0 - t1) / t0.toDouble).round}%7d%%")
-//    println(f"Gain with inlining: ${(100L * (t0 - t2) / t0.toDouble).round}%7d%%")
+    println(f"After optimization:  $t1%7d")
+    println(f"After inlining:      $t2%7d")
+    println(f"Gain:               ${(100L * (t0 - t1) / t0.toDouble).round}%7d%%")
+    println(f"Gain with inlining: ${(100L * (t0 - t2) / t0.toDouble).round}%7d%%")
     println(f"Running 6809 unoptimized")
     verifier(m0)
-//    println(f"Running 6809 optimized")
-//    verifier(m1)
-//    println(f"Running 6809 optimized inlined")
-//    verifier(m2)
+    println(f"Running 6809 optimized")
+    verifier(m1)
+    println(f"Running 6809 optimized inlined")
+    verifier(m2)
   }
 }
 
@@ -167,7 +167,7 @@ object EmuCrossPlatformBenchmarkRun {
     if (Settings.enableZ80Tests && platforms.contains(millfork.Cpu.Z80)) {
       EmuZ80BenchmarkRun.apply(source)(verifier)
     }
-    if (Settings.enableGameboyTests && platforms.contains(millfork.Cpu.Intel8080)) {
+    if (Settings.enableIntel8080Tests && platforms.contains(millfork.Cpu.Intel8080)) {
       EmuIntel8080BenchmarkRun.apply(source)(verifier)
     }
     if (Settings.enableUnemulatedTests && platforms.contains(millfork.Cpu.Intel8085)) {
