@@ -2051,9 +2051,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             ctx.log.debug("Weird branch of storeLarge reached!")
             if (ctx.log.traceEnabled) {
               ctx.log.trace("reads:")
-              reads.foreach(l => ctx.log.trace(_, None))
+              reads.flatten.foreach(l => ctx.log.trace(l.toString, None))
               ctx.log.trace("stores:")
-              stores.foreach(l => ctx.log.trace(_, None))
+              stores.flatten.foreach(l => ctx.log.trace(l.toString, None))
             }
             val fixedReads = (reads.head.init ++ List(ZLine.ld8(B, H), reads.head.last)) :: reads.tail.map(_.map {
               case l@ZLine0(LD, TwoRegisters(reg, H), _) => l.copy(registers = TwoRegisters(reg, B))
