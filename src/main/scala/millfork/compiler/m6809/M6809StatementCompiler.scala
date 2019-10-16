@@ -3,7 +3,7 @@ package millfork.compiler.m6809
 import millfork.assembly.BranchingOpcodeMapping
 import millfork.assembly.m6809.{MLine, NonExistent}
 import millfork.compiler.{AbstractCompiler, AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
-import millfork.node.{Assignment, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, IfStatement, M6809AssemblyStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
+import millfork.node.{Assignment, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, IfStatement, M6809AssemblyStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
 import millfork.assembly.m6809.MOpcode._
 import millfork.env.{FatBooleanType, Label, ThingInMemory}
 
@@ -61,6 +61,10 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         compileForStatement(ctx, s)
       case s:ForEachStatement =>
         compileForEachStatement(ctx, s)
+      case s:BreakStatement =>
+        compileBreakStatement(ctx, s) -> Nil
+      case s:ContinueStatement =>
+        compileContinueStatement(ctx, s) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>
         ctx.env.evalForAsm(expression) match {
           case Some(param) =>
