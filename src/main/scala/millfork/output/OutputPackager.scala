@@ -38,17 +38,19 @@ case class BankFragmentOutput(alwaysBank: String, start: Int, end: Int) extends 
   }
 }
 
-object StartAddressOutput extends OutputPackager {
+case class StartAddressOutput(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
-    Array(b.start.toByte, b.start.>>(8).toByte)
+    val x = b.start + bonus
+    Array(x.toByte, x.>>(8).toByte)
   }
 }
 
-object StartAddressOutputBe extends OutputPackager {
+case class StartAddressOutputBe(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
-    Array(b.start.>>(8).toByte, b.start.toByte)
+    val x = b.start + bonus
+    Array(x.>>(8).toByte, x.toByte)
   }
 }
 
@@ -59,17 +61,19 @@ object StartPageOutput extends OutputPackager {
   }
 }
 
-object EndAddressOutput extends OutputPackager {
+case class EndAddressOutput(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
+    val x = b.end + bonus
     Array(b.end.toByte, b.end.>>(8).toByte)
   }
 }
 
-object EndAddressOutputBe extends OutputPackager {
+case class EndAddressOutputBe(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
-    Array(b.end.>>(8).toByte, b.end.toByte)
+    val x = b.end + bonus
+    Array(x.>>(8).toByte, x.toByte)
   }
 }
 
@@ -88,18 +92,18 @@ object AllocatedDataOutput extends OutputPackager {
   }
 }
 
-object AllocatedDataLength extends OutputPackager {
+case class AllocatedDataLength(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
-    val size = b.end - b.start + 1
+    val size = b.end - b.start + 1 + bonus
     Array(size.toByte, size.>>(8).toByte)
   }
 }
 
-object AllocatedDataLengthBe extends OutputPackager {
+case class AllocatedDataLengthBe(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
-    val size = b.end - b.start + 1
+    val size = b.end - b.start + 1 + bonus
     Array(size.>>(8).toByte, size.toByte)
   }
 }

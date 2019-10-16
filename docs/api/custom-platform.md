@@ -179,15 +179,23 @@ Default: `main,*`
     
     * `startaddr_be` – the same, but big-endian
     
-    * `startpage` – the high byte of `startaddr`
-    
     * `endaddr` – little-endian 16-bit address of the last used byte of the compiled output (usually not the segment end)
     
     * `endaddr_be` – the same, but big-endian
     
+    * `startaddr+123`, `startaddr_be+123`, `endaddr+123`, `endaddr_be+123` – the same, but incremented by the given number
+
+    * `startaddr-123`, `startaddr_be-123`, `endaddr-123`, `endaddr_be-123` – the same, but decremented by the given number
+    
+    * `startpage` – the high byte of `startaddr`
+    
     * `length` – little-endian 16-bit length of the compiled output; `endaddr - startaddr + 1`
     
     * `length_be` – the same, but big-endian
+    
+    * `length+123`, `length_be+123` – the same, but incremented by the given number
+    
+    * `length-123`, `length_be-123` – the same, but decremented by the given number
 
     * `allocated` – all used bytes
     
