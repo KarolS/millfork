@@ -36,4 +36,29 @@ class TextCodecSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)
   }
+
+  test("Unicode") {
+    val m = EmuUnoptimizedRun(
+      """
+        | void main() {
+        |   pointer p
+        |   p = "a"utf8z
+        |   if p[0] != 'a'  { poke($bfff, 0) }
+        |   if p[1] != 0    { poke($bffe, 0) }
+        |   p = "a"utf16bez
+        |   if p[0] != 0    { poke($bffd, 0) }
+        |   if p[1] != 'a'  { poke($bffc, 0) }
+        |   if p[2] != 0    { poke($bffb, 0) }
+        |   if p[3] != 0    { poke($bffa, 0) }
+        |   p = "a"utf16lez
+        |   if p[0] != 'a'  { poke($bff9, 0) }
+        |   if p[1] != 0    { poke($bff8, 0) }
+        |   if p[2] != 0    { poke($bff7, 0) }
+        |   if p[3] != 0    { poke($bff6, 0) }
+        | }
+        | macro asm void poke(word const addr, byte a) {
+        |   STA addr
+        | }
+      """.stripMargin)
+  }
 }

@@ -55,6 +55,10 @@
 
 * `vectrex` – built-in Vectrex font
 
+* `utf8` – UTF-8 (BMP only)
+
+* `utf16be`, `utf16le` – UTF-16BE and UTF-16LE
+
 When programming for Commodore,
 use `pet` for strings you're printing using standard I/O routines
 and `petscr` for strings you're copying to screen memory directly.
@@ -101,6 +105,8 @@ control codes for changing the text background color
 
 * `{yen}`, `{pound}`, `{cent}`, `{euro}`, `{copy}` – yen symbol, pound symbol, cent symbol, euro symbol, copyright symbol
 
+* `{u0000}`–`{u1fffff}` – Unicode codepoint (available in UTF encodings only)
+
 ##### Character availability
 
 Encoding | lowercase letters | backslash | currencies | intl | card suits  
@@ -123,6 +129,7 @@ Encoding | lowercase letters | backslash | currencies | intl | card suits
 `msx_ru`            | yes  | yes |      | Russian⁴  | yes   
 `koi7n2`            | no   | yes |      | Russian⁵  | no   
 `vectrex`           | no   | yes |      | none      | no   
+`utf*`              | yes  | yes | all  | all       | yes  
 all the rest        | yes  | yes |      | none      | no  
   
 1. `pet`, `origpet` and `petscr` cannot display card suit symbols and lowercase letters at the same time.
@@ -163,4 +170,5 @@ Encoding | new line | braces | backspace | cursor movement | text colour | rever
 `msx_*`             | yes | yes | yes | yes | no  | no  | no  
 `koi7n2`            | yes | no  | yes | no  | no  | no  | no  
 `vectrex`           | no  | no  | no  | no  | no  | no  | no  
+`utf*`              | yes | yes | yes | no  | no  | no  | no  
 all the rest        | yes | yes | no  | no  | no  | no  | no

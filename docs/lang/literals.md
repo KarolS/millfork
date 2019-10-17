@@ -41,6 +41,7 @@ The exact value of `nullchar` is encoding-dependent:
 * in the `vectrex` encoding it's 128,
 * in the `zx80` encoding it's 1,
 * in the `zx81` encoding it's 11,
+* in the `utf16be` and `utf16le` encodings it's exceptionally two bytes: 0, 0
 * in other encodings it's 0 (this might be a subject to change in future versions).
 
 

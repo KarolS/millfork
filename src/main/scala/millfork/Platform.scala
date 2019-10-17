@@ -116,6 +116,9 @@ object Platform {
     if (czt) {
       log.error("Default encoding cannot be zero-terminated")
     }
+    if (codec.stringTerminator.length != 1) {
+      log.warn("Default encoding should be byte-based")
+    }
     val (srcCodec, szt) = TextCodec.forName(srcCodecName, None, log)
     if (szt) {
       log.error("Default screen encoding cannot be zero-terminated")

@@ -73,7 +73,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         LiteralExpression(value, 1)
       case _ =>
         log.error(s"Character `$c` cannot be encoded as one byte", Some(p))
-        LiteralExpression(co.stringTerminator, 1)
+        LiteralExpression(co.stringTerminator.head, 1)
     }
   }
 
@@ -88,7 +88,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val textLiteral: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
       case (p, s, ((co, zt), lenient)) =>
         val characters = co.encode(options.log, None, s, options, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
-        if (zt) characters :+ LiteralExpression(co.stringTerminator, 1)
+        if (zt) characters ++ co.stringTerminator.map(nul => LiteralExpression(nul, 1))
         else characters
     }
 

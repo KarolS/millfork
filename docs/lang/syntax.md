@@ -6,6 +6,13 @@ For information about types, see [Types](./types.md).
 For information about literals, see [Literals](./literals.md).  
 For information about assembly, see [Using assembly within Millfork programs](./assembly.md).  
 
+## Allowed characters
+
+Source files are text files in UTF-8 encoding.  
+Allowed line endings are U+000A, U+000D and U+000D/U+000A.  
+Outside of text strings and comments, the only allowed characters are U+0009 and U+0020–U+007E
+(so-called printable ASCII).
+
 ## Comments
 
 Comments start with `//` and last until the end of line.
