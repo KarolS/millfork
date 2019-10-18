@@ -17,7 +17,7 @@ sealed trait TextCodec {
 
   def stringTerminator: List[Int]
 
-  def encode(log: Logger, position: Option[Position], s: List[Char], options: CompilationOptions, lenient: Boolean): List[Int]
+  def encode(log: Logger, position: Option[Position], s: List[Int], options: CompilationOptions, lenient: Boolean): List[Int]
 
   def decode(by: Int): Char
 
@@ -55,19 +55,19 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
     }
     if (escSeq.length > 1 && (escSeq(0) == 'U' || escSeq(0) == 'u')) {
       try {
-        return encode(log, position, Character.toChars(Integer.parseInt(escSeq.tail, 16)).toList, options, lenient)
+        return encode(log, position, List(Integer.parseInt(escSeq.tail, 16)), options, lenient)
       } catch {
         case _: NumberFormatException =>
       }
     }
     if (escSeq == "program_name_upper") {
-      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").toUpperCase(Locale.ROOT).toList, options, lenient)
+      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").toUpperCase(Locale.ROOT).codePoints().toArray.toList, options, lenient)
     }
     if (escSeq == "program_name") {
-      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").toList, options, lenient)
+      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").codePoints().toArray.toList, options, lenient)
     }
     if (escSeq == "copyright_year") {
-      return encode(log, position, LocalDate.now.getYear.toString.toList, options, lenient)
+      return encode(log, position, LocalDate.now.getYear.toString.map(_.toInt).toList, options, lenient)
     }
     if (escSeq == "null" || escSeq == "nullchar") {
       return stringTerminator
@@ -85,9 +85,10 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
     }
   }
 
-  override def encode(log: Logger, position: Option[Position], s: List[Char], options: CompilationOptions, lenient: Boolean): List[Int] = {
+  override def encode(log: Logger, position: Option[Position], s: List[Int], options: CompilationOptions, lenient: Boolean): List[Int] = {
+    val LBRACE = '{'.toInt
     s match {
-      case '{' :: tail =>
+      case LBRACE :: tail =>
         val (escSeq, closingBrace) = tail.span(_ != '}')
         closingBrace match {
           case '}' :: xs =>
@@ -97,7 +98,7 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
             Nil
         }
       case head :: tail =>
-        head.toString.getBytes(charset).map(_.&(0xff)).toList ++ encode(log, position, tail, options, lenient)
+        Character.toChars(head).mkString("").getBytes(charset).map(_.&(0xff)).toList ++ encode(log, position, tail, options, lenient)
       case Nil => Nil
     }
   }
@@ -118,8 +119,8 @@ class TableTextCodec(override val name: String,
 
   override val stringTerminator: List[Int] = List(stringTerminatorChar)
 
-  private def isPrintable(c: Char) = {
-    c.getType match {
+  private def isPrintable(c: Int) = {
+    Character.getType(c) match {
       case Character.LOWERCASE_LETTER => true
       case Character.UPPERCASE_LETTER => true
       case Character.TITLECASE_LETTER => true
@@ -148,15 +149,16 @@ class TableTextCodec(override val name: String,
     }
   }
 
-  private def format(c:Char):String = {
+  private def format(c:Int):String = {
     val u = f"U+${c.toInt}%04X"
-    if (isPrintable(c)) f"`$c%c` ($u%s)"
+    if (isPrintable(c)) f"`${Character.toChars(c).mkString}%s` ($u%s)"
     else u
   }
 
   private def format(s:String) = {
-    val u = s.map(c => f"U+${c.toInt}%04X").mkString(",")
-    if (s.forall(isPrintable)) f"`$s%s` ($u%s)"
+    val codePoints = s.codePoints().toArray
+    val u = codePoints.map(c => f"U+${c}%04X").mkString(",")
+    if (codePoints.forall(isPrintable)) f"`$s%s` ($u%s)"
     else u
   }
   private def encodeChar(log: Logger, position: Option[Position], c: Char, options: CompilationOptions, lenient: Boolean): Option[List[Int]] = {
@@ -177,10 +179,11 @@ class TableTextCodec(override val name: String,
     }
 
 
-  def encode(log: Logger, position: Option[Position], s: List[Char], options: CompilationOptions, lenient: Boolean): List[Int] = {
+  def encode(log: Logger, position: Option[Position], s: List[Int], options: CompilationOptions, lenient: Boolean): List[Int] = {
+    val LBRACE = '{'.toInt
     val lenient = options.flag(CompilationFlag.LenientTextEncoding)
     s match {
-      case '{' :: tail =>
+      case LBRACE :: tail =>
         val (escSeq, closingBrace) = tail.span(_ != '}')
         closingBrace match {
           case '}' :: xs =>
@@ -189,13 +192,16 @@ class TableTextCodec(override val name: String,
             log.error(f"Unclosed escape sequence", position)
             Nil
         }
-      case head :: tail =>
-        (encodeChar(log, position, head, options, lenient) match {
+      case head :: tail if head >= Char.MinValue && head <= Char.MaxValue =>
+        (encodeChar(log, position, head.toChar, options, lenient) match {
           case Some(x) => x
           case None =>
             log.error(f"Invalid character ${format(head)} in string", position)
             Nil
         }) ++ encode(log, position, tail, options, lenient)
+      case head :: tail =>
+        log.error(f"Invalid character ${format(head)} in string", position)
+        encode(log, position, tail, options, lenient)
       case Nil => Nil
     }
   }
@@ -209,13 +215,13 @@ class TableTextCodec(override val name: String,
       }
     }
     if (escSeq == "program_name_upper") {
-      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").toUpperCase(Locale.ROOT).toList, options, lenient)
+      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").toUpperCase(Locale.ROOT).codePoints().toArray.toList, options, lenient)
     }
     if (escSeq == "program_name") {
-      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").toList, options, lenient)
+      return encode(log, position, options.outputFileName.getOrElse("MILLFORK").codePoints().toArray.toList, options, lenient)
     }
     if (escSeq == "copyright_year") {
-      return encode(log, position, LocalDate.now.getYear.toString.toList, options, lenient)
+      return encode(log, position, LocalDate.now.getYear.toString.map(_.toInt).toList, options, lenient)
     }
     if (escSeq == "null" || escSeq == "nullchar") {
       return stringTerminator

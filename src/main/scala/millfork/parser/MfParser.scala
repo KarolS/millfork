@@ -68,7 +68,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (zt) {
       log.error("Zero-terminated encoding is not a valid encoding for a character literal", Some(p))
     }
-    co.encode(options.log, Some(p), c.toList, options, lenient = lenient) match {
+    co.encode(options.log, Some(p), c.codePoints().toArray.toList, options, lenient = lenient) match {
       case List(value) =>
         LiteralExpression(value, 1)
       case _ =>
@@ -87,7 +87,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val textLiteral: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
       case (p, s, ((co, zt), lenient)) =>
-        val characters = co.encode(options.log, None, s, options, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
+        val characters = co.encode(options.log, None, s.codePoints().toArray.toList, options, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
         if (zt) characters ++ co.stringTerminator.map(nul => LiteralExpression(nul, 1))
         else characters
     }
@@ -184,7 +184,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     optSlice <- ("," ~/ HWS ~/ literalAtom ~/ HWS ~/ "," ~/ HWS ~/ literalAtom ~/ HWS ~/ Pass).?
     _ <- ")" ~/ Pass
   } yield {
-    val data = Files.readAllBytes(Paths.get(currentDirectory, filePath.mkString))
+    val data = Files.readAllBytes(Paths.get(currentDirectory, filePath))
     val slice = optSlice.fold(data) {
       case (start, length) => data.slice(start.value.toInt, start.value.toInt + length.value.toInt)
     }
@@ -613,7 +613,7 @@ object MfParser {
 
   val identifier: P[String] = P((letter ~ lettersOrDigits).map { case (a, b) => a + b }).opaque("<identifier>")
 
-  val doubleQuotedString: P[List[Char]] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').?.! ~ "\"").map(_.toList)
+  val doubleQuotedString: P[String] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').?.! ~ "\"")
 
   def size(value: Long, wordLiteral: Boolean, int24Literal: Boolean, int32Literal: Boolean): Int = {
     val w = value > 255 || value < -0x80 || wordLiteral

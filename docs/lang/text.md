@@ -55,7 +55,7 @@
 
 * `vectrex` – built-in Vectrex font
 
-* `utf8` – UTF-8 (BMP only)
+* `utf8` – UTF-8
 
 * `utf16be`, `utf16le` – UTF-16BE and UTF-16LE
 
