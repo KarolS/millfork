@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuNodeOptimizedRun, EmuUnoptimizedCrossPlatformRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuNodeOptimizedRun, EmuUnoptimizedCrossPlatformRun}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -52,5 +52,20 @@ class NodeOptimizationSuite extends FunSuite with Matchers {
       """.stripMargin) { m =>
       m.readLong(0xc000) should equal (0x3000000)
     }
+  }
+
+  test("Unused global struct variable") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | struct p { byte x }
+        | p b
+        | void foo (byte x) {
+        |    byte y
+        |    b.x = x
+        |}
+        | void main () {
+        |   foo(1)
+        | }
+      """.stripMargin) { m => }
   }
 }

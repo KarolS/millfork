@@ -81,8 +81,10 @@ object UnusedLocalVariables extends NodeOptimization {
           case x => Some(ExpressionStatement(x).pos(s.position))
         }
       } else Some(s)
-    case s@Assignment(VariableExpression(n), VariableExpression(_)) =>
-      if (localsToRemove(extractThingName(n))) Nil else Some(s)
+    case s@Assignment(VariableExpression(n), expr@VariableExpression(_)) =>
+      if (localsToRemove(extractThingName(n))) {
+        if (localsToRemove(extractThingName(n))) None else Some(Assignment(BlackHoleExpression, expr).pos(s.position))
+      } else Some(s)
     case s@Assignment(VariableExpression(n), LiteralExpression(_, _)) =>
       if (localsToRemove(extractThingName(n))) Nil else Some(s)
     case s@Assignment(VariableExpression(n), expr) =>

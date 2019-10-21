@@ -2038,6 +2038,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
   def compileAssignment(ctx: CompilationContext, source: Expression, target: LhsExpression): List[AssemblyLine] = {
     val env = ctx.env
     val sourceType = AbstractExpressionCompiler.checkAssignmentTypeAndGetSourceType(ctx, source, target)
+    if (target == BlackHoleExpression) return compile(ctx, source, None, NoBranching)
     val lhsType = AbstractExpressionCompiler.getExpressionType(ctx, target)
     val b = env.get[Type]("byte")
     val w = env.get[Type]("word")
