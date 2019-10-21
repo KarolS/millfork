@@ -166,15 +166,17 @@ class ForLoopSuite extends FunSuite with Matchers {
         |     for i, zero, paralleluntil, ff { }
         |     flag = 4
         |     for i, zero, parallelto, ff { }
-        |     flag = 5
-        |     for i, ff, until, zero { _panic() }
-        |     flag = 6
-        |     for i, ff, paralleluntil, zero { _panic() }
-        |     flag = 7
-        |     for i, ff, paralleluntil, zero { _panic() }
         |     flag = 8
         |     for i, zero, until, ff { }
         |     flag = 9
+        |     for i, zero, until, zero { _panic() }
+        |     flag = 10
+        |     for i, ff, until, ff { _panic() }
+        |     flag = 11
+        |     for i, zero, paralleluntil, zero { _panic() }
+        |     flag = 12
+        |     for i, ff, paralleluntil, ff { _panic() }
+        |     flag = ff
         | }
         | void _panic(){while(true){}}
       """.stripMargin){ m=>
