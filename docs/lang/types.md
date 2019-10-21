@@ -57,10 +57,12 @@ If the type `T` is of size 1, you can index the pointer like a raw pointer.
 
 If the type `T` is of size 2, you can index the pointer only with the constant 0.
 
+You can create pointer values by suffixing `.pointer` to the name of a variable, function or array.
+
 Examples:
 
     pointer.t p
-    p.raw       // expression of type pointer, pointing to the same location in memory as 'p'
+    p.pointer   // expression of type pointer, pointing to the same location in memory as 'p'
     p.lo        // equivalent to 'p.raw.lo'
     p.hi        // equivalent to 'p.raw.lo'
     p[0]        // valid only if the type 't' is of size 1 or 2, accesses the pointed element
