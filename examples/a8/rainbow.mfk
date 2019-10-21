@@ -1,0 +1,10 @@
+byte clock @20
+byte a
+
+void main() {
+    while(true){
+		a = (antic_vcount + clock) << 1
+		antic_wsync = a
+		gtia_colpf2 = a
+	}
+}

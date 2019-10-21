@@ -1,0 +1,43 @@
+// Atari 8-bit POKEY hardware
+
+#if not(ATARI_8)
+#warn a8_pokey module should be used only on Atari computer-compatible targets
+#endif
+
+// write
+volatile byte pokey_audf1  @$D200 // audio channel #1 frequency
+volatile byte pokey_audc1  @$D201 // audio channel #1 control
+volatile byte pokey_audf2  @$D202 // audio channel #2 frequency
+volatile byte pokey_audc2  @$D203 // audio channel #2 control
+volatile byte pokey_audf3  @$D204 // audio channel #3 frequency
+volatile byte pokey_audc3  @$D205 // audio channel #3 control
+volatile byte pokey_audf4  @$D206 // audio channel #4 frequency
+volatile byte pokey_audc4  @$D207 // audio channel #4 control
+volatile byte pokey_audctl @$D208 // audio control
+volatile byte pokey_stimer @$D209 // start pokey timers
+volatile byte pokey_skrest @$D20A // reset serial port status reg.
+volatile byte pokey_potgo  @$D20B // start paddle scan sequence
+volatile byte pokey_unuse1 @$D20C // unused
+volatile byte pokey_serout @$D20D // serial port data output
+volatile byte pokey_irqen  @$D20E // interrupt request enable
+volatile byte pokey_skctl  @$D20F // serial port control
+
+// read
+volatile byte pokey_pot0   @$D200 // paddle 0 value
+volatile byte pokey_pot1   @$D201 // paddle 1 value
+volatile byte pokey_pot2   @$D202 // paddle 2 value
+volatile byte pokey_pot3   @$D203 // paddle 3 value
+volatile byte pokey_pot4   @$D204 // paddle 4 value
+volatile byte pokey_pot5   @$D205 // paddle 5 value
+volatile byte pokey_pot6   @$D206 // paddle 6 value
+volatile byte pokey_pot7   @$D207 // paddle 7 value
+volatile byte pokey_allpot @$D208 // eight paddle port status
+volatile byte pokey_kbcode @$D209 // keyboard code
+volatile byte pokey_random @$D20A // random number generator
+volatile byte pokey_unuse2 @$D20B // unused
+volatile byte pokey_unuse3 @$D20C // unused
+volatile byte pokey_serin  @$D20D // serial port input
+volatile byte pokey_irqst  @$D20E // interrupt request status
+
+// serial port status
+volatile byte pokey_skstat @$D20F

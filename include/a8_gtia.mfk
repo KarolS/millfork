@@ -1,0 +1,64 @@
+// Atari 8-bit GTIA hardware
+
+#if not(ATARI_8)
+#warn a8_gtia module should be used only on Atari computer-compatible targets
+#endif
+
+// read/write
+volatile byte gtia_hposp0 @$D000 // horizontal position player 0
+volatile byte gtia_hposp1 @$D001 // horizontal position player 1
+volatile byte gtia_hposp2 @$D002 // horizontal position player 2
+volatile byte gtia_hposp3 @$D003 // horizontal position player 3
+volatile byte gtia_hposm0 @$D004 // horizontal position missile 0
+volatile byte gtia_hposm1 @$D005 // horizontal position missile 1
+volatile byte gtia_hposm2 @$D006 // horizontal position missile 2
+volatile byte gtia_hposm3 @$D007 // horizontal position missile 3
+volatile byte gtia_sizep0 @$D008 // size of player 0
+volatile byte gtia_sizep1 @$D009 // size of player 1
+volatile byte gtia_sizep2 @$D00A // size of player 2
+volatile byte gtia_sizep3 @$D00B // size of player 3
+volatile byte gtia_sizem  @$D00C // size of missiles
+volatile byte gtia_grafp0 @$D00D // graphics shape player 0
+volatile byte gtia_grafp1 @$D00E // graphics shape player 1
+volatile byte gtia_grafp2 @$D00F // graphics shape player 2
+volatile byte gtia_grafp3 @$D010 // graphics shape player 3
+volatile byte gtia_grafm  @$D011 // graphics shape missiles
+volatile byte gtia_colpm0 @$D012 // color player and missile 0
+volatile byte gtia_colpm1 @$D013 // color player and missile 1
+volatile byte gtia_colpm2 @$D014 // color player and missile 2
+volatile byte gtia_colpm3 @$D015 // color player and missile 3
+volatile byte gtia_colpf0 @$D016 // color playfield 0
+volatile byte gtia_colpf1 @$D017 // color playfield 1
+volatile byte gtia_colpf2 @$D018 // color playfield 2
+volatile byte gtia_colpf3 @$D019 // color playfield 3
+volatile byte gtia_colbk  @$D01A // color background
+volatile byte gtia_prior  @$D01B // priority selection
+volatile byte gtia_vdelay @$D01C // vertical delay
+volatile byte gtia_gractl @$D01D // stick/paddle latch, p/m control
+volatile byte gtia_hitclr @$D01E // clear p/m collision
+volatile byte gtia_consol @$D01F // console buttons
+
+// read
+volatile byte gtia_m0pf   @$D000 // missile 0 to playfield collision
+volatile byte gtia_m1pf   @$D001 // missile 1 to playfield collision
+volatile byte gtia_m2pf   @$D002 // missile 2 to playfield collision
+volatile byte gtia_m3pf   @$D003 // missile 3 to playfield collision
+volatile byte gtia_p0pf   @$D004 // player 0 to playfield collision
+volatile byte gtia_p1pf   @$D005 // player 1 to playfield collision
+volatile byte gtia_p2pf   @$D006 // player 2 to playfield collision
+volatile byte gtia_p3pf   @$D007 // player 3 to playfield collision
+volatile byte gtia_m0pl   @$D008 // missile 0 to player collision
+volatile byte gtia_m1pl   @$D009 // missile 1 to player collision
+volatile byte gtia_m2pl   @$D00A // missile 2 to player collision
+volatile byte gtia_m3pl   @$D00B // missile 3 to player collision
+volatile byte gtia_p0pl   @$D00C // player 0 to player collision
+volatile byte gtia_p1pl   @$D00D // player 1 to player collision
+volatile byte gtia_p2pl   @$D00E // player 2 to player collision
+volatile byte gtia_p3pl   @$D00F // player 3 to player collision
+volatile byte gtia_trig0  @$D010 // joystick trigger 0
+volatile byte gtia_trig1  @$D011 // joystick trigger 1
+volatile byte gtia_trig2  @$D012 // joystick trigger 2
+volatile byte gtia_trig3  @$D013 // joystick trigger 3
+
+// pal/ntsc flag
+volatile byte gtia_pal    @$D014 
