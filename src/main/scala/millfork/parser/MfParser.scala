@@ -50,6 +50,52 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     newPosition
   }
 
+  val comment: P[Unit] = P("//" ~/ CharsWhile(c => c != '\n' && c != '\r', min = 0) ~ ("\r\n" | "\r" | "\n"))
+
+  val semicolon: P[Unit] = P(";" ~/ CharsWhileIn("; \t", min = 0) ~/ position("line break after a semicolon").map(_ => ()) ~/ (comment | "\r\n" | "\r" | "\n").opaque("<line break>"))
+
+  val semicolonComment: P[Unit] = P(";" ~/ CharsWhile(c => c != '\n' && c != '\r' && c != '{' && c != '}', min = 0) ~/ position("line break instead of braces").map(_ => ()) ~/ ("\r\n" | "\r" | "\n").opaque("<line break>"))
+
+  val AWS: P[Unit] = P((CharIn(" \t\n\r") | NoCut(semicolon) | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
+
+  val AWS_asm: P[Unit] = P((CharIn(" \t\n\r") | NoCut(semicolonComment) | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
+
+  val EOL: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | semicolon | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
+
+  val EOL_asm: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | comment | semicolonComment).opaque("<first line break>") ~ AWS).opaque("<line break>")
+
+  val EOLOrComma: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | "," | semicolon | comment).opaque("<first line break or comma>") ~ AWS).opaque("<line break or comma>")
+
+
+  val elidable: P[Elidability.Value] = (("!" | "?").! ~/ HWS).?.map{
+    case Some("?") => Elidability.Elidable
+    case Some("!") => Elidability.Volatile
+    case _ => Elidability.Fixed
+  }
+
+  val externFunctionBody: P[Option[List[Statement]]] = P("extern" ~/ PassWith(None))
+
+  val bankDeclaration: P[Option[String]] = ("segment" ~/ AWS ~/ "(" ~/ AWS ~/ identifier ~/ AWS ~/ ")" ~/ AWS).?
+
+  val breakStatement: P[Seq[ExecutableStatement]] = ("break" ~ !letterOrDigit ~/ HWS ~ identifier.?).map(l => Seq(BreakStatement(l.getOrElse(""))))
+
+  val continueStatement: P[Seq[ExecutableStatement]] = ("continue" ~ !letterOrDigit ~/ HWS ~ identifier.?).map(l => Seq(ContinueStatement(l.getOrElse(""))))
+
+  val importStatement: P[Seq[ImportStatement]] = ("import" ~ !letterOrDigit ~/ SWS ~/ identifier).map(x => Seq(ImportStatement(x)))
+
+  val forDirection: P[ForDirection.Value] =
+    ("parallel" ~ HWS ~ "to").!.map(_ => ForDirection.ParallelTo) |
+      ("parallel" ~ HWS ~ "until").!.map(_ => ForDirection.ParallelUntil) |
+      "until".!.map(_ => ForDirection.Until) |
+      "to".!.map(_ => ForDirection.To) |
+      ("down" ~/ HWS ~/ "to").!.map(_ => ForDirection.DownTo)
+
+  private def flags_(allowed: String*): P[Set[String]] = StringIn(allowed: _*).!.rep(min = 0, sep = SWS).map(_.toSet).opaque("<flags>")
+
+  val variableFlags: P[Set[String]] = flags_("const", "static", "volatile", "stack", "register")
+
+  val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt")
+
   val codec: P[((TextCodec, Boolean), Boolean)] = P(position("text codec identifier") ~ identifier.?.map(_.getOrElse(""))).map {
     case (_, "" | "default") => (options.platform.defaultCodec -> false) -> options.flag(CompilationFlag.LenientTextEncoding)
     case (_, "z" | "defaultz") => (options.platform.defaultCodec -> true) -> options.flag(CompilationFlag.LenientTextEncoding)
@@ -117,7 +163,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     p <- position()
     bank <- bankDeclaration
     flags <- variableFlags ~ HWS
-    typ <- identifier ~ SWS
+    typ <- identifier ~/ SWS
     vars <- singleVariableDefinition.rep(min = 1, sep = "," ~/ HWS)
     _ <- &(EOL) ~/ ""
   } yield {
@@ -585,25 +631,9 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
 object MfParser {
 
-  val comment: P[Unit] = P("//" ~/ CharsWhile(c => c != '\n' && c != '\r', min = 0) ~ ("\r\n" | "\r" | "\n"))
-
-  val semicolon: P[Unit] = P(";" ~/ CharsWhileIn("; \t", min = 0) ~ (comment | "\r\n" | "\r" | "\n"))
-
-  val semicolonComment: P[Unit] = P(";" ~/ CharsWhile(c => c != '\n' && c != '\r' && c != '{' && c != '}', min = 0) ~ ("\r\n" | "\r" | "\n"))
-
   val SWS: P[Unit] = P(CharsWhileIn(" \t", min = 1)).opaque("<horizontal whitespace>")
 
   val HWS: P[Unit] = P(CharsWhileIn(" \t", min = 0)).opaque("<horizontal whitespace>")
-
-  val AWS: P[Unit] = P((CharIn(" \t\n\r") | NoCut(semicolon) | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
-
-  val AWS_asm: P[Unit] = P((CharIn(" \t\n\r") | NoCut(semicolonComment) | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
-
-  val EOL: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | semicolon | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
-
-  val EOL_asm: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | comment | semicolonComment).opaque("<first line break>") ~ AWS).opaque("<line break>")
-
-  val EOLOrComma: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | "," | semicolon | comment).opaque("<first line break or comma>") ~ AWS).opaque("<line break or comma>")
 
   val letter: P[String] = P(CharIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_").!)
 
@@ -713,34 +743,5 @@ object MfParser {
 
   val nonStatementLevel = 1 // everything but not `=`
   val mathLevel = 4 // the `:` operator
-
-  val elidable: P[Elidability.Value] = (("!" | "?").! ~/ HWS).?.map{
-    case Some("?") => Elidability.Elidable
-    case Some("!") => Elidability.Volatile
-    case _ => Elidability.Fixed
-  }
-
-  val externFunctionBody: P[Option[List[Statement]]] = P("extern" ~/ PassWith(None))
-
-  val bankDeclaration: P[Option[String]] = ("segment" ~/ AWS ~/ "(" ~/ AWS ~/ identifier ~/ AWS ~/ ")" ~/ AWS).?
-
-  val breakStatement: P[Seq[ExecutableStatement]] = ("break" ~ !letterOrDigit ~/ HWS ~ identifier.?).map(l => Seq(BreakStatement(l.getOrElse(""))))
-
-  val continueStatement: P[Seq[ExecutableStatement]] = ("continue" ~ !letterOrDigit ~/ HWS ~ identifier.?).map(l => Seq(ContinueStatement(l.getOrElse(""))))
-
-  val importStatement: P[Seq[ImportStatement]] = ("import" ~ !letterOrDigit ~/ SWS ~/ identifier).map(x => Seq(ImportStatement(x)))
-
-  val forDirection: P[ForDirection.Value] =
-    ("parallel" ~ HWS ~ "to").!.map(_ => ForDirection.ParallelTo) |
-      ("parallel" ~ HWS ~ "until").!.map(_ => ForDirection.ParallelUntil) |
-      "until".!.map(_ => ForDirection.Until) |
-      "to".!.map(_ => ForDirection.To) |
-      ("down" ~/ HWS ~/ "to").!.map(_ => ForDirection.DownTo)
-
-  private def flags_(allowed: String*): P[Set[String]] = StringIn(allowed: _*).!.rep(min = 0, sep = SWS).map(_.toSet).opaque("<flags>")
-
-  val variableFlags: P[Set[String]] = flags_("const", "static", "volatile", "stack", "register")
-
-  val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt")
 
 }
