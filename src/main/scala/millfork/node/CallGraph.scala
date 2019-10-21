@@ -182,6 +182,12 @@ class StandardCallGraph(program: Program, log: Logger) extends CallGraph(program
     if (multiaccessibleFunctions(a.function) || multiaccessibleFunctions(b.function)) {
       return false
     }
+    if (a.function + ".trampoline" == b.function) {
+      return false
+    }
+    if (a.function == b.function + ".trampoline") {
+      return false
+    }
     if (callEdges(a.function -> b.function) || callEdges(b.function -> a.function)) {
       return false
     }
