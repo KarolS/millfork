@@ -28,6 +28,8 @@ no extension for BBC micro program file,
 `.inf` for BBC Micro file metadata,
 `.asm` for assembly output,
 `.lbl`, `.nl`, `.fns`, or `.sym` for label file.
+Default: If compiling one file with `.mfk` extension, the same name as the input file. Otherwise, `a`.
+
 
 * `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file and the extension is `.asm`.
 
