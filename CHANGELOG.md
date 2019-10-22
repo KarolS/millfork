@@ -22,6 +22,8 @@
 
 * Fixed a bug with variable overlapping (#11).
 
+* 8080: Fixed and optimized 16-bit comparisons.
+
 * 8080: Optimized some library functions.
 
 * Optimized certain byte comparisons.

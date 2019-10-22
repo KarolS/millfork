@@ -581,4 +581,52 @@ class ComparisonSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Complex word comparisons") {
+    val code =
+      """
+        | byte output @$c000
+        | struct st { word x }
+        | st obj
+        | noinline word f() = 400
+        | void main() {
+        |   pointer.st p
+        |   p = obj.pointer
+        |   p->x = 400
+        |   output = 0
+        |
+        |   if p->x == 400 { output += 1 } // ↑
+        |   if p->x != 400 { output -= 1 }
+        |   if p->x >= 400 { output += 1 } // ↑
+        |   if p->x <= 400 { output += 1 } // ↑
+        |   if p->x > 400  { output -= 1 }
+        |   if p->x < 400  { output -= 1 }
+        |
+        |   if 400 == p->x { output += 1 } // ↑
+        |   if 400 != p->x { output -= 1 }
+        |   if 400 <= p->x { output += 1 } // ↑
+        |   if 400 >= p->x { output += 1 } // ↑
+        |   if 400 < p->x  { output -= 1 }
+        |   if 400 > p->x  { output -= 1 }
+        |
+        |   if f() == 400 { output += 1 } // ↑
+        |   if f() != 400 { output -= 1 }
+        |   if f() >= 400 { output += 1 } // ↑
+        |   if f() <= 400 { output += 1 } // ↑
+        |   if f() > 400  { output -= 1 }
+        |   if f() < 400  { output -= 1 }
+        |
+        |   if 400 == f() { output += 1 } // ↑
+        |   if 400 != f() { output -= 1 }
+        |   if 400 <= f() { output += 1 } // ↑
+        |   if 400 >= f() { output += 1 } // ↑
+        |   if 400 < f()  { output -= 1 }
+        |   if 400 > f()  { output -= 1 }
+        |   
+        | }
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(code) { m =>
+      m.readByte(0xc000) should equal(code.count(_ == '↑'))
+    }
+  }
+
 }

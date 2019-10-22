@@ -161,7 +161,8 @@ Note you cannot mix those operators, so `a <= b < c` is not valid.
 
 * `>`, `<`, `<=`, `>=`: inequality  
 `byte > byte`  
-`simple word > simple word`  
+`simple word > word`  
+`word > simple word`  
 `simple long > simple long`
 
 Currently, `>`, `<`, `<=`, `>=` operators perform signed comparison 

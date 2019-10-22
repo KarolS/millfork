@@ -724,7 +724,7 @@ object BuiltIns {
         val rc = MosExpressionCompiler.compileToAX(ctx, rhs)
         (lc, rc, effectiveComparisonType) match {
           case (
-            List(lcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), lch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage, _)),
+            List(lcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), lch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage | LongAbsolute, _)),
             _,
             ComparisonType.NotEqual
             ) =>
@@ -735,7 +735,7 @@ object BuiltIns {
               AssemblyLine.relative(BNE, Label(x)))
           case (
             _,
-            List(rcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), rch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage, _)),
+            List(rcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), rch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage | LongAbsolute, _)),
             ComparisonType.NotEqual
             ) =>
             return lc ++ List(
@@ -744,7 +744,7 @@ object BuiltIns {
               rch.copy(opcode = CPX),
               AssemblyLine.relative(BNE, Label(x)))
           case (
-            List(lcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), lch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage, _)),
+            List(lcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), lch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage | LongAbsolute, _)),
             _,
             ComparisonType.Equal
             ) =>
@@ -757,7 +757,7 @@ object BuiltIns {
               AssemblyLine.label(skip))
           case (
             _,
-            List(rcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), rch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage, _)),
+            List(rcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), rch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage | LongAbsolute, _)),
             ComparisonType.Equal
             ) =>
             val skip = ctx.nextLabel("cp")
@@ -767,6 +767,42 @@ object BuiltIns {
               rch.copy(opcode = CPX),
               AssemblyLine.relative(BEQ, Label(x)),
               AssemblyLine.label(skip))
+          case (
+            List(lcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), lch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage | LongAbsolute, _)),
+            List(rcl@AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), rch@AssemblyLine0(LDX, Absolute | Immediate | ZeroPage | LongAbsolute, _)),
+            _
+            ) =>
+            (Nil,
+              List(lch.copy(opcode = CMP)),
+              List(lcl.copy(opcode = CMP)),
+              List(rch.copy(opcode = CMP)),
+              List(rcl.copy(opcode = CMP)))
+          case (
+            _,
+            List(AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), AssemblyLine0(LDX, Absolute | Immediate | ZeroPage | LongAbsolute, _)),
+            _
+            ) =>
+            if (ctx.options.zpRegisterSize < 2) {
+              ctx.log.error("Too complex expressions in comparison", lhs.position.orElse(rhs.position))
+              (Nil, Nil, Nil, Nil, Nil)
+            } else {
+              val reg = ctx.env.get[ThingInMemory]("__reg.loword")
+              return lc ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ compileWordComparison(
+                ctx, effectiveComparisonType, VariableExpression("__reg.loword").pos(lhs.position), rhs, BranchIfTrue(x))
+            }
+          case (
+            List(AssemblyLine0(LDA, Absolute | Immediate | ZeroPage | LongAbsolute, _), AssemblyLine0(LDX, Absolute | Immediate | ZeroPage | LongAbsolute, _)),
+            _,
+            _
+            ) =>
+            if (ctx.options.zpRegisterSize < 2) {
+              ctx.log.error("Too complex expressions in comparison", lhs.position.orElse(rhs.position))
+              (Nil, Nil, Nil, Nil, Nil)
+            } else {
+              val reg = ctx.env.get[ThingInMemory]("__reg.loword")
+              return rc ++ List(AssemblyLine.zeropage(STA, reg), AssemblyLine.zeropage(STX, reg, 1)) ++ compileWordComparison(
+                ctx, effectiveComparisonType, lhs, VariableExpression("__reg.loword").pos(rhs.position), BranchIfTrue(x))
+            }
           case _ =>
             // TODO comparing expressions
             ctx.log.error("Too complex expressions in comparison", lhs.position.orElse(rhs.position))
