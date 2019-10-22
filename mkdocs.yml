@@ -29,6 +29,7 @@ nav:
     - Functions: lang/functions.md
     - Inline 6502 assembly: lang/assembly.md
     - Inline 8080/LR35902/Z80 assembly: lang/assemblyz80.md
+    - Inline 6809 assembly: lang/assembly6809.md
     - Reentrancy guidelines: lang/reentrancy.md
     - List of keywords: lang/keywords.md
   - Library reference:

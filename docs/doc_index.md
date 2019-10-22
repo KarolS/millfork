@@ -34,6 +34,8 @@
 
 * [Inline 8080/LR35902/Z80 assembly syntax](lang/assemblyz80.md)
 
+* [Inline 6809 assembly syntax](lang/assembly6809.md)
+
 * [Important guidelines regarding reentrancy](lang/reentrancy.md)
 
 * [List of keywords](lang/keywords.md)

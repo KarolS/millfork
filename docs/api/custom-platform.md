@@ -44,6 +44,9 @@ if a line ends with a backslash character, the value continues to the next line.
     * `i8086` (Intel 8086; very experimental, very buggy and very, very incomplete –
     see the [8086 support disclaimer](../lang/x86disclaimer.md))
 
+    * `6809` (Motorola 6809; very experimental, very buggy and very, very incomplete –
+    many language features simply do not work at all for this target)
+
 * `encoding` – default encoding for console I/O. Default: `ascii`.
 See [the list of available encodings](../lang/text.md).
 
