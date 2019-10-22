@@ -53,7 +53,6 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
       result += p._1
       cv = p._2
     }
-    result.foreach(println(_))
     result.toList -> cv
   }
 
