@@ -2567,6 +2567,22 @@ object AlwaysGoodOptimizations {
         AssemblyLine.immediate(ADC, 0),
         code(5).copy(opcode = STA)) //STX
     },
+
+    (Elidable & HasOpcode(LDX) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & IsNotALabelUsedManyTimes) ~
+      (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.C, State.X)) ~~> { (code, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL))
+    },
+
+    (Elidable & HasOpcode(LDX) & HasImmediate(0)) ~
+    (Elidable & HasOpcode(BCC) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(INX)) ~
+    (Elidable & HasOpcode(LABEL) & MatchParameter(1) & IsNotALabelUsedManyTimes) ~
+    (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.C)) ~~> { (code, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL), AssemblyLine.implied(TAX))
+    },
   )
 
   val NonetBitOp = new RuleBasedAssemblyOptimization("Nonet bit operation",
@@ -2976,6 +2992,21 @@ object AlwaysGoodOptimizations {
       }
     }),
 
+    (Elidable & HasOpcode(LDA) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(BIT)) ~
+      (Elidable & HasOpcode(BEQ) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & IsNotALabelUsedManyTimes & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V)) ~~> { code =>
+      List(code(1).copy(opcode = LDA), code.head.copy(opcode = AND), code.head.copy(opcode = EOR))
+    },
+
+    (Elidable & HasOpcode(LDA) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(BIT)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & IsNotALabelUsedManyTimes & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V)) ~~> { code =>
+      List(code(1).copy(opcode = LDA), code.head.copy(opcode = AND))
+    },
   )
 
   private val powersOf2: List[(Int, Int)] = List(
