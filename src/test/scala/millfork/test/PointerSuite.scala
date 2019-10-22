@@ -322,4 +322,21 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc000) should equal(5)
     }
   }
+
+  test("Fast pointer indexing") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos) (
+      """
+        |pointer.word p
+        |array(word) input [6]
+        |word output @$c000
+        |void main () {
+        | input[3] = 555
+        | output = f(input.pointer)
+        |}
+        |noinline word f(pointer.word p) = p[3]
+      """.stripMargin
+    ){ m =>
+      m.readWord(0xc000) should equal(555)
+    }
+  }
 }
