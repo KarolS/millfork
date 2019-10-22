@@ -408,7 +408,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             Nil
         }
       case DerefExpression(inner, offset, targetType) =>
-        val (prepare, addr, am) = getPhysicalPointerForDeref(ctx, inner)
+        val (prepare, addr, am, fast) = getPhysicalPointerForDeref(ctx, inner)
+        if (targetType.size == 1) {
+          fast match {
+            case Some((fastBase, fastIndex)) =>
+              return preserveRegisterIfNeeded(ctx, MosRegister.A, fastIndex(offset)) ++ List(AssemblyLine.absoluteY(STA, fastBase))
+            case _ =>
+          }
+        }
         val lo = preserveRegisterIfNeeded(ctx, MosRegister.A, prepare) ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine(STA, am, addr))
         if (targetType.size == 1) {
           lo
@@ -523,17 +530,42 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     compile(ctx, expr, Some(p -> env.get[Variable]("__reg.b2b3")), BranchSpec.None)
   }
 
-  def getPhysicalPointerForDeref(ctx: CompilationContext, pointerExpression: Expression): (List[AssemblyLine], Constant, AddrMode.Value) = {
+  def getPhysicalPointerForDeref(ctx: CompilationContext, pointerExpression: Expression): (List[AssemblyLine], Constant, AddrMode.Value, Option[(Constant, Int => List[AssemblyLine])]) = {
     pointerExpression match {
       case VariableExpression(name) =>
         val p = ctx.env.get[ThingInMemory](name)
-        if (p.isInstanceOf[MfArray]) return (Nil, p.toAddress, AddrMode.AbsoluteY)
-        if (p.zeropage) return (Nil, p.toAddress, AddrMode.IndexedY)
+        p match {
+          case array: MfArray => return (Nil, p.toAddress, AddrMode.AbsoluteY,
+            if (array.sizeInBytes <= 256) Some(p.toAddress, (i: Int) => List(AssemblyLine.immediate(LDY, i))) else None)
+          case _ =>
+        }
+        if (p.zeropage) return (Nil, p.toAddress, AddrMode.IndexedY, None)
       case _ =>
     }
     ctx.env.eval(pointerExpression) match {
-      case Some(addr) => (Nil, addr, AddrMode.AbsoluteY)
-      case _ => (compileToZReg(ctx, pointerExpression), ctx.env.get[ThingInMemory]("__reg.loword").toAddress, AddrMode.IndexedY)
+      case Some(addr) => (Nil, addr, AddrMode.AbsoluteY, None)
+      case _ =>
+        val baseAndIndex: Option[(Expression, Expression)] = pointerExpression match {
+              case SumExpression(List((false, base), (false, index)), false) => Some(base -> index)
+              case FunctionCallExpression(pointerType, List(SumExpression(List((false, base), (false, index)), false))) if pointerType.startsWith("pointer.") =>
+                Some(base -> index)
+              case _ => None
+            }
+        (compileToZReg(ctx, pointerExpression), ctx.env.get[ThingInMemory]("__reg.loword").toAddress, AddrMode.IndexedY, baseAndIndex match {
+          case Some((base, index)) =>
+            val itype = AbstractExpressionCompiler.getExpressionType(ctx, index)
+            if (itype.size != 1 || itype.isSigned) {
+              None
+            } else {
+              ctx.env.eval(base).map { baseConst =>
+                baseConst -> { (i: Int) =>
+                  val b = ctx.env.get[Type]("byte")
+                  compile(ctx, index #+# i, Some(b -> RegisterVariable(MosRegister.Y, b)), BranchSpec.None)
+                }
+              }
+            }
+          case _ => None
+        })
     }
   }
 
@@ -1035,19 +1067,27 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           }
         }
       case DerefExpression(inner, offset, targetType) =>
-        val (prepare, addr, am) = getPhysicalPointerForDeref(ctx, inner)
-        (targetType.size, am) match {
-          case (1, AbsoluteY) =>
+        val (prepare, addr, am, fast) = getPhysicalPointerForDeref(ctx, inner)
+        (fast, targetType.size, am) match {
+          case (Some((fastBase, fastIndex)), 1, _) =>
+            fastIndex(offset) ++ List(AssemblyLine.absoluteY(LDA, fastBase)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position, exprType.isSigned)
+          case (_, 1, AbsoluteY) =>
             prepare ++ List(AssemblyLine.absolute(LDA, addr + offset)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position, exprType.isSigned)
-          case (1, _) =>
+          case (_, 1, _) =>
             prepare ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine(LDA, am, addr)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position, exprType.isSigned)
-          case (2, AbsoluteY) =>
+          case (Some((fastBase, fastIndex)), 2, _) =>
+            fastIndex(offset) ++ List(
+              AssemblyLine.absoluteY(LDA, fastBase),
+              AssemblyLine.implied(INY),
+              AssemblyLine.absoluteY(LDX, fastBase)) ++
+              expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+          case (_, 2, AbsoluteY) =>
             prepare ++
               List(
                 AssemblyLine.absolute(LDA, addr + offset),
                 AssemblyLine.absolute(LDX, addr + offset + 1)) ++
               expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
-          case (2, _) =>
+          case (_, 2, _) =>
             prepare ++
               List(
                 AssemblyLine.immediate(LDY, offset+1),
@@ -2058,7 +2098,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         ctx.log.error("Invalid left-hand-side use of `:`")
         Nil
       case DerefExpression(inner, offset, targetType) =>
-        val (prepare, addr, am) = getPhysicalPointerForDeref(ctx, inner)
+        val (prepare, addr, am, fastTarget) = getPhysicalPointerForDeref(ctx, inner)
         env.eval(source) match {
           case Some(constant) =>
             am match {
@@ -2104,7 +2144,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     Nil
                 }
               case DerefExpression(innerSource, sourceOffset, _) =>
-                val (prepareSource, addrSource, amSource) = getPhysicalPointerForDeref(ctx, innerSource)
+                val (prepareSource, addrSource, amSource, fastSource) = getPhysicalPointerForDeref(ctx, innerSource)
                 (am, amSource) match {
                   case (AbsoluteY, AbsoluteY) =>
                     prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>

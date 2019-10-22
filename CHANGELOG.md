@@ -28,7 +28,7 @@
 
 * Optimized certain byte comparisons.
 
-* 6502: Optimized certain boolean conversions.
+* 6502: Optimized certain boolean conversions and some small array accesses.
 
 * Unused built-in functions are now removed more accurately.
 
