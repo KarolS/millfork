@@ -55,6 +55,10 @@ how to create a program made of multiple files loaded on demand
 
 * [Lynx demo example](atari_lynx/atari_lynx_demo.mfk) – a simple sprite demo
 
+## Atari 8-bit examples
+
+* [Rainbow example](a8/rainbow.mfk) – simple scrolling rasterbars
+
 ## Game Boy examples
 
 * [GB test example](gb/gbtest.mfk) – a partial port of the NES example, with a rudimentary experimental text output implementation

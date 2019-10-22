@@ -6,9 +6,21 @@
 
 * Added the ability to define custom segment layouts.
 
+* Hardware definitions for Atari 8-bit (thanks to @FreddyOffenga)
+
+* Fixed BLL headers for Atari Lynx (#7).
+
+* Some improvements for Commander X16 (with help from @Ambez05)
+
+* Specified consistent behaviour of `for` loops (#8)
+
 * Fixed bugs with constant booleans.
 
-* Fixes bugs with arithmetic promotions of signed values. 
+* Fixed bugs with arithmetic promotions of signed values.
+
+* Fixed a bug with unused global variable elimination (#10).
+
+* Fixed a bug with variable overlapping (#11).
 
 * 8080: Optimized some library functions.
 
