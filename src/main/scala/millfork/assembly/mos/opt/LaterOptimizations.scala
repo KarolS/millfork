@@ -102,7 +102,7 @@ object LaterOptimizations {
 
   private def TwoDifferentLoadsWithNoFlagChangeInBetween(opcode1: Opcode.Value, middle: AssemblyLinePattern, opcode2: Opcode.Value, transferOpcode: Opcode.Value) = {
     (HasOpcode(opcode1) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesMemory) & middle & Not(HasOpcode(opcode2))).* ~
+      (Linear & Not(ChangesMemory) & DoesntChangeIndexingInAddrMode(0) & middle & Not(HasOpcode(opcode2))).* ~
       (HasOpcode(opcode2) & Elidable & MatchAddrMode(0) & MatchParameter(1)) ~~> { c =>
       c.init :+ AssemblyLine.implied(transferOpcode)
     }
