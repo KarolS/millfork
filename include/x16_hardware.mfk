@@ -102,6 +102,14 @@ inline void vera_poke(int24 address, byte value) {
     vera_data1 = value
 }
 
+inline byte vera_peek(int24 address) {
+    vera_addr_lo = address.b0
+    vera_addr_mi = address.b1
+    vera_addr_hi = address.b2
+    vera_ctrl = 0
+    return vera_data1
+}
+
 inline void vera_fill(int24 address, byte value, word size) {
     word i
     vera_addr_lo = address.b0
