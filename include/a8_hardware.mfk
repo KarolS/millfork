@@ -1,0 +1,8 @@
+#if not(ATARI_8)
+#warn a8_hardware module should be used only on Atari computer-compatible targets
+#endif
+
+import a8_antic
+import a8_gtia
+import a8_pia
+import a8_pokey
