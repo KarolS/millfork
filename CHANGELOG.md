@@ -26,7 +26,7 @@
 
 * 8080: Optimized some library functions.
 
-* Optimized certain byte comparisons.
+* Optimized certain byte comparisons and pointer indexing.
 
 * 6502: Optimized certain boolean conversions and some small array accesses.
 
