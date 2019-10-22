@@ -172,6 +172,18 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         val (main, extra) = compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body)
         main ++ labelChunk(end) -> extra
 
+      case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(255, _))) if indexType.size == 1 =>
+        compile(ctx, List(
+          Assignment(vex, f.start).pos(p),
+          DoWhileStatement(f.body, List(increment), FunctionCallExpression("!=", List(vex, LiteralExpression(0, 1).pos(p))), names).pos(p)
+        ))
+
+      case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(0xffff, _))) if indexType.size == 2 =>
+        compile(ctx, List(
+          Assignment(vex, f.start).pos(p),
+          DoWhileStatement(f.body, List(increment), FunctionCallExpression("!=", List(vex, LiteralExpression(0, 2).pos(p))), names).pos(p)
+        ))
+
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(c), Some(NumericConstant(256, _)))
         if variable.map(_.typ.size).contains(1) && c.requiredSize == 1 && c.isProvablyNonnegative =>
         // LDX #s
