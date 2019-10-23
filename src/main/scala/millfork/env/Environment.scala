@@ -473,7 +473,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addUnexpandedWordConstant(s"segment.$segment.length")
       addUnexpandedByteConstant(s"segment.$segment.bank")
     }
-    addThing(ConstantThing("$0000", NumericConstant(0, 2), p), None)
+    addThing(ConstantThing("$0000", Constant.WordZero, p), None)
     addThing(FlagBooleanType("set_carry",
       BranchingOpcodeMapping(Opcode.BCS, IfFlagSet(ZFlag.C), MOpcode.BCS),
       BranchingOpcodeMapping(Opcode.BCC, IfFlagClear(ZFlag.C), MOpcode.BCC)),

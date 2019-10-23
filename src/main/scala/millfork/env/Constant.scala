@@ -5,6 +5,7 @@ import millfork.output.DivisibleAlignment
 
 object Constant {
   val Zero: Constant = NumericConstant(0, 1)
+  val WordZero: Constant = NumericConstant(0, 2)
   val One: Constant = NumericConstant(1, 1)
 
   def apply(i: Long): Constant = NumericConstant(i, minimumSize(i))

@@ -188,7 +188,7 @@ object ZBuiltIns {
   }
 
   def compile16BitSum(ctx: CompilationContext, params: List[(Boolean, Expression)], decimal: Boolean): List[ZLine] = {
-    var const: Constant = NumericConstant(0, 2)
+    var const: Constant = Constant.WordZero
     var hasConst = false
     var result = mutable.ListBuffer[ZLine]()
     if (decimal) {
@@ -222,7 +222,7 @@ object ZBuiltIns {
             case _ =>
               if (result.isEmpty) {
                 result += ZLine.ldImm16(ZRegister.HL, const)
-                const = NumericConstant(0, 2)
+                const = Constant.WordZero
                 hasConst = false
               }
               if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {

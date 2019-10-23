@@ -38,7 +38,7 @@ object PseudoregisterBuiltIns {
     val result = ListBuffer[AssemblyLine]()
     var hard = Option.empty[List[AssemblyLine]]
     val niceReads = mutable.ListBuffer[(List[AssemblyLine], List[AssemblyLine])]()
-    var constant: Constant = NumericConstant(0, 2)
+    var constant: Constant = Constant.WordZero
     var counter = 0
     for ((subtract, read) <- reads) {
       read match {
