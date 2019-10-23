@@ -683,6 +683,9 @@ object Main {
 
     fluff("", "Other options:", "")
 
+    expansion("-Xd")("-O1", "-s", "-fsource-in-asm", "-g").description("Do a debug build. Equivalent to -O1 -s -fsource-in-asm -g")
+    expansion("-Xr")("-O4", "-s", "-fsource-in-asm", "-finline", "-fipo", "-foptimize-stdlib").description("Do a release build. Equivalent to -O4 -s -fsource-in-asm -finline -fipo -foptimize-stdlib")
+
     flag("--single-threaded").action(c =>
       c.changeFlag(CompilationFlag.SingleThreaded, true)
     ).description("Run the compiler in a single thread.")

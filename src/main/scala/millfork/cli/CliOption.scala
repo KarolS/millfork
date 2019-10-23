@@ -209,3 +209,11 @@ class ParamOption[T](val names: Seq[String]) extends CliOption[T, ParamOption[T]
 
   override val _shortName = names.head
 }
+
+class ExpansionOption[T](val name: String)(val replacements: List[String]) extends CliOption[T, ExpansionOption[T]] {
+  override def names: Seq[String] = Seq(name)
+
+  override private[cli] def length = 1
+
+  override private[cli] val _shortName = name
+}

@@ -12,11 +12,12 @@ class CliParser[T] {
   private val options = mutable.ArrayBuffer[CliOption[T, _]]()
   private val mapFlags = mutable.Map[String, CliOption[T, _]]()
   private val mapOptions = mutable.Map[String, CliOption[T, _]]()
+  private val mapExpansions = mutable.Map[String, List[String]]()
   private val _default = new UnknownParamOption[T]().action((p, _) => throw new IllegalArgumentException(s"Unknown option $p"))
   private var _status: Option[CliStatus.Value] = None
   options += _default
 
-  private def add[O <: CliOption[T, _]](o: O) = {
+  private def add[O <: CliOption[T, _]](o: O): O = {
     options += o
     o.length match {
       case 1 =>
@@ -46,6 +47,8 @@ class CliParser[T] {
         }
       case k :: xs if mapFlags.contains(k) =>
         mapFlags(k) match {
+          case p: ExpansionOption[T] if !p._dummy =>
+            parseInner(context, p.replacements ++ xs)
           case p: FlagOption[T] if !p._dummy =>
             parseInner(p.encounter(context), xs)
           case p: BooleanOption[T] if !p._dummy =>
@@ -77,5 +80,7 @@ class CliParser[T] {
   }
 
   def parameter(names: String*): ParamOption[T] = add(new ParamOption[T](names))
+
+  def expansion(name: String)(replacements: String*): ExpansionOption[T] = add(new ExpansionOption[T](name)(replacements.toList))
 
 }
