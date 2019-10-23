@@ -1,0 +1,51 @@
+// Quick test for a8_os.mfk module
+// By Freddy Offenga, 2019
+
+import stdio
+
+void print_hex(word w) {
+	putchar(hi_nibble_to_hex(w.hi))
+	putchar(lo_nibble_to_hex(w.hi))
+	putchar(hi_nibble_to_hex(w.lo))
+	putchar(lo_nibble_to_hex(w.lo))
+}
+
+void main() {
+	// test const byte
+	putchar(os_ATBEL)
+	
+	// test const word
+	print_hex(os_B00600)
+	
+	// test const '<char>'
+	// test volatile byte zp
+	os_LMARGN = os_LMARGN - 2
+	putchar(os_ATEOL)
+	putchar(os_DISK)
+
+	// test volatile byte adr
+	os_COLOR4 = os_COLOR1
+
+	// test volatile word zp
+	const array text = "Hello world!" atasciiscr
+	pointer scr 
+	byte i
+	scr = os_SAVMSC + 120
+	for i,0,to,text.lastindex {
+		scr[i] = text[i]
+	}
+	
+	// test volatile word adr
+	os_CDTMV4 = 1000
+	while (os_CDTMV4 != 0) {
+		print_hex(os_CDTMV4)
+		
+		for i,0,to,3 {
+			putchar(os_ATLRW)
+		}
+	}
+
+	os_COLOR2 = 0
+	
+	while (true) {}
+}
