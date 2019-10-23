@@ -2540,6 +2540,23 @@ object AlwaysGoodOptimizations {
         code(8).copy(opcode = INC),
         AssemblyLine.label(label))
     },
+    (Elidable & HasOpcode(LDX) & HasImmediate(0) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(BCC) & MatchParameter(14)) ~
+      (Elidable & HasOpcode(INX)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(14) & HasCallerCount(1)) ~
+      (Elidable & HasOpcode(STA) & Not(ConcernsX)) ~
+      (Elidable & HasOpcode(TXA)) ~
+      (Elidable & HasOpcode(CLC)) ~
+      (Elidable & HasOpcode(ADC)) ~
+      (Elidable & HasOpcode(STA) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)) ~~> { (code, ctx) =>
+      val label = ctx.nextLabel("in")
+      List(
+        code(4), // STA
+        AssemblyLine.implied(TAX),
+        AssemblyLine.immediate(LDA, 0),
+        code(7), // ADC
+        code(8)) // STA
+    },
     (Elidable & HasOpcode(LDX) & HasAddrMode(Immediate) & HasClear(State.D)) ~
       (Elidable & HasOpcode(BCC) & MatchParameter(14)) ~
       (Elidable & HasOpcode(INX)) ~

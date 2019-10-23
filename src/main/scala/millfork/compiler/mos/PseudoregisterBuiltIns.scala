@@ -65,11 +65,20 @@ object PseudoregisterBuiltIns {
       case Some(ax) =>
         niceReads.prepend(ax -> List(AssemblyLine.implied(TXA)))
         if (!constant.isProvablyZero) {
-          if (constant.isQuiteNegative) {
-            niceReads += List(AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, constant.loByte)) -> List(AssemblyLine.immediate(ADC, constant.hiByte))
+          if (constant.loByte.quickSimplify.isProvablyZero) {
+            if (constant.isQuiteNegative) {
+              val negC = Constant.WordZero.-(constant).quickSimplify.quickSimplify
+              niceReads += Nil -> List(AssemblyLine.implied(SEC), AssemblyLine.immediate(SBC, negC.hiByte))
+            } else {
+              niceReads += Nil -> List(AssemblyLine.implied(CLC),AssemblyLine.immediate(ADC, constant.hiByte))
+            }
           } else {
-            val negC = Constant.WordZero.-(constant).quickSimplify.quickSimplify
-            niceReads += List(AssemblyLine.implied(SEC), AssemblyLine.immediate(SBC, negC.loByte)) -> List(AssemblyLine.immediate(SBC, negC.hiByte))
+            if (constant.isQuiteNegative) {
+              val negC = Constant.WordZero.-(constant).quickSimplify.quickSimplify
+              niceReads += List(AssemblyLine.implied(SEC), AssemblyLine.immediate(SBC, negC.loByte)) -> List(AssemblyLine.immediate(SBC, negC.hiByte))
+            } else {
+              niceReads += List(AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, constant.loByte)) -> List(AssemblyLine.immediate(ADC, constant.hiByte))
+            }
           }
         }
       case None =>
