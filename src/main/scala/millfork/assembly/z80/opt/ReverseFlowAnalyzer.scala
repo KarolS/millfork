@@ -145,8 +145,8 @@ case class CpuImportance(a: Importance = UnknownImportance,
     case ZRegister.E => this.copy(e = Unimportant)
     case ZRegister.DE => this.copy(d = Unimportant, e = Unimportant)
     case ZRegister.MEM_DE => this.copy(d = Important, e = Important)
-    case ZRegister.H => this.copy(h = Unimportant)
-    case ZRegister.L => this.copy(l = Unimportant)
+    case ZRegister.H => this.copy(h = Unimportant, hlNumeric = this.l)
+    case ZRegister.L => this.copy(l = Unimportant, hlNumeric = this.h)
     case ZRegister.HL => this.copy(h = Unimportant, l = Unimportant, hlNumeric = Unimportant)
     case ZRegister.MEM_HL => this.copy(h = Important, l = Important)
     case ZRegister.IXH => this.copy(ixh = Unimportant)
@@ -469,7 +469,7 @@ object ReverseFlowAnalyzer {
             currentImportance = currentImportance.copy(cf = Unimportant, hf = Unimportant, nf = Unimportant)
 
           case ZLine0(LD_HLSP, _, _) =>
-            currentImportance = currentImportance.copy(h = Unimportant, l = Unimportant)
+            currentImportance = currentImportance.copy(h = Unimportant, l = Unimportant, hlNumeric = Unimportant)
 
           case ZLine0(RIM, _, _) =>
             currentImportance = currentImportance.copy(a = Unimportant)

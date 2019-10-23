@@ -36,7 +36,7 @@ object AlwaysGoodI80Optimizations {
     List(ZRegister.B, ZRegister.C, ZRegister.D, ZRegister.E, ZRegister.H, ZRegister.L, ZRegister.MEM_HL).map(f))
 
   val UsingKnownValueFromAnotherRegister = new RuleBasedAssemblyOptimization("Using known value from another register",
-    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
     for7Registers(register =>
       (Elidable & IsRegular8BitLoadFrom(register) & MatchRegister(register, 0)) ~~> ((code, ctx) =>
         code.map(x => x.copy(
@@ -71,6 +71,23 @@ object AlwaysGoodI80Optimizations {
         registers = OneRegister(ZRegister.IMM_8)
       ))
       ),
+
+    MultipleAssemblyRules(for {
+      (useful, useless, both, extractUseful) <- Seq[(ZRegister.Value, ZRegister.Value, ZRegister.Value, Constant => Constant)](
+        (B, C, BC, _.hiByte),
+        (C, B, BC, _.loByte),
+        (D, E, DE, _.hiByte),
+        (E, D, DE, _.loByte),
+        (H, L, HL, _.hiByte),
+        (L, H, HL, _.loByte)
+      )
+    } yield {
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(both, IMM_16)) & MatchParameter(0)) ~
+        (Linear & Not(Concerns(useful)) & Not(Concerns(useless))).* ~
+        (Elidable & HasOpcodeIn(Set(ADD, ADC, SUB, SBC, XOR, OR, AND, CP)) & HasRegisterParam(useful) & DoesntMatterWhatItDoesWith(useless)) ~~> { (code, ctx) =>
+        code.tail.init :+ code.last.copy(registers = OneRegister(IMM_8), parameter = extractUseful(ctx.get[Constant](0)))
+      }
+    }),
   )
 
   val ReloadingKnownValueFromMemory = new RuleBasedAssemblyOptimization("Reloading known value from memory",
@@ -296,6 +313,13 @@ object AlwaysGoodI80Optimizations {
     (HasOpcode(LD) & MatchSourceRealRegister(0) & MatchTargetRealRegister(1)) ~
       (Linear & Not(ChangesMatchedRegister(0)) & Not(ChangesMatchedRegister(1))).* ~
       (Elidable & HasOpcode(LD) & MatchSourceRealRegister(1) & MatchTargetRealRegister(0)) ~~> (_.init),
+
+    // 68
+    (Elidable & HasOpcode(LD) & Match8BitImmediate(1) & MatchTargetRegisterAndOffset(2)) ~
+      Where(ctx => ctx.get[RegisterAndOffset](2).isOneOfSeven) ~
+      (Elidable & HasOpcode(LD) & MatchSourceRegisterAndOffset(2) & MatchTargetRealRegister(3) & DoesntMatterWhatItDoesWithMatchedRegisterOffset(2)) ~~> {(code, ctx) =>
+      List(code.head.copy(registers = TwoRegisters(ctx.get[ZRegister.Value](3), IMM_8)))
+    },
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",

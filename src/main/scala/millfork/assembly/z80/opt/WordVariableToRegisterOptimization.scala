@@ -2,7 +2,7 @@ package millfork.assembly.z80.opt
 
 import millfork.{CompilationFlag, NonOverlappingIntervals}
 import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
-import millfork.assembly.z80.{TwoRegisters, ZFlag, ZLine, ZLine0}
+import millfork.assembly.z80.{OneRegister, TwoRegisters, ZFlag, ZLine, ZLine0}
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
@@ -263,6 +263,22 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       case (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, BC), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs if th.name == vname =>
         canBeInlined(vname, synced = true, target, xs).map(add(target == BC, CyclesAndBytes(16, 3), CyclesAndBytes(8, 1)))
 
+      case (_, ZLine(OR, OneRegister(A), _, Elidability.Elidable, _))  ::
+        (f, ZLine(SBC_16, TwoRegisters(HL, BC | DE), _, Elidability.Elidable, _))  :: xs if target == HL =>
+        val i = f.importanceAfter
+        if (i.h == Unimportant &&
+          i.l == Unimportant &&
+          i.a == Unimportant &&
+          i.hf == Unimportant &&
+          i.nf == Unimportant &&
+          i.pf == Unimportant &&
+          i.sf == Unimportant &&
+          i.zf == Unimportant) {
+          canBeInlined(vname, synced = true, target, xs).map(add(CyclesAndBytes(3, -1)))
+        } else {
+          None
+        }
+
       case (_, x) :: (_, ZLine(LD_16, TwoRegisters(MEM_ABS_16, t), MemoryAddressConstant(th), Elidability.Elidable, _)) :: xs
         if th.name == vname && t == target && x.changesRegister(t) =>
         canBeInlined(vname, synced = true, target, xs).map(add(CyclesAndBytes(16, 3)))
@@ -299,6 +315,24 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
   def inlineVars(hl: String, bc: String, de: String, code: List[(FlowInfo, ZLine)]): TailRec[List[ZLine]] = {
     //    if (code.nonEmpty) println(code.head)
     code match {
+
+      case (_, ZLine(OR, OneRegister(A), _, _, _)) ::
+        (_, l@ZLine(SBC_16, TwoRegisters(HL, BC), _, _, _)) ::
+        xs if hl != "" =>
+        tailcall(inlineVars(hl, bc, de, xs)).map(
+          ZLine.ld8(A, L).pos(l.source) ::
+            ZLine.register(SUB, C).pos(l.source) ::
+            ZLine.ld8(A, H).pos(l.source) ::
+            ZLine.register(SBC, B).pos(l.source) :: _)
+
+      case (_, ZLine(OR, OneRegister(A), _, _, _)) ::
+        (_, l@ZLine(SBC_16, TwoRegisters(HL, DE), _, _, _)) ::
+        xs if hl != "" =>
+        tailcall(inlineVars(hl, bc, de, xs)).map(
+          ZLine.ld8(A, L).pos(l.source) ::
+            ZLine.register(SUB, E).pos(l.source) ::
+            ZLine.ld8(A, H).pos(l.source) ::
+            ZLine.register(SBC, D).pos(l.source) :: _)
 
       case (_, load@ZLine(LD_16, TwoRegisters(BC, IMM_16), _, _, s1)) ::
         (f, add@ZLine(ADD_16, TwoRegisters(HL, BC), _, _, s2)) ::

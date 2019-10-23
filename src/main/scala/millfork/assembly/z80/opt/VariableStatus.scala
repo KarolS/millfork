@@ -18,7 +18,10 @@ class VariableStatus(val paramVariables: Set[String],
                      val localVariables: List[Variable],
                      val variablesWithLifetimes: List[(Variable, Range)],
                      val variablesWithLifetimesMap: Map[String, Range],
-                     val codeWithFlow: List[(FlowInfo, ZLine)])
+                     val codeWithFlow: List[(FlowInfo, ZLine)]) {
+
+  override def toString = s"VariableStatus(paramVariables=$paramVariables, stillUsedVariables=$stillUsedVariables, variablesWithAddressesTaken=$variablesWithAddressesTaken, localVariables=$localVariables, variablesWithLifetimesMap=$variablesWithLifetimesMap)"
+}
 
 object VariableStatus {
   def apply(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext, typFilter: Type => Boolean): Option[VariableStatus] = {
@@ -49,20 +52,26 @@ object VariableStatus {
       case _ => None
     }.toSet
     val variablesWithAddressesTaken = code.zipWithIndex.flatMap {
-      case (ZLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)), _) =>
+      case (l@ZLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)), _) =>
+//        println(th.name -> l)
         Some(th.name)
-      case (ZLine0(_, _, SubbyteConstant(CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _)), _) =>
+      case (l@ZLine0(_, _, SubbyteConstant(CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), _)), _) =>
+//        println(th.name -> l)
         Some(th.name)
-      case (ZLine0(_,
+      case (l@ZLine0(_,
       TwoRegisters(ZRegister.MEM_HL, _) | TwoRegisters(_, ZRegister.MEM_HL) | OneRegister(ZRegister.MEM_HL),
       _), i) =>
         flow(i)._1.statusBefore.hl match {
           case SingleStatus(MemoryAddressConstant(th)) =>
-            if (flow(i)._1.importanceAfter.hlNumeric != Unimportant) Some(th.name)
-            else None
+            if (flow(i)._1.importanceAfter.hlNumeric != Unimportant) {
+//              println(th.name -> l)
+              Some(th.name)
+            }else None
           case SingleStatus(CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _))) =>
-            if (flow(i)._1.importanceAfter.hlNumeric != Unimportant) Some(th.name)
-            else None
+            if (flow(i)._1.importanceAfter.hlNumeric != Unimportant) {
+//              println(th.name -> l)
+              Some(th.name)
+            } else None
           case _ => None // TODO: ???
         }
       case _ => None

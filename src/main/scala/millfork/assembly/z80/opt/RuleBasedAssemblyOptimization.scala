@@ -559,11 +559,17 @@ case class MatchImmediate(i: Int) extends AssemblyLinePattern {
 }
 
 case class RegisterAndOffset(register: ZRegister.Value, offset: Int) {
+
   def toOneRegister: ZRegisters = register match {
     case ZRegister.MEM_IX_D | ZRegister.MEM_IY_D => OneRegisterOffset(register, offset)
     case _ =>
       if (offset != 0) ???
       OneRegister(register)
+  }
+
+  def isOneOfSeven: Boolean = register match {
+    case ZRegister.A | ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E | ZRegister.H | ZRegister.L => true
+    case _ => false
   }
 }
 
@@ -741,6 +747,21 @@ case class DoesntMatterWhatItDoesWith(registers: ZRegister.Value*) extends Assem
     registers.forall(r => flowInfo.importanceAfter.getRegister(r) != Important)
 
   override def toString: String = registers.mkString("[¯\\_(ツ)_/¯:", ",", "]")
+
+  override def hitRate: Double = 0.058
+}
+
+case class DoesntMatterWhatItDoesWithMatchedRegisterOffset(i: Int) extends AssemblyLinePattern {
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
+    FlowInfoRequirement.assertBackward(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = {
+    val ro = ctx.get[RegisterAndOffset](i)
+    ro.isOneOfSeven && flowInfo.importanceAfter.getRegister(ro.register) != Important
+  }
+
+
+  override def toString: String = "[¯\\_(ツ)_/¯:" + i + "]"
 
   override def hitRate: Double = 0.058
 }
