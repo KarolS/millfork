@@ -94,6 +94,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       case s: LabelStatement =>
         List(ZLine.label(env.prefix + s.name)) -> Nil
       case Assignment(destination, source) =>
+        if (destination == BlackHoleExpression) return Z80ExpressionCompiler.compile(ctx, source, ZExpressionTarget.NOTHING, NoBranching) -> Nil
         val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
         val targetType = AbstractExpressionCompiler.getExpressionType(ctx, destination)
         AbstractExpressionCompiler.checkAssignmentType(ctx, source, targetType)

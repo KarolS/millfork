@@ -610,4 +610,19 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
       m.readLong(0xc024) should equal(0) withClue "b4..b7 of a[4] initted from stack int40"
     }
   }
+
+
+  test("Fast small array indexing") {
+    EmuBenchmarkRun(
+      """
+        | array(word) words[10] @$c000
+        | noinline byte getLo(byte i) = words[i].lo
+        | noinline byte getHi(byte i) = words[i].hi
+        | noinline word get(byte i) = words[i]
+        | void main () {
+        |   get(5)
+        | }
+      """.stripMargin){ m =>
+    }
+  }
 }

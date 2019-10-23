@@ -74,7 +74,7 @@ and the most significant word is passed via the DE register pair
 
 * callee may clobber all flags
 
-* callee may clobber all registers except for IX, IY and shadow registers
+* callee may clobber all registers except for SP, IX, IY and shadow registers
 
 ## 8086
 
@@ -118,4 +118,32 @@ and the most significant word is passed via the DX register
 
 * callee may clobber all flags
 
-* callee may clobber all registers except for BP
+* callee may clobber all registers except for SP and BP
+
+## 6809
+
+**WARNING!** Motorola 6809 support is not yet complete.
+
+**TODO: this convention may change**
+
+#### Parameters:
+
+* if the function has one parameter of size one byte, it is passed via the B register
+
+* if the function has one parameter of size two bytes, it is passed via the D register
+
+* otherwise, all parameters are passed via static locations
+
+#### Return values:
+
+* one-byte return values are passed via the B register
+
+* two-byte return values are passed via the D register
+
+* otherwise, the return value is passed via a static location
+
+#### Register preservation:
+
+* callee may clobber all flags
+
+* callee may clobber all registers except for S and U

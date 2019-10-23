@@ -372,7 +372,7 @@ for <variable> : [ <comma separated expressions> ]  {
 
 * `<variable>` – an already defined numeric variable
 
-* `<direction>` – the range to traverse:
+* `<direction>` – the type of range to traverse:
 
     * `to` – from `<start>` inclusive to `<end>` inclusive, in ascending order
     (e.g. `0,to,9` to traverse 0, 1,... 9)
@@ -388,6 +388,21 @@ for <variable> : [ <comma separated expressions> ]  {
     * `paralleluntil` – the same as `until`, but the iterations may be executed in any order
     
     There is no `paralleldownto`, because it would do the same as `parallelto` with swapped arguments.
+    
+    If:
+    
+    * the left argument to `until`, `paralleluntil`, `to` or `parallelto` is greater than the right argument
+    
+    * the left argument to `downto` is smaller than the right argument
+    
+    then the loop counter overflows and wraps around.
+    For example, `for i,254,to,1` with `i` being a byte, iterates over 254, 255, 0, 1.
+    
+    If the arguments to `until` or `paralleluntil` are equal, zero iterations are executed.
+    
+    `<start>` and `<end>` may be evaluated an arbitrary number of times.
+    It's recommended to use only constants, variables or other really simple expressions.
+    
 
 * `<enum type>` – traverse enum constants of given type, in arbitrary order
 

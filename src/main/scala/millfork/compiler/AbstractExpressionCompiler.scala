@@ -543,6 +543,7 @@ object AbstractExpressionCompiler {
 
   def checkAssignmentTypeAndGetSourceType(ctx: CompilationContext, source: Expression, target: LhsExpression): Type = {
     val sourceType = getExpressionType(ctx, source)
+    if (target == BlackHoleExpression) return sourceType
     val targetType = getExpressionType(ctx, target)
     if (!sourceType.isAssignableTo(targetType)) {
       ctx.log.error(s"Cannot assign `$sourceType` to `$targetType`", target.position.orElse(source.position))

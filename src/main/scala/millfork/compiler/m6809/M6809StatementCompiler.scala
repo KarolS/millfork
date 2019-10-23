@@ -3,7 +3,7 @@ package millfork.compiler.m6809
 import millfork.assembly.BranchingOpcodeMapping
 import millfork.assembly.m6809.{MLine, NonExistent}
 import millfork.compiler.{AbstractCompiler, AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
-import millfork.node.{Assignment, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, IfStatement, M6809AssemblyStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
+import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, IfStatement, M6809AssemblyStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
 import millfork.assembly.m6809.MOpcode._
 import millfork.env.{FatBooleanType, Label, ThingInMemory}
 
@@ -43,6 +43,7 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
             ???
         }
       case Assignment(destination, source) =>
+        if (destination == BlackHoleExpression) return M6809ExpressionCompiler.compile(ctx, source, MExpressionTarget.NOTHING, BranchSpec.None) -> Nil
         val destinationType = AbstractExpressionCompiler.getExpressionType(ctx, destination)
         AbstractExpressionCompiler.checkAssignmentType(ctx, source, destinationType)
         destinationType.size match {

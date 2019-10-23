@@ -39,11 +39,11 @@ object ShouldNotParse extends Matchers {
       }
     parserF.toAst match {
       case Success(program, _) =>
-        fail("Parse succeded")
+        fail("Parse succeeded")
       case f: Failure[_, _] =>
         println(f.extra.toString)
-        println(f.lastParser.toString)
-        log.info("Expected syntax error: " + parserF.lastLabel, Some(parserF.lastPosition))
+        log.warn("Last parser: " + f.lastParser, Some(parserF.indexToPosition(f.index, f.lastParser.toString)))
+        log.warn("Expected syntax error: " + parserF.lastLabel, Some(parserF.lastPosition))
     }
   }
 }

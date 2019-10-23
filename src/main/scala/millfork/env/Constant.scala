@@ -394,7 +394,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     case MathOperator.Or | MathOperator.Exor | MathOperator.Plus | MathOperator.Minus =>
       lhs.isProvablyDivisibleBy256 && rhs.isProvablyDivisibleBy256
     case MathOperator.Shl =>
-      rhs.isProvablyGreaterOrEqualThan(NumericConstant(8, 1))
+      rhs.isProvablyGreaterOrEqualThan(NumericConstant(8, 1)) || lhs.isProvablyDivisibleBy256
     case _ => false
   }
 
@@ -452,6 +452,11 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.And => Constant.Zero
           case MathOperator.Divide => Constant.Zero
           case MathOperator.Modulo => Constant.Zero
+          case _ => CompoundConstant(operator, l, r)
+        }
+      case (NumericConstant(0, _), c) =>
+        operator match {
+          case MathOperator.Shl => l
           case _ => CompoundConstant(operator, l, r)
         }
       case (c, NumericConstant(0, 1)) =>

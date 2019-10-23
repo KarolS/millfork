@@ -148,7 +148,9 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
       endEvaluated.foreach { value =>
         val max = f.direction match {
           case ForDirection.To | ForDirection.ParallelTo | ForDirection.DownTo => value
-          case ForDirection.Until | ForDirection.ParallelUntil => value - 1
+          case ForDirection.Until | ForDirection.ParallelUntil =>
+            // dirty hack:
+            if (value.quickSimplify.isProvablyZero) value else value - 1
           case _ => Constant.Zero
         }
         if (!max.quickSimplify.fitsInto(v.typ)) {
@@ -162,15 +164,25 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         val end = ctx.nextLabel("of")
         val (main, extra) = compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body)
         main ++ labelChunk(end) -> extra
-      case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s >= e =>
+      case (ForDirection.Until | ForDirection.ParallelUntil, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e =>
         Nil -> Nil
 
       case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s == e =>
         val end = ctx.nextLabel("of")
         val (main, extra) = compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, f.start).pos(p) :: f.body)
         main ++ labelChunk(end) -> extra
-      case (ForDirection.To | ForDirection.ParallelTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, _))) if s > e =>
-        Nil -> Nil
+
+      case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(255, _))) if indexType.size == 1 =>
+        compile(ctx, List(
+          Assignment(vex, f.start).pos(p),
+          DoWhileStatement(f.body, List(increment), FunctionCallExpression("!=", List(vex, LiteralExpression(0, 1).pos(p))), names).pos(p)
+        ))
+
+      case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(0xffff, _))) if indexType.size == 2 =>
+        compile(ctx, List(
+          Assignment(vex, f.start).pos(p),
+          DoWhileStatement(f.body, List(increment), FunctionCallExpression("!=", List(vex, LiteralExpression(0, 2).pos(p))), names).pos(p)
+        ))
 
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(c), Some(NumericConstant(256, _)))
         if variable.map(_.typ.size).contains(1) && c.requiredSize == 1 && c.isProvablyNonnegative =>
@@ -200,8 +212,6 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         val end = ctx.nextLabel("of")
         val (main, extra) = compile(ctx.addLabels(names, Label(end), Label(end)), Assignment(vex, LiteralExpression(s, ssize)).pos(p) :: f.body)
         main ++ labelChunk(end) -> extra
-      case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s < e =>
-        Nil -> Nil
       case (ForDirection.DownTo, Some(NumericConstant(s, 1)), Some(NumericConstant(0, _))) if s > 0 =>
         compile(ctx, List(
           Assignment(
@@ -219,10 +229,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         compile(ctx, List(
           Assignment(
             vex,
-            SumExpression(
-              List(false -> f.start, false -> LiteralExpression(1, 1).pos(p)),
-              decimal = false
-            ).pos(p)
+            f.start #-# 1
           ).pos(p),
           DoWhileStatement(
             decrement :: f.body,
@@ -237,7 +244,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
           WhileStatement(
-            FunctionCallExpression("<", List(vex, f.end)).pos(p),
+            FunctionCallExpression("!=", List(vex, f.end)).pos(p),
             f.body, List(increment), names).pos(p)
         ))
 //          case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(n, _))) if n > 0 && n < 255 =>
@@ -265,15 +272,12 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         val endMinusOne = (f.end #-# 1).pos(p)
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
-          IfStatement(
-            FunctionCallExpression(">=", List(vex, f.end)).pos(p),
-            List(DoWhileStatement(
-              f.body,
-              List(decrement),
-              FunctionCallExpression("!=", List(vex, endMinusOne)).pos(p),
-              names
-            ).pos(p)),
-            Nil)
+          DoWhileStatement(
+            f.body,
+            List(decrement),
+            FunctionCallExpression("!=", List(vex, endMinusOne)).pos(p),
+            names
+          ).pos(p)
         ))
     }
   }

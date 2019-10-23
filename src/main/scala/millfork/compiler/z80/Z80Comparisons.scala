@@ -192,14 +192,21 @@ object Z80Comparisons {
       case _ =>
     }
 
-    val (calculated, useBC) = if (calculateLeft.exists(Z80ExpressionCompiler.changesBC)) {
-      if (calculateLeft.exists(Z80ExpressionCompiler.changesDE)) {
-        calculateRight ++ List(ZLine.register(ZOpcode.PUSH, ZRegister.HL)) ++ Z80ExpressionCompiler.fixTsx(ctx, calculateLeft) ++ List(ZLine.register(ZOpcode.POP, ZRegister.BC)) -> false
-      } else {
-        calculateRight ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L)) ++ calculateLeft -> false
-      }
-    } else {
-      calculateRight ++ List(ZLine.ld8(ZRegister.B, ZRegister.H), ZLine.ld8(ZRegister.C, ZRegister.L)) ++ calculateLeft -> true
+    val (calculated, useBC) = calculateRight match {
+      case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), c)) =>
+        (calculateLeft :+ ZLine.ldImm16(ZRegister.BC, c)) -> true
+      case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.MEM_ABS_16), c)) if ctx.options.flag(CompilationFlag.EmitZ80Opcodes) =>
+        (calculateLeft :+ ZLine.ldAbs16(ZRegister.BC, c)) -> true
+      case _ =>
+        if (calculateLeft.exists(Z80ExpressionCompiler.changesBC)) {
+          if (calculateLeft.exists(Z80ExpressionCompiler.changesDE)) {
+            calculateRight ++ List(ZLine.register(ZOpcode.PUSH, ZRegister.HL)) ++ Z80ExpressionCompiler.fixTsx(ctx, calculateLeft) ++ List(ZLine.register(ZOpcode.POP, ZRegister.BC)) -> true
+          } else {
+            calculateRight ++ List(ZLine.ld8(ZRegister.D, ZRegister.H), ZLine.ld8(ZRegister.E, ZRegister.L)) ++ calculateLeft -> false
+          }
+        } else {
+          calculateRight ++ List(ZLine.ld8(ZRegister.B, ZRegister.H), ZLine.ld8(ZRegister.C, ZRegister.L)) ++ calculateLeft -> true
+        }
     }
     val (effectiveCompType, label) = branches match {
       case BranchIfFalse(la) => ComparisonType.negate(compType) -> la

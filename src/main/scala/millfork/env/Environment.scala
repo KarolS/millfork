@@ -119,6 +119,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (forZpOnly && !options.platform.hasZeroPage) {
       return
     }
+    if (nf.exists(_.name.endsWith(".trampoline"))) {
+      return
+    }
+    if (log.traceEnabled) log.trace("Allocating variables in " + nf.map(f => "function " + f.name).getOrElse("global scope"))
     val b = get[Type]("byte")
     val p = get[Type]("pointer")
     val params = nf.fold(List[String]()) { f =>
@@ -146,6 +150,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     } else 3
     val toAdd = things.values.flatMap {
       case m: UninitializedMemory if passForAlloc(m.alloc) == pass && nf.isDefined == isLocalVariableName(m.name) && !m.name.endsWith(".addr") && maybeGet[Thing](m.name + ".array").isEmpty =>
+        if (log.traceEnabled) log.trace("Allocating " + m.name)
         val vertex = if (options.flag(CompilationFlag.VariableOverlap)) {
           nf.fold[VariableVertex](GlobalVertex) { f =>
             if (m.alloc == VariableAllocationMethod.Static) {

@@ -66,7 +66,14 @@ object Main {
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")
     }
 
-    val output = c.outputFileName.getOrElse("a")
+    val output = c.outputFileName match {
+      case Some(ofn) => ofn
+      case None => c.inputFileNames match {
+        case List(ifn) if ifn.endsWith(".mfk") =>
+          new File(ifn.stripSuffix(".mfk")).getName
+        case _ => "a"
+      }
+    }
     val assOutput = output + ".asm"
 //    val prgOutputs = (platform.outputStyle match {
 //      case OutputStyle.Single => List("default")
@@ -369,10 +376,10 @@ object Main {
 
     fluff("Main options:", "")
 
-    parameter("-o", "--out").required().placeholder("<file>").action { (p, c) =>
+    parameter("-o", "--out").placeholder("<file>").action { (p, c) =>
       assertNone(c.outputFileName, "Output already defined")
       c.copy(outputFileName = Some(p))
-    }.description("The output file name, without extension.").onWrongNumber(_ => errorReporting.fatalQuit("No output file specified"))
+    }.description("The output file name, without extension.")
 
     flag("-s").action { c =>
       c.copy(outputAssembly = true)

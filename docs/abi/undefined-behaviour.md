@@ -39,6 +39,9 @@ Currently, such functions may be evaluated either once or twice. This might be f
 
 * when using modifying operators: calling functions on the right-hand-side index expression than modify any of the variables used on the left hand side
 
+* when using `for` loops operators: calling non-pure functions in the range limits (like in `for i,f(),to,g()`).
+Currently, such functions may be evaluated any number of times. This might be fixed in the future.
+
 * jumping across the scope of for loop that uses a fixed list or across functions
 
 * division by zero and modulo by zero

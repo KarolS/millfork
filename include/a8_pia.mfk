@@ -1,0 +1,17 @@
+// Atari 8-bit PIA hardware
+
+#if not(ATARI_8)
+#warn a8_pia module should be used only on Atari computer-compatible targets
+#endif
+
+// port A data r/w
+volatile byte pia_porta @$D300
+
+// port B data r/w
+volatile byte pia_portb @$D301
+
+// port A control
+volatile byte pia_pactl @$D302
+
+// port B control
+volatile byte pia_pbctl @$D303

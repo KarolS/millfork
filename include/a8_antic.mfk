@@ -1,0 +1,24 @@
+// Atari 8-bit ANTIC hardware
+
+#if not(ATARI_8)
+#warn a8_antic module should be used only on Atari computer-compatible targets
+#endif
+
+volatile byte antic_dmactl @$D400 // direct memory access control
+volatile byte antic_chactl @$D401 // character mode control
+volatile byte antic_dlistl @$D402 // display list pointer low-byte
+volatile byte antic_dlisth @$D403 // display list pointer high-byte
+volatile byte antic_hscrol @$D404 // horizontal scroll enable
+volatile byte antic_vscrol @$D405 // vertical scroll enable
+volatile byte antic_unuse0 @$D406 // unused
+volatile byte antic_pmbase @$D407 // msb of p/m base address
+volatile byte antic_unuse1 @$D408 // unused
+volatile byte antic_chbase @$D409 // character base address
+volatile byte antic_wsync  @$D40A // wait for horizontal synchronization
+volatile byte antic_vcount @$D40B // vertical line counter
+volatile byte antic_penh   @$D40C // light pen horizontal position
+volatile byte antic_penv   @$D40D // light pen vertical position
+volatile byte antic_nmien  @$D40E // non-maskable interrupt enable
+
+// nmi reset status
+volatile byte antic_nmires @$D40F
