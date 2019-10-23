@@ -141,7 +141,7 @@ inline void vera_upload(int24 address, pointer source, byte size) {
     asm {
         ? ldy #0
         __vera_upload_loop:
-        ? lda (__reg),y
+        ? lda (source),y
         ! sta vera_data1
         ? iny
         ? cpy size
