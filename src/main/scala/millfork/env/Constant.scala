@@ -40,7 +40,7 @@ sealed trait Constant {
     case _ => CompoundConstant(MathOperator.Shl, this, i)
   }
 
-  def asl(i: Int): Constant = CompoundConstant(MathOperator.Shl, this, NumericConstant(i, 1))
+  def asl(i: Int): Constant = CompoundConstant(MathOperator.Shl, this, NumericConstant(i, requiredSize + i/8))
 
   def requiredSize: Int
 

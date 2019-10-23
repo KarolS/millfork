@@ -22,6 +22,10 @@
 
 * Fixed a bug with variable overlapping (#11).
 
+* 6502: Fixed a bug with flow analysis during optimizations.
+
+* 6502: Fixed a bug with certain 16-bit additions.
+
 * 8080: Fixed and optimized 16-bit comparisons.
 
 * 8080: Optimized some library functions.

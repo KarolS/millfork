@@ -20,6 +20,21 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       """.stripMargin)(_.readWord(0xc000) should equal(1280))
   }
 
+  test("Addition that was buggy") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)("""
+        | word output @$c000
+        | array X [$1000] align($100)
+        | void main () {
+        |  output = f(1)
+        | }
+        | noinline word f(byte I) {
+        |   word S
+        |   S = X + nonet(I << 1)
+        |   return S
+        | }
+      """.stripMargin)(_.readWord(0xc000) should equal(0x302))
+  }
+
   test("Cast word addition") {
     EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | byte output @$c000

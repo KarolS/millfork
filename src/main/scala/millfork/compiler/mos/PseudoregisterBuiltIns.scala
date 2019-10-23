@@ -45,7 +45,7 @@ object PseudoregisterBuiltIns {
         case List(AssemblyLine0(LDA, Immediate, l), AssemblyLine0(LDX, Immediate, h)) =>
           if (subtract) constant -= h.asl(8).+(l).quickSimplify
           else constant += h.asl(8).+(l).quickSimplify
-        case List(l@AssemblyLine0(LDA, Absolute | ZeroPage | Immediate, _), h@AssemblyLine0(LDX, Absolute | ZeroPage | Immediate, _)) =>
+        case List(l@AssemblyLine0(LDA, Absolute | ZeroPage | Immediate | LongAbsolute, _), h@AssemblyLine0(LDX, Absolute | ZeroPage | Immediate | LongAbsolute, _)) =>
           if (subtract) niceReads.+=(List(AssemblyLine.implied(SEC), l.copy(opcode = SBC)) -> List(h.copy(opcode = SBC)))
           else niceReads += (List(AssemblyLine.implied(CLC), l.copy(opcode = ADC)) -> List(h.copy(opcode = ADC)))
           counter += 1
@@ -68,7 +68,7 @@ object PseudoregisterBuiltIns {
           if (constant.isQuiteNegative) {
             niceReads += List(AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, constant.loByte)) -> List(AssemblyLine.immediate(ADC, constant.hiByte))
           } else {
-            val negC = Constant.Zero.-(constant).quickSimplify.quickSimplify
+            val negC = Constant.WordZero.-(constant).quickSimplify.quickSimplify
             niceReads += List(AssemblyLine.implied(SEC), AssemblyLine.immediate(SBC, negC.loByte)) -> List(AssemblyLine.immediate(SBC, negC.hiByte))
           }
         }
