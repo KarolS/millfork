@@ -36,7 +36,7 @@ These keywords occur within function bodies:
 
 These keywords occur within bodies of certain other statements:
 
-* for-loop directions: `to until downto parallelto parallel until`
+* for-loop directions: `to until downto parallelto paralleluntil`
 
 * special return-dispatch branch: `default`
 

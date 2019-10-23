@@ -17,7 +17,7 @@ Vertical joystick movement. 1 if down, -1 if up, 0 if neither.
 
 #### `byte input_btn`
 
-1 if main button pressed, 0 id not pressed.
+1 if main button pressed, 0 if not pressed.
 
 #### `void reset_joy()`
 

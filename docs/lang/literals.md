@@ -45,8 +45,8 @@ The exact value of `nullchar` is encoding-dependent:
 * in other encodings it's 0 (this might be a subject to change in future versions).
 
 
-    "this is a zero-terminated string" asciiz
-    "this is also a zero-terminated string"z
+        "this is a zero-terminated string" asciiz
+        "this is also a zero-terminated string"z
 
 Most characters between the quotes are interpreted literally.
 To allow characters that cannot be inserted normally,
@@ -143,7 +143,7 @@ An array is initialized with either:
    *   `@struct`: every term of the initializer is interpreted as a struct constructor (see below) 
    and treated as a list of bytes with no padding   
        `@struct [s(1, 2)]` is equivalent to `[1, 2]` when `struct s {byte x, byte y}` is defined  
-       `@struct [s(1, 2), s(3, 4)]` is equivalent to `[1, 0, 2, 0, 3, 0, 4, 0]` on little-endian machines when `struct s {word x, word y}` is defined  
+       `@struct [s2(1, 2), s2(3, 4)]` is equivalent to `[1, 0, 2, 0, 3, 0, 4, 0]` on little-endian machines when `struct s2 {word x, word y}` is defined  
 
 * a list of literals and/or other array initializers, surrounded by brackets:
 
