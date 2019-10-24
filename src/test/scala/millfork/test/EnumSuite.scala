@@ -39,6 +39,26 @@ class EnumSuite extends FunSuite with Matchers {
       """.stripMargin){_=>}
   }
 
+  test("Enum renumber test") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | enum ugly {
+        |   u0, u1
+        |   u7 = 7, u8,
+        |   u9
+        | }
+        | ugly output0 @$c000
+        | ugly output1 @$c001
+        | void main () {
+        |   output0 = u1
+        |   output1 = u9
+        | }
+      """.stripMargin){ m =>
+      m.readByte(0xc000) should equal(1)
+      m.readByte(0xc001) should equal(9)
+    }
+  }
+
   test("Enum arrays") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
       """

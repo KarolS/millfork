@@ -2,9 +2,12 @@
 
 # Types
 
-Millfork puts extra limitations on which types can be used in which contexts.
-
 ## Numeric types
+
+Millfork puts extra limitations on which types can be used in which contexts.
+1-byte arithmetic types work in every context.
+2-byte arithmetic types work in context that are not overly complicated.
+3-byte and larger types have limited capabilities.
 
 * `byte` – 1-byte value of undefined signedness, defaulting to unsigned
 
@@ -17,7 +20,7 @@ Millfork puts extra limitations on which types can be used in which contexts.
 * `long` – 4-byte value of undefined signedness, defaulting to unsigned
 (alias: `int32`)
 
-* `int40`, `int48`,... `int128` – even larger types
+* `int40`, `int48`,... `int128` – even larger unsigned types
 
 * `sbyte` – signed 1-byte value
 
@@ -47,26 +50,43 @@ Numeric types can be converted automatically:
 
 * from a type of defined signedness to a type of undefined signedness (`sbyte`→`byte`)
 
+Numeric types can be also converted explicitly from a smaller to an equal or bigger size.
+This is useful in situations like preventing overflow or underflow,
+or forcing zero extension or sign extension:
+
+    byte a
+    a = 30
+    a * a         // expression of type byte, equals 132
+    word(a) * a   // expression of type word, equals 900
+    
+    word x
+    byte y
+    y = $80
+    x = y         // does zero extension and assigns value $0080
+    x = sbyte(y)  // does sign extension and assigns value $FF80
+
 ## Typed pointers
 
 For every type `T`, there is a pointer type defined called `pointer.T`.
 
 Unlike raw pointers, they are not subject to arithmetic.
 
-If the type `T` is of size 1, you can index the pointer like a raw pointer.
-
-If the type `T` is of size 2, you can index the pointer only with the constant 0.
+You can index the pointer like a raw pointer or an array.
+An expression like `p[n]` accesses the `n`th object in an array of consecutive objects pointed to by `p`.
 
 You can create pointer values by suffixing `.pointer` to the name of a variable, function or array.
+
+You can replace C-style pointer arithmetic by combining indexing and `.pointer`: C `p+5`, Millfork `p[5].pointer`.
 
 Examples:
 
     pointer.t p
-    p.pointer   // expression of type pointer, pointing to the same location in memory as 'p'
+    p = t1.pointer // assigning a pointer
+    p.raw       // expression of type pointer, pointing to the same location in memory as 'p'
     p.lo        // equivalent to 'p.raw.lo'
     p.hi        // equivalent to 'p.raw.lo'
     p[0]        // valid only if the type 't' is of size 1 or 2, accesses the pointed element
-    p[i]        // valid only if the type 't' is of size 1, equivalent to 't(p.raw[i])'
+    p[i]        // accessing the ith element; if 'sizeof(t) == 1', then equivalent to 't(p.raw[i])'
     p->x        // valid only if the type 't' has a field called 'x', accesses the field 'x' of the pointed element
     p->x.y[0]->z[0][6]   // you can stack it
   
@@ -85,7 +105,7 @@ there is a pointer type defined called `function.A.to.B`, which represents funct
     B function_name(A parameter)
     B function_name()  // if A is void
     
-Examples:
+To call a pointed-to function, use `call`. Examples:
 
     word i
     function.void.to.word p1 = f1.pointer
@@ -101,18 +121,18 @@ The value of the pointer `f.pointer` may not be the same as the value of the fun
 
 ## Boolean types
 
-Boolean types can be used as conditions. They have two possible values, `true` and `false`, although 
+Boolean types can be used as conditions. They have two possible values, `true` and `false`.
 
 * `bool` – a 1-byte boolean value. An uninitialized variable of type `bool` may contain an invalid value.
 
 * several boolean types based on the CPU flags that may be used only as a return type for a function written in assembly:
 
-    true if flag set | true if flag clear | 6502 flag | 8080 flag | Z80 flag | LR35902 flag  
-    -----------------|--------------------|-----------|-----------|----------|-------------  
-    `set_carry`      | `clear_carry`      | C         | C         | C        | C  
-    `set_zero`       | `clear_zero`       | Z         | Z         | Z        | Z  
-    `set_overflow`   | `clear_overflow`   | V         | P¹        | P/V      | _n/a_²  
-    `set_negative`   | `clear_negative`   | N         | S         | S        | _n/a_²  
+    true if flag set | true if flag clear | 6502 flag | 6809 flag | 8080 flag | Z80 flag | LR35902 flag  
+    -----------------|--------------------|-----------|-----------|-----------|----------|-------------  
+    `set_carry`      | `clear_carry`      | C         | C         | C         | C        | C  
+    `set_zero`       | `clear_zero`       | Z         | Z         | Z         | Z        | Z  
+    `set_overflow`   | `clear_overflow`   | V         | V         | P¹        | P/V      | *n/a*²  
+    `set_negative`   | `clear_negative`   | N         | N         | S         | S        | *n/a*²  
 
     1\. 8080 does not have a dedicated overflow flag, so since Z80 reuses the P flag for overflow,
     8080 uses the same type names for compatibility.
@@ -122,6 +142,8 @@ Boolean types can be used as conditions. They have two possible values, `true` a
 Examples:
 
     bool f() = true
+    
+    bool g(byte x) = x == 7 || x > 100
     
     void do_thing(bool b) { 
         if b { do_one_thing() } 
@@ -135,6 +157,9 @@ Examples:
     #elseif ARCH_I80
         SCF
         ? RET
+    #elseif ARCH_6809
+        ORCC #1
+        ? RTS
     #else
         #error
     #endif
@@ -174,6 +199,14 @@ Assignment between numeric types and enumerations is not possible without an exp
     a[0]        // won't compile
     a[EB]       // ok
     
+    enum X {}   // enum with no variants
+    enum Y {    // enum with renumberedvariants
+        YA = 5
+        YB      // YB is internally represented as 6
+    }         
+    array a2[X] // won't compile
+    array a2[Y] // won't compile
+    
     
 Plain enumerations have their variants equal to `byte(0)` to `byte(<name>.count - 1)`.
     
@@ -190,7 +223,7 @@ A struct is represented in memory as a contiguous area of variables laid out one
 
 Struct can have a maximum size of 255 bytes. Larger structs are not supported.
 
-You can access a field of a struct with the dot:
+You can access a field of a struct with a dot:
 
     struct point { word x, word y }
     

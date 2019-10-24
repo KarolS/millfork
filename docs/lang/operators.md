@@ -145,11 +145,15 @@ Note you cannot mix those operators, so `a <= b < c` is not valid.
 **WARNING:** Currently in cases like `a < f() < b`, `f()` may be evaluated an undefined number of times 
 (the current implementation calls it twice, but do not rely on this behaviour). 
 
+The `==` and `!=` operators also work for non-arithmetic types.
+
 * `==`: equality  
 `enum == enum`  
 `byte == byte`  
 `simple word == simple word`  
 `word == constant`  
+`simple word == word` (zpreg)  
+`word == simple word` (zpreg)  
 `simple long == simple long`
 
 * `!=`: inequality  
@@ -157,12 +161,15 @@ Note you cannot mix those operators, so `a <= b < c` is not valid.
 `byte != byte`  
 `simple word != simple word`  
 `word != constant`  
+`simple word != word` (zpreg)  
+`word != simple word` (zpreg)  
 `simple long != simple long`
 
 * `>`, `<`, `<=`, `>=`: inequality  
 `byte > byte`  
-`simple word > word`  
-`word > simple word`  
+`simple word > simple word`  
+`simple word > word` (zpreg)  
+`word > simple word` (zpreg)  
 `simple long > simple long`
 
 Currently, `>`, `<`, `<=`, `>=` operators perform signed comparison 

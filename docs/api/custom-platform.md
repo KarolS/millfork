@@ -131,8 +131,8 @@ Only used for 6502-based targets. Cannot be used together with `zp_pointers`.
 A segment named `default` is always required.  
 Default: `default`. In all options below, `NAME` refers to a segment name.
 
-* `default_code_segment` – the default segment for code and initialized arrays.  
-Note that the default segment for uninitialized arrays and variables is always `default`.  
+* `default_code_segment` – the default segment for code and const arrays.  
+Note that the default segment for writable arrays and variables is always `default`.  
 Default: `default`
 
 * `ram_init_segment` – the segment storing a copy of initial values for preinitialized writable arrays and variables.
@@ -141,11 +141,13 @@ Default: none.
 
 * `segment_NAME_start` – the first address used for automatic allocation in the segment.  
 Note that on 6502-like targets, the `default` segment shouldn't start before $200, as the $0-$1FF range is reserved for the zeropage and the stack.  
-The `main` function will be placed as close to the beginning of its segment as possible, but not necessarily at `segment_NAME_start`
+The first object defined in `segment_NAME_layout` (usually the `main` function)
+will be placed as close to the beginning of its segment as possible,
+but not necessarily at `segment_NAME_start`
 
 * `segment_NAME_end` – the last address in the segment
 
-* `segment_NAME_codeend` – the last address in the segment for code and initialized arrays.  
+* `segment_NAME_codeend` – the last address in the segment for code and const arrays.  
 Only uninitialized variables are allowed between `segment_NAME_codeend` and `segment_NAME_end`.  
 Default: the same as `segment_NAME_end`.
 
