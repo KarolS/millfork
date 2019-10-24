@@ -7,7 +7,7 @@
 
 #if TINY_RW_MEMORY
 
-noinline asm void init_rw_memory() {
+asm void init_rw_memory() {
     ? ldx #__rwdata_size.lo // can't be more than $00FC
     ? beq __init_rw_memory__skip3
     + memory_barrier()
@@ -18,7 +18,7 @@ __init_rw_memory__loop3:
     ? bne __init_rw_memory__loop3
     + memory_barrier()
 __init_rw_memory__skip3:
-    rts
+    ? rts
 }
 
 #else
