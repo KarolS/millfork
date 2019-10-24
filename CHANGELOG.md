@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.10
 
 * Preliminary support for the CPU from ZX Spectrum Next.
 
