@@ -12,7 +12,7 @@ void strzappend(pointer buffer, pointer str) {
 void strzappendchar(pointer buffer, byte char) {
    buffer += strzlen(buffer)
    buffer[0] = char
-   buffer[1] = 0
+   buffer[1] = nullchar
 }
 
 word strz2word(pointer str) {
