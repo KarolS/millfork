@@ -128,7 +128,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   //noinspection NameBooleanParameters
   val variableAtom: P[Expression] = identifier.map{ i =>
     featureConstants.get(i) match {
-      case Some(value) => LiteralExpression(value, size(value, false ,false, false))
+      case Some(value) => LiteralExpression(value, size(value, false, false, false, false, false, false, false))
       case None => VariableExpression(i)
     }
   }
@@ -672,11 +672,15 @@ object MfParser {
 
   val doubleQuotedString: P[String] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').?.! ~ "\"")
 
-  def size(value: Long, wordLiteral: Boolean, int24Literal: Boolean, int32Literal: Boolean): Int = {
-    val w = value > 255 || value < -0x80 || wordLiteral
-    val f = value > 0xffff || value < -0x8000 || int24Literal
-    val l = value > 0xffffff || value < -0x800000 || int32Literal
-    if (l) 4 else if (f) 3 else if (w) 2 else 1
+  def size(value: Long, wordLiteral: Boolean, int24Literal: Boolean, int32Literal: Boolean, int40Literal: Boolean, int48Literal: Boolean, int56Literal: Boolean, int64Literal: Boolean): Int = {
+    val w  = value > 0xff              || value < -0x80             || wordLiteral
+    val f  = value > 0xffff            || value < -0x8000           || int24Literal
+    val l  = value > 0xffffff          || value < -0x800000         || int32Literal
+    val q5 = value > 0xFFFFffff        || value < -0x80000000       || int40Literal
+    val q6 = value > 0xffFFFFffffL     || value < -0x8000000000L    || int48Literal
+    val q7 = value > 0xffffFFFFffffL   || value < -0x800000000000L  || int56Literal
+    val q8 = value > 0xFFffffFFFFffffL || value < -0x8000000000000L || int64Literal
+    if (q8) 8 else if (q7) 7 else if (q6) 6 else if (q5) 5 else if (l) 4 else if (f) 3 else if (w) 2 else 1
   }
 
   def sign(abs: Long, minus: Boolean): Long = if (minus) -abs else abs
@@ -696,7 +700,7 @@ object MfParser {
     } yield {
       val abs = parseLong(s, 10)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 3,  s.length > 5, s.length > 7))
+      LiteralExpression(value, size(value, s.length > 3,  s.length > 5, s.length > 7, s.length > 10, s.length > 13, s.length > 15, s.length > 17))
     }
 
   val binaryAtom: P[LiteralExpression] =
@@ -707,7 +711,7 @@ object MfParser {
     } yield {
       val abs = parseLong(s, 2)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 8, s.length > 16, s.length > 24))
+      LiteralExpression(value, size(value, s.length > 8, s.length > 16, s.length > 24, s.length > 32, s.length > 40, s.length > 48, s.length > 52))
     }
 
   val hexAtom: P[LiteralExpression] =
@@ -718,7 +722,7 @@ object MfParser {
     } yield {
       val abs = parseLong(s, 16)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6))
+      LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6, s.length > 8, s.length > 10, s.length > 12, s.length > 14))
     }
 
   val intelHexAtom: P[LiteralExpression] =
@@ -732,7 +736,7 @@ object MfParser {
       val s = if (head == "0" && tail.nonEmpty && tail.head >'9') tail else head + tail
       val abs = parseLong(s, 16)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6))
+      LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6, s.length > 8, s.length > 10, s.length > 12, s.length > 14))
     }
 
   val octalAtom: P[LiteralExpression] =
@@ -743,7 +747,7 @@ object MfParser {
     } yield {
       val abs = parseLong(s, 8)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 3, s.length > 6, s.length > 9))
+      LiteralExpression(value, size(value, s.length > 3, s.length > 6, s.length > 8, s.length > 11, s.length > 14, s.length > 16, s.length > 19))
     }
 
   val quaternaryAtom: P[LiteralExpression] =
@@ -754,7 +758,7 @@ object MfParser {
     } yield {
       val abs = parseLong(s, 4)
       val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 4, s.length > 8, s.length > 12))
+      LiteralExpression(value, size(value, s.length > 4, s.length > 8, s.length > 12, s.length > 16, s.length > 20, s.length > 24, s.length > 28))
     }
 
   val mfOperators = List(
