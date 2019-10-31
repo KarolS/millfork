@@ -81,7 +81,14 @@ Some escape sequences may expand to multiple characters. For example, in several
 
 * `{program_name_upper}` – the same, but uppercased
 
-* `{nullchar}` – the null terminator for strings (`"{nullchar}"` is equivalent to `""z`)
+* `{nullchar}` – the null terminator for strings (`"{nullchar}"` is equivalent to `""z`).  
+The exact value of `{nullchar}` is encoding-dependent:
+
+    * in the `vectrex` encoding it's `{x80}`,
+    * in the `zx80` encoding it's `{x01}`,
+    * in the `zx81` encoding it's `{x0b}`,
+    * in the `utf16be` and `utf16le` encodings it's exceptionally two bytes: `{x00}{x00}`
+    * in other encodings it's `{x00}` (this **will** be a subject to change in future versions).
 
 ##### Available only in some encodings
 

@@ -281,7 +281,8 @@ object Platform {
       log.fatal(s"Invalid label file format: `$debugOutputFormatName`"))
 
     val builtInFeatures = builtInCpuFeatures(cpu) ++ Map(
-      "ENCODING_SAME" -> toLong(codec.name == srcCodec.name)
+      "ENCODING_SAME" -> toLong(codec.name == srcCodec.name),
+      "NULLCHAR_SAME" -> toLong(codec.stringTerminator == srcCodec.stringTerminator)
     )
 
     import scala.collection.JavaConverters._

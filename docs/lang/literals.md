@@ -35,18 +35,32 @@ If there is no encoding name specified, then the `default` encoding is used.
 Two encoding names are special and refer to platform-specific encodings:
 `default` and `scr`.
 
+## Zero-terminated strings
+
 You can also append `z` to the name of the encoding to make the string zero-terminated.
-This means that the string will have one extra byte appended, equal to `nullchar`.
-The exact value of `nullchar` is encoding-dependent:
+This means that the string will have a string terminator appended, usually a single byte.
+The exact value of that byte is encoding-dependent:
 * in the `vectrex` encoding it's 128,
 * in the `zx80` encoding it's 1,
 * in the `zx81` encoding it's 11,
 * in the `utf16be` and `utf16le` encodings it's exceptionally two bytes: 0, 0
-* in other encodings it's 0 (this might be a subject to change in future versions).
-
+* in other encodings it's 0 (this **will** be a subject to change in future versions).
 
         "this is a zero-terminated string" asciiz
         "this is also a zero-terminated string"z
+
+The byte constant `nullchar` is defined to be equal to the string terminator in the `default` encoding (or, in other words, to `'{nullchar}'`)
+and the byte constant `nullchar_scr` is defined to be equal to the string terminator in the `scr` encoding (`'{nullchar}'scr`).
+
+You can override the values for `nullchar` and `nullchar_scr`
+by defining preprocesor features `NULLCHAR` and `NULLCHAR_SCR` respectively. 
+
+Warning: If you define UTF-16 to be you default or screen encoding, you will encounter several problems:
+
+* `nullchar` and `nullchar_scr` will still be bytes, equal to zero.
+* the `string` module in the Millfork standard library will not work correctly
+
+## Escape sequences and miscellaneous compatibility issues
 
 Most characters between the quotes are interpreted literally.
 To allow characters that cannot be inserted normally,

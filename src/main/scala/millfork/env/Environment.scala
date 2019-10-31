@@ -439,8 +439,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(ConstantThing("nullptr.raw.hi", nullptrConstant.hiByte.quickSimplify, b), None)
     addThing(ConstantThing("nullptr.raw.lo", nullptrConstant.loByte.quickSimplify, b), None)
     val nullcharValue = options.features.getOrElse("NULLCHAR", options.platform.defaultCodec.stringTerminator.head.toLong)
+    val nullcharScrValue = options.features.getOrElse("NULLCHAR_SCR", options.platform.screenCodec.stringTerminator.head.toLong)
     val nullcharConstant = NumericConstant(nullcharValue, 1)
+    val nullcharScrConstant = NumericConstant(nullcharScrValue, 1)
     addThing(ConstantThing("nullchar", nullcharConstant, b), None)
+    addThing(ConstantThing("nullchar_scr", nullcharScrConstant, b), None)
     val __zeropage_usage = UnexpandedConstant("__zeropage_usage", 1)
     addThing(ConstantThing("__zeropage_usage", __zeropage_usage, b), None)
     def addUnexpandedWordConstant(name: String): Unit = {

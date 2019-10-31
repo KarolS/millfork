@@ -56,6 +56,12 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `ENCODING_SAME` - 1 if the encodings `default` and `src` are the same, 0 otherwise.
 
+* `NULLCHAR_SAME` - 1 if the encodings `default` and `src` have the same string terminator, 0 otherwise.
+
+* `NULLCHAR` – the value of the `nullchar` constant
+
+* `NULLCHAR_SRC` – the value of the `nullchar_src` constant
+
 * `INIT_RW_MEMORY` – 1 if the option `ram_init_segment` is defined, 0 otherwise.
 See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
 
