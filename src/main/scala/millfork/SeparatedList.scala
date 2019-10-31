@@ -5,6 +5,19 @@ package millfork
   */
 case class SeparatedList[T, S](head: T, tail: List[(S, T)]) {
 
+  def exists(predicate: T => Boolean): Boolean = {
+     predicate(head) || tail.exists(x => predicate(x._2))
+  }
+
+  def count(predicate: T => Boolean): Int = {
+    val headCount = if (predicate(head)) 1 else 0
+    headCount + tail.count(x => predicate(x._2))
+  }
+
+  def map[R](f: T => R): SeparatedList[R, S] = {
+    SeparatedList(f(head), tail.map(x => x._1 -> f(x._2)))
+  }
+
   def toPairList(initialSeparator: S): List[(S, T)] = (initialSeparator -> head) :: tail
 
   def size: Int = tail.size + 1

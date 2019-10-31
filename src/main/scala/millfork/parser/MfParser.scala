@@ -50,19 +50,21 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     newPosition
   }
 
-  val comment: P[Unit] = P("//" ~/ CharsWhile(c => c != '\n' && c != '\r', min = 0) ~ ("\r\n" | "\r" | "\n"))
+  val comment: P[Unit] = P("//" ~ CharsWhile(c => c != '\n' && c != '\r', min = 0) ~ ("\r\n" | "\r" | "\n"))
 
-  val semicolon: P[Unit] = P(";" ~/ CharsWhileIn("; \t", min = 0) ~/ position("line break after a semicolon").map(_ => ()) ~/ (comment | "\r\n" | "\r" | "\n").opaque("<line break>"))
+  val semicolon: P[Unit] = P(";" ~ CharsWhileIn("; \t", min = 0) ~ position("line break after a semicolon").map(_ => ()) ~ (comment | "\r\n" | "\r" | "\n").opaque("<line break>"))
 
-  val semicolonComment: P[Unit] = P(";" ~/ CharsWhile(c => c != '\n' && c != '\r' && c != '{' && c != '}', min = 0) ~/ position("line break instead of braces").map(_ => ()) ~/ ("\r\n" | "\r" | "\n").opaque("<line break>"))
+  val semicolonComment: P[Unit] = P(";" ~ CharsWhile(c => c != '\n' && c != '\r' && c != '{' && c != '}', min = 0) ~ position("line break instead of braces").map(_ => ()) ~ ("\r\n" | "\r" | "\n").opaque("<line break>"))
 
-  val AWS: P[Unit] = P((CharIn(" \t\n\r") | NoCut(semicolon) | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
+  val AWS: P[Unit] = P((CharIn(" \t\n\r") | semicolon | comment).rep(min = 0)).opaque("<any whitespace>")
 
-  val AWS_asm: P[Unit] = P((CharIn(" \t\n\r") | NoCut(semicolonComment) | NoCut(comment)).rep(min = 0)).opaque("<any whitespace>")
+  val AWS_asm: P[Unit] = P((CharIn(" \t\n\r") | semicolonComment | comment).rep(min = 0)).opaque("<any whitespace>")
+
+  val Before_EOL: P[Unit] = HWS ~  &("\r" | "\n" | ";" | "//").opaque("<line break>")
 
   val EOL: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | semicolon | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
 
-  val EOL_asm: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | comment | semicolonComment).opaque("<first line break>") ~ AWS).opaque("<line break>")
+  val EOL_asm: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | semicolon | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
 
   val EOLOrComma: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | "," | semicolon | comment).opaque("<first line break or comma>") ~ AWS).opaque("<line break or comma>")
 
@@ -155,7 +157,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       p <- position()
       name <- identifier ~/ HWS ~/ Pass
       addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~ HWS
-      initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~ HWS
+      initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
       alignment = None // TODO
     } yield (p, name, addr, initialValue, alignment)
 
@@ -165,7 +167,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     flags <- variableFlags ~ HWS
     typ <- identifier ~/ SWS
     vars <- singleVariableDefinition.rep(min = 1, sep = "," ~/ HWS)
-    _ <- &(EOL) ~/ ""
+    _ <- Before_EOL ~/ ""
   } yield {
     vars.map { case (p, name, addr, initialValue, alignment) => VariableDeclarationStatement(name, typ,
       bank,
