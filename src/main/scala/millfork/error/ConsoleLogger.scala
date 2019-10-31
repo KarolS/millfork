@@ -22,14 +22,17 @@ class ConsoleLogger extends Logger {
   private def printErrorContext(pos: Option[Position]): Unit = synchronized {
     pos.foreach { position =>
         sourceLines.get(position.moduleName).foreach { lines =>
-          val line = lines.apply(pos.get.line - 1)
-          val column = pos.get.column - 1
-          val margin = "       "
-          print(margin)
-          println(line)
-          print(margin)
-          print(" " * column)
-          println("^")
+          val lineIx = pos.get.line - 1
+          if (lineIx < lines.length) {
+            val line = lines.apply(lineIx)
+            val column = pos.get.column - 1
+            val margin = "       "
+            print(margin)
+            println(line)
+            print(margin)
+            print(" " * column)
+            println("^")
+          }
         }
     }
   }

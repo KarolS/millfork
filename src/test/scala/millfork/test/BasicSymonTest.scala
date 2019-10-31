@@ -147,9 +147,13 @@ class BasicSymonTest extends FunSuite with Matchers {
   test("Segment syntax") {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
-        | segment(default)byte output @$c000
+        | segment ( default ) byte output @$c000
         | segment(default)array x[3]
         | segment(default)void main () {
+        | }
+        | segment (default) {
+        |  const byte a = 1
+        |  //
         | }
       """.stripMargin){ m => () }
   }
