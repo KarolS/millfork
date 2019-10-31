@@ -32,3 +32,16 @@ Sets `errno`.
 #### `void strzappendchar(pointer buffer, byte char)`
 
 Modifies the given null-terminated buffer by appending a null-terminated string or a single character respectively.
+
+## scrstring
+
+The `scrstring` module automatically imports the `string` and `err` modules.  
+
+It contains functions for handling strings in the screen encoding with the same semantics as the functions from the string module.
+
+#### `byte scrstrzlen(pointer str)`
+#### `sbyte scrstrzcmp(pointer str1, pointer str2)`
+#### `void scrstrzcopy(pointer dest, pointer src)`
+#### `word scrstrz2word(pointer str)`
+#### `void scrstrzappend(pointer buffer, pointer str)`
+#### `void scrstrzappendchar(pointer buffer, byte char)`

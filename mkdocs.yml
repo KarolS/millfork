@@ -34,7 +34,7 @@ nav:
     - List of keywords: lang/keywords.md
   - Library reference:
     - stdlib module: stdlib/stdlib.md
-    - string module: stdlib/string.md
+    - string and scrstring modules: stdlib/string.md
     - stdio module: stdlib/stdio.md
     - keyboard, err, random: stdlib/other.md
     - joy, mouse, x_coord: stdlib/input.md

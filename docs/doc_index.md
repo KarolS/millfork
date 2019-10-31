@@ -44,7 +44,7 @@
 
 * [`stdlib` module](stdlib/stdlib.md)
 
-* [`string` module](stdlib/string.md)
+* [`string` and `scrstring` modules](stdlib/string.md)
 
 * [`stdio` module](stdlib/stdio.md)
 
