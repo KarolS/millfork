@@ -92,7 +92,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       "to".!.map(_ => ForDirection.To) |
       ("down" ~/ HWS ~/ "to").!.map(_ => ForDirection.DownTo)
 
-  private def flags_(allowed: String*): P[Set[String]] = StringIn(allowed: _*).!.rep(min = 0, sep = SWS).map(_.toSet).opaque("<flags>")
+  private def flags_(allowed: String*): P[Set[String]] = (StringIn(allowed: _*).! ~ SWS).rep(min = 0).map(_.toSet).opaque("<flags>")
 
   val variableFlags: P[Set[String]] = flags_("const", "static", "volatile", "stack", "register")
 
