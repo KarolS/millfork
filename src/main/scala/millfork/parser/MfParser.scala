@@ -321,47 +321,66 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   def mfExpression(level: Int, allowIntelHex: Boolean, allowTopLevelIndexing: Boolean = true): P[Expression] = {
     val allowedOperators = mfOperatorsDropFlatten(level)
 
-    def inner: P[SeparatedList[Expression, String]] = {
+    def inner: P[SeparatedList[(Boolean, Expression), String]] = {
       for {
+        minus <- ("-".rep(min = 1).!.map(_.length().&(1).==(1)) ~/ HWS).?.map(_.getOrElse(false))
         head <- tightMfExpression(allowIntelHex, allowTopLevelIndexing) ~/ HWS
         maybeOperator <- (StringIn(allowedOperators: _*).! ~ !CharIn(Seq('/', '=', '-', '+', ':', '>', '<', '\''))).?
-        maybeTail <- maybeOperator.fold[P[Option[List[(String, Expression)]]]](Pass.map(_ => None))(o => (AWS ~/ inner ~/ HWS).map(x2 => Some((o -> x2.head) :: x2.tail)))
+        maybeTail <- maybeOperator.fold[P[Option[List[(String, (Boolean, Expression))]]]](Pass.map(_ => None))(o => (AWS ~/ inner ~/ HWS).map(x2 => Some((o -> x2.head) :: x2.tail)))
       } yield {
-        maybeTail.fold[SeparatedList[Expression, String]](SeparatedList.of(head))(t => SeparatedList(head, t))
+        maybeTail.fold[SeparatedList[(Boolean, Expression), String]](SeparatedList.of(minus -> head))(t => SeparatedList(minus -> head, t))
       }
     }
 
-    def p(list: SeparatedList[Expression, String], level: Int): Expression =
-      if (level == mfOperators.length) list.head
-      else {
+    def p(list: SeparatedList[(Boolean, Expression), String], level: Int): Expression =
+      if (level == mfOperators.length) {
+        if (list.head._1) {
+          LiteralExpression(0, 1) #-# list.head._2
+        } else {
+          list.head._2
+        }
+      } else {
         val xs = list.split(mfOperators(level).toSet(_))
         xs.separators.distinct match {
           case Nil =>
             if (xs.tail.nonEmpty)
-              log.error("Too many different operators", xs.head.head.position)
+              log.error("Too many different operators", xs.head.head._2.position)
             p(xs.head, level + 1)
           case List("+") | List("-") | List("+", "-") | List("-", "+") =>
-            SumExpression(xs.toPairList("+").map { case (op, value) => (op == "-", p(value, level + 1)) }, decimal = false)
+            SumExpression(xs.toPairList("+").map {
+              case (op, value) =>
+                if (value.count(_._1) > 0) {
+                  if (value.size == 1) {
+                    log.error("Too many different operators", xs.head.head._2.position)
+                  }
+                  (op == "+", p(value.map(p => (false, p._2)), level + 1))
+                } else {
+                  (op == "-", p(value, level + 1))
+                }
+            }, decimal = false).pos(list.head._2.position)
           case List("+'") | List("-'") | List("+'", "-'") | List("-'", "+'") =>
-            SumExpression(xs.toPairList("+").map { case (op, value) => (op == "-'", p(value, level + 1)) }, decimal = true)
+            SumExpression(xs.toPairList("+").map { case (op, value) =>
+              if (value.exists(_._1)) log.error("Too many different operators", xs.head.head._2.position)
+              (op == "-'", p(value, level + 1))
+            }, decimal = true).pos(list.head._2.position)
           case List(":") =>
             if (xs.size != 2) {
-              log.error("The `:` operator can have only two arguments", xs.head.head.position)
+              log.error("The `:` operator can have only two arguments", xs.head.head._2.position)
               LiteralExpression(0, 1)
             } else {
-              SeparateBytesExpression(p(xs.head, level + 1), p(xs.tail.head._2, level + 1))
+              SeparateBytesExpression(p(xs.head, level + 1), p(xs.tail.head._2, level + 1)).pos(list.head._2.position)
             }
           case List(eq) if level == 0 =>
             if (xs.size != 2) {
-              log.error(s"The `$eq` operator can have only two arguments", xs.head.head.position)
+              log.error(s"The `$eq` operator can have only two arguments", xs.head.head._2.position)
               LiteralExpression(0, 1)
             } else {
-              FunctionCallExpression(eq, xs.items.map(value => p(value, level + 1)))
+              FunctionCallExpression(eq, xs.items.map(value => p(value, level + 1))).pos(list.head._2.position)
             }
           case List(op) =>
-            FunctionCallExpression(op, xs.items.map(value => p(value, level + 1)))
+            FunctionCallExpression(op, xs.items.map(value => p(value, level + 1))).pos(list.head._2.position)
           case _ =>
-            log.error("Too many different operators", xs.head.head.position)
+            log.error("Too many different operators", xs.head.head._2.position)
             LiteralExpression(0, 1)
         }
       }
@@ -745,5 +764,6 @@ object MfParser {
 
   val nonStatementLevel = 1 // everything but not `=`
   val mathLevel = 4 // the `:` operator
+  val minusLevel = 5 // the `-` operator
 
 }
