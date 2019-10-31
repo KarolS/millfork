@@ -630,20 +630,26 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   } yield Seq(UnionDefinitionStatement(name, fields).pos(p))
 
   val segmentBlock: P[Seq[BankedDeclarationStatement]] = for {
-   bankName <- "segment" ~ AWS ~ "(" ~ AWS ~ identifier ~ AWS ~ ")" ~ AWS ~ "{" ~/ AWS
-   body <- locatableDefinition.rep(sep = EOL)
-   _ <- AWS ~ "}" ~/ Pass
+    (_, bankName) <- "segment" ~ AWS ~ "(" ~ AWS ~ position("segment name") ~ identifier ~ AWS ~ ")" ~ AWS ~ "{" ~/ AWS
+    body <- locatableDefinition.rep(sep = EOL)
+    _ <- AWS ~ "}" ~/ Pass
   } yield {
-    body.flatten.map{ stmt =>
+    body.flatten.map { stmt =>
       if (stmt.bank.isEmpty) stmt.withChangedBank(bankName)
       else stmt
     }
   }
 
-  def locatableDefinition: P[Seq[BankedDeclarationStatement]] = segmentBlock | arrayDefinition | functionDefinition | globalVariableDefinition
+
+  def checkForNonlocatableDefinitions: P[Seq[BankedDeclarationStatement]] =
+    ((StringIn("alias", "enum", "struct", "union", "import").! ~ SWS) ~/ position()).map{ x =>
+      log.fatal(s"`${x._1}` statements are not allowed inside segment blocks", Some(x._2))
+    }
+
+  def locatableDefinition: P[Seq[BankedDeclarationStatement]] = checkForNonlocatableDefinitions | segmentBlock | arrayDefinition | functionDefinition | globalVariableDefinition
 
   val program: Parser[Program] = for {
-    _ <- Start ~/ AWS ~/ Pass
+    _ <- Start ~/ AWS ~/ position("top level statement")
     definitions <- (importStatement | aliasDefinition | enumDefinition | structDefinition | unionDefinition | locatableDefinition).rep(sep = EOL)
     _ <- AWS ~ End
   } yield Program(definitions.flatten.toList)
