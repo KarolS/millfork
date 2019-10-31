@@ -1,14 +1,12 @@
 package millfork.compiler.mos
 
-import millfork.{CompilationFlag, env}
+import millfork.CompilationFlag
 import millfork.assembly.Elidability
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
-import millfork.assembly.z80.ZLine
 import millfork.compiler._
 import millfork.env._
-import millfork.error.ConsoleLogger
 import millfork.node.{MosRegister, _}
 import millfork.output.NoAlignment
 /**
@@ -630,7 +628,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     }
   }
 
-  def compile(ctx: CompilationContext, expr: Expression, exprTypeAndVariable: Option[(Type, Variable)], branches: BranchSpec): List[AssemblyLine] = {
+  def compile(ctx: CompilationContext, expr: Expression, exprTypeAndVariable: Option[(Type, Variable)], branches: BranchSpec): List[AssemblyLine] = try {
     val env = ctx.env
     val b = env.get[Type]("byte")
     val exprType = AbstractExpressionCompiler.getExpressionType(ctx, expr)
@@ -1781,6 +1779,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           calculate ++ compile(ctx, VariableExpression(resultVariable), exprTypeAndVariable, branches)
         }
     }
+  } catch {
+    case ex: ConstantOverflowException =>
+      ctx.log.error(ex.getMessage, ex.position.orElse(expr.position))
+      Nil
   }
 
   private def compileTransitiveRelation(ctx: CompilationContext,

@@ -313,12 +313,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               log.warn(s"Alias `$name` is deprecated, use `$target` instead", position)
             }
             root.get[T](target)
-          case _ => log.fatal(s"`$name` is not a ${clazz.getSimpleName}", position)
+          case _ => throw IdentifierHasWrongTypeOfThingException(clazz, name, position)
         }
       }
     } else parent.fold {
       hintTypo(name)
-      log.fatal(s"${clazz.getSimpleName} `$name` is not defined", position)
+      throw UndefinedIdentifierException(clazz, name, position)
     } {
       _.get[T](name, position)
     }
@@ -604,7 +604,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case VariableExpression(name) =>
         maybeGet[Thing](name) match {
           case None =>
-            log.error(s"`$name` is not defined")
+            log.error(s"`$name` is not defined", expr.position)
             hintTypo(name)
             1
           case Some(thing) => thing match {
@@ -628,7 +628,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def eval(e: Expression): Option[Constant] = evalImpl(e, None)
 
   //noinspection ScalaUnnecessaryParentheses,ZeroIndexToHead
-  private def evalImpl(e: Expression, vv: Option[Map[String, Constant]]): Option[Constant] = {
+  private def evalImpl(e: Expression, vv: Option[Map[String, Constant]]): Option[Constant] = try{{
     e match {
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
       case tl:TextLiteralExpression => Some(getPointy(getTextLiteralArrayName(tl)).asInstanceOf[ConstantPointy].value)
@@ -796,7 +796,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
         }
     }
-  }.map(_.quickSimplify)
+  }.map(_.quickSimplify)} catch {
+    case ez:NonFatalCompilationException =>
+      log.error(ez.getMessage, e.position)
+      None
+  }
 
   def debugConstness(item: Expression): Unit = {
     if (!log.debugEnabled) return
@@ -1996,11 +2000,18 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     fixStructFields()
     val pointies = collectPointies(program.declarations)
     pointiesUsed("") = pointies
-    program.declarations.foreach {
-      case f: FunctionDeclarationStatement => registerFunction(f, options)
-      case v: VariableDeclarationStatement => registerVariable(v, options, pointies(v.name))
-      case a: ArrayDeclarationStatement => registerArray(a, options)
-      case _ =>
+    program.declarations.foreach { decl =>
+      try {
+        decl match {
+          case f: FunctionDeclarationStatement => registerFunction(f, options)
+          case v: VariableDeclarationStatement => registerVariable(v, options, pointies(v.name))
+          case a: ArrayDeclarationStatement => registerArray(a, options)
+          case _ =>
+        }
+      } catch {
+        case ex: NonFatalCompilationException =>
+          log.error(ex.getMessage, ex.position.orElse(decl.position))
+      }
     }
     expandAliases()
     if (options.zpRegisterSize > 0 && !things.contains("__reg")) {

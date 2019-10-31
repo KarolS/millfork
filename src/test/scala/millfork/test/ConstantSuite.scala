@@ -2,7 +2,7 @@ package millfork.test
 
 import millfork.Cpu
 import millfork.env.{BasicPlainType, DerivedPlainType, NumericConstant}
-import millfork.test.emu.EmuUnoptimizedCrossPlatformRun
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -33,4 +33,14 @@ class ConstantSuite extends FunSuite with Matchers {
       NumericConstant(0x7f, 2).isProvablyNegative(signed(2)) should be(false)
       NumericConstant(-1, 8).isProvablyNegative(signed(8)) should be(true)
     }
+
+  test ("Overflow errors should be nice") {
+    ShouldNotCompile(
+      """
+        |word sum
+        |void main() {
+        |    sum = 246 + 18
+        |}
+        |""".stripMargin)
+  }
 }

@@ -495,11 +495,11 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
           case (minus, arg) => minus -> optimizeExpr(arg, currentVarValues)
         }.filterNot{
           case (_, e) => env.eval(e).exists(_.isProvablyZero)
-        }, decimal = false)
+        }, decimal = false).pos(pos)
       case SumExpression(expressions, decimal) =>
         // don't collapse additions, let the later stages deal with it
         // expecially important when inside a nonet operation
-        SumExpression(expressions.map{case (minus, arg) => minus -> optimizeExpr(arg, currentVarValues)}, decimal)
+        SumExpression(expressions.map{case (minus, arg) => minus -> optimizeExpr(arg, currentVarValues)}, decimal).pos(pos)
       case IndexedExpression(name, index) =>
         val pointy = env.getPointy(name)
         val targetType = pointy.elementType

@@ -4,7 +4,7 @@ import millfork.assembly.m6809.{DAccumulatorIndexed, Indexed, MLine, MOpcode, Tw
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FunctionInMemory, FunctionPointerType, M6809RegisterVariable, MacroFunction, MathOperator, MemoryVariable, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
+import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FunctionInMemory, FunctionPointerType, M6809RegisterVariable, MacroFunction, MathOperator, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -43,7 +43,7 @@ import MExpressionTarget.toLd
 
 object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
 
-  def compile(ctx: CompilationContext, expr: Expression, target: MExpressionTarget.Value, branches: BranchSpec = BranchSpec.None): List[MLine] = {
+  def compile(ctx: CompilationContext, expr: Expression, target: MExpressionTarget.Value, branches: BranchSpec = BranchSpec.None): List[MLine] = try {
     val env = ctx.env
     val exprType = getExpressionType(ctx, expr)
     val targetSize = MExpressionTarget.size(target)
@@ -466,6 +466,10 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         }
       case _ => ???
     }
+  } catch {
+    case ex: NonFatalCompilationException =>
+      ctx.log.error(ex.getMessage, ex.position.orElse(expr.position))
+      Nil
   }
 
   def compileToA(ctx: CompilationContext, expr: Expression): List[MLine] = compile(ctx, expr, MExpressionTarget.A)
