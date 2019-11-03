@@ -676,7 +676,7 @@ object MfParser {
     val w  = value > 0xff              || value < -0x80             || wordLiteral
     val f  = value > 0xffff            || value < -0x8000           || int24Literal
     val l  = value > 0xffffff          || value < -0x800000         || int32Literal
-    val q5 = value > 0xFFFFffff        || value < -0x80000000       || int40Literal
+    val q5 = value > 0xFFFFffffL       || value < -0x80000000L      || int40Literal
     val q6 = value > 0xffFFFFffffL     || value < -0x8000000000L    || int48Literal
     val q7 = value > 0xffffFFFFffffL   || value < -0x800000000000L  || int56Literal
     val q8 = value > 0xFFffffFFFFffffL || value < -0x8000000000000L || int64Literal
