@@ -11,17 +11,17 @@ class SizeofSuite extends FunSuite with Matchers with AppendedClues {
   test("Basic sizeof test") {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
       """
-        | const byte sizeofbyte = sizeof(byte)
+        | const word sizeofbyte = sizeof(byte)
         | array output [6] @$c000
         | void main () {
         |   byte a
         |   word b
-        |   output[0] = sizeofbyte
-        |   output[1] = sizeof(a)
-        |   output[2] = sizeof(word)
-        |   output[3] = sizeof(b)
-        |   output[4] = sizeof(output[1])
-        |   output[5] = sizeof(long)
+        |   output[0] = sizeofbyte.lo
+        |   output[1] = lo(sizeof(a))
+        |   output[2] = lo(sizeof(word))
+        |   output[3] = lo(sizeof(b))
+        |   output[4] = lo(sizeof(output[1]))
+        |   output[5] = lo(sizeof(long))
         | }
       """.stripMargin){m =>
       m.readByte(0xc000) should equal(1)
