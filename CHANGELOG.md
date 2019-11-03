@@ -1,5 +1,19 @@
 # Change log
 
+## Current version
+
+* Added `nullchar_scr` and `NULLCHAR_SCR` 
+
+* Added the `scrstring` module
+
+* Added the ability to convert from booleans to integers
+
+* Unary minus and other parser improvements
+
+* Better error reporting
+
+* Other bugfixes
+
 ## 0.3.10
 
 * Preliminary support for the CPU from ZX Spectrum Next.
