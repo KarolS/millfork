@@ -278,6 +278,10 @@ object AbstractExpressionCompiler {
           case 2 => w
           case 3 => env.get[Type]("int24")
           case 4 => env.get[Type]("int32")
+          case 5 => env.get[Type]("int40")
+          case 6 => env.get[Type]("int48")
+          case 7 => env.get[Type]("int56")
+          case 8 => env.get[Type]("int64")
         }
       case ConstantArrayElementExpression(constant) =>
         (constant.quickSimplify match {
@@ -290,6 +294,10 @@ object AbstractExpressionCompiler {
           case (_, 2) => b
           case (_, 3) => env.get[Type]("int24")
           case (_, 4) => env.get[Type]("int32")
+          case (_, 5) => env.get[Type]("int40")
+          case (_, 6) => env.get[Type]("int48")
+          case (_, 7) => env.get[Type]("int56")
+          case (_, 8) => env.get[Type]("int64")
         }
       case GeneratedConstantExpression(_, typ) => typ
       case TextLiteralExpression(_) => env.get[Type]("pointer")
@@ -445,10 +453,7 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression("sin", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("cos", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("tan", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
-      case FunctionCallExpression("sizeof", params) => env.evalSizeof(params.head).requiredSize match {
-        case 1 => b
-        case 2 => w
-      }
+      case FunctionCallExpression("sizeof", _) => w
       case FunctionCallExpression("%%", params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size } match {
         case List(1, 1) | List(2, 1) => b
         case List(1, 2) | List(2, 2) => w
