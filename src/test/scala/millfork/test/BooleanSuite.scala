@@ -246,4 +246,22 @@ class BooleanSuite extends FunSuite with Matchers {
       m.readByte(0xc001) should equal(1)
     }
   }
+
+  test("Boolean to number conversions") {
+    val code =
+      """
+        |byte output @$c000
+        |void main () {
+        |output = 0
+        |output += byte(output == 0)    // ↑
+        |output += byte(output == 0)
+        |output += byte(output != 2)   // ↑
+        |output += byte(output != 2)
+        |output += byte(2 > 1)     // ↑
+        |}
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code){ m =>
+      m.readByte(0xc000) should equal(code.count(_ == '↑'))
+    }
+  }
 }

@@ -23,11 +23,15 @@ sealed trait Type extends CallableThing {
 
   def isSigned: Boolean
 
+  def isBoollike: Boolean = false
+
   def isSubtypeOf(other: Type): Boolean = this == other
 
   def isCompatible(other: Type): Boolean = this == other
 
   override def toString: String = name
+
+  def isExplicitlyCastableTo(targetType: Type): Boolean = isAssignableTo(targetType)
 
   def isAssignableTo(targetType: Type): Boolean = isCompatible(targetType)
 
@@ -131,6 +135,8 @@ case object FatBooleanType extends VariableType {
 
   override def isSigned: Boolean = false
 
+  override def isBoollike: Boolean = true
+
   override def name: String = "bool"
 
   override def isPointy: Boolean = false
@@ -138,6 +144,8 @@ case object FatBooleanType extends VariableType {
   override def isSubtypeOf(other: Type): Boolean = this == other
 
   override def isAssignableTo(targetType: Type): Boolean = this == targetType
+
+  override def isExplicitlyCastableTo(targetType: Type): Boolean = targetType.isArithmetic || isAssignableTo(targetType)
 }
 
 sealed trait BooleanType extends Type {
@@ -145,7 +153,11 @@ sealed trait BooleanType extends Type {
 
   def isSigned = false
 
+  override def isBoollike: Boolean = true
+
   override def isAssignableTo(targetType: Type): Boolean = isCompatible(targetType) || targetType == FatBooleanType
+
+  override def isExplicitlyCastableTo(targetType: Type): Boolean = targetType.isArithmetic || isAssignableTo(targetType)
 }
 
 case class ConstantBooleanType(name: String, value: Boolean) extends BooleanType

@@ -203,7 +203,7 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
       failed = true
     }
     val sourceType = getExpressionType(ctx, params.head)
-    if (typ.size != sourceType.size && !sourceType.isAssignableTo(typ)) {
+    if (typ.size != sourceType.size && !sourceType.isExplicitlyCastableTo(typ)) {
       ctx.log.error(s"Cannot cast a type ${sourceType.name} to an incompatible type ${typ.name} of different size", params.head.position)
       failed = true
     }

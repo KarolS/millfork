@@ -1676,6 +1676,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             env.maybeGet[Type](f.functionName) match {
               case Some(typ) =>
                 val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
+                if (sourceType.isBoollike) {
+                  return compileToFatBooleanInA(ctx, params.head) ++ expressionStorageFromA(ctx, exprTypeAndVariable, position = expr.position, signedSource = false)
+                }
                 exprTypeAndVariable match {
                   case None =>
                     return compile(ctx, params.head, None, branches)

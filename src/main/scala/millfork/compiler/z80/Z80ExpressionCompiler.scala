@@ -1202,6 +1202,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 env.maybeGet[Type](f.functionName) match {
                   case Some(typ) =>
                     val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
+                    if (sourceType.isBoollike) {
+                      return targetifyA(ctx, target, compileToFatBooleanInA(ctx, params.head), isSigned = false)
+                    }
                     return typ.size match {
                         // TODO: alternating signedness?
                       case 1 => targetifyA(ctx, target, compileToA(ctx, params.head), isSigned = typ.isSigned)

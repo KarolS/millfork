@@ -4,7 +4,7 @@ import millfork.assembly.m6809.{DAccumulatorIndexed, Indexed, MLine, MOpcode, Tw
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyParamSignature, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FunctionInMemory, FunctionPointerType, M6809RegisterVariable, MacroFunction, MathOperator, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
+import millfork.env.{AssemblyParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, M6809RegisterVariable, MacroFunction, MathOperator, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -388,6 +388,9 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             env.maybeGet[Type](fce.functionName) match {
               case Some(typ) =>
                 val sourceType = validateTypeCastAndGetSourceExpressionType(ctx, typ, params)
+                if (sourceType.isBoollike) {
+                  return compileToFatBooleanInB(ctx, params.head) ++ targetifyB(ctx, target, isSigned = false)
+                }
                 return typ.size match {
                   // TODO: alternating signedness?
                   case 1 => compileToB(ctx, params.head) ++ targetifyB(ctx, target, isSigned = typ.isSigned)
@@ -482,8 +485,35 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
       case FatBooleanType => compileToB(ctx, expr)
       case t: ConstantBooleanType =>
         List(MLine.immediate(MOpcode.LDB, if (t.value) 1 else 0))
+      case BuiltInBooleanType | _: FlagBooleanType =>
+        val label = ctx.env.nextLabel("bo")
+        val condition = compile(ctx, expr, MExpressionTarget.NOTHING, BranchIfFalse(label))
+        val conditionWithoutJump = condition.init
+        condition.last.opcode match {
+          case BCC =>
+            conditionWithoutJump ++ List(MLine.immediate(LDB, 0), MLine.inherentB(ROL))
+          case BCS =>
+            conditionWithoutJump ++ List(MLine.immediate(LDB, 0), MLine.inherentB(ROL), MLine.immediate(EORB, 1))
+          case BVC | BVS =>
+            conditionWithoutJump ++ List(
+              MLine.immediate(LDB, 0),
+              condition.last,
+              MLine.inherentB(INC),
+              MLine.label(label)
+            )
+          case _ =>
+            conditionWithoutJump ++ List(
+              MLine.immediate(ANDCC, 0xfe),
+              condition.last,
+              MLine.immediate(ORCC, 1),
+              MLine.label(label),
+              MLine.immediate(LDB, 0),
+              MLine.inherentB(ROL)
+            )
+        }
       case _ =>
         println(sourceType)
+        println(expr)
         ???
     }
   }
