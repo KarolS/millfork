@@ -292,7 +292,7 @@ but not
 some enum → `word`
 
 * `sizeof`: size of the argument in bytes; the argument can be an expression or a type,
-and the result is a constant of type `word`
+and the result is a constant of either `byte` or `word` type, depending on the actual value
 
 * `call`: calls a function via a pointer;  
 the first argument is the pointer to the function;  

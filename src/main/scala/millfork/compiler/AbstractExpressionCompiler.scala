@@ -453,7 +453,10 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression("sin", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("cos", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("tan", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
-      case FunctionCallExpression("sizeof", _) => w
+      case FunctionCallExpression("sizeof", params) => env.evalSizeof(params.head).requiredSize match {
+        case 1 => b
+        case 2 => w
+      }
       case FunctionCallExpression("%%", params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size } match {
         case List(1, 1) | List(2, 1) => b
         case List(1, 2) | List(2, 2) => w
