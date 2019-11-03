@@ -17,6 +17,14 @@ Hexadecimal: `$D323`, `0x2a2`
 When using Intel syntax for inline assembly, another hexadecimal syntax is available: `0D323H`, `2a2h`.
 It is not allowed in any other places.
 
+The type of a literal is the smallest type of undefined signedness
+that can fit either the unsigned or signed representation of the value:
+`200` is a `byte`, `4000` is a `word`, `75000` is an `int24` etc.
+
+However, padding the literal to the left with zeroes changes the type
+to the smallest type that can fit the smallest number with the same number of digits and without padding.
+For example, `0002` is of type `word`, as 1000 does not fit in one byte.
+
 ## String literals
 
 String literals can be used as either array initializers or expressions of type `pointer`.
