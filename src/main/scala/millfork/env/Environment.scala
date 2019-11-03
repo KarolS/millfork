@@ -423,6 +423,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(DerivedPlainType("sbyte", b, isSigned = true, isPointy = false), None)
     addThing(Alias("unsigned8", "ubyte"), None)
     addThing(Alias("signed8", "sbyte"), None)
+    addThing(DerivedPlainType("unsigned16", w, isSigned = false, isPointy = false), None)
+    for (bits <- Seq(24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128)) {
+      addThing(DerivedPlainType("unsigned" + bits, get[BasicPlainType]("int" + bits), isSigned = false, isPointy = false), None)
+    }
+    if (options.flag(CompilationFlag.EnableInternalTestSyntax)) {
+      for (bits <- Seq(16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128)) {
+        addThing(DerivedPlainType("signed" + bits, get[BasicPlainType]("int" + bits), isSigned = false, isPointy = false), None)
+      }
+    }
     val trueType = ConstantBooleanType("true$", value = true)
     val falseType = ConstantBooleanType("false$", value = false)
     addThing(trueType, None)
