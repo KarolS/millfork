@@ -724,4 +724,27 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       """.stripMargin){ m => }
   }
 
+
+  test("Optimize parameters") {
+    // TODO the parameters in the sum_until functions are not inlined into registers:
+      val c = """
+        | byte output @ $c000
+        | array a = [2,5,6,8,8]
+        | void main() {
+        |   output = sum_until(a, 0, 3)
+        | }
+        |             noinline byte sum_until(pointer p, byte from, byte to_exclusive) {
+        |                byte i
+        |                byte sum
+        |                sum = 0
+        |                for i,from,paralleluntil,to_exclusive {
+        |                    sum += p[0]
+        |                    p+=1
+        |                }
+        |                return sum
+        |            }
+      """.stripMargin
+    EmuOptimizedZ80Run(c).readByte(0xc000) should equal(13)
+    EmuOptimizedIntel8080Run(c).readByte(0xc000) should equal(13)
+  }
 }
