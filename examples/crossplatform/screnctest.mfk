@@ -1,0 +1,22 @@
+import encconv
+import scrstring
+import stdio
+
+#if CBM_64
+import c64_basic
+const pointer SCREEN = $400
+#elseif CBM_264
+import c264_basic
+const pointer SCREEN = $c00
+#else
+#error
+#endif
+
+void main() {
+    pointer s
+    ensure_mixedcase()
+    putstrz("Enter a text line; it will be displayed{n}on top of the screen:{n}"z)
+    s = readline()
+    strz_to_screencode(s)
+    scrstrzpaste(SCREEN, s)
+}

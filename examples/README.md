@@ -20,6 +20,8 @@
 
 * [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
 
+* [Screen encoding test](crossplatform/screnctest.mfk) (C64/C16) – default-to-screen encoding conversion test
+
 * [Bell](crossplatform/bell.mfk) (Apple II/ZX Spectrum) – a program that goes \*ding!\*
 
 * [Life](crossplatform/life.mfk) (C64/C16/Atari/ZX Spectrum) – Conway's game of life
