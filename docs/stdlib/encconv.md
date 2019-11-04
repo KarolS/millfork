@@ -31,6 +31,8 @@ Available only if one of the following is true:
 
 * the default encoding is `atascii`, the screen encoding is `atasciiscr`, and the platform is 6502-based
 
+You can test for the availability of this function using the `ENCCONV_SUPPORTED` preprocessor feature.
+
 #### byte from_screencode(byte)
 
 Converts a byte from the screen encoding to the default encoding.
@@ -38,6 +40,18 @@ Converts a byte from the screen encoding to the default encoding.
 If both encodings contain the character `¤`, then `from_screencode('¤'scr) == '¤'`.
 
 Available only if `to_screencode` is available.
+
+#### void strz_to_screencode(pointer)
+
+Destructively converts a null-terminated string from the `default` encoding into the `scr` encoding. 
+
+Available only if `to_screencode` is available.
+
+#### void strz_from_screencode(pointer)
+
+Destructively converts a null-terminated string from the `scr` encoding into the `default` encoding. 
+
+Available only if `from_screencode` is available.
 
 #### byte petscii_to_petscr(byte)
 

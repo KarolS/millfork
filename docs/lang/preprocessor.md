@@ -54,6 +54,8 @@ The following features are defined based on the chosen CPU and compilation optio
 `CPUFEATURE_8080`, `CPUFEATURE_8085`, `CPUFEATURE_GAMEBOY`, `CPUFEATURE_Z80`,
 `CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_8085_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS`, `CPUFEATURE_Z80_NEXT` – 1 if given instruction subset is enabled, 0 otherwise
 
+* `ENCCONV_SUPPORTED` - 1 if the module `encconv` supports the function `to_screencode` and other related funtions, 0 otherwise.
+
 * `ENCODING_SAME` - 1 if the encodings `default` and `src` are the same, 0 otherwise.
 
 * `NULLCHAR_SAME` - 1 if the encodings `default` and `src` have the same string terminator, 0 otherwise.

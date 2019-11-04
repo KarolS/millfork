@@ -282,6 +282,13 @@ object Platform {
 
     val builtInFeatures = builtInCpuFeatures(cpu) ++ Map(
       "ENCODING_SAME" -> toLong(codec.name == srcCodec.name),
+      "ENCCONV_SUPPORTED" -> toLong((codec.name, srcCodec.name) match {
+        case (TextCodec.Petscii.name, TextCodec.CbmScreencodes.name) |
+             (TextCodec.PetsciiJp.name, TextCodec.CbmScreencodesJp.name) |
+             (TextCodec.Atascii.name, TextCodec.AtasciiScreencodes.name) =>
+          CpuFamily.forType(cpu) == CpuFamily.M6502
+        case _ => codec.name == srcCodec.name
+      }),
       "NULLCHAR_SAME" -> toLong(codec.stringTerminator == srcCodec.stringTerminator)
     )
 

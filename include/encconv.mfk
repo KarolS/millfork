@@ -2,22 +2,87 @@
 
 #if ARCH_6502
 inline byte __byte_identity(byte a) { ? rts }
+inline void __pointer_to_void(pointer ax) { ? rts }
 #elseif ARCH_I80
 #pragma zilog_syntax
 inline byte __byte_identity(byte a) { ? ret }
+inline void __pointer_to_void(pointer hl) { ? ret }
+#elseif ARCH_M6809
+inline byte __byte_identity(byte b) { ? rts }
+inline void __pointer_to_void(pointer d) { ? rts }
 #else
 inline byte __byte_identity(byte a) = a
+inline void __pointer_to_void(pointer a) { }
 #endif
 
 alias from_screencode = __byte_identity
 alias to_screencode = __byte_identity
+alias strz_from_screencode = __pointer_to_void
+alias strz_to_screencode = __pointer_to_void
 
-#else
+#elseif ENCCONV_SUPPORTED
 
 alias from_screencode = __from_screencode
 alias to_screencode = __to_screencode
 
+
+#if ARCH_6502
+void strz_from_screencode(pointer p) {
+    asm {
+        ? LDY #0
+        __strz_from_screencode__loop:
+        LDA (p),Y
+        ? CMP #nullchar_scr
+        ? BEQ __strz_from_screencode__end
+        ? JSR from_screencode
+        ? STA (p),Y
+        ? INY
+        ? JMP __strz_from_screencode__loop
+        __strz_from_screencode__end:
+        ? LDA #nullchar
+        ? STA (p),Y
+    }
+}
+void strz_to_screencode(pointer p) {
+    asm {
+        ? LDY #0
+        __strz_to_screencode__loop:
+        LDA (p),Y
+        ? CMP #nullchar
+        ? BEQ __strz_to_screencode__end
+        ? JSR to_screencode
+        ? STA (p),Y
+        ? INY
+        ? JMP __strz_to_screencode__loop
+        __strz_to_screencode__end:
+        ? LDA #nullchar_scr
+        ? STA (p),Y
+    }
+}
+#else
+void strz_from_screencode(pointer p) {
+    while true {
+        if p[0] == nullchar_scr {
+            p[0] = nullchar
+            return
+        }
+        p[0] = from_screencode(p[0])
+        p += 1
+    }
+}
+void strz_to_screencode(pointer p) {
+    while true {
+        if p[0] == nullchar {
+            p[0] = nullchar_scr
+            return
+        }
+        p[0] = to_screencode(p[0])
+        p += 1
+    }
+}
 #endif
+
+#endif // ENCODING_SAME/ENCCONV_SUPPORTED
 
 
 // conversions for particular encoding pairs:
