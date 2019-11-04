@@ -67,4 +67,17 @@ class TextCodecSuite extends FunSuite with Matchers {
         | }
       """.stripMargin)
   }
+
+  test("Escape sequences") {
+    val m = EmuUnoptimizedRun(
+      """
+        | void main() {
+        |   pointer p
+        |   p = "{n}"pet
+        |   output = p[0]
+        | }
+        | byte output @$c000
+      """.stripMargin)
+    m.readByte(0xc000) should equal(13)
+  }
 }

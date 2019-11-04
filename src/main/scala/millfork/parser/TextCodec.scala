@@ -187,7 +187,7 @@ class TableTextCodec(override val name: String,
         val (escSeq, closingBrace) = tail.span(_ != '}')
         closingBrace match {
           case '}' :: xs =>
-            encodeEscapeSequence(log, escSeq.mkString(""), position, options, lenient) ++ encode(log, position, xs, options, lenient)
+            encodeEscapeSequence(log, escSeq.map(_.toChar).mkString(""), position, options, lenient) ++ encode(log, position, xs, options, lenient)
           case _ =>
             log.error(f"Unclosed escape sequence", position)
             Nil
