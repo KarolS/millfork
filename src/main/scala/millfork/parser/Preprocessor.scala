@@ -23,6 +23,11 @@ object Preprocessor {
 
   case class IfContext(hadEnabled: Boolean, hadElse: Boolean, enabledBefore: Boolean)
 
+  private def isNotEmpty(s: String): Boolean = {
+    val isEmpty = s.isEmpty || s.startsWith("//") || s.forall(_ == ';')
+    ! isEmpty
+  }
+
   def apply(options: CompilationOptions, shortFileName: String, lines: Seq[String]): PreprocessingResult = {
     val platform = options.platform
     val log = options.log
@@ -104,7 +109,7 @@ object Preprocessor {
                 ifStack.push(IfContext(hadEnabled = false, hadElse = false, enabledBefore = false))
               }
             case "endif" =>
-              if (param != "") log.error("#endif shouldn't have a parameter", pos)
+              if (isNotEmpty(param)) log.error("#endif shouldn't have a parameter", pos)
               if (ifStack.isEmpty)  log.error("Unmatched #endif", pos)
               else {
                 enabled = ifStack.pop().enabledBefore
@@ -124,7 +129,7 @@ object Preprocessor {
                 }
               }
             case "else" =>
-              if (param != "") {
+              if (isNotEmpty(param)) {
                 log.error("#else shouldn't have a parameter", pos)
                 if (param.startsWith("if ")) {
                   log.error("Did you mean: #elseif")
