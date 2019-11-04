@@ -64,7 +64,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val EOL: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | semicolon | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
 
-  val EOL_asm: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | semicolon | comment).opaque("<first line break>") ~ AWS).opaque("<line break>")
+  val EOL_asm: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | semicolonComment | comment).opaque("<first line break>") ~ AWS_asm).opaque("<line break>")
 
   val EOLOrComma: P[Unit] = P(HWS ~ ("\r\n" | "\r" | "\n" | "," | semicolon | comment).opaque("<first line break or comma>") ~ AWS).opaque("<line break or comma>")
 
@@ -663,6 +663,10 @@ object MfParser {
   val HWS: P[Unit] = P(CharsWhileIn(" \t", min = 0)).opaque("<horizontal whitespace>")
 
   val letter: P[String] = P(CharIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_").!)
+
+  val mosOpcodeLetter: P[String] = P(CharIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012").!)
+
+  val octalDigit: P[String] = P(CharIn("01234567").!)
 
   val letterOrDigit: P[Unit] = P(CharIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_.$1234567890"))
 
