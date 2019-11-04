@@ -51,8 +51,10 @@ The exact value of that byte is encoding-dependent:
 * in the `vectrex` encoding it's 128,
 * in the `zx80` encoding it's 1,
 * in the `zx81` encoding it's 11,
+* in the `petscr` and `petscrjp` encodings it's 224,
+* in the `atascii` encoding it's 219,
 * in the `utf16be` and `utf16le` encodings it's exceptionally two bytes: 0, 0
-* in other encodings it's 0 (this **will** be a subject to change in future versions).
+* in other encodings it's 0 (this may be a subject to change in future versions).
 
         "this is a zero-terminated string" asciiz
         "this is also a zero-terminated string"z

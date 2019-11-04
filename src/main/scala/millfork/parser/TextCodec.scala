@@ -449,7 +449,7 @@ object TextCodec {
     Map('Ë' -> '$'.toInt, 'ë' -> '_'.toInt),
     Map.empty, AsciiEscapeSequences)
 
-  val CbmScreencodes = new TableTextCodec("CBM-Screen", 0,
+  val CbmScreencodes = new TableTextCodec("CBM-Screen", 0xE0,
     "@abcdefghijklmnopqrstuvwxyz[£]↑←" +
       0x20.to(0x3f).map(_.toChar).mkString +
       "–ABCDEFGHIJKLMNOPQRSTUVWXYZ\ufffd\ufffd\ufffdπ",
@@ -460,7 +460,7 @@ object TextCodec {
     )
   )
 
-  lazy val CbmScreencodesJp = new TableTextCodec("CBM-Screen-JP", 0,
+  lazy val CbmScreencodesJp = new TableTextCodec("CBM-Screen-JP", 0xE0,
     "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[¥]↑←" + // 00-1f
       0x20.to(0x3f).map(_.toChar).mkString +
       "タチツテトナニヌネノハヒフヘホマ" + // 40-4f
@@ -662,7 +662,7 @@ object TextCodec {
     )
   )
 
-  lazy val AtasciiScreencodes = new TableTextCodec("ATASCII-Screen", 0,
+  lazy val AtasciiScreencodes = new TableTextCodec("ATASCII-Screen", 0xDB,
     0x20.to(0x3f).map(_.toChar).mkString +
       0x40.to(0x5f).map(_.toChar).mkString +
       "♡" +

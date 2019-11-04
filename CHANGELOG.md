@@ -2,6 +2,9 @@
 
 ## Current version
 
+* **Breaking change!**
+The `petscr`, `petscrjp` and `atasciiscr` encodings now use $E0 and $DB respectively as their string terminator.
+
 * Added `nullchar_scr` and `NULLCHAR_SCR` 
 
 * Added the `scrstring` module

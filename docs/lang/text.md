@@ -87,8 +87,10 @@ The exact value of `{nullchar}` is encoding-dependent:
     * in the `vectrex` encoding it's `{x80}`,
     * in the `zx80` encoding it's `{x01}`,
     * in the `zx81` encoding it's `{x0b}`,
+    * in the `petscr` and `petscrjp` encodings it's `{xe0}`,
+    * in the `atasciiscr` encoding it's `{xdb}`,
     * in the `utf16be` and `utf16le` encodings it's exceptionally two bytes: `{x00}{x00}`
-    * in other encodings it's `{x00}` (this **will** be a subject to change in future versions).
+    * in other encodings it's `{x00}` (this may be a subject to change in future versions).
 
 ##### Available only in some encodings
 
