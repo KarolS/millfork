@@ -6,7 +6,11 @@
 
 * Added the `scrstring` module
 
+* Added `strz_from_screencode`, `strz_to_screencode`, `strzpaste` and `scrstrzpaste` functions
+
 * Added the ability to convert from booleans to integers
+
+* Fixed the string escape bug
 
 * Unary minus and other parser improvements
 
