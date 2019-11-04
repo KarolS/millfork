@@ -20,7 +20,12 @@ If any of the strings is longer than 255 bytes, then the behaviour is undefined 
 
 #### `void strzcopy(pointer dest, pointer src)`
 
-Copies the source null-terminated string into the destination buffer.
+Copies the source null-terminated string into the destination buffer, including the string terminator.
+If the source string is longer than 255 bytes, then the behaviour is undefined (might even crash).
+
+#### `void strzpaste(pointer dest, pointer src)`
+
+Copies the source null-terminated string into the destination buffer, excluding the string terminator.
 If the source string is longer than 255 bytes, then the behaviour is undefined (might even crash).
 
 #### `word strz2word(pointer str)`
@@ -42,6 +47,7 @@ It contains functions for handling strings in the screen encoding with the same 
 #### `byte scrstrzlen(pointer str)`
 #### `sbyte scrstrzcmp(pointer str1, pointer str2)`
 #### `void scrstrzcopy(pointer dest, pointer src)`
+#### `void scrstrzpaste(pointer dest, pointer src)`
 #### `word scrstrz2word(pointer str)`
 #### `void scrstrzappend(pointer buffer, pointer str)`
 #### `void scrstrzappendchar(pointer buffer, byte char)`

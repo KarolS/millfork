@@ -4,6 +4,7 @@ import string
 alias scrstrzlen = strzlen
 alias scrstrzcmp = strzcmp
 alias scrstrzcopy = strzcopy
+alias scrstrzpaste = strzpaste
 alias scrstrzappendchar = strzappendchar
 alias scrstrz2word = strz2word
 alias scrstrzappend = strzappend

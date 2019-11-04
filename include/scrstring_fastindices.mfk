@@ -39,3 +39,15 @@ void scrstrzcopy(pointer dest, pointer src) {
         i += 1
     } while c != nullchar_scr
 }
+
+void strzpaste(pointer dest, pointer src) {
+    byte i
+    byte c
+    i = 0
+    while true {
+        c = src[i]
+        if c == nullchar_scr { return }
+        dest[i] = c
+        i += 1
+    }
+}
