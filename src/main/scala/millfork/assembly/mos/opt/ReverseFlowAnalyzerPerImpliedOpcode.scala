@@ -178,6 +178,7 @@ object ReverseFlowAnalyzerPerImpiedOpcode {
     CLA -> (_.copy(a = Unimportant)),
     CLX -> (_.copy(x = Unimportant)),
     CLY -> (_.copy(y = Unimportant)),
+    SET -> (_.copy(x = Important)),
 
   )
 

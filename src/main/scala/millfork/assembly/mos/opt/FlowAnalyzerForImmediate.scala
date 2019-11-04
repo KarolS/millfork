@@ -262,7 +262,13 @@ object FlowAnalyzerForImmediate {
         eqSX = false,
         eqSpX = false,
         src = SourceOfNZ.X)
-    }
+    },
+
+    TAM -> { (nn, currentStatus) => currentStatus },
+    TMA -> { (nn, currentStatus) =>
+      val newX = (currentStatus.x <*> currentStatus.a) { (x, a) => (x - (x & a)) & 0xff }
+      currentStatus.copy(a = AnyStatus)
+    },
   )
 
   def hasDefinition(opcode: Opcode.Value): Boolean = map.contains(opcode)

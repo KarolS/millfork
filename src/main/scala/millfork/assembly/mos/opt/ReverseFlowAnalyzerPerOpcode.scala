@@ -212,6 +212,12 @@ object ReverseFlowAnalyzerPerOpcode {
     STY_W -> (importance => importance.copy(y = Important, w = Important)),
     STZ_W -> (importance => importance.copy(iz = Important, m = Important)),
 
+    ST0 -> (importance => importance.copy(a = Important)),
+    ST1 -> (importance => importance.copy(a = Important)),
+    ST2 -> (importance => importance.copy(a = Important)),
+    TAM -> (importance => importance.copy(a = Important)),
+    TMA -> (importance => importance.copy(a = Unimportant)),
+
   )
 
   def hasDefinition(opcode: Opcode.Value): Boolean = map.contains(opcode)

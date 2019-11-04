@@ -40,7 +40,7 @@ object OpcodeClasses {
     TXA, TXS, SBX,
     PLX, PLX_W,
     XAA, SAX, AHX, SHX, TAS,
-    HuSAX, SXY,
+    HuSAX, SXY, SET,
     TXY,
   )
   val ReadsYAlways = Set(CPY, DEY, INY, STY, TYA, PLY, SHY, SAY, SXY, TYX)
@@ -138,9 +138,11 @@ object OpcodeClasses {
     STA, STY, STZ, STX,
     STA_W, STY_W, STZ_W, STX_W,
     TRB, TSB,
+    TRB_W, TSB_W,
     SAX, DCP, ISC,
     SLO, RLA, SRE, RRA,
     AHX, SHY, SHX, TAS, LAS,
+    TAM, TIN, TII, TIA, TAI, TST, TDD,
     COP,
     CHANGED_MEM,
   )
@@ -159,6 +161,7 @@ object OpcodeClasses {
     LAS,
     TRB, TSB,
     TRB_W, TSB_W,
+    TST, TAM, TII, TAI, TIN, TIA, TDD,
     CHANGED_MEM,
   )
 

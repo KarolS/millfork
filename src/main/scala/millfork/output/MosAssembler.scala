@@ -219,6 +219,9 @@ object MosAssembler {
   private val opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
   private val illegalOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
   private val cmosOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val sc02Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val rockwellOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
+  private val wdcOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
   private val cmosNopOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
   private val ce02Opcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
   private val hudsonOpcodes = mutable.Map[(Opcode.Value, AddrMode.Value), Byte]()
@@ -230,6 +233,9 @@ object MosAssembler {
     opcodes.get(key).foreach(return _)
     if (options.flag(CompilationFlag.EmitIllegals)) illegalOpcodes.get(key).foreach(return _)
     if (options.flag(CompilationFlag.EmitCmosOpcodes)) cmosOpcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitSC02Opcodes)) sc02Opcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitRockwellOpcodes)) rockwellOpcodes.get(key).foreach(return _)
+    if (options.flag(CompilationFlag.EmitWdcOpcodes)) wdcOpcodes.get(key).foreach(return _)
     if (options.flag(CompilationFlag.EmitCmosNopOpcodes)) cmosNopOpcodes.get(key).foreach(return _)
     if (options.flag(CompilationFlag.Emit65CE02Opcodes)) ce02Opcodes.get(key).foreach(return _)
     if (options.flag(CompilationFlag.EmitHudsonOpcodes))  hudsonOpcodes.get(key).foreach(return _)
@@ -247,6 +253,21 @@ object MosAssembler {
   private def cm(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
     if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
     cmosOpcodes(op -> am) = x.toByte
+  }
+
+  private def sc(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
+    sc02Opcodes(op -> am) = x.toByte
+  }
+
+  private def rw(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
+    rockwellOpcodes(op -> am) = x.toByte
+  }
+
+  private def wd(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
+    if (x < 0 || x > 0xff) FatalErrorReporting.reportFlyingPig("Invalid code for" + (op -> am))
+    wdcOpcodes(op -> am) = x.toByte
   }
 
   private def cn(op: Opcode.Value, am: AddrMode.Value, x: Int): Unit = {
@@ -566,10 +587,10 @@ object MosAssembler {
   cm(CMP, IndexedZ, 0xD2)
   cm(SBC, IndexedZ, 0xF2)
 
-  cm(TSB, ZeroPage, 0x04)
-  cm(TSB, Absolute, 0x0C)
-  cm(TRB, ZeroPage, 0x14)
-  cm(TRB, Absolute, 0x1C)
+  sc(TSB, ZeroPage, 0x04)
+  sc(TSB, Absolute, 0x0C)
+  sc(TRB, ZeroPage, 0x14)
+  sc(TRB, Absolute, 0x1C)
 
   cm(BRA, Relative, 0x80)
   cm(BIT, ZeroPageX, 0x34)
@@ -577,8 +598,8 @@ object MosAssembler {
   cm(INC, Implied, 0x1A)
   cm(DEC, Implied, 0x3A)
   cm(JMP, AbsoluteIndexedX, 0x7C)
-  cm(WAI, Implied, 0xCB)
-  cm(STP, Implied, 0xDB)
+  wd(WAI, Implied, 0xCB)
+  wd(STP, Implied, 0xDB)
 
   ce(CPZ, Immediate, 0xC2)
   ce(CPZ, ZeroPage, 0xD4)
@@ -615,11 +636,16 @@ object MosAssembler {
   hu(CLA, Implied, 0x62)
   hu(CSH, Implied, 0xD4)
   hu(CSL, Implied, 0x54)
+  hu(SET, Implied, 0xF4)
   hu(HuSAX, Implied, 0x22)
   hu(SAY, Implied, 0x42)
   hu(SXY, Implied, 0x02)
   hu(TAM, Immediate, 0x53)
   hu(TMA, Immediate, 0x43)
+  hu(ST0, Immediate, 0x03)
+  hu(ST1, Immediate, 0x13)
+  hu(ST2, Immediate, 0x23)
+  hu(STP, Implied, 0xDB)
 
   em(ORA, Stack, 0x03)
   em(ORA, IndexedSY, 0x13)

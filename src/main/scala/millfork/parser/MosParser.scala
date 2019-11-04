@@ -26,7 +26,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   //  def zeropageAddrModeHint: P[Option[Boolean]] = Pass
 
-  val asmOpcode: P[Opcode.Value] = (position() ~ letter.rep(exactly = 3).! ~ ("_W" | "_w").?.!).map { case (p, suffix, o) => Opcode.lookup(o + suffix, Some(p), log) }
+  val asmOpcode: P[Opcode.Value] = (position() ~ mosOpcodeLetter.rep(exactly = 3).! ~ octalDigit.?.! ~ ("_W" | "_w").?.!).map { case (p, bitNo, suffix, o) => Opcode.lookup(o + bitNo + suffix, Some(p), log) }
 
   private val commaX = HWS ~ "," ~ HWS ~ ("X" | "x") ~ HWS
   private val commaY = HWS ~ "," ~ HWS ~ ("Y" | "y") ~ HWS

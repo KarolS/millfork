@@ -263,6 +263,7 @@ object FlowAnalyzerForImplied {
         a = currentStatus.x,
         a0 = currentStatus.x.bit0,
         a7 = currentStatus.x.bit7,
+        src = currentStatus.src.map(_.swapAX),
         eqSX = false,
         eqSpX = false,
         x = currentStatus.a)
@@ -272,6 +273,7 @@ object FlowAnalyzerForImplied {
         a = currentStatus.y,
         a0 = currentStatus.y.bit0,
         a7 = currentStatus.y.bit7,
+        src = currentStatus.src.map(_.swapAY),
         y = currentStatus.a)
     }),
     SXY -> (currentStatus => {
@@ -279,6 +281,7 @@ object FlowAnalyzerForImplied {
         y = currentStatus.x,
         eqSX = false,
         eqSpX = false,
+        src = currentStatus.src.map(_.swapXY),
         x = currentStatus.y)
     }),
     ASL -> (currentStatus => {

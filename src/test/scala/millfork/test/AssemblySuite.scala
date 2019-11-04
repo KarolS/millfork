@@ -1,6 +1,6 @@
 package millfork.test
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedRun, EmuUnoptimizedHudsonRun}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -224,6 +224,50 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
       """.stripMargin){m =>
 
     }
+  }
+
+  test("HuC6280 opcodes") {
+    EmuUnoptimizedHudsonRun(
+      """
+        | asm void main() {
+        |     rts
+        |     tam #1
+        |     tma #2
+        |     ;bbr0 main
+        |     ;bbs0 main
+        |     clx
+        |     cly
+        |     csh
+        |     csl
+        |     ;rmb0 $800
+        |     ;smb0 $800
+        |     sax
+        |     say
+        |     set
+        |     st0 #1
+        |     st1 #1
+        |     st2 #1
+        |     stp
+        |     sxy
+        |     tam #3
+        |     tma #5
+        |     trb $800
+        |     trb $4
+        |     tsb $800
+        |     tsb $4
+        |     ; tai $4000,$5000,$300
+        |     ; tia $4000,$5000,$300
+        |     ; tii $4000,$5000,$300
+        |     ; tin $4000,$5000,$300
+        |     ; tdd $4000,$5000,$300
+        |     ; tst #$44,4
+        |     ; tst #$44,4,X
+        |     ; tst #$44,3334,X
+        |     ; tst #$44,3334,X
+        |     rts
+        | }
+        |
+        |""".stripMargin)
   }
 
 }

@@ -495,13 +495,72 @@ object Main {
     fluff("", "Code generation options:", "")
 
     boolean("-fcmos-ops", "-fno-cmos-ops").action { (c, v) =>
-      c.changeFlag(CompilationFlag.EmitCmosOpcodes, v)
-    }.description("Whether should emit CMOS opcodes.")
+      if (v) {
+        c.changeFlag(CompilationFlag.EmitCmosOpcodes, true)
+      } else {
+        c.changeFlag(CompilationFlag.EmitCmosOpcodes, false)
+        c.changeFlag(CompilationFlag.EmitSC02Opcodes, false)
+        c.changeFlag(CompilationFlag.EmitRockwellOpcodes, false)
+        c.changeFlag(CompilationFlag.EmitWdcOpcodes, false)
+        c.changeFlag(CompilationFlag.Emit65CE02Opcodes, false)
+        c.changeFlag(CompilationFlag.EmitHudsonOpcodes, false)
+        c.changeFlag(CompilationFlag.EmitNative65816Opcodes, false)
+        c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, false)
+      }
+    }.description("Whether should emit the core 65C02 opcodes.")
+    boolean("-f65sc02-ops", "-fno-65sc02-ops").action { (c, v) =>
+      if (v) {
+        c.changeFlag(CompilationFlag.EmitSC02Opcodes, true)
+        c.changeFlag(CompilationFlag.EmitCmosOpcodes, true)
+      } else {
+        c.changeFlag(CompilationFlag.EmitSC02Opcodes, false)
+        c.changeFlag(CompilationFlag.EmitRockwellOpcodes, false)
+        c.changeFlag(CompilationFlag.EmitWdcOpcodes, false)
+        c.changeFlag(CompilationFlag.Emit65CE02Opcodes, false)
+        c.changeFlag(CompilationFlag.EmitHudsonOpcodes, false)
+      }
+    }.description("Whether should emit 65SC02 opcodes.")
+    boolean("-frockwell-ops", "-fno-rockwell-ops").action { (c, v) =>
+      if (v) {
+        c.changeFlag(CompilationFlag.EmitRockwellOpcodes, true)
+        c.changeFlag(CompilationFlag.EmitSC02Opcodes, true)
+        c.changeFlag(CompilationFlag.EmitCmosOpcodes, true)
+      } else {
+        c.changeFlag(CompilationFlag.EmitRockwellOpcodes, false)
+        c.changeFlag(CompilationFlag.EmitWdcOpcodes, false)
+        c.changeFlag(CompilationFlag.Emit65CE02Opcodes, false)
+        c.changeFlag(CompilationFlag.EmitHudsonOpcodes, false)
+      }
+    }.description("Whether should emit Rockwell 65C02 opcodes.")
+    boolean("-fwdc-ops", "-fno-wdc-ops").action { (c, v) =>
+      if (v) {
+        c.changeFlag(CompilationFlag.EmitWdcOpcodes, true)
+        c.changeFlag(CompilationFlag.EmitRockwellOpcodes, true)
+        c.changeFlag(CompilationFlag.EmitSC02Opcodes, true)
+        c.changeFlag(CompilationFlag.EmitCmosOpcodes, true)
+      } else {
+        c.changeFlag(CompilationFlag.EmitWdcOpcodes, false)
+      }
+    }.description("Whether should emit WDC 65C02 opcodes.")
     boolean("-f65ce02-ops", "-fno-65ce02-ops").action { (c, v) =>
-      c.changeFlag(CompilationFlag.Emit65CE02Opcodes, v)
+      if (v) {
+        c.changeFlag(CompilationFlag.Emit65CE02Opcodes, true)
+        c.changeFlag(CompilationFlag.EmitRockwellOpcodes, true)
+        c.changeFlag(CompilationFlag.EmitSC02Opcodes, true)
+        c.changeFlag(CompilationFlag.EmitCmosOpcodes, true)
+      } else {
+        c.changeFlag(CompilationFlag.Emit65CE02Opcodes, false)
+      }
     }.description("Whether should emit 65CE02 opcodes.")
     boolean("-fhuc6280-ops", "-fno-huc6280-ops").action { (c, v) =>
-      c.changeFlag(CompilationFlag.EmitHudsonOpcodes, v)
+      if (v) {
+        c.changeFlag(CompilationFlag.EmitHudsonOpcodes, true)
+        c.changeFlag(CompilationFlag.EmitRockwellOpcodes, true)
+        c.changeFlag(CompilationFlag.EmitSC02Opcodes, true)
+        c.changeFlag(CompilationFlag.EmitCmosOpcodes, true)
+      } else {
+        c.changeFlag(CompilationFlag.EmitCmosOpcodes, false)
+      }
     }.description("Whether should emit HuC6280 opcodes.")
     flag("-fno-65816-ops").action { c =>
       c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = false)

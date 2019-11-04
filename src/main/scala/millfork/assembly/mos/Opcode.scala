@@ -95,8 +95,8 @@ object Opcode extends Enumeration {
   CLA, CLX, CLY,
   CSH, CSL,
   SAY, SXY, HuSAX,
-  // SET,
-  // ST0, ST1, ST2,
+   SET,
+  ST0, ST1, ST2,
   // BSR, // the same as on 65CE02
   TAM, TMA,
   TAI, TIA, TDD, TIN, TII, // memcpy instructions
@@ -193,11 +193,15 @@ object Opcode extends Enumeration {
     case "CLD" => CLD
     case "CLI" => CLI
     case "CLV" => CLV
+    case "CLX" => CLX
+    case "CLY" => CLY
     case "CMP" => CMP
     case "COP" => COP
     case "CPX" => CPX
     case "CPY" => CPY
     case "CPZ" => CPZ
+    case "CSH" => CSH
+    case "CSL" => CSL
     case "DCM" => DCP
     case "DCP" => DCP
     case "DEC" => DEC
@@ -262,16 +266,22 @@ object Opcode extends Enumeration {
     case "SED" => SED
     case "SEI" => SEI
     case "SEP" => SEP
+    case "SET" => SET
     case "SHX" => SHX
     case "SHY" => SHY
     case "SLO" => SLO
     case "SRE" => SRE
+    case "ST0" => ST0
+    case "ST1" => ST1
+    case "ST2" => ST2
     case "STA" => STA
     case "STP" => STP
     case "STX" => STX
     case "STY" => STY
     case "STZ" => STZ
+    case "SXY" => SXY
     case "TAB" => TAB
+    case "TAI" => TAI
     case "TAM" => TAM
     case "TAS" => TAS
     case "TAX" => TAX
@@ -280,7 +290,10 @@ object Opcode extends Enumeration {
     case "TBA" => TBA
     case "TCD" => TCD
     case "TDC" => TDC
+    case "TDD" => TDD
     case "TCS" => TCS
+    case "TIA" => TIA
+    case "TII" => TII
     case "TSC" => TSC
     case "TMA" => TMA
     case "TRB" => TRB

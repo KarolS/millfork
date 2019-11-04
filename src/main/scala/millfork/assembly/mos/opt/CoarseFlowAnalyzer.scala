@@ -51,6 +51,7 @@ object CoarseFlowAnalyzer {
     val codeArray = code.toArray
 
     var changed = true
+    var tFlag = false
     while (changed) {
       changed = false
       var currentStatus: CpuStatus = functionStartStatus
@@ -66,6 +67,10 @@ object CoarseFlowAnalyzer {
         var staSpIsNow = false
         codeArray(i) match {
           case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(l))) =>
+            if (tFlag) {
+              // T flag should not be set at a label!
+              optimizationContext.log.warn("The SET instruction shouldn't occur before a label")
+            }
             val L = l
             currentStatus = codeArray.indices.flatMap(j => codeArray(j) match {
               case AssemblyLine0(_, _, MemoryAddressConstant(Label(L))) => Some(flagArray(j))
@@ -121,6 +126,12 @@ object CoarseFlowAnalyzer {
               z = currentStatus.a.z(),
               src = SourceOfNZ.AX)
 
+          case AssemblyLine0(ADC | SBC | CMP, _, _) if tFlag =>
+            currentStatus = currentStatus.copy(z = AnyStatus, n = AnyStatus, v = AnyStatus, c = AnyStatus)
+          case AssemblyLine0(EOR | AND | ORA, _, _) if tFlag =>
+            currentStatus = currentStatus.copy(z = AnyStatus, n = AnyStatus, v = AnyStatus, c = AnyStatus)
+            // TODO: find a better documentation for the T flag
+
           case AssemblyLine0(op, Implied, _) if FlowAnalyzerForImplied.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForImplied.get(op)(currentStatus)
 
@@ -161,6 +172,13 @@ object CoarseFlowAnalyzer {
             if (OpcodeClasses.ChangesStack(opcode) || OpcodeClasses.ChangesS(opcode)) currentStatus = currentStatus.copy(eqSX = false)
         }
         staSpWasLast = staSpIsNow
+        if (tFlag) {
+          if (OpcodeClasses.ShortBranching(codeArray(i).opcode) || codeArray(i).opcode == JMP || codeArray(i).opcode == JSR) {
+            // T flag should not be set at a jump!
+            optimizationContext.log.warn("The SET instruction shouldn't occur before a jump")
+          }
+        }
+        tFlag = codeArray(i).opcode == SET
       }
 //                  flagArray.zip(codeArray).foreach{
 //                    case (fl, y) => if (y.isPrintable) println(f"$fl%-32s $y%-32s")

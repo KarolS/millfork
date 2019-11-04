@@ -34,6 +34,10 @@ case class SourceOfNZ(a: Boolean = false, aw: Boolean = false, x: Boolean = fals
     if (builder.isEmpty) "?"
     else builder.mkString
   }
+
+  def swapAX: SourceOfNZ = copy(a = x, x = a)
+  def swapAY: SourceOfNZ = copy(a = y, y = a)
+  def swapXY: SourceOfNZ = copy(y = x, x = y)
 }
 
 
