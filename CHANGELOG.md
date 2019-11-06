@@ -1,9 +1,12 @@
 # Change log
 
-## Current version
+## 0.3.12
 
 * **Breaking change!**
 The `petscr`, `petscrjp` and `atasciiscr` encodings now use $E0 and $DB respectively as their string terminator.
+
+* **Potentially breaking change!**
+Changed the identifiers for various subtypes of the 65C02 processors.
 
 * Added `nullchar_scr` and `NULLCHAR_SCR` 
 
