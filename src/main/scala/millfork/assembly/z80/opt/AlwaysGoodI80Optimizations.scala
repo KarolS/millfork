@@ -320,6 +320,10 @@ object AlwaysGoodI80Optimizations {
       (Elidable & HasOpcode(LD) & MatchSourceRegisterAndOffset(2) & MatchTargetRealRegister(3) & DoesntMatterWhatItDoesWithMatchedRegisterOffset(2)) ~~> {(code, ctx) =>
       List(code.head.copy(registers = TwoRegisters(ctx.get[ZRegister.Value](3), IMM_8)))
     },
+
+    //69
+    (HasOpcode(LD) & MatchSourceRealRegister(2) & MatchTargetRealRegister(3)) ~
+      (Elidable & HasOpcode(LD) & MatchSourceRealRegister(3) & MatchTargetRealRegister(2)) ~~> (_.init),
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
