@@ -71,7 +71,7 @@ object CompactStackFrame extends AssemblyOptimization[ZLine] {
       case ZLine0(CALL, _, _) => true
       case _ => false
     }.toArray
-    val range = VariableLifetime.expandRangeToCoverLoops(code, mayUsePointer)
+    val range = VariableLifetime.expandRangeToCoverLoops(code, mayUsePointer, stretchBackwards = false)
     if (range.nonEmpty) {
       val criticalCodeSlice = code.slice(range.start, range.end)
       if (criticalCodeSlice.exists {

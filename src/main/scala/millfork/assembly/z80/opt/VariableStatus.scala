@@ -18,26 +18,27 @@ class VariableStatus(val paramVariables: Set[String],
                      val localVariables: List[Variable],
                      val variablesWithLifetimes: List[(Variable, Range)],
                      val variablesWithLifetimesMap: Map[String, Range],
-                     val codeWithFlow: List[(FlowInfo, ZLine)]) {
+                     val codeWithFlow: List[(FlowInfo, ZLine)],
+                     val paramRegs: Set[ZRegister.Value]) {
 
   override def toString = s"VariableStatus(paramVariables=$paramVariables, stillUsedVariables=$stillUsedVariables, variablesWithAddressesTaken=$variablesWithAddressesTaken, localVariables=$localVariables, variablesWithLifetimesMap=$variablesWithLifetimesMap)"
 }
 
 object VariableStatus {
-  def apply(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext, typFilter: Type => Boolean): Option[VariableStatus] = {
+  def apply(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext, typFilter: Type => Boolean, allowParams: Boolean): Option[VariableStatus] = {
     val flow = FlowAnalyzer.analyze(f, code, optimizationContext, FlowInfoRequirement.BothFlows)
     import millfork.node.ZRegister._
-    val paramVariables = f.params match {
+    val (paramVariables, paramRegs) = f.params match {
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 =>
-        Set[String]()
+        Set[String]() -> Set(ZRegister.A)
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 2 =>
-        Set[String]()
+        Set[String]() -> Set(ZRegister.HL, ZRegister.H, ZRegister.L)
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 3 =>
-        Set[String]()
+        Set[String]() -> Set(ZRegister.HL, ZRegister.H, ZRegister.L, ZRegister.DE, ZRegister.E)
       case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 4 =>
-        Set[String]()
+        Set[String]() -> Set(ZRegister.HL, ZRegister.H, ZRegister.L, ZRegister.DE, ZRegister.D, ZRegister.E)
       case NormalParamSignature(ps) =>
-        ps.map(_.name).toSet
+        ps.map(_.name).toSet -> Set[ZRegister.Value]()
       case _ =>
         // assembly functions do not get this optimization
         return None
@@ -79,7 +80,7 @@ object VariableStatus {
     val allLocalVariables = f.environment.getAllLocalVariables
     val localVariables = allLocalVariables.filter {
       case MemoryVariable(name, typ, VariableAllocationMethod.Auto | VariableAllocationMethod.Zeropage) =>
-        typFilter(typ) && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name)
+        typFilter(typ) && (allowParams || !paramVariables(name)) && stillUsedVariables(name) && !variablesWithAddressesTaken(name)
       case StackVariable(name, typ, _) => typFilter(typ)
       case _ => false
     }
@@ -90,7 +91,7 @@ object VariableStatus {
     }.map(_.name).toSet
     val variablesWithLifetimes = localVariables.map {
       case v: MemoryVariable =>
-        v -> VariableLifetime.apply(v.name, flow)
+        v -> VariableLifetime.apply(v.name, flow, stretchBackwards = paramVariables(v.name))
       case v: StackVariable =>
         v -> StackVariableLifetime.apply(v.baseOffset, flow)
     }
@@ -110,7 +111,8 @@ object VariableStatus {
       localVariables,
       variablesWithLifetimes,
       variablesWithLifetimesMap,
-      flow))
+      flow,
+      paramRegs))
   }
 
 }

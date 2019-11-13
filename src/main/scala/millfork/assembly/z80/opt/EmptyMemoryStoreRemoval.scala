@@ -15,7 +15,7 @@ object EmptyMemoryStoreRemoval extends AssemblyOptimization[ZLine] {
   override def name = "Removing pointless stores to automatic variables"
 
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
-    val vs = VariableStatus(f, code, optimizationContext, _ => true).getOrElse(return code)
+    val vs = VariableStatus(f, code, optimizationContext, _ => true, allowParams = true).getOrElse(return code)
     if (vs.localVariables.isEmpty) {
       return code
     }

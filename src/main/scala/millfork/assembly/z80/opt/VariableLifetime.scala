@@ -1,7 +1,7 @@
 package millfork.assembly.z80.opt
 
 import millfork.assembly.opt.SingleStatus
-import millfork.assembly.z80.{NoRegisters, OneRegister, TwoRegisters, ZLine, ZLine0, ZOpcode}
+import millfork.assembly.z80.{NoRegisters, OneRegister, TwoRegisters, ZLine, ZLine0, ZOpcode, ZOpcodeClasses}
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
@@ -13,7 +13,7 @@ object VariableLifetime {
 
   // This only works for non-stack variables.
   // TODO: this is also probably very wrong
-  def apply(variableName: String, codeWithFlow: List[(FlowInfo, ZLine)]): Range = {
+  def apply(variableName: String, codeWithFlow: List[(FlowInfo, ZLine)], stretchBackwards: Boolean = false): Range = {
     import ZRegister._
     import ZOpcode._
 
@@ -44,7 +44,7 @@ object VariableLifetime {
     }
 
     val code = codeWithFlow.map(_._2)
-    val range = expandRangeToCoverLoops(code, flags)
+    val range = expandRangeToCoverLoops(code, flags, stretchBackwards)
 
 //    val log = new ConsoleLogger
 //    log.verbosity = 3
@@ -156,7 +156,7 @@ object VariableLifetime {
     false
   }
 
-  def expandRangeToCoverLoops(code: List[ZLine], flags: Array[Boolean]): Range = {
+  def expandRangeToCoverLoops(code: List[ZLine], flags: Array[Boolean], stretchBackwards: Boolean): Range = {
     if (flags.forall(!_)) return Range(0, 0)
     var min = flags.indexOf(true)
     var max = flags.lastIndexOf(true) + 1
@@ -166,6 +166,15 @@ object VariableLifetime {
       case _ => Nil
     }).groupBy(_._1).mapValues(_.map(_._2).toSet).view.force
 
+    // a lifetime of a parameter variable should defensively be assumed to start at the beginning of the very first loop in the function:
+    if (stretchBackwards) {
+      for((l, i)  <- code.zipWithIndex) {
+        if (i != 0 && i < min && (l.opcode == ZOpcode.LABEL || ZOpcodeClasses.NonLinear(l.opcode))) {
+          flags(i) = true
+        }
+      }
+      min = flags.indexOf(true)
+    }
     while (changed) {
       changed = false
       for ((label, indices) <- labelMap) {

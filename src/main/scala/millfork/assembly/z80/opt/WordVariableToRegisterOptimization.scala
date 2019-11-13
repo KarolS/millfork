@@ -2,7 +2,7 @@ package millfork.assembly.z80.opt
 
 import millfork.{CompilationFlag, NonOverlappingIntervals}
 import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
-import millfork.assembly.z80.{OneRegister, TwoRegisters, ZFlag, ZLine, ZLine0}
+import millfork.assembly.z80.{OneRegister, TwoRegisters, ZFlag, ZLine, ZLine0, ZOpcode, ZOpcodeClasses}
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node.ZRegister
@@ -28,16 +28,18 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
   }
 
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
-    val vs = VariableStatus(f, code, optimizationContext, _.size == 2).getOrElse(return code)
+    val vs = VariableStatus(f, code, optimizationContext, _.size == 2, allowParams = true).getOrElse(return code)
     val options = optimizationContext.options
     val log = options.log
     val removeVariablesForReal = !options.flag(CompilationFlag.InternalCurrentlyOptimizingForMeasurement)
     val costFunction: CyclesAndBytes => Int = if (options.flag(CompilationFlag.OptimizeForSpeed)) _.cycles else _.bytes
+    val z80 = optimizationContext.options.flag(CompilationFlag.EmitZ80Opcodes)
+    val exdehl = optimizationContext.options.flag(CompilationFlag.EmitIntel8080Opcodes)
 
     val hlCandidates = vs.variablesWithLifetimes.filter {
       case (v, range) =>
         val tuple = vs.codeWithFlow(range.start)
-        tuple._1.importanceAfter.h != Important &&
+        okPrefix(vs, v, range, ZRegister.HL, allowDirectLoad = true, allowIndirectLoad = false) && tuple._1.importanceAfter.h != Important &&
           tuple._1.importanceAfter.l != Important || {
 //          println(s"Cannot inline ${v.name} to HL because of early $tuple")
           false
@@ -45,14 +47,17 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     }.flatMap {
       case (v, range) =>
         canBeInlined(v.name, synced = false, ZRegister.HL, vs.codeWithFlow.slice(range.start, range.end)).map { score =>
-          (v.name, range, if (vs.variablesWithRegisterHint(v.name)) score + CyclesAndBytes(16, 16) else score)
+          (v.name, range, score +
+            (if (vs.variablesWithRegisterHint(v.name)) CyclesAndBytes(16, 16) else CyclesAndBytes.Zero) +
+            (if (vs.paramVariables(v.name)) CyclesAndBytes(-16, -3) else CyclesAndBytes.Zero)
+          )
         }
     }
 
     val bcCandidates = vs.variablesWithLifetimes.filter {
       case (v, range) =>
         val tuple = vs.codeWithFlow(range.start)
-        tuple._1.importanceAfter.b != Important &&
+        okPrefix(vs, v, range, ZRegister.BC, z80, allowIndirectLoad = false) && tuple._1.importanceAfter.b != Important &&
           tuple._1.importanceAfter.c != Important || {
 //          println(s"Cannot inline ${v.name} to BC because of early $tuple")
           false
@@ -60,14 +65,20 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     }.flatMap {
       case (v, range) =>
         canBeInlined(v.name, synced = false, ZRegister.BC, vs.codeWithFlow.slice(range.start, range.end)).map { score =>
-          (v.name, range, if (vs.variablesWithRegisterHint(v.name)) score + CyclesAndBytes(16, 16) else score)
+          (v.name, range, score +
+            (if (vs.variablesWithRegisterHint(v.name)) CyclesAndBytes(16, 16) else CyclesAndBytes.Zero) +
+            (if (vs.paramVariables(v.name)) {
+              if (z80) CyclesAndBytes(-20, -4)
+              else CyclesAndBytes(-24, -5)
+            } else CyclesAndBytes.Zero)
+          )
         }
     }
 
     val deCandidates = vs.variablesWithLifetimes.filter {
       case (v, range) =>
         val tuple = vs.codeWithFlow(range.start)
-        tuple._1.importanceAfter.d != Important &&
+        okPrefix(vs, v, range, ZRegister.DE, z80, exdehl) && tuple._1.importanceAfter.d != Important &&
           tuple._1.importanceAfter.e != Important || {
 //          println(s"Cannot inline ${v.name} to DE because of early $tuple")
           false
@@ -75,7 +86,13 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
     }.flatMap {
       case (v, range) =>
         canBeInlined(v.name, synced = false, ZRegister.DE, vs.codeWithFlow.slice(range.start, range.end)).map { score =>
-          (v.name, range, if (vs.variablesWithRegisterHint(v.name)) score + CyclesAndBytes(16, 16) else score)
+          (v.name, range, score +
+            (if (vs.variablesWithRegisterHint(v.name)) CyclesAndBytes(16, 16) else CyclesAndBytes.Zero) +
+            (if (vs.paramVariables(v.name)) {
+              if (z80 || exdehl) CyclesAndBytes(-20, -4)
+              else CyclesAndBytes(-24, -5)
+            } else CyclesAndBytes.Zero)
+          )
         }
     }
 
@@ -129,9 +146,13 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
             val oldCode = vs.codeWithFlow.slice(range.start, range.end)
             val newCode = inlineVars(v, "", "", oldCode).result
             reportOptimizedBlock(oldCode, newCode)
+            if (vs.paramVariables(v)) {
+              val addr = vs.localVariables.find(_.name.==(v)).get.asInstanceOf[MemoryVariable].toAddress
+              output += ZLine.ldAbs16(ZRegister.HL, addr)
+            }
             output ++= newCode
             i = range.end
-            if (removeVariablesForReal && contains(range, vs.variablesWithLifetimesMap(v))) {
+            if (removeVariablesForReal && !vs.paramVariables(v) && contains(range, vs.variablesWithLifetimesMap(v))) {
               f.environment.removeVariable(v)
             }
             done = true
@@ -143,9 +164,19 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
               val oldCode = vs.codeWithFlow.slice(range.start, range.end)
               val newCode = inlineVars("", v, "", oldCode).result
               reportOptimizedBlock(oldCode, newCode)
+              if (vs.paramVariables(v)) {
+                val addr = vs.localVariables.find(_.name.==(v)).get.asInstanceOf[MemoryVariable].toAddress
+                if (z80) {
+                  output += ZLine.ldAbs16(ZRegister.BC, addr)
+                } else {
+                  output += ZLine.ldAbs16(ZRegister.HL, addr)
+                  output += ZLine.ld8(ZRegister.B, ZRegister.H)
+                  output += ZLine.ld8(ZRegister.C, ZRegister.L)
+                }
+              }
               output ++= newCode
               i = range.end
-              if (removeVariablesForReal && contains(range, vs.variablesWithLifetimesMap(v))) {
+              if (removeVariablesForReal && !vs.paramVariables(v) && contains(range, vs.variablesWithLifetimesMap(v))) {
                 f.environment.removeVariable(v)
               }
               done = true
@@ -158,9 +189,22 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
               val oldCode = vs.codeWithFlow.slice(range.start, range.end)
               val newCode = inlineVars("", "", v, oldCode).result
               reportOptimizedBlock(oldCode, newCode)
+              if (vs.paramVariables(v)) {
+                val addr = vs.localVariables.find(_.name.==(v)).get.asInstanceOf[MemoryVariable].toAddress
+                if (z80) {
+                  output += ZLine.ldAbs16(ZRegister.DE, addr)
+                } else if (exdehl) {
+                  output += ZLine.ldAbs16(ZRegister.HL, addr)
+                  output += ZLine.implied(ZOpcode.EX_DE_HL)
+                } else {
+                  output += ZLine.ldAbs16(ZRegister.HL, addr)
+                  output += ZLine.ld8(ZRegister.D, ZRegister.H)
+                  output += ZLine.ld8(ZRegister.E, ZRegister.L)
+                }
+              }
               output ++= newCode
               i = range.end
-              if (removeVariablesForReal && contains(range, vs.variablesWithLifetimesMap(v))) {
+              if (removeVariablesForReal && !vs.paramVariables(v) && contains(range, vs.variablesWithLifetimesMap(v))) {
                 f.environment.removeVariable(v)
               }
               done = true
@@ -174,6 +218,42 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
       output.toList
     } else {
       code
+    }
+  }
+
+  def okPrefix(vs: VariableStatus, v: Variable, range: Range, reg: ZRegister.Value, allowDirectLoad: Boolean, allowIndirectLoad: Boolean): Boolean = {
+    if (!vs.paramVariables(v.name)) return true
+    if (!allowDirectLoad && !allowIndirectLoad) {
+//      println(s"okPrefix $v false: better cpu required for $reg")
+      return false
+    }
+    if (vs.paramRegs.contains(reg) || vs.paramRegs.contains(ZRegister.A)) {
+//      println(s"okPrefix $v false: reg $reg in use")
+      return false
+    }
+    if (range.size < 2) {
+//      println(s"okPrefix $v false: range $range too small")
+      return false
+    }
+    if (range.start < 1) {
+//      println(s"okPrefix $v true: range $range early enough")
+      return true
+    }
+    import ZOpcode._
+    vs.codeWithFlow.take(range.start) match {
+      case Nil =>
+      case (_, ZLine0(LABEL, _, _)) :: xs =>
+        if (xs.exists { case (_, l) => l.opcode == LABEL || ZOpcodeClasses.NonLinear(l.opcode) }) {
+//          println(s"okPrefix false: LABEL in prefix")
+          return false
+        }
+      case _ => return false
+    }
+    val importance = vs.codeWithFlow(range.start - 1)._1.importanceAfter
+    if (allowDirectLoad) {
+      importance.getRegister(reg) == Unimportant && importance.a == Unimportant
+    } else {
+      importance.getRegister(reg) == Unimportant && importance.a == Unimportant && importance.h == Unimportant && importance.l == Unimportant
     }
   }
 

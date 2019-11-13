@@ -28,7 +28,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
   }
 
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
-    val vs = VariableStatus(f, code, optimizationContext, _.size == 1).getOrElse(return code)
+    val vs = VariableStatus(f, code, optimizationContext, _.size == 1, allowParams = true).getOrElse(return code)
     val options = optimizationContext.options
     val useIx = options.flag(CompilationFlag.UseIxForStack)
     val useIy = options.flag(CompilationFlag.UseIyForStack)
@@ -139,6 +139,15 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
             val oldCode = vs.codeWithFlow.slice(range.start, range.end)
             val newCode = inlineVars(v, register, addressInHl = false, addressInBc = false, addressInDe = false, oldCode.map(_._2))
             reportOptimizedBlock(oldCode, newCode)
+            if (vs.paramVariables(v)) {
+              val addr = vs.localVariables.find(_.name.==(v)).get.asInstanceOf[MemoryVariable].toAddress
+              if (register == ZRegister.A) {
+                output += ZLine.ldAbs8(ZRegister.A, addr)
+              } else {
+                output += ZLine.ldAbs8(ZRegister.A, addr)
+                output += ZLine.ld8(register, ZRegister.A)
+              }
+            }
             output ++= newCode
             i = range.end
             if (removeVariablesForReal &&
@@ -147,7 +156,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
               !v.startsWith("SP+") &&
               vs.variablesWithLifetimesMap.contains(v) &&
               contains(range, vs.variablesWithLifetimesMap(v))) {
-              f.environment.removeVariable(v)
+              if (!vs.paramVariables(v)) f.environment.removeVariable(v)
             }
             true
           case _ => false
@@ -206,6 +215,33 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
           (id, range, score + bonus)
         }
     }
+  }
+
+  def okPrefix(vs: VariableStatus, v: Variable, range: Range, reg: ZRegister.Value): Boolean = {
+    if (!vs.paramVariables(v.name)) return true
+    if (vs.paramRegs.contains(reg)) {
+//      println(s"okPrefix $v false: reg $reg in use")
+      return false
+    }
+    if (range.size < 2) {
+//      println(s"okPrefix $v false: range $range too small")
+      return false
+    }
+    if (range.start < 1) {
+//      println(s"okPrefix $v true: range $range early enough")
+      return true
+    }
+    import ZOpcode._
+    vs.codeWithFlow.take(range.start) match {
+      case Nil =>
+      case (_, ZLine0(LABEL, _, _)) :: xs =>
+        if (xs.exists { case (_, l) => l.opcode == LABEL || ZOpcodeClasses.NonLinear(l.opcode) }) {
+//          println(s"okPrefix false: LABEL in prefix")
+          return false
+        }
+      case _ => return false
+    }
+    vs.codeWithFlow(range.start - 1)._1.importanceAfter.getRegister(reg) == Unimportant
   }
 
   def contains(outer: Range, inner: Range): Boolean = {
