@@ -51,13 +51,13 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       (if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
         List(
           AssemblyLine.implied(PLA),
-          AssemblyLine.absolute(STA, ctx.env.get[ThingInMemory]("__sp")))
+          AssemblyLine.absolute(STA, ctx.env.get[ThingInMemory]("__sp")).copy(elidability = Elidability.Volatile))
       } else Nil) ++ (if (zpRegisterSize > 0) {
         val reg = env.get[VariableInMemory]("__reg")
         (zpRegisterSize.-(1) to 0 by (-1)).flatMap { i =>
           List(
             AssemblyLine.implied(PLA),
-            AssemblyLine.zeropage(STA, reg,i))
+            AssemblyLine.zeropage(STA, reg,i).copy(elidability = Elidability.Volatile))
         }.toList
       } else Nil)
     val someRegisterA = Some(b, RegisterVariable(MosRegister.A, b))
@@ -70,7 +70,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           val lastByte = if (zpRegisterSize % 2 != 0) {
             List(
               AssemblyLine.implied(PLA),
-              AssemblyLine.zeropage(STA, reg, zpRegisterSize - 1),
+              AssemblyLine.zeropage(STA, reg, zpRegisterSize - 1).copy(elidability = Elidability.Volatile),
               AssemblyLine.immediate(REP, 0x30))
           } else {
             List(AssemblyLine.immediate(REP, 0x30))
@@ -78,7 +78,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           val remainingBytes = (zpRegisterSize.&(0xfe).-(2) to 0 by (-2)).flatMap { i =>
             List(
               AssemblyLine.implied(PLA_W),
-              AssemblyLine.zeropage(STA_W, reg, i))
+              AssemblyLine.zeropage(STA_W, reg, i).copy(elidability = Elidability.Volatile))
           }
           lastByte ++ remainingBytes ++
             List(
@@ -123,9 +123,9 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       } else {
         plReg ++ List(
           AssemblyLine.implied(PLA),
-          AssemblyLine.implied(TAY),
+          AssemblyLine.implied(TAY).copy(elidability = Elidability.Fixed),
           AssemblyLine.implied(PLA),
-          AssemblyLine.implied(TAX),
+          AssemblyLine.implied(TAX).copy(elidability = Elidability.Fixed),
           AssemblyLine.implied(PLA),
           AssemblyLine.implied(RTI))
       }

@@ -44,8 +44,9 @@ object ReverseFlowAnalyzerPerImpiedOpcode {
     RTL -> (_ => finalImportance),
 
     RTI -> (_ => CpuImportance(
-      a = Unimportant, ah = Unimportant,
-      x = Unimportant, y = Unimportant, iz = Unimportant,
+      a = Important, ah = Important,
+      x = Important, y = Important, iz = Important,
+      r0 = Important, r1 = Important, r2 = Important, r3 = Important,
       z = Unimportant, n = Unimportant, c = Unimportant, v = Unimportant, d = Unimportant,
       m = Unimportant, w = Unimportant)),
 
