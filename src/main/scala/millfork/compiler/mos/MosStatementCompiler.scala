@@ -136,7 +136,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           val lastByte = if (zpRegisterSize % 2 != 0) {
             List(
               AssemblyLine.implied(PLA),
-              AssemblyLine.zeropage(STA, reg, zpRegisterSize - 1),
+              AssemblyLine.zeropage(STA, reg, zpRegisterSize - 1).copy(elidability = Elidability.Volatile),
               AssemblyLine.accu16)
           } else {
             List(AssemblyLine.accu16)
@@ -144,7 +144,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           val remainingBytes = (zpRegisterSize.&(0xfe).-(2) to 0 by (-2)).flatMap { i =>
             List(
               AssemblyLine.implied(PLA_W),
-              AssemblyLine.zeropage(STA_W, reg, i),
+              AssemblyLine.zeropage(STA_W, reg, i).copy(elidability = Elidability.Volatile),
               AssemblyLine.accu8)
           }
           lastByte ++ remainingBytes
