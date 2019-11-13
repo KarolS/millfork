@@ -391,7 +391,7 @@ object Cpu extends Enumeration {
   /**
     * Processors that can run code for WDC 65C02
     */
-  val CmosCompatible: Set[Cpu.Value] = Set(Cmos, HuC6280, CE02, Sixteen)
+  val CmosCompatible: Set[Cpu.Value] = Set(Cmos, HuC6280, CE02, Sixteen, SC02, Rockwell, Wdc)
   /**
     * Processors that can run code for Zilog Z80
     */
