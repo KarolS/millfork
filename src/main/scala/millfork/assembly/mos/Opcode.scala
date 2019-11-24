@@ -77,7 +77,10 @@ object Opcode extends Enumeration {
   // 65C02:
   STZ, PHX, PHY, PLX, PLY,
   BRA, TRB, TSB, STP, WAI,
-  // BBR, BBS, RMB, SMB,
+  BBR0, BBR1, BBR2, BBR3, BBR4, BBR5, BBR6, BBR7,
+  BBS0, BBS1, BBS2, BBS3, BBS4, BBS5, BBS6, BBS7,
+  RMB0, RMB1, RMB2, RMB3, RMB4, RMB5, RMB6, RMB7,
+  SMB0, SMB1, SMB2, SMB3, SMB4, SMB5, SMB6, SMB7,
 
   // 65CE02:
   CPZ, LDZ, DEZ, INZ,
@@ -312,6 +315,44 @@ object Opcode extends Enumeration {
     case "XAS" => SHX
     case "XBA" => XBA
     case "XCE" => XCE
+    case "BBR0" => BBR0
+    case "BBR1" => BBR1
+    case "BBR2" => BBR2
+    case "BBR3" => BBR3
+    case "BBR4" => BBR4
+    case "BBR5" => BBR5
+    case "BBR6" => BBR6
+    case "BBR7" => BBR7
+    case "BBS0" => BBS0
+    case "BBS1" => BBS1
+    case "BBS2" => BBS2
+    case "BBS3" => BBS3
+    case "BBS4" => BBS4
+    case "BBS5" => BBS5
+    case "BBS6" => BBS6
+    case "BBS7" => BBS7
+    case "RMB0" => RMB0
+    case "RMB1" => RMB1
+    case "RMB2" => RMB2
+    case "RMB3" => RMB3
+    case "RMB4" => RMB4
+    case "RMB5" => RMB5
+    case "RMB6" => RMB6
+    case "RMB7" => RMB7
+    case "SMB0" => SMB0
+    case "SMB1" => SMB1
+    case "SMB2" => SMB2
+    case "SMB3" => SMB3
+    case "SMB4" => SMB4
+    case "SMB5" => SMB5
+    case "SMB6" => SMB6
+    case "SMB7" => SMB7
+    case "TAI" => TAI
+    case "TIA" => TIA
+    case "TDD" => TDD
+    case "TII" => TII
+    case "TIN" => TIN
+    case "TST" => TST
 
       // TODO: add all of those
     case _ =>

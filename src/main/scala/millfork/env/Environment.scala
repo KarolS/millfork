@@ -518,6 +518,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S), MOpcode.BPL),
       BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S), MOpcode.BMI)),
       None)
+    val byte_and_pointer$ = StructType("byte_and_pointer$", List(FieldDesc("byte", "zp"), FieldDesc("pointer", "branch")))
+    val hudson_transfer$ = StructType("hudson_transfer$", List(FieldDesc("word", "a"), FieldDesc("word", "b"), FieldDesc("word", "c")))
+    addThing(byte_and_pointer$, None)
+    addThing(hudson_transfer$, None)
     builtinsAdded = true
   }
 

@@ -216,7 +216,9 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
         return false
       case AssemblyLine0(_, AddrMode.Relative, MemoryAddressConstant(Label(l))) =>
         jumps += l
-      case AssemblyLine0(br, _, _) if OpcodeClasses.ShortBranching(br) =>
+      case AssemblyLine0(_, AddrMode.ZeroPageWithRelative, StructureConstant(_, List(_, MemoryAddressConstant(Label(l))))) =>
+        jumps += l
+      case AssemblyLine0(br, _, _) if OpcodeClasses.ShortBranching(br) || OpcodeClasses.SingleBitBranch(br) =>
         return false
       case _ => ()
     }
@@ -270,8 +272,8 @@ object HelperCheckers {
     if (badAddrModes(a1) || badAddrModes(a2)) return false
     if (l1.opcode == Opcode.CHANGED_MEM || l2.opcode == Opcode.CHANGED_MEM) return false
     if ((a1 == IndexedSY) != (a2 == IndexedSY)) return true // bold assertion, but usually true
-    val p1 = l1.parameter
-    val p2 = l2.parameter
+    val p1 = if(a1 == ZeroPageWithRelative) l1.parameter.asInstanceOf[StructureConstant].fields.head else l1.parameter
+    val p2 = if(a2 == ZeroPageWithRelative) l2.parameter.asInstanceOf[StructureConstant].fields.head else l2.parameter
     val w1 = OpcodeClasses.AccessesWordInMemory(l1.opcode)
     val w2 = OpcodeClasses.AccessesWordInMemory(l2.opcode)
 
@@ -898,6 +900,7 @@ case object ReadsMemory extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean =
     line.addrMode match {
       case AddrMode.Indirect => true
+      case AddrMode.TripleAbsolute => true
       case AddrMode.Implied | AddrMode.Immediate => false
       case _ =>
         OpcodeClasses.ReadsMemoryIfNotImpliedOrImmediate(line.opcode)
@@ -922,7 +925,7 @@ case object IsNonvolatile extends TrivialAssemblyLinePattern {
 }
 
 case object ReadsX extends TrivialAssemblyLinePattern {
-  val XAddrModes: Set[AddrMode.Value] = Set(AddrMode.AbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX, AddrMode.AbsoluteIndexedX)
+  val XAddrModes: Set[AddrMode.Value] = Set(AddrMode.AbsoluteX, AddrMode.IndexedX, AddrMode.ZeroPageX, AddrMode.AbsoluteIndexedX, AddrMode.ImmediateWithAbsoluteX, AddrMode.ImmediateWithZeroPageX)
 
   override def apply(line: AssemblyLine): Boolean =
     OpcodeClasses.ReadsXAlways(line.opcode) || XAddrModes(line.addrMode)
@@ -1158,6 +1161,7 @@ case object ChangesMemory extends AssemblyLinePattern {
     line match {
       case AssemblyLine0(JSR | BSR, Absolute | LongAbsolute, MemoryAddressConstant(th)) => ctx.functionChangesMemory(th.name)
       case AssemblyLine0(op, Implied, _) => OpcodeClasses.ChangesMemoryAlways(op)
+      case AssemblyLine0(op, TripleAbsolute, _) => true
       case AssemblyLine0(op, _, _) => OpcodeClasses.ChangesMemoryAlways(op) || OpcodeClasses.ChangesMemoryIfNotImplied(op)
       case _ => false
     }
@@ -1251,6 +1255,8 @@ case class RefersTo(identifier: String, offset: Int = 999) extends TrivialAssemb
         (offset == 999 || offset == nn) && th.name == identifier
       case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) =>
         (offset == 999 || offset == nn) && th.name == identifier
+      case StructureConstant(_, list) =>
+        list.exists(check)
       case _ => false
     }
   }
@@ -1314,6 +1320,22 @@ case class RefersToOrUses(identifier: String, offset: Int = 999) extends Trivial
         case CompoundConstant(MathOperator.Plus, NumericConstant(nn, _), MemoryAddressConstant(th)) => th.name == identifier
         case CompoundConstant(MathOperator.Minus, MemoryAddressConstant(th), NumericConstant(nn, _)) => th.name == identifier
         case _ => false
+      }
+      case AddrMode.ZeroPageWithRelative => parameter match {
+        case StructureConstant(_, params) => params.exists(x => check(x, AddrMode.ZeroPage))
+        case _ => false
+      }
+      case AddrMode.TripleAbsolute => parameter match {
+        case StructureConstant(_, params) => params.exists(x => check(x, AddrMode.Absolute))
+        case _ => false // TODO: ???
+      }
+      case AddrMode.ImmediateWithAbsolute | AddrMode.ImmediateWithZeroPage => parameter match {
+        case StructureConstant(_, params) => params.exists(x => check(x, AddrMode.Absolute))
+        case _ => false // TODO: ???
+      }
+      case AddrMode.ImmediateWithAbsoluteX | AddrMode.ImmediateWithZeroPageX => parameter match {
+        case StructureConstant(_, params) => params.exists(x => check(x, AddrMode.AbsoluteX))
+        case _ => false // TODO: ???
       }
       case _ => false
     }
@@ -1506,6 +1528,7 @@ case class DoesntChangeIndexingInAddrMode(i: Int) extends AssemblyLinePattern {
       case AddrMode.IndexedZ | AddrMode.LongIndexedZ => !ChangesIZ.matchLineTo(ctx, flowInfo, line)
       case AddrMode.Stack => !OpcodeClasses.ChangesS.contains(line.opcode)
       case AddrMode.IndexedSY => !OpcodeClasses.ChangesS.contains(line.opcode) && !ChangesY.matchLineTo(ctx, flowInfo, line)
+      case AddrMode.Indirect | AddrMode.LongIndirect => ChangesMemory.matchLineTo(ctx, flowInfo, line)
       case _ => true
     }
 

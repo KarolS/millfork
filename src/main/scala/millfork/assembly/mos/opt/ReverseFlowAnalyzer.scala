@@ -49,6 +49,8 @@ case class CpuImportance(a: Importance = UnknownImportance,
                          r3: Importance = UnknownImportance,
                         ) {
 
+  def setPseudoRegister(importance: Importance): CpuImportance = this.copy(r0 = importance, r1 = importance, r2 = importance, r3 = importance)
+
   def setPseudoRegister(regOffset: Int, importance: Importance): CpuImportance = regOffset match {
     case 0 => this.copy(r0 = importance)
     case 1 => this.copy(r1 = importance)
@@ -170,6 +172,14 @@ object ReverseFlowAnalyzer {
               case _ => false
             }
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex) ~ currentImportance
+          case AssemblyLine0(opcode, ZeroPageWithRelative, StructureConstant(_, List(_, MemoryAddressConstant(Label(l))))) if OpcodeClasses.SingleBitBranch(opcode) =>
+            val L = l
+            val labelIndex = codeArray.indexWhere {
+              case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(L))) => true
+              case _ => false
+            }
+            // TODO: check which zpreg is actually important
+            currentImportance = if (labelIndex < 0) finalImportance else (importanceArray(labelIndex) ~ currentImportance).setPseudoRegister(Important)
           case _ =>
         }
         currentLine match {
@@ -270,6 +280,8 @@ object ReverseFlowAnalyzer {
             if ((n & 0x20) != 0) currentImportance = currentImportance.copy(m = Unimportant)
             if ((n & 0x40) != 0) currentImportance = currentImportance.copy(v = Unimportant)
             if ((n & 0x80) != 0) currentImportance = currentImportance.copy(n = Unimportant)
+          case AssemblyLine0(TII | TIA | TAI | TDD | TIN, _, _) =>
+            currentImportance = currentImportance.setPseudoRegister(Important)
 
           case AssemblyLine0(opcode, addrMode, _) =>
             val reallyIgnoreC =

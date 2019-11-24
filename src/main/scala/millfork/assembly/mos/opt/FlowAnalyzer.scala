@@ -2,7 +2,7 @@ package millfork.assembly.mos.opt
 
 import millfork.assembly.OptimizationContext
 import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, Opcode, State}
-import millfork.env.{Label, MemoryAddressConstant, NormalFunction}
+import millfork.env.{Label, MemoryAddressConstant, NormalFunction, StructureConstant}
 
 /**
   * @author Karol Stasiak
@@ -54,6 +54,7 @@ object FlowAnalyzer {
       case FlowInfoRequirement.NoRequirement => None
       case _ => Some(code.flatMap {
         case AssemblyLine0(op, _, MemoryAddressConstant(Label(l))) if op != Opcode.LABEL => Some(l)
+        case AssemblyLine0(op, _, StructureConstant(_, List(_, MemoryAddressConstant(Label(l))))) => Some(l)
         case _ => None
       }.groupBy(identity).mapValues(_.size).view.force)
     }

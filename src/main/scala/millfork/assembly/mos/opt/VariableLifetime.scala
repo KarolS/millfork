@@ -22,6 +22,7 @@ object VariableLifetime {
     var changed = true
     val labelMap = code.zipWithIndex.flatMap(a => a._1.parameter match {
       case MemoryAddressConstant(Label(l)) => List(l -> a._2)
+      case StructureConstant(_, List(_, MemoryAddressConstant(Label(l)))) => List(l -> a._2)
       case _ => Nil
     }).groupBy(_._1).mapValues(_.map(_._2).toSet).view.force
 

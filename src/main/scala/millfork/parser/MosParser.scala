@@ -1,13 +1,12 @@
 package millfork.parser
 
 import fastparse.all._
-import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode, OpcodeClasses}
 import millfork.env._
-import millfork.error.ConsoleLogger
 import millfork.node._
 import millfork.CompilationOptions
 import millfork.assembly.Elidability
-import millfork.output.{MemoryAlignment, NoAlignment, WithinPageAlignment}
+import millfork.output.{MemoryAlignment, WithinPageAlignment}
 
 /**
   * @author Karol Stasiak
@@ -56,13 +55,31 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
   }
 
   val asmInstruction: P[ExecutableStatement] = {
-    val lineParser: P[(Elidability.Value, Opcode.Value, (AddrMode.Value, Expression))] = !"}" ~ elidable ~/ asmOpcode ~/ asmParameter
-    lineParser.map { case (elid, op, param) =>
+    import Opcode._
+    for {
+      elid <- !"}" ~ elidable
+      op <- asmOpcode ~/ Pass
+      param <- op match {
+        case op if OpcodeClasses.SingleBitBranch(op) =>
+          (HWS ~ asmExpression ~ HWS ~ "," ~/ HWS ~ asmExpression).map{ x =>
+            AddrMode.ZeroPageWithRelative -> FunctionCallExpression("byte_and_pointer$", List(x._1, x._2))
+          }
+        case op if OpcodeClasses.HudsonTransfer(op) =>
+          (HWS ~ asmExpression ~ HWS ~ "," ~/ HWS ~ asmExpression ~ HWS ~ "," ~/ HWS ~ asmExpression).map{ x =>
+            AddrMode.TripleAbsolute -> FunctionCallExpression("hudson_transfer$", List(x._1, x._2, x._3))
+          }
+        case Opcode.TST => (HWS ~ "#" ~/ HWS ~ asmExpression ~ HWS ~ "," ~/ HWS ~ asmExpression ~ commaX.!.?).map { x =>
+          (if (x._3.isDefined) AddrMode.ImmediateWithAbsoluteX else AddrMode.ImmediateWithAbsolute )-> FunctionCallExpression("byte_and_pointer$", List(x._1, x._2))
+        }
+        case _ => asmParameter
+      }
+    } yield {
       (op, param._1) match {
         case (Opcode.SAX, AddrMode.Implied) => MosAssemblyStatement(Opcode.HuSAX, param._1, param._2, elid)
         case (Opcode.SBX, AddrMode.Immediate) => MosAssemblyStatement(Opcode.SBX, param._1, param._2, elid)
         case (Opcode.SAY, AddrMode.AbsoluteX) => MosAssemblyStatement(Opcode.SHY, param._1, param._2, elid)
         case (Opcode.SBX, _) => MosAssemblyStatement(Opcode.SAX, param._1, param._2, elid)
+        case (_, AddrMode.Absolute) if OpcodeClasses.SingleBit(op) => MosAssemblyStatement(op, AddrMode.ZeroPage, param._2, elid)
         case (_, AddrMode.Indirect) if op != Opcode.JMP && op != Opcode.JSR => MosAssemblyStatement(op, AddrMode.IndexedZ, param._2, elid)
         case _ => MosAssemblyStatement(op, param._1, param._2, elid)
       }

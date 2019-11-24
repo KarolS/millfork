@@ -74,6 +74,7 @@ object CoarseFlowAnalyzer {
             val L = l
             currentStatus = codeArray.indices.flatMap(j => codeArray(j) match {
               case AssemblyLine0(_, _, MemoryAddressConstant(Label(L))) => Some(flagArray(j))
+              case AssemblyLine0(_, _, StructureConstant(_, List(_, MemoryAddressConstant(Label(L))))) => Some(flagArray(j))
               case _ => None
             }).fold(currentStatus)(_ ~ _)
 

@@ -1,5 +1,8 @@
 package millfork.assembly.mos
 
+import millfork.env.StructType
+import millfork.node.FieldDesc
+
 /**
   * @author Karol Stasiak
   */
@@ -27,6 +30,11 @@ object AddrMode extends Enumeration {
   LongIndexedY,
   LongIndexedZ,
   AbsoluteIndexedX,
+  ZeroPageWithRelative,
+  ImmediateWithZeroPage,
+  ImmediateWithZeroPageX,
+  ImmediateWithAbsolute,
+  ImmediateWithAbsoluteX,
   TripleAbsolute,
   Undecided,
   RawByte,

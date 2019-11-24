@@ -246,6 +246,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
             if (memoryBank.readable(i)) memoryBank.readable(i + 1) = true
           }
         }
+        (0x200 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
         val timings = platform.cpu match {
           case millfork.Cpu.Cmos =>
             runViaSymon(log, memoryBank, platform.codeAllocators("default").startAt, CpuBehavior.CMOS_6502)

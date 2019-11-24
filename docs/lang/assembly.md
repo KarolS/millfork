@@ -13,8 +13,26 @@ There are two ways to include raw assembly code in your Millfork programs:
 Millfork inline assembly uses the same three-letter opcodes as most other 6502 assemblers.
 Indexing syntax is also the same. Only instructions available on the current CPU architecture are available.
 
+The `BBRn/BBSn/SMBn/RMBn` instructions cannot parameterize the tested bit. The syntax is as follows:
+
+    BBR1 $10,label
+    BBS3 zpvar,label
+    SMB4 zpvar
+    RMB0 $10
+    
+The HuC6280 `TST` instruction has the following syntax:
+
+    TST #1,$1000
+    TST #2,$2000,X
+    
+The HuC6280 `TAM` and `TMA` instruction syntactically use the immediate addressing mode (the `TAMn/TMAn` form is not supported):
+
+    TAM #$10
+    TMA #$20
+     
+
 **Work in progress**: 
-Currently, `RMBx`/`SMBx`/`BBRx`/`BBSx` and some extra 65CE02/HuC6280/65816 instructions are not supported yet.
+Currently, some extra 65CE02/65816 instructions are not supported yet.
 
 Undocumented instructions are supported using various opcodes.
 

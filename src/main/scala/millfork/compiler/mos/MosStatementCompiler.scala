@@ -4,7 +4,7 @@ import millfork.CompilationFlag
 import millfork.assembly.{BranchingOpcodeMapping, Elidability}
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
-import millfork.assembly.mos._
+import millfork.assembly.mos.{Opcode, _}
 import millfork.compiler._
 import millfork.env._
 import millfork.error.ConsoleLogger
@@ -34,6 +34,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
 
   override def replaceLabel(ctx: CompilationContext, line: AssemblyLine, from: String, to: String): AssemblyLine = line.parameter match {
     case MemoryAddressConstant(Label(l)) if l == from => line.copy(parameter = MemoryAddressConstant(Label(to)))
+    case StructureConstant(s, List(z, MemoryAddressConstant(Label(l)))) if l == from => line.copy(parameter = StructureConstant(s, List(z, MemoryAddressConstant(Label(to)))))
     case _ => line
   }
 
@@ -160,20 +161,13 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         stmts.foreach(s => compile(ctx, s))
         Nil -> Nil
       case MosAssemblyStatement(o, a, x, e) =>
-        val c: Constant = x match {
-          // TODO: hmmm
-          case VariableExpression(name) =>
-            if (OpcodeClasses.ShortBranching(o) || o == JMP || o == LABEL) {
-              MemoryAddressConstant(Label(name))
-            } else {
-              env.evalForAsm(x).getOrElse(env.get[ThingInMemory](name, x.position).toAddress)
-            }
-          case _ =>
-            env.evalForAsm(x).getOrElse(env.errorConstant(s"`$x` is not a constant", x.position))
-        }
+        val c: Constant = compileParameterForAssemblyStatement(env, o, x)
         val actualAddrMode = a match {
           case Absolute if OpcodeClasses.ShortBranching(o) => Relative
           case Absolute if OpcodeClasses.SupportsZeropage(o) && c.fitsProvablyIntoByte => ZeroPage
+          case ImmediateWithAbsolute if (c match {
+            case StructureConstant(_, List(a, b)) => b.fitsProvablyIntoByte
+          }) => ImmediateWithZeroPage
           case IndexedX if o == JMP => AbsoluteIndexedX
           case Indirect if o != JMP => IndexedZ
           case _ => a
@@ -330,6 +324,32 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         compileContinueStatement(ctx, s) -> Nil
     }
     code._1.map(_.positionIfEmpty(statement.position)) -> code._2.map(_.positionIfEmpty(statement.position))
+  }
+
+  private def compileParameterForAssemblyStatement(env: Environment, o: Opcode.Value, x: Expression): Constant = {
+    x match {
+      // TODO: hmmm
+      case VariableExpression(name) =>
+        if (OpcodeClasses.ShortBranching(o) || o == JMP || o == LABEL || OpcodeClasses.HudsonTransfer(o)) {
+          MemoryAddressConstant(Label(name))
+        } else {
+          env.evalForAsm(x).getOrElse(env.get[ThingInMemory](name, x.position).toAddress)
+        }
+      case FunctionCallExpression("byte_and_pointer$", List(z, b@VariableExpression(name))) =>
+        StructureConstant(env.get[StructType]("byte_and_pointer$"), List(
+          compileParameterForAssemblyStatement(env, NOP, z),
+          env.evalForAsm(b).getOrElse(MemoryAddressConstant(Label(name)))
+        ))
+      case FunctionCallExpression("byte_and_pointer$", List(a, b)) =>
+        StructureConstant(env.get[StructType]("byte_and_pointer$"), List(
+          compileParameterForAssemblyStatement(env, NOP, a),
+          compileParameterForAssemblyStatement(env, NOP, b)
+        ))
+      case FunctionCallExpression("hudson_transfer$", params) =>
+        StructureConstant(env.get[StructType]("hudson_transfer$"), params.map(y => compileParameterForAssemblyStatement(env, o, y)))
+      case _ =>
+        env.evalForAsm(x).getOrElse(env.errorConstant(s"`$x` is not a constant", x.position))
+    }
   }
 
   private def stackPointerFixBeforeReturn(ctx: CompilationContext, preserveA: Boolean = false, preserveX: Boolean = false, preserveY: Boolean = false): List[AssemblyLine] = {

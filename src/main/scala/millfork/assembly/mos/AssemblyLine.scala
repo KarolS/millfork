@@ -11,6 +11,19 @@ import millfork.{CompilationFlag, CompilationOptions}
 //noinspection TypeAnnotation
 object OpcodeClasses {
 
+  val SingleBit = Set(
+    BBR0, BBR1, BBR2, BBR3, BBR4, BBR5, BBR6, BBR7,
+    BBS0, BBS1, BBS2, BBS3, BBS4, BBS5, BBS6, BBS7,
+    RMB0, RMB1, RMB2, RMB3, RMB4, RMB5, RMB6, RMB7,
+    SMB0, SMB1, SMB2, SMB3, SMB4, SMB5, SMB6, SMB7
+  )
+  val SingleBitBranch = Set(
+    BBR0, BBR1, BBR2, BBR3, BBR4, BBR5, BBR6, BBR7,
+    BBS0, BBS1, BBS2, BBS3, BBS4, BBS5, BBS6, BBS7
+  )
+
+  val HudsonTransfer = Set(TAI, TIA, TDD, TIN, TII)
+
   val ReadsAAlways = Set(
     ADC, AND, BIT, CMP, EOR, ORA, PHA, SBC, STA,
     ADC_W, AND_W, BIT_W, CMP_W, EOR_W, ORA_W, PHA_W, SBC_W, STA_W,
@@ -163,7 +176,7 @@ object OpcodeClasses {
     TRB_W, TSB_W,
     TST, TAM, TII, TAI, TIN, TIA, TDD,
     CHANGED_MEM,
-  )
+  ) ++ SingleBitBranch
 
   val AccessesWordInMemory = Set(
     LDA_W, LDX_W, LDY_W,
@@ -608,8 +621,9 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
   override def sizeInBytes: Int = addrMode match {
     case Implied | RawByte => 1
     case Relative | ZeroPageX | ZeroPage | ZeroPageY | IndexedZ | IndexedX | IndexedY | IndexedSY | Stack | LongIndexedY | LongIndexedZ | Immediate => 2
-    case AbsoluteIndexedX | AbsoluteX | Absolute | AbsoluteY | Indirect | LongRelative | WordImmediate => 3
-    case LongAbsolute | LongAbsoluteX | LongIndirect => 4
+    case AbsoluteIndexedX | AbsoluteX | Absolute | AbsoluteY | Indirect | LongRelative | WordImmediate | ZeroPageWithRelative | ImmediateWithZeroPage | ImmediateWithZeroPageX => 3
+    case LongAbsolute | LongAbsoluteX | LongIndirect | ImmediateWithAbsolute | ImmediateWithAbsoluteX => 4
+    case TripleAbsolute => 7
     case DoesNotExist => 0
   }
 
@@ -624,9 +638,14 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
     case Absolute => 3001
     case AbsoluteX | AbsoluteY | Indirect => 3002
     case AbsoluteIndexedX => 3003
+    case ZeroPageWithRelative => 3004
+    case ImmediateWithZeroPage => 3005
+    case ImmediateWithZeroPageX => 3006
     case LongAbsolute => 4000
     case LongAbsoluteX => 4001
     case LongIndirect => 4002
+    case ImmediateWithAbsolute => 4003
+    case ImmediateWithAbsoluteX => 4004
     case TripleAbsolute => 7000
     case DoesNotExist => 1
   }
@@ -638,6 +657,22 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
       parameter.toString + ':'
     } else if (opcode == BYTE) {
       "    !byte " + parameter.toString
+    } else if (addrMode == TripleAbsolute) {
+      parameter match {
+        case StructureConstant(_, List(a,b,c)) => s"    $opcode $a,$b,$c"
+      }
+    } else if (addrMode == ZeroPageWithRelative) {
+      parameter match {
+        case StructureConstant(_, List(a,b)) => s"    $opcode $a,$b"
+      }
+    } else if (addrMode == ImmediateWithAbsolute || addrMode == ImmediateWithZeroPage) {
+      parameter match {
+        case StructureConstant(_, List(a,b)) => s"    $opcode #$a,$b"
+      }
+    } else if (addrMode == ImmediateWithAbsoluteX || addrMode == ImmediateWithZeroPageX) {
+      parameter match {
+        case StructureConstant(_, List(a,b)) => s"    $opcode #$a,$b,X"
+      }
     } else if (addrMode == DoesNotExist) {
       s"    ; $opcode"
     } else {

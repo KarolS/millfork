@@ -702,6 +702,10 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
           }
         }
 
+      case (AssemblyLine0(_, TripleAbsolute | ZeroPageWithRelative, _), _) :: xs =>
+        // TODO: maybe improve later?
+        None
+
       case (AssemblyLine0(LABEL, _, _), _) :: xs =>
         None
 

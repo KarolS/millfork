@@ -1,6 +1,6 @@
 package millfork.test
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedRun, EmuUnoptimizedHudsonRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUnoptimizedHudsonRun}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -227,20 +227,20 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("HuC6280 opcodes") {
-    EmuUnoptimizedHudsonRun(
+    EmuOptimizedHudsonRun(
       """
         | asm void main() {
         |     rts
         |     tam #1
         |     tma #2
-        |     ;bbr0 main
-        |     ;bbs0 main
+        |     bbr0 $33,main
+        |     bbs0 $33,main
         |     clx
         |     cly
         |     csh
         |     csl
-        |     ;rmb0 $800
-        |     ;smb0 $800
+        |     rmb0 $80
+        |     smb0 $80
         |     sax
         |     say
         |     set
@@ -255,15 +255,15 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
         |     trb $4
         |     tsb $800
         |     tsb $4
-        |     ; tai $4000,$5000,$300
-        |     ; tia $4000,$5000,$300
-        |     ; tii $4000,$5000,$300
-        |     ; tin $4000,$5000,$300
-        |     ; tdd $4000,$5000,$300
-        |     ; tst #$44,4
-        |     ; tst #$44,4,X
-        |     ; tst #$44,3334,X
-        |     ; tst #$44,3334,X
+        |     tai $4000,$5000,$300
+        |     tia $4000,$5000,$300
+        |     tii $4000,$5000,$300
+        |     tin $4000,$5000,$300
+        |     tdd $4000,$5000,$300
+        |     tst #$44,4
+        |     tst #$44,4,X
+        |     tst #$44,3334
+        |     tst #$44,3334,X
         |     rts
         | }
         |

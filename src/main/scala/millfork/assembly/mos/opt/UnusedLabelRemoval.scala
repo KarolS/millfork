@@ -15,6 +15,7 @@ object UnusedLabelRemoval extends AssemblyOptimization[AssemblyLine] {
     val usedLabels = code.flatMap {
       case AssemblyLine0(LABEL, _, _) => None
       case AssemblyLine0(_, _, MemoryAddressConstant(Label(l))) => Some(l)
+      case AssemblyLine0(_, _, StructureConstant(_, List(_, MemoryAddressConstant(Label(l))))) => Some(l)
       case _ => None
     }.toSet
     val definedLabels = code.flatMap {

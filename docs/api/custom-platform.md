@@ -23,13 +23,13 @@ if a line ends with a backslash character, the value continues to the next line.
     
     * `65sc02` (65SC02)
     
-    * `65c02` (Rockwell 65C02; the instructions `BBRn`, `BBSn`, `SMBn`, `RMBn` are not supported yet)
+    * `65c02` (Rockwell 65C02)
     
     * `w65c02` (WDC 65C02)
     
     * `65ce02` (CSG 65CE02; experimental)
     
-    * `huc6280` (Hudson HuC6280; experimental, many instructions are not supported yet)
+    * `huc6280` (Hudson HuC6280)
     
     * `65816` (WDC 65816/65802; experimental; currently only programs that use only 16-bit addressing are supported)
     
