@@ -220,7 +220,9 @@ Default: yes.
 
 * `-fsubroutine-extraction`, `-fno-subroutine-extraction` – 
 Whether identical fragments of functions should be extracted into subroutines (experimental).
-Makes the code smaller. Computationally very expensive.
+Makes the code smaller.
+For large programs, the effect is often much bigger than `-Os` (use both for even better effect).
+May occasionally be computationally very expensive.
 `.ini` equivalent: `subroutine_extraction`.
 Default: no. 
 

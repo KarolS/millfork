@@ -2,6 +2,20 @@
 
 ## Current version
 
+* Full assembly support for HuC6280.
+
+* Improvements to subroutine extraction; it's now much faster, less buggy and actually effective.
+
+* 8080: function parameters can now be optimized to registers.
+
+* Fixed error messages about invalid function flags.
+
+* 6502: Fixed compilation of interrupt routines.
+
+* 65C02: Fixed fatal bugs related to some 65C02 subtypes.
+
+* Other bug fixes.
+
 ## 0.3.12
 
 * **Breaking change!**
