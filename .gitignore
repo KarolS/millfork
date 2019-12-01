@@ -15,6 +15,9 @@ examples/lunix/
 # hidden files
 *.~
 
+#tools
+*.bat
+
 # compiled Scala files
 *.jar
 *.class
@@ -47,6 +50,8 @@ examples/lunix/
 HELLO
 HELLOCPC
 FIZZBUZZ
+__hw_bbcmicro
+__hw_cpc464
 
 #heap dumps
 java_pid*
