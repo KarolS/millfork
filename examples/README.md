@@ -78,4 +78,4 @@ no more one of which will display correctly depending on the default font of you
 
 * [Palette](x16/palette.mfk) – displays the default 256-colour palette.
 
-* [Balls](x16/palette.mfk) – 16 sprites using 240 colours.
+* [Balls](x16/balls.mfk) – 16 sprites using 240 colours.
