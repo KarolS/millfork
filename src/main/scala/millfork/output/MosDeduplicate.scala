@@ -2,7 +2,7 @@ package millfork.output
 
 import millfork.{CompilationOptions, Prehashed}
 import millfork.assembly.mos._
-import millfork.env.{Environment, Label, MemoryAddressConstant}
+import millfork.env.{Environment, Label, MemoryAddressConstant, StructureConstant}
 import Opcode._
 import millfork.assembly.mos.AddrMode._
 
@@ -51,7 +51,11 @@ class MosDeduplicate(env: Environment, options: CompilationOptions) extends Dedu
   private val badAddressingModes = Set(Stack, IndexedSY, AbsoluteIndexedX, Indirect, LongIndirect)
 
   override def isExtractable(line: AssemblyLine): Boolean =
-    line.elidable && goodOpcodes(line.opcode) && !badAddressingModes(line.addrMode)
+    line.elidable && goodOpcodes(line.opcode) && !badAddressingModes(line.addrMode) && (line.parameter match {
+      case MemoryAddressConstant(Label(x)) => !x.startsWith(".")
+      case StructureConstant(_, List(_, MemoryAddressConstant(Label(x)))) => !x.startsWith(".")
+      case _ => true
+    })
 
   override def isBadExtractedCodeHead(head: AssemblyLine): Boolean = false
 

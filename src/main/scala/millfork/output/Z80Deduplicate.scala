@@ -56,7 +56,10 @@ class Z80Deduplicate(env: Environment, options: CompilationOptions) extends Dedu
         case TwoRegisters(_, SP) => false
         case TwoRegisters(SP, _) => false
         case _ => true
-      }))
+      })) && (line.parameter match {
+      case MemoryAddressConstant(Label(x)) => !x.startsWith(".")
+      case _ => true
+    })
   }
 
   override def isBadExtractedCodeHead(head: ZLine): Boolean = false
