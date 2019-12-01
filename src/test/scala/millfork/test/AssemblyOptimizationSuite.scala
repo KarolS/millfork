@@ -747,4 +747,25 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
     EmuOptimizedZ80Run(c).readByte(0xc000) should equal(13)
     EmuOptimizedIntel8080Run(c).readByte(0xc000) should equal(13)
   }
+
+  test("Optimize load after test") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080)(
+      """
+        | byte output @ $c000
+        | void main() {
+        |   f(2)
+        | }
+        | noinline void f(byte i) {
+        |   if (i == 2) {
+        |     g(2)
+        |   }
+        | }
+        | noinline void g(byte i) {
+        |   output = i
+        | }
+      """.stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(2)
+    }
+  }
 }

@@ -324,6 +324,16 @@ object AlwaysGoodI80Optimizations {
     //69
     (HasOpcode(LD) & MatchSourceRealRegister(2) & MatchTargetRealRegister(3)) ~
       (Elidable & HasOpcode(LD) & MatchSourceRealRegister(3) & MatchTargetRealRegister(2)) ~~> (_.init),
+
+    // 70
+    (HasOpcode(CP) & Match8BitImmediate(1)) ~
+      (HasOpcodeIn(Set(JP, JR, RET)) & HasRegisters(IfFlagClear(ZFlag.Z))) ~
+      (Elidable & HasOpcode(LD) & HasTargetRegister(A) & Match8BitImmediate(1)) ~~> (_.init),
+
+    // 71
+    (HasOpcode(CP) & MatchSoleRegisterAndOffset(1)) ~
+      (HasOpcodeIn(Set(JP, JR, RET)) & HasRegisters(IfFlagClear(ZFlag.Z))) ~
+      (Elidable & HasOpcode(LD) & HasTargetRegister(A) & MatchSourceRegisterAndOffset(1)) ~~> (_.init),
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",

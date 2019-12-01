@@ -554,6 +554,43 @@ object LaterOptimizations {
       (Elidable & HasOpcode(STA) & HasAddrModeIn(Absolute, ZeroPage) & DoesntMatterWhatItDoesWith(State.A)) ~~>{ code =>
       List(code.head, code.last.copy(opcode = STY))
     },
+
+    (Elidable & HasOpcode(CMP) & MatchParameter(0) & MatchAddrMode(1)) ~
+      (Elidable & HasOpcode(BNE)) ~
+      (Elidable & HasOpcode(LDA) & MatchParameter(0) & MatchAddrMode(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~>{ code =>
+      code.init
+    },
+    (Elidable & HasOpcode(CPX) & MatchParameter(0) & MatchAddrMode(1)) ~
+      (Elidable & HasOpcode(BNE)) ~
+      (Elidable & HasOpcode(LDX) & MatchParameter(0) & MatchAddrMode(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~>{ code =>
+      code.init
+    },
+    (Elidable & HasOpcode(CPY) & MatchParameter(0) & MatchAddrMode(1)) ~
+      (Elidable & HasOpcode(BNE)) ~
+      (Elidable & HasOpcode(LDY) & MatchParameter(0) & MatchAddrMode(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~>{ code =>
+      code.init
+    },
+
+    (Elidable & HasOpcode(CMP) & MatchParameter(0) & MatchAddrMode(1)) ~
+      (Elidable & HasOpcode(BNE)) ~
+      (Elidable & HasOpcode(LDX) & MatchParameter(0) & MatchAddrMode(1)) ~~>{ code =>
+      code.init :+ AssemblyLine.implied(TAX).pos(code.last.source)
+    },
+    (Elidable & HasOpcode(CMP) & MatchParameter(0) & MatchAddrMode(1)) ~
+      (Elidable & HasOpcode(BNE) & IsNotALabelUsedManyTimes) ~
+      (Elidable & HasOpcode(LDY) & MatchParameter(0) & MatchAddrMode(1)) ~~>{ code =>
+      code.init :+ AssemblyLine.implied(TAY).pos(code.last.source)
+    },
+    (Elidable & HasOpcode(CPX) & MatchParameter(0) & MatchAddrMode(1)) ~
+      (Elidable & HasOpcode(BNE)) ~
+      (Elidable & HasOpcode(LDA) & MatchParameter(0) & MatchAddrMode(1)) ~~>{ code =>
+      code.init :+ AssemblyLine.implied(TXA).pos(code.last.source)
+    },
+    (Elidable & HasOpcode(CPY) & MatchParameter(0) & MatchAddrMode(1)) ~
+      (Elidable & HasOpcode(BNE)) ~
+      (Elidable & HasOpcode(LDA) & MatchParameter(0) & MatchAddrMode(1)) ~~>{ code =>
+      code.init :+ AssemblyLine.implied(TYA).pos(code.last.source)
+    },
   )
 
   val DontUseIndexRegisters = new RuleBasedAssemblyOptimization("Don't use index registers unnecessarily",

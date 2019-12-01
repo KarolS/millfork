@@ -584,6 +584,15 @@ case class MatchSourceRegisterAndOffset(i: Int) extends AssemblyLinePattern {
   override def hitRate: Double = 0.931
 }
 
+case class HasTargetRegister(i: ZRegister.Value) extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers match {
+      case TwoRegisters(t, _) => t == i
+      case _ => false
+    }
+
+  override def hitRate: Double = 0.879
+}
 case class MatchTargetRegisterAndOffset(i: Int) extends AssemblyLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
     line.registers match {
@@ -1323,4 +1332,16 @@ case object IsNotALabelUsedManyTimes extends AssemblyLinePattern {
   }
 
   override def hitRate: Double = 0.999
+}
+
+case object ParameterIsLabel extends AssemblyLinePattern {
+
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit = FlowInfoRequirement.assertLabels(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = line.parameter match {
+      case MemoryAddressConstant(Label(l)) => true
+      case _ => false
+    }
+
+  override def hitRate: Double = 0.09 // ?
 }

@@ -1625,3 +1625,15 @@ case object IsNotALabelUsedManyTimes extends AssemblyLinePattern {
 
   override def hitRate: Double = 0.92 // ?
 }
+
+case object ParameterIsLabel extends AssemblyLinePattern {
+
+  override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit = FlowInfoRequirement.assertLabels(needsFlowInfo)
+
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = line.parameter match {
+      case MemoryAddressConstant(Label(l)) => true
+      case _ => false
+    }
+
+  override def hitRate: Double = 0.09 // ?
+}
