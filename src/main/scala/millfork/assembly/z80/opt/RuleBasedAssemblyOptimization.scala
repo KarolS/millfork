@@ -1235,6 +1235,7 @@ case class HasOpcodeIn(ops: Set[ZOpcode.Value]) extends TrivialAssemblyLinePatte
 case class Has8BitImmediate(i: Int) extends TrivialAssemblyLinePattern {
   override def apply(line: ZLine): Boolean = (line.registers match {
     case TwoRegisters(_, ZRegister.IMM_8) => true
+    case TwoRegistersOffset(_, ZRegister.IMM_8, _) => true
     case OneRegister(ZRegister.IMM_8) => true
     case _ => false
   }) && (line.parameter.quickSimplify match {
@@ -1252,6 +1253,7 @@ case class Match8BitImmediate(i: Int) extends AssemblyLinePattern {
 
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean = line.registers match {
     case TwoRegisters(_, ZRegister.IMM_8) => ctx.addObject(i, line.parameter)
+    case TwoRegistersOffset(_, ZRegister.IMM_8, _) => ctx.addObject(i, line.parameter)
     case OneRegister(ZRegister.IMM_8) => ctx.addObject(i, line.parameter)
     case _ => false
   }
@@ -1263,6 +1265,7 @@ case class HasImmediateWhere(predicate: Int => Boolean) extends TrivialAssemblyL
   override def apply(line: ZLine): Boolean =
     (line.registers match {
       case TwoRegisters(_, ZRegister.IMM_8) => true
+      case TwoRegistersOffset(_, ZRegister.IMM_8, _) => true
       case OneRegister(ZRegister.IMM_8) => true
       case _ => false
     }) && (line.parameter.quickSimplify match {

@@ -231,7 +231,7 @@ object AlwaysGoodI80Optimizations {
     for7Registers(register =>
       (Elidable & Is8BitLoad(register, register)) ~~> (_ => Nil)
     ),
-    // 42-48
+    // 42-47
     for6Registers(register =>
       (Elidable & Is8BitLoadTo(register) & MatchSourceRegisterAndOffset(0) & MatchParameterOrNothing(1)) ~
         (Linear & Not(Concerns(register)) & DoesntChangeMatchedRegisterAndOffset(0)).* ~
@@ -241,7 +241,7 @@ object AlwaysGoodI80Optimizations {
       }
     ),
 
-    // 49-54
+    // 48-51
     MultipleAssemblyRules {
       import ZRegister._
       val regs = Seq((BC, B, C), (DE, D, E), (HL, H, L))
@@ -261,34 +261,34 @@ object AlwaysGoodI80Optimizations {
         }
       }
     },
-    // 55-59
+    // 52-56
     for5LargeRegisters(register =>
       (Is16BitLoad(register, ZRegister.MEM_ABS_16) & MatchParameter(0)).captureLine(1) ~
         (Linear & Not(Changes(register)) & DoesntChangeMemoryAt(1)).* ~
         (Elidable & Is16BitLoad(register, ZRegister.MEM_ABS_16) & MatchParameter(0)) ~~> (_.init)
     ),
-    // 60
+    // 57
     (HasOpcode(LD) & MatchSourceRegisterAndOffset(0) & MatchTargetRegisterAndOffset(1)) ~
       Where(ctx => ctx.get[RegisterAndOffset](0).register != ZRegister.MEM_ABS_8 && ctx.get[RegisterAndOffset](1).register != ZRegister.MEM_ABS_8) ~
       (Elidable & HasOpcode(LD) & MatchSourceRegisterAndOffset(1) & MatchTargetRegisterAndOffset(0)) ~~> (_.init),
-    // 61:
+    // 58:
     (Elidable & HasOpcode(EX_DE_HL)) ~
       (Elidable & Is8BitLoad(H, D)) ~
       (Elidable & Is8BitLoad(L, E) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~~> (_ => Nil),
-    // 62:
+    // 59:
     (Elidable & HasOpcode(EX_DE_HL)) ~
       (Elidable & Is8BitLoad(L, E)) ~
       (Elidable & Is8BitLoad(H, D) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~~> (_ => Nil),
-    // 63:
+    // 60:
     (Elidable & HasOpcode(EX_DE_HL)) ~
       (Elidable & Is8BitLoad(E, L)) ~
       (Elidable & Is8BitLoad(D, H) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (_ => Nil),
-    // 64:
+    // 61:
     (Elidable & HasOpcode(EX_DE_HL)) ~
       (Elidable & Is8BitLoad(D, H)) ~
       (Elidable & Is8BitLoad(E, L) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (_ => Nil),
 
-    // 65:
+    // 62:
     ((Is8BitLoad(D, H)) ~
       (Is8BitLoad(E, L)) ~
       (Linear & Not(Changes(HL)) & Not(Changes(DE))).* ~
@@ -298,7 +298,7 @@ object AlwaysGoodI80Optimizations {
       (Elidable & Is8BitLoad(L, E)) ~~> { (_, ctx) =>
       ctx.get[List[ZLine]](2) :+ ZLine.register(DEC_16, HL)
     },
-    // 66:
+    // 63:
     ((Is8BitLoad(B, H)) ~
       (Is8BitLoad(C, L)) ~
       (Linear & Not(Changes(HL)) & Not(Changes(BC))).* ~
@@ -309,29 +309,29 @@ object AlwaysGoodI80Optimizations {
       ctx.get[List[ZLine]](2) :+ ZLine.register(DEC_16, HL)
     },
 
-    // 67
+    // 64
     (HasOpcode(LD) & MatchSourceRealRegister(0) & MatchTargetRealRegister(1)) ~
       (Linear & Not(ChangesMatchedRegister(0)) & Not(ChangesMatchedRegister(1))).* ~
       (Elidable & HasOpcode(LD) & MatchSourceRealRegister(1) & MatchTargetRealRegister(0)) ~~> (_.init),
 
-    // 68
+    // 65
     (Elidable & HasOpcode(LD) & Match8BitImmediate(1) & MatchTargetRegisterAndOffset(2)) ~
       Where(ctx => ctx.get[RegisterAndOffset](2).isOneOfSeven) ~
       (Elidable & HasOpcode(LD) & MatchSourceRegisterAndOffset(2) & MatchTargetRealRegister(3) & DoesntMatterWhatItDoesWithMatchedRegisterOffset(2)) ~~> {(code, ctx) =>
       List(code.head.copy(registers = TwoRegisters(ctx.get[ZRegister.Value](3), IMM_8)))
     },
 
-    //69
+    // 66
     (HasOpcode(LD) & MatchSourceRealRegister(2) & MatchTargetRealRegister(3)) ~
       (Elidable & HasOpcode(LD) & MatchSourceRealRegister(3) & MatchTargetRealRegister(2)) ~~> (_.init),
 
-    // 70
+    // 67
     (HasOpcode(CP) & Match8BitImmediate(1)) ~
       (HasOpcodeIn(Set(JP, JR, RET)) & HasRegisters(IfFlagClear(ZFlag.Z))) ~
       (Elidable & HasOpcode(LD) & HasTargetRegister(A) & Match8BitImmediate(1)) ~~> (_.init),
 
-    // 71
-    (HasOpcode(CP) & MatchSoleRegisterAndOffset(1)) ~
+    // 68
+    (HasOpcode(CP) & MatchSoleRegisterAndOffset(1) & Not(Match8BitImmediate(2))) ~
       (HasOpcodeIn(Set(JP, JR, RET)) & HasRegisters(IfFlagClear(ZFlag.Z))) ~
       (Elidable & HasOpcode(LD) & HasTargetRegister(A) & MatchSourceRegisterAndOffset(1)) ~~> (_.init),
   )
