@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.14
 
 * Full assembly support for HuC6280.
 
