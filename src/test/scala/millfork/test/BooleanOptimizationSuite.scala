@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BooleanOptimizationSuite extends FunSuite with Matchers {
 
   test("Cases") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | noinline bool f1(byte a) = a & 1 != 0
         | noinline bool f2(byte a) = a & 4 != 4

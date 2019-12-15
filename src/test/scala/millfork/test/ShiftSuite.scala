@@ -94,7 +94,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Variable shifting") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output0 @$c000
         | word output2 @$c002
         | byte output4 @$c004
@@ -120,7 +120,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Zero shifting") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | byte output0 @$c000
         | byte output1 @$c001
         | noinline byte sl(byte input, byte amount) {

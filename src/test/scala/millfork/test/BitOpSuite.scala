@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BitOpSuite extends FunSuite with Matchers {
 
   test("Word AND") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   byte b
@@ -36,7 +36,7 @@ class BitOpSuite extends FunSuite with Matchers {
   }
 
   test("Smart bit set/reset") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | byte output @$c000
         | void main () {
         |   output = 5
@@ -46,21 +46,21 @@ class BitOpSuite extends FunSuite with Matchers {
         |   output |= 2
         | }
         | noinline void barrier() { }
-      """.stripMargin)(_.readLong(0xc000) should equal(6))
+      """.stripMargin)(_.readByte(0xc000) should equal(6))
   }
 
   test("Smart bit set/reset 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | byte output @$c000
         | void main () {
         |   output = 5
         |   output &= 0xfe
         |   output |= 2
         | }
-      """.stripMargin)(_.readLong(0xc000) should equal(6))
+      """.stripMargin)(_.readByte(0xc000) should equal(6))
   }
   test("Word AND 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   word v, w
@@ -87,11 +87,11 @@ class BitOpSuite extends FunSuite with Matchers {
       | }
       |
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readByte(0xc000) should equal(2))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code)(_.readByte(0xc000) should equal(2))
   }
 
   test("Multiple words") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   word v, w
