@@ -204,6 +204,10 @@ class M6809Assembler(program: Program,
         writeByte(bank, index, M6809Assembler.branches(op))
         writeByte(bank, index + 1, param - (index + 2))
         index + 2
+      case MLine0(BRA, LongRelative, param) =>
+        writeByte(bank, index, 0x16)
+        writeWord(bank, index + 1, param - (index + 3))
+        index + 3
       case MLine0(op, LongRelative, param) if M6809Assembler.branches.contains(op) =>
         writeByte(bank, index, 0x10)
         writeByte(bank, index + 1, M6809Assembler.branches(op))
