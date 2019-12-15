@@ -54,6 +54,28 @@ object M6809Buitins {
     }
   }
 
+  def perform16BitInPlace(ctx: CompilationContext, l: LhsExpression, r: Expression, opcodeA: MOpcode.Value, opcodeB: MOpcode.Value, commutative: Boolean): List[MLine] = {
+    val lc = M6809ExpressionCompiler.compileToD(ctx, l)
+    val rc = M6809ExpressionCompiler.compileToD(ctx, r)
+    (lc, rc) match {
+      case (List(ldl@MLine0(LDD, Absolute(false), _)), _) =>
+        rc ++ List(ldl.copy(opcode = opcodeA), ldl.copy(opcode = opcodeB, parameter = ldl.parameter + 1), ldl.copy(opcode = STD))
+      case (_, List(ldr@MLine0(LDD, Absolute(false), _))) if lc.last.opcode == LDD =>
+        lc ++ List(ldr.copy(opcode = opcodeA), ldr.copy(opcode = opcodeB, parameter = ldr.parameter + 1), lc.last.copy(opcode = STD))
+      case (_, List(ldr@MLine0(LDD, Immediate, _))) if lc.last.opcode == LDD =>
+        lc ++ List(ldr.copy(opcode = opcodeA, parameter = ldr.parameter.hiByte), ldr.copy(opcode = opcodeB, parameter = ldr.parameter.loByte), lc.last.copy(opcode = STD))
+      case _ if lc.last.opcode == LDD && commutative =>
+        // TODO: preserve X?
+        lc ++ List(MLine.pp(PSHS, M6809Register.D)) ++ rc ++ List(MLine.accessAndPullS(opcodeA), MLine.accessAndPullS(opcodeB), lc.last.copy(opcode = STD))
+      case _ if lc.last.opcode == LDD =>
+        // TODO: preserve X?
+        rc ++ List(MLine.pp(PSHS, M6809Register.D)) ++ lc ++ List(MLine.accessAndPullS(opcodeA), MLine.accessAndPullS(opcodeB), lc.last.copy(opcode = STD))
+      case _ =>
+        println(lc)
+        ???
+    }
+  }
+
 
   def split(ctx: CompilationContext, expr: SumExpression): (Constant, List[(Boolean, Expression)]) = {
     var constant = Constant.Zero
@@ -283,7 +305,18 @@ object M6809Buitins {
     ctx.env.eval(rhs) match {
       case Some(NumericConstant(0, _)) => Nil
       case Some(NumericConstant(n, _)) => List.fill(n.toInt)(MLine.inherentB(op))
-      case _ => ???
+      case _ =>
+        val loop = ctx.nextLabel("sr")
+        val skip = ctx.nextLabel("ss")
+        M6809ExpressionCompiler.stashBIfNeeded(ctx, M6809ExpressionCompiler.compileToX(ctx, rhs)) ++ List(
+          MLine.label(loop),
+          MLine.indexedX(LEAX, -1),
+          MLine.immediate(CMPX, -1),
+          MLine.shortBranch(BEQ, skip),
+          MLine.inherentB(op),
+          MLine.shortBranch(BRA, loop),
+          MLine.label(skip)
+        )
     }
   }
 
@@ -291,8 +324,21 @@ object M6809Buitins {
     val op = if (left) List(MLine.inherentB(ASL), MLine.inherentA(ROL)) else List(MLine.inherentA(LSR), MLine.inherentB(ROR))
     ctx.env.eval(rhs) match {
       case Some(NumericConstant(0, _)) => Nil
+      case Some(NumericConstant(8, _)) =>
+        if (left) List(MLine.tfr(M6809Register.B, M6809Register.A), MLine.immediate(LDB, 0))
+        else List(MLine.tfr(M6809Register.A, M6809Register.B), MLine.immediate(LDA, 0))
       case Some(NumericConstant(n, _)) => List.fill(n.toInt)(op).flatten
-      case _ => ???
+      case _ =>
+        val loop = ctx.nextLabel("sr")
+        val skip = ctx.nextLabel("ss")
+        M6809ExpressionCompiler.stashDIfNeeded(ctx, M6809ExpressionCompiler.compileToX(ctx, rhs)) ++ List(
+          MLine.label(loop),
+          MLine.indexedX(LEAX, -1),
+          MLine.immediate(CMPX, -1),
+          MLine.shortBranch(BEQ, skip))++op++List(
+          MLine.shortBranch(BRA, loop),
+          MLine.label(skip)
+        )
     }
   }
 

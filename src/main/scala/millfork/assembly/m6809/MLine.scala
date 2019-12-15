@@ -32,6 +32,10 @@ object MLine {
 
   def longBranch(opcode: MOpcode.Value, label: String): MLine = longBranch(opcode, Label(label))
 
+  def shortBranch(opcode: MOpcode.Value, label: Label): MLine = MLine(opcode, Relative, label.toAddress)
+
+  def shortBranch(opcode: MOpcode.Value, label: String): MLine = shortBranch(opcode, Label(label))
+
   def tfr(source: M6809Register.Value, target: M6809Register.Value): MLine = MLine(TFR, TwoRegisters(source, target), Constant.Zero)
 
   def pp(opcode: MOpcode.Value, registers: M6809Register.Value*): MLine = MLine(opcode, RegisterSet(registers.toSet), Constant.Zero)
@@ -41,6 +45,9 @@ object MLine {
 
   def indexedX(opcode: MOpcode.Value, offset: Constant): MLine =
     MLine(opcode, Indexed(M6809Register.X, indirect = false), offset)
+
+  def indexedX(opcode: MOpcode.Value, offset: Int): MLine =
+    MLine(opcode, Indexed(M6809Register.X, indirect = false), Constant(offset))
 
   def accessAndPullS(opcode: MOpcode.Value): MLine =
     MLine(opcode, PostIncremented(M6809Register.S, 1, indirect = false), Constant.Zero)
@@ -74,9 +81,10 @@ object MLine {
     variable match {
       case v: VariableInMemory => MLine.absolute(opcode, v.toAddress)
       case v: StackVariable =>
-        if (ctx.options.flag(CompilationFlag.UseUForStack)) MLine(opcode, Indexed(M6809Register.U, indirect = false), NumericConstant(v.baseOffset, 1))
-        else if (ctx.options.flag(CompilationFlag.UseYForStack)) MLine(opcode, Indexed(M6809Register.Y, indirect = false), NumericConstant(v.baseOffset, 1))
-        else MLine(opcode, Indexed(M6809Register.S, indirect = false), NumericConstant(v.baseOffset + ctx.extraStackOffset, 1))
+        val size = variable.typ.size
+        if (ctx.options.flag(CompilationFlag.UseUForStack)) MLine(opcode, Indexed(M6809Register.U, indirect = false), NumericConstant(v.baseOffset, size))
+        else if (ctx.options.flag(CompilationFlag.UseYForStack)) MLine(opcode, Indexed(M6809Register.Y, indirect = false), NumericConstant(v.baseOffset, size))
+        else MLine(opcode, Indexed(M6809Register.S, indirect = false), NumericConstant(v.baseOffset + ctx.extraStackOffset, size))
       case _ => ???
     }
   }

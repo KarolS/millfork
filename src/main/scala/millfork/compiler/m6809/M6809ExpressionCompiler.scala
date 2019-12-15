@@ -1,6 +1,6 @@
 package millfork.compiler.m6809
 
-import millfork.assembly.m6809.{DAccumulatorIndexed, Indexed, MLine, MOpcode, TwoRegisters}
+import millfork.assembly.m6809.{DAccumulatorIndexed, Immediate, Indexed, MLine, MLine0, MOpcode, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
@@ -252,7 +252,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             compileTransitiveRelation(ctx, "==", params, target, branches) { (l, r) =>
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, ComparisonType.Equal, l, r, branches)
-                case 2 => ctx.log.error("Word equality comparison not implemented yet", fce.position); Nil
+                case 2 => M6809Comparisons.compile16BitComparison(ctx, ComparisonType.Equal, l, r, branches)
                 case _ => ???
               }
             }
@@ -261,7 +261,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             compileTransitiveRelation(ctx, "!=", params, target, branches) { (l, r) =>
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
-                case 2 => ctx.log.error("Word inequality comparison not implemented yet", fce.position); Nil
+                case 2 => M6809Comparisons.compile16BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
                 case _ => ???
               }
             }
@@ -270,6 +270,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             compileTransitiveRelation(ctx, "<", params, target, branches) { (l, r) =>
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
+                case 2 => M6809Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
                 case _ => ???
               }
             }
@@ -278,6 +279,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             compileTransitiveRelation(ctx, ">", params, target, branches) { (l, r) =>
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
+                case 2 => M6809Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
                 case _ => ???
               }
             }
@@ -286,6 +288,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             compileTransitiveRelation(ctx, "<=", params, target, branches) { (l, r) =>
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
+                case 2 => M6809Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
                 case _ => ???
               }
             }
@@ -294,6 +297,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             compileTransitiveRelation(ctx, ">=", params, target, branches) { (l, r) =>
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
+                case 2 => M6809Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
                 case _ => ???
               }
             }
@@ -302,13 +306,13 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 1 => compileToB(ctx, params(0)) ++ M6809Buitins.compileByteShiftForB(ctx, params(1), left = true) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => compileToD(ctx, params(0)) ++ M6809Buitins.compileWordShiftForD(ctx, params(1), left = true) ++ targetifyD(ctx, target)
             }
-          case ">>" => ???
+          case ">>" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => compileToB(ctx, params(0)) ++ M6809Buitins.compileByteShiftForB(ctx, params(1), left = false) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => compileToD(ctx, params(0)) ++ M6809Buitins.compileWordShiftForD(ctx, params(1), left = false) ++ targetifyD(ctx, target)
             }
           case ">>>>" =>
-            // TODO: this words, but is really suboptimal
+            // TODO: this works, but is really suboptimal
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 | 2 => compileToD(ctx, params(0)) ++
                 List(MLine.immediate(ANDA, 1)) ++
@@ -341,46 +345,39 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, ANDB)
+              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ANDB, commutative = true)
               case _ => ???
             }
           case "|=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, ORB)
+              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ORB, commutative = true)
               case _ => ???
             }
           case "^=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, EORB)
+              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, EORB, commutative = true)
               case _ => ???
             }
           case "<<=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             // TODO: optimize shifts directly in memory
             size match {
-              case 1 => compileAddressToX(ctx, l) ++
-                List(MLine.indexedX(LDB, Constant.Zero)) ++
-                M6809Buitins.compileByteShiftForB(ctx, r, left = true) ++
-                List(MLine.indexedX(STB, Constant.Zero))
-              case 2 => compileAddressToX(ctx, l) ++
-                List(MLine.indexedX(LDD, Constant.Zero)) ++
-                M6809Buitins.compileWordShiftForD(ctx, r, left = true) ++
-                List(MLine.indexedX(STD, Constant.Zero))
+              case 1 =>
+                handleInPlaceModification(ctx, l, 1, M6809Buitins.compileByteShiftForB(ctx, r, left = true))
+              case 2 =>
+                handleInPlaceModification(ctx, l, 2, M6809Buitins.compileWordShiftForD(ctx, r, left = true))
             }
           case "<<'=" => ???
           case ">>=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             // TODO: optimize shifts directly in memory
             size match {
-              case 1 => compileAddressToX(ctx, l) ++
-                List(MLine.indexedX(LDB, Constant.Zero)) ++
-                M6809Buitins.compileByteShiftForB(ctx, r, left = false) ++
-                List(MLine.indexedX(STB, Constant.Zero))
-              case 2 => compileAddressToX(ctx, l) ++
-                List(MLine.indexedX(LDD, Constant.Zero)) ++
-                M6809Buitins.compileWordShiftForD(ctx, r, left = false) ++
-                List(MLine.indexedX(STD, Constant.Zero))
+              case 1 => handleInPlaceModification(ctx, l, 1, M6809Buitins.compileByteShiftForB(ctx, r, left = false))
+              case 2 => handleInPlaceModification(ctx, l, 2, M6809Buitins.compileWordShiftForD(ctx, r, left = false))
             }
           case ">>'=" => ???
           case ">>>>=" => ???
@@ -547,6 +544,11 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     else lines
   }
 
+  def stashXIfNeeded(ctx: CompilationContext, lines: List[MLine]): List[MLine] = {
+    if (lines.exists(_.changesRegister(M6809Register.X))) MLine.pp(PSHS, M6809Register.X) :: (lines :+ MLine.pp(PULS, M6809Register.X))
+    else lines
+  }
+
   def storeB(ctx: CompilationContext, target: LhsExpression): List[MLine] = {
     target match {
       case VariableExpression(name) =>
@@ -639,6 +641,29 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
           case p:StackVariablePointy => compileToD(ctx, index #*# p.elementType.size) ++ List(MLine.variablestack(ctx, ADDD, p.offset), MLine.tfr(M6809Register.D, M6809Register.X))
         }
       case _ => ???
+    }
+  }
+
+  def handleInPlaceModification(ctx: CompilationContext, l: LhsExpression, size: Int, r: List[MLine]): List[MLine] = {
+    compileAddressToX(ctx, l) match {
+      case List(MLine0(LDX, Immediate, addr)) =>
+        size match {
+          case 1 => List(MLine.absolute(LDB, addr)) ++ r ++ List(MLine.absolute(STB, addr))
+          case 2 => List(MLine.absolute(LDD, addr)) ++ r ++ List(MLine.absolute(STD, addr))
+        }
+      case lc =>
+        size match {
+          case 1 =>
+            lc ++
+              List(MLine.indexedX(LDB, Constant.Zero)) ++
+              stashXIfNeeded(ctx, r) ++
+              List(MLine.indexedX(STB, Constant.Zero))
+          case 2 =>
+            lc ++
+              List(MLine.indexedX(LDD, Constant.Zero)) ++
+              stashXIfNeeded(ctx, r) ++
+              List(MLine.indexedX(LDD, Constant.Zero))
+        }
     }
   }
 
