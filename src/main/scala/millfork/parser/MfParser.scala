@@ -605,10 +605,21 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     variants <- enumVariants ~/ Pass
   } yield Seq(EnumDefinitionStatement(name, variants).pos(p))
 
-  val compoundTypeField: P[FieldDesc] = for {
-    typ <- identifier ~/ HWS
-    name <- identifier ~ HWS
-  } yield FieldDesc(typ, name)
+  val compoundTypeField: P[FieldDesc] = ("array".! ~ HWS ~/ Pass).?.flatMap {
+    case None =>
+      for {
+        typ <- identifier ~/ HWS
+        name <- identifier ~ HWS
+      } yield FieldDesc(typ, name, None)
+
+    case Some(_) =>
+      for {
+        elementType <- ("(" ~/ AWS ~/ identifier ~ AWS ~ ")").? ~/ HWS
+        if enableDebuggingOptions
+        name <- identifier ~ HWS
+        length <- "[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]" ~ HWS
+      } yield FieldDesc(elementType.getOrElse("byte"), name, Some(length))
+  }
 
   val compoundTypeFields: P[List[FieldDesc]] =
     ("{" ~/ AWS ~ compoundTypeField.rep(sep = NoCut(EOLOrComma) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)

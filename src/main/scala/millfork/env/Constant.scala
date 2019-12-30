@@ -1,6 +1,7 @@
 package millfork.env
 
 import millfork.DecimalUtils._
+import millfork.node.ResolvedFieldDesc
 import millfork.output.DivisibleAlignment
 
 object Constant {
@@ -167,25 +168,27 @@ case class StructureConstant(typ: StructType, fields: List[Constant]) extends Co
 
   override def subbyte(index: Int): Constant = {
     var offset = 0
-    for ((fv, (ft, _)) <- fields.zip(typ.mutableFieldsWithTypes)) {
+    for ((fv, ResolvedFieldDesc(ft, _, arraySize)) <- fields.zip(typ.mutableFieldsWithTypes)) {
+      // TODO: handle array members?
       val fs = ft.size
       if (index < offset + fs) {
         val indexInField = index - offset
         return fv.subbyte(indexInField)
       }
-      offset += fs
+      offset += fs * arraySize.getOrElse(1)
     }
     Constant.Zero
   }
   override def subbyteBe(index: Int, totalSize: Int): Constant = {
     var offset = 0
-    for ((fv, (ft, _)) <- fields.zip(typ.mutableFieldsWithTypes)) {
+    for ((fv, ResolvedFieldDesc(ft, _, arraySize)) <- fields.zip(typ.mutableFieldsWithTypes)) {
+      // TODO: handle array members?
       val fs = ft.size
       if (index < offset + fs) {
         val indexInField = index - offset
         return fv.subbyteBe(indexInField, fs)
       }
-      offset += fs
+      offset += fs * arraySize.getOrElse(1)
     }
     Constant.Zero
   }

@@ -44,6 +44,8 @@ sealed trait Type extends CallableThing {
 
 sealed trait VariableType extends Type
 
+case class Subvariable(suffix: String, offset: Int, typ: VariableType, arraySize: Option[Int] = None)
+
 case object VoidType extends Type {
   def size = 0
 
@@ -119,14 +121,14 @@ sealed trait CompoundVariableType extends VariableType
 case class StructType(name: String, fields: List[FieldDesc]) extends CompoundVariableType {
   override def size: Int = mutableSize
   var mutableSize: Int = -1
-  var mutableFieldsWithTypes: List[(Type, String)] = Nil
+  var mutableFieldsWithTypes: List[ResolvedFieldDesc] = Nil
   override def isSigned: Boolean = false
 }
 
 case class UnionType(name: String, fields: List[FieldDesc]) extends CompoundVariableType {
   override def size: Int = mutableSize
   var mutableSize: Int = -1
-  var mutableFieldsWithTypes: List[(Type, String)] = Nil
+  var mutableFieldsWithTypes: List[ResolvedFieldDesc] = Nil
   override def isSigned: Boolean = false
 }
 

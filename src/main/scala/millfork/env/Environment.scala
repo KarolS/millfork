@@ -518,8 +518,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S), MOpcode.BPL),
       BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S), MOpcode.BMI)),
       None)
-    val byte_and_pointer$ = StructType("byte_and_pointer$", List(FieldDesc("byte", "zp"), FieldDesc("pointer", "branch")))
-    val hudson_transfer$ = StructType("hudson_transfer$", List(FieldDesc("word", "a"), FieldDesc("word", "b"), FieldDesc("word", "c")))
+    val byte_and_pointer$ = StructType("byte_and_pointer$", List(FieldDesc("byte", "zp", None), FieldDesc("pointer", "branch", None)))
+    val hudson_transfer$ = StructType("hudson_transfer$", List(FieldDesc("word", "a", None), FieldDesc("word", "b", None), FieldDesc("word", "c", None)))
     addThing(byte_and_pointer$, None)
     addThing(hudson_transfer$, None)
     builtinsAdded = true
@@ -960,17 +960,17 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(UnionType(stmt.name, stmt.fields), stmt.position)
   }
 
-  def getTypeSize(name: String, path: Set[String]): Int = {
+  def getTypeSize(t: VariableType, path: Set[String]): Int = {
+    val name = t.name
     if (path.contains(name)) return -1
-    val t = get[Type](name)
     t match {
       case s: StructType =>
         if (s.mutableSize >= 0) s.mutableSize
         else {
           val newPath = path + name
           var sum = 0
-          for( FieldDesc(fieldType, _) <- s.fields) {
-            val fieldSize = getTypeSize(fieldType, newPath)
+          for( ResolvedFieldDesc(fieldType, _, count) <- s.mutableFieldsWithTypes) {
+            val fieldSize = getTypeSize(fieldType, newPath) * count.getOrElse(1)
             if (fieldSize < 0) return -1
             sum += fieldSize
           }
@@ -980,9 +980,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
           val b = get[Type]("byte")
           var offset = 0
-          for( FieldDesc(fieldType, fieldName) <- s.fields) {
+          for( ResolvedFieldDesc(fieldType, fieldName, count) <- s.mutableFieldsWithTypes) {
             addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(offset, 1), b), None)
-            offset += getTypeSize(fieldType, newPath)
+            offset += getTypeSize(fieldType, newPath) * count.getOrElse(1)
           }
           sum
         }
@@ -991,8 +991,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         else {
           val newPath = path + name
           var max = 0
-          for( FieldDesc(fieldType, _) <- s.fields) {
-            val fieldSize = getTypeSize(fieldType, newPath)
+          for( ResolvedFieldDesc(fieldType, _, count) <- s.mutableFieldsWithTypes) {
+            val fieldSize = getTypeSize(fieldType, newPath) * count.getOrElse(1)
             if (fieldSize < 0) return -1
             max = max max fieldSize
           }
@@ -1001,7 +1001,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             log.error(s"Union `$name` is larger than 255 bytes")
           }
           val b = get[Type]("byte")
-          for (FieldDesc(fieldType, fieldName) <- s.fields) {
+          for (ResolvedFieldDesc(fieldType, fieldName, _) <- s.mutableFieldsWithTypes) {
             addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(0, 1), b), None)
           }
           max
@@ -1361,7 +1361,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position, options, Some(typ))
         val addr = v.toAddress
-        for((suffix, offset, t) <- getSubvariables(typ)) {
+        for(Subvariable(suffix, offset, t, arraySize) <- getSubvariables(typ)) {
+          if (arraySize.isDefined) ??? // TODO
           val subv = RelativeVariable(v.name + suffix, addr + offset, t, zeropage = zp, None, isVolatile = v.isVolatile)
           addThing(subv, stmt.position)
           registerAddressConstant(subv, stmt.position, options, Some(t))
@@ -1403,7 +1404,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               List.fill(tt.size)(LiteralExpression(0, 1))
             } else {
               tt.fields.zip(fieldValues).flatMap {
-                case (FieldDesc(fieldTypeName, _), expr) => extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
+                case (FieldDesc(fieldTypeName, _, count), expr) =>
+                  // TODO: handle array fields
+                  if (count.isDefined) ???
+                  extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
               }
             }
           case _ =>
@@ -1437,7 +1441,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               List.fill(tt.size)(LiteralExpression(0, 1))
             } else {
               tt.fields.zip(fieldValues).flatMap {
-                case (FieldDesc(fieldTypeName, _), expr) => extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
+                case (FieldDesc(fieldTypeName, _, count), expr) =>
+                  // TODO: handle array fields
+                  if (count.isDefined) ???
+                  extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
               }
             }
           case _ =>
@@ -1697,7 +1704,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", position)).fitInto(typ)
       if (constantValue.requiredSize > typ.size) log.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
-      for((suffix, offset, t) <- getSubvariables(typ)) {
+      for(Subvariable(suffix, offset, t, arraySize) <- getSubvariables(typ)) {
+        if (arraySize.isDefined) ??? // TODO
         addThing(ConstantThing(prefix + name + suffix, constantValue.subconstant(offset, t.size), t), stmt.position)
       }
     } else {
@@ -1763,145 +1771,165 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     variable match {
       case v: StackVariable =>
         addThing(localName, v, position)
-        for ((suffix, offset, t) <- getSubvariables(v.typ)) {
-          addThing(StackVariable(prefix + localName + suffix, t, baseStackOffset + offset), position)
+        for (Subvariable(suffix, offset, t, arraySize) <- getSubvariables(v.typ)) {
+          if (arraySize.isDefined) {
+            log.error(s"Cannot create a stack variable $localName of compound type ${v.typ.name} that contains an array member")
+          } else {
+            addThing(StackVariable(prefix + localName + suffix, t, baseStackOffset + offset), position)
+          }
         }
       case v: MemoryVariable =>
         addThing(localName, v, position)
-        for ((suffix, offset, t) <- getSubvariables(v.typ)) {
-          val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
-          addThing(subv, position)
-          registerAddressConstant(subv, position, options, Some(t))
+        for (Subvariable(suffix, offset, t, arraySize) <- getSubvariables(v.typ)) {
+          arraySize match {
+            case None =>
+              val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
+              addThing(subv, position)
+              registerAddressConstant(subv, position, options, Some(t))
+            case Some(_) =>
+              ??? // TODO
+          }
         }
       case v: VariableInMemory =>
         addThing(localName, v, position)
         addThing(ConstantThing(v.name + "`", v.toAddress, get[Type]("word")), position)
-        for ((suffix, offset, t) <- getSubvariables(v.typ)) {
-          val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
-          addThing(subv, position)
-          registerAddressConstant(subv, position, options, Some(t))
+        for (Subvariable(suffix, offset, t, arraySize) <- getSubvariables(v.typ)) {
+          arraySize match {
+            case None =>
+              val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
+              addThing(subv, position)
+              registerAddressConstant(subv, position, options, Some(t))
+            case Some(_) =>
+              ??? // TODO
+          }
         }
       case _ => ???
     }
   }
 
-  def getSubvariables(typ: Type): List[(String, Int, VariableType)] = {
+  def getSubvariables(typ: Type): List[Subvariable] = {
     val b = get[VariableType]("byte")
     val w = get[VariableType]("word")
     if (typ.name == "__reg$type") {
       if (options.isBigEndian) {
         throw new IllegalArgumentException("__reg$type on 6809???")
       }
-      return (".lo", 0, b) ::
-        (".hi", 1, b) ::
-        (".loword", 0, w) ::
-        (".loword.lo", 0, b) ::
-        (".loword.hi", 1, b) ::
-        (".b2b3", 2, w) ::
-        (".b2b3.lo", 2, b) ::
-        (".b2b3.hi", 3, b) ::
-        List.tabulate(typ.size) { i => (".b" + i, i, b) }
+      return Subvariable(".lo", 0, b) ::
+        Subvariable(".hi", 1, b) ::
+        Subvariable(".loword", 0, w) ::
+        Subvariable(".loword.lo", 0, b) ::
+        Subvariable(".loword.hi", 1, b) ::
+        Subvariable(".b2b3", 2, w) ::
+        Subvariable(".b2b3.lo", 2, b) ::
+        Subvariable(".b2b3.hi", 3, b) ::
+        List.tabulate(typ.size) { i => Subvariable(".b" + i, i, b) }
     }
     typ match {
       case _: PlainType => typ.size match {
         case 2 => if (options.isBigEndian) List(
-          (".lo", 1, b),
-          (".hi", 0, b)
+          Subvariable(".lo", 1, b),
+          Subvariable(".hi", 0, b)
         ) else List(
-          (".lo", 0, b),
-          (".hi", 1, b))
+          Subvariable(".lo", 0, b),
+          Subvariable(".hi", 1, b))
         case 3 => if (options.isBigEndian) List(
-          (".loword", 1, w),
-          (".loword.lo", 2, b),
-          (".loword.hi", 1, b),
-          (".hiword", 0, w),
-          (".hiword.lo", 1, b),
-          (".hiword.hi", 0, b),
-          (".b0", 2, b),
-          (".b1", 1, b),
-          (".b2", 0, b)
+          Subvariable(".loword", 1, w),
+          Subvariable(".loword.lo", 2, b),
+          Subvariable(".loword.hi", 1, b),
+          Subvariable(".hiword", 0, w),
+          Subvariable(".hiword.lo", 1, b),
+          Subvariable(".hiword.hi", 0, b),
+          Subvariable(".b0", 2, b),
+          Subvariable(".b1", 1, b),
+          Subvariable(".b2", 0, b)
         ) else List(
-          (".loword", 0, w),
-          (".loword.lo", 0, b),
-          (".loword.hi", 1, b),
-          (".hiword", 1, w),
-          (".hiword.lo", 1, b),
-          (".hiword.hi", 2, b),
-          (".b0", 0, b),
-          (".b1", 1, b),
-          (".b2", 2, b))
+          Subvariable(".loword", 0, w),
+          Subvariable(".loword.lo", 0, b),
+          Subvariable(".loword.hi", 1, b),
+          Subvariable(".hiword", 1, w),
+          Subvariable(".hiword.lo", 1, b),
+          Subvariable(".hiword.hi", 2, b),
+          Subvariable(".b0", 0, b),
+          Subvariable(".b1", 1, b),
+          Subvariable(".b2", 2, b))
         case 4 => if (options.isBigEndian) List(
-          (".loword", 2, w),
-          (".hiword", 0, w),
-          (".loword.lo", 3, b),
-          (".loword.hi", 2, b),
-          (".hiword.lo", 1, b),
-          (".hiword.hi", 0, b),
-          (".b0", 3, b),
-          (".b1", 2, b),
-          (".b2", 1, b),
-          (".b3", 0, b)
+          Subvariable(".loword", 2, w),
+          Subvariable(".hiword", 0, w),
+          Subvariable(".loword.lo", 3, b),
+          Subvariable(".loword.hi", 2, b),
+          Subvariable(".hiword.lo", 1, b),
+          Subvariable(".hiword.hi", 0, b),
+          Subvariable(".b0", 3, b),
+          Subvariable(".b1", 2, b),
+          Subvariable(".b2", 1, b),
+          Subvariable(".b3", 0, b)
         ) else List(
-          (".loword", 0, w),
-          (".hiword", 2, w),
-          (".loword.lo", 0, b),
-          (".loword.hi", 1, b),
-          (".hiword.lo", 2, b),
-          (".hiword.hi", 3, b),
-          (".b0", 0, b),
-          (".b1", 1, b),
-          (".b2", 2, b),
-          (".b3", 3, b)
+          Subvariable(".loword", 0, w),
+          Subvariable(".hiword", 2, w),
+          Subvariable(".loword.lo", 0, b),
+          Subvariable(".loword.hi", 1, b),
+          Subvariable(".hiword.lo", 2, b),
+          Subvariable(".hiword.hi", 3, b),
+          Subvariable(".b0", 0, b),
+          Subvariable(".b1", 1, b),
+          Subvariable(".b2", 2, b),
+          Subvariable(".b3", 3, b)
         )
         case sz if sz > 4 =>
           if (options.isBigEndian) {
-            (".lo", sz - 1, b) ::
-              (".loword", sz - 2, w) ::
-              (".loword.lo", sz - 1, b) ::
-              (".loword.hi", sz - 2, b) ::
-              List.tabulate(sz){ i => (".b" + i, sz - 1 - i, b) }
+            Subvariable(".lo", sz - 1, b) ::
+              Subvariable(".loword", sz - 2, w) ::
+              Subvariable(".loword.lo", sz - 1, b) ::
+              Subvariable(".loword.hi", sz - 2, b) ::
+              List.tabulate(sz){ i => Subvariable(".b" + i, sz - 1 - i, b) }
           } else {
-            (".lo", 0, b) ::
-              (".loword", 0, w) ::
-              (".loword.lo", 0, b) ::
-              (".loword.hi", 1, b) ::
-              List.tabulate(sz){ i => (".b" + i, i, b) }
+            Subvariable(".lo", 0, b) ::
+              Subvariable(".loword", 0, w) ::
+              Subvariable(".loword.lo", 0, b) ::
+              Subvariable(".loword.hi", 1, b) ::
+              List.tabulate(sz){ i => Subvariable(".b" + i, i, b) }
           }
         case _ => Nil
       }
       case p: PointerType => if (options.isBigEndian) List(
-        (".raw", 0, p),
-        (".raw.lo", 1, b),
-        (".raw.hi", 0, b),
-        (".lo", 1, b),
-        (".hi", 0, b)
+        Subvariable(".raw", 0, p),
+        Subvariable(".raw.lo", 1, b),
+        Subvariable(".raw.hi", 0, b),
+        Subvariable(".lo", 1, b),
+        Subvariable(".hi", 0, b)
       ) else List(
-        (".raw", 0, p),
-        (".raw.lo", 0, b),
-        (".raw.hi", 1, b),
-        (".lo", 0, b),
-        (".hi", 1, b))
+        Subvariable(".raw", 0, p),
+        Subvariable(".raw.lo", 0, b),
+        Subvariable(".raw.hi", 1, b),
+        Subvariable(".lo", 0, b),
+        Subvariable(".hi", 1, b))
       case s: StructType =>
-        val builder = new ListBuffer[(String, Int, VariableType)]
+        val builder = new ListBuffer[Subvariable]
         var offset = 0
-        for(FieldDesc(typeName, fieldName) <- s.fields) {
-          val typ = get[VariableType](typeName)
-          val suffix = "." + fieldName
-          builder += ((suffix, offset, typ))
-          builder ++= getSubvariables(typ).map {
-            case (innerSuffix, innerOffset, innerType) => (suffix + innerSuffix, offset + innerOffset, innerType)
+        for(ResolvedFieldDesc(typ, fieldName, arraySize) <- s.mutableFieldsWithTypes) {
+          arraySize match {
+            case None =>
+              val suffix = "." + fieldName
+              builder += Subvariable(suffix, offset, typ, arraySize)
+              if (arraySize.isEmpty) {
+                builder ++= getSubvariables(typ).map {
+                  case Subvariable(innerSuffix, innerOffset, innerType, innerSize) => Subvariable(suffix + innerSuffix, offset + innerOffset, innerType, innerSize)
+                }
+              }
+            case Some(_) =>
+              // TODO
           }
-          offset += typ.size
+          offset += typ.size * arraySize.getOrElse(1)
         }
         builder.toList
       case s: UnionType =>
-        val builder = new ListBuffer[(String, Int, VariableType)]
-        for(FieldDesc(typeName, fieldName) <- s.fields) {
+        val builder = new ListBuffer[Subvariable]
+        for(FieldDesc(typeName, fieldName, _) <- s.fields) {
           val typ = get[VariableType](typeName)
           val suffix = "." + fieldName
-          builder += ((suffix, 0, typ))
+          builder += Subvariable(suffix, 0, typ)
           builder ++= getSubvariables(typ).map {
-            case (innerSuffix, innerOffset, innerType) => (suffix + innerSuffix, innerOffset, innerType)
+            case Subvariable(innerSuffix, innerOffset, innerType, innerSize) => Subvariable(suffix + innerSuffix, innerOffset, innerType, innerSize)
           }
         }
         builder.toList
@@ -1961,9 +1989,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def fixStructSizes(): Unit = {
-    val allStructTypes = things.values.flatMap {
-      case StructType(name, _) => Some(name)
-      case UnionType(name, _) => Some(name)
+    val allStructTypes: Iterable[VariableType] = things.values.flatMap {
+      case s@StructType(name, _) => Some(s)
+      case s@UnionType(name, _) => Some(s)
       case _ => None
     }
     var iterations = allStructTypes.size
@@ -1979,14 +2007,29 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def fixStructFields(): Unit = {
+    // TODO: handle arrays?
     things.values.foreach {
       case st@StructType(_, fields) =>
         st.mutableFieldsWithTypes = fields.map {
-          case FieldDesc(tn, name) => get[Type](tn) -> name
+          case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map { x =>
+            eval(x) match {
+              case Some(NumericConstant(c, _)) if c >= 0 && c < 0x10000 => c.toInt
+              case _ =>
+                log.error(s"Invalid array size for member array $name in type ${st.toString}")
+                0
+            }
+          })
         }
       case ut@UnionType(_, fields) =>
         ut.mutableFieldsWithTypes = fields.map {
-          case FieldDesc(tn, name) => get[Type](tn) -> name
+          case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map { x =>
+            eval(x) match {
+              case Some(NumericConstant(c, _)) if c >= 0 && c < 0x10000 => c.toInt
+              case _ =>
+                log.error(s"Invalid array size for member array $name in type ${ut.toString}")
+                0
+            }
+          })
         }
       case _ => ()
     }
@@ -2012,8 +2055,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case s: UnionDefinitionStatement => registerUnion(s)
       case _ =>
     }
-    fixStructSizes()
     fixStructFields()
+    fixStructSizes()
     val pointies = collectPointies(program.declarations)
     pointiesUsed("") = pointies
     program.declarations.foreach { decl =>

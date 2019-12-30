@@ -366,16 +366,17 @@ object AbstractExpressionCompiler {
             val (actualFieldName, pointerWrap): (String, Int) = getActualFieldNameAndPointerWrap(fieldName)
             currentType match {
               case PointerType(_, _, Some(targetType)) =>
-                val tuples = env.getSubvariables(targetType).filter(x => x._1 == "." + actualFieldName)
+                val tuples = env.getSubvariables(targetType).filter(x => x.suffix == "." + actualFieldName)
                 if (tuples.isEmpty) {
                   log.error(s"Type `$targetType` doesn't have field named `$actualFieldName`", expr.position)
                   ok = false
                 } else {
+                  if (tuples.head.arraySize.isDefined) ??? // TODO
                   pointerWrap match {
                     case 0 =>
-                      currentType = tuples.head._3
+                      currentType = tuples.head.typ
                     case 1 =>
-                      currentType = env.get[Type]("pointer." + tuples.head._3)
+                      currentType = env.get[Type]("pointer." + tuples.head.typ)
                     case 2 =>
                       currentType = env.get[Type]("pointer")
                     case 10 | 11 =>

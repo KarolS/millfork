@@ -390,15 +390,16 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
             val currentResultType = AbstractExpressionCompiler.getExpressionType(env, env.log, result)
             result = currentResultType match {
               case PointerType(_, _, Some(target)) =>
-                val subvariables = env.getSubvariables(target).filter(x => x._1 == "." + actualFieldName)
+                val subvariables = env.getSubvariables(target).filter(x => x.suffix == "." + actualFieldName)
                 if (subvariables.isEmpty) {
                   ctx.log.error(s"Type `${target.name}` does not contain field `$actualFieldName`", result.position)
                   ok = false
                   LiteralExpression(0, 1)
                 } else {
+                  if (subvariables.head.arraySize.isDefined) ??? // TODO
                   val inner = optimizeExpr(result, currentVarValues, optimizeSum = true).pos(pos)
-                  val fieldOffset = subvariables.head._2
-                  val fieldType = subvariables.head._3
+                  val fieldOffset = subvariables.head.offset
+                  val fieldType = subvariables.head.typ
                   pointerWrap match {
                     case 0 =>
                       DerefExpression(inner, fieldOffset, fieldType)
