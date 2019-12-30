@@ -478,4 +478,33 @@ class ForLoopSuite extends FunSuite with Matchers {
         |}
       """.stripMargin).readByte(0xc000) should equal(45)
   }
+
+  test("Some pointers in loops") {
+    val code =
+      """
+        |struct Sprite {
+        |    byte y
+        |}
+        |
+        |array(Sprite) sprites [20]
+        |Sprite test
+        |
+        |void main() {
+        |    byte i
+        |    test = Sprite(1)
+        |    pointer.Sprite test_pointer
+        |    test_pointer = test.pointer
+        |
+        |    sprites[0] = Sprite(5)
+        |    pointer.Sprite current_sprite
+        |    current_sprite = pointer.Sprite(sprites.pointer)
+        |    for i,0,until,20 {
+        |        current_sprite->y = test_pointer->y
+        |    }
+        |}
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809) (code) { m =>
+      // OK
+    }
+  }
 }

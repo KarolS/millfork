@@ -2238,9 +2238,22 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                                 AssemblyLine.indexedY(STA, reg, 2))
                             }
                         }
-                      case _ => ???
+                      case (MemoryAddressConstant(thT: MemoryVariable), MemoryAddressConstant(thS: MemoryVariable)) if thT.name != thS.name =>
+                        prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
+                          if (i >= sourceType.size) List(
+                            if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                            AssemblyLine.immediate(LDA, 0),
+                            AssemblyLine.indexedY(STA, thT))
+                          else List(
+                            if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
+                            AssemblyLine.indexedY(LDA, thS),
+                            AssemblyLine.indexedY(STA, thT))
+                        }
+                      case _ =>
+                        ???
                     }
-                  case _ => ???
+                  case _ =>
+                    ???
                 }
               case _ =>
                 (targetType.size, am) match {
