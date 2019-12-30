@@ -176,4 +176,30 @@ class StructSuite extends FunSuite with Matchers {
       m.readWord(0xc002) should equal(code.count(_ == '↑') + 8)
     }
   }
+
+
+  test("Boolean fields") {
+    val code =
+      """
+        |struct Sprite {
+        |    byte size,
+        |    byte size2,
+        |    byte size3,
+        |    byte size4,
+        |    bool x1,
+        |    bool x,
+        |    bool y,
+        |    bool z
+        |}
+        |
+        |array(Sprite) sprites [20] @ $c000
+        |
+        |void main() {
+        |    sprites[0].x = true
+        |}
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(code){ m =>
+      m.readByte(0xc005) should equal(1)
+    }
+  }
 }

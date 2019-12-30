@@ -66,7 +66,7 @@ sealed trait Constant {
   }
 
   def subbyte(index: Int): Constant = {
-    if (requiredSize <= index) Constant.Zero
+    if (requiredSize > 0 && requiredSize <= index) Constant.Zero
     else index match {
       case 0 => if (isProvablyDivisibleBy256) Constant.Zero else loByte
       case 1 => hiByte
