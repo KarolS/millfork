@@ -467,9 +467,89 @@ object ZBuiltIns {
 
 
   def performLongInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcodeFirst: ZOpcode.Value, opcodeLater: ZOpcode.Value, size: Int, decimal: Boolean = false): List[ZLine] = {
-    if (lhs.isInstanceOf[DerefExpression]) {
-      ctx.log.error("Too complex left-hand-side expression", lhs.position)
-      return Z80ExpressionCompiler.compile(ctx, lhs, ZExpressionTarget.NOTHING) ++ Z80ExpressionCompiler.compile(ctx, rhs, ZExpressionTarget.NOTHING)
+    lhs match {
+      case dx@DerefExpression(inner, offset, targetType) =>
+        val env = ctx.env
+        if (targetType.size == 2) {
+          if (opcodeFirst == ADD && !decimal && ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+            val l = Z80ExpressionCompiler.compileToBC(ctx, inner #+# offset)
+            val r = Z80ExpressionCompiler.compileToDE(ctx, rhs)
+            val s = List(
+              ZLine.ld8(ZRegister.A, ZRegister.MEM_BC),
+              ZLine.ld8(ZRegister.L, ZRegister.A),
+              ZLine.register(INC_16, ZRegister.BC),
+              ZLine.ld8(ZRegister.A, ZRegister.MEM_BC),
+              ZLine.ld8(ZRegister.H, ZRegister.A),
+              ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE),
+              ZLine.ld8(ZRegister.A, ZRegister.H),
+              ZLine.ld8(ZRegister.MEM_BC, ZRegister.A),
+              ZLine.register(DEC_16, ZRegister.BC),
+              ZLine.ld8(ZRegister.A, ZRegister.L),
+              ZLine.ld8(ZRegister.MEM_BC, ZRegister.A),
+            )
+            if (!r.exists(Z80ExpressionCompiler.changesBC)) {
+              return l ++ r ++ s
+            } else if (!l.exists(Z80ExpressionCompiler.changesDE)) {
+              return r ++ l ++ s
+            } else {
+              return l ++ Z80ExpressionCompiler.stashBCIfChanged(ctx, r) ++ s
+            }
+          } else {
+            val l = Z80ExpressionCompiler.compileDerefPointer(ctx, dx)
+            val r = Z80ExpressionCompiler.compileToDE(ctx, rhs)
+            val s = if (opcodeFirst == SUB && decimal) {
+              if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
+                List(
+                  ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                  ZLine.register(SUB, ZRegister.E),
+                  ZLine.implied(DAA),
+                  ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                  ZLine.register(INC_16, ZRegister.HL),
+                  ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                  ZLine.register(SBC, ZRegister.D),
+                  ZLine.implied(DAA),
+                  ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                )
+              } else {
+                ctx.log.error("Decimal subtraction from such a complex LHS is not yet supported", dx.position)
+                Nil
+              }
+            } else if (opcodeFirst == ADD && decimal) {
+              List(
+                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                ZLine.register(ADD, ZRegister.E),
+                ZLine.implied(DAA),
+                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                ZLine.register(INC_16, ZRegister.HL),
+                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                ZLine.register(ADC, ZRegister.D),
+                ZLine.implied(DAA),
+                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+              )
+            } else {
+              List(
+                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                ZLine.register(opcodeFirst, ZRegister.E),
+                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                ZLine.register(INC_16, ZRegister.HL),
+                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                ZLine.register(opcodeLater, ZRegister.D),
+                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+              )
+            }
+            if (!r.exists(Z80ExpressionCompiler.changesHL)) {
+              return l ++ r ++ s
+            } else if (!l.exists(Z80ExpressionCompiler.changesDE)) {
+              return r ++ l ++ s
+            } else {
+              return l ++ Z80ExpressionCompiler.stashHLIfChanged(ctx, r) ++ s
+            }
+          }
+        } else {
+          ctx.log.error("Too complex left-hand-side expression", lhs.position)
+          return Z80ExpressionCompiler.compile(ctx, lhs, ZExpressionTarget.NOTHING) ++ Z80ExpressionCompiler.compile(ctx, rhs, ZExpressionTarget.NOTHING)
+        }
+      case _ =>
     }
     if (size == 2 && !decimal) {
       // n × INC HL

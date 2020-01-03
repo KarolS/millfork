@@ -345,21 +345,21 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, ANDB)
-              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ANDB, commutative = true)
+              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ANDA, ANDB, commutative = true)
               case _ => ???
             }
           case "|=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, ORB)
-              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ORB, commutative = true)
+              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ORA, ORB, commutative = true)
               case _ => ???
             }
           case "^=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, EORB)
-              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, EORB, commutative = true)
+              case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, EORA, EORB, commutative = true)
               case _ => ???
             }
           case "<<=" =>

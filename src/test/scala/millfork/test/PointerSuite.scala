@@ -339,4 +339,92 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc000) should equal(555)
     }
   }
+
+  test("Modifying a word via a pointer") {
+    EmuUnoptimizedCrossPlatformRun(/*Cpu.Mos, Cpu.Z80,*/ Cpu.Motorola6809)(
+      """
+        |word output @$c000
+        |void main () {
+        |  byte constant
+        |  constant = $50
+        |  output = $850
+        |
+        |  pointer.word value_pointer
+        |  value_pointer = output.pointer
+        |  value_pointer[0] += constant
+        |  value_pointer[0] |= constant
+        |  value_pointer[0] <<= f(2)
+        |  value_pointer[0] >>= f(2)
+        |}
+        |noinline byte f(byte i) = i
+        |
+      """.stripMargin
+    ) { m =>
+      m.readWord(0xc000) should equal(0x850.+(0x50).|(0x50))
+    }
+  }
+
+  test("Modifying a word via a pointer 2") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80) (
+      """
+        |import zp_reg
+        |word output2 @$c002
+        |array(word) tmp[6] @$c100
+        |void main () {
+        |  byte constant
+        |  constant = $50
+        |  output2 = 0
+        |  pointer.word value_pointer
+        |  value_pointer = output2.pointer
+        |  value_pointer[0] +'= constant
+        |  tmp[0] = output2
+        |  value_pointer[0] +'= constant
+        |  tmp[1] = output2
+        |  value_pointer[0] -'= constant
+        |  tmp[2] = output2
+        |  value_pointer[0] <<= f(1)
+        |  tmp[3] = output2
+        |  value_pointer[0] *= f(1)
+        |  tmp[4] = output2
+        |  value_pointer[0] /= f(1)
+        |  tmp[5] = output2
+        |}
+        |noinline byte f(byte i) = i
+        |
+      """.stripMargin
+    ){ m =>
+      println(m.readWord(0xc100).toHexString)
+      println(m.readWord(0xc102).toHexString)
+      println(m.readWord(0xc104).toHexString)
+      println(m.readWord(0xc106).toHexString)
+      println(m.readWord(0xc108).toHexString)
+      println(m.readWord(0xc10a).toHexString)
+      m.readWord(0xc002) should equal(0xA0)
+
+    }
+  }
+
+  test("Modifying a word via a pointer 3") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809) (
+      """
+        |struct entity_t {
+        |  word x, byte y,
+        |  byte frame_i, byte frame_tick,
+        |  int24 padding // TODO: remove padding after 6809 gets multiplication support
+        |}
+        |array(entity_t) enemy[7] @$c100
+        |
+        |void main() {
+        | enemy[0].x = 0x3ff
+        | byte i
+        | i = f(0)
+        | enemy[i].x += 1
+        |}
+        |noinline byte f(byte x) = x
+        |
+        |""".stripMargin
+    ){ m =>
+      m.readWord(0xc100) should equal(0x400)
+    }
+  }
 }

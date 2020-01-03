@@ -135,6 +135,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     }
 
     val cmos = ctx.options.flag(CompilationFlag.EmitCmosOpcodes)
+    if (register == MosRegister.AX && !code.exists(_.concernsX)) {
+      return preserveRegisterIfNeeded(ctx, MosRegister.A, code)
+    }
     if (states.exists(state => AssemblyLine.treatment(code, state) != Treatment.Unchanged)) {
       register match {
         case MosRegister.A => AssemblyLine.implied(PHA) +: fixTsx(code) :+ AssemblyLine.implied(PLA)
