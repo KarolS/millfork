@@ -76,13 +76,15 @@ object Main {
     }
 
     val outputParent = new File(output).getParentFile
-    if (outputParent.exists()) {
-      if (!outputParent.canWrite || !outputParent.isDirectory) {
-        errorReporting.warn(s"The output directory `${outputParent.getAbsolutePath}` cannot be written to.")
-      }
-    } else {
-      if (!outputParent.mkdirs()) {
-        errorReporting.warn(s"Failed to create the output directory `${outputParent.getAbsolutePath}``")
+    if (outputParent ne null) {
+      if (outputParent.exists()) {
+        if (!outputParent.canWrite || !outputParent.isDirectory) {
+          errorReporting.warn(s"The output directory `${outputParent.getAbsolutePath}` cannot be written to.")
+        }
+      } else {
+        if (!outputParent.mkdirs()) {
+          errorReporting.warn(s"Failed to create the output directory `${outputParent.getAbsolutePath}``")
+        }
       }
     }
 
