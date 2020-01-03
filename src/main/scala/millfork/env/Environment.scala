@@ -131,7 +131,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           Nil
         case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 && options.platform.cpuFamily == CpuFamily.I80 =>
           Nil
+        case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 1 && options.platform.cpuFamily == CpuFamily.M6809 =>
+          Nil
         case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 2 && options.platform.cpuFamily == CpuFamily.I80 =>
+          Nil
+        case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 2 && options.platform.cpuFamily == CpuFamily.M6809 =>
           Nil
         case NormalParamSignature(List(MemoryVariable(_, typ, _))) if typ.size == 3 && options.platform.cpuFamily == CpuFamily.I80 =>
           Nil
@@ -171,6 +175,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             if (forZpOnly || !options.platform.hasZeroPage) {
               val addr =
                 allocators(bank).allocateBytes(bank0, callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Zeropage, alignment = m.alignment)
+              if (log.traceEnabled) log.trace("addr $" + addr.toHexString)
               onEachVariable(m.name, bank0.index -> addr)
               List(
                 ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
@@ -187,6 +192,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                   allocators(bank).tryAllocateZeropageBytes(bank0, callGraph, vertex, options, m.sizeInBytes, alignment = m.alignment) match {
                     case None => Nil
                     case Some(addr) =>
+                      if (log.traceEnabled) log.trace("addr $" + addr.toHexString)
                       onEachVariable(m.name, bank0.index -> addr)
                       List(
                         ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
@@ -197,6 +203,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 Nil
               } else {
                 val addr = allocators(bank).allocateBytes(bank0, callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Either, alignment = m.alignment)
+                if (log.traceEnabled) log.trace("addr $" + addr.toHexString)
                 onEachVariable(m.name, bank0.index -> addr)
                 List(
                   ConstantThing(graveName, NumericConstant(addr, 2), p)

@@ -223,6 +223,30 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val potentiallyInlineable: Map[String, Int] = inliningResult.potentiallyInlineableFunctions
     var functionsThatCanBeCalledFromInlinedFunctions: Set[String] = inliningResult.nonInlineableFunctions
 
+    for(th <- env.things.values) {
+      th match {
+        case tim: VariableInMemory =>
+          tim.toAddress match {
+            case NumericConstant(n, _) =>
+              val m = mem.banks(tim.bank(options))
+              for (i <- 0 until tim.typ.size) {
+                m.occupied(i + n.toInt) = true
+              }
+            case _ =>
+          }
+        case arr: MfArray =>
+          arr.toAddress match {
+            case NumericConstant(n, _) =>
+              val m = mem.banks(arr.bank(options))
+              for (i <- 0 until arr.sizeInBytes) {
+                m.occupied(i + n.toInt) = true
+              }
+            case _ =>
+          }
+        case _ =>
+      }
+    }
+
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 1, forZpOnly = true)
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = true)
     env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 3, forZpOnly = true)

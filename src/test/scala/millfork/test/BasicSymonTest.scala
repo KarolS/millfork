@@ -191,6 +191,21 @@ class BasicSymonTest extends FunSuite with Matchers {
     }
   }
 
+  test("Allocation test 2") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos)(
+      """
+        | #use ZPREG_SIZE
+        | array _crap[$100-ZPREG_SIZE] @$00
+        | word output @$c000
+        | word data
+        | void main () {
+        |   output = data.addr
+        | }
+      """.stripMargin){ m =>
+      m.readWord(0xc000) should be >=(0x100)
+    }
+  }
+
   test("Preprocessor test") {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
       """
