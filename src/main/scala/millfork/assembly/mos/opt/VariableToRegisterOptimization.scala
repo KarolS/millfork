@@ -156,13 +156,13 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       case _ => None
     }.toSet
     val localVariables = f.environment.getAllLocalVariables.filter {
-      case MemoryVariable(name, typ, VariableAllocationMethod.Auto | VariableAllocationMethod.Register) =>
-        typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name)
+      case v@MemoryVariable(name, typ, VariableAllocationMethod.Auto | VariableAllocationMethod.Register) =>
+        typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name) && !v.isVolatile
       case _ => false
     }
     val variablesWithRegisterHint = f.environment.getAllLocalVariables.filter {
-      case MemoryVariable(name, typ, VariableAllocationMethod.Register) =>
-        typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name)
+      case v@MemoryVariable(name, typ, VariableAllocationMethod.Register) =>
+        typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name) && !v.isVolatile
       case _ => false
     }.map(_.name).toSet
 

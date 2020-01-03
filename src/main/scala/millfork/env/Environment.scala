@@ -1742,6 +1742,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             else if (stmt.global) VariableAllocationMethod.Static
             else if (stmt.register) VariableAllocationMethod.Register
             else VariableAllocationMethod.Auto
+          if (stmt.volatile && !stmt.global) {
+            log.warn(s"Volatile variable `$name` assumed to be static", position)
+          }
+          if (stmt.volatile && stmt.stack) {
+            log.error(s"Volatile variable `$name` cannot be allocated on stack", position)
+          }
+          if (stmt.volatile && stmt.register) {
+            log.error(s"Volatile variable `$name` cannot be allocated in a register", position)
+          }
           if (alloc != VariableAllocationMethod.Static && stmt.initialValue.isDefined) {
             log.error(s"`$name` cannot be preinitialized`", position)
           }

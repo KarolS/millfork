@@ -4,7 +4,7 @@
 
 Variables in Millfork can belong to one of the following storage classes:
 
-* static: all global variables; local variables declared with `static`
+* static: all global variables; local variables declared with `static` or `volatile`
 
 * stack: local variables declared with `stack`
 

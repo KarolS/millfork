@@ -19,12 +19,12 @@ object UnusedLocalVariables extends NodeOptimization {
       Nil
   }
 
-  def getAllLocalVariables(statements: List[Statement]): List[String] = statements.flatMap {
-    case v: VariableDeclarationStatement => List(v.name)
+  def getAllRemovableLocalVariables(statements: List[Statement]): List[String] = statements.flatMap {
+    case v: VariableDeclarationStatement => if (v.volatile) Nil else List(v.name)
     case v: ArrayDeclarationStatement => List(v.name)
-    case x: IfStatement => getAllLocalVariables(x.thenBranch) ++ getAllLocalVariables(x.elseBranch)
-    case x: WhileStatement => getAllLocalVariables(x.body)
-    case x: DoWhileStatement => getAllLocalVariables(x.body)
+    case x: IfStatement => getAllRemovableLocalVariables(x.thenBranch) ++ getAllRemovableLocalVariables(x.elseBranch)
+    case x: WhileStatement => getAllRemovableLocalVariables(x.body)
+    case x: DoWhileStatement => getAllRemovableLocalVariables(x.body)
     case _ => Nil
   }
 
@@ -55,7 +55,7 @@ object UnusedLocalVariables extends NodeOptimization {
   }
 
   def optimizeVariables(log: Logger, statements: List[Statement]): List[Statement] = {
-    val allLocals = getAllLocalVariables(statements)
+    val allLocals = getAllRemovableLocalVariables(statements)
     val allRead = statements.flatMap {
           case Assignment(VariableExpression(v), expression) => List(extractThingName(v) -> expression)
           case ExpressionStatement(FunctionCallExpression(op, VariableExpression(_) :: params)) if op.endsWith("=") => params.map("```" -> _)

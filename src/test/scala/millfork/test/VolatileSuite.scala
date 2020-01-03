@@ -10,14 +10,18 @@ import org.scalatest.{FunSuite, Matchers}
 class VolatileSuite extends FunSuite with Matchers {
 
   test("Basic volatile test") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word addr @$c000
         | volatile byte output @$c0ea
+        | volatile byte unused_but_should_exist
+        | byte unused_global
         | byte thing
         | void main () {
+        |   static volatile byte unused_local
         |   f(55)
         |   addr = f.addr
+        |   unused_local = 55
         | }
         | noinline void f(byte x) {
         |   output = 5

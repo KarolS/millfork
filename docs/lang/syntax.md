@@ -43,7 +43,8 @@ Examples:
 
 * `volatile` means that the variable is volatile.
 The optimizer shouldn't remove or reorder accesses to volatile variables.
-Volatile variables cannot be declared as `register` or `stack.  
+Volatile variables (unline non-volatile ones) will not be removed or inlined by the optimizer.
+Volatile variables cannot be declared as `register` or `stack`.  
 
 * `<storage>` can be only specified for local variables. It can be either `stack`, `static`, `register` or nothing.
 `register` is only a hint for the optimizer. 

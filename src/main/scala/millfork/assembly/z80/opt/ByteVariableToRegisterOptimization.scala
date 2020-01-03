@@ -210,7 +210,7 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         var bonus = CyclesAndBytes.Zero
         if (vs.variablesWithRegisterHint(v.name)) bonus += CyclesAndBytes(16, 16)
         if (id.startsWith("IX+") || id.startsWith("IY+")) bonus += savingsForRemovingOneStackVariable
-        if (id.startsWith("SP+")) None
+        if (id.startsWith("SP+") || v.isVolatile) None
         else canBeInlined(id, synced = false, register, Some(false), Some(false), Some(false), vs.codeWithFlow.slice(range.start, range.end)).map { score =>
           (id, range, score + bonus)
         }

@@ -15,9 +15,8 @@ object UnusedGlobalVariables extends NodeOptimization {
       case AliasDefinitionStatement(source, target, _) => Some(source -> target)
       case _ => None
     }.toMap
-    // TODO: volatile
     val allNonvolatileGlobalVariables = nodes.flatMap {
-      case v: VariableDeclarationStatement => if (v.address.isDefined) Nil else List(v.name)
+      case v: VariableDeclarationStatement => if (v.address.isDefined || v.volatile) Nil else List(v.name)
       case v: ArrayDeclarationStatement => if (v.address.isDefined) Nil else List(v.name)
       case _ => Nil
     }.toSet

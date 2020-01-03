@@ -223,6 +223,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
 
   def okPrefix(vs: VariableStatus, v: Variable, range: Range, reg: ZRegister.Value, allowDirectLoad: Boolean, allowIndirectLoad: Boolean): Boolean = {
     if (!vs.paramVariables(v.name)) return true
+    if (v.isVolatile) return false
     if (!allowDirectLoad && !allowIndirectLoad) {
 //      println(s"okPrefix $v false: better cpu required for $reg")
       return false
