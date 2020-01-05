@@ -16,8 +16,8 @@ byte cia2_ddrb      @$DD03
 
 macro asm void cia_disable_irq() {
     ? LDA #$7f
-    ! LDA $dc0d
-    ! LDA $dd0d
+    ! STA $dc0d
+    ! STA $dd0d
     ! LDA $dc0d
     ! LDA $dd0d
 }
