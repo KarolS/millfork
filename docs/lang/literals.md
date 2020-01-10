@@ -175,6 +175,7 @@ An array is initialized with either:
         array b = "----" scr
         array c = ["hello world!" ascii, 13]
         array d = file("d.bin")
+        array d1 = file("d.bin", 128)
         array e = file("d.bin", 128, 256)
         array f = for x,0,until,8 [x * 3 + 5]  // equivalent to [5, 8, 11, 14, 17, 20, 23, 26]
         array(point) g = [point(2,3), point(5,6)]
@@ -183,7 +184,10 @@ An array is initialized with either:
 Trailing commas (`[1, 2,]`) are not allowed.
 
 The parameters for `file` are: file path, optional start offset, optional length
-(start offset and length have to be either both present or both absent).
+(if only two parameters are present, then the second one is assumed to be the start offset).
+The `file` expression is expanded at the compile time to an array of bytes equal to the bytes contained in the file.
+If the start offset is present, then that many bytes at the start of the file are skipped.
+If the length is present, then only that many bytes are taken, otherwise, all bytes until the end of the file are taken. 
 
 The `for`-style expression has a variable, a starting index, a direction, a final index, 
 and a parameterizable array initializer.

@@ -627,4 +627,4 @@ const array attribute = [
 
 
 //  *CHARACTER ROM (GRAPHICS)*
-segment(chrrom) const array graphics @ $0000 = file("tiles.chr")
+segment(chrrom) const array graphics @ $0000 = file("tiles.chr", 0)

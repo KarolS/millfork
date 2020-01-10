@@ -229,12 +229,31 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val arrayFileContents: P[ArrayContents] = for {
     p <- "file" ~ HWS ~/ "(" ~/ HWS ~/ position("file name")
     filePath <- doubleQuotedString ~/ HWS
-    optSlice <- ("," ~/ HWS ~/ literalAtom ~/ HWS ~/ "," ~/ HWS ~/ literalAtom ~/ HWS ~/ Pass).?
+    optStart <- ("," ~/ HWS ~/ literalAtom ~/ HWS ~/ Pass).?
+    optLength <- ("," ~/ HWS ~/ literalAtom ~/ HWS ~/ Pass).?
     _ <- ")" ~/ Pass
   } yield {
     val data = Files.readAllBytes(Paths.get(currentDirectory, filePath))
-    val slice = optSlice.fold(data) {
-      case (start, length) => data.slice(start.value.toInt, start.value.toInt + length.value.toInt)
+    val slice: Array[Byte] = (optStart.map(_.value.toInt), optLength.map(_.value.toInt)) match {
+      case (Some(start), Some(length)) =>
+        if (data.length < start) {
+          log.error(s"File $filePath is shorter (${data.length} B) that the start offset $start", Some(p))
+          Array.fill(length)(0.toByte)
+        } else if (data.length < start + length) {
+          log.error(s"File $filePath is shorter (${data.length} B) that the start offset plus length ${start + length}", Some(p))
+          Array.fill(length)(0.toByte)
+        } else {
+          data.slice(start, start + length)
+        }
+      case (Some(start), None) =>
+        if (data.length < start) {
+          log.error(s"File $filePath is shorter (${data.length} B) that the start offset $start", Some(p))
+          Array[Byte](0)
+        } else {
+          data.drop(start)
+        }
+      case (None, None) => data
+      case _ => throw new IllegalStateException("error parsing file()")
     }
     LiteralContents(slice.map(c => LiteralExpression(c & 0xff, 1)).toList)
   }
