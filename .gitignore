@@ -17,6 +17,7 @@ examples/lunix/
 
 #tools
 *.bat
+issue*.mfk
 
 # compiled Scala files
 *.jar
