@@ -768,4 +768,26 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(2)
     }
   }
+
+  test("Inline variables correctly") {
+    EmuBenchmarkRun("""
+        |array arr = [2,2,2,1,1,2,2]
+        |noinline byte f() {
+        |  byte i
+        |  i = 0
+        |  while true {
+        |   if arr[i] == 1 { return i }
+        |   i += 1
+        |  }
+        |  return $ff
+        |}
+        |volatile byte output @$c000
+        |void main() {
+        | output = f()
+        |}
+        |""".stripMargin
+    ) { m =>
+      m.readByte(0xc000) should equal(3)
+    }
+  }
 }

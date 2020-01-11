@@ -858,6 +858,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
                  aCandidate: Option[String],
                  features: FeaturesForIndexRegisters,
                  lines: List[(AssemblyLine, CpuImportance)]): TailRec[List[AssemblyLine]] = {
+    // only one of these will be defined:
     val vx = xCandidate.getOrElse("-")
     val vy = yCandidate.getOrElse("-")
     val vz = zCandidate.getOrElse("-")
@@ -911,7 +912,7 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         if opcodesIdentityTable(op) && th.name == vy =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l.copy(addrMode = AbsoluteY, parameter = features.identityArray) ::  _)
 
-      case (l@AssemblyLine0(LDA | TYA | TXA | TZA | CLA, _, _), _) :: xs if va != "" && isReturn(xs) =>
+      case (l@AssemblyLine0(LDA | TYA | TXA | TZA | CLA, _, _), _) :: xs if aCandidate.isDefined && isReturn(xs) =>
         tailcall(inlineVars(xCandidate, yCandidate, zCandidate, aCandidate, features, xs)).map(l ::  _)
 
       case (l@AssemblyLine0(LDA, _, _), _) ::  (AssemblyLine0(op, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs
