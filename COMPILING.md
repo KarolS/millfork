@@ -21,8 +21,6 @@ Setting up the test suite for Millfork is tricky, so if you don't need the tests
 
 #### Steps
 
-* delete the `src/test` directory
-
 * remove all test dependencies from `build.sbt`: 
 
       "org.scalatest" %% "scalatest"
@@ -35,7 +33,7 @@ Setting up the test suite for Millfork is tricky, so if you don't need the tests
 
 * navigate to the project directory 
 
-* run `sbt compile` to compile the project
+* run `sbt 'set test in assembly := {}' compile` (`sbt "set test in assembly := {}" compile` on Windows) to compile the project
 
 * run `sbt assembly` to build the executable jar file, it should appear in `target/scala-2.12`
 
