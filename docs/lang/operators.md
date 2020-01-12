@@ -54,6 +54,8 @@ In the descriptions below, arguments to the operators are explained as follows:
 
 * `constant` means a compile-time constant
 
+* `trivial` means either a constant or a non-stack variable
+
 * `simple` means either: a constant, a non-stack variable,
 a pointer indexed with a constant, a pointer indexed with a non-stack variable, 
 an array indexed with a constant, an array indexed with a non-stack variable, 
@@ -190,22 +192,22 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 * `+=`, `+'=`, `|=`, `^=`, `&=`: modification in place  
 `mutable byte += byte`  
 `mutable word += word`  
-`mutable long += long`
+`mutable trivial long += long`
 
 * `<<=`, `>>=`: shift in place  
 `mutable byte <<= byte`  
 `mutable word <<= byte`  
-`mutable long <<= byte`
+`mutable trivial long <<= byte`
 
 * `<<'=`, `>>'=`: decimal shift in place  
 `mutable byte <<'= constant byte`  
 `mutable word <<'= constant byte`  
-`mutable long <<'= constant byte`
+`mutable trivial long <<'= constant byte`
 
 * `-=`, `-'=`: subtraction in place  
 `mutable byte -= byte`  
 `mutable word -= simple word`  
-`mutable long -= simple long`
+`mutable trivial long -= simple long`
 
 * `*=`: multiplication in place  
 `mutable byte *= constant byte`  
