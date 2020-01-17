@@ -557,6 +557,8 @@ object MosAssembler {
   il(SAX, IndexedX, 0x83)
   il(AHX, IndexedY, 0x93)
   il(SHY, AbsoluteX, 0x9C)
+  il(SHX, AbsoluteY, 0x9E)
+  il(LAS, AbsoluteY, 0xBB)
 
   il(ANC, Immediate, 0x0B)
   il(ALR, Immediate, 0x4B)
