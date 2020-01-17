@@ -34,6 +34,13 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   val farKeyword: P[Unit] = P(("f" | "F") ~ ("a" | "A") ~ ("r" | "R"))
 
+  def isObviouslyZeropage(e: Expression): Boolean = e match {
+    case LiteralExpression(value, size) => size == 1 && value >= 0 && value <= 0xff
+    case FunctionCallExpression("lo" | "hi", _) => true
+    case FunctionCallExpression("|" | "&" | "^", exprs) => exprs.forall(isObviouslyZeropage)
+    case _ => false
+  }
+
   val asmParameter: P[(AddrMode.Value, Expression)] = {
     (SWS ~ (
       ("##" ~ asmExpression).map(AddrMode.WordImmediate -> _) |
@@ -48,8 +55,21 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
         (farKeyword ~ HWS ~ asmExpression ~ commaX).map(AddrMode.LongAbsoluteX -> _) |
         (farKeyword ~ HWS ~ asmExpression).map(AddrMode.LongAbsolute -> _) |
         (asmExpression ~ commaS).map(AddrMode.Stack -> _) |
-        (asmExpression ~ commaX).map(AddrMode.AbsoluteX -> _) |
-        (asmExpression ~ commaY).map(AddrMode.AbsoluteY -> _) |
+        (asmExpression ~ commaX).map { param =>
+          if (isObviouslyZeropage(param)) {
+            AddrMode.ZeroPageX -> param
+          } else {
+            AddrMode.AbsoluteX -> param
+          }
+        } |
+        (asmExpression ~ commaY).map { param =>
+          if (isObviouslyZeropage(param)) {
+            AddrMode.ZeroPageY -> param
+          } else {
+            AddrMode.AbsoluteY -> param
+          }
+        } |
+        // automatic zero page is handled elsewhere
         asmExpression.map(AddrMode.Absolute -> _)
       )).?.map(_.getOrElse(AddrMode.Implied -> LiteralExpression(0, 1)))
   }
@@ -78,7 +98,12 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
         case (Opcode.SAX, AddrMode.Implied) => MosAssemblyStatement(Opcode.HuSAX, param._1, param._2, elid)
         case (Opcode.SBX, AddrMode.Immediate) => MosAssemblyStatement(Opcode.SBX, param._1, param._2, elid)
         case (Opcode.SAY, AddrMode.AbsoluteX) => MosAssemblyStatement(Opcode.SHY, param._1, param._2, elid)
+        case (Opcode.SAX, AddrMode.AbsoluteY) => MosAssemblyStatement(Opcode.SAX, AddrMode.ZeroPageY, param._2, elid)
+        case (Opcode.ASR, AddrMode.Absolute) => MosAssemblyStatement(Opcode.ASR, AddrMode.ZeroPage, param._2, elid)
+        case (Opcode.ASR, AddrMode.AbsoluteX) => MosAssemblyStatement(Opcode.ASR, AddrMode.ZeroPageX, param._2, elid)
         case (Opcode.SBX, _) => MosAssemblyStatement(Opcode.SAX, param._1, param._2, elid)
+        case (_, AddrMode.ZeroPageX) if !OpcodeClasses.SupportsZeroPageX(op) => MosAssemblyStatement(op, AddrMode.AbsoluteX, param._2, elid)
+        case (_, AddrMode.ZeroPageY) if !OpcodeClasses.SupportsZeroPageY(op) => MosAssemblyStatement(op, AddrMode.AbsoluteY, param._2, elid)
         case (_, AddrMode.Absolute) if OpcodeClasses.SingleBit(op) => MosAssemblyStatement(op, AddrMode.ZeroPage, param._2, elid)
         case (_, AddrMode.Indirect) if op != Opcode.JMP && op != Opcode.JSR => MosAssemblyStatement(op, AddrMode.IndexedZ, param._2, elid)
         case _ => MosAssemblyStatement(op, param._1, param._2, elid)

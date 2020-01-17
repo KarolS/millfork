@@ -288,6 +288,17 @@ object OpcodeClasses {
     SHY,
   )
 
+  val SupportsZeroPageX = Set(
+    ORA, AND, EOR, ADC, CMP, SBC,
+    ORA_W, AND_W, EOR_W, ADC_W, CMP_W, SBC_W,
+    ASL, ROL, LSR, ROR, DEC, INC,
+    ASL_W, ROL_W, LSR_W, ROR_W, DEC_W, INC_W,
+    SLO, RLA, SRE, RRA, DCP, ISC,
+    ASR,
+    STA, LDA, LDY, STY, STZ,
+    STA_W, LDA_W, LDY_W, STY_W, STZ_W,
+  )
+
   val SupportsAbsoluteY = Set(
     ORA, AND, EOR, ADC, CMP, SBC,
     ORA_W, AND_W, EOR_W, ADC_W, CMP_W, SBC_W,
@@ -295,6 +306,12 @@ object OpcodeClasses {
     STA, LDA, LDX,
     STA_W, LDA_W, LDX_W,
     LAX, AHX, SHX, TAS, LAS,
+  )
+
+  val SupportsZeroPageY = Set(
+    LDX, STX,
+    LDX_W, STX_W,
+    SAX, LAX,
   )
 
   val SupportsAbsolute = Set(
