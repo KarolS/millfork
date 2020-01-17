@@ -15,6 +15,7 @@ object FlowAnalyzerForImplied {
     RTI -> identity,
     SEI -> identity,
     CLI -> identity,
+    KIL -> identity,
     TXS -> (_.copy(eqSX = true, eqSpX = false)),
     PHP -> (_.copy(eqSX = false)),
     PHA -> (_.copy(eqSX = false)),

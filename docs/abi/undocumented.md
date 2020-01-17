@@ -24,6 +24,8 @@ Millfork supports multiple mnemonics per opcode. The default one is given first:
 
 * **ISC**, INS
 
+* **KIL**
+
 * **LAS**
 
 * **LAX**

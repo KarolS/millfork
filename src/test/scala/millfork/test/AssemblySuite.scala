@@ -1,6 +1,6 @@
 package millfork.test
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUnoptimizedHudsonRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUndocumentedRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedHudsonRun}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -224,6 +224,86 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
       """.stripMargin){m =>
 
     }
+  }
+
+  test("Undocumented opcodes") {
+    EmuUndocumentedRun(
+      """
+        | asm void main() {
+        |     rts
+        |     kil
+        |     slo $4
+        |     slo $400
+        |     slo $4,x
+        |     slo $400,x
+        |     slo $400,y
+        |     slo ($4,x)
+        |     slo ($4),y
+        |     rla $4
+        |     rla $400
+        |     rla $4,x
+        |     rla $400,x
+        |     rla $400,y
+        |     rla ($4,x)
+        |     rla ($4),y
+        |     rra $4
+        |     rra $400
+        |     rra $4,x
+        |     rra $400,x
+        |     rra $400,y
+        |     rra ($4,x)
+        |     rra ($4),y
+        |     sre $4
+        |     sre $400
+        |     sre $4,x
+        |     sre $400,x
+        |     sre $400,y
+        |     sre ($4,x)
+        |     sre ($4),y
+        |     dcp $4
+        |     dcp $400
+        |     dcp $4,x
+        |     dcp $400,x
+        |     dcp $400,y
+        |     dcp ($4,x)
+        |     dcp ($4),y
+        |     isc $4
+        |     isc $400
+        |     isc $4,x
+        |     isc $400,x
+        |     isc $400,y
+        |     isc ($4,x)
+        |     isc ($4),y
+        |     lax $4
+        |     lax $4,y
+        |     lax $400
+        |     lax $400,y
+        |     lax ($4,x)
+        |     lax ($4),y
+        |     sax $4
+        |     sax $4,y
+        |     sax $400
+        |     sax ($4,x)
+        |     anc #$4
+        |     alr #$4
+        |     arr #$4
+        |     xaa #$4
+        |     lxa #$4
+        |     sbx #$4
+        |     ahx ($4),y
+        |     ahx $400,y
+        |     shy $400,x
+        |     shx $400,y
+        |     tas $400,y
+        |     las $400,y
+        |     bne $300
+        |     brk #4
+        |     bne #4
+        |     rts
+        | }
+        |
+        |""".stripMargin
+    )
   }
 
   test("HuC6280 opcodes") {

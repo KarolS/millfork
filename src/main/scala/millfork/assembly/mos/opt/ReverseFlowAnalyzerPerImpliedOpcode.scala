@@ -38,6 +38,12 @@ object ReverseFlowAnalyzerPerImpiedOpcode {
     CLI -> identity,
     WAI -> identity,
     STP -> identity,
+    KIL -> (_ => CpuImportance(
+          a = Unimportant, ah = Unimportant,
+          x = Unimportant, y = Unimportant, iz = Unimportant,
+          r0 = Unimportant, r1 = Unimportant, r2 = Unimportant, r3 = Unimportant,
+          z = Unimportant, n = Unimportant, c = Unimportant, v = Unimportant, d = Unimportant,
+          m = Unimportant, w = Unimportant)),
     BRK -> (_ => finalImportance),
     COP -> (_ => finalImportance),
     RTS -> (_ => finalImportance),

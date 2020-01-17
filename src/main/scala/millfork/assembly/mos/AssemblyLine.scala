@@ -358,7 +358,7 @@ object OpcodeClasses {
     STZ, PHX, PHY, PLX, PLY, TSB, TRB,
     STZ_W, PHX_W, PHY_W, PLX_W, PLY_W, TSB_W, TRB_W,
     SLO, RLA, SRE, RRA, SAX, LAX, DCP, ISC,
-    ANC, ALR, ARR, XAA, LXA, SBX,
+    ANC, ALR, ARR, XAA, LXA, SBX, KIL,
     CPZ, LDZ, INZ, DEZ,
     TAZ, TZA, TYS, TSY,
     TBA,

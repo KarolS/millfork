@@ -72,7 +72,7 @@ object Opcode extends Enumeration {
   // illegals:
   LXA, XAA, ANC, ARR, ALR, SBX,
   LAX, SAX, RLA, RRA, SLO, SRE, DCP, ISC,
-  TAS, LAS, SHX, SHY, AHX,
+  TAS, LAS, SHX, SHY, AHX, KIL,
 
   // 65C02:
   STZ, PHX, PHY, PLX, PLY,
@@ -222,6 +222,7 @@ object Opcode extends Enumeration {
     case "ISC" => ISC
     case "JMP" => JMP
     case "JSR" => JSR
+    case "KIL" => KIL
     case "LAS" => LAS
     case "LAX" => LAX
     case "LDA" => LDA

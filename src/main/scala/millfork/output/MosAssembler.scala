@@ -542,6 +542,8 @@ object MosAssembler {
   op(STY, ZeroPageX, 0x94)
   op(STY, Absolute, 0x8C)
 
+  il(KIL, Implied, 0x02) // there are  multiple candidates and some others could be a better choice, but whatever, 02 is fine
+
   il(LAX, ZeroPage, 0xA7)
   il(LAX, ZeroPageY, 0xB7)
   il(LAX, Absolute, 0xAF)
