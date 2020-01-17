@@ -397,6 +397,7 @@ object MosAssembler {
   op(BEQ, Relative, 0xF0)
 
   op(BRK, Implied, 0)
+  op(BRK, Immediate, 0)
 
   op(CMP, Immediate, 0xC9)
   op(CMP, ZeroPage, 0xC5)

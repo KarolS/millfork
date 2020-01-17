@@ -136,6 +136,10 @@ object CoarseFlowAnalyzer {
           case AssemblyLine0(op, Implied, _) if FlowAnalyzerForImplied.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForImplied.get(op)(currentStatus)
 
+          case AssemblyLine0(op, Immediate, _) if OpcodeClasses.ShortBranching(op) =>
+            // don't even both optimizing functions with weird jumps, it's futile
+            return cache.put(code, List.fill[CpuStatus](code.length)(initialStatus))
+
           case AssemblyLine0(op, Immediate | WordImmediate, NumericConstant(nn, _)) if FlowAnalyzerForImmediate.hasDefinition(op) =>
             currentStatus = FlowAnalyzerForImmediate.get(op)(nn.toInt, currentStatus)
 

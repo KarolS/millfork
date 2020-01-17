@@ -172,6 +172,8 @@ object ReverseFlowAnalyzer {
               case _ => false
             }
             currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex) ~ currentImportance
+          case AssemblyLine0(opcode, Immediate, _) if OpcodeClasses.ShortConditionalBranching(opcode) =>
+            currentImportance = finalImportance
           case AssemblyLine0(opcode, ZeroPageWithRelative, StructureConstant(_, List(_, MemoryAddressConstant(Label(l))))) if OpcodeClasses.SingleBitBranch(opcode) =>
             val L = l
             val labelIndex = codeArray.indexWhere {

@@ -13,6 +13,9 @@ There are two ways to include raw assembly code in your Millfork programs:
 Millfork inline assembly uses the same three-letter opcodes as most other 6502 assemblers.
 Indexing syntax is also the same. Only instructions available on the current CPU architecture are available.
 
+The short branching instructions and the `BRK` instruction support the immediate addressing mode,
+for more control over code generation.
+
 The `BBRn/BBSn/SMBn/RMBn` instructions cannot parameterize the tested bit. The syntax is as follows:
 
     BBR1 $10,label
