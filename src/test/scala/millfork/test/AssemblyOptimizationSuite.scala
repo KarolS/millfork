@@ -790,4 +790,30 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(3)
     }
   }
+
+  test("Repeated struct array indexing optimization") {
+    EmuBenchmarkRun(
+      """
+        | struct A {
+        |   byte padding
+        |   byte x
+        |   byte y
+        | }
+        |
+        | array(A) arr[40]
+        |
+        | byte output  @$c000
+        | void main() {
+        |     arr[0].x = 1
+        |     f(0, 50)
+        |     output = arr[0].y
+        | }
+        |
+        | noinline void f(byte i, byte v) {
+        |   arr[i].y = arr[i].x + v
+        | }
+        |""".stripMargin){ m =>
+      m.readByte(0xc000) should equal(51)
+    }
+  }
 }
