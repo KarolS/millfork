@@ -261,4 +261,27 @@ class IllegalSuite extends FunSuite with Matchers {
       """.stripMargin)
     m.readLong(0xc000) should equal(1)
   }
+
+  test("Test issue #38") {
+    val m = EmuUndocumentedRun(
+      """
+        |array(byte) input [16] @ $c300
+        |const byte COUNT = 16
+        |byte output @$c000
+        |void main() {
+        |    inner()
+        |}
+        |
+        |void inner() {
+        |    byte j
+        |    for j,0,until,COUNT {
+        |        if input[j] == 0 {
+        |            continue
+        |        }
+        |        //output += 1
+        |    }
+        |}
+        |
+        |""".stripMargin)
+  }
 }

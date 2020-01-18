@@ -134,7 +134,7 @@ object UndocumentedOptimizations {
     (Elidable & HasOpcode(INX) & DoesntMatterWhatItDoesWith(State.A)).+.captureLength(0) ~
       Where(_.get[Int](0) > 2) ~~> ((_, ctx) => List(
       AssemblyLine.implied(TXA),
-      AssemblyLine.immediate(SBX, Constant.Zero - ctx.get[Constant](0)),
+      AssemblyLine.immediate(SBX, Constant.Zero - ctx.get[Int](0)),
     )),
     HasOpcode(TXA) ~
       (Elidable & HasOpcode(CLC)).? ~

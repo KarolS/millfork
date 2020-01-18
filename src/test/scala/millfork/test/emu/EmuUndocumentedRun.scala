@@ -13,6 +13,10 @@ object EmuUndocumentedRun extends EmuRun(
     UndocumentedOptimizations.All ++
     OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
     UndocumentedOptimizations.All ++
+    OptimizationPresets.AssOpt ++ LaterOptimizations.Nmos ++
+    UndocumentedOptimizations.All ++
+    OptimizationPresets.AssOpt ++ LaterOptimizations.Nmos ++
+    UndocumentedOptimizations.All ++
     OptimizationPresets.Good) {
 
   override def emitIllegals = true
