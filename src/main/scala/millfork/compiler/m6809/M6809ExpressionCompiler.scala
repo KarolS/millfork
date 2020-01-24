@@ -1,10 +1,10 @@
 package millfork.compiler.m6809
 
-import millfork.assembly.m6809.{DAccumulatorIndexed, Immediate, Indexed, MLine, MLine0, MOpcode, TwoRegisters}
+import millfork.assembly.m6809.{DAccumulatorIndexed, Immediate, Indexed, InherentB, MLine, MLine0, MOpcode, RegisterSet, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, M6809RegisterVariable, MacroFunction, MathOperator, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
+import millfork.env.{AssemblyParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -140,7 +140,9 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         }
       case fce@FunctionCallExpression(functionName, params) =>
         functionName match {
-          case "not" => ???
+          case "not" =>
+            assertBool(ctx, "not", params, 1)
+            compile(ctx, params.head, target, branches.flip)
           case "nonet" =>
             if (params.length != 1) {
               ctx.log.error("Invalid number of parameters", fce.position)
@@ -486,6 +488,22 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         val label = ctx.env.nextLabel("bo")
         val condition = compile(ctx, expr, MExpressionTarget.NOTHING, BranchIfFalse(label))
         val conditionWithoutJump = condition.init
+
+        if (conditionWithoutJump.exists(l => l.parameter match {
+          case MemoryAddressConstant(Label(l)) if l == label => true
+          case _ => false
+        })){
+          val label2 = ctx.env.nextLabel("bo")
+          return condition ++ List(
+            MLine.immediate(LDB, 1),
+            MLine.shortBranch(BRA, label2),
+            MLine.label(label),
+            MLine.immediate(LDB, 0),
+            MLine.label(label2),
+            MLine.inherentB(ROL)
+          )
+        }
+
         condition.last.opcode match {
           case BCC =>
             conditionWithoutJump ++ List(MLine.immediate(LDB, 0), MLine.inherentB(ROL))
@@ -696,5 +714,25 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         }.reduceLeft((a, b) => FunctionCallExpression("&&", List(a, b)))
         compile(ctx, conjunction, target, branches)
     }
+  }
+
+  def areNZFlagsBasedOnB(code: List[MLine]): Boolean = {
+    for (line <- code.reverse) {
+      line.opcode match {
+        case ADDB | ADCB | SUBB | SBCB | ANDB | ORB => return true
+        case CLR | ASL | LSR | ASR | ROL | ROR | INC | DEC | NEG => return line.addrMode == InherentB
+        case CMPB => return line.addrMode == Immediate && line.parameter.isProvablyZero
+        case PULS | PULU =>
+          line.addrMode match {
+            case r: RegisterSet =>
+              if (r.contains(M6809Register.B)) return false
+              if (r.contains(M6809Register.CC)) return false
+            case _ =>
+          }
+        case LEAS | LEAU | PSHS | PSHU | TFR | NOP | ABX => // loop
+        case _ => return false
+      }
+    }
+    false
   }
 }

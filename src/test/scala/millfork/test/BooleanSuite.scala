@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class BooleanSuite extends FunSuite with Matchers {
 
   test("Not") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | array input = [5,6,7]
@@ -28,7 +28,7 @@ class BooleanSuite extends FunSuite with Matchers {
 
 
   test("And") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | array input = [5,6,7]
@@ -47,7 +47,7 @@ class BooleanSuite extends FunSuite with Matchers {
 
 
   test("Or") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | array input = [5,6,7]
@@ -89,7 +89,7 @@ class BooleanSuite extends FunSuite with Matchers {
       | inline void pass() { output += 1 }
       | noinline void fail() { outside[0] = 0 }
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(code)(_.readByte(0xc000) should equal(code.sliding(4).count(_ == "pass")))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(code)(_.readByte(0xc000) should equal(code.sliding(4).count(_ == "pass")))
   }
 
   test("Fat boolean") {
@@ -136,7 +136,7 @@ class BooleanSuite extends FunSuite with Matchers {
       | bool never() = false
       |
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readByte(0xc000) should equal(code.sliding(4).count(_ == "pass")))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code)(_.readByte(0xc000) should equal(code.sliding(4).count(_ == "pass")))
   }
 
   test("Fat boolean optimization") {
@@ -153,7 +153,7 @@ class BooleanSuite extends FunSuite with Matchers {
       | }
       |
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readByte(0xc000) should equal(7))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code)(_.readByte(0xc000) should equal(7))
   }
 
   test("Constant booleans") {
@@ -183,7 +183,7 @@ class BooleanSuite extends FunSuite with Matchers {
       | }
       |
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(code)(_.readWord(0xc000) should equal(13))
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code)(_.readWord(0xc000) should equal(13))
   }
 
   test("Constant booleans mini") {
@@ -224,7 +224,7 @@ class BooleanSuite extends FunSuite with Matchers {
       | }
       |
       """.stripMargin
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(code){ m =>
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code){ m =>
       m.readByte(0xc000) should equal(1)
     }
   }

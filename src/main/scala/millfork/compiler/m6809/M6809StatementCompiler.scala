@@ -3,9 +3,9 @@ package millfork.compiler.m6809
 import millfork.assembly.BranchingOpcodeMapping
 import millfork.assembly.m6809.{MLine, NonExistent}
 import millfork.compiler.{AbstractCompiler, AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
-import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, IfStatement, M6809AssemblyStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
+import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, FunctionCallExpression, IfStatement, M6809AssemblyStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{FatBooleanType, Label, ThingInMemory}
+import millfork.env.{BooleanType, ConstantBooleanType, FatBooleanType, Label, ThingInMemory}
 
 /**
   * @author Karol Stasiak
@@ -45,11 +45,26 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
       case Assignment(destination, source) =>
         if (destination == BlackHoleExpression) return M6809ExpressionCompiler.compile(ctx, source, MExpressionTarget.NOTHING, BranchSpec.None) -> Nil
         val destinationType = AbstractExpressionCompiler.getExpressionType(ctx, destination)
+        val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
         AbstractExpressionCompiler.checkAssignmentType(ctx, source, destinationType)
-        destinationType.size match {
-          case 1 => (M6809ExpressionCompiler.compileToB(ctx, source) ++ M6809ExpressionCompiler.storeB(ctx, destination)) -> Nil
-          case 2 => (M6809ExpressionCompiler.compileToD(ctx, source) ++ M6809ExpressionCompiler.storeD(ctx, destination)) -> Nil
-        }
+        (destinationType.size match {
+          case 0 => sourceType match {
+            case _: ConstantBooleanType =>
+              M6809ExpressionCompiler.compileToB(ctx, source) ++ M6809ExpressionCompiler.storeB(ctx, destination)
+            case _: BooleanType =>
+              M6809ExpressionCompiler.compileToFatBooleanInB(ctx, source) ++ M6809ExpressionCompiler.storeB(ctx, destination)
+            case _ =>
+              ctx.log.error("Cannot assign a void expression", statement.position)
+              M6809ExpressionCompiler.compile(ctx, source, MExpressionTarget.NOTHING, BranchSpec.None) ++
+                M6809ExpressionCompiler.compile(ctx, destination, MExpressionTarget.NOTHING, BranchSpec.None)
+          }
+          case 1 => sourceType match {
+            case _: BooleanType =>
+              M6809ExpressionCompiler.compileToFatBooleanInB(ctx, source) ++ M6809ExpressionCompiler.storeB(ctx, destination)
+            case _ => M6809ExpressionCompiler.compileToB(ctx, source) ++ M6809ExpressionCompiler.storeB(ctx, destination)
+          }
+          case 2 => M6809ExpressionCompiler.compileToD(ctx, source) ++ M6809ExpressionCompiler.storeD(ctx, destination)
+        }) -> Nil
       case ExpressionStatement(expression) =>
         M6809ExpressionCompiler.compile(ctx, expression, MExpressionTarget.NOTHING) -> Nil
       case s:IfStatement =>
@@ -86,10 +101,17 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
 
   override def jmpChunk(label: Label): List[MLine] = List(MLine.absolute(JMP, label.toAddress))
 
-  override def branchChunk(opcode: BranchingOpcodeMapping, labelName: String): List[MLine] = ???
+  override def branchChunk(opcode: BranchingOpcodeMapping, labelName: String): List[MLine] =
+    List(MLine.shortBranch(opcode.m6809, labelName)) // TODO: ???
 
   override def compileExpressionForBranching(ctx: CompilationContext, expr: Expression, branching: BranchSpec): List[MLine] =
-    M6809ExpressionCompiler.compile(ctx, expr, MExpressionTarget.NOTHING, branching)
+    if (AbstractExpressionCompiler.getExpressionType(ctx, expr) == FatBooleanType) {
+      val prepareB = M6809ExpressionCompiler.compile(ctx, expr, MExpressionTarget.B, branching)
+      if (M6809ExpressionCompiler.areNZFlagsBasedOnB(prepareB)) prepareB
+      else prepareB :+ MLine.immediate(CMPB, 0)
+    } else {
+      M6809ExpressionCompiler.compile(ctx, expr, MExpressionTarget.NOTHING, branching)
+    }
 
   override def replaceLabel(ctx: CompilationContext, line: MLine, from: String, to: String): MLine = ???
 
