@@ -1839,8 +1839,8 @@ object AlwaysGoodOptimizations {
     val ifSet = Elidable & HasOpcode(LDA) & HasImmediate(if (zeroIfSet) 0 else nonZero)
     val ifClear = Elidable & HasOpcode(LDA) & HasImmediate(if (zeroIfSet) nonZero else 0)
     val jump = Elidable & HasOpcodeIn(Set(JMP, if (firstSet) BCS else BCC, if (zeroIfSet) BEQ else BNE)) & MatchParameter(1)
-    val elseLabel = Elidable & HasOpcode(LABEL) & MatchParameter(0)
-    val afterLabel = Elidable & HasOpcode(LABEL) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z)
+    val elseLabel = (Elidable & HasOpcode(LABEL) & MatchParameter(0)).capture(10)
+    val afterLabel = Elidable & HasOpcode(LABEL) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z) & IsNotALabelUsedManyTimes
     val store = Elidable & (Not(ReadsC) & Linear | HasOpcodeIn(RTS, JSR, RTI, RTL, BSR))
     val secondReturn = (Elidable & (HasOpcodeIn(RTS, RTI) | NoopDiscardsFlags)).*.capture(6)
     val where = Where { ctx =>
@@ -1851,13 +1851,22 @@ object AlwaysGoodOptimizations {
       if (firstSet) test ~ ifSet ~ store.*.capture(4) ~ jump ~ elseLabel ~ ifClear ~ store.*.capture(5) ~ afterLabel ~ secondReturn ~ where
       else test ~ ifClear ~ store.*.capture(4) ~ jump ~ elseLabel ~ ifSet ~ store.*.capture(5) ~ afterLabel ~ secondReturn ~ where
     pattern ~~> { (_, ctx) =>
+      val elseLabelUseCount = ctx.get[Constant](0) match {
+        case MemoryAddressConstant(Label(label)) => ctx.labelUseCount(label)
+        case _ => 9999
+      }
       List(
         AssemblyLine.immediate(LDA, 0),
         AssemblyLine.implied(if (shift >= 4) ROR else ROL)) ++
         (if (shift >= 4) List.fill(7 - shift)(AssemblyLine.implied(LSR)) else List.fill(shift)(AssemblyLine.implied(ASL))) ++
         (if (zeroIfSet) List(AssemblyLine.immediate(EOR, nonZero)) else Nil) ++
         ctx.get[List[AssemblyLine]](5) ++
-        ctx.get[List[AssemblyLine]](6)
+        ctx.get[List[AssemblyLine]](6) ++ (
+          if (elseLabelUseCount == 1) Nil
+          else ctx.get[List[AssemblyLine]](10) ++ List(
+            AssemblyLine.immediate(LDA, if (firstSet) (if (zeroIfSet) nonZero else 0) else (if (zeroIfSet) 0 else nonZero))
+          ) ++ ctx.get[List[AssemblyLine]](5) ++ ctx.get[List[AssemblyLine]](6)
+        )
     }
   }
 

@@ -816,4 +816,33 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(51)
     }
   }
+
+  test("Test bug #41") {
+    val code =
+      """
+        |struct Entity {
+        |    byte x,
+        |    byte y
+        |}
+        |
+        |array(Entity) entities [2]
+        |
+        |byte output @$c000
+        |
+        |void main() {
+        |    if test(0, 200) {
+        |        output = 1
+        |    }
+        |}
+        |
+        |inline bool test(byte i, byte y) {
+        |    return y >= entities[i].y && y <= entities[i].y + 8
+        |}
+        |
+        |""".stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code) { m =>
+
+    }
+    EmuUndocumentedRun(code)
+  }
 }

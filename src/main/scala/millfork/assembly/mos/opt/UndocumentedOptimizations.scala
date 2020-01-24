@@ -178,8 +178,12 @@ object UndocumentedOptimizations {
   val UseArr = new RuleBasedAssemblyOptimization("Using undocumented instruction ARR",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (HasClear(State.D) & Elidable & HasOpcode(AND) & HasAddrMode(Immediate)) ~
-      (Elidable & HasOpcode(ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { code =>
+      (Elidable & HasOpcode(ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.V, State.N, State.Z)) ~~> { code =>
       List(AssemblyLine.immediate(ARR, code.head.parameter))
+    },
+    (HasClear(State.D) & Elidable & HasOpcode(LDA) & HasAddrMode(Immediate) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(ROR) & HasAddrMode(Implied) & DoesntMatterWhatItDoesWith(State.C, State.V, State.N, State.Z)) ~~> { code =>
+      List(AssemblyLine.immediate(ARR, 0))
     },
   )
 
