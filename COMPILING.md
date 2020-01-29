@@ -35,7 +35,7 @@ Setting up the test suite for Millfork is tricky, so if you don't need the tests
 
 * run `sbt 'set test in assembly := {}' compile` (`sbt "set test in assembly := {}" compile` on Windows) to compile the project
 
-* run `sbt set test in assembly := {}' assembly` (`sbt "set test in assembly := {}" assembly` on Windows) to build the executable jar file, it should appear in `target/scala-2.12`
+* run `sbt 'set test in assembly := {}' assembly` (`sbt "set test in assembly := {}" assembly` on Windows) to build the executable jar file, it should appear in `target/scala-2.12`
 
 ### Building with tests
 
