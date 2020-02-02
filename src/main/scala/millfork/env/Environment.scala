@@ -1971,8 +1971,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       function.params match {
         case NormalParamSignature(params) =>
           function.params.types.zip(actualParams).zip(params).foreach { case ((required, (actual, expr)), m) =>
-            if (!actual.isAssignableTo(required)) {
-              log.error(s"Invalid value for parameter `${m.name}` of function `$name`", expr.position)
+            if (function.isInstanceOf[MacroFunction]) {
+              if (required != VoidType && actual != required) {
+                log.error(s"Invalid argument type for parameter `${m.name}` of macro function `$name`: required: ${required.name}, actual: ${actual.name}", expr.position)
+              }
+            } else {
+              if (!actual.isAssignableTo(required)) {
+                log.error(s"Invalid value for parameter `${m.name}` of function `$name`", expr.position)
+              }
             }
           }
         case AssemblyParamSignature(params) =>

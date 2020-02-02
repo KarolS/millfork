@@ -20,13 +20,16 @@ It implies the following:
 
 * in case of `asm` macros, the parameters must be defined as either `const` (compile-time constants) or `ref` (variables)
 
-* in case of non-`asm` macros, the parameters must be variables 
+* in case of non-`asm` macros, the parameters must be variables; exceptionally, their type may be declared as `void`
 
 * macros do not have their own scope (they reuse the scope from their invocations) – exceptions: the parameters and the local labels defined in assembly
 
 * control-flow statements (`break`, `continue`, `return`, `goto`, `label`) are run as if places in the caller function
 
 When invoking a macro, you need to pass variables as arguments to parameters annotated with `ref` and constants as arguments annotated with `const`.
+
+Invoking a non-`asm` macro requires the types of passed variables to match precisely. No type conversions are performed.
+Exception: parameters of type `void` can accept a variable of any type.
 
 You can invoke a macro from assembly, by preceding the invocation with `+`
 

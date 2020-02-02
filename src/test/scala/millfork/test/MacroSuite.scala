@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -71,6 +71,111 @@ class MacroSuite extends FunSuite with Matchers {
         | }
       """.stripMargin) { m =>
       m.readByte(0xc000) should equal(7)
+    }
+  }
+
+  test("Macro parameter type mismatch") {
+    ShouldNotCompile(
+      """
+        | byte input
+        | byte output @$c000
+        |
+        |void main() {
+        |    input = $FF
+        |    test_signed_macro(input)
+        |}
+        |
+        |macro void test_signed_macro(sbyte value) {
+        |    if value > 3 {
+        |        output = 1
+        |    }
+        |}
+      """.stripMargin)
+  }
+
+  test("Macro void parameter") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | byte input
+        | byte output @$c000
+        |
+        |void main() {
+        |    input = $FF
+        |    test_signed_macro(input)
+        |}
+        |
+        |macro void test_signed_macro(void value) {
+        |    if value > 3 {
+        |        output = 1
+        |    }
+        |}
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(1)
+    }
+  }
+
+  test("Some important macro test") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | byte input
+        | byte output @$c000
+        |
+        |void main() {
+        |    input = $FF
+        |    test_signed_macro(input)
+        |}
+        |
+        |macro void test_signed_macro(void value) {
+        |    if sbyte(value) > 3 {
+        |        output = 1
+        |    } else {
+        |        output = 3
+        |    }
+        |}
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(3)
+    }
+  }
+
+  test("Accessing fields of macro parameters") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |byte output @$c000
+        |
+        |word test = $0380
+        |
+        |void main() {
+        |    test_macro(test)
+        |}
+        |
+        |macro void test_macro(word value) {
+        |    if value.hi > 0 {
+        |        output = 1
+        |    }
+        |}
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(1)
+    }
+  }
+
+  test("Accessing fields of macro parameters when using void") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |byte output @$c000
+        |
+        |word test = $0380
+        |
+        |void main() {
+        |    test_macro(test)
+        |}
+        |
+        |macro void test_macro(void value) {
+        |    if value.hi > 0 {
+        |        output = 1
+        |    }
+        |}
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(1)
     }
   }
 }

@@ -34,6 +34,7 @@ object Node {
 }
 
 sealed trait Expression extends Node {
+  def renameVariable(variable: String, newVariable: String): Expression
   def replaceVariable(variable: String, actualParam: Expression): Expression
   def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression
   def containsVariable(variable: String): Boolean
@@ -55,6 +56,7 @@ sealed trait Expression extends Node {
 }
 
 case class ConstantArrayElementExpression(constant: Constant) extends Expression {
+  override def renameVariable(variable: String, newVariable: String): Expression = this
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
@@ -64,6 +66,7 @@ case class ConstantArrayElementExpression(constant: Constant) extends Expression
 }
 
 case class LiteralExpression(value: Long, requiredSize: Int) extends Expression {
+  override def renameVariable(variable: String, newVariable: String): Expression = this
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
@@ -73,6 +76,7 @@ case class LiteralExpression(value: Long, requiredSize: Int) extends Expression 
 }
 
 case class TextLiteralExpression(characters: List[Expression]) extends Expression {
+  override def renameVariable(variable: String, newVariable: String): Expression = this
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
@@ -82,6 +86,7 @@ case class TextLiteralExpression(characters: List[Expression]) extends Expressio
 }
 
 case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expression {
+  override def renameVariable(variable: String, newVariable: String): Expression = this
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
@@ -91,6 +96,7 @@ case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expre
 }
 
 case class BooleanLiteralExpression(value: Boolean) extends Expression {
+  override def renameVariable(variable: String, newVariable: String): Expression = this
   override def replaceVariable(variable: String, actualParam: Expression): Expression = this
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
@@ -102,6 +108,7 @@ case class BooleanLiteralExpression(value: Boolean) extends Expression {
 sealed trait LhsExpression extends Expression
 
 case object BlackHoleExpression extends LhsExpression {
+  override def renameVariable(variable: String, newVariable: String): Expression = this
   override def replaceVariable(variable: String, actualParam: Expression): LhsExpression = this
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = false
@@ -111,6 +118,10 @@ case object BlackHoleExpression extends LhsExpression {
 }
 
 case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsExpression {
+  override def renameVariable(variable: String, newVariable: String): Expression =
+    SeparateBytesExpression(
+      hi.renameVariable(variable, newVariable),
+      lo.renameVariable(variable, newVariable)).pos(position)
   def replaceVariable(variable: String, actualParam: Expression): Expression =
     SeparateBytesExpression(
       hi.replaceVariable(variable, actualParam),
@@ -126,6 +137,8 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
 }
 
 case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Boolean) extends Expression {
+  override def renameVariable(variable: String, newVariable: String): Expression =
+    SumExpression(expressions.map { case (n, e) => n -> e.renameVariable(variable, newVariable) }, decimal).pos(position)
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     SumExpression(expressions.map { case (n, e) => n -> e.replaceVariable(variable, actualParam) }, decimal).pos(position)
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
@@ -147,6 +160,10 @@ case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Bool
 }
 
 case class FunctionCallExpression(functionName: String, expressions: List[Expression]) extends Expression {
+  override def renameVariable(variable: String, newVariable: String): Expression =
+    FunctionCallExpression(functionName, expressions.map {
+      _.renameVariable(variable, newVariable)
+    }).pos(position)
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     FunctionCallExpression(functionName, expressions.map {
       _.replaceVariable(variable, actualParam)
@@ -162,6 +179,8 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
 }
 
 case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends Expression {
+  override def renameVariable(variable: String, newVariable: String): Expression =
+    HalfWordExpression(expression.renameVariable(variable, newVariable), hiByte).pos(position)
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     HalfWordExpression(expression.replaceVariable(variable, actualParam), hiByte).pos(position)
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = 
@@ -267,8 +286,25 @@ object M6809Register extends Enumeration {
 //case class Indexing(child: Expression, register: Register.Value) extends Expression
 
 case class VariableExpression(name: String) extends LhsExpression {
+  override def renameVariable(variable: String, newVariable: String): Expression =
+    if (name == variable)
+      VariableExpression(newVariable).pos(position)
+    else if (name.startsWith(variable) && name(variable.length) == '.')
+      VariableExpression(newVariable + name.stripPrefix(variable)).pos(position)
+    else this
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
-    if (name == variable) actualParam else this
+    if (name == variable) actualParam
+    else if (name.startsWith(variable) && name(variable.length) == '.') {
+      actualParam match {
+        case VariableExpression(newVariable) => this.renameVariable(variable, newVariable)
+        case _ =>
+          name.stripPrefix(variable) match {
+            case ".lo" => FunctionCallExpression("lo", List(this)).pos(position)
+            case ".hi" => FunctionCallExpression("hi", List(this)).pos(position)
+            case _ => ??? // TODO
+          }
+      }
+    } else this
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = this
   override def containsVariable(variable: String): Boolean = name == variable
   override def getPointies: Seq[String] = if (name.endsWith(".addr.lo")) Seq(name.stripSuffix(".addr.lo")) else Seq.empty
@@ -277,6 +313,16 @@ case class VariableExpression(name: String) extends LhsExpression {
 }
 
 case class IndexedExpression(name: String, index: Expression) extends LhsExpression {
+  override def renameVariable(variable: String, newVariable: String): Expression = {
+    val newIndex = index.renameVariable(variable, newVariable)
+    if (name == variable)
+      IndexedExpression(newVariable, newIndex).pos(position)
+    else if (name.startsWith(variable) && name(variable.length) == '.')
+      IndexedExpression(newVariable + name.stripPrefix(variable), newIndex).pos(position)
+    else
+      IndexedExpression(name, newIndex).pos(position)
+  }
+
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     if (name == variable) {
       actualParam match {
@@ -295,6 +341,11 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
 }
 
 case class IndirectFieldExpression(root: Expression, firstIndices: Seq[Expression], fields: Seq[(Boolean, String, Seq[Expression])]) extends LhsExpression {
+  override def renameVariable(variable: String, newVariable: String): Expression =
+    IndirectFieldExpression(
+      root.renameVariable(variable, newVariable),
+      firstIndices.map(_.renameVariable(variable, newVariable)),
+      fields.map{case (dot, f, i) => (dot, f, i.map(_.renameVariable(variable, newVariable)))})
   override def replaceVariable(variable: String, actualParam: Expression): Expression =
     IndirectFieldExpression(
       root.replaceVariable(variable, actualParam),
@@ -323,8 +374,10 @@ case class IndirectFieldExpression(root: Expression, firstIndices: Seq[Expressio
 }
 
 case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) extends LhsExpression {
+  override def renameVariable(variable: String, newVariable: String): Expression = DerefDebuggingExpression(inner.renameVariable(variable, newVariable), preferredSize)
+
   override def replaceVariable(variable: String, actualParam: Expression): Expression = DerefDebuggingExpression(inner.replaceVariable(variable, actualParam), preferredSize)
-  
+
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
     DerefDebuggingExpression(inner.replaceIndexedExpression(predicate, replacement), preferredSize)
 
@@ -341,6 +394,7 @@ case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) exten
 }
 
 case class DerefExpression(inner: Expression, offset: Int, targetType: Type) extends LhsExpression {
+  override def renameVariable(variable: String, newVariable: String): Expression = DerefExpression(inner.renameVariable(variable, newVariable), offset, targetType)
   override def replaceVariable(variable: String, actualParam: Expression): Expression = DerefExpression(inner.replaceVariable(variable, actualParam), offset, targetType)
 
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
@@ -396,11 +450,15 @@ case class VariableDeclarationStatement(name: String,
 
 trait ArrayContents extends Node {
   def getAllExpressions(bigEndian: Boolean): List[Expression]
+  def renameVariable(variableToRename: String, newVariable: String): ArrayContents
   def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents
 }
 
 case class LiteralContents(contents: List[Expression]) extends ArrayContents {
   override def getAllExpressions(bigEndian: Boolean): List[Expression] = contents
+
+  override def renameVariable(variableToRename: String, newVariable: String): ArrayContents =
+    LiteralContents(contents.map(_.renameVariable(variableToRename, newVariable)))
 
   override def replaceVariable(variable: String, expression: Expression): ArrayContents =
     LiteralContents(contents.map(_.replaceVariable(variable, expression)))
@@ -408,6 +466,14 @@ case class LiteralContents(contents: List[Expression]) extends ArrayContents {
 
 case class ForLoopContents(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: ArrayContents) extends ArrayContents {
   override def getAllExpressions(bigEndian: Boolean): List[Expression] = start :: end :: body.getAllExpressions(bigEndian).map(_.replaceVariable(variable, LiteralExpression(0, 1)))
+
+  override def renameVariable(variableToRename: String, newVariable: String): ArrayContents =
+    if (variableToRename == variable) this else ForLoopContents(
+      variable,
+      start.renameVariable(variableToRename, newVariable),
+      end.renameVariable(variableToRename, newVariable),
+      direction,
+      body.renameVariable(variableToRename, newVariable))
 
   override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
     if (variableToReplace == variable) this else ForLoopContents(
@@ -420,6 +486,9 @@ case class ForLoopContents(variable: String, start: Expression, end: Expression,
 
 case class CombinedContents(contents: List[ArrayContents]) extends ArrayContents {
   override def getAllExpressions(bigEndian: Boolean): List[Expression] = contents.flatMap(_.getAllExpressions(bigEndian))
+
+  override def renameVariable(variableToRename: String, newVariable: String): ArrayContents =
+    CombinedContents(contents.map(_.renameVariable(variableToRename, newVariable)))
 
   override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
     CombinedContents(contents.map(_.replaceVariable(variableToReplace, expression)))
@@ -458,6 +527,9 @@ case class ProcessedContents(processor: String, values: ArrayContents) extends A
       ))
     case "struct" => values.getAllExpressions(bigEndian) // not used for emitting actual arrays
   }
+
+  override def renameVariable(variableToRename: String, newVariable: String): ArrayContents =
+    ProcessedContents(processor, values.renameVariable(variableToRename, newVariable))
 
   override def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
     ProcessedContents(processor, values.replaceVariable(variableToReplace, expression))
