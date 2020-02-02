@@ -31,5 +31,5 @@ byte sid_filt_mode @$D418
 volatile byte sid_paddle_x @$D419
 volatile byte sid_paddle_y @$D41A
 
-volatile byte sid_v3_osc_out @D41B
-volatile byte sid_v3_adsr_out @D41C
+volatile byte sid_v3_osc_out @$D41B
+volatile byte sid_v3_adsr_out @$D41C
