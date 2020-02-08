@@ -1,5 +1,14 @@
 # Examples
 
+The examples showcased here are designed to compile with a compiler built from newest sources.  
+If you are using a release version of the compiler, consider browsing the older versions of the examples:
+
+* [for version 0.3.14](https://github.com/KarolS/millfork/tree/v0.3.14/examples)
+
+* [for version 0.3.12](https://github.com/KarolS/millfork/tree/v0.3.12/examples)
+
+* [for version 0.3.10](https://github.com/KarolS/millfork/tree/v0.3.10/examples)
+
 ## Cross-platform examples
 
 * [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – simple text output
