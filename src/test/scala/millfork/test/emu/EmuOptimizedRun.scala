@@ -25,6 +25,21 @@ object EmuOptimizedRun extends EmuRun(
     OptimizationPresets.Good ++
     OptimizationPresets.Good)
 
+case class EmuOptimizedAccordingToLevelRun(optLevel: Int) extends EmuRun(
+  Cpu.Ricoh,
+  OptimizationPresets.NodeOpt,
+  optLevel match {
+    case 0 => Nil
+    case 1 => OptimizationPresets.QuickPreset
+    case _ =>
+      val goodExtras = ZeropageRegisterOptimizations.All
+      val extras = Nil
+      val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good ++ goodExtras).flatten
+      val mainCycle = List.fill(optLevel - 1)(OptimizationPresets.AssOpt ++ extras).flatten
+      goodCycle ++ mainCycle ++ goodCycle
+  }
+)
+
 object EmuSizeOptimizedRun extends EmuRun(
   Cpu.StrictMos,
   OptimizationPresets.NodeOpt,

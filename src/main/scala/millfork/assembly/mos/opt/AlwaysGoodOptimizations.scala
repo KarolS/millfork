@@ -10,6 +10,7 @@ import millfork.assembly.mos.AddrMode._
 import millfork.env._
 import millfork.error.FatalErrorReporting
 import millfork.node.LiteralExpression
+import millfork.node.MosNiceFunctionProperty.DoesntChangeA
 
 /**
   * These optimizations should not remove opportunities for more complex optimizations to trigger.
@@ -1863,9 +1864,17 @@ object AlwaysGoodOptimizations {
         ctx.get[List[AssemblyLine]](5) ++
         ctx.get[List[AssemblyLine]](6) ++ (
           if (elseLabelUseCount == 1) Nil
-          else ctx.get[List[AssemblyLine]](10) ++ List(
-            AssemblyLine.immediate(LDA, if (firstSet) (if (zeroIfSet) nonZero else 0) else (if (zeroIfSet) 0 else nonZero))
-          ) ++ ctx.get[List[AssemblyLine]](5) ++ ctx.get[List[AssemblyLine]](6)
+          else {
+            val storeAndSecondReturn = ctx.get[List[AssemblyLine]](5) ++ ctx.get[List[AssemblyLine]](6)
+            val set = Set(RTS, JSR, RTI, RTL, BSR)
+            if (storeAndSecondReturn.exists(p => set(p.opcode))) {
+              ctx.get[List[AssemblyLine]](10) ++ List(
+                AssemblyLine.immediate(LDA, if (firstSet) (if (zeroIfSet) nonZero else 0) else (if (zeroIfSet) 0 else nonZero))
+              ) ++ ctx.get[List[AssemblyLine]](5) ++ ctx.get[List[AssemblyLine]](6)
+            } else {
+              ctx.get[List[AssemblyLine]](10)
+            }
+          }
         )
     }
   }

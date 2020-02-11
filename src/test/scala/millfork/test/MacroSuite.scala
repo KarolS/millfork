@@ -1,7 +1,8 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
+import millfork.output.MemoryBank
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedAccordingToLevelRun, EmuOptimizedRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -177,5 +178,41 @@ class MacroSuite extends FunSuite with Matchers {
       """.stripMargin) { m =>
       m.readByte(0xc000) should equal(1)
     }
+  }
+
+  test("Issue #46") {
+    val src =
+      """
+        |bool output
+        |
+        |byte input
+        |byte y
+        |
+        |void main() {
+        |    bool result
+        |    input = 13
+        |    y = 12
+        |    test(result, input)
+        |
+        |    if (result) {
+        |        output = true
+        |    }
+        |}
+        |
+        |macro void test(bool returnVal, byte x) {
+        |    returnVal = x >= y
+        |    returnVal = returnVal && x <= y + 8
+        |}
+        |""".stripMargin
+
+
+    def assertAtLeastOneTrueInZeroPage(m: MemoryBank): Unit = {
+      val countOfTrues = 0.to(0xff).count(a => m.readByte(a) == 1)
+      countOfTrues should be > (0)
+    }
+
+    assertAtLeastOneTrueInZeroPage(EmuOptimizedAccordingToLevelRun(1)(src))
+    assertAtLeastOneTrueInZeroPage(EmuOptimizedAccordingToLevelRun(2)(src))
+    assertAtLeastOneTrueInZeroPage(EmuOptimizedAccordingToLevelRun(3)(src))
   }
 }
