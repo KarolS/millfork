@@ -4,6 +4,20 @@
 
 * 6809 improvements (no full support yet)
 
+* Various improvements to the C64 libraries (thanks to @bsutherland)
+
+* 6502: Fixed undocumented mnemonics.
+
+* Create output directories when needed (#21)
+
+* Fixed multiple optimization bugs (#32, #38, #41, #46) – thanks to @agg23 for detailed bug reports!
+
+* 6502: Fix boolean arrays and pointers (#28)
+
+* Improved operator support for word-sized arguments (#24, #25)
+
+* **Potentially breaking change!** Various macros improvements, including the requirement of parameter types matching exactly (#23, #39, #40)
+
 ## 0.3.14
 
 * Full assembly support for HuC6280.
