@@ -43,7 +43,11 @@ object ShouldNotParse extends Matchers {
       case f: Failure[_, _] =>
         println(f.extra.toString)
         log.warn("Last parser: " + f.lastParser, Some(parserF.indexToPosition(f.index, f.lastParser.toString)))
-        log.warn("Expected syntax error: " + parserF.lastLabel, Some(parserF.lastPosition))
+        if (parserF.lastLabel != "") {
+          log.warn(s"Expected syntax error: ${parserF.lastLabel} expected", Some(parserF.lastPosition))
+        } else {
+          log.warn("Expected syntax error", Some(parserF.lastPosition))
+        }
     }
   }
 }

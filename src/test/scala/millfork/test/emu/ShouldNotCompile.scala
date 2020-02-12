@@ -117,7 +117,11 @@ object ShouldNotCompile extends Matchers {
       case f: Failure[_, _] =>
         println(f.extra.toString)
         println(f.lastParser.toString)
-        log.error("Syntax error: " + parserF.lastLabel, Some(parserF.lastPosition))
+        if (parserF.lastLabel != "") {
+          options.log.error(s"Syntax error: ${parserF.lastLabel} expected", Some(parserF.lastPosition))
+        } else {
+          options.log.error("Syntax error", Some(parserF.lastPosition))
+        }
         fail("syntax error")
     }
   }
