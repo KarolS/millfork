@@ -614,4 +614,25 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
       """.stripMargin){ m =>
     }
   }
+
+  test("Error message test") {
+    ShouldNotParse(
+      """
+        | const array stuff = file("", 0, 0, 0)
+        | void main () {
+        | }
+      """.stripMargin)
+    ShouldNotParse(
+      """
+        | const array stuff = file()
+        | void main () {
+        | }
+      """.stripMargin)
+    ShouldNotParse(
+      """
+        | const array stuff = file(1)
+        | void main () {
+        | }
+      """.stripMargin)
+  }
 }

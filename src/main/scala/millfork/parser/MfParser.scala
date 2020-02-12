@@ -166,6 +166,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     bank <- bankDeclaration
     flags <- variableFlags ~ HWS
     typ <- identifier ~/ SWS
+    if typ != "array"
     vars <- singleVariableDefinition.rep(min = 1, sep = "," ~/ HWS)
     _ <- Before_EOL ~/ ""
   } yield {
@@ -229,8 +230,11 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val arrayFileContents: P[ArrayContents] = for {
     p <- "file" ~ HWS ~/ "(" ~/ HWS ~/ position("file name")
     filePath <- doubleQuotedString ~/ HWS
+    _ <- position("file start")
     optStart <- ("," ~/ HWS ~/ literalAtom ~/ HWS ~/ Pass).?
+    _ <- position("slice length")
     optLength <- ("," ~/ HWS ~/ literalAtom ~/ HWS ~/ Pass).?
+    _ <- position("closing parentheses")
     _ <- ")" ~/ Pass
   } yield {
     val data = Files.readAllBytes(Paths.get(currentDirectory, filePath))
@@ -314,7 +318,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     const <- ("const".! ~ HWS).?
     _ <- "array" ~ !letterOrDigit
     elementType <- ("(" ~/ AWS ~/ identifier ~ AWS ~ ")").? ~/ HWS
-    name <- identifier ~ HWS
+    name <- identifier ~/ HWS
     length <- ("[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]").? ~ HWS
     alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
