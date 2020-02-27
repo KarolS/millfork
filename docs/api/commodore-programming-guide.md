@@ -63,7 +63,7 @@ The default segment will be in `OUTPUT.prg`, the segment called `extra` in `OUTP
 The Millfork compiler does not create Commodore disk images.
 
 You can use a variety of tools to perform that task,
-for example the `c1531` tool shipped with [the VICE emulator](http://vice-emu.sourceforge.net/).
+for example the `c1541` tool shipped with [the VICE emulator](http://vice-emu.sourceforge.net/).
 
 To create a new disk image for the last example, use:
 
