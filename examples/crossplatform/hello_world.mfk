@@ -9,7 +9,7 @@ void main() {
     ensure_mixedcase()
 
 #if CBM_64 || CBM_264
-    set_bg_color(green)
+    set_bg_color(white)
 #endif
 #if CBM_64 || CBM_264 || ZX_SPECTRUM
     set_border(red)

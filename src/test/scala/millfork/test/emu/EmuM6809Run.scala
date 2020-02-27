@@ -7,6 +7,7 @@ import fastparse.core.Parsed.{Failure, Success}
 import millfork._
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.m6809.MLine
+import millfork.assembly.m6809.opt.VeryLateM6809AssemblyOptimizations
 import millfork.compiler.m6809.M6809Compiler
 import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
@@ -144,7 +145,7 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
         val env2 = new Environment(None, "", CpuFamily.M6502, options)
         env2.collectDeclarations(program, options)
         val assembler = new M6809Assembler(program, env2, platform)
-        val output = assembler.assemble(callGraph, assemblyOptimizations, options)
+        val output = assembler.assemble(callGraph, assemblyOptimizations, options, VeryLateM6809AssemblyOptimizations.All)
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
         println(";;; ---------------------------")

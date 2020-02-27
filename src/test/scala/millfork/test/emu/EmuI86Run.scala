@@ -10,6 +10,7 @@ import javax.swing.SwingUtilities
 import millfork._
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.z80.ZLine
+import millfork.assembly.z80.opt.VeryLateI80AssemblyOptimizations
 import millfork.compiler.z80.Z80Compiler
 import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
@@ -135,7 +136,7 @@ class EmuI86Run(nodeOptimizations: List[NodeOptimization], assemblyOptimizations
         val env2 = new Environment(None, "", CpuFamily.I80, options)
         env2.collectDeclarations(program, options)
         val assembler = new Z80ToX86Crossassembler(program, env2, platform)
-        val output = assembler.assemble(callGraph, assemblyOptimizations, options)
+        val output = assembler.assemble(callGraph, assemblyOptimizations, options, VeryLateI80AssemblyOptimizations.All)
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("////; DISCARD_")).foreach(println)
         println(";;; ---------------------------")

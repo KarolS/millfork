@@ -195,7 +195,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   protected def subbyte(c: Constant, index: Int, totalSize: Int): Constant = if (platform.isBigEndian) c.subbyteBe(index, totalSize) else c.subbyte(index)
 
-  def assemble(callGraph: CallGraph, unfilteredOptimizations: Seq[AssemblyOptimization[T]], options: CompilationOptions): AssemblerOutput = {
+  def assemble(
+                callGraph: CallGraph,
+                unfilteredOptimizations: Seq[AssemblyOptimization[T]],
+                options: CompilationOptions,
+                veryLateOptimizations: (Set[NiceFunctionProperty], CompilationOptions) => Seq[AssemblyOptimization[T]]): AssemblerOutput = {
     mem.programName = options.outputFileName.getOrElse("MILLFORK")
     val platform = options.platform
     val variableAllocators = platform.variableAllocators
@@ -277,7 +281,14 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case None =>
             log.trace("Not inlining " + f, function.position)
             functionsThatCanBeCalledFromInlinedFunctions += function.name
-            compiledFunctions(f) = NormalCompiledFunction(function.declaredBank.getOrElse(platform.defaultCodeBank), code, function.address.isDefined, function.alignment)
+            val thisFunctionNiceProperties = niceFunctionProperties.filter(_._2.==(f)).map(_._1).toSet
+            val labelMapImm = labelMap.toMap
+            val niceFunctionPropertiesImm = niceFunctionProperties.toSet
+            val extraOptimizedCode = veryLateOptimizations(thisFunctionNiceProperties, options).foldLeft(code) { (c, opt) =>
+              val code = opt.optimize(function, c, OptimizationContext(options, labelMapImm, env.maybeGet[ThingInMemory]("__reg"), niceFunctionPropertiesImm))
+              if (code eq c) code else quickSimplify(code)
+            }
+            compiledFunctions(f) = NormalCompiledFunction(function.declaredBank.getOrElse(platform.defaultCodeBank), extraOptimizedCode, function.address.isDefined, function.alignment)
             optimizedCodeSize += code.map(_.sizeInBytes).sum
             if (options.flag(CompilationFlag.InterproceduralOptimization)) {
               gatherNiceFunctionProperties(options, niceFunctionProperties, function, code)

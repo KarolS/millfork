@@ -95,17 +95,17 @@ object ShouldNotCompile extends Matchers {
           cpuFamily match {
             case CpuFamily.M6502 =>
               val assembler = new MosAssembler(program, env2, platform)
-              val output = assembler.assemble(callGraph, Nil, options)
+              val output = assembler.assemble(callGraph, Nil, options, (_, _) => Nil)
               output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
               fail("Failed: Compilation succeeded for 6502")
             case CpuFamily.I80 =>
               val assembler = new Z80Assembler(program, env2, platform)
-              val output = assembler.assemble(callGraph, Nil, options)
+              val output = assembler.assemble(callGraph, Nil, options, (_, _) => Nil)
               output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
               fail("Failed: Compilation succeeded for Z80")
             case CpuFamily.M6809 =>
               val assembler = new M6809Assembler(program, env2, platform)
-              val output = assembler.assemble(callGraph, Nil, options)
+              val output = assembler.assemble(callGraph, Nil, options, (_, _) => Nil)
               output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
               fail("Failed: Compilation succeeded for 6809")
             case _ =>

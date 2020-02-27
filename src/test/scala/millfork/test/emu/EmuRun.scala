@@ -9,6 +9,7 @@ import com.loomcom.symon.{Bus, Cpu, CpuState}
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.mos.AssemblyLine
+import millfork.assembly.mos.opt.VeryLateMosAssemblyOptimizations
 import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
@@ -221,7 +222,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         val env2 = new Environment(None, "", CpuFamily.M6502, options)
         env2.collectDeclarations(program, options)
         val assembler = new MosAssembler(program, env2, platform)
-        val output = assembler.assemble(callGraph, assemblyOptimizations, options)
+        val output = assembler.assemble(callGraph, assemblyOptimizations, options, VeryLateMosAssemblyOptimizations.All)
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
         println(";;; ---------------------------")

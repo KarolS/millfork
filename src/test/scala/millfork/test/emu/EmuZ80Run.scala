@@ -18,6 +18,7 @@ import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, Z80Assembler}
 import millfork.parser.{MosParser, PreprocessingResult, Preprocessor, Z80Parser}
 import millfork._
+import millfork.assembly.z80.opt.VeryLateI80AssemblyOptimizations
 import millfork.compiler.z80.Z80Compiler
 import org.scalatest.Matchers
 
@@ -143,7 +144,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
         val env2 = new Environment(None, "", CpuFamily.I80, options)
         env2.collectDeclarations(program, options)
         val assembler = new Z80Assembler(program, env2, platform)
-        val output = assembler.assemble(callGraph, assemblyOptimizations, options)
+        val output = assembler.assemble(callGraph, assemblyOptimizations, options, VeryLateI80AssemblyOptimizations.All)
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("////; DISCARD_")).foreach(println)
         println(";;; ---------------------------")

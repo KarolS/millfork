@@ -5,10 +5,10 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 import java.util.Locale
 
-import millfork.assembly.m6809.opt.M6809OptimizationPresets
+import millfork.assembly.m6809.opt.{M6809OptimizationPresets, VeryLateM6809AssemblyOptimizations}
 import millfork.assembly.mos.AssemblyLine
 import millfork.assembly.mos.opt._
-import millfork.assembly.z80.opt.Z80OptimizationPresets
+import millfork.assembly.z80.opt.{VeryLateI80AssemblyOptimizations, Z80OptimizationPresets}
 import millfork.buildinfo.BuildInfo
 import millfork.cli.{CliParser, CliStatus}
 import millfork.compiler.LabelGenerator
@@ -273,7 +273,7 @@ object Main {
 
     // compile
     val assembler = new MosAssembler(program, env, platform)
-    val result = assembler.assemble(callGraph, assemblyOptimizations, options)
+    val result = assembler.assemble(callGraph, assemblyOptimizations, options, if (optLevel <= 1) (_,_) => Nil else VeryLateMosAssemblyOptimizations.All)
     options.log.assertNoErrors("Codegen failed")
     options.log.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
     options.log.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
@@ -313,7 +313,7 @@ object Main {
 
     // compile
     val assembler = new Z80Assembler(program, env, platform)
-    val result = assembler.assemble(callGraph, assemblyOptimizations, options)
+    val result = assembler.assemble(callGraph, assemblyOptimizations, options, if (optLevel <= 1) (_,_) => Nil else VeryLateI80AssemblyOptimizations.All)
     options.log.assertNoErrors("Codegen failed")
     options.log.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
     options.log.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
@@ -343,7 +343,7 @@ object Main {
 
     // compile
     val assembler = new M6809Assembler(program, env, platform)
-    val result = assembler.assemble(callGraph, assemblyOptimizations, options)
+    val result = assembler.assemble(callGraph, assemblyOptimizations, options, if (optLevel <= 1) (_,_) => Nil else VeryLateM6809AssemblyOptimizations.All)
     options.log.assertNoErrors("Codegen failed")
     options.log.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
     options.log.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
@@ -376,7 +376,7 @@ object Main {
 
     // compile
     val assembler = new Z80ToX86Crossassembler(program, env, platform)
-    val result = assembler.assemble(callGraph, assemblyOptimizations, options)
+    val result = assembler.assemble(callGraph, assemblyOptimizations, options, if (optLevel <= 1) (_,_) => Nil else VeryLateI80AssemblyOptimizations.All)
     options.log.assertNoErrors("Codegen failed")
     options.log.debug(f"Unoptimized code size: ${assembler.unoptimizedCodeSize}%5d B")
     options.log.debug(f"Optimized code size:   ${assembler.optimizedCodeSize}%5d B")
