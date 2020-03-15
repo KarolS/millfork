@@ -260,6 +260,10 @@ command line options `--inline`, `--dangerous-optimizations` `--fipo` and `--fno
 
 ## Warning options
 
+By default, the compiler emits only some of the most important warnings.
+
 * `-Wall` – Enable extra warnings.
+
+* `-Wnone` – Disable all warnings.
 
 * `-Wfatal` – Treat warnings as errors.

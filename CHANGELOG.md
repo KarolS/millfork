@@ -8,6 +8,8 @@
 
 * Added `breakpoint` macro (#44).
 
+* Added warnings for calling from one segment to another overlapping one.
+
 * 6502: Fixed undocumented mnemonics.
 
 * Create output directories when needed (#21)

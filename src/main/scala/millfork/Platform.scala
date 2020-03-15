@@ -46,6 +46,19 @@ class Platform(
   def cpuFamily: CpuFamily.Value = CpuFamily.forType(this.cpu)
 
   def isBigEndian: Boolean = CpuFamily.isBigEndian(cpuFamily)
+
+  private def bankStart(bank: String): Int = codeAllocators(bank).startAt min variableAllocators(bank).startAt
+
+  private def bankEndBefore(bank: String): Int = codeAllocators(bank).endBefore max variableAllocators(bank).endBefore
+
+  def isUnsafeToJump(bank1: String, bank2: String): Boolean = {
+    if (bank1 == bank2) return false
+    val s1 = bankStart(bank1)
+    val s2 = bankStart(bank2)
+    val e1 = bankEndBefore(bank1)
+    val e2 = bankEndBefore(bank2)
+    e2 > s1 && s2 < e1
+  }
 }
 
 object Platform {

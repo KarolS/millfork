@@ -409,6 +409,7 @@ object Cpu extends Enumeration {
 
   private val alwaysDefaultFlags = Set(
     VariableOverlap, CompactReturnDispatchParams, FunctionFallthrough, RegisterVariables, FunctionDeduplication, EnableBreakpoints,
+    NonZeroTerminatedLiteralWarning, CallToOverlappingBankWarning,
   )
 
   private val mosAlwaysDefaultFlags = alwaysDefaultFlags
@@ -564,6 +565,7 @@ object CompilationFlag extends Enumeration {
   ExtraComparisonWarnings,
   RorWarning,
   NonZeroTerminatedLiteralWarning,
+  CallToOverlappingBankWarning,
   FatalWarnings,
   // special options for internal compiler use
   EnableInternalTestSyntax,

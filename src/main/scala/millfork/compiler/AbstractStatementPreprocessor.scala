@@ -544,7 +544,18 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         ctx.env.maybeGet[Thing](name) match {
           case Some(_: MacroFunction) =>
             FunctionCallExpression(name, args.map(arg => optimizeExpr(arg, Map()))).pos(pos)
-          case _ =>
+          case a =>
+            if (ctx.options.flag(CompilationFlag.CallToOverlappingBankWarning)) {
+              a match {
+                case Some(f: FunctionInMemory) =>
+                  val thisBank = ctx.function.bank(ctx.options)
+                  val targetBank = f.bank(ctx.options)
+                  if (ctx.options.platform.isUnsafeToJump(targetBank, thisBank)) {
+                    ctx.log.warn(s"Unsafe call to function `${f.name}` in segment `$targetBank` from function `${ctx.function.name}` in overlapping segment `$thisBank`", expr.position)
+                  }
+                case _ =>
+              }
+            }
             FunctionCallExpression(name, args.map(arg => optimizeExpr(arg, currentVarValues))).pos(pos)
         }
       case SumExpression(expressions, false) if optimizeSum =>

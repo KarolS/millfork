@@ -758,6 +758,10 @@ object Main {
       CompilationFlag.allWarnings.foldLeft(c) { (c, f) => c.changeFlag(f, true) }
     }.description("Enable extra warnings.")
 
+    flag("-Wnone", "--Wnone").action { c =>
+      CompilationFlag.allWarnings.foldLeft(c) { (c, f) => c.changeFlag(f, false) }
+    }.description("Disable all warnings.")
+
     flag("-Wfatal", "--Wfatal").action { c =>
       c.changeFlag(CompilationFlag.FatalWarnings, true)
     }.description("Treat warnings as errors.")
