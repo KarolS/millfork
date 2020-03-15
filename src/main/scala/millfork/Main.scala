@@ -119,20 +119,24 @@ object Main {
         else 0
       }
       val sortedLabels = result.labels.groupBy(_._2).values.map(_.minBy(a => labelUnimportance(a._1) -> a._1)).toSeq.sortBy(_._2)
+      val sortedBreakpoints = result.breakpoints
       val format = c.outputLabelsFormatOverride.getOrElse(platform.outputLabelsFormat)
       val basename = if (format.addOutputExtension)  output + platform.fileExtension else output
       if (format.filePerBank) {
-        sortedLabels.groupBy(_._2._1).foreach{ case (bank, labels) =>
+        val banks = sortedLabels.map(_._2._1).toSet ++ sortedBreakpoints.map(_._2).toSet
+        banks.foreach{ bank =>
+          val labels = sortedLabels.filter(_._2._1.==(bank))
+          val breakpoints = sortedBreakpoints.filter(_._1.==(bank))
           val labelOutput = basename + format.fileExtension(bank)
           val path = Paths.get(labelOutput)
           errorReporting.debug("Writing labels to " + path.toAbsolutePath)
-          Files.write(path, labels.map(format).mkString("\n").getBytes(StandardCharsets.UTF_8))
+          Files.write(path, format.formatAll(labels, breakpoints).getBytes(StandardCharsets.UTF_8))
         }
       } else {
         val labelOutput = basename + format.fileExtension(0)
         val path = Paths.get(labelOutput)
         errorReporting.debug("Writing labels to " + path.toAbsolutePath)
-        Files.write(path, sortedLabels.map(format).mkString("\n").getBytes(StandardCharsets.UTF_8))
+        Files.write(path, format.formatAll(sortedLabels, sortedBreakpoints).getBytes(StandardCharsets.UTF_8))
       }
     }
     val defaultPrgOutput = if (output.endsWith(platform.fileExtension)) output else output + platform.fileExtension
@@ -409,6 +413,10 @@ object Main {
         errorReporting.fatal("Invalid label file format: " + p))
       c.copy(outputLabels = true, outputLabelsFormatOverride = Some(f))
     }.description("Generate also the label file in the given format. Available options: vice, nesasm, sym.")
+
+    boolean("-fbreakpoints", "-fno-breakpoints").action((c,v) =>
+      c.changeFlag(CompilationFlag.EnableBreakpoints, v)
+    ).description("Include breakpoints in the label file. Requires either -g or -G.")
 
     parameter("-t", "--target").placeholder("<platform>").action { (p, c) =>
       assertNone(c.platform, "Platform already defined")

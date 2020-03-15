@@ -6,6 +6,8 @@
 
 * Various improvements to the C64 libraries (thanks to @bsutherland)
 
+* Added `breakpoint` macro (#44).
+
 * 6502: Fixed undocumented mnemonics.
 
 * Create output directories when needed (#21)

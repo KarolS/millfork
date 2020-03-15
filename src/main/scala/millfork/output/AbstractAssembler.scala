@@ -19,7 +19,7 @@ import scala.collection.mutable.ArrayBuffer
   * @author Karol Stasiak
   */
 
-case class AssemblerOutput(code: Map[String, Array[Byte]], asm: Array[String], labels: List[(String, (Int, Int))])
+case class AssemblerOutput(code: Map[String, Array[Byte]], asm: Array[String], labels: List[(String, (Int, Int))], breakpoints: List[(Int, Int)])
 
 abstract class AbstractAssembler[T <: AbstractCode](private val program: Program,
                                            private val rootEnv: Environment,
@@ -35,6 +35,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   val mem = new CompiledMemory(platform.bankNumbers.toList, platform.bankFill, platform.isBigEndian)
   val labelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
+  val breakpointSet: mutable.Set[(Int, Int)] = mutable.Set()
   private val bytesToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
   private val wordsToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
 
@@ -668,7 +669,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case OutputStyle.Single | OutputStyle.LUnix => List("default")
       case OutputStyle.PerBank => platform.bankNumbers.keys.toList
     }).map(b => b -> platform.outputPackager.packageOutput(mem, b)).toMap
-    AssemblerOutput(code, assembly.toArray, labelMap.toList)
+    AssemblerOutput(code, assembly.toArray, labelMap.toList, breakpointSet.toList.sorted)
   }
 
   private def printArrayToAssemblyOutput(assembly: ArrayBuffer[String], name: String, elementType: Type, items: Seq[Expression]): Unit = {

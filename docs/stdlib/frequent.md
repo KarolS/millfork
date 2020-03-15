@@ -94,4 +94,14 @@ The optimizer should not optimize any memory accesses across that macro.
 
 Available for: all targets.
 
+#### `macro void breakpoint()`
+
+If the `-fbreakpoints` option is selected (default), then it emits a memory barrier,
+and also outputs a breakpoint to the label file (if the format of the label file allows it).
+
+If the `-fno-breakpoints` option is selected, then it does nothing.
+
+Available for: all targets.
+ 
+
 

@@ -849,7 +849,16 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
-  def evalForAsm(e: Expression): Option[Constant] = {
+  def evalForAsm(e: Expression, op: MOpcode.Value = MOpcode.NOP): Option[Constant] = {
+    e match {
+      // TODO: hmmm
+      case VariableExpression(name) =>
+        import MOpcode._
+        if (MOpcode.Branching(op) || op == LABEL || op == CHANGED_MEM) {
+          return Some(MemoryAddressConstant(Label(name)))
+        }
+      case _ =>
+    }
     e match {
       case LiteralExpression(value, size) => Some(NumericConstant(value, size))
       case ConstantArrayElementExpression(c) => Some(c)
@@ -906,7 +915,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   private def constantOperationForAsm(op: MathOperator.Value, params: List[Expression]) = {
-    params.map(evalForAsm).reduceLeft[Option[Constant]] { (oc, om) =>
+    params.map(e => evalForAsm(e)).reduceLeft[Option[Constant]] { (oc, om) =>
       for {
         c <- oc
         m <- om
@@ -2138,6 +2147,21 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         case CpuFamily.M6809 => List(M6809AssemblyStatement(MOpcode.CHANGED_MEM, NonExistent, LiteralExpression(0, 1), Elidability.Fixed))
         case _ => ???
       })
+    }
+
+    if (!things.contains("breakpoint")) {
+      val p = get[VariableType]("pointer")
+      if (options.flag(CompilationFlag.EnableBreakpoints)) {
+        things("breakpoint") = MacroFunction("breakpoint", v, NormalParamSignature(Nil), this, CpuFamily.forType(options.platform.cpu) match {
+          case CpuFamily.M6502 => List(MosAssemblyStatement(Opcode.CHANGED_MEM, AddrMode.DoesNotExist, VariableExpression("..brk"), Elidability.Fixed))
+          case CpuFamily.I80 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, VariableExpression("..brk"), Elidability.Fixed))
+          case CpuFamily.I86 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, VariableExpression("..brk"), Elidability.Fixed))
+          case CpuFamily.M6809 => List(M6809AssemblyStatement(MOpcode.CHANGED_MEM, NonExistent, VariableExpression("..brk"), Elidability.Fixed))
+          case _ => ???
+        })
+      } else {
+        things("breakpoint") = MacroFunction("breakpoint", v, NormalParamSignature(Nil), this, Nil)
+      }
     }
   }
 

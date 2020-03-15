@@ -339,7 +339,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     x match {
       // TODO: hmmm
       case VariableExpression(name) =>
-        if (OpcodeClasses.ShortBranching(o) || o == JMP || o == LABEL || OpcodeClasses.HudsonTransfer(o)) {
+        if (OpcodeClasses.ShortBranching(o) || o == JMP || o == LABEL || o == CHANGED_MEM || OpcodeClasses.HudsonTransfer(o)) {
           MemoryAddressConstant(Label(name))
         } else {
           env.evalForAsm(x).getOrElse(env.get[ThingInMemory](name, x.position).toAddress)

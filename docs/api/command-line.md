@@ -48,6 +48,12 @@ The extension and the file format are platform-dependent.
     
     * `-G fceux` – multi-file format used by the FCEUX emulator. The extension is `.nl`.
 
+* `-fbreakpoints`, `-fno-breakpoints` – 
+Whether the compiler should use the `breakpoint` macro.
+When enabled, breakpoints become memory barriers and the label file will contain the breakpoints if the format supports them.
+Currently, the only formats that supports breakpoints are `vice` and `sym`.
+`.ini` equivalent: `breakpoints`. Default: yes.
+
 * `-I  <dir>;<dir>` – The include directories.
 Those directories are searched for modules and platform definitions.
 When searching for modules, the directory containing the file currently being compiled is also searched.

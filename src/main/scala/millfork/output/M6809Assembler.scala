@@ -87,6 +87,9 @@ class M6809Assembler(program: Program,
         index
       case MLine0(op, NonExistent, _) if MOpcode.NoopDiscard(op) =>
         index
+      case MLine0(CHANGED_MEM, NonExistent, MemoryAddressConstant(Label(l))) if l.contains("..brk") =>
+        breakpointSet += mem.banks(bank).index -> index
+        index
       case MLine0(CHANGED_MEM, _, _) =>
         index
       case MLine0(TFR, TwoRegisters(source, target), param)

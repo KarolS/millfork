@@ -36,7 +36,7 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         }
         (eval ++ rts) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>
-        ctx.env.evalForAsm(expression) match {
+        ctx.env.evalForAsm(expression, opcode) match {
           case Some(e) => List(MLine(opcode, addrMode, e, elidability)) -> Nil
           case None =>
             println(statement)
@@ -84,7 +84,7 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
       case s:ContinueStatement =>
         compileContinueStatement(ctx, s) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>
-        ctx.env.evalForAsm(expression) match {
+        ctx.env.evalForAsm(expression, opcode) match {
           case Some(param) =>
             List(MLine(opcode, addrMode, param, elidability)) -> Nil
           case None =>

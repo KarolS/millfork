@@ -14,17 +14,35 @@ object DebugOutputFormat {
     "sym" -> SymDebugOutputFormat)
 }
 
-sealed trait DebugOutputFormat extends Function[(String, (Int, Int)), String] {
+sealed trait DebugOutputFormat {
 
-  def apply(labelAndValue: (String, (Int, Int))): String = formatLine(labelAndValue._1, labelAndValue._2._1, labelAndValue._2._2)
+  def formatAll(labels: Seq[(String, (Int, Int))], breakpoints: Seq[(Int, Int)]): String = {
+    val labelPart = labelsHeader + labels.map(formatLineTupled).mkString("\n") + "\n"
+    if (breakpoints.isEmpty) {
+      labelPart
+    } else {
+      labelPart + breakpointsHeader + breakpoints.flatMap(formatBreakpointTupled).mkString("\n") + "\n"
+    }
+  }
+
+  final def formatLineTupled(labelAndValue: (String, (Int, Int))): String = formatLine(labelAndValue._1, labelAndValue._2._1, labelAndValue._2._2)
 
   def formatLine(label: String, bank: Int, value: Int): String
+
+  final def formatBreakpointTupled(value: (Int, Int)): Seq[String] = formatBreakpoint(value._1, value._2).toSeq
+
+  def formatBreakpoint(bank: Int, value: Int): Option[String]
 
   def fileExtension(bank: Int): String
 
   def filePerBank: Boolean
 
+  //noinspection MutatorLikeMethodIsParameterless
   def addOutputExtension: Boolean
+
+  def labelsHeader: String = ""
+
+  def breakpointsHeader: String = ""
 }
 
 object ViceDebugOutputFormat extends DebugOutputFormat {
@@ -38,6 +56,8 @@ object ViceDebugOutputFormat extends DebugOutputFormat {
   override def filePerBank: Boolean = false
 
   override def addOutputExtension: Boolean = false
+
+  override def formatBreakpoint(bank: Int, value: Int): Option[String] = Some(s"break ${value.toHexString}")
 }
 
 object NesasmDebugOutputFormat extends DebugOutputFormat {
@@ -50,6 +70,8 @@ object NesasmDebugOutputFormat extends DebugOutputFormat {
   override def filePerBank: Boolean = false
 
   override def addOutputExtension: Boolean = false
+
+  override def formatBreakpoint(bank: Int, value: Int): Option[String] = None
 }
 
 object SymDebugOutputFormat extends DebugOutputFormat {
@@ -62,6 +84,12 @@ object SymDebugOutputFormat extends DebugOutputFormat {
   override def filePerBank: Boolean = false
 
   override def addOutputExtension: Boolean = false
+
+  override def formatBreakpoint(bank: Int, value: Int): Option[String] = Some(f"$bank%02x:$value%04x")
+
+  override def labelsHeader: String = "[labels]\n"
+
+  override def breakpointsHeader: String = "[breakpoints]\n"
 }
 
 object FceuxDebugOutputFormat extends DebugOutputFormat {
@@ -74,4 +102,6 @@ object FceuxDebugOutputFormat extends DebugOutputFormat {
   override def filePerBank: Boolean = true
 
   override def addOutputExtension: Boolean = true
+
+  override def formatBreakpoint(bank: Int, value: Int): Option[String] = None
 }

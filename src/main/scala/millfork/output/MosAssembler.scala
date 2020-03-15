@@ -43,6 +43,9 @@ class MosAssembler(program: Program,
         val bank0 = mem.banks(bank)
         labelMap(labelName) = bank0.index -> index
         index
+      case AssemblyLine0(CHANGED_MEM, DoesNotExist, MemoryAddressConstant(Label(l))) if l.contains("..brk") =>
+        breakpointSet += mem.banks(bank).index -> index
+        index
       case AssemblyLine0(_, DoesNotExist, _) =>
         index
       case AssemblyLine0(op, Implied, _) =>

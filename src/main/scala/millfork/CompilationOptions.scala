@@ -408,7 +408,7 @@ object Cpu extends Enumeration {
   import CompilationFlag._
 
   private val alwaysDefaultFlags = Set(
-    VariableOverlap, CompactReturnDispatchParams, FunctionFallthrough, RegisterVariables, FunctionDeduplication
+    VariableOverlap, CompactReturnDispatchParams, FunctionFallthrough, RegisterVariables, FunctionDeduplication, EnableBreakpoints,
   )
 
   private val mosAlwaysDefaultFlags = alwaysDefaultFlags
@@ -536,7 +536,7 @@ object Cpu extends Enumeration {
 object CompilationFlag extends Enumeration {
   val
   // common compilation options:
-  EmitIllegals, DecimalMode, LenientTextEncoding, LineNumbersInAssembly, SourceInAssembly,
+  EmitIllegals, DecimalMode, LenientTextEncoding, LineNumbersInAssembly, SourceInAssembly, EnableBreakpoints,
   // compilation options for MOS:
   EmitCmosOpcodes, EmitCmosNopOpcodes, EmitSC02Opcodes, EmitRockwellOpcodes, EmitWdcOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
   PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, SoftwareStack,
@@ -608,6 +608,7 @@ object CompilationFlag extends Enumeration {
     "prevent_jmp_indirect_bug" -> PreventJmpIndirectBug,
     "compact_dispatch_params" -> CompactReturnDispatchParams,
     "lenient_encoding" -> LenientTextEncoding,
+    "breakpoints" -> EnableBreakpoints,
   )
 
 }
