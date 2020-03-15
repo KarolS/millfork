@@ -16,6 +16,10 @@
 
 * Improved operator support for word-sized arguments (#24, #25)
 
+* Fixed and improved memset-like loops (#47)
+
+* **Potentially breaking change!** Detect overflowing constants, like `const byte x = 256`
+
 * **Potentially breaking change!** Various macros improvements, including the requirement of parameter types matching exactly (#23, #39, #40)
 
 ## 0.3.14
