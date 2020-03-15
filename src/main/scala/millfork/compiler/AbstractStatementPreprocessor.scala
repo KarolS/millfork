@@ -185,6 +185,62 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         val (b, _) = optimizeStmts(body, Map())
         ForEachStatement(v, a, b).pos(pos) -> Map()
       case f@ForStatement(v, st, en, dir, body) =>
+
+        // detect a memset
+        f.body match {
+          case List(Assignment(target@IndexedExpression(pointy, index), source)) =>
+            val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
+            val targetType = AbstractExpressionCompiler.getExpressionType(ctx, target)
+            if (
+              !env.isVolatile(VariableExpression(pointy)) &&
+              !env.isVolatile(index) &&
+              !env.isVolatile(source) &&
+              !env.isVolatile(f.end) &&
+              index.getAllIdentifiers.forall(iv => !ctx.env.overlapsVariable(iv, source)) &&
+              !env.overlapsVariable(pointy, source) &&
+              !env.overlapsVariable(pointy, index) &&
+              !env.overlapsVariable(f.variable, source) &&
+              !env.overlapsVariable(f.variable, f.start) &&
+              !env.overlapsVariable(f.variable, f.end) &&
+              source.isPure &&
+              sourceType.size == 1 &&
+              targetType.size == 1 &&
+              sourceType.isAssignableTo(targetType)
+            ) {
+              val sizeExpr = f.direction match {
+                case ForDirection.DownTo =>
+                  f.start #-# f.end #+# 1
+                case ForDirection.To | ForDirection.ParallelTo =>
+                  f.end #-#  f.start #+# 1
+                case ForDirection.Until | ForDirection.ParallelUntil =>
+                  f.end #-# f.start
+              }
+              val w = env.get[Type]("word")
+              env.eval(sizeExpr) match {
+                case Some(size) =>
+                  val startOpt = optimizeExpr(f.start, Map())
+                  val sourceOpt = optimizeExpr(source, Map())
+                  (env.getPointy(pointy), env.evalVariableAndConstantSubParts(index)) match {
+                    case (array: ConstantPointy, (Some(VariableExpression(i)), offset)) if i == f.variable =>
+                      // for i,start,until,end { array[i+offset] = source }
+                      // println(s"Detected memset via array $array and index $i")
+                      return MemsetStatement(startOpt #+# GeneratedConstantExpression(array.value + offset, w), size, sourceOpt, f.direction, Some(f)).pos(pos) -> Map()
+                    case (pointer, (Some(VariableExpression(i)), offset)) if i == f.variable =>
+                      // for i,start,until,end { array[i+offset] = source }
+                      // println(s"Detected memset via pointer $pointer and index $i")
+                      return MemsetStatement(startOpt #+# VariableExpression(pointy) #+# GeneratedConstantExpression(offset, w), size, sourceOpt, f.direction, Some(f)).pos(pos) -> Map()
+                    case (_, (None, offset)) if pointy == f.variable =>
+                      // for pointy,start,until,end { pointy[offset] = source }
+                      // println(s"Detected memset via pointer $pointy alone")
+                      return MemsetStatement(startOpt #+# GeneratedConstantExpression(offset, w), size, sourceOpt, f.direction, Some(f)).pos(pos) -> Map()
+                    case _ =>
+                  }
+                case _ =>
+              }
+            }
+          case _ =>
+        }
+
         maybeOptimizeForStatement(f) match {
           case Some(x) => x
           case None =>
@@ -586,4 +642,31 @@ object AbstractStatementPreprocessor {
     "==", "!=", "<", ">", ">=", "<=",
     "not", "hi", "lo", "nonet", "sizeof"
   )
+
+  def mightBeMemset(ctx: CompilationContext, f: ForStatement): Boolean = {
+    val env = ctx.env
+    f.body match {
+      case List(Assignment(target@IndexedExpression(pointy, index), source)) =>
+        val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
+        val targetType = AbstractExpressionCompiler.getExpressionType(ctx, target)
+        if (
+          source.isPure &&
+          index.isPure &&
+          sourceType.size == 1 &&
+          targetType.size == 1  &&
+          sourceType.isAssignableTo(targetType)&&
+          !env.isVolatile(VariableExpression(pointy)) &&
+          !env.isVolatile(index) &&
+          !env.isVolatile(source) &&
+          !env.isVolatile(f.end) &&
+          index.getAllIdentifiers.forall(iv => !ctx.env.overlapsVariable(iv, source)) &&
+          !env.overlapsVariable(pointy, source) &&
+          !env.overlapsVariable(pointy, index) &&
+          !env.overlapsVariable(f.variable, source) &&
+          !env.overlapsVariable(f.variable, f.start) &&
+          !env.overlapsVariable(f.variable, f.end)
+        ) env.eval(f.end #-# f.start).isDefined else false
+      case _ => false
+    }
+  }
 }

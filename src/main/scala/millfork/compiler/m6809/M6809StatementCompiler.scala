@@ -3,7 +3,7 @@ package millfork.compiler.m6809
 import millfork.assembly.BranchingOpcodeMapping
 import millfork.assembly.m6809.{MLine, NonExistent}
 import millfork.compiler.{AbstractCompiler, AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
-import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, FunctionCallExpression, IfStatement, M6809AssemblyStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
+import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, FunctionCallExpression, IfStatement, M6809AssemblyStatement, MemsetStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
 import millfork.assembly.m6809.MOpcode._
 import millfork.env.{BooleanType, ConstantBooleanType, FatBooleanType, Label, ThingInMemory}
 
@@ -75,6 +75,8 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         compileDoWhileStatement(ctx, s)
       case s:ForStatement =>
         compileForStatement(ctx, s)
+      case s:MemsetStatement =>
+        compile(ctx, s.original.get)
       case s:ForEachStatement =>
         compileForEachStatement(ctx, s)
       case s:BreakStatement =>

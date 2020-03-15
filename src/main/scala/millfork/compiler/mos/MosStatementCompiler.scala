@@ -300,18 +300,25 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         compileWhileStatement(ctx, s)
       case s: DoWhileStatement =>
         compileDoWhileStatement(ctx, s)
-      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if !source.containsVariable(variable) =>
+      case f:MemsetStatement =>
+        MosBulkMemoryOperations.compileMemset(ctx, f) -> Nil
+      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if !ctx.env.overlapsVariable(variable, source) =>
         MosBulkMemoryOperations.compileMemset(ctx, target, source, f) -> Nil
       case f@ForStatement(variable, start, end, _, List(ExpressionStatement(
-        FunctionCallExpression(operator@("+=" | "-=" | "+'=" | "-'=" | "|=" | "^=" | "&="), List(target: VariableExpression, source))
-      ))) if !target.containsVariable(variable) && !source.containsVariable(variable) && !start.containsVariable(target.name) && !end.containsVariable(target.name) =>
+      FunctionCallExpression(operator@("+=" | "-=" | "+'=" | "-'=" | "|=" | "^=" | "&="), List(target: VariableExpression, source))
+      ))) if !ctx.env.overlapsVariable(variable, source) &&
+        !ctx.env.overlapsVariable(variable, target) &&
+        !ctx.env.overlapsVariable(target.name, start) &&
+        !ctx.env.overlapsVariable(target.name, end) =>
         MosBulkMemoryOperations.compileFold(ctx, target, operator, source, f) match {
           case Some(x) => x -> Nil
           case None => compileForStatement(ctx, f)
         }
       case f@ForStatement(variable, start, end, _, List(ExpressionStatement(
-        FunctionCallExpression(operator@("+=" | "-=" | "<<=" | ">>="), List(target: IndexedExpression, source))
-      ))) if !source.containsVariable(variable) && !start.containsVariable(target.name) && !end.containsVariable(target.name) && target.name != variable =>
+      FunctionCallExpression(operator@("+=" | "-=" | "<<=" | ">>="), List(target: IndexedExpression, source))
+      ))) if !ctx.env.overlapsVariable(variable, source) &&
+        !ctx.env.overlapsVariable(target.name, start) &&
+        !ctx.env.overlapsVariable(target.name, end) && target.name != variable =>
         MosBulkMemoryOperations.compileMemmodify(ctx, target, operator, source, f) match {
           case Some(x) => x -> Nil
           case None => compileForStatement(ctx, f)

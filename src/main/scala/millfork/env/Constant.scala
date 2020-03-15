@@ -20,6 +20,7 @@ import millfork.node.Position
 
 sealed trait Constant {
 
+
   def toIntelString: String
 
   def isQuiteNegative: Boolean = false
@@ -127,6 +128,8 @@ sealed trait Constant {
   }
 
   final def succ: Constant = (this + 1).quickSimplify
+
+  def rootThingName: String
 }
 
 case class AssertByte(c: Constant) extends Constant {
@@ -149,6 +152,7 @@ case class AssertByte(c: Constant) extends Constant {
 
   override def fitsInto(typ: Type): Boolean = true
   override def toIntelString: String = c.toIntelString
+  override def rootThingName: String = c.rootThingName
 }
 
 case class StructureConstant(typ: StructType, fields: List[Constant]) extends Constant {
@@ -192,6 +196,7 @@ case class StructureConstant(typ: StructType, fields: List[Constant]) extends Co
     }
     Constant.Zero
   }
+  override def rootThingName: String = "?"
 }
 
 case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant {
@@ -202,6 +207,8 @@ case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant 
   override def toIntelString: String = name
 
   override def refersTo(name: String): Boolean = name == this.name
+
+  override def rootThingName: String = "?"
 }
 
 case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
@@ -284,6 +291,8 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
       NumericConstant(actualBits, typ.size)
     }
   }
+
+  override def rootThingName: String = ""
 }
 
 case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
@@ -322,6 +331,8 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
   override def isRelatedTo(v: Thing): Boolean = thing.name == v.name
 
   override def refersTo(name: String): Boolean = name == thing.name
+
+  override def rootThingName: String = thing.rootName
 }
 
 case class SubbyteConstant(base: Constant, index: Int) extends Constant {
@@ -360,6 +371,8 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
   override def isRelatedTo(v: Thing): Boolean = base.isRelatedTo(v)
 
   override def refersTo(name: String): Boolean = base.refersTo(name)
+
+  override def rootThingName: String = base.rootThingName
 }
 
 object MathOperator extends Enumeration {
@@ -680,5 +693,13 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case _ => super.loByte
     }
     result
+  }
+
+  override def rootThingName: String = (lhs.rootThingName, rhs.rootThingName) match {
+    case ("?", _) => "?"
+    case (_, "?") => "?"
+    case ("", x) => x
+    case (x, "") => x
+    case _ => "?"
   }
 }

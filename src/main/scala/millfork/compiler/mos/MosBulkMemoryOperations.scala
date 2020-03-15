@@ -2,7 +2,7 @@ package millfork.compiler.mos
 
 import millfork.CompilationFlag
 import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, Opcode}
-import millfork.compiler.{AbstractExpressionCompiler, BranchSpec, CompilationContext}
+import millfork.compiler.{AbstractExpressionCompiler, AbstractStatementPreprocessor, BranchSpec, CompilationContext}
 import millfork.env.{ConstantPointy, Label, MemoryAddressConstant, MemoryVariable, NumericConstant, RelativeVariable, StackVariablePointy, Type, Variable, VariableAllocationMethod, VariableInMemory, VariablePointy}
 import millfork.node._
 import millfork.assembly.mos.Opcode._
@@ -14,11 +14,29 @@ object MosBulkMemoryOperations {
 
   def compileMemset(ctx: CompilationContext, target: IndexedExpression, source: Expression, f: ForStatement): List[AssemblyLine] = {
     if (ctx.options.zpRegisterSize < 2 ||
-      target.name != f.variable ||
-      target.index.containsVariable(f.variable) ||
-      !target.index.isPure ||
-      f.direction == ForDirection.DownTo) return MosStatementCompiler.compileForStatement(ctx, f)._1
-    ctx.env.getPointy(target.name)
+      !AbstractStatementPreprocessor.mightBeMemset(ctx, f) ||
+      f.direction == ForDirection.DownTo) {
+      return MosStatementCompiler.compileForStatement(ctx, f)._1
+    }
+    val pointy = ctx.env.getPointy(target.name)
+    if (pointy.elementType.size != 1) {
+      return MosStatementCompiler.compileForStatement(ctx, f)._1
+    }
+    val w = ctx.env.get[Type]("word")
+    val startExpr = () match {
+      case _ if target.name == f.variable && !ctx.env.overlapsVariable(target.name, target.index) =>
+        f.start #+# target.index
+      case _ if target.name != f.variable && !ctx.env.overlapsVariable(target.name, source) =>
+        (pointy, ctx.env.evalVariableAndConstantSubParts(target.index)) match {
+          case (pty: ConstantPointy, (Some(VariableExpression(n)), offset)) if n == f.variable =>
+            f.start #+# GeneratedConstantExpression(pty.value, w) #+# GeneratedConstantExpression(offset, w)
+          case bad =>
+            val badd = bad
+            return MosStatementCompiler.compileForStatement(ctx, f)._1
+        }
+      case _ =>
+        return MosStatementCompiler.compileForStatement(ctx, f)._1
+    }
     val sizeExpr = f.direction match {
       case ForDirection.DownTo =>
         f.start #-# f.end #+# 1
@@ -27,17 +45,24 @@ object MosBulkMemoryOperations {
       case ForDirection.Until | ForDirection.ParallelUntil =>
         f.end #-# f.start
     }
-    val reg = ctx.env.get[VariableInMemory]("__reg.loword")
-    val w = ctx.env.get[Type]("word")
     val size = ctx.env.eval(sizeExpr) match {
       case Some(c) => c.quickSimplify
       case _ => return MosStatementCompiler.compileForStatement(ctx, f)._1
     }
+    compileMemset(ctx, MemsetStatement(startExpr, size, source, f.direction, Some(f)))
+  }
+
+  def compileMemset(ctx: CompilationContext, m: MemsetStatement): List[AssemblyLine] = {
+    if (m.direction == ForDirection.DownTo) {
+      return MosStatementCompiler.compileForStatement(ctx, m.original.get)._1
+    }
+    val w = ctx.env.get[Type]("word")
+    val reg = ctx.env.get[VariableInMemory]("__reg.loword")
     val useTwoRegs = ctx.options.flag(CompilationFlag.OptimizeForSpeed) && ctx.options.zpRegisterSize >= 4
     val loadReg =
       if (useTwoRegs) {
         import millfork.assembly.mos.AddrMode._
-        val first = MosExpressionCompiler.compile(ctx, f.start #+# target.index, Some(w -> reg), BranchSpec.None)
+        val first = MosExpressionCompiler.compile(ctx, m.start, Some(w -> reg), BranchSpec.None)
         first ++ (first match {
           case List(AssemblyLine0(LDA, Immediate, l), AssemblyLine0(LDA, ZeroPage, r0), AssemblyLine0(LDA, Immediate, h), AssemblyLine0(LDA, ZeroPage, r1))
             if (r1-r0).quickSimplify.isProvably(1) =>
@@ -57,15 +82,15 @@ object MosBulkMemoryOperations {
               AssemblyLine.immediate(ADC, 0),
               AssemblyLine.zeropage(STA, reg, 3))
         })
-      } else MosExpressionCompiler.compile(ctx, f.start #+# target.index, Some(w -> reg), BranchSpec.None)
+      } else MosExpressionCompiler.compile(ctx, m.start, Some(w -> reg), BranchSpec.None)
 
-    val loadSource = MosExpressionCompiler.compileToA(ctx, source)
+    val loadSource = MosExpressionCompiler.compileToA(ctx, m.value)
     val loadAll = if (MosExpressionCompiler.changesZpreg(loadSource, 0) || MosExpressionCompiler.changesZpreg(loadSource, 1)) {
       loadSource ++ MosExpressionCompiler.preserveRegisterIfNeeded(ctx, MosRegister.A, loadReg)
     } else {
       loadReg ++ loadSource
     }
-    val wholePageCount = size.hiByte.quickSimplify
+    val wholePageCount = m.size.quickSimplify.hiByte.quickSimplify
 
     def fillOnePage: List[AssemblyLine] = {
       val label = ctx.nextLabel("ms")
@@ -141,7 +166,7 @@ object MosBulkMemoryOperations {
           AssemblyLine.relative(BNE, labelX),
           AssemblyLine.label(labelXSkip))
     }
-    val restSize = size.loByte.quickSimplify
+    val restSize = m.size.quickSimplify.loByte.quickSimplify
     val setRest = restSize match {
       case NumericConstant(0, _) => Nil
       case NumericConstant(1, _) =>
@@ -153,7 +178,7 @@ object MosBulkMemoryOperations {
       case _ =>
         val label = ctx.nextLabel("ms")
         val labelSkip = ctx.nextLabel("ms")
-        if (f.direction == ForDirection.ParallelUntil) {
+        if (m.direction == ForDirection.ParallelUntil) {
           List(
             AssemblyLine.immediate(LDY, restSize),
             AssemblyLine.relative(BEQ, labelSkip),

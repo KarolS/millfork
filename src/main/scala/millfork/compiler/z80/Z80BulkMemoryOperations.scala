@@ -3,7 +3,7 @@ package millfork.compiler.z80
 import millfork.CompilationFlag
 import millfork.assembly.Elidability
 import millfork.assembly.z80._
-import millfork.compiler.CompilationContext
+import millfork.compiler.{AbstractStatementPreprocessor, CompilationContext}
 import millfork.env._
 import millfork.node._
 import millfork.assembly.z80.ZOpcode._
@@ -20,7 +20,7 @@ object Z80BulkMemoryOperations {
     * Compiles loops like <code>for i,a,until,b { p[i] = q[i] }</code>
     */
   def compileMemcpy(ctx: CompilationContext, target: IndexedExpression, source: IndexedExpression, f: ForStatement): List[ZLine] = {
-    val sourceOffset = removeVariableOnce(f.variable, source.index).getOrElse(return compileForStatement(ctx, f)._1)
+    val sourceOffset = removeVariableOnce(ctx, f.variable, source.index).getOrElse(return compileForStatement(ctx, f)._1)
     if (!sourceOffset.isPure) return compileForStatement(ctx, f)._1
     val sourceIndexExpression = sourceOffset #+# f.start
     val calculateSource = Z80ExpressionCompiler.calculateAddressToHL(ctx, IndexedExpression(source.name, sourceIndexExpression).pos(source.position), forWriting = false)
@@ -43,6 +43,9 @@ object Z80BulkMemoryOperations {
     * where <code>a</code> is an arbitrary expression independent of <code>i</code>
     */
   def compileMemset(ctx: CompilationContext, target: IndexedExpression, source: Expression, f: ForStatement): List[ZLine] = {
+    if (f.direction == ForDirection.DownTo ||
+      !AbstractStatementPreprocessor.mightBeMemset(ctx, f)) return Z80StatementCompiler.compileForStatement(ctx, f)._1
+
     val loadA = Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, source)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
 
     def compileForZ80(targetOffset: Expression): List[ZLine] = {
@@ -81,12 +84,12 @@ object Z80BulkMemoryOperations {
     }
 
     if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
-      removeVariableOnce(f.variable, target.index) match {
+      removeVariableOnce(ctx, f.variable, target.index) match {
         case Some(targetOffset) if targetOffset.isPure =>
           return compileForZ80(targetOffset)
         case _ =>
       }
-      if (target.isPure && target.name == f.variable && !target.index.containsVariable(f.variable)) {
+      if (target.isPure && target.name == f.variable && !ctx.env.overlapsVariable(f.variable, target.index)) {
         return compileForZ80(target.index)
       }
     }
@@ -100,12 +103,46 @@ object Z80BulkMemoryOperations {
     )
   }
 
+  def compileMemset(ctx: CompilationContext, f: MemsetStatement): List[ZLine] = {
+    if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+      val w = ctx.env.get[Type]("word")
+      val loadA = Z80ExpressionCompiler.stashHLIfChanged(ctx, Z80ExpressionCompiler.compileToA(ctx, f.value)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+      val startingAdress = f.direction match {
+        case ForDirection.DownTo => f.start #+# GeneratedConstantExpression(f.size, w) #-# 1
+        case _ => f.start
+      }
+      val calculateAddress = Z80ExpressionCompiler.compileToHL(ctx, startingAdress)
+      val calculateSize = List(ZLine.ldImm16(ZRegister.BC, f.size - 1))
+      val (incOp, ldOp) = f.direction match {
+        case ForDirection.DownTo => DEC_16 -> LDDR
+        case _ => INC_16 -> LDIR
+      }
+      val loadFirstValue = ctx.env.eval(f.value) match {
+        case Some(c) => List(ZLine.ldImm8(ZRegister.MEM_HL, c))
+        case _ => Z80ExpressionCompiler.stashBCIfChanged(ctx, loadA)
+      }
+      val loadDE = calculateAddress match {
+        case List(ZLine0(ZOpcode.LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), c)) =>
+          if (incOp == DEC_16) List(ZLine.ldImm16(ZRegister.DE, (c - 1).quickSimplify))
+          else List(ZLine.ldImm16(ZRegister.DE, (c + 1).quickSimplify))
+        case _ => List(
+          ZLine.ld8(ZRegister.D, ZRegister.H),
+          ZLine.ld8(ZRegister.E, ZRegister.L),
+          ZLine.register(incOp, ZRegister.DE))
+      }
+      calculateAddress ++ calculateSize ++ loadFirstValue ++ loadDE :+ ZLine.implied(ldOp)
+    } else {
+      // go to the generic handler:
+      Z80StatementCompiler.compile(ctx, f.original.get)._1
+    }
+  }
+
   /**
     * Compiles loops like <code>for i,a,until,b { target[i] = z }</code>,
     * where <code>z</code> is an expression depending on <code>source[i]</code>
     */
   def compileMemtransform(ctx: CompilationContext, target: IndexedExpression, operator: String, source: Expression, f: ForStatement): List[ZLine] = {
-    val c = determineExtraLoopRegister(ctx, f, source.containsVariable(f.variable))
+    val c = determineExtraLoopRegister(ctx, f, ctx.env.overlapsVariable(f.variable, source))
     val load = buildMemtransformLoader(ctx, ZRegister.MEM_HL, f.variable, operator, source, c.loopRegister).getOrElse(return compileForStatement(ctx, f)._1)
     import scala.util.control.Breaks._
     breakable{
@@ -130,9 +167,9 @@ object Z80BulkMemoryOperations {
                            target2: IndexedExpression, operator2: String, source2: Expression,
                            f: ForStatement): List[ZLine] = {
     import scala.util.control.Breaks._
-    val c = determineExtraLoopRegister(ctx, f, source1.containsVariable(f.variable) || source2.containsVariable(f.variable))
-    val target1Offset = removeVariableOnce(f.variable, target2.index).getOrElse(return compileForStatement(ctx, f)._1)
-    val target2Offset = removeVariableOnce(f.variable, target2.index).getOrElse(return compileForStatement(ctx, f)._1)
+    val c = determineExtraLoopRegister(ctx, f, ctx.env.overlapsVariable(f.variable, source1) || ctx.env.overlapsVariable(f.variable, source2))
+    val target1Offset = removeVariableOnce(ctx, f.variable, target2.index).getOrElse(return compileForStatement(ctx, f)._1)
+    val target2Offset = removeVariableOnce(ctx, f.variable, target2.index).getOrElse(return compileForStatement(ctx, f)._1)
     val target1IndexExpression = if (c.countDownDespiteSyntax) {
       target1Offset #+# f.end #-# 1
     } else {
@@ -397,7 +434,9 @@ object Z80BulkMemoryOperations {
                         extraAddressCalculations: Boolean => (List[ZLine], List[ZLine]),
                         loadA: ZOpcode.Value => List[ZLine],
                         z80Bulk: Boolean => Option[ZOpcode.Value]): List[ZLine] = {
-    val targetOffset = removeVariableOnce(f.variable, target.index).getOrElse(return compileForStatement(ctx, f)._1)
+    val pointy = ctx.env.getPointy(target.name)
+    if (pointy.elementType.size > 1) return Z80StatementCompiler.compileForStatement(ctx, f)._1
+    val targetOffset = removeVariableOnce(ctx, f.variable, target.index).getOrElse(return compileForStatement(ctx, f)._1)
     if (!targetOffset.isPure) return compileForStatement(ctx, f)._1
     val indexVariableSize = ctx.env.get[Variable](f.variable).typ.size
     val wrapper = createForLoopPreconditioningIfStatement(ctx, f)
@@ -469,14 +508,14 @@ object Z80BulkMemoryOperations {
       Nil))._1
   }
 
-  private def removeVariableOnce(variable: String, expr: Expression): Option[Expression] = {
+  private def removeVariableOnce(ctx: CompilationContext, variable: String, expr: Expression): Option[Expression] = {
     expr match {
       case VariableExpression(i) => if (i == variable) Some(LiteralExpression(0, 1)) else None
       case SumExpression(exprs, false) =>
-        if (exprs.count(_._2.containsVariable(variable)) == 1) {
+        if (exprs.count(e => ctx.env.overlapsVariable(variable, e._2)) == 1) {
           Some(SumExpression(exprs.map {
-            case (false, e) => false -> (if (e.containsVariable(variable)) removeVariableOnce(variable, e).getOrElse(return None) else e)
-            case (true, e) => if (e.containsVariable(variable)) return None else true -> e
+            case (false, e) => if (ctx.env.overlapsVariable(variable, e)) false -> removeVariableOnce(ctx, variable, e).getOrElse(return None) else false -> e
+            case (true, e) => if (ctx.env.overlapsVariable(variable, e)) return None else true -> e
           }, decimal = false))
         } else None
       case _ => None

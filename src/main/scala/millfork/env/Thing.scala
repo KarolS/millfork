@@ -7,6 +7,7 @@ import millfork.output.{MemoryAlignment, NoAlignment}
 
 sealed trait Thing {
   def name: String
+  def rootName: String = name
 }
 
 case class Alias(name: String, target: String, deprecated: Boolean = false) extends Thing
@@ -338,6 +339,8 @@ case class RelativeArray(name: String, address: Constant, elementCount: Int, dec
   override def zeropage: Boolean = false
 
   override def sizeInBytes: Int = elementCount * elementType.size
+
+  override def rootName: String = address.rootThingName
 }
 
 case class InitializedArray(name: String, address: Option[Constant], contents: Seq[Expression], declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean, override val alignment: MemoryAlignment) extends MfArray with PreallocableThing {
@@ -357,6 +360,8 @@ case class InitializedArray(name: String, address: Option[Constant], contents: S
 
 case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean, declaredBank: Option[String], override val isVolatile: Boolean) extends VariableInMemory {
   override def toAddress: Constant = address
+
+  override def rootName: String = address.rootThingName
 }
 
 sealed trait MangledFunction extends CallableThing {

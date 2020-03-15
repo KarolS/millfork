@@ -140,10 +140,13 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       case s: ReturnDispatchStatement =>
         Z80ReturnDispatch.compile(ctx, s) -> Nil
 
+      case f:MemsetStatement =>
+        Z80BulkMemoryOperations.compileMemset(ctx, f) -> Nil
+
       case f@ForStatement(_, _, _, _, List(Assignment(target: IndexedExpression, source: IndexedExpression))) =>
         Z80BulkMemoryOperations.compileMemcpy(ctx, target, source, f) -> Nil
 
-      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if !source.containsVariable(variable) =>
+      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if ctx.env.overlapsVariable(variable, source) =>
         Z80BulkMemoryOperations.compileMemset(ctx, target, source, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(ExpressionStatement(FunctionCallExpression(

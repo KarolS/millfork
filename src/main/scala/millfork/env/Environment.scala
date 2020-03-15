@@ -2228,6 +2228,48 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }.toMap ++ parent.map(_.getAliases).getOrElse(Map.empty)
   }
 
+  def isVolatile(target: Expression): Boolean = {
+    if (eval(target).isDefined) return false
+    target match {
+      case _: LiteralExpression => false
+      case _: GeneratedConstantExpression => false
+      case e: VariableExpression => maybeGet[Thing](e.name) match {
+        case Some(v: Variable) => v.isVolatile
+        case Some(v: MfArray) => true // TODO: all arrays assumed volatile for now
+        case Some(_: Constant) => false
+        case Some(_: Type) => false
+        case _ => true // TODO: ?
+      }
+      case e: FunctionCallExpression => e.expressions.exists(isVolatile)
+      case e: IndexedExpression => isVolatile(VariableExpression(e.name)) || isVolatile(e.index)
+      case _ => true
+    }
+  }
+
+  def overlapsVariable(variable: String, expr: Expression): Boolean = {
+    if (eval(expr).isDefined) return false
+    if (expr.containsVariable(variable)) return true
+    val varRootName = get[Thing](variable).rootName
+    if (varRootName == "?") return true
+    if (varRootName == "") return false
+    overlapsVariableImpl(varRootName, expr)
+  }
+
+  private def overlapsVariableImpl(varRootName: String, expr: Expression): Boolean = {
+    expr match {
+      case _: LiteralExpression => false
+      case _: GeneratedConstantExpression => false
+      case e: VariableExpression => maybeGet[Thing](e.name) match {
+        case Some(t) =>
+          val rootName = t.rootName
+          rootName == "?" || rootName == varRootName
+        case _ => true // TODO: ?
+      }
+      case e: FunctionCallExpression => e.expressions.exists(x => overlapsVariableImpl(varRootName, x))
+      case e: IndexedExpression => overlapsVariableImpl(varRootName, VariableExpression(e.name)) || overlapsVariableImpl(varRootName, e.index)
+      case _ => true
+    }
+  }
 }
 
 object Environment {

@@ -41,6 +41,7 @@ sealed trait Expression extends Node {
   def getPointies: Seq[String]
   def isPure: Boolean
   def getAllIdentifiers: Set[String]
+  def prettyPrint: String
 
   def #+#(smallInt: Int): Expression = if (smallInt == 0) this else (this #+# LiteralExpression(smallInt, 1).pos(this.position)).pos(this.position)
   def #+#(that: Expression): Expression = that match {
@@ -63,6 +64,7 @@ case class ConstantArrayElementExpression(constant: Constant) extends Expression
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
+  override def prettyPrint: String = constant.toString
 }
 
 case class LiteralExpression(value: Long, requiredSize: Int) extends Expression {
@@ -73,6 +75,7 @@ case class LiteralExpression(value: Long, requiredSize: Int) extends Expression 
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
+  override def prettyPrint: String = "$" + value.toHexString
 }
 
 case class TextLiteralExpression(characters: List[Expression]) extends Expression {
@@ -83,6 +86,7 @@ case class TextLiteralExpression(characters: List[Expression]) extends Expressio
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
+  override def prettyPrint: String = characters.map(_.prettyPrint).mkString("[", ",", "]")
 }
 
 case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expression {
@@ -93,6 +97,7 @@ case class GeneratedConstantExpression(value: Constant, typ: Type) extends Expre
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
+  override def prettyPrint: String = value.toString
 }
 
 case class BooleanLiteralExpression(value: Boolean) extends Expression {
@@ -103,6 +108,7 @@ case class BooleanLiteralExpression(value: Boolean) extends Expression {
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
+  override def prettyPrint: String = value.toString
 }
 
 sealed trait LhsExpression extends Expression
@@ -115,6 +121,7 @@ case object BlackHoleExpression extends LhsExpression {
   override def getPointies: Seq[String] = Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set.empty
+  override def prettyPrint: String = "(_|_)"
 }
 
 case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsExpression {
@@ -134,6 +141,7 @@ case class SeparateBytesExpression(hi: Expression, lo: Expression) extends LhsEx
   override def getPointies: Seq[String] = hi.getPointies ++ lo.getPointies
   override def isPure: Boolean = hi.isPure && lo.isPure
   override def getAllIdentifiers: Set[String] = hi.getAllIdentifiers ++ lo.getAllIdentifiers
+  override def prettyPrint: String = s"($hi:$lo)"
 }
 
 case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Boolean) extends Expression {
@@ -157,6 +165,7 @@ case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Bool
   override def #-#(that: Expression): Expression =
     if (decimal) super.#-#(that)
     else SumExpression(expressions :+ (true -> that), decimal = false)
+  override def prettyPrint: String = '(' + expressions.map{case(neg, e) => (if (neg) "- " else "+ ") + e.prettyPrint}.mkString("", " ", ")").stripPrefix("+ ")
 }
 
 case class FunctionCallExpression(functionName: String, expressions: List[Expression]) extends Expression {
@@ -176,6 +185,10 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
   override def getPointies: Seq[String] = expressions.flatMap(_.getPointies)
   override def isPure: Boolean = false // TODO
   override def getAllIdentifiers: Set[String] = expressions.map(_.getAllIdentifiers).fold(Set[String]())(_ ++ _) + functionName
+  override def prettyPrint: String =
+    if (expressions.size != 2 || functionName.exists(Character.isAlphabetic(_)))
+      functionName + expressions.mkString("(", ", ", ")")
+    else s"(${expressions.head.prettyPrint} $functionName ${expressions(1).prettyPrint}"
 }
 
 case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends Expression {
@@ -189,6 +202,7 @@ case class HalfWordExpression(expression: Expression, hiByte: Boolean) extends E
   override def getPointies: Seq[String] = expression.getPointies
   override def isPure: Boolean = expression.isPure
   override def getAllIdentifiers: Set[String] = expression.getAllIdentifiers
+  override def prettyPrint: String = '(' + expression.prettyPrint + (if (hiByte) ").hi" else ").lo")
 }
 
 sealed class NiceFunctionProperty(override val toString: String)
@@ -310,6 +324,7 @@ case class VariableExpression(name: String) extends LhsExpression {
   override def getPointies: Seq[String] = if (name.endsWith(".addr.lo")) Seq(name.stripSuffix(".addr.lo")) else Seq.empty
   override def isPure: Boolean = true
   override def getAllIdentifiers: Set[String] = Set(name)
+  override def prettyPrint: String = name
 }
 
 case class IndexedExpression(name: String, index: Expression) extends LhsExpression {
@@ -338,6 +353,7 @@ case class IndexedExpression(name: String, index: Expression) extends LhsExpress
   override def getPointies: Seq[String] = Seq(name)
   override def isPure: Boolean = index.isPure
   override def getAllIdentifiers: Set[String] = index.getAllIdentifiers + name
+  override def prettyPrint: String = s"$name[${index.prettyPrint}]"
 }
 
 case class IndirectFieldExpression(root: Expression, firstIndices: Seq[Expression], fields: Seq[(Boolean, String, Seq[Expression])]) extends LhsExpression {
@@ -371,6 +387,10 @@ case class IndirectFieldExpression(root: Expression, firstIndices: Seq[Expressio
   override def isPure: Boolean = root.isPure && firstIndices.forall(_.isPure) && fields.forall(_._3.forall(_.isPure))
 
   override def getAllIdentifiers: Set[String] = root.getAllIdentifiers ++ firstIndices.flatMap(_.getAllIdentifiers) ++ fields.flatMap(_._3.flatMap(_.getAllIdentifiers))
+
+  override def prettyPrint: String = root.prettyPrint +
+    firstIndices.map(i => '[' + i.prettyPrint + ']').mkString("") +
+    fields.map{case (dot, f, ixs) => (if (dot) "." else "->") + f + ixs.map(i => '[' + i.prettyPrint + ']').mkString("")}
 }
 
 case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) extends LhsExpression {
@@ -391,6 +411,7 @@ case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) exten
   override def isPure: Boolean = inner.isPure
 
   override def getAllIdentifiers: Set[String] = inner.getAllIdentifiers
+  override def prettyPrint: String = s"¥deref(${inner.prettyPrint})"
 }
 
 case class DerefExpression(inner: Expression, offset: Int, targetType: Type) extends LhsExpression {
@@ -410,6 +431,7 @@ case class DerefExpression(inner: Expression, offset: Int, targetType: Type) ext
   override def isPure: Boolean = inner.isPure
 
   override def getAllIdentifiers: Set[String] = inner.getAllIdentifiers
+  override def prettyPrint: String = s"¥deref(${inner.prettyPrint})"
 }
 
 sealed trait Statement extends Node {
@@ -716,6 +738,22 @@ case class ForStatement(variable: String, start: Expression, end: Expression, di
   }
 
   override def loopVariable: String = variable
+}
+
+case class MemsetStatement(start: Expression, size: Constant, value: Expression, direction: ForDirection.Value, original: Option[ForStatement]) extends CompoundStatement {
+  if (original.isEmpty && direction != ForDirection.ParallelUntil) {
+    throw new IllegalArgumentException
+  }
+  override def getAllExpressions: List[Expression] = List(start, value) ++ original.toList.flatMap(_.getAllExpressions)
+
+  override def getChildStatements: Seq[Statement] = original.toList.flatMap(_.getChildStatements)
+
+  override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] =
+    // shouldn't ever yield None, as this is possible only in case of control-flow changing statements:
+    Some(copy(original = original.flatMap(_.flatMap(f).asInstanceOf[Option[ForStatement]])))
+
+
+  override def loopVariable: String = original.fold("_none")(_.loopVariable)
 }
 
 case class ForEachStatement(variable: String, values: Either[Expression, List[Expression]], body: List[ExecutableStatement]) extends CompoundStatement {

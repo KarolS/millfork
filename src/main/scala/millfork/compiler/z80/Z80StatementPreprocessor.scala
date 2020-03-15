@@ -47,8 +47,8 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
     if (!optimize) return None
     if (ctx.env.eval(f.start).isEmpty) return None
     if (f.variable.contains(".")) return None
-    if (f.start.containsVariable(f.variable)) return None
-    if (f.end.containsVariable(f.variable)) return None
+    if (ctx.env.overlapsVariable(f.variable, f.start)) return None
+    if (ctx.env.overlapsVariable(f.variable, f.end)) return None
     val indexVariable = env.get[Variable](f.variable)
     if (indexVariable.typ.size != 1) return None
     if (indexVariable.isVolatile) return None
