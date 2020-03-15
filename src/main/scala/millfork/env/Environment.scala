@@ -1708,7 +1708,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (stmt.register) log.error(s"`$name` is a constant and cannot be in a register", position)
       if (stmt.address.isDefined) log.error(s"`$name` is a constant and cannot have an address", position)
       if (stmt.initialValue.isEmpty) log.error(s"`$name` is a constant and requires a value", position)
-      val constantValue: Constant = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", position)).fitInto(typ)
+      val rawConstantValue = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", position)).quickSimplify
+      rawConstantValue match {
+        case NumericConstant(nv, _) if nv >= 2 =>
+          if (nv >= 1.<<(8*typ.size)) {
+            log.error(s"Constant value $nv too big for type ${typ.name}", stmt.position)
+          }
+        case _ => // ignore
+      }
+      val constantValue = rawConstantValue.fitInto(typ)
       if (constantValue.requiredSize > typ.size) log.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
       for(Subvariable(suffix, offset, t, arraySize) <- getSubvariables(typ)) {
