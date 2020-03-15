@@ -501,9 +501,6 @@ object AssemblyLine {
   def dataStackX(ctx: CompilationContext, opcode: Opcode.Value, offset: Int): AssemblyLine =
     if (ctx.options.flag(CompilationFlag.SoftwareStack)) {
       val stack = ctx.env.get[ThingInMemory]("__stack")
-      if (offset == 0x108) {
-        println()
-      }
       AssemblyLine.absoluteX(opcode, stack.toAddress + (offset - 0x100))
     } else if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
       AssemblyLine.stackRelative(opcode, offset + ctx.extraStackOffset)
