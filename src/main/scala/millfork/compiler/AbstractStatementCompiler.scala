@@ -369,7 +369,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
               )
             )._1 ++ callChunk(Label(callLabel)))
             return calls -> (labelChunk(callLabel) ++ extractedBody ++ extra ++ extra2)
-          } else {
+          } else if (ctx.options.flag(CompilationFlag.FallbackValueUseWarning)) {
             ctx.log.warn("For loop too complex to extract, inlining", f.position)
           }
         }

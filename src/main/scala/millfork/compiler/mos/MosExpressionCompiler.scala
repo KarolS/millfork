@@ -1308,7 +1308,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   }
                 case None =>
                   assertAllArithmeticBytes("Nonet argument has to be a byte", ctx, params)
-                  params.head match {
+                  if (ctx.options.flag(CompilationFlag.BuggyCodeWarning)) params.head match {
                     case SumExpression(addends, _) =>
                       if (addends.exists(a => a._1)) {
                         ctx.log.warn("Nonet subtraction may not work as expected", expr.position)
@@ -1734,7 +1734,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     if (nf.name == "main" && ctx.options.flag(CompilationFlag.SoftwareStack)) {
                       if (nf.stackVariablesSize != 0 || env.things.values.exists(_.isInstanceOf[StackVariable])) {
                         ctx.log.error("Calling the main function when using software stack is not allowed", expr.position)
-                      } else {
+                      } else if (ctx.options.flag(CompilationFlag.BuggyCodeWarning)) {
                         ctx.log.warn("Calling the main function when using software stack is not allowed", expr.position)
                       }
                     }
@@ -1758,7 +1758,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       case Seq((MosRegister.A, pa), (_, pxy)) => pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, pxy)
                       case Seq((_, pxy), (MosRegister.A, pa)) => pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, pxy)
                       case other =>
-                        ctx.log.warn("Unsupported register parameter combination: " + other.map(_._1.toString).mkString("(", ",", ")"), expr.position)
+                        if (ctx.options.flag(CompilationFlag.BuggyCodeWarning)) {
+                          ctx.log.warn("Unsupported register parameter combination: " + other.map(_._1.toString).mkString("(", ",", ")"), expr.position)
+                        }
                         other.flatMap(_._2) // TODO : make sure all registers are passed in correctly
                     }
                     secondViaMemory ++ thirdViaRegisters :+ AssemblyLine.absoluteOrLongAbsolute(JSR, function, ctx.options)
@@ -1811,7 +1813,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             case IndexedExpression(_, GeneratedConstantExpression(_, _)) =>
             case IndexedExpression(_, SumExpression(ps, false)) if isUpToOneVar(ps) =>
             case _ =>
-              ctx.log.warn("A complex expression may be evaluated multiple times", e.position)
+              if (ctx.options.flag(CompilationFlag.BuggyCodeWarning)) ctx.log.warn("A complex expression may be evaluated multiple times", e.position)
           }
         }
         val conjunction = params.init.zip(params.tail).map {

@@ -77,7 +77,9 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
         encode(log, position, List(c), options, lenient)
       case None =>
         if (lenient) {
-          log.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", position)
+          if (options.flag(CompilationFlag.FallbackValueUseWarning)) {
+            log.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", position)
+          }
         } else {
           log.error(s"Invalid escape sequence {$escSeq} for encoding `$name`", position)
         }
@@ -170,7 +172,9 @@ class TableTextCodec(override val name: String,
           Some(List(index))
         } else if (lenient) {
           val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeChar(log, position, alt, options, lenient = false).isDefined)).getOrElse("")
-          log.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", position)
+          if (options.flag(CompilationFlag.FallbackValueUseWarning)) {
+            log.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", position)
+          }
           Some(alternative.toList.flatMap(encodeChar(log, position, _, options, lenient = false).get))
         } else {
           None
@@ -228,7 +232,9 @@ class TableTextCodec(override val name: String,
     }
     escapeSequences.getOrElse(escSeq, {
       if (lenient) {
-        log.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", position)
+        if (options.flag(CompilationFlag.FallbackValueUseWarning)) {
+          log.warn(s"Cannot encode escape sequence {$escSeq} in encoding `$name`, skipped it", position)
+        }
       } else {
         log.error(s"Invalid escape sequence {$escSeq} for encoding `$name`", position)
       }

@@ -1,5 +1,6 @@
 package millfork.compiler.m6809
 
+import millfork.CompilationFlag
 import millfork.assembly.m6809.{DAccumulatorIndexed, Immediate, Indexed, InherentB, MLine, MLine0, MOpcode, RegisterSet, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
@@ -706,7 +707,9 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             case IndexedExpression(_, GeneratedConstantExpression(_, _)) =>
             case IndexedExpression(_, SumExpression(sumParams, false)) if isUpToOneVar(sumParams) =>
             case _ =>
-              ctx.log.warn("A complex expression may be evaluated multiple times", e.position)
+              if (ctx.options.flag(CompilationFlag.BuggyCodeWarning)) {
+                ctx.log.warn("A complex expression may be evaluated multiple times", e.position)
+              }
           }
         }
         val conjunction = params.init.zip(params.tail).map {

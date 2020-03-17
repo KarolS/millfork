@@ -100,12 +100,30 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     // generic warnings:
     stmt match {
       case ExpressionStatement(expr@FunctionCallExpression("strzlen" | "putstrz" | "strzcmp" | "strzcopy", params)) =>
-        for (param <- params) checkIfNullTerminated(stmt, param)
+        for (param <- params) checkIfNullTerminated(ctx, stmt, param)
+
+      case ExpressionStatement(expr@FunctionCallExpression(f, List(VariableExpression(v)))) if hiddenEffectFreeFunctions(f)=>
+        val volatile = ctx.env.maybeGet[ThingInMemory](v).fold(false)(_.isVolatile)
+        if (!volatile && ctx.options.flag(CompilationFlag.UselessCodeWarning)) {
+          ctx.log.warn("Pointless expression.", stmt.position)
+        }
+
+      case ExpressionStatement(expr@FunctionCallExpression(f, List(_: LiteralExpression))) if hiddenEffectFreeFunctions(f) =>
+        if (ctx.options.flag(CompilationFlag.UselessCodeWarning)) {
+          ctx.log.warn("Pointless expression.", stmt.position)
+        }
+
       case ExpressionStatement(VariableExpression(v)) =>
         val volatile = ctx.env.maybeGet[ThingInMemory](v).fold(false)(_.isVolatile)
-        if (!volatile) ctx.log.warn("Pointless expression.", stmt.position)
-      case ExpressionStatement(LiteralExpression(_, _)) =>
-        ctx.log.warn("Pointless expression.", stmt.position)
+        if (!volatile && ctx.options.flag(CompilationFlag.UselessCodeWarning)) {
+          ctx.log.warn("Pointless expression.", stmt.position)
+        }
+
+      case ExpressionStatement(_: LiteralExpression) =>
+        if (ctx.options.flag(CompilationFlag.UselessCodeWarning)) {
+          ctx.log.warn("Pointless expression.", stmt.position)
+        }
+
       case _ =>
     }
     stmt match {
@@ -253,11 +271,13 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     }
   }
 
-  private def checkIfNullTerminated(stmt: ExecutableStatement, param: Expression): Unit = {
+  private def checkIfNullTerminated(ctx: CompilationContext, stmt: ExecutableStatement, param: Expression): Unit = {
+    if (!ctx.options.flag(CompilationFlag.BuggyCodeWarning)) return
+    val TERMINATOR = ctx.options.platform.defaultCodec.stringTerminator.head
     param match {
       case TextLiteralExpression(ch) =>
         ch.last match {
-          case LiteralExpression(0, _) => //ok
+          case LiteralExpression(TERMINATOR, _) => //ok
           case _ => ctx.log.warn("Passing a non-null-terminated string to a function that expects a null-terminated string.", stmt.position)
         }
       case _ =>
@@ -327,17 +347,17 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     // generic warnings:
     expr match {
       case FunctionCallExpression("*" | "*=", params) =>
-        if (params.exists {
+        if (ctx.options.flag(CompilationFlag.UselessCodeWarning) && params.exists {
           case LiteralExpression(0, _) => true
           case _ => false
         }) ctx.log.warn("Multiplication by zero.", params.head.position)
       case FunctionCallExpression("/" | "/=" | "%%" | "%%=", params) =>
-        if (params.tail.exists {
+        if (ctx.options.flag(CompilationFlag.BuggyCodeWarning) && params.tail.exists {
           case LiteralExpression(0, _) => true
           case _ => false
         }) ctx.log.warn("Division by zero.", params.head.position)
       case FunctionCallExpression("<<" | ">>" | "<<'" | "<<=" | ">>=" | "<<'=" | ">>>>", List(lhs@_, LiteralExpression(0, _))) =>
-        ctx.log.warn("Shift by zero.", lhs.position)
+        if (ctx.options.flag(CompilationFlag.UselessCodeWarning)) ctx.log.warn("Shift by zero.", lhs.position)
       case _ =>
     }
     expr match {

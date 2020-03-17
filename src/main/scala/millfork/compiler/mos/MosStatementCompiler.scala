@@ -202,7 +202,9 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       case ExpressionStatement(e) =>
         e match {
           case VariableExpression(_) | LiteralExpression(_, _) | _:GeneratedConstantExpression =>
-            ctx.log.warn("Pointless expression statement", statement.position)
+            if (ctx.options.flag(CompilationFlag.UselessCodeWarning)) {
+              ctx.log.warn("Pointless expression statement", statement.position)
+            }
           case _ =>
         }
         MosExpressionCompiler.compile(ctx, e, None, NoBranching) -> Nil
@@ -217,19 +219,19 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
             case 1 =>
-              if (statement.position.isDefined){
+              if (statement.position.isDefined && ctx.options.flag(CompilationFlag.BuggyCodeWarning)){
                 ctx.log.warn("Returning without a value", statement.position)
               }
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
             case 2 =>
-              if (statement.position.isDefined){
+              if (statement.position.isDefined && ctx.options.flag(CompilationFlag.BuggyCodeWarning)){
                 ctx.log.warn("Returning without a value", statement.position)
               }
               stackPointerFixBeforeReturn(ctx) ++
                 List(AssemblyLine.discardYF()) ++ returnInstructions
             case _ =>
-              if (statement.position.isDefined){
+              if (statement.position.isDefined && ctx.options.flag(CompilationFlag.BuggyCodeWarning)){
                 ctx.log.warn("Returning without a value", statement.position)
               }
               stackPointerFixBeforeReturn(ctx) ++

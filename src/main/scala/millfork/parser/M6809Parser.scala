@@ -3,7 +3,7 @@ package millfork.parser
 import java.util.Locale
 
 import fastparse.all._
-import millfork.CompilationOptions
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.Elidability
 import millfork.assembly.m6809.{AAccumulatorIndexed, Absolute, BAccumulatorIndexed, DAccumulatorIndexed, DirectPage, Immediate, Indexed, Inherent, InherentA, InherentB, LongRelative, MAddrMode, MLine, MOpcode, NonExistent, PostIncremented, PreDecremented, RegisterSet, Relative, TwoRegisters}
 import millfork.env.{ByM6809Register, ParamPassingConvention}
@@ -145,6 +145,7 @@ case class M6809Parser(filename: String,
 
 
   override def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
+    if (!options.flag(CompilationFlag.BuggyCodeWarning)) return
     statements match {
       case Some(Nil) => log.warn("Assembly function `$name` is empty, did you mean RTS, RTI, JMP, BRA or LBRA?", Some(p))
       case Some(xs) =>

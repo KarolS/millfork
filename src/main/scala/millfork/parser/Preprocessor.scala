@@ -1,7 +1,7 @@
 package millfork.parser
 
 import fastparse.core.Parsed.{Failure, Success}
-import millfork.{CompilationOptions, Platform, SeparatedList}
+import millfork.{CompilationFlag, CompilationOptions, Platform, SeparatedList}
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.Position
 
@@ -79,7 +79,7 @@ object Preprocessor {
               param.split("=", 2) match {
                 case Array(p) =>
                   featureConstants += param -> options.features.getOrElse(param, {
-                    log.warn(s"Undefined parameter $param, assuming 0", pos)
+                    if (options.flag(CompilationFlag.FallbackValueUseWarning)) log.warn(s"Undefined parameter $param, assuming 0", pos)
                     0L
                   })
                 case Array(p0,p1) => featureConstants += assertIdentifier(p0.trim(), pos) -> evalParam(p1, pos)

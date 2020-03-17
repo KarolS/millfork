@@ -49,7 +49,7 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
     if (indexerType.size != 1) {
       ctx.log.error("Return dispatch index expression type has to be a byte", stmt.indexer.position)
     }
-    if (indexerType.isSigned) {
+    if (indexerType.isSigned && ctx.options.flag(CompilationFlag.BuggyCodeWarning)) {
       ctx.log.warn("Return dispatch index expression type will be automatically casted to unsigned", stmt.indexer.position)
     }
     stmt.params.foreach {
@@ -81,7 +81,7 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
       }
       val function: String = ctx.env.evalForAsm(branch.function) match {
         case Some(MemoryAddressConstant(f: FunctionInMemory)) =>
-          if (f.returnType.name != returnType.name) {
+          if (f.returnType.name != returnType.name && ctx.options.flag(CompilationFlag.BuggyCodeWarning)) {
             ctx.log.warn(s"Dispatching to a function of different return type: dispatcher return type: ${returnType.name}, dispatchee return type: ${f.returnType.name}", branch.function.position)
           }
           f.name

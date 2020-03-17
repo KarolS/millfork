@@ -4,7 +4,7 @@ import fastparse.all._
 import millfork.assembly.mos.{AddrMode, AssemblyLine, Opcode, OpcodeClasses}
 import millfork.env._
 import millfork.node._
-import millfork.CompilationOptions
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.Elidability
 import millfork.output.{MemoryAlignment, WithinPageAlignment}
 
@@ -137,6 +137,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
   } yield ParameterDeclaration(typ, appc).pos(p)
 
   def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
+    if (!options.flag(CompilationFlag.BuggyCodeWarning)) return
     statements match {
       case Some(Nil) => log.warn("Assembly function `$name` is empty, did you mean RTS, RTI or JMP", Some(p))
       case Some(xs) =>

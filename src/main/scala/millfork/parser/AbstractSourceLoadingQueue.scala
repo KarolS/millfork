@@ -98,7 +98,7 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     val shortFileName = path.getFileName.toString
     val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, shortFileName, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
     for (pragma <- pragmas) {
-      if (!supportedPragmas(pragma._1)) {
+      if (!supportedPragmas(pragma._1) && options.flag(CompilationFlag.BuggyCodeWarning)) {
         options.log.warn(s"Unsupported pragma: #pragma ${pragma._1}", Some(Position(moduleName, pragma._2, 1, 0)))
       }
     }

@@ -409,7 +409,7 @@ object Cpu extends Enumeration {
 
   private val alwaysDefaultFlags = Set(
     VariableOverlap, CompactReturnDispatchParams, FunctionFallthrough, RegisterVariables, FunctionDeduplication, EnableBreakpoints,
-    NonZeroTerminatedLiteralWarning, CallToOverlappingBankWarning,
+    GenericWarnings, UselessCodeWarning, BuggyCodeWarning, FallbackValueUseWarning, DeprecationWarning, NonZeroTerminatedLiteralWarning, CallToOverlappingBankWarning,
   )
 
   private val mosAlwaysDefaultFlags = alwaysDefaultFlags
@@ -562,6 +562,11 @@ object CompilationFlag extends Enumeration {
   // special options
   SingleThreaded,
   // warning options
+  GenericWarnings,
+  UselessCodeWarning,
+  BuggyCodeWarning,
+  DeprecationWarning,
+  FallbackValueUseWarning,
   ExtraComparisonWarnings,
   RorWarning,
   NonZeroTerminatedLiteralWarning,
@@ -571,7 +576,7 @@ object CompilationFlag extends Enumeration {
   EnableInternalTestSyntax,
   InternalCurrentlyOptimizingForMeasurement = Value
 
-  val allWarnings: Set[CompilationFlag.Value] = Set(ExtraComparisonWarnings)
+  val allWarnings: Set[CompilationFlag.Value] = Set(GenericWarnings, UselessCodeWarning, BuggyCodeWarning, DeprecationWarning, FallbackValueUseWarning, ExtraComparisonWarnings, NonZeroTerminatedLiteralWarning, CallToOverlappingBankWarning)
 
   val fromString: Map[String, CompilationFlag.Value] = Map(
     "lunix" -> LUnixRelocatableCode,

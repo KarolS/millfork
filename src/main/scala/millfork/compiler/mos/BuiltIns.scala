@@ -484,7 +484,7 @@ object BuiltIns {
     }
     val firstParamCompiled = MosExpressionCompiler.compile(ctx, lhs, Some(b -> RegisterVariable(MosRegister.A, b)), NoBranching)
     val maybeConstant = env.eval(rhs)
-    maybeConstant match {
+    if (ctx.options.flag(CompilationFlag.UselessCodeWarning)) maybeConstant match {
       case Some(NumericConstant(0, _)) =>
         compType match {
           case ComparisonType.LessUnsigned =>

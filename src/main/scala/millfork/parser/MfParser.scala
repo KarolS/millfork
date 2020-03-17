@@ -274,10 +274,10 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     } yield {
     val fixedDirection = direction match {
       case ForDirection.ParallelUntil =>
-        log.warn("`paralleluntil` is not allowed in array definitions, assuming `until`", Some(pos))
+        if (options.flag(CompilationFlag.FallbackValueUseWarning)) log.warn("`paralleluntil` is not allowed in array definitions, assuming `until`", Some(pos))
         ForDirection.Until
       case ForDirection.ParallelTo =>
-        log.warn("`parallelto` is not allowed in array definitions, assuming `to`", Some(pos))
+        if (options.flag(CompilationFlag.FallbackValueUseWarning)) log.warn("`parallelto` is not allowed in array definitions, assuming `to`", Some(pos))
         ForDirection.To
       case x => x
     }

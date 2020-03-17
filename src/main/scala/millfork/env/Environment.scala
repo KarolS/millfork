@@ -182,7 +182,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               )
             } else Nil
           case VariableAllocationMethod.Auto | VariableAllocationMethod.Register | VariableAllocationMethod.Static =>
-            if (m.alloc == VariableAllocationMethod.Register) {
+            if (m.alloc == VariableAllocationMethod.Register && options.flag(CompilationFlag.FallbackValueUseWarning)) {
               log.warn(s"Failed to inline variable `${m.name}` into a register", None)
             }
             if (m.sizeInBytes == 0) Nil else {
@@ -316,7 +316,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       } else {
         t match {
           case Alias(_, target, deprectated) =>
-            if (deprectated) {
+            if (deprectated && options.flag(CompilationFlag.DeprecationWarning)) {
               log.warn(s"Alias `$name` is deprecated, use `$target` instead", position)
             }
             root.get[T](target)
@@ -344,7 +344,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       val clazz = implicitly[Manifest[T]].runtimeClass
       t match {
         case Alias(_, target, deprectated) =>
-          if (deprectated) {
+          if (deprectated && options.flag(CompilationFlag.DeprecationWarning)) {
             log.warn(s"Alias `$name` is deprecated, use `$target` instead")
           }
           root.maybeGet[T](target)
@@ -1068,10 +1068,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val name = stmt.name
     val resultType = get[Type](stmt.resultType)
     if (stmt.name == "main") {
-      if (stmt.resultType != "void") {
+      if (stmt.resultType != "void" && options.flag(CompilationFlag.UselessCodeWarning)) {
         log.warn("`main` should return `void`.", stmt.position)
       }
-      if (stmt.params.nonEmpty) {
+      if (stmt.params.nonEmpty && options.flag(CompilationFlag.BuggyCodeWarning)) {
         log.warn("`main` shouldn't have parameters.", stmt.position)
       }
     }
@@ -1186,7 +1186,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             val g = getAllSafeGotos(statements).toSet
             val bad = g.&(env.knownLocalLabels.map(_._1)).--(l)
             if (bad.nonEmpty) {
-              log.warn("Detected cross-loop gotos to labels " + bad.mkString(", "), position)
+              if (options.flag(CompilationFlag.BuggyCodeWarning)) log.warn("Detected cross-loop gotos to labels " + bad.mkString(", "), position)
             }
           }
           def recurse(statements: Seq[Statement]):Unit = statements.foreach {
@@ -1769,7 +1769,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (stmt.initialValue.isDefined && stmt.address.isDefined) {
         if (options.platform.ramInitialValuesBank.isDefined) {
           log.error(s"`$name` has both address and initial value, which is unsupported on this target", position)
-        } else {
+        } else if (options.flag(CompilationFlag.BuggyCodeWarning)) {
           log.warn(s"`$name` has both address and initial value - this may not work as expected!", position)
         }
       }
@@ -1792,7 +1792,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             else if (stmt.global) VariableAllocationMethod.Static
             else if (stmt.register) VariableAllocationMethod.Register
             else VariableAllocationMethod.Auto
-          if (stmt.volatile && !stmt.global) {
+          if (stmt.volatile && !stmt.global && options.flag(CompilationFlag.FallbackValueUseWarning)) {
             log.warn(s"Volatile variable `$name` assumed to be static", position)
           }
           if (stmt.volatile && stmt.stack) {

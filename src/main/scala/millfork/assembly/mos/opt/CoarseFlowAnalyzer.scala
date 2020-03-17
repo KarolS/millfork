@@ -67,7 +67,7 @@ object CoarseFlowAnalyzer {
         var staSpIsNow = false
         codeArray(i) match {
           case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(l))) =>
-            if (tFlag) {
+            if (tFlag && optimizationContext.options.flag(CompilationFlag.BuggyCodeWarning)) {
               // T flag should not be set at a label!
               optimizationContext.log.warn("The SET instruction shouldn't occur before a label")
             }
@@ -177,7 +177,7 @@ object CoarseFlowAnalyzer {
             if (OpcodeClasses.ChangesStack(opcode) || OpcodeClasses.ChangesS(opcode)) currentStatus = currentStatus.copy(eqSX = false)
         }
         staSpWasLast = staSpIsNow
-        if (tFlag) {
+        if (tFlag && optimizationContext.options.flag(CompilationFlag.BuggyCodeWarning)) {
           if (OpcodeClasses.ShortBranching(codeArray(i).opcode) || codeArray(i).opcode == JMP || codeArray(i).opcode == JSR) {
             // T flag should not be set at a jump!
             optimizationContext.log.warn("The SET instruction shouldn't occur before a jump")

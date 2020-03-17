@@ -663,6 +663,7 @@ case class Z80Parser(filename: String,
   override val asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
 
   override def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
+    if (!options.flag(CompilationFlag.BuggyCodeWarning)) return
     statements match {
       case Some(Nil) => log.warn("Assembly function `$name` is empty, did you mean RET, RETI, RETN or JP", Some(p))
       case Some(xs) =>
