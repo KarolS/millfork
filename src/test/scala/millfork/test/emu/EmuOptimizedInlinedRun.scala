@@ -1,7 +1,7 @@
 package millfork.test.emu
 
 import millfork.assembly.m6809.opt.M6809OptimizationPresets
-import millfork.assembly.mos.opt.{LaterOptimizations, ZeropageRegisterOptimizations}
+import millfork.assembly.mos.opt.{LaterOptimizations, NmosOptimizations, ZeropageRegisterOptimizations}
 import millfork.assembly.z80.opt.Z80OptimizationPresets
 import millfork.{Cpu, OptimizationPresets}
 
@@ -16,10 +16,10 @@ object EmuOptimizedInlinedRun extends EmuRun(
     OptimizationPresets.Good ++
     OptimizationPresets.Good ++
     OptimizationPresets.AssOpt ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.AssOpt ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.AssOpt ++
     OptimizationPresets.AssOpt ++

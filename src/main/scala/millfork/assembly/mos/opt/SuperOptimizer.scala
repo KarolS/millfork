@@ -24,7 +24,7 @@ object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
     if (options.flag(CompilationFlag.EmitCmosOpcodes)) {
       allOptimizers ++= CmosOptimizations.All
     } else {
-      allOptimizers ++= LaterOptimizations.Nmos
+      allOptimizers ++= NmosOptimizations.All
     }
     if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
       allOptimizers ++= SixteenOptimizations.AllForEmulation

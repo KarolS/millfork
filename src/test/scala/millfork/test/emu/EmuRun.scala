@@ -222,7 +222,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         val env2 = new Environment(None, "", CpuFamily.M6502, options)
         env2.collectDeclarations(program, options)
         val assembler = new MosAssembler(program, env2, platform)
-        val output = assembler.assemble(callGraph, assemblyOptimizations, options, VeryLateMosAssemblyOptimizations.All)
+        val output = assembler.assemble(callGraph, assemblyOptimizations, options, if (assemblyOptimizations.nonEmpty) VeryLateMosAssemblyOptimizations.All else VeryLateMosAssemblyOptimizations.None)
         println(";;; compiled: -----------------")
         output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
         println(";;; ---------------------------")

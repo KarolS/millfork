@@ -264,7 +264,7 @@ object Main {
         val extras = List(
           if (options.flag(CompilationFlag.EmitIllegals)) UndocumentedOptimizations.All else Nil,
           if (options.flag(CompilationFlag.Emit65CE02Opcodes)) CE02Optimizations.All else Nil,
-          if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else LaterOptimizations.Nmos,
+          if (options.flag(CompilationFlag.EmitCmosOpcodes)) CmosOptimizations.All else NmosOptimizations.All,
           if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.All else Nil,
           if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
           if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,

@@ -1,7 +1,7 @@
 package millfork.test.emu
 
 import millfork.assembly.m6809.opt.M6809OptimizationPresets
-import millfork.assembly.mos.opt.{LaterOptimizations, ZeropageRegisterOptimizations}
+import millfork.assembly.mos.opt.{LaterOptimizations, NmosOptimizations, ZeropageRegisterOptimizations}
 import millfork.assembly.z80.opt.{AlwaysGoodZ80Optimizations, Z80OptimizationPresets}
 import millfork.{Cpu, OptimizationPresets}
 
@@ -15,8 +15,8 @@ object EmuOptimizedRun extends EmuRun(
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     OptimizationPresets.Good ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     ZeropageRegisterOptimizations.All ++
@@ -47,8 +47,8 @@ object EmuSizeOptimizedRun extends EmuRun(
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     OptimizationPresets.Good ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     ZeropageRegisterOptimizations.All ++
@@ -66,8 +66,8 @@ object EmuOptimizedSoftwareStackRun extends EmuRun(
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     OptimizationPresets.Good ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
     ZeropageRegisterOptimizations.All ++
     OptimizationPresets.Good ++
     ZeropageRegisterOptimizations.All ++

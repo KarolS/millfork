@@ -10,6 +10,8 @@ import millfork.node.NiceFunctionProperty
   */
 object VeryLateM6809AssemblyOptimizations {
 
+  def None(nice: Set[NiceFunctionProperty], options: CompilationOptions): Seq[AssemblyOptimization[MLine]] = Nil
+
   def All(nice: Set[NiceFunctionProperty], options: CompilationOptions): Seq[AssemblyOptimization[MLine]] = {
     val result = Seq.newBuilder[AssemblyOptimization[MLine]]
     // TODO: add stuff here

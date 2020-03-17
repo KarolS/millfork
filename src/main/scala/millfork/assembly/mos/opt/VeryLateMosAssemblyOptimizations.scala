@@ -14,7 +14,7 @@ import millfork.assembly.mos.AddrMode._
 //noinspection ZeroIndexToHead
 object VeryLateMosAssemblyOptimizations {
 
-  val StoresOfImmediatesDifferingByOneViaX = new RuleBasedAssemblyOptimization("",
+  val StoresOfImmediatesDifferingByOneViaX = new RuleBasedAssemblyOptimization("Use X to store immediates differing by 1",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasOpcode(LDA) & HasAddrMode(Immediate) & MatchNumericImmediate(0) & HasIndex8) ~
       (Elidable & HasOpcode(STA) & HasAddrModeIn(ZeroPage, Absolute) & DoesntMatterWhatItDoesWith(State.A, State.X)) ~
@@ -30,7 +30,7 @@ object VeryLateMosAssemblyOptimizations {
     }
   )
 
-  val StoresOfImmediatesDifferingByOneViaY = new RuleBasedAssemblyOptimization("",
+  val StoresOfImmediatesDifferingByOneViaY = new RuleBasedAssemblyOptimization("Use Y to store immediates differing by 1",
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasOpcode(LDA) & HasAddrMode(Immediate) & MatchNumericImmediate(0) & HasIndex8) ~
       (Elidable & HasOpcode(STA) & HasAddrModeIn(ZeroPage, Absolute) & DoesntMatterWhatItDoesWith(State.A, State.Y)) ~
@@ -45,6 +45,8 @@ object VeryLateMosAssemblyOptimizations {
           code.last.copy(opcode = STY)))
     }
   )
+
+  def None(nice: Set[NiceFunctionProperty], options: CompilationOptions): Seq[AssemblyOptimization[AssemblyLine]] = Nil
 
   def All(nice: Set[NiceFunctionProperty], options: CompilationOptions): Seq[AssemblyOptimization[AssemblyLine]] = {
     val result = Seq.newBuilder[AssemblyOptimization[AssemblyLine]]

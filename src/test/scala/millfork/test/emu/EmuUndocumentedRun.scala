@@ -1,6 +1,6 @@
 package millfork.test.emu
 
-import millfork.assembly.mos.opt.{LaterOptimizations, UndocumentedOptimizations}
+import millfork.assembly.mos.opt.{NmosOptimizations, UndocumentedOptimizations}
 import millfork.{Cpu, OptimizationPresets}
 
 /**
@@ -9,13 +9,13 @@ import millfork.{Cpu, OptimizationPresets}
 object EmuUndocumentedRun extends EmuRun(
   Cpu.Ricoh, // not Cpu.Mos, because I haven't found an emulator that supports both illegals and decimal mode yet
   OptimizationPresets.NodeOpt,
-  OptimizationPresets.AssOpt ++ LaterOptimizations.Nmos ++
+  OptimizationPresets.AssOpt ++ NmosOptimizations.All ++
     UndocumentedOptimizations.All ++
-    OptimizationPresets.Good ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.Good ++ NmosOptimizations.All ++
     UndocumentedOptimizations.All ++
-    OptimizationPresets.AssOpt ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.AssOpt ++ NmosOptimizations.All ++
     UndocumentedOptimizations.All ++
-    OptimizationPresets.AssOpt ++ LaterOptimizations.Nmos ++
+    OptimizationPresets.AssOpt ++ NmosOptimizations.All ++
     UndocumentedOptimizations.All ++
     OptimizationPresets.Good) {
 
