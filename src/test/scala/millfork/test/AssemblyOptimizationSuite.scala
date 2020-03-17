@@ -845,4 +845,30 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
     }
     EmuUndocumentedRun(code)
   }
+
+  test("Optimize commutative in-place modifications using small arrays") {
+
+    val code =
+      """
+        |
+        |array output [4] @$c000
+        |
+        |void main() {
+        |    f($c000, 1, $c000, 2)
+        |    g(1, 2)
+        |}
+        |
+        |noinline void f(pointer p1, byte i1, pointer p2, byte i2) {
+        |    p1[i1] ^= p2[i2]
+        |}
+        |
+        |noinline void g(byte i1, byte i2) {
+        |    output[i1] ^= output[i2]
+        |}
+        |
+        |""".stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(code) { m =>
+
+    }
+  }
 }

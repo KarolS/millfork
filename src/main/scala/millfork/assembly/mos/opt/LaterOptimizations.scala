@@ -544,7 +544,23 @@ object LaterOptimizations {
 
   )
 
+  val CommutativeInPlaceModifications = new RuleBasedAssemblyOptimization("Commutative in-place modifications",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+
+    (Elidable & HasOpcode(LDY) & HasAddrModeIn(Immediate, Absolute, ZeroPage, LongAbsolute, AbsoluteX, ZeroPageX) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDA) & HasAddrModeIn(AbsoluteY, IndexedY, LongIndexedY)) ~
+      (Elidable & HasOpcode(LDY) & HasAddrModeIn(Immediate, Absolute, ZeroPage, LongAbsolute, AbsoluteX, ZeroPageX)) ~
+      (Elidable & HasOpcodeIn(ORA, EOR, AND) & HasAddrModeIn(AbsoluteY, IndexedY, LongIndexedY)) ~
+      (Elidable & HasOpcode(LDY) & HasAddrModeIn(Immediate, Absolute, ZeroPage, LongAbsolute, AbsoluteX, ZeroPageX) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (HasOpcodeIn(INY, DEY)).* ~
+      (HasOpcode(STA) & HasAddrModeIn(AbsoluteY, IndexedY, LongIndexedY)) ~~> { code =>
+      List(code(2), code(3).copy(opcode = LDA), code(5), code(1).copy(opcode = code(3).opcode)) ++ code.drop(5)
+    },
+
+  )
+
   val All = List(
+    CommutativeInPlaceModifications,
     DontUseIndexRegisters,
     DoubleLoadToDifferentRegisters,
     DoubleLoadToTheSameRegister,

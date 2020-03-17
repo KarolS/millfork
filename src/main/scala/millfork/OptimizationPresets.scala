@@ -154,6 +154,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.PointlessMathFromFlow,
     AlwaysGoodOptimizations.PointlessMathFromFlow,
     AlwaysGoodOptimizations.PointlessMathFromFlow,
+    LaterOptimizations.CommutativeInPlaceModifications,
     AlwaysGoodOptimizations.LoadingOfJustWrittenValue,
     AlwaysGoodOptimizations.PointlessStackStore,
     AlwaysGoodOptimizations.OptimizeZeroComparisons,
