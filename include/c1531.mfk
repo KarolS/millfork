@@ -18,7 +18,7 @@ sbyte _c1531_calculate_delta (byte old, byte new) {
 	return mouse_delta
 }
 
-byte _c1531_handle_x() {
+void _c1531_handle_x() {
     static byte _c1531_old_pot_x
     sbyte mouse_delta
     byte new_pot_x
@@ -39,7 +39,7 @@ byte _c1531_handle_x() {
 	}
 }
 
-byte _c1531_handle_y() {
+void _c1531_handle_y() {
     static byte _c1531_old_pot_y
     byte new_pot_y
     sbyte mouse_delta
