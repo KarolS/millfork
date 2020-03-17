@@ -109,7 +109,7 @@ case class M6809Parser(filename: String,
     for {
       _ <- !"}"
       elid <- elidable
-      position <- position()
+      position <- position("assembly statement")
       (op, addrModeOverride) <- asmOpcode
       (addrMode, param) <- op match {
         case TFR | EXG =>
@@ -132,7 +132,7 @@ case class M6809Parser(filename: String,
         case (None, Absolute(false)) if MOpcode.Branching(op) => Relative
         case (None, _) => addrMode
       }
-      M6809AssemblyStatement(op, effAddrMode, param, elid)
+      M6809AssemblyStatement(op, effAddrMode, param, elid).pos(position)
     }
   }
 

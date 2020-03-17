@@ -241,7 +241,7 @@ case class Z80Parser(filename: String,
     import ZOpcode._
     for {
       el <- elidable
-      pos <- position()
+      pos <- position("assembly statement")
       opcode: String <- identifier ~/ HWS
       tuple4: (ZOpcode.Value, ZRegisters, Option[Expression], Expression) <- opcode.toUpperCase(Locale.ROOT) match {
         case "RST" => asmExpression.map((RST, NoRegisters, None, _))
@@ -508,7 +508,7 @@ case class Z80Parser(filename: String,
       }
     } yield {
       val (actualOpcode, registers, offset, param) = tuple4
-      Z80AssemblyStatement(actualOpcode, registers, offset, param, el)
+      Z80AssemblyStatement(actualOpcode, registers, offset, param, el).pos(pos)
     }
   }
 

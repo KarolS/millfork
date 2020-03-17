@@ -78,6 +78,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
     import Opcode._
     for {
       elid <- !"}" ~ elidable
+      position <- position("assembly statement")
       op <- asmOpcode ~/ Pass
       param <- op match {
         case op if OpcodeClasses.SingleBitBranch(op) =>
@@ -94,7 +95,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
         case _ => asmParameter
       }
     } yield {
-      (op, param._1) match {
+      ((op, param._1) match {
         case (Opcode.SAX, AddrMode.Implied) => MosAssemblyStatement(Opcode.HuSAX, param._1, param._2, elid)
         case (Opcode.SBX, AddrMode.Immediate) => MosAssemblyStatement(Opcode.SBX, param._1, param._2, elid)
         case (Opcode.SAY, AddrMode.AbsoluteX) => MosAssemblyStatement(Opcode.SHY, param._1, param._2, elid)
@@ -107,7 +108,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
         case (_, AddrMode.Absolute) if OpcodeClasses.SingleBit(op) => MosAssemblyStatement(op, AddrMode.ZeroPage, param._2, elid)
         case (_, AddrMode.Indirect) if op != Opcode.JMP && op != Opcode.JSR => MosAssemblyStatement(op, AddrMode.IndexedZ, param._2, elid)
         case _ => MosAssemblyStatement(op, param._1, param._2, elid)
-      }
+      }).pos(position)
     }
   }
 
