@@ -901,16 +901,42 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             constantOperationForAsm(MathOperator.Exor, params)
           case "||" | "|" =>
             constantOperationForAsm(MathOperator.Or, params)
+          case "/" =>
+            constantBinaryOperationForAsm("/", MathOperator.Divide, params)
+          case "%%" =>
+            constantBinaryOperationForAsm("%%", MathOperator.Modulo, params)
+          case ">>" =>
+            constantBinaryOperationForAsm(">>", MathOperator.Shr, params)
+          case "<<" =>
+            constantBinaryOperationForAsm("<<", MathOperator.Shl, params)
           case "hi" =>
             oneArgFunctionForAsm(_.hiByte, params)
           case "lo" =>
             oneArgFunctionForAsm(_.loByte, params)
+          case ">>>>" | ">>'" | "<<'" | ">" | "<" =>
+            log.error(s"Operator `$name` not supported in inline assembly", e.position)
+            None
+          case _ if name.endsWith("=") =>
+            log.error(s"Operator `$name` not supported in inline assembly", e.position)
+            None
           case "nonet" | "sin" | "cos" | "tan" =>
             log.error("Function not supported in inline assembly", e.position)
             None
           case _ =>
             None
         }
+    }
+  }
+
+  private def constantBinaryOperationForAsm(symbol: String, op: MathOperator.Value, params: List[Expression]) = {
+    if (params.length != 2) {
+      log.error(s"Too many operands for the $symbol operator", params.head.position)
+    }
+    params.map(e => evalForAsm(e)).reduceLeft[Option[Constant]] { (oc, om) =>
+      for {
+        c <- oc
+        m <- om
+      } yield CompoundConstant(op, c, m)
     }
   }
 
