@@ -4,7 +4,7 @@ import millfork.assembly._
 import millfork.compiler.{AbstractCompiler, CompilationContext}
 import millfork.env._
 import millfork.error.Logger
-import millfork.node.{CallGraph, Expression, FunctionCallExpression, LiteralExpression, NiceFunctionProperty, Program, SumExpression}
+import millfork.node.{CallGraph, Expression, FunctionCallExpression, LiteralExpression, NiceFunctionProperty, Position, Program, SumExpression}
 import millfork._
 import millfork.assembly.z80.ZLine
 
@@ -36,8 +36,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   val mem = new CompiledMemory(platform.bankNumbers.toList, platform.bankFill, platform.isBigEndian)
   val labelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
   val breakpointSet: mutable.Set[(Int, Int)] = mutable.Set()
-  private val bytesToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
-  private val wordsToWriteLater = mutable.ListBuffer[(String, Int, Constant)]()
+  private val bytesToWriteLater = mutable.ListBuffer[(String, Int, Constant, Option[Position])]()
+  private val wordsToWriteLater = mutable.ListBuffer[(String, Int, Constant, Option[Position])]()
 
   def writeByte(bank: String, addr: Int, value: Byte): Unit = {
     mem.banks(bank).occupied(addr) = true
@@ -54,7 +54,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     mem.banks(bank).output(addr) = value.toByte
   }
 
-  def writeByte(bank: String, addr: Int, value: Constant): Unit = {
+  def writeByte(bank: String, addr: Int, value: Constant)(implicit position: Option[Position]): Unit = {
     mem.banks(bank).occupied(addr) = true
     mem.banks(bank).initialized(addr) = true
     mem.banks(bank).readable(addr) = true
@@ -63,11 +63,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         if (x > 0xff) log.error("Byte overflow: " + x.toHexString)
         mem.banks(bank).output(addr) = x.toByte
       case _ =>
-        bytesToWriteLater += ((bank, addr, value))
+        bytesToWriteLater += ((bank, addr, value, position))
     }
   }
 
-  def writeWord(bank: String, addr: Int, value: Constant): Unit = {
+  def writeWord(bank: String, addr: Int, value: Constant)(implicit position: Option[Position]): Unit = {
     mem.banks(bank).occupied(addr) = true
     mem.banks(bank).occupied(addr + 1) = true
     mem.banks(bank).initialized(addr) = true
@@ -81,7 +81,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           mem.banks(bank).output(addr) = (x >> 8).toByte
           mem.banks(bank).output(addr + 1) = x.toByte
         case _ =>
-          wordsToWriteLater += ((bank, addr, value))
+          wordsToWriteLater += ((bank, addr, value, position))
       }
     } else {
       value match {
@@ -90,14 +90,14 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           mem.banks(bank).output(addr) = x.toByte
           mem.banks(bank).output(addr + 1) = (x >> 8).toByte
         case _ =>
-          wordsToWriteLater += ((bank, addr, value))
+          wordsToWriteLater += ((bank, addr, value, position))
       }
     }
   }
 
   var stackProbeCount = 0
 
-  def deepConstResolve(c: Constant): Long = {
+  def deepConstResolve(c: Constant)(implicit position: Option[Position]): Long = {
     def stackProbe(n: Int): Int = {
       stackProbeCount += 1
       if (n == 0) 0 else stackProbe(n - 1) + 1
@@ -107,7 +107,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       case AssertByte(inner) =>
         val value = deepConstResolve(inner)
         if (value.toByte == value) value else {
-          log.error("Invalid relative jump: " + c + " calculated offset: " + value)
+          log.error("Invalid relative jump: " + c + " calculated offset: " + value, position)
           -2 // spin
         }
       case MemoryAddressConstant(th) =>
@@ -348,7 +348,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           env.eval(item) match {
             case Some(c) =>
               for(i <- 0 until elementType.size) {
-                writeByte(bank, index, subbyte(c, i, elementType.size))
+                writeByte(bank, index, subbyte(c, i, elementType.size))(None)
                 bank0.occupied(index) = true
                 bank0.initialized(index) = true
                 bank0.writeable(index) = true
@@ -466,7 +466,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
                 throw new IllegalStateException("LUnix cannot run on big-endian architectures")
               }
               for (i <- 0 until typ.size) {
-                writeByte(bank, index, subbyte(c, i, typ.size))
+                writeByte(bank, index, subbyte(c, i, typ.size))(None)
                 assembly.append("    " + bytePseudoopcode + " " + subbyte(c, i, typ.size).quickSimplify)
                 index += 1
               }
@@ -515,7 +515,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               env.eval(item) match {
                 case Some(c) =>
                   for (i <- 0 until elementType.size) {
-                    writeByte(bank, index, subbyte(c, i, elementType.size))
+                    writeByte(bank, index, subbyte(c, i, elementType.size))(None)
                     index += 1
                   }
                 case None =>
@@ -545,7 +545,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             env.eval(value) match {
               case Some(c) =>
                 for (i <- 0 until typ.size) {
-                  writeByte(bank, index, subbyte(c, i, typ.size))
+                  writeByte(bank, index, subbyte(c, i, typ.size))(None)
                   assembly.append("    " + bytePseudoopcode + " " + subbyte(c, i, typ.size).quickSimplify)
                   index += 1
                 }
@@ -579,16 +579,16 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
         val debugArray = Array.fill[Option[Constant]](size)(None)
         bytesToWriteLater ++= bytesToWriteLater.flatMap{
-          case ("default", addr, value) if addr >= rwDataStart && addr < rwDataEnd =>
+          case ("default", addr, value, position) if addr >= rwDataStart && addr < rwDataEnd =>
             debugArray(addr - rwDataStart) = Some(value)
-            Some(ivBank, addr + ivAddr - rwDataStart, value)
+            Some(ivBank, addr + ivAddr - rwDataStart, value, position)
           case _ => None
         }
         wordsToWriteLater ++= wordsToWriteLater.flatMap {
-          case ("default", addr, value) if addr >= rwDataStart && addr < rwDataEnd =>
+          case ("default", addr, value, position) if addr >= rwDataStart && addr < rwDataEnd =>
             debugArray(addr - rwDataStart) = Some(value.loByte)
             debugArray(addr - rwDataStart + 1) = Some(value.hiByte)
-            Some(ivBank, addr + ivAddr - rwDataStart, value)
+            Some(ivBank, addr + ivAddr - rwDataStart, value, position)
           case _ => None
         }
         assembly.append("* = $" + ivAddr.toHexString)
@@ -634,12 +634,12 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
     env = rootEnv.allThings
 
-    for ((bank, addr, b) <- bytesToWriteLater) {
-      val value = deepConstResolve(b)
+    for ((bank, addr, b, position) <- bytesToWriteLater) {
+      val value = deepConstResolve(b)(position)
       mem.banks(bank).output(addr) = value.toByte
     }
-    for ((bank, addr, b) <- wordsToWriteLater) {
-      val value = deepConstResolve(b)
+    for ((bank, addr, b, position) <- wordsToWriteLater) {
+      val value = deepConstResolve(b)(position)
       if (platform.isBigEndian) {
         mem.banks(bank).output(addr) = value.>>>(8).toByte
         mem.banks(bank).output(addr + 1) = value.toByte

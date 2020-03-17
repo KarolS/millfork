@@ -20,10 +20,10 @@ import scala.collection.JavaConverters._
 
 object ShouldNotCompile extends Matchers {
 
-  def apply(source: String): Unit = {
-    checkCase(Cpu.Mos, source)
-    checkCase(Cpu.Z80, source)
-    checkCase(Cpu.Motorola6809, source)
+  def apply(source: String, cpus: Iterable[Cpu.Value] = Set(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)): Unit = {
+    for (cpu <- cpus) {
+      checkCase(cpu, source)
+    }
   }
 
   private def checkCase(cpu: Cpu.Value, source: String) {
@@ -97,17 +97,17 @@ object ShouldNotCompile extends Matchers {
               val assembler = new MosAssembler(program, env2, platform)
               val output = assembler.assemble(callGraph, Nil, options, (_, _) => Nil)
               output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
-              fail("Failed: Compilation succeeded for 6502")
+              if (!log.hasErrors) fail("Failed: Compilation succeeded for 6502")
             case CpuFamily.I80 =>
               val assembler = new Z80Assembler(program, env2, platform)
               val output = assembler.assemble(callGraph, Nil, options, (_, _) => Nil)
               output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
-              fail("Failed: Compilation succeeded for Z80")
+              if (!log.hasErrors) fail("Failed: Compilation succeeded for Z80")
             case CpuFamily.M6809 =>
               val assembler = new M6809Assembler(program, env2, platform)
               val output = assembler.assemble(callGraph, Nil, options, (_, _) => Nil)
               output.asm.takeWhile(s => !(s.startsWith(".") && s.contains("= $"))).filterNot(_.contains("; DISCARD_")).foreach(println)
-              fail("Failed: Compilation succeeded for 6809")
+              if (!log.hasErrors) fail("Failed: Compilation succeeded for 6809")
             case _ =>
               fail("Failed: Compilation succeeded for unknown CPU")
           }

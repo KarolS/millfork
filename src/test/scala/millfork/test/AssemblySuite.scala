@@ -1,6 +1,6 @@
 package millfork.test
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUndocumentedRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedHudsonRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUndocumentedRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedHudsonRun, ShouldNotCompile}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -348,6 +348,18 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
         | }
         |
         |""".stripMargin)
+  }
+
+  test("Short branch too large") {
+    ShouldNotCompile(
+      """
+        |asm void main() {
+        |bne __main_exit
+        |[for i,0,until,200 [$EA]]
+        |__main_exit:
+        |rts
+        |}
+        |""".stripMargin, Set(Cpu.Mos))
   }
 
 }

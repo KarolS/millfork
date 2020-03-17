@@ -5,7 +5,7 @@ import millfork.assembly.z80.{ZOpcode, _}
 import millfork.assembly.z80.opt.{ConditionalInstructions, JumpFollowing, JumpShortening}
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
-import millfork.node.{NiceFunctionProperty, Program, ZRegister}
+import millfork.node.{NiceFunctionProperty, Position, Program, ZRegister}
 
 import scala.collection.mutable
 
@@ -72,6 +72,7 @@ class Z80ToX86Crossassembler(program: Program,
     import ZRegister._
     import CompilationFlag._
     import Z80ToX86Crossassembler._
+    implicit val position = instr.source.map(sl => Position(sl.moduleName, sl.line, 0, 0))
     instr match {
       case ZLine0(LABEL, NoRegisters, MemoryAddressConstant(Label(labelName))) =>
         val bank0 = mem.banks(bank)

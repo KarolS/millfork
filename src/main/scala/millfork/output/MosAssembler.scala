@@ -4,7 +4,7 @@ import millfork.assembly.mos.opt.{CoarseFlowAnalyzer, CpuStatus, HudsonOptimizat
 import millfork.assembly._
 import millfork.env._
 import millfork.error.{ConsoleLogger, FatalErrorReporting}
-import millfork.node.{FunctionCallExpression, MosNiceFunctionProperty, NiceFunctionProperty, Program}
+import millfork.node.{FunctionCallExpression, MosNiceFunctionProperty, NiceFunctionProperty, Position, Program}
 import millfork._
 import millfork.assembly.mos._
 import millfork.assembly.opt.{SingleStatus, Status}
@@ -33,6 +33,7 @@ class MosAssembler(program: Program,
   override def emitInstruction(bank: String, options: CompilationOptions, index: Int, instr: AssemblyLine): Int = {
     import millfork.assembly.mos.AddrMode._
     import millfork.assembly.mos.Opcode._
+    implicit val position = instr.source.map(sl => Position(sl.moduleName, sl.line, 0, 0))
     instr match {
       case AssemblyLine0(BYTE, RawByte, c) =>
         writeByte(bank, index, c)

@@ -8,7 +8,7 @@ import millfork.assembly.z80.opt.{CoarseFlowAnalyzer, ConditionalInstructions, C
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
 import millfork.node.Z80NiceFunctionProperty.{DoesntChangeBC, DoesntChangeDE, DoesntChangeHL, DoesntChangeIY, SetsATo}
-import millfork.node.{NiceFunctionProperty, Program, ZRegister}
+import millfork.node.{NiceFunctionProperty, Position, Program, ZRegister}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -77,6 +77,7 @@ class Z80Assembler(program: Program,
       options.flag(EmitSharpOpcodes)
     }
 
+    implicit val position = instr.source.map(sl => Position(sl.moduleName, sl.line, 0, 0))
     try { instr match {
       case ZLine0(LABEL, NoRegisters, MemoryAddressConstant(Label(labelName))) =>
         val bank0 = mem.banks(bank)

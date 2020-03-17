@@ -64,7 +64,7 @@ class M6809Assembler(program: Program,
   }
 
   override def emitInstruction(bank: String, options: CompilationOptions, startIndex: Int, instr: MLine): Int = {
-    val position = instr.source.map(sl => Position(sl.moduleName, sl.line, 0, 0))
+    implicit val position = instr.source.map(sl => Position(sl.moduleName, sl.line, 0, 0))
     import millfork.assembly.m6809.MOpcode._
     var index: Int = startIndex
     if (MOpcode.PrefixedBy10(instr.opcode)) {
