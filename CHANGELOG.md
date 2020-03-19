@@ -2,29 +2,37 @@
 
 ## Current version
 
-* 6809 improvements (no full support yet)
+* Added compile-time evaluation for user-defined functions.
 
-* Various improvements to the C64 libraries (thanks to @bsutherland)
+* 6809 improvements (no full support yet).
+
+* Various improvements to the C64 libraries (thanks to @bsutherland).
 
 * Added `breakpoint` macro (#44).
+
+* **Potentially breaking change!** Added `min`, `max` and `if` compile-time functions.
 
 * Added warnings for calling from one segment to another overlapping one.
 
 * 6502: Fixed undocumented mnemonics.
 
-* Create output directories when needed (#21)
+* Create output directories when needed (#21).
 
-* Fixed multiple optimization bugs (#32, #38, #41, #46) – thanks to @agg23 for detailed bug reports!
+* Fixed multiple optimization bugs (#32, #38, #41, #46 and others) – thanks to @agg23 for detailed bug reports!
 
-* 6502: Fix boolean arrays and pointers (#28)
+* 6502: Fix boolean arrays and pointers (#28).
 
-* Improved operator support for word-sized arguments (#24, #25)
+* Improved operator support for word-sized arguments (#24, #25).
 
-* Fixed and improved memset-like loops (#47)
+* Fixed and improved memset-like loops (#47).
 
-* **Potentially breaking change!** Detect overflowing constants, like `const byte x = 256`
+* **Potentially breaking change!** Detect overflowing constants, like `const byte x = 256`.
 
-* **Potentially breaking change!** Various macros improvements, including the requirement of parameter types matching exactly (#23, #39, #40)
+* **Potentially breaking change!** Various macros improvements, including the requirement of parameter types matching exactly (#23, #39, #40).
+
+* Minor improvements to inline assembly.
+
+* Optimization improvements.
 
 ## 0.3.14
 
