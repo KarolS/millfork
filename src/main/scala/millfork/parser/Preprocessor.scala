@@ -212,7 +212,9 @@ class PreprocessorParser(options: CompilationOptions) {
     case ("lo", List(p)) => {m:M => Some(p(m).getOrElse(0L) & 0xff)}
     case ("hi", List(p)) => {m:M => Some(p(m).getOrElse(0L).>>(8).&(0xff))}
     case ("if", List(i, t, e)) => {m:M => if (i(m).getOrElse(0L) != 0) t(m) else e(m)}
-    case ("defined" | "lo" | "hi" | "not" | "if", ps) =>
+    case ("min", ps@(_::_)) => {m:M => ps.map(_(m)).min}
+    case ("max", ps@(_::_)) => {m:M => ps.map(_(m)).max}
+    case ("defined" | "lo" | "hi" | "not" | "if" | "min" | "max", ps) =>
       log.error(s"Invalid number of parameters to $name: ${ps.length}")
       alwaysNone
     case _ =>

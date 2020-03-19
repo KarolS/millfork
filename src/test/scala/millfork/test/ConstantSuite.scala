@@ -43,4 +43,30 @@ class ConstantSuite extends FunSuite with Matchers {
         |}
         |""".stripMargin)
   }
+  test("Special const functions should work") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
+      """
+        | const array values = [111, if (0,1,2), if(1,2,3), min(2,3,4), max(2,3,4)
+        | pointer output @$c000
+        | void main() {
+        |
+        | }
+      """.stripMargin){m =>
+      val arrayStart = m.readWord(0xc000)
+      m.readByte(arrayStart + 1) should equal(2)
+      m.readByte(arrayStart + 2) should equal(2)
+      m.readByte(arrayStart + 3) should equal(2)
+      m.readByte(arrayStart + 4) should equal(4)
+    }
+  }
+
+  test("Do not compile const functions with variables") {
+    ShouldNotCompile(
+      """
+        | byte output
+        | void main() {
+        |    min(output,0)
+        | }
+      """.stripMargin)
+  }
 }

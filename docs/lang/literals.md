@@ -199,7 +199,7 @@ Fields of arithmetic, pointer and enum types are declared using normal expressio
 Fields of struct types are declared using struct constructors.
 Fields of union types cannot be declared.
 
-What might be useful is the fact that the compiler allows for built-in trigonometric functions
+What might be useful is the fact that the compiler allows for certain built-in functions
 in constant expressions only:
 
 * `sin(x, n)` – returns _n_·**sin**(*x*π/128)
@@ -207,4 +207,8 @@ in constant expressions only:
 * `cos(x, n)` – returns _n_·**cos**(*x*π/128)
 
 * `tan(x, n)` – returns _n_·**tan**(*x*π/128)
+
+* `min(x,...)` – returns the smallest argument
+
+* `max(x,...)` – returns the largest argument
 

@@ -135,7 +135,7 @@ The `if` function returns its second parameter if the first parameter is defined
     #infoeval if(0, 400, 500)
 
 TODO   
-`not`, `lo`, `hi`, `+`, `-`, `*`, `|`, `&`, `^`, `||`, `&&`, `<<`, `>>`,`==`, `!=`, `>`, `>=`, `<`, `<=`
+`not`, `lo`, `hi`, `min`, `max` `+`, `-`, `*`, `|`, `&`, `^`, `||`, `&&`, `<<`, `>>`,`==`, `!=`, `>`, `>=`, `<`, `<=`
 
 The following Millfork operators and functions are not available in the preprocessor:  
 `+'`, `-'`, `*'`, `<<'`, `>>'`, `:`, `>>>>`, `nonet`, all the assignment operators

@@ -18,6 +18,8 @@ sealed trait VariableLikeThing extends Thing
 
 sealed trait IndexableThing extends Thing
 
+case class ConstOnlyCallable(val name: String) extends CallableThing
+
 sealed trait Type extends CallableThing {
 
   def size: Int

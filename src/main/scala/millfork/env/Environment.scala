@@ -529,6 +529,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val hudson_transfer$ = StructType("hudson_transfer$", List(FieldDesc("word", "a", None), FieldDesc("word", "b", None), FieldDesc("word", "c", None)))
     addThing(byte_and_pointer$, None)
     addThing(hudson_transfer$, None)
+    Environment.constOnlyBuiltinFunction.foreach(n => addThing(ConstOnlyCallable(n), None))
     builtinsAdded = true
   }
 
@@ -699,7 +700,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         lc <- evalImpl(l, vv)
         hc <- evalImpl(h, vv)
       } yield hc.asl(8) + lc
-      case FunctionCallExpression(name, params) =>
+      case fce@FunctionCallExpression(name, params) =>
         name match {
           case "sizeof" =>
             if (params.size == 1) {
@@ -756,6 +757,25 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               }
             } else {
               log.error("Invalid number of parameters for `tan`", e.position)
+              None
+            }
+          case "min" =>
+            constantOperation(MathOperator.Minimum, fce)
+          case "max" =>
+            constantOperation(MathOperator.Maximum, fce)
+          case "if" =>
+            if (params.size == 3) {
+              eval(params(0)).map(_.quickSimplify) match {
+                case Some(NumericConstant(cond, _)) =>
+                  eval(params(if (cond != 0) 1 else 2))
+                case Some(c) =>
+                  if (c.isProvablyGreaterOrEqualThan(1)) eval(params(1))
+                  else if (c.isProvablyZero) eval(params(2))
+                  else None
+                case _ => None
+              }
+            } else {
+              log.error("Invalid number of parameters for `if`", e.position)
               None
             }
           case "nonet" =>
@@ -840,7 +860,16 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
-  private def constantOperation(op: MathOperator.Value, params: List[Expression]) = {
+  private def constantOperation(op: MathOperator.Value, fce: FunctionCallExpression): Option[Constant] = {
+    val params = fce.expressions
+    if (params.isEmpty) {
+      log.error(s"Invalid number of parameters for `${fce.functionName}`", fce.position)
+      None
+    }
+    constantOperation(op, fce.expressions)
+  }
+
+  private def constantOperation(op: MathOperator.Value, params: List[Expression]): Option[Constant] = {
     params.map(eval).reduceLeft[Option[Constant]] { (oc, om) =>
       for {
         c <- oc
@@ -1066,6 +1095,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val w = get[Type]("word")
     val p = get[Type]("pointer")
     val name = stmt.name
+    if (Environment.constOnlyBuiltinFunction(name)) {
+      log.error(s"Cannot redefine a built-in function `$name`", stmt.position)
+    }
     val resultType = get[Type](stmt.resultType)
     if (stmt.name == "main") {
       if (stmt.resultType != "void" && options.flag(CompilationFlag.UselessCodeWarning)) {
@@ -2006,7 +2038,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def lookupFunction(name: String, actualParams: List[(Type, Expression)]): Option[MangledFunction] = {
     if (things.contains(name)) {
-      val function = get[MangledFunction](name)
+      val thing = get[Thing](name)
+      if (!thing.isInstanceOf[MangledFunction]) {
+        return None
+      }
+      val function = thing.asInstanceOf[MangledFunction]
       if (function.params.length != actualParams.length) {
         log.error(s"Invalid number of parameters for function `$name`", actualParams.headOption.flatMap(_._2.position))
       }
@@ -2326,7 +2362,9 @@ object Environment {
   // built-in special-cased functions; can be considered keywords by some:
   val predefinedFunctions: Set[String] = Set("not", "hi", "lo", "nonet", "sizeof")
   // built-in special-cased functions, not keywords, but assumed to work almost as such:
-  val specialFunctions: Set[String] = Set("sin", "cos", "tan", "call")
+  val specialFunctions: Set[String] = Set("call")
+  // functions that exist only in constants:
+  val constOnlyBuiltinFunction: Set[String] = Set("sin", "cos", "tan", "min", "max")
   // keywords:
   val neverIdentifiers: Set[String] = Set(
     "array", "const", "alias", "import", "static", "register", "stack", "volatile", "asm", "extern", "kernal_interrupt", "interrupt", "reentrant", "segment",

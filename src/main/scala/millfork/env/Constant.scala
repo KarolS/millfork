@@ -378,6 +378,7 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
 object MathOperator extends Enumeration {
   val Plus, Minus, Times, Shl, Shr, Shl9, Shr9, Plus9, DecimalPlus9,
   DecimalPlus, DecimalMinus, DecimalTimes, DecimalShl, DecimalShl9, DecimalShr,
+  Minimum, Maximum,
   Divide, Modulo,
   And, Or, Exor = Value
 }
@@ -469,12 +470,13 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.And => Constant.Zero
           case MathOperator.Divide => Constant.Zero
           case MathOperator.Modulo => Constant.Zero
-          case _ => CompoundConstant(operator, l, r)
+          case _ => quickSimplify2(l, r)
         }
       case (NumericConstant(0, _), c) =>
         operator match {
           case MathOperator.Shl => l
-          case _ => CompoundConstant(operator, l, r)
+          case MathOperator.Times => l
+          case _ => quickSimplify2(l, r)
         }
       case (c, NumericConstant(0, 1)) =>
         operator match {
@@ -492,56 +494,63 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Exor => c
           case MathOperator.Or => c
           case MathOperator.And => Constant.Zero
-          case _ => CompoundConstant(operator, l, r)
+          case _ => quickSimplify2(l, r)
         }
       case (c, NumericConstant(1, 1)) =>
         operator match {
           case MathOperator.Times => c
-          case _ => CompoundConstant(operator, l, r)
+          case MathOperator.Divide => c
+          case MathOperator.Modulo => Constant.Zero
+          case _ => quickSimplify2(l, r)
         }
       case (NumericConstant(1, 1), c) =>
         operator match {
           case MathOperator.Times => c
-          case _ => CompoundConstant(operator, l, r)
+          case _ => quickSimplify2(l, r)
         }
-      case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
-        var size = ls max rs
-        val bitmask = (1L << (8*size)) - 1
-        val value = operator match {
-          case MathOperator.Plus => lv + rv
-          case MathOperator.Minus => lv - rv
-          case MathOperator.Times => lv * rv
-          case MathOperator.Shl => lv << rv
-          case MathOperator.Shr => lv >> rv
-          case MathOperator.Shl9 => (lv << rv) & 0x1ff
-          case MathOperator.Plus9 => (lv + rv) & 0x1ff
-          case MathOperator.Shr9 => (lv & 0x1ff) >> rv
-          case MathOperator.Exor => (lv ^ rv) & bitmask
-          case MathOperator.Or => lv | rv
-          case MathOperator.And => lv & rv & bitmask
-          case MathOperator.Divide if lv >= 0 && rv >= 0 => lv / rv
-          case MathOperator.Modulo if lv >= 0 && rv >= 0 => lv % rv
-          case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
-            asDecimal(lv & 0xff, rv & 0xff, _ + _) & 0xff
-          case MathOperator.DecimalMinus if ls == 1 && rs == 1 && lv.&(0xff) >= rv.&(0xff) =>
-            asDecimal(lv & 0xff, rv & 0xff, _ - _) & 0xff
-          case _ => return this
-        }
-        operator match {
-          case MathOperator.Plus9 | MathOperator.DecimalPlus9 | MathOperator.Shl9 | MathOperator.DecimalShl9 =>
-            size = 2
-          case MathOperator.Times | MathOperator.Shl =>
-            val mask = (1 << (size * 8)) - 1
-            if (value != (value & mask)) {
-              size = ls + rs
-            }
-          case _ =>
-        }
-        NumericConstant(value, size)
-      case _ => CompoundConstant(operator, l, r)
+      case _ => quickSimplify2(l, r)
     }
   }
 
+  private def quickSimplify2(l: Constant, r: Constant): Constant = (l, r) match {
+    case (NumericConstant(lv, ls), NumericConstant(rv, rs)) =>
+      var size = ls max rs
+      val bitmask = (1L << (8*size)) - 1
+      val value = operator match {
+        case MathOperator.Minimum => lv min rv
+        case MathOperator.Maximum => lv max rv
+        case MathOperator.Plus => lv + rv
+        case MathOperator.Minus => lv - rv
+        case MathOperator.Times => lv * rv
+        case MathOperator.Shl => lv << rv
+        case MathOperator.Shr => lv >> rv
+        case MathOperator.Shl9 => (lv << rv) & 0x1ff
+        case MathOperator.Plus9 => (lv + rv) & 0x1ff
+        case MathOperator.Shr9 => (lv & 0x1ff) >> rv
+        case MathOperator.Exor => (lv ^ rv) & bitmask
+        case MathOperator.Or => lv | rv
+        case MathOperator.And => lv & rv & bitmask
+        case MathOperator.Divide if lv >= 0 && rv >= 0 => lv / rv
+        case MathOperator.Modulo if lv >= 0 && rv >= 0 => lv % rv
+        case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
+          asDecimal(lv & 0xff, rv & 0xff, _ + _) & 0xff
+        case MathOperator.DecimalMinus if ls == 1 && rs == 1 && lv.&(0xff) >= rv.&(0xff) =>
+          asDecimal(lv & 0xff, rv & 0xff, _ - _) & 0xff
+        case _ => return this
+      }
+      operator match {
+        case MathOperator.Plus9 | MathOperator.DecimalPlus9 | MathOperator.Shl9 | MathOperator.DecimalShl9 =>
+          size = 2
+        case MathOperator.Times | MathOperator.Shl =>
+          val mask = (1 << (size * 8)) - 1
+          if (value != (value & mask)) {
+            size = ls + rs
+          }
+        case _ =>
+      }
+      NumericConstant(value, size)
+    case _ => CompoundConstant(operator, l, r)
+  }
 
   import MathOperator._
 

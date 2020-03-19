@@ -454,6 +454,16 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression("sin", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("cos", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("tan", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
+      case FunctionCallExpression("min" | "max", params) => if (params.isEmpty) b else params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
+        case 1 => b
+        case 2 => w
+        case n if n >= 3 => env.get[Type]("int" + n * 8)
+      } // TODO: ?
+      case FunctionCallExpression("if", params) => if (params.length < 3) b else params.tail.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
+        case 1 => b
+        case 2 => w
+        case n if n >= 3 => env.get[Type]("int" + n * 8)
+      } // TODO: ?
       case FunctionCallExpression("sizeof", params) => env.evalSizeof(params.head).requiredSize match {
         case 1 => b
         case 2 => w
@@ -584,7 +594,11 @@ object AbstractExpressionCompiler {
   def lookupFunction(env: Environment, log: Logger, f: FunctionCallExpression): MangledFunction = {
     val paramsWithTypes = f.expressions.map(x => getExpressionType(env, log, x) -> x)
     env.lookupFunction(f.functionName, paramsWithTypes).getOrElse {
-      log.error(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position)
+      if (Environment.constOnlyBuiltinFunction(f.functionName)){
+        log.error(s"Cannot use function `${f.functionName}` with non-constant params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position)
+      } else {
+        log.error(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position)
+      }
       val signature = NormalParamSignature(paramsWithTypes.map { case (t, _) =>
         UninitializedMemoryVariable("?", t, VariableAllocationMethod.Auto, None, NoAlignment, isVolatile = false)
       })

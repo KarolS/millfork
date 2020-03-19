@@ -561,6 +561,11 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         // Eliminating variables may eliminate carry
         FunctionCallExpression("nonet", args.map(arg => optimizeExpr(arg, Map()))).pos(pos)
       case FunctionCallExpression(name, args) =>
+        if (Environment.constOnlyBuiltinFunction(name)) {
+          if (ctx.env.eval(expr).isEmpty) {
+            ctx.log.error(s"`$name` should be only used with constant expressions", expr.position)
+          }
+        }
         ctx.env.maybeGet[Thing](name) match {
           case Some(_: MacroFunction) =>
             FunctionCallExpression(name, args.map(arg => optimizeExpr(arg, Map()))).pos(pos)
