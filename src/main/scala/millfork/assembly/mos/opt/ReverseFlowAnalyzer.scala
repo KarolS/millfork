@@ -4,7 +4,7 @@ import millfork.assembly._
 import millfork.assembly.mos._
 import millfork.assembly.opt.FlowCache
 import millfork.env._
-import millfork.node.MosRegister
+import millfork.node.{MosRegister, NiceFunctionProperty}
 
 /**
   * @author Karol Stasiak
@@ -143,10 +143,12 @@ object ReverseFlowAnalyzer {
     m = Important, w = Important,
     r0 = Important, r1 = Important, r2 = Important, r3 = Important)
 
+  def analyze(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[CpuImportance] =
+    analyze(code, optimizationContext.niceFunctionProperties)
+
   //noinspection RedundantNewCaseClass
-  def analyze(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[CpuImportance] = {
+  def analyze(code: List[AssemblyLine], niceFunctionProperties: Set[(NiceFunctionProperty, String)]): List[CpuImportance] = {
     cache.get(code).foreach(return _)
-    val niceFunctionProperties = optimizationContext.niceFunctionProperties
     val importanceArray = Array.fill[CpuImportance](code.length)(new CpuImportance())
     val codeArray = code.toArray
 

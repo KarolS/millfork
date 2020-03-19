@@ -90,7 +90,7 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
     }.map(_.name).toSet
 
     val variablesWithLifetimes = localVariables.map(v =>
-      v.name -> VariableLifetime.apply(v.name, code, expandToIncludeIndexing = true)
+      v.name -> VariableLifetime.apply(v.name, code, expandToIncludeIndexing = true, expandToIncludeUsesOfLoadedIndices = Some(optimizationContext.niceFunctionProperties))
     ).toMap
 
     val removeVariablesForReal = !options.flag(CompilationFlag.InternalCurrentlyOptimizingForMeasurement)
@@ -190,11 +190,24 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
       case (AssemblyLine0(LDX, Absolute | ZeroPage, MemoryAddressConstant(th)), _) :: xs if th.name == vy =>
         canBeInlined(vx, vy, vy, loadedY, xs).map(_ + CyclesAndBytes(bytes = 2, cycles = 2))
 
-      case (AssemblyLine0(LDX, _, _), _) :: xs if "--" == vx =>
+      case (AssemblyLine0(LDX, _, constant), _) :: xs if "--" == vx && !constant.refersTo(vy) =>
         canBeInlined(vx, vy, "-", loadedY, xs)
 
-      case (AssemblyLine0(LDY, _, _), _) :: xs if "--" == vy =>
+      case (AssemblyLine0(LDY, _, constant), _) :: xs if "--" == vy && !constant.refersTo(vx) =>
+        println(s"$constant doesn't refer to $vx")
         canBeInlined(vx, vy, loadedX, "-", xs)
+
+      case (l@AssemblyLine0(STY, ZeroPage | Absolute, _), _) :: xs if loadedY == vx =>
+        canBeInlined(vx, vy, loadedX, loadedY, xs)
+
+      case (l@AssemblyLine0(STX, ZeroPage | Absolute, _), _) :: xs if loadedX == vy =>
+        canBeInlined(vx, vy, loadedX, loadedY, xs)
+
+      case (l@AssemblyLine0(_,_, _), _) :: _ if l.concernsX && loadedX == vy =>
+        fail(71)
+
+      case (l@AssemblyLine0(_,_, _), _) :: _ if l.concernsY && loadedY == vx =>
+        fail(72)
 
       case (AssemblyLine0(_, AbsoluteX, _), _) :: xs if loadedX == vx || vx == "--" && loadedX == "-" =>
           canBeInlined(vx, vy, loadedX, loadedY, xs)
@@ -361,6 +374,12 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
 
       case (l@AssemblyLine0(_, AbsoluteY, _), _) :: xs if loadedY == vx =>
         tailcall(inlineVars(vx, vy, loadedX, loadedY, xs)).map(l.copy(addrMode = AbsoluteX) :: _)
+
+      case (l@AssemblyLine0(STY, ZeroPage | Absolute, _), _) :: xs if loadedY == vx =>
+        tailcall(inlineVars(vx, vy, loadedX, loadedY, xs)).map(l.copy(opcode = STX) :: _)
+
+      case (l@AssemblyLine0(STX, ZeroPage | Absolute, _), _) :: xs if loadedX == vy =>
+        tailcall(inlineVars(vx, vy, loadedX, loadedY, xs)).map(l.copy(opcode = STY) :: _)
 
       case (x, _) :: xs => inlineVars(vx, vy, loadedX, loadedY, xs).map(x ::  _)
 
