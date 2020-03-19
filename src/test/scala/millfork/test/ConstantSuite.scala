@@ -46,10 +46,10 @@ class ConstantSuite extends FunSuite with Matchers {
   test("Special const functions should work") {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
-        | const array values = [111, if (0,1,2), if(1,2,3), min(2,3,4), max(2,3,4)
+        | const array values = [111, if (0,1,2), if(1,2,3), min(2,3,4), max(2,3,4) ]
         | pointer output @$c000
         | void main() {
-        |
+        |  output = values.addr
         | }
       """.stripMargin){m =>
       val arrayStart = m.readWord(0xc000)
