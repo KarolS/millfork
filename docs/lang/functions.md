@@ -46,6 +46,16 @@ Examples:
     Unlike hardware handlers with `interrupt`, you can treat functions with `kernal_interrupt` like normal functions.  
     On non-6502-based targets, functions marked as `kernal_interrupt` don't differ from normal functions.
     
+    * `const` – the function is pure and can be used in constant expressions. `const` functions are not allowed to:
+    
+        * use constants that have been declared after them
+        
+        * have local variables
+        
+        * call non-const functions
+        
+        * contain any other statements other than return statements and conditional statements
+    
 * `<return_type>` is a valid return type, see [Types](./types.md)
 
 * `<params>` is a comma-separated list of parameters, in form `type name`. Allowed types are the same as for local variables.

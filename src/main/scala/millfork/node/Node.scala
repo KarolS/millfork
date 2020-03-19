@@ -4,7 +4,7 @@ import millfork.assembly.Elidability
 import millfork.assembly.m6809.{MAddrMode, MOpcode}
 import millfork.assembly.mos.opt.SourceOfNZ
 import millfork.assembly.mos.{AddrMode, Opcode}
-import millfork.assembly.z80.{ZOpcode, ZRegisters}
+import millfork.assembly.z80.{NoRegisters, OneRegister, ZOpcode, ZRegisters}
 import millfork.env.{Constant, ParamPassingConvention, Type, VariableType}
 import millfork.output.MemoryAlignment
 
@@ -608,6 +608,7 @@ case class FunctionDeclarationStatement(name: String,
                                         assembly: Boolean,
                                         interrupt: Boolean,
                                         kernalInterrupt: Boolean,
+                                        constPure: Boolean,
                                         reentrant: Boolean) extends BankedDeclarationStatement {
   override def getAllExpressions: List[Expression] = address.toList ++ statements.getOrElse(Nil).flatMap(_.getAllExpressions)
 
@@ -626,7 +627,9 @@ case class FunctionDeclarationStatement(name: String,
   }
 }
 
-sealed trait ExecutableStatement extends Statement
+sealed trait ExecutableStatement extends Statement {
+  def isValidFunctionEnd: Boolean = false
+}
 
 case class RawBytesStatement(contents: ArrayContents, bigEndian: Boolean) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = contents.getAllExpressions(bigEndian)
@@ -646,10 +649,12 @@ case class ExpressionStatement(expression: Expression) extends ExecutableStateme
 
 case class ReturnStatement(value: Option[Expression]) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = value.toList
+  override def isValidFunctionEnd: Boolean = true
 }
 
 case class GotoStatement(target: Expression) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(target)
+  override def isValidFunctionEnd: Boolean = true
 }
 
 case class LabelStatement(name: String) extends ExecutableStatement {
@@ -694,14 +699,24 @@ case class MosAssemblyStatement(opcode: Opcode.Value, addrMode: AddrMode.Value, 
       expression.getAllIdentifiers.toSeq.filter(i => !i.contains('.') || i.endsWith(".addr") || i.endsWith(".addr.lo")).map(_.takeWhile(_ != '.'))
     case _ => Seq.empty
   }
+  override def isValidFunctionEnd: Boolean = opcode == Opcode.RTS || opcode == Opcode.RTI || opcode == Opcode.JMP || opcode == Opcode.BRA
 }
 
 case class Z80AssemblyStatement(opcode: ZOpcode.Value, registers: ZRegisters, offsetExpression: Option[Expression], expression: Expression, elidability: Elidability.Value) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
+
+  override def isValidFunctionEnd: Boolean = registers match {
+    case NoRegisters | OneRegister(_) =>
+      opcode == ZOpcode.RETN || opcode == ZOpcode.RETI || opcode == ZOpcode.JP
+    case _ =>
+      false
+  }
 }
 
 case class M6809AssemblyStatement(opcode: MOpcode.Value, addrMode: MAddrMode, expression: Expression, elidability: Elidability.Value) extends ExecutableStatement {
   override def getAllExpressions: List[Expression] = List(expression)
+
+  override def isValidFunctionEnd: Boolean = opcode == MOpcode.RTS || opcode == MOpcode.JMP || opcode == MOpcode.BRA || opcode == MOpcode.RTI
 }
 
 case class IfStatement(condition: Expression, thenBranch: List[ExecutableStatement], elseBranch: List[ExecutableStatement]) extends CompoundStatement {
@@ -717,6 +732,8 @@ case class IfStatement(condition: Expression, thenBranch: List[ExecutableStateme
   }
 
   override def loopVariable: String = "-none-"
+
+  override def isValidFunctionEnd: Boolean = thenBranch.lastOption.fold(false)(_.isValidFunctionEnd) && elseBranch.lastOption.fold(false)(_.isValidFunctionEnd)
 }
 
 case class WhileStatement(condition: Expression, body: List[ExecutableStatement], increment: List[ExecutableStatement], labels: Set[String] = Set("", "while")) extends CompoundStatement {

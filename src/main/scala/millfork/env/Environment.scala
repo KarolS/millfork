@@ -666,10 +666,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case IndexedExpression(arrName, index) =>
         getPointy(arrName) match {
           case ConstantPointy(MemoryAddressConstant(arr:InitializedArray), _, _, _, _, _, _, _) if arr.readOnly && arr.elementType.size == 1 =>
-            eval(index).flatMap {
+            evalImpl(index, vv).flatMap {
               case NumericConstant(constIndex, _) =>
                 if (constIndex >= 0 && constIndex < arr.sizeInBytes) {
-                  eval(arr.contents(constIndex.toInt))
+                  evalImpl(arr.contents(constIndex.toInt), vv)
                 } else None
               case _ => None
             }
@@ -711,21 +711,21 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
           case "hi" =>
             if (params.size == 1) {
-              eval(params.head).map(_.hiByte.quickSimplify)
+              evalImpl(params.head, vv).map(_.hiByte.quickSimplify)
             } else {
               log.error("Invalid number of parameters for `hi`", e.position)
               None
             }
           case "lo" =>
             if (params.size == 1) {
-              eval(params.head).map(_.loByte.quickSimplify)
+              evalImpl(params.head, vv).map(_.loByte.quickSimplify)
             } else {
               log.error("Invalid number of parameters for `lo`", e.position)
               None
             }
           case "sin" =>
             if (params.size == 2) {
-              (eval(params(0)) -> eval(params(1))) match {
+              (evalImpl(params(0), vv) -> evalImpl(params(1), vv)) match {
                 case (Some(NumericConstant(angle, _)), Some(NumericConstant(scale, _))) =>
                   val value = (scale * math.sin(angle * math.Pi / 128)).round.toInt
                   Some(Constant(value))
@@ -737,7 +737,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
           case "cos" =>
             if (params.size == 2) {
-              (eval(params(0)) -> eval(params(1))) match {
+              (evalImpl(params(0), vv) -> evalImpl(params(1), vv)) match {
                 case (Some(NumericConstant(angle, _)), Some(NumericConstant(scale, _))) =>
                   val value = (scale * math.cos(angle * math.Pi / 128)).round.toInt
                   Some(Constant(value))
@@ -749,7 +749,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
           case "tan" =>
             if (params.size == 2) {
-              (eval(params(0)) -> eval(params(1))) match {
+              (evalImpl(params(0), vv) -> evalImpl(params(1), vv)) match {
                 case (Some(NumericConstant(angle, _)), Some(NumericConstant(scale, _))) =>
                   val value = (scale * math.tan(angle * math.Pi / 128)).round.toInt
                   Some(Constant(value))
@@ -760,17 +760,17 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               None
             }
           case "min" =>
-            constantOperation(MathOperator.Minimum, fce)
+            constantOperation(MathOperator.Minimum, fce, vv)
           case "max" =>
-            constantOperation(MathOperator.Maximum, fce)
+            constantOperation(MathOperator.Maximum, fce, vv)
           case "if" =>
             if (params.size == 3) {
               eval(params(0)).map(_.quickSimplify) match {
                 case Some(NumericConstant(cond, _)) =>
-                  eval(params(if (cond != 0) 1 else 2))
+                  evalImpl(params(if (cond != 0) 1 else 2), vv)
                 case Some(c) =>
-                  if (c.isProvablyGreaterOrEqualThan(1)) eval(params(1))
-                  else if (c.isProvablyZero) eval(params(2))
+                  if (c.isProvablyGreaterOrEqualThan(1)) evalImpl(params(1), vv)
+                  else if (c.isProvablyZero) evalImpl(params(2), vv)
                   else None
                 case _ => None
               }
@@ -781,13 +781,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case "nonet" =>
             params match {
               case List(FunctionCallExpression("<<", ps@List(_, _))) =>
-                constantOperation(MathOperator.Shl9, ps)
+                constantOperation(MathOperator.Shl9, ps, vv)
               case List(FunctionCallExpression("<<'", ps@List(_, _))) =>
-                constantOperation(MathOperator.DecimalShl9, ps)
+                constantOperation(MathOperator.DecimalShl9, ps, vv)
               case List(SumExpression(ps@List((false,_),(false,_)), false)) =>
-                constantOperation(MathOperator.Plus9, ps.map(_._2))
+                constantOperation(MathOperator.Plus9, ps.map(_._2), vv)
               case List(SumExpression(ps@List((false,_),(false,_)), true)) =>
-                constantOperation(MathOperator.DecimalPlus9, ps.map(_._2))
+                constantOperation(MathOperator.DecimalPlus9, ps.map(_._2), vv)
               case List(_) =>
                 None
               case _ =>
@@ -795,41 +795,59 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 None
             }
           case ">>'" =>
-            constantOperation(MathOperator.DecimalShr, params)
+            constantOperation(MathOperator.DecimalShr, params, vv)
           case "<<'" =>
-            constantOperation(MathOperator.DecimalShl, params)
+            constantOperation(MathOperator.DecimalShl, params, vv)
           case ">>" =>
-            constantOperation(MathOperator.Shr, params)
+            constantOperation(MathOperator.Shr, params, vv)
           case "<<" =>
-            constantOperation(MathOperator.Shl, params)
+            constantOperation(MathOperator.Shl, params, vv)
           case ">>>>" =>
-            constantOperation(MathOperator.Shr9, params)
+            constantOperation(MathOperator.Shr9, params, vv)
           case "*'" =>
-            constantOperation(MathOperator.DecimalTimes, params)
+            constantOperation(MathOperator.DecimalTimes, params, vv)
           case "*" =>
-            constantOperation(MathOperator.Times, params)
+            constantOperation(MathOperator.Times, params, vv)
           case "/" =>
-            constantOperation(MathOperator.Divide, params)
+            constantOperation(MathOperator.Divide, params, vv)
           case "%%" =>
-            constantOperation(MathOperator.Modulo, params)
+            constantOperation(MathOperator.Modulo, params, vv)
           case "&&" | "&" =>
-            constantOperation(MathOperator.And, params)
+            constantOperation(MathOperator.And, params, vv)
           case "^" =>
-            constantOperation(MathOperator.Exor, params)
+            constantOperation(MathOperator.Exor, params, vv)
           case "||" | "|" =>
-            constantOperation(MathOperator.Or, params)
+            constantOperation(MathOperator.Or, params, vv)
+          case ">" => evalComparisons(params, vv, _ > _)
+          case "<" => evalComparisons(params, vv, _ < _)
+          case ">=" => evalComparisons(params, vv, _ >= _)
+          case "<=" => evalComparisons(params, vv, _ <= _)
+          case "==" => evalComparisons(params, vv, _ == _)
+          case "!=" =>
+            sequence(params.map(p => evalImpl(p, vv))) match {
+              case Some(List(NumericConstant(n1, _), NumericConstant(n2, _))) =>
+                Some(if (n1 != n2) Constant.One else Constant.Zero)
+              case _ => None
+            }
           case _ =>
-            maybeGet[Type](name) match {
+            maybeGet[Thing](name) match {
               case Some(t: StructType) =>
                 if (params.size == t.fields.size) {
-                  sequence(params.map(eval)).map(fields => StructureConstant(t, fields.zip(t.fields).map{
+                  sequence(params.map(p => evalImpl(p, vv))).map(fields => StructureConstant(t, fields.zip(t.fields).map{
                     case (fieldConst, fieldDesc) =>
                       fieldConst.fitInto(get[Type](fieldDesc.typeName))
                   }))
                 } else None
+              case Some(n: NormalFunction) if n.isConstPure =>
+                if (params.size == n.params.length) {
+                  sequence(params.map(p => evalImpl(p, vv))) match {
+                    case Some(args) => ConstPureFunctions.eval(this, n, args)
+                    case _ => None
+                  }
+                } else None
               case Some(_: UnionType) =>
                 None
-              case Some(t) =>
+              case Some(t: Type) =>
                 if (params.size == 1) {
                   eval(params.head).map{ c =>
                      c.fitInto(t)
@@ -860,17 +878,30 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
-  private def constantOperation(op: MathOperator.Value, fce: FunctionCallExpression): Option[Constant] = {
+  private def evalComparisons(params: List[Expression], vv: Option[Map[String, Constant]], cond: (Long, Long) => Boolean): Option[Constant] = {
+    if (params.size < 2) return None
+    val numbers = sequence(params.map{ e =>
+      evalImpl(e, vv) match {
+        case Some(NumericConstant(n, _)) => Some(n)
+        case _ => None
+      }
+    })
+    numbers.map { ns =>
+      if (ns.init.zip(ns.tail).forall(cond.tupled)) Constant.One else Constant.Zero
+    }
+  }
+
+  private def constantOperation(op: MathOperator.Value, fce: FunctionCallExpression, vv: Option[Map[String, Constant]]): Option[Constant] = {
     val params = fce.expressions
     if (params.isEmpty) {
       log.error(s"Invalid number of parameters for `${fce.functionName}`", fce.position)
       None
     }
-    constantOperation(op, fce.expressions)
+    constantOperation(op, fce.expressions, vv)
   }
 
-  private def constantOperation(op: MathOperator.Value, params: List[Expression]): Option[Constant] = {
-    params.map(eval).reduceLeft[Option[Constant]] { (oc, om) =>
+  private def constantOperation(op: MathOperator.Value, params: List[Expression], vv: Option[Map[String, Constant]]): Option[Constant] = {
+    params.map(p => evalImpl(p, vv)).reduceLeft[Option[Constant]] { (oc, om) =>
       for {
         c <- oc
         m <- om
@@ -1252,11 +1283,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
         val paramForAutomaticReturn: List[Option[Expression]] = if (stmt.isMacro || stmt.assembly) {
           Nil
-        } else if (statements.isEmpty) {
+        } else if (executableStatements.isEmpty) {
           List(None)
         } else {
-          statements.last match {
-            case _: ReturnStatement => Nil
+          executableStatements.last match {
+            case s if s.isValidFunctionEnd => Nil
             case WhileStatement(VariableExpression(tr), _, _, _) =>
               if (resultType.size > 0 && env.getBooleanConstant(tr).contains(true)) {
                 List(Some(LiteralExpression(0, 1))) // TODO: what if the loop is breakable?
@@ -1299,12 +1330,16 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             interrupt = stmt.interrupt,
             kernalInterrupt = stmt.kernalInterrupt,
             reentrant = stmt.reentrant,
+            isConstPure = stmt.constPure,
             position = stmt.position,
             declaredBank = stmt.bank,
             alignment = stmt.alignment.getOrElse(if (name == "main") NoAlignment else defaultFunctionAlignment(options, hot = true)) // TODO: decide actual hotness in a smarter way
           )
           addThing(mangled, stmt.position)
           registerAddressConstant(mangled, stmt.position, options, None)
+          if (mangled.isConstPure) {
+            ConstPureFunctions.checkConstPure(env, mangled)
+          }
         }
     }
   }
@@ -1415,7 +1450,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               assembly = true,
               interrupt = false,
               kernalInterrupt = false,
-              reentrant = false
+              reentrant = false,
+              constPure = function.isConstPure
             ), options)
             get[FunctionInMemory](function.name + ".trampoline")
         }

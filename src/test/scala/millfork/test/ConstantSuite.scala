@@ -2,7 +2,7 @@ package millfork.test
 
 import millfork.Cpu
 import millfork.env.{BasicPlainType, DerivedPlainType, NumericConstant}
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -68,5 +68,66 @@ class ConstantSuite extends FunSuite with Matchers {
         |    min(output,0)
         | }
       """.stripMargin)
+  }
+
+  test("Const-pure functions") {
+    val m = EmuUnoptimizedRun(
+      """
+        | pointer output @$c000
+        |
+        | const byte twice(byte x) = x << 1
+        | const byte abs(sbyte x) {
+        |   if x < 0 { return -x }
+        |   else {return x }
+        | }
+        |
+        | const byte result = twice(30) + abs(-9)
+        | const array values = [112, twice(21), abs(-4), result]
+        |
+        | void main() {
+        |   output = values.addr
+        | }
+      """.stripMargin)
+    val arrayStart = m.readWord(0xc000)
+    m.readByte(arrayStart + 1) should equal(42)
+    m.readByte(arrayStart + 2) should equal(4)
+    m.readByte(arrayStart + 3) should equal(69)
+
+  }
+
+  test("Const-pure Fibonacci") {
+    val m = EmuUnoptimizedRun(
+      """
+        | pointer output @$c000
+        | byte output2 @ $c011
+        |
+        | const byte fib(byte x) {
+        |   if x < 2 { return x }
+        |   else {return fib(x-1) + fib(x-2) }
+        | }
+        |
+        | const array values = [for i,0,until,12 [fib(i)]]
+        |
+        | void main() {
+        |   output = values.addr
+        |   output2 = fib(11)
+        | }
+        |
+      """.stripMargin)
+    val arrayStart = m.readWord(0xc000)
+    m.readByte(arrayStart + 0) should equal(0)
+    m.readByte(arrayStart + 1) should equal(1)
+    m.readByte(arrayStart + 2) should equal(1)
+    m.readByte(arrayStart + 3) should equal(2)
+    m.readByte(arrayStart + 4) should equal(3)
+    m.readByte(arrayStart + 5) should equal(5)
+    m.readByte(arrayStart + 6) should equal(8)
+    m.readByte(arrayStart + 7) should equal(13)
+    m.readByte(arrayStart + 8) should equal(21)
+    m.readByte(arrayStart + 9) should equal(34)
+    m.readByte(arrayStart + 10) should equal(55)
+    m.readByte(arrayStart + 11) should equal(89)
+    m.readByte(0xc011) should equal(89)
+
   }
 }

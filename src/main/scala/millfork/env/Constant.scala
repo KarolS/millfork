@@ -121,8 +121,20 @@ sealed trait Constant {
   def fitInto(typ: Type): Constant = {
     // TODO:
     typ.size match {
-      case 1 => loByte
-      case 2 => subword(0)
+      case 1 =>
+        loByte.quickSimplify match {
+          case NumericConstant(value, 1) =>
+            if (typ.isSigned) NumericConstant(value.toByte, 1)
+            else NumericConstant(value & 0xff, 1)
+          case b => b
+        }
+      case 2 =>
+        subword(0).quickSimplify match {
+          case NumericConstant(value, _) =>
+            if (typ.isSigned) NumericConstant(value.toShort, 2)
+            else NumericConstant(value & 0xffff, 2)
+          case w => w
+        }
       case _ => this
     }
   }

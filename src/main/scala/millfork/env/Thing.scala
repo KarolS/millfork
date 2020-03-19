@@ -375,6 +375,8 @@ sealed trait MangledFunction extends CallableThing {
 
   def interrupt: Boolean
 
+  def isConstPure: Boolean
+
   def canBePointedTo: Boolean
 
   def requiresTrampoline(compilationOptions: CompilationOptions): Boolean = false
@@ -387,6 +389,8 @@ case class EmptyFunction(name: String,
 
   override def interrupt = false
 
+  override def isConstPure = false
+
   override def canBePointedTo: Boolean = false
 }
 
@@ -396,6 +400,8 @@ case class MacroFunction(name: String,
                          environment: Environment,
                          code: List[ExecutableStatement]) extends MangledFunction {
   override def interrupt = false
+
+  override def isConstPure = false
 
   override def canBePointedTo: Boolean = false
 }
@@ -424,6 +430,8 @@ case class ExternFunction(name: String,
 
   override def interrupt = false
 
+  override def isConstPure = false
+
   override def zeropage: Boolean = false
 
   override def isVolatile: Boolean = false
@@ -439,6 +447,7 @@ case class NormalFunction(name: String,
                           hasElidedReturnVariable: Boolean,
                           interrupt: Boolean,
                           kernalInterrupt: Boolean,
+                          isConstPure: Boolean,
                           reentrant: Boolean,
                           position: Option[Position],
                           declaredBank: Option[String],

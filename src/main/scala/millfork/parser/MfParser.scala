@@ -96,7 +96,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val variableFlags: P[Set[String]] = flags_("const", "static", "volatile", "stack", "register")
 
-  val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt")
+  val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt", "const")
 
   val codec: P[((TextCodec, Boolean), Boolean)] = P(position("text codec identifier") ~ identifier.?.map(_.getOrElse(""))).map {
     case (_, "" | "default") => (options.platform.defaultCodec -> false) -> options.flag(CompilationFlag.LenientTextEncoding)
@@ -592,6 +592,11 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (flags("macro") && flags("noinline")) log.error("Noinline and macro exclude each other", Some(p))
     if (flags("inline") && flags("macro")) log.error("Macro and inline exclude each other", Some(p))
     if (flags("interrupt") && returnType != "void") log.error(s"Interrupt function `$name` has to return void", Some(p))
+    if (flags("const") && returnType == "void") log.error(s"Const-pure function `$name` cannot return void", Some(p))
+    if (flags("const") && flags("interrupt")) log.error(s"Const-pure function `$name` cannot be an interrupt", Some(p))
+    if (flags("const") && flags("kernal_interrupt")) log.error(s"Const-pure function `$name` cannot be a Kernal interrupt", Some(p))
+    if (flags("const") && flags("macro")) log.error(s"Const-pure function `$name` cannot be a macro", Some(p))
+    if (flags("const") && flags("asm")) log.error(s"Const-pure function `$name` cannot contain assembly", Some(p))
     if (addr.isEmpty && statements.isEmpty) log.error(s"Extern function `$name` must have an address", Some(p))
     if (addr.isDefined && alignment.isDefined) log.error(s"Function `$name` has both address and alignment", Some(p))
     if (statements.isEmpty && alignment.isDefined) log.error(s"Extern function `$name` cannot have alignment", Some(p))
@@ -607,6 +612,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       flags("asm"),
       flags("interrupt"),
       flags("kernal_interrupt"),
+      flags("const") && !flags("asm"),
       flags("reentrant")).pos(p))
   }
 
