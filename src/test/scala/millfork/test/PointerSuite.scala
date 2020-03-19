@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -426,5 +426,31 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
     ){ m =>
       m.readWord(0xc100) should equal(0x400)
     }
+  }
+
+  test("Pointers should remain at zero page if used as pointers in assembly") {
+    val m = EmuUnoptimizedRun(
+      """
+        | word output @$c000
+        | pointer p
+        | volatile pointer q1
+        | volatile pointer q2
+        | volatile pointer q3
+        | volatile pointer q4
+        | volatile pointer q5
+        | volatile pointer q6
+        | volatile pointer q7
+        | volatile pointer q8
+        | array arr [250] @$0
+        | void main () {
+        |   asm {
+        |     lda (p),y
+        |   }
+        |   output = p.addr
+        |   q1 = q2 + q3 + q4 + q5 + q6 + q7 + q8
+        | }
+        |""".stripMargin)
+    m.readWord(0xc000) should be <(256)
+
   }
 }

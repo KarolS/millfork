@@ -612,6 +612,18 @@ case class FunctionDeclarationStatement(name: String,
   override def getAllExpressions: List[Expression] = address.toList ++ statements.getOrElse(Nil).flatMap(_.getAllExpressions)
 
   override def withChangedBank(bank: String): BankedDeclarationStatement = copy(bank = Some(bank))
+
+  override def getAllPointies: Seq[String] = statements match {
+    case None => Seq.empty
+    case Some(stmts) =>
+      val locals = stmts.flatMap{
+        case s:VariableDeclarationStatement => Some(s.name)
+        case s:ArrayDeclarationStatement => Some(s.name)
+        case _ => None
+      }.toSet
+      val pointies = stmts.flatMap(_.getAllPointies).toSet
+      (pointies -- locals).toSeq
+  }
 }
 
 sealed trait ExecutableStatement extends Statement

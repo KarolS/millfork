@@ -1083,8 +1083,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def collectPointies(stmts: Seq[Statement]): Set[String] = {
     val pointies: mutable.Set[String] = new mutable.HashSet()
-        pointies ++= stmts.flatMap(_.getAllPointies)
-        pointies ++ getAliases.filterKeys(pointies).values
+    pointies ++= stmts.flatMap(_.getAllPointies)
+    pointies ++= getAliases.filterKeys(pointies).values
     log.trace("Collected pointies: " + pointies)
     pointies.toSet
   }
@@ -1133,7 +1133,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     } else {
       new Environment(Some(this), name + "$", cpuFamily, options)
     }
-    stmt.params.foreach(p => env.registerParameter(p, options))
+    stmt.params.foreach(p => env.registerParameter(p, options, pointies))
     def params: ParamSignature = if (stmt.assembly) {
       AssemblyParamSignature(stmt.params.map {
         pd =>
@@ -1423,14 +1423,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
-  def registerParameter(stmt: ParameterDeclaration, options: CompilationOptions): Unit = {
+  def registerParameter(stmt: ParameterDeclaration, options: CompilationOptions, pointies: Set[String]): Unit = {
     val typ = get[Type](stmt.typ)
     val b = get[Type]("byte")
     val w = get[Type]("word")
     val p = get[Type]("pointer")
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
-        val zp = typ.isPointy // TODO
+        val zp = typ.isPointy || pointies(name) // TODO
         val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None, defaultVariableAlignment(options, 2), isVolatile = false)
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position, options, Some(typ))
