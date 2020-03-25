@@ -18,6 +18,10 @@ object ConstPureFunctions {
   private def checkConstPure(env: Environment, s: List[Statement], params: Set[String]): Unit = {
     s match {
       case List(ReturnStatement(Some(expr))) => checkConstPure(env, expr, params)
+      case IfStatement(c, t, Nil) :: e =>
+        checkConstPure(env, c, params)
+        checkConstPure(env, t, params)
+        checkConstPure(env, e, params)
       case List(IfStatement(c, t, e)) =>
         checkConstPure(env, c, params)
         checkConstPure(env, t, params)
@@ -38,10 +42,6 @@ object ConstPureFunctions {
             env.log.error(s"Statement ${bad} not allowed in const-pure functions", bad.position)
         }
         checkConstPure(env, xs, params)
-      case IfStatement(c, t, Nil) :: e =>
-        checkConstPure(env, c, params)
-        checkConstPure(env, t, params)
-        checkConstPure(env, e, params)
       case (bad@ReturnStatement(None)) :: xs =>
         env.log.error("Returning without value not allowed in const-pure functions",
           bad.position.orElse(xs.headOption.flatMap(_.position)))

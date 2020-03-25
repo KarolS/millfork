@@ -80,6 +80,10 @@ Examples:
 
 You can control inlining behavior in several ways:
 
+* functions declared with the `const` keyword called with constant arguments will always be inlined,
+with the whole invocation being converted into a single constant, regardless of `inline` and `noinline` keywords;
+calls with non-constant arguments are subject to the regular rules.
+
 * functions declared with the `inline` keyword will be inlined if possible
 
 * functions declared with the `noinline` keyword will never be inlined
