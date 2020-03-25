@@ -23,6 +23,7 @@ issue*.mfk
 *.jar
 *.class
 *.zip
+*.exe
 
 # compiled Millfork files
 *.prg
