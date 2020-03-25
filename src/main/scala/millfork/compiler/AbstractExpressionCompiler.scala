@@ -1,5 +1,6 @@
 package millfork.compiler
 
+import millfork.CompilationFlag
 import millfork.env._
 import millfork.node._
 import millfork.error.{ConsoleLogger, Logger}
@@ -408,13 +409,28 @@ object AbstractExpressionCompiler {
         if (getExpressionTypeImpl(env, log, hi, loosely).size > 1) log.error("Hi byte too large", hi.position)
         if (getExpressionTypeImpl(env, log, lo, loosely).size > 1) log.error("Lo byte too large", lo.position)
         w
-      case SumExpression(params, _) => params.map { case (_, e) => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
-        case 1 => b
-        case 2 => w
-        case 3 => env.get[Type]("int24")
-        case 4 => env.get[Type]("int32")
-        case _ => log.error("Adding values bigger than longs", expr.position); env.get[Type]("int32")
-      }
+      case SumExpression(params, _) =>
+        val paramTypes = params.map { case (_, e) => getExpressionTypeImpl(env, log, e, loosely) }
+        val anySigned = paramTypes.exists(_.isSigned)
+        val anyUnsigned = paramTypes.exists {
+          case p: DerivedPlainType => !p.isSigned
+          case _ => false
+        }
+        paramTypes.map(_.size).max match {
+          case 1 =>
+            params match {
+              case List((false, LiteralExpression(0, _)), (true, _)) if !anyUnsigned => env.get[Type]("sbyte")
+              case _ => if (anySigned && !anyUnsigned) env.get[Type]("sbyte") else b
+            }
+          case 2 =>
+            params match {
+              case List((false, LiteralExpression(0, _)), (true, _)) if !anyUnsigned => env.get[Type]("signed16")
+              case _ => if (anySigned && !anyUnsigned) env.get[Type]("signed16") else w
+            }
+          case 3 => env.get[Type]("int24")
+          case 4 => env.get[Type]("int32")
+          case _ => log.error("Adding values bigger than longs", expr.position); env.get[Type]("int32")
+        }
       case FunctionCallExpression("nonet", _) => w
       case FunctionCallExpression("not", params) =>
         toAllBooleanConstants(params) match {

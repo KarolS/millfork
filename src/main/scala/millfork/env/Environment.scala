@@ -431,12 +431,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(Alias("unsigned8", "ubyte"), None)
     addThing(Alias("signed8", "sbyte"), None)
     addThing(DerivedPlainType("unsigned16", w, isSigned = false, isPointy = false), None)
+    addThing(DerivedPlainType("signed16", w, isSigned = true, isPointy = false), None)
     for (bits <- Seq(24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128)) {
       addThing(DerivedPlainType("unsigned" + bits, get[BasicPlainType]("int" + bits), isSigned = false, isPointy = false), None)
     }
     if (options.flag(CompilationFlag.EnableInternalTestSyntax)) {
-      for (bits <- Seq(16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128)) {
-        addThing(DerivedPlainType("signed" + bits, get[BasicPlainType]("int" + bits), isSigned = false, isPointy = false), None)
+      for (bits <- Seq(24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128)) {
+        addThing(DerivedPlainType("signed" + bits, get[BasicPlainType]("int" + bits), isSigned = true, isPointy = false), None)
       }
     }
     val trueType = ConstantBooleanType("true$", value = true)
@@ -2418,9 +2419,10 @@ object Environment {
   val invalidNewIdentifiers: Set[String] = Set(
     "byte", "sbyte", "word", "pointer", "void", "long", "bool",
     "set_carry", "set_zero", "set_overflow", "set_negative",
-    "clear_carry", "clear_zero", "clear_overflow", "clear_negative",
-    "int8", "int16", "int24", "int32", "int40", "int48", "int56", "int64", "int72", "int80", "int88", "int96", "int104", "int112", "int120", "int128",
-    "signed8", "unsigned16") ++ neverValidTypeIdentifiers
+    "clear_carry", "clear_zero", "clear_overflow", "clear_negative") ++
+    Seq.iterate(8, 16)(_ + 8).map("int" + _) ++
+    Seq.iterate(8, 16)(_ + 8).map("unsigned" + _) ++
+    Seq.iterate(8, 16)(_ + 8).map("signed" + _) ++ neverValidTypeIdentifiers
   // built-in special-cased field names; can be considered keywords by some:
   val invalidFieldNames: Set[String] = Set("addr", "rawaddr", "pointer", "return")
 }

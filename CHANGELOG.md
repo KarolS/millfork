@@ -12,6 +12,8 @@
 
 * **Potentially breaking change!** Added `min`, `max` and `if` compile-time functions.
 
+* Added experimental `signed16` and `unsigned16` types.
+
 * Added warnings for calling from one segment to another overlapping one.
 
 * 6502: Fixed undocumented mnemonics.

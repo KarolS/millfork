@@ -982,28 +982,51 @@ object BuiltIns {
       case ComparisonType.LessSigned =>
         val fixup = ctx.nextLabel("co")
         cmpTo(LDA, ll) ++
-          List(AssemblyLine.implied(SEC)) ++
-          cmpTo(SBC, rl) ++
+          cmpTo(CMP, rl) ++
           cmpTo(LDA, lh) ++
           cmpTo(SBC, rh) ++
           List(
             AssemblyLine.relative(BVC, fixup),
             AssemblyLine.immediate(EOR, 0x80),
-            AssemblyLine.label(fixup))
-        List(AssemblyLine.relative(BCC, x))
+            AssemblyLine.label(fixup))++
+        List(AssemblyLine.relative(BMI, x))
 
       case ComparisonType.GreaterOrEqualSigned =>
         val fixup = ctx.nextLabel("co")
         cmpTo(LDA, ll) ++
-          List(AssemblyLine.implied(SEC)) ++
-          cmpTo(SBC, rl) ++
+          cmpTo(CMP, rl) ++
           cmpTo(LDA, lh) ++
           cmpTo(SBC, rh) ++
           List(
             AssemblyLine.relative(BVC, fixup),
             AssemblyLine.immediate(EOR, 0x80),
-            AssemblyLine.label(fixup))
-        List(AssemblyLine.relative(BCS, x))
+            AssemblyLine.label(fixup))++
+        List(AssemblyLine.relative(BPL, x))
+
+      case ComparisonType.GreaterSigned =>
+        val fixup = ctx.nextLabel("co")
+        cmpTo(LDA, rl) ++
+          cmpTo(CMP, ll) ++
+          cmpTo(LDA, rh) ++
+          cmpTo(SBC, lh) ++
+          List(
+            AssemblyLine.relative(BVC, fixup),
+            AssemblyLine.immediate(EOR, 0x80),
+            AssemblyLine.label(fixup))++
+        List(AssemblyLine.relative(BMI, x))
+
+      case ComparisonType.LessOrEqualSigned =>
+        val fixup = ctx.nextLabel("co")
+        cmpTo(LDA, rl) ++
+          cmpTo(CMP, ll) ++
+          cmpTo(LDA, rh) ++
+          cmpTo(SBC, lh) ++
+          List(
+            AssemblyLine.relative(BVC, fixup),
+            AssemblyLine.immediate(EOR, 0x80),
+            AssemblyLine.label(fixup))++
+        List(AssemblyLine.relative(BPL, x))
+
       case _ => ???
       // TODO: signed word comparisons: <=, >
     }

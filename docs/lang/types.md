@@ -20,11 +20,15 @@ Millfork puts extra limitations on which types can be used in which contexts.
 * `long` – 4-byte value of undefined signedness, defaulting to unsigned
 (alias: `int32`)
 
-* `int40`, `int48`,... `int128` – even larger unsigned types
+* `int40`, `int48`,... `int128` – even larger types of undefined signedness, defaulting to unsigned
 
-* `sbyte` – signed 1-byte value
+* `sbyte` – signed 1-byte value (alias: `signed8`)
 
-* `ubyte` – unsigned 1-byte value
+* `ubyte` – unsigned 1-byte value (alias: `unsigned8`)
+
+* `signed16` – signed 2-byte value (experimental)
+
+* `unsigned16` – unsigned 2-byte value (experimental)
 
 * `pointer` – raw pointers; the same as `word`, but variables of this type default to be zero-page-allocated
 and you can index `pointer`-typed expressions.

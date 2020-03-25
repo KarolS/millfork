@@ -124,4 +124,52 @@ class SignExtensionSuite extends FunSuite with Matchers {
     }
   }
 
+  test("The silliest thing") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |word output @$c000
+        |word output2 @$c002
+        |void main() {
+        |  output = -1
+        |  output2 = -30000
+        |}
+        |""".stripMargin) { m =>
+      m.readWord(0xc000) should equal(0xffff)
+      m.readWord(0xc002).toShort.toInt should equal(-30000)
+    }
+  }
+
+  test("Signed16 to int32 extension") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+        |int32 output @$c000
+        |
+        |void main() {
+        |  static volatile signed16 tmp
+        |  tmp = -1
+        |  memory_barrier()
+        |  output = tmp
+        |}
+        |""".stripMargin){ m =>
+      m.readLong(0xc000) should equal(-1)
+    }
+  }
+
+  test("Signed16 to int32 extension 2") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+      """
+        |int32 output @$c000
+        |
+        |void main() {
+        |  static volatile signed16 tmp
+        |  tmp = -1
+        |  output = 0
+        |  memory_barrier()
+        |  output += tmp
+        |}
+        |""".stripMargin){ m =>
+      m.readLong(0xc000) should equal(-1)
+    }
+  }
+
 }

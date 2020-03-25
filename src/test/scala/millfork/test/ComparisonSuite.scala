@@ -1,13 +1,13 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuSuperOptimizedRun, EmuUltraBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
-import org.scalatest.{FunSuite, Matchers}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuSuperOptimizedRun, EmuUltraBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class ComparisonSuite extends FunSuite with Matchers {
+class ComparisonSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Equality and inequality") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
@@ -650,6 +650,50 @@ class ComparisonSuite extends FunSuite with Matchers {
         |""".stripMargin
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code) { m =>
       m.readByte(0xc000) should equal(code.count(_ == '↑'))
+    }
+  }
+
+  test("Signed16 comparisons") {
+    for{
+      x <- Seq(-30000, -10000, -1, 0, 1, 10000, 30000)
+      y <- Seq(-30000, -10000, -1, 0, 1, 10000, 30000)
+    } {
+      val code =
+        s"""
+          | byte output @$$c000
+          |
+          | const sbyte convert(bool f) {
+          |   if f { return 1 }
+          |   return -1
+          | }
+          |
+          | noinline void testGE(signed16 x, signed16 y, sbyte f) {
+          |   if x >= y { output += f } else { output -= f }
+          | }
+          |
+          | noinline void testLE(signed16 x, signed16 y, sbyte f) {
+          |   if x <= y { output += f } else { output -= f }
+          | }
+          |
+          | noinline void testL(signed16 x, signed16 y, sbyte f) {
+          |   if x < y { output += f } else { output -= f }
+          | }
+          |
+          | noinline void testG(signed16 x, signed16 y, sbyte f) {
+          |   if x > y { output += f } else { output -= f }
+          | }
+          |
+          | void main() {
+          |    output = 0
+          |    testGE($x, $y, convert(${x >= y}))
+          |    testLE($x, $y, convert(${x <= y}))
+          |    testG($x, $y, convert(${x > y}))
+          |    testL($x, $y, convert(${x < y}))
+          | }
+          |""".stripMargin
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code) { m =>
+        m.readByte(0xc000) should equal (4) withClue s"[$x <=> $y]"
+      }
     }
   }
 
