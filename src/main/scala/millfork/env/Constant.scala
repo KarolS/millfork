@@ -1,7 +1,7 @@
 package millfork.env
 
 import millfork.DecimalUtils._
-import millfork.node.ResolvedFieldDesc
+import millfork.node.{ResolvedFieldDesc, SumExpression}
 import millfork.output.DivisibleAlignment
 
 object Constant {
@@ -79,17 +79,19 @@ sealed trait Constant {
 
   def subword(index: Int): Constant = {
     if (requiredSize <= index) Constant.Zero
+    else if (requiredSize == 2 && !this.isInstanceOf[StructureConstant]) this
     else {
       // TODO: check if ok
-      CompoundConstant(MathOperator.Or, CompoundConstant(MathOperator.Shl, subbyte(index + 1), NumericConstant(8, 1)), subbyte(index)).quickSimplify
+      CompoundConstant(MathOperator.Or, CompoundConstant(MathOperator.Shl, subbyte(index + 1), NumericConstant(8, 2)), subbyte(index)).quickSimplify
     }
   }
 
   def subwordReversed(index: Int): Constant = {
     if (requiredSize <= index) Constant.Zero
+    else if (requiredSize == 2 && !this.isInstanceOf[StructureConstant]) this
     else {
       // TODO: check if ok
-      CompoundConstant(MathOperator.Or, CompoundConstant(MathOperator.Shl, subbyte(index), NumericConstant(8, 1)), subbyte(index + 1)).quickSimplify
+      CompoundConstant(MathOperator.Or, CompoundConstant(MathOperator.Shl, subbyte(index), NumericConstant(8, 2)), subbyte(index + 1)).quickSimplify
     }
   }
 
@@ -126,6 +128,10 @@ sealed trait Constant {
           case NumericConstant(value, 1) =>
             if (typ.isSigned) NumericConstant(value.toByte, 1)
             else NumericConstant(value & 0xff, 1)
+          case CompoundConstant(MathOperator.Minus, NumericConstant(l, _), NumericConstant(r, _)) =>
+            val value = l - r
+            if (typ.isSigned) NumericConstant(value.toByte, 1)
+            else NumericConstant(value & 0xff, 1)
           case b => b
         }
       case 2 =>
@@ -133,9 +139,23 @@ sealed trait Constant {
           case NumericConstant(value, _) =>
             if (typ.isSigned) NumericConstant(value.toShort, 2)
             else NumericConstant(value & 0xffff, 2)
+          case CompoundConstant(MathOperator.Minus, NumericConstant(l, _), NumericConstant(r, _)) =>
+            val value = l - r
+            if (typ.isSigned) NumericConstant(value.toShort, 2)
+            else NumericConstant(value & 0xffff, 2)
           case w => w
         }
       case _ => this
+    }
+  }
+
+  def fitInto(sourceType: Type, targetType: Type): Constant = {
+    val fit0 = fitInto(sourceType)
+    if (sourceType.size >= targetType.size) fit0 else {
+      fit0 match {
+        case NumericConstant(n, _) => NumericConstant(n, targetType.size)
+        case _ => fit0
+      }
     }
   }
 

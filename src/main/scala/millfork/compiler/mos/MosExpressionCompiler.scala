@@ -14,7 +14,8 @@ import millfork.output.NoAlignment
   */
 object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
 
-  def compileConstant(ctx: CompilationContext, expr: Constant, exprType: Type, target: Variable): List[AssemblyLine] = {
+  def compileConstant(ctx: CompilationContext, expr0: Constant, exprType: Type, target: Variable): List[AssemblyLine] = {
+    val expr = expr0.fitInto(exprType, target.typ)
     target match {
       case RegisterVariable(MosRegister.A, _) => List(AssemblyLine(LDA, Immediate, expr))
       case RegisterVariable(MosRegister.AW, _) =>

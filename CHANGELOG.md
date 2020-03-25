@@ -32,6 +32,8 @@
 
 * Minor improvements to inline assembly.
 
+* Improvements to constant evaluation.
+
 * Optimization improvements.
 
 ## 0.3.14

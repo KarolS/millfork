@@ -92,7 +92,7 @@ class StructSuite extends FunSuite with Matchers {
   }
 
   test("Optimize struct modifications") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)("""
         | struct point { byte x, byte y }
         | enum direction { none, right }
         | direction last_direction @$c400
@@ -116,7 +116,7 @@ class StructSuite extends FunSuite with Matchers {
   }
 
   test("Struct literals") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)("""
         | struct point { byte x, byte y }
         | const point origin = point(1,2)
         | noinline point move_right(point p) {

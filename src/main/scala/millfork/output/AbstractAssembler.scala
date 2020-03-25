@@ -140,11 +140,16 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         else ???
       case SubbyteConstant(cc, i) => deepConstResolve(cc).>>>(i * 8).&(0xff)
       case s: StructureConstant =>
-        s.typ.size match {
-          case 0 => 0
-          case 1 => deepConstResolve(s.subbyte(0))
-          case 2 => if (platform.isBigEndian) deepConstResolve(s.subwordReversed(0)) else deepConstResolve(s.subword(0)) // TODO: endianness?
-          case _ => ???
+        try {
+          s.typ.size match {
+            case 0 => 0
+            case 1 => deepConstResolve(s.subbyte(0))
+            case 2 => if (platform.isBigEndian) deepConstResolve(s.subwordReversed(0)) else deepConstResolve(s.subword(0)) // TODO: endianness?
+            case _ => ???
+          }
+        } catch {
+          case _: StackOverflowError =>
+            log.fatal("Stack overflow " + c)
         }
       case CompoundConstant(operator, lc, rc) =>
         val l = deepConstResolve(lc)
