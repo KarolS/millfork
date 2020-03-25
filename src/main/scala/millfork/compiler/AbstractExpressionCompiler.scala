@@ -228,7 +228,7 @@ object AbstractExpressionCompiler {
   def getExpressionTypeLoosely(env: Environment, log: Logger, expr: Expression): Type = getExpressionTypeImpl(env, log, expr, loosely = true)
 
   def getExpressionTypeImpl(env: Environment, log: Logger, expr: Expression, loosely: Boolean): Type = {
-    if (expr.typeCache ne null) expr.typeCache
+    if (expr.typeCache ne null) return expr.typeCache
     val b = env.get[Type]("byte")
     val bool = env.get[Type]("bool$")
     val boolTrue = env.get[Type]("true$")
