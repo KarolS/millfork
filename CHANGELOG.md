@@ -38,6 +38,8 @@
 
 * Optimization improvements.
 
+* Updated to Scala 2.12.11.
+
 ## 0.3.14
 
 * Full assembly support for HuC6280.
