@@ -453,4 +453,26 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
     m.readWord(0xc000) should be <(256)
 
   }
+
+  test ("Pointers should have priority when allocating to the zeropage") {
+    val m = EmuUnoptimizedRun(
+      """
+        | word output1 @$c000
+        | word output2 @$c000
+        |
+        | array arr [252]
+        |
+        | noinline word f(pointer p, pointer q) {
+        |   output1 = p.addr
+        |   output2 = q.addr
+        |   return p + q
+        | }
+        |
+        | void main () {
+        |   f(0,1)
+        | }
+        |""".stripMargin)
+    m.readWord(0xc000) should be <(256)
+    m.readWord(0xc002) should be <(256)
+  }
 }

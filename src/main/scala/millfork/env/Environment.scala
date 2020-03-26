@@ -186,7 +186,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             } else Nil
           case VariableAllocationMethod.Auto | VariableAllocationMethod.Register | VariableAllocationMethod.Static =>
             if (m.alloc == VariableAllocationMethod.Register && options.flag(CompilationFlag.FallbackValueUseWarning)) {
-              log.warn(s"Failed to inline variable `${m.name}` into a register", None)
+              options.platform.cpuFamily match {
+                case CpuFamily.M6502 if m.sizeInBytes == 1 =>
+                  log.warn(s"Failed to inline variable `${m.name}` into a register", None)
+                case CpuFamily.I80 | CpuFamily.I80 | CpuFamily.I86 | CpuFamily.M6809 if m.sizeInBytes <= 2 =>
+                  log.warn(s"Failed to inline variable `${m.name}` into a register", None)
+                case _ =>
+              }
             }
             if (m.sizeInBytes == 0) Nil else {
               val graveName = m.name.stripPrefix(prefix) + "`"
@@ -1471,7 +1477,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
         val zp = pointies(name) // TODO
-        val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None, defaultVariableAlignment(options, 2), isVolatile = false)
+        val allocationMethod = if (pointies(name)) VariableAllocationMethod.Zeropage else if (typ.isPointy) VariableAllocationMethod.Register else VariableAllocationMethod.Auto
+        val v = UninitializedMemoryVariable(prefix + name, typ, allocationMethod, None, defaultVariableAlignment(options, 2), isVolatile = false)
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position, options, Some(typ))
         val addr = v.toAddress
