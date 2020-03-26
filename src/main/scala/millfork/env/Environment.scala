@@ -1814,8 +1814,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (stmt.initialValue.isEmpty) log.error(s"`$name` is a constant and requires a value", position)
       val rawConstantValue = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", position)).quickSimplify
       rawConstantValue match {
-        case NumericConstant(nv, _) if nv >= 2 =>
-          if (nv >= 1.<<(8*typ.size)) {
+        case NumericConstant(nv, _) if nv >= 2 && typ.size < 8  =>
+          if (nv >= 1L.<<(8*typ.size)) {
             log.error(s"Constant value $nv too big for type ${typ.name}", stmt.position)
           }
         case _ => // ignore
