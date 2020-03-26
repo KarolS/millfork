@@ -139,6 +139,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     if (register == MosRegister.AX && !code.exists(_.concernsX)) {
       return preserveRegisterIfNeeded(ctx, MosRegister.A, code)
     }
+    if (register == MosRegister.AY && !code.exists(_.concernsY)) {
+      return preserveRegisterIfNeeded(ctx, MosRegister.A, code)
+    }
     if (states.exists(state => AssemblyLine.treatment(code, state) != Treatment.Unchanged)) {
       register match {
         case MosRegister.A => AssemblyLine.implied(PHA) +: fixTsx(code) :+ AssemblyLine.implied(PLA)
@@ -1758,6 +1761,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       case Seq((_, param)) => param
                       case Seq((MosRegister.A, pa), (_, pxy)) => pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, pxy)
                       case Seq((_, pxy), (MosRegister.A, pa)) => pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, pxy)
+                      case Seq((r1, p1), (r2, p2), (r3, p3)) if Set(r1, r2, r3) == Set(MosRegister.A, MosRegister.X, MosRegister.Y) =>
+                        val pa = if (r1 == MosRegister.A) p1 else if (r2 == MosRegister.A) p2 else if (r3 == MosRegister.A) p3 else ???
+                        val px = if (r1 == MosRegister.X) p1 else if (r2 == MosRegister.X) p2 else if (r3 == MosRegister.X) p3 else ???
+                        val py = if (r1 == MosRegister.Y) p1 else if (r2 == MosRegister.Y) p2 else if (r3 == MosRegister.Y) p3 else ???
+                        if (!px.exists(_.concernsY)) {
+                          pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, py) ++ preserveRegisterIfNeeded(ctx, MosRegister.AY, px)
+                        } else {
+                          pa ++ preserveRegisterIfNeeded(ctx, MosRegister.A, px) ++ preserveRegisterIfNeeded(ctx, MosRegister.AX, py)
+                        }
                       case other =>
                         if (ctx.options.flag(CompilationFlag.BuggyCodeWarning)) {
                           ctx.log.warn("Unsupported register parameter combination: " + other.map(_._1.toString).mkString("(", ",", ")"), expr.position)
