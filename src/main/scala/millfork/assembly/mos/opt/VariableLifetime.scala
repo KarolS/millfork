@@ -74,9 +74,7 @@ object VariableLifetime {
         if (mask(i)) return
         while (true) {
           val line = code(i)
-          println(line)
           if (state(flow(i)) != Important && !readsReg(line)) return
-          println("masking...")
           mask(i) = true
           val op = code(i).opcode
           line match {
