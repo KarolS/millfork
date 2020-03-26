@@ -152,7 +152,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case VariableAllocationMethod.Register => 2
       case _ => 3
     } else 3
-    val toAdd = things.values.flatMap {
+
+    def prioritize[T](list: List[T])(hasPriority: T => Boolean): List[T] = list.filter(hasPriority) ++ list.filterNot(hasPriority)
+
+    val toAdd = prioritize(things.values.toList)(th => th.name =="__reg").flatMap {
       case m: UninitializedMemory if passForAlloc(m.alloc) == pass && nf.isDefined == isLocalVariableName(m.name) && !m.name.endsWith(".addr") && maybeGet[Thing](m.name + ".array").isEmpty =>
         if (log.traceEnabled) log.trace("Allocating " + m.name)
         val vertex = if (options.flag(CompilationFlag.VariableOverlap)) {
@@ -1467,7 +1470,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val p = get[Type]("pointer")
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
-        val zp = typ.isPointy || pointies(name) // TODO
+        val zp = pointies(name) // TODO
         val v = UninitializedMemoryVariable(prefix + name, typ, if (zp) VariableAllocationMethod.Zeropage else VariableAllocationMethod.Auto, None, defaultVariableAlignment(options, 2), isVolatile = false)
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position, options, Some(typ))
