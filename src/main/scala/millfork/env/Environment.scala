@@ -311,7 +311,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val clazz = implicitly[Manifest[T]].runtimeClass
     if (things.contains(name)) {
       val t: Thing = things(name)
-      if ((t ne null) && clazz.isInstance(t)) {
+      if ((t ne null) && clazz.isInstance(t) && !t.isInstanceOf[Alias]) {
         t.asInstanceOf[T]
       } else {
         t match {
