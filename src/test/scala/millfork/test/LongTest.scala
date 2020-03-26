@@ -1,13 +1,31 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuUnoptimizedRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
 class LongTest extends FunSuite with Matchers {
+
+  test("Long constants") {
+    EmuUnoptimizedRun(
+      """
+        |const long x1 = 0
+        |const long x2 = 3
+        |const long x3 = $ffffffff
+        |const int24 x4 = 0
+        |const int24 x5 = 3
+        |const int24 x6 = $ffffff
+        |void main() {}
+        |""".stripMargin)
+    ShouldNotCompile(
+      """
+        |const int24 x1 = $ffffffff
+        |void main() {}
+        |""".stripMargin)
+  }
 
   test("Long assignment") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(

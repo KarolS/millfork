@@ -310,4 +310,22 @@ class BasicSymonTest extends FunSuite with Matchers {
         | }
         |""".stripMargin){_=>}
   }
+
+  test("Lookup") {
+    EmuUnoptimizedRun(
+      """
+        |noinline byte f() = 1
+        |void g() @$5 extern
+        |alias h = f
+        |alias i = g
+        |
+        |void main() {
+        | if f() != 1 {
+        |   g()
+        |   h()
+        |   i()
+        | }
+        |}
+        |""".stripMargin)
+  }
 }
