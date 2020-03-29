@@ -105,7 +105,7 @@ object ReverseFlowAnalyzerPerOpcode {
     }),
     BIT -> (currentImportance => {
       currentImportance.copy(
-        a = currentImportance.z,
+        a = currentImportance.a ~ currentImportance.z,
         n = Unimportant,
         z = Unimportant,
         v = Unimportant,
