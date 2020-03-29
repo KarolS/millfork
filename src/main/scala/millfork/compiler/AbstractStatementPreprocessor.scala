@@ -227,9 +227,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
             ) {
               val sizeExpr = f.direction match {
                 case ForDirection.DownTo =>
-                  f.start #-# f.end #+# 1
+                  f.start #-# f.end #+# LiteralExpression(1, 2)
                 case ForDirection.To | ForDirection.ParallelTo =>
-                  f.end #-#  f.start #+# 1
+                  f.end #-# f.start #+# LiteralExpression(1, 2)
                 case ForDirection.Until | ForDirection.ParallelUntil =>
                   f.end #-# f.start
               }
