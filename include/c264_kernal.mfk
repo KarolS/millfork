@@ -5,9 +5,9 @@
 
 // CHROUT. Write byte to default output. (If not screen, must call OPEN and CHKOUT beforehands.)
 // Input: A = Byte to write.
-asm void chrout(byte a) @$FFD2 extern
+asm void chrout(byte register(a) char) @$FFD2 extern
 
-asm void putchar(byte a) {
+asm void putchar(byte register(a) char) {
     JSR chrout
     LDA #0
     STA $CB

@@ -4,7 +4,7 @@
 #warn pc88 module should be only used on PC-88 targets
 #endif
 
-asm void putchar(byte a) @$3e0d extern
+asm void putchar(byte register(a) char) @$3e0d extern
 
 inline void new_line() {
     putchar(13)

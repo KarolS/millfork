@@ -1,6 +1,7 @@
 package millfork.compiler
 
 import millfork.assembly.AbstractCode
+import millfork.assembly.m6809.MOpcode
 import millfork.assembly.mos._
 import millfork.assembly.z80.ZOpcode
 import millfork.env._
@@ -11,8 +12,13 @@ import millfork.node._
   */
 abstract class MacroExpander[T <: AbstractCode] {
 
-  def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyParam], params: List[Expression], code: List[ExecutableStatement]): (List[T], List[ExecutableStatement])
+  def stmtPreprocess(ctx: CompilationContext, stmts: List[ExecutableStatement]): List[ExecutableStatement]
 
+  def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyOrMacroParam], params: List[Expression], code: List[ExecutableStatement]): (List[T], List[ExecutableStatement])
+
+  def replaceVariableX(stmt: Statement, paramName: String, target: Expression): ExecutableStatement = {
+    replaceVariable(stmt, paramName, target).asInstanceOf[ExecutableStatement]
+  }
   def replaceVariable(stmt: Statement, paramName: String, target: Expression): Statement = {
     val paramNamePeriod = paramName + "."
     def f[S <: Expression](e: S) = e.replaceVariable(paramName, target)
@@ -50,6 +56,10 @@ abstract class MacroExpander[T <: AbstractCode] {
         println(stmt)
         ???
     }).pos(stmt.position)
+  }
+
+  def renameVariableX(stmt: Statement, paramName: String, target: String): ExecutableStatement = {
+    renameVariable(stmt, paramName, target).asInstanceOf[ExecutableStatement]
   }
 
   def renameVariable(stmt: Statement, paramName: String, target: String): Statement = {
@@ -91,24 +101,41 @@ abstract class MacroExpander[T <: AbstractCode] {
     }).pos(stmt.position)
   }
 
-  def inlineFunction(ctx: CompilationContext, i: MacroFunction, params: List[Expression], position: Option[Position]): (List[T], List[ExecutableStatement]) = {
+  def inlineFunction(ctx: CompilationContext, i: MacroFunction, actualParams: List[Expression], position: Option[Position]): (List[T], List[ExecutableStatement]) = {
     var paramPreparation = List[T]()
     var actualCode = i.code
     i.params match {
-      case AssemblyParamSignature(assParams) =>
-        val pair = prepareAssemblyParams(ctx, assParams, params, i.code)
-        paramPreparation = pair._1
-        actualCode = pair._2
-      case NormalParamSignature(normalParams) =>
-        if (params.length != normalParams.length) {
+      case AssemblyOrMacroParamSignature(params) =>
+        params.foreach{ param =>
+          val vName = param.variable.name
+          i.environment.removeVariable(vName)
+          ctx.env.maybeGet[Thing](vName) match {
+            case Some(thing) => i.environment.things += vName -> thing
+            case None =>
+          }
+        }
+        if (actualParams.length != params.length) {
           ctx.log.error(s"Invalid number of params for macro function ${i.name}", position)
+        } else if (i.isInAssembly) {
+          val pair = prepareAssemblyParams(ctx, params, actualParams, i.code)
+          paramPreparation = pair._1
+          actualCode = pair._2
         } else {
-          normalParams.foreach(param => i.environment.removeVariable(param.name))
-          params.zip(normalParams).foreach {
-            case (v@VariableExpression(_), MemoryVariable(paramName, paramType, _)) =>
-              actualCode = actualCode.map(stmt => renameVariable(stmt, paramName.stripPrefix(i.environment.prefix), v.name).asInstanceOf[ExecutableStatement])
-            case (v@IndexedExpression(_, _), MemoryVariable(paramName, paramType, _)) =>
-              actualCode = actualCode.map(stmt => replaceVariable(stmt, paramName.stripPrefix(i.environment.prefix), v).asInstanceOf[ExecutableStatement])
+          actualParams.zip(params).foreach {
+            case (v@VariableExpression(_), AssemblyOrMacroParam(_, paramVariable, AssemblyParameterPassingBehaviour.ByReference)) =>
+              actualCode = actualCode.map(stmt => renameVariableX(stmt, paramVariable.name.stripPrefix(i.environment.prefix), v.name))
+            case (v@IndexedExpression(_, _), AssemblyOrMacroParam(_, paramVariable, AssemblyParameterPassingBehaviour.ByReference)) =>
+              actualCode = actualCode.map(stmt => replaceVariableX(stmt, paramVariable.name.stripPrefix(i.environment.prefix), v))
+            case (expr, AssemblyOrMacroParam(_, _, AssemblyParameterPassingBehaviour.ByReference)) =>
+              ctx.log.error("By-reference parameters to macro functions have to be variables", expr.position)
+            case (expr, AssemblyOrMacroParam(_, paramVariable, AssemblyParameterPassingBehaviour.ByConstant)) =>
+              if (ctx.env.eval(expr).isEmpty) {
+                ctx.log.error("Const parameters to macro functions have to be constants", expr.position)
+              }
+              actualCode = actualCode.map(stmt => replaceVariableX(stmt, paramVariable.name.stripPrefix(i.environment.prefix), expr))
+            case (expr, AssemblyOrMacroParam(paramType, paramVariable, AssemblyParameterPassingBehaviour.Eval)) =>
+              val castParam = FunctionCallExpression(paramType.name, List(expr))
+              actualCode = actualCode.map(stmt => replaceVariableX(stmt, paramVariable.name.stripPrefix(i.environment.prefix), castParam))
             case _ =>
               ctx.log.error(s"Parameters to macro functions have to be variables", position)
           }
@@ -120,13 +147,17 @@ abstract class MacroExpander[T <: AbstractCode] {
     val localLabels = actualCode.flatMap {
       case MosAssemblyStatement(Opcode.LABEL, _, VariableExpression(l), _) => Some(l)
       case Z80AssemblyStatement(ZOpcode.LABEL, _, _, VariableExpression(l), _) => Some(l)
+      case M6809AssemblyStatement(MOpcode.LABEL, _, VariableExpression(l), _) => Some(l)
       case _ => None
     }.toSet
     val labelPrefix = ctx.nextLabel("il")
+    actualCode = stmtPreprocess(ctx, actualCode)
     paramPreparation -> actualCode.map {
       case s@MosAssemblyStatement(_, _, VariableExpression(v), _) if localLabels(v) =>
         s.copy(expression = VariableExpression(labelPrefix + v))
       case s@Z80AssemblyStatement(_, _, _, VariableExpression(v), _) if localLabels(v) =>
+        s.copy(expression = VariableExpression(labelPrefix + v))
+      case s@M6809AssemblyStatement(_, _, VariableExpression(v), _) if localLabels(v) =>
         s.copy(expression = VariableExpression(labelPrefix + v))
       case s => s
     }

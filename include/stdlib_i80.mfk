@@ -8,7 +8,7 @@
 
 import i80_math
 
-macro asm void poke(word const addr, byte a) {
+macro asm void poke(word const addr, byte register(a) value) {
     ! LD (addr), A
 }
 
@@ -24,7 +24,7 @@ macro asm void enable_irq() {
     EI
 }
 
-asm byte hi_nibble_to_hex(byte a) {
+asm byte hi_nibble_to_hex(byte register(a) value) {
 #if CPUFEATURE_GAMEBOY
     SWAP A
 #else
@@ -36,7 +36,7 @@ asm byte hi_nibble_to_hex(byte a) {
     ? JP lo_nibble_to_hex
 }
 
-asm byte lo_nibble_to_hex(byte a) {
+asm byte lo_nibble_to_hex(byte register(a) value) {
     AND $F
     ADD A,$30
     CP $3A

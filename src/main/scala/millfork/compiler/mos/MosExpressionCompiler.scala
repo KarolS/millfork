@@ -1745,15 +1745,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   case _ => ()
                 }
                 val result = function.params match {
-                  case AssemblyParamSignature(paramConvs) =>
+                  case AssemblyOrMacroParamSignature(paramConvs) =>
                     val pairs = params.zip(paramConvs)
                     val secondViaMemory = pairs.flatMap {
-                      case (paramExpr, AssemblyParam(typ, paramVar: VariableInMemory, AssemblyParameterPassingBehaviour.Copy)) =>
+                      case (paramExpr, AssemblyOrMacroParam(typ, paramVar: VariableInMemory, AssemblyParameterPassingBehaviour.Copy)) =>
                         compile(ctx, paramExpr, Some(typ -> paramVar), NoBranching)
                       case _ => Nil
                     }
                     val thirdViaRegisters = pairs.flatMap {
-                      case (paramExpr, AssemblyParam(typ, paramVar@RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy)) =>
+                      case (paramExpr, AssemblyOrMacroParam(typ, paramVar@RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy)) =>
                         Some(register -> compile(ctx, paramExpr, Some(typ -> paramVar), NoBranching))
                       case _ => Nil
                     } match {

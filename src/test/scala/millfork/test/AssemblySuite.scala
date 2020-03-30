@@ -1,6 +1,6 @@
 package millfork.test
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUndocumentedRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedHudsonRun, ShouldNotCompile}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUndocumentedRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedHudsonRun, EmuUnoptimizedRun, ShouldNotCompile}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -360,6 +360,23 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
         |rts
         |}
         |""".stripMargin, Set(Cpu.Mos))
+  }
+
+  test("Compile params properly") {
+    val m = EmuUnoptimizedRun(
+      """
+        |noinline asm void f(byte register(a) v0, byte register(x) v1) {
+        | sta $c000
+        | stx $c001
+        | rts
+        |}
+        |
+        |void main() {
+        | f(9,3)
+        |}
+        |""".stripMargin)
+    m.readByte(0xc000) should equal(9)
+    m.readByte(0xc001) should equal(3)
   }
 
 }

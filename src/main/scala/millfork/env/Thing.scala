@@ -396,7 +396,8 @@ case class EmptyFunction(name: String,
 
 case class MacroFunction(name: String,
                          returnType: Type,
-                         params: ParamSignature,
+                         params: AssemblyOrMacroParamSignature,
+                         isInAssembly: Boolean,
                          environment: Environment,
                          code: List[ExecutableStatement]) extends MangledFunction {
   override def interrupt = false
@@ -525,6 +526,12 @@ case class ByVariable(name: String) extends ParamPassingConvention {
   override def inNonInlinedOnly = true
 }
 
+case class ByLazilyEvaluableExpressionVariable(name: String) extends ParamPassingConvention {
+  override def inInlinedOnly = true
+
+  override def inNonInlinedOnly = false
+}
+
 case class ByConstant(name: String) extends ParamPassingConvention {
   override def inInlinedOnly = true
 
@@ -538,10 +545,10 @@ case class ByReference(name: String) extends ParamPassingConvention {
 }
 
 object AssemblyParameterPassingBehaviour extends Enumeration {
-  val Copy, ByReference, ByConstant = Value
+  val Copy, Eval, ByReference, ByConstant = Value
 }
 
-case class AssemblyParam(typ: Type, variable: TypedThing, behaviour: AssemblyParameterPassingBehaviour.Value) {
+case class AssemblyOrMacroParam(typ: Type, variable: TypedThing, behaviour: AssemblyParameterPassingBehaviour.Value) {
   def canBePointedTo: Boolean = behaviour == AssemblyParameterPassingBehaviour.Copy && (variable match {
     case RegisterVariable(MosRegister.A | MosRegister.AX, _) => true
     case ZRegisterVariable(ZRegister.A | ZRegister.HL, _) => true
@@ -550,7 +557,7 @@ case class AssemblyParam(typ: Type, variable: TypedThing, behaviour: AssemblyPar
 }
 
 
-case class AssemblyParamSignature(params: List[AssemblyParam]) extends ParamSignature {
+case class AssemblyOrMacroParamSignature(params: List[AssemblyOrMacroParam]) extends ParamSignature {
   override def length: Int = params.length
 
   override def types: List[Type] = params.map(_.typ)

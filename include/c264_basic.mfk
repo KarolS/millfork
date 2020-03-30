@@ -8,7 +8,7 @@ import c264_kernal
 import err
 
 // print a 16-bit number on the standard output
-asm void putword_basic(word xa) @$A45F extern
+asm void putword_basic(word register(xa) num) @$A45F extern
 
 alias putword = putword_basic!
 

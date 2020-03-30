@@ -31,7 +31,7 @@ case class Z80Parser(filename: String,
 
   private val zero = LiteralExpression(0, 1)
 
-  val appcSimple: P[ParamPassingConvention] = (P("hl" | "bc" | "de" | "a" | "b" | "c" | "d" | "e" | "h" | "l").! ~ !letterOrDigit).map {
+  override val appcRegister: P[ParamPassingConvention] = (P("hl" | "bc" | "de" | "a" | "b" | "c" | "d" | "e" | "h" | "l").! ~ !letterOrDigit).map {
     case "a" => ByZRegister(ZRegister.A)
     case "b" => ByZRegister(ZRegister.B)
     case "c" => ByZRegister(ZRegister.C)
@@ -48,7 +48,7 @@ case class Z80Parser(filename: String,
   override val asmParamDefinition: P[ParameterDeclaration] = for {
     p <- position()
     typ <- identifier ~ SWS
-    appc <- appcSimple | appcComplex
+    appc <- appcRegister | appcComplex
   } yield ParameterDeclaration(typ, appc).pos(p)
 
   // TODO: label and instruction in one line

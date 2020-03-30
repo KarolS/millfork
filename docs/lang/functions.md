@@ -14,7 +14,7 @@ Examples:
 
     void do_nothing() { }
     inline byte two() = 2
-    extern asm void chkout(byte a) @ $FFD2
+    extern asm void chkout(byte register(a) char) @ $FFD2
     segment(prgrom0) void main_loop(word w, byte x) align(fast) { // body omitted
     
 

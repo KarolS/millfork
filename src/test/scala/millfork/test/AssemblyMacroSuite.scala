@@ -1,14 +1,12 @@
 package millfork.test
 
-import millfork.assembly.mos.opt.DangerousOptimizations
-import millfork.test.emu.EmuBenchmarkRun
-import millfork.{Cpu, OptimizationPresets}
-import org.scalatest.{FunSuite, Matchers}
+import millfork.test.emu.{EmuBenchmarkRun, EmuUnoptimizedRun, ShouldNotParse}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class AssemblyMacroSuite extends FunSuite with Matchers {
+class AssemblyMacroSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Poke test 1") {
     EmuBenchmarkRun(
@@ -98,5 +96,43 @@ class AssemblyMacroSuite extends FunSuite with Matchers {
       """.stripMargin) { m =>
       m.readByte(0xc000) should equal(3)
     }
+  }
+
+  test("All assembly macro param types") {
+    val m = EmuUnoptimizedRun(
+      """
+        | array output [3] @$c000
+        |
+        | macro asm void test0(byte register(a) value) {
+        |   sta $c000
+        | }
+        | macro asm void test1(byte ref variable) {
+        |   lda variable
+        |   sta $c001
+        | }
+        | macro asm void test2(byte const constant) {
+        |   lda #constant
+        |   sta $c002
+        | }
+        |
+        | void main() {
+        |   byte variable
+        |   variable = 42
+        |   test0(42)
+        |   test1(variable)
+        |   test2(42)
+        | }
+        |""".stripMargin)
+    m.readByte(0xc000) should equal(42) withClue "$c000"
+    m.readByte(0xc001) should equal(42) withClue "$c001"
+    m.readByte(0xc002) should equal(42) withClue "$c002"
+  }
+
+  test("Invalid assembly macro param types") {
+    ShouldNotParse(
+      """
+        | macro asm void test0(byte call value) {
+        | }
+        |""".stripMargin)
   }
 }

@@ -5,7 +5,7 @@
 
 #pragma zilog_syntax
 
-inline asm void putchar(byte a) {
+inline asm void putchar(byte register(a) char) {
     rst $10
     ? ret
 }
@@ -14,7 +14,7 @@ inline void new_line() {
     putchar(13)
 }
 
-inline asm void set_border(byte a) {
+inline asm void set_border(byte register(a) colour) {
     out (254),a
     ? ret
 }

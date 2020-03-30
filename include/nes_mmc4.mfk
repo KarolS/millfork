@@ -2,20 +2,20 @@
 #warn nes_mmc4 module should be only used on NES/Famicom targets
 #endif
 
-asm inline void set_prg_bank(byte a) {
+asm inline void set_prg_bank(byte register(a) bank) {
     STA $A000
     ? RTS
 }
 
 // calling with with e.g. $1E will set $0000-$0fff to $E000-$EFFF in chrrom1
-asm inline void set_chr_bank0(byte a) {
+asm inline void set_chr_bank0(byte register(a) bank) {
     STA $B000
     STA $C000
     ? RTS
 }
 
 // calling with with e.g. $1E will set $1000-$1fff to $E000-$EFFF in chrrom1
-asm inline void set_chr_bank1(byte a) {
+asm inline void set_chr_bank1(byte register(a) bank) {
     STA $D000
     STA $E000
     ? RTS

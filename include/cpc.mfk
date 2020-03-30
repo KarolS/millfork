@@ -3,7 +3,7 @@
 #warn cpc module should be only used on Amstrad CPC-compatible targets
 #endif
 
-asm void putchar(byte a) @$BB5A extern
+asm void putchar(byte register(a) char) @$BB5A extern
 
 inline void new_line() {
     putchar(13)

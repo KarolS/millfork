@@ -192,7 +192,7 @@ object ReverseFlowAnalyzer {
             // this case has to be handled first, because the generic JSR importance handler is too conservative
             var result = importanceBeforeJsr
             fun.params match {
-              case AssemblyParamSignature(params) =>
+              case AssemblyOrMacroParamSignature(params) =>
                 params.foreach(_.variable match {
                   case RegisterVariable(MosRegister.A, _) =>
                     result = result.copy(a = Important)

@@ -41,7 +41,7 @@ Get joypad2's state as a byte.
 Simulates a hardware reset by jumping to the reset vector,
 which then calls main().
 
-#### `void ppu_set_addr(word ax)`
+#### `void ppu_set_addr(word register(ax) address)`
 
 Sets the PPU to point at the VRAM address at ax, usually in preparation 
 for a write via ppu_write_data().
@@ -50,18 +50,18 @@ for a write via ppu_write_data().
 
 Gets the PPU status byte.
 
-#### `void ppu_set_scroll(byte a, byte x)`
+#### `void ppu_set_scroll(byte register(a) xscroll, byte register(x) yscroll)`
 
 Sets the PPU scroll register. Parameter a defines the horizontal 
 (X-axis) scroll value, and parameter x defines the vertical (Y-axis) 
 scroll value.
 
-#### `void ppu_write_data(byte a)`
+#### `void ppu_write_data(byte register(a) data)`
 
 Writes a byte to the PPU's VRAM at the address the PPU 
 is currently pointing to. Usually used after a call to ppu_set_addr(). 
 
-#### `void ppu_oam_dma_write(byte a)`
+#### `void ppu_oam_dma_write(byte register(a) page)`
 
 Initiates a DMA transfer of 256 bytes from CPU memory address $xx00-$xxFF 
 to PPU OAM memory, where xx is the hexadecimal representation of parameter a.
@@ -71,18 +71,18 @@ to PPU OAM memory, where xx is the hexadecimal representation of parameter a.
 The `nes_mmc4` module is imported automatically on the NES MMC4 target 
 and contains routines related to MMC4 bankswitching.
 
-#### `void set_prg_bank(byte a)`
+#### `void set_prg_bank(byte register(a) bank)`
 
 Changes the $8000-$BFFF PRG bank.
 
-#### `void set_chr_bank0(byte a)`
+#### `void set_chr_bank0(byte register(a) bank)`
 
 Changes the CHR bank 0 ($0000-$0fff in the PPU memory space).
 
 The high nibble (0 or 1) selects between `chrrom0` and `chrrom1` segments.
 The low nibble L (0-$F) selects a 4K-aligned address in the segment ($L000).
 
-#### `void set_chr_bank1(byte a)`
+#### `void set_chr_bank1(byte register(a) bank)`
 
 Changes the CHR bank 1 ($1000-$1fff in the PPU memory space).
 

@@ -186,6 +186,9 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     typ <- identifier ~/ SWS ~/ Pass
     name <- identifier ~/ Pass
   } yield {
+    if (name == "register" || name == "const" || name == "ref" || name == "call") {
+      log.error(s"Invalid parameter name: `$name`. Did you mean writing a macro?", Some(p))
+    }
     ParameterDeclaration(typ, ByVariable(name)).pos(p)
   }
 
@@ -206,14 +209,53 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       asmExpression.map(_ -> false)
   )).map { case (p, e) => e._1.pos(p) -> e._2 }
 
-  val appcComplex: P[ParamPassingConvention] = P((("const" | "ref").! ~/ AWS).? ~ AWS ~ identifier) map {
-    case (None, name) => ByVariable(name)
-    case (Some("const"), name) => ByConstant(name)
-    case (Some("ref"), name) => ByReference(name)
-    case x => log.fatal(s"Unknown assembly parameter passing convention: `$x`")
-  }
+  def appcRegister: P[ParamPassingConvention]
 
-  def asmParamDefinition: P[ParameterDeclaration]
+  val appcComplex: P[ParamPassingConvention] =
+    for {
+      pos <- position("passing method")
+      keyword <- (("const" | "ref" | "register" | "call").! ~ !letterOrDigit ~/ Pass).? ~/ Pass
+      _ <- if (keyword.contains("call")) {log.error(s"Invalid assembly macro parameter passing convention: `call`", Some(pos)) ; Pass } else Pass
+      if !keyword.contains("call")
+      _ <- position("register name")
+      register <- keyword match {
+        case Some("register") => (AWS ~ "(" ~/ AWS ~ appcRegister ~/ AWS ~ ")" ~/ AWS).map(Some(_))
+        case Some(_) => SWS.map(_ => None)
+        case None => Pass.map(_ => None)
+      }
+      _ <- position("parameter name")
+      ident <- identifier
+    }  yield ((keyword, register, ident) match {
+      case (None, _, name) => ByVariable(name)
+      case (Some("const"), _, name) => ByConstant(name)
+      case (Some("ref"), _, name) => ByReference(name)
+      case (Some("register"), Some(reg), _) => reg
+      case x => log.fatal(s"Unknown assembly parameter passing convention: `$x`")
+    })
+
+  val asmParamDefinition: P[ParameterDeclaration] = for {
+    p <- position()
+    typ <- identifier ~ SWS ~/ Pass
+    appc <- appcRegister | appcComplex
+  } yield ParameterDeclaration(typ, appc).pos(p)
+
+  val macroParamDefinition: P[ParameterDeclaration] = for {
+    p <- position()
+    typ <- identifier ~ SWS ~/ Pass
+    pos <- position("passing method")
+    keyword <- ( ("const" | "ref" | "call" | "register").! ~ !letterOrDigit ~/ Pass).?
+    _ <- if (keyword.contains("register")) {log.error(s"Invalid non-assembly macro parameter passing convention: `register`. Did you forget `asm`?", Some(pos)) ; Pass } else Pass
+    if !keyword.contains("register")
+    _ <- if (keyword.isDefined) SWS else Pass
+    _ <- position("parameter name")
+    name <- identifier
+  } yield ParameterDeclaration(typ, (keyword match {
+    case None => ByReference(name)
+    case Some("ref") => ByReference(name)
+    case Some("const") => ByConstant(name)
+    case Some("call") => ByLazilyEvaluableExpressionVariable(name)
+    case Some(x) => log.fatal(s"Invalid non-assembly macro parameter passing convention: `$x`")
+  })).pos(p)
 
   def arrayListElement: P[ArrayContents] = arrayStringContents | arrayProcessedContents | arrayLoopContents | arrayFileContents | mfExpression(nonStatementLevel, false).map(e => LiteralContents(List(e)))
 
@@ -578,7 +620,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     returnType <- identifier ~ SWS
     if !Environment.neverValidTypeIdentifiers(returnType)
     name <- identifier ~ HWS
-    params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
+    params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else if (flags("macro")) macroParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
     alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ AWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~/ AWS
     statements <- (externFunctionBody | (if (flags("asm")) asmStatements else mfFunctionBody).map(l => Some(l))) ~/ Pass

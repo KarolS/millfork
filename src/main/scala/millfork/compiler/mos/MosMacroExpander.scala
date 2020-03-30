@@ -11,12 +11,14 @@ import millfork.node._
   */
 object MosMacroExpander extends MacroExpander[AssemblyLine] {
 
-  override def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyParam], params: List[Expression], code: List[ExecutableStatement]): (List[AssemblyLine], List[ExecutableStatement]) = {
+  override def stmtPreprocess(ctx: CompilationContext, stmts: List[ExecutableStatement]): List[ExecutableStatement] = new MosStatementPreprocessor(ctx, stmts)()
+
+  override def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyOrMacroParam], params: List[Expression], code: List[ExecutableStatement]): (List[AssemblyLine], List[ExecutableStatement]) = {
     var paramPreparation = List[AssemblyLine]()
     var actualCode = code
     var hadRegisterParam = false
     assParams.zip(params).foreach {
-      case (AssemblyParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByReference), actualParam) =>
+      case (AssemblyOrMacroParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByReference), actualParam) =>
         actualParam match {
           case VariableExpression(vname) =>
             ctx.env.get[ThingInMemory](vname)
@@ -31,23 +33,23 @@ object MosMacroExpander extends MacroExpander[AssemblyLine] {
             a.copy(expression = expr.replaceVariable(ph, actualParam))
           case x => x
         }
-      case (AssemblyParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByConstant), actualParam) =>
+      case (AssemblyOrMacroParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByConstant), actualParam) =>
         ctx.env.eval(actualParam).getOrElse(ctx.env.errorConstant("Non-constant expression was passed to an inlineable function as a `const` parameter", actualParam.position))
         actualCode = actualCode.map {
           case a@MosAssemblyStatement(_, _, expr, _) =>
             a.copy(expression = expr.replaceVariable(ph, actualParam))
           case x => x
         }
-      case (AssemblyParam(typ, v@RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy), actualParam) =>
+      case (AssemblyOrMacroParam(typ, v@RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy), actualParam) =>
         if (hadRegisterParam) {
           ctx.log.error("Only one macro assembly function parameter can be passed via a register", actualParam.position)
         }
         hadRegisterParam = true
         paramPreparation = MosExpressionCompiler.compile(ctx, actualParam, Some(typ, v), BranchSpec.None)
-      case (AssemblyParam(_, _, AssemblyParameterPassingBehaviour.Copy), actualParam) =>
+      case (AssemblyOrMacroParam(_, _, AssemblyParameterPassingBehaviour.Copy), actualParam) =>
         ???
       case (_, actualParam) =>
     }
-    paramPreparation -> actualCode
+    paramPreparation -> stmtPreprocess(ctx, actualCode)
   }
 }

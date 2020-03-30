@@ -8,7 +8,7 @@ word nmi_routine_addr   @$FFFA
 word reset_routine_addr @$FFFC
 word irq_routine_addr   @$FFFE
 
-macro asm void poke(word const addr, byte a) {
+macro asm void poke(word const addr, byte register(a) value) {
     ! STA addr
 }
 
@@ -24,7 +24,7 @@ macro asm void enable_irq() {
     CLI
 }
 
-asm byte hi_nibble_to_hex(byte a) {
+asm byte hi_nibble_to_hex(byte register(a) value) {
     LSR
     LSR
     LSR
@@ -32,7 +32,7 @@ asm byte hi_nibble_to_hex(byte a) {
     ? JMP lo_nibble_to_hex
 }
 
-asm byte lo_nibble_to_hex(byte a) {
+asm byte lo_nibble_to_hex(byte register(a) value) {
     ! AND #$F
     CLC
     ADC #$30

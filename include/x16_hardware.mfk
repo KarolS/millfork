@@ -157,12 +157,12 @@ struct vera_sprite_data {
     byte ctrl1
 }
 
-inline asm void set_ram_bank(byte a) {
+inline asm void set_ram_bank(byte register(a) bank) {
     ! STA $9F61
     ? RTS
 }
 
-inline asm void set_rom_bank(byte a) {
+inline asm void set_rom_bank(byte register(a) bank) {
     ! STA $9F60
     ? RTS
 }

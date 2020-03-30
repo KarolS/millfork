@@ -1,18 +1,18 @@
 #if ENCODING_SAME
 
 #if ARCH_6502
-inline byte __byte_identity(byte a) { ? rts }
-inline void __pointer_to_void(pointer ax) { ? rts }
+inline byte __byte_identity(byte register(a) value) { ? rts }
+inline void __pointer_to_void(pointer register(ax) value) { ? rts }
 #elseif ARCH_I80
 #pragma zilog_syntax
-inline byte __byte_identity(byte a) { ? ret }
-inline void __pointer_to_void(pointer hl) { ? ret }
+inline byte __byte_identity(byte register(a) value) { ? ret }
+inline void __pointer_to_void(pointer register(hl) value) { ? ret }
 #elseif ARCH_M6809
-inline byte __byte_identity(byte b) { ? rts }
-inline void __pointer_to_void(pointer d) { ? rts }
+inline byte __byte_identity(byte register(b) value) { ? rts }
+inline void __pointer_to_void(pointer register(d) value) { ? rts }
 #else
-inline byte __byte_identity(byte a) = a
-inline void __pointer_to_void(pointer a) { }
+inline byte __byte_identity(byte register(a) value) = a
+inline void __pointer_to_void(pointer register(a) value) { }
 #endif
 
 alias from_screencode = __byte_identity
@@ -89,7 +89,7 @@ void strz_to_screencode(pointer p) {
 
 #if ARCH_6502
 
-asm byte petscii_to_petscr(byte a) {
+asm byte petscii_to_petscr(byte register(a) char) {
     cmp #$20
     bcc __petscii_to_petscr_ddRev
     cmp #$60
@@ -121,7 +121,7 @@ __petscii_to_petscr_ddRev:
     rts
 }
 
-asm byte petscr_to_petscii(byte a) {
+asm byte petscr_to_petscii(byte register(a) char) {
     cmp #$20
     bcs __petscr_to_petscii_40
     ora #$40
@@ -150,7 +150,7 @@ __petscr_to_petscii_c0:
     rts
 }
 
-asm byte atascii_to_atasciiscr(byte a) {
+asm byte atascii_to_atasciiscr(byte register(a) char) {
     and #$7f
     cmp #$20
     bcs __atascii_to_atasciiscr_60
@@ -166,7 +166,7 @@ __atascii_to_atasciiscr_end:
 }
 
 
-asm byte atasciiscr_to_atascii(byte a) {
+asm byte atasciiscr_to_atascii(byte register(a) char) {
     and #$7f
     cmp #$40
     bcs __atascii_to_atasciiscr_60

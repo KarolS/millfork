@@ -18,9 +18,20 @@ It implies the following:
 
 * their invocations cannot be used as expressions
 
-* in case of `asm` macros, the parameters must be defined as either `const` (compile-time constants) or `ref` (variables)
+* in case of `asm` macros, the parameters:
 
-* in case of non-`asm` macros, the parameters must be variables; exceptionally, their type may be declared as `void`
+    * must be defined as either `const` (compile-time constants), `ref` (variables) or `register(XX)` (registers, where XX is the register you want to use)
+    
+    * at most one parameter can be defined as a register
+
+* in case of non-`asm` macros, the parameters
+
+    * must be defined as either `ref` (variables; default, may be omitted) `const` (compile-time constants), or `call` (expressions, which are evaluated every time they are used)
+    
+    * `ref` parameters exceptionally can have their type declared as `void`; such parameters accept variables of any type
+    
+    * `call` parameters exceptionally can have their type declared as `void`;
+    such parameters accept expressions of any type, including `void`, however, you cannot assign from those expressions
 
 * macros do not have their own scope (they reuse the scope from their invocations) – exceptions: the parameters and the local labels defined in assembly
 
@@ -28,8 +39,11 @@ It implies the following:
 
 When invoking a macro, you need to pass variables as arguments to parameters annotated with `ref` and constants as arguments annotated with `const`.
 
-Invoking a non-`asm` macro requires the types of passed variables to match precisely. No type conversions are performed.
+Invoking a non-`asm` macro requires the types of variables via `ref` parameters to match precisely.
+No type conversions are performed.
 Exception: parameters of type `void` can accept a variable of any type.
+
+For parameters defined as `const`, `register(XX)` or `call`, the usual type conversions are performed.
 
 You can invoke a macro from assembly, by preceding the invocation with `+`
 
@@ -52,6 +66,14 @@ Examples:
         inc(x)
         return x
     }
+    macro void perform_twice(void call f) {
+        f
+        f
+    }
+    byte add_two_3(byte x) {
+        perform_twice(inc(x))
+        return x
+    }
     
     macro void add(byte b, byte v) {
         b += v
@@ -59,7 +81,7 @@ Examples:
     macro void retu(byte result) {
         return result
     }
-    byte add_two_3(byte x) {
+    byte add_two_4(byte x) {
         add(x, 2)
         retu(x)
     }
@@ -68,10 +90,23 @@ Examples:
         LDA b
         CLC
         ADC #v
+        STA b
         // no RTS!
     }
-    byte add_two_4(byte x) {
+    byte add_two_5(byte x) {
         add_asm(x, 2)
+        return x
+    }
+    
+    macro asm byte add_asm_2(byte ref b, byte register(x) v) {
+        TXA
+        CLC
+        ADC b
+        STA b
+        // no RTS!
+    }
+    byte add_two_6(byte x) {
+        add_asm_2(x, 2)
         return x
     }
     

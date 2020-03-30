@@ -1175,23 +1175,25 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       new Environment(Some(this), name + "$", cpuFamily, options)
     }
     stmt.params.foreach(p => env.registerParameter(p, options, pointies))
-    def params: ParamSignature = if (stmt.assembly) {
-      AssemblyParamSignature(stmt.params.map {
+    def params: ParamSignature = if (stmt.assembly || stmt.isMacro) {
+      AssemblyOrMacroParamSignature(stmt.params.map {
         pd =>
           val typ = env.get[Type](pd.typ)
           pd.assemblyParamPassingConvention match {
             case ByVariable(vn) =>
-              AssemblyParam(typ, env.get[MemoryVariable](vn), AssemblyParameterPassingBehaviour.Copy)
+              AssemblyOrMacroParam(typ, env.get[MemoryVariable](vn), AssemblyParameterPassingBehaviour.Copy)
             case ByMosRegister(reg) =>
-              AssemblyParam(typ, RegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
+              AssemblyOrMacroParam(typ, RegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
             case ByZRegister(reg) =>
-              AssemblyParam(typ, ZRegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
+              AssemblyOrMacroParam(typ, ZRegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
             case ByM6809Register(reg) =>
-              AssemblyParam(typ, M6809RegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
+              AssemblyOrMacroParam(typ, M6809RegisterVariable(reg, typ), AssemblyParameterPassingBehaviour.Copy)
             case ByConstant(vn) =>
-              AssemblyParam(typ, Placeholder(vn, typ), AssemblyParameterPassingBehaviour.ByConstant)
+              AssemblyOrMacroParam(typ, Placeholder(vn, typ), AssemblyParameterPassingBehaviour.ByConstant)
             case ByReference(vn) =>
-              AssemblyParam(typ, Placeholder(vn, typ), AssemblyParameterPassingBehaviour.ByReference)
+              AssemblyOrMacroParam(typ, Placeholder(vn, typ), AssemblyParameterPassingBehaviour.ByReference)
+            case ByLazilyEvaluableExpressionVariable(vn) =>
+              AssemblyOrMacroParam(typ, Placeholder(vn, typ), AssemblyParameterPassingBehaviour.Eval)
           }
       })
     } else {
@@ -1318,7 +1320,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           val mangled = MacroFunction(
             name,
             resultType,
-            params,
+            params.asInstanceOf[AssemblyOrMacroParamSignature],
+            stmt.assembly,
             env,
             executableStatements
           )
@@ -1488,6 +1491,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           addThing(subv, stmt.position)
           registerAddressConstant(subv, stmt.position, options, Some(t))
         }
+      case ByLazilyEvaluableExpressionVariable(_) => ()
       case ByMosRegister(_) => ()
       case ByZRegister(_) => ()
       case ByM6809Register(_) => ()
@@ -2097,20 +2101,34 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       function.params match {
         case NormalParamSignature(params) =>
           function.params.types.zip(actualParams).zip(params).foreach { case ((required, (actual, expr)), m) =>
-            if (function.isInstanceOf[MacroFunction]) {
-              if (required != VoidType && actual != required) {
-                log.error(s"Invalid argument type for parameter `${m.name}` of macro function `$name`: required: ${required.name}, actual: ${actual.name}", expr.position)
-              }
-            } else {
-              if (!actual.isAssignableTo(required)) {
-                log.error(s"Invalid value for parameter `${m.name}` of function `$name`", expr.position)
-              }
+            if (!actual.isAssignableTo(required)) {
+              log.error(s"Invalid value for parameter `${m.name}` of function `$name`", expr.position)
             }
           }
-        case AssemblyParamSignature(params) =>
-          function.params.types.zip(actualParams).zipWithIndex.foreach { case ((required, (actual, expr)), ix) =>
-            if (!actual.isAssignableTo(required)) {
-              log.error(s"Invalid value for parameter ${ix + 1} of function `$name`", expr.position)
+        case AssemblyOrMacroParamSignature(params) =>
+          params.zip(actualParams).zipWithIndex.foreach { case ((AssemblyOrMacroParam(requiredType, variable, behaviour), (actual, expr)), ix) =>
+            function match {
+              case m: MacroFunction =>
+                behaviour match {
+                  case AssemblyParameterPassingBehaviour.ByReference =>
+                    if (!m.isInAssembly) {
+                      if (requiredType != VoidType && actual != requiredType) {
+                        log.error(s"Invalid argument type for parameter `${variable.name}` of macro function `$name`: required: ${requiredType.name}, actual: ${actual.name}", expr.position)
+                      }
+                    }
+                  case AssemblyParameterPassingBehaviour.Copy if m.isInAssembly =>
+                    if (!actual.isAssignableTo(requiredType)) {
+                      log.error(s"Invalid value for parameter #${ix + 1} of macro function `$name`", expr.position)
+                    }
+                  case _ =>
+                    if (!actual.isAssignableTo(requiredType)) {
+                      log.error(s"Invalid value for parameter #${ix + 1} `${variable.name}` of macro function `$name`", expr.position)
+                    }
+                }
+              case _ =>
+                if (!actual.isAssignableTo(requiredType)) {
+                  log.error(s"Invalid value for parameter #${ix + 1} `${variable.name}` of function `$name`", expr.position)
+                }
             }
           }
       }
@@ -2249,7 +2267,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
 
     if (!things.contains("memory_barrier")) {
-      things("memory_barrier") = MacroFunction("memory_barrier", v, NormalParamSignature(Nil), this, CpuFamily.forType(options.platform.cpu) match {
+      things("memory_barrier") = MacroFunction("memory_barrier", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, CpuFamily.forType(options.platform.cpu) match {
         case CpuFamily.M6502 => List(MosAssemblyStatement(Opcode.CHANGED_MEM, AddrMode.DoesNotExist, LiteralExpression(0, 1), Elidability.Fixed))
         case CpuFamily.I80 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
         case CpuFamily.I86 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
@@ -2261,7 +2279,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (!things.contains("breakpoint")) {
       val p = get[VariableType]("pointer")
       if (options.flag(CompilationFlag.EnableBreakpoints)) {
-        things("breakpoint") = MacroFunction("breakpoint", v, NormalParamSignature(Nil), this, CpuFamily.forType(options.platform.cpu) match {
+        things("breakpoint") = MacroFunction("breakpoint", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, CpuFamily.forType(options.platform.cpu) match {
           case CpuFamily.M6502 => List(MosAssemblyStatement(Opcode.CHANGED_MEM, AddrMode.DoesNotExist, VariableExpression("..brk"), Elidability.Fixed))
           case CpuFamily.I80 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, VariableExpression("..brk"), Elidability.Fixed))
           case CpuFamily.I86 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, VariableExpression("..brk"), Elidability.Fixed))
@@ -2269,7 +2287,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case _ => ???
         })
       } else {
-        things("breakpoint") = MacroFunction("breakpoint", v, NormalParamSignature(Nil), this, Nil)
+        things("breakpoint") = MacroFunction("breakpoint", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, Nil)
       }
     }
   }

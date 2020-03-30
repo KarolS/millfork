@@ -1,6 +1,6 @@
 import err
 
-inline asm void switch_hirom(byte a) {
+inline asm void switch_hirom(byte register(a) bank) {
     ? and #$3F
     ! sta $DE01
     ? rts
@@ -25,17 +25,17 @@ inline asm void switch_hirom(byte a) {
 #endif
 
 // address, value, returns true if ok
-asm clear_carry eapi_write_flash(pointer xy, byte a) @ $DF80 extern
+asm clear_carry eapi_write_flash(pointer register(xy) address, byte register(a) value) @ $DF80 extern
 // bank, page ($80, $A0 or $E0), returns true if ok
-asm clear_carry eapi_erase_sector(byte a, byte y) @ $DF83 extern
+asm clear_carry eapi_erase_sector(byte register(a) bank, byte register(y) page) @ $DF83 extern
 // bank
-asm void eapi_set_bank(byte a) @ $DF86 extern
+asm void eapi_set_bank(byte register(a) bank) @ $DF86 extern
 // returns bank
 asm byte eapi_get_bank() @ $DF89 extern
 // bank mode, address
-asm void eapi_set_ptr(byte a, pointer xy) @ $DF8C extern
+asm void eapi_set_ptr(byte register(a) bank_mode, pointer register(xy) address) @ $DF8C extern
 // length.b2, length.loword
-asm void eapi_set_len(byte a, word xy) @ $DF8F extern
+asm void eapi_set_len(byte register(a) length_b2, word register(xy) length_loword) @ $DF8F extern
 asm byte eapi_read_flash_inc() @ $DF92 extern
 asm clear_carry eapi_write_flash_inc(byte a) @ $DF95 extern
 asm void eapi_set_slot(byte a) @ $DF98 extern

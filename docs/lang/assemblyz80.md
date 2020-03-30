@@ -160,6 +160,8 @@ Non-macro functions can only have their parameters passed via registers:
 
 * `word hl`, `word bc`, `word de`: a 2-byte word byte passed via given 16-bit register; any 2-byte type can be used
 
+* the above, but written more explicitly: `byte register(a) paramname`, `byte register(b) paramname`, `word register(hl) paramname` etc.
+
 Parameters passed via other registers (`I`, `IX`, `IY`, `IXH` etc.) or combinations of registers do not work yet.
 
 **Work in progress**: 

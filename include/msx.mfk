@@ -5,7 +5,7 @@
 
 #pragma zilog_syntax
 
-asm void putchar(byte a) @$00a2 extern
+asm void putchar(byte register(a) char) @$00a2 extern
 
 inline void new_line() {
     putchar(13)

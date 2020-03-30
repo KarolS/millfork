@@ -13,12 +13,14 @@ import millfork.node._
   */
 object M6809MacroExpander extends MacroExpander[MLine] {
 
-  override def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyParam], params: List[Expression], code: List[ExecutableStatement]): (List[MLine], List[ExecutableStatement]) =  {
+  override def stmtPreprocess(ctx: CompilationContext, stmts: List[ExecutableStatement]): List[ExecutableStatement] = new M6809StatementPreprocessor(ctx, stmts)()
+
+  override def prepareAssemblyParams(ctx: CompilationContext, assParams: List[AssemblyOrMacroParam], params: List[Expression], code: List[ExecutableStatement]): (List[MLine], List[ExecutableStatement]) =  {
       var paramPreparation = List[MLine]()
       var actualCode = code
       var hadRegisterParam = false
       assParams.zip(params).foreach {
-        case (AssemblyParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByReference), actualParam) =>
+        case (AssemblyOrMacroParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByReference), actualParam) =>
           actualParam match {
             case VariableExpression(vname) =>
               ctx.env.get[ThingInMemory](vname)
@@ -33,14 +35,14 @@ object M6809MacroExpander extends MacroExpander[MLine] {
               a.copy(expression = expr.replaceVariable(ph, actualParam))
             case x => x
           }
-        case (AssemblyParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByConstant), actualParam) =>
+        case (AssemblyOrMacroParam(typ, Placeholder(ph, phType), AssemblyParameterPassingBehaviour.ByConstant), actualParam) =>
           ctx.env.eval(actualParam).getOrElse(ctx.env.errorConstant("Non-constant expression was passed to an inlineable function as a `const` parameter", actualParam.position))
           actualCode = actualCode.map {
             case a@Z80AssemblyStatement(_, _, _, expr, _) =>
               a.copy(expression = expr.replaceVariable(ph, actualParam))
             case x => x
           }
-        case (AssemblyParam(typ, v@M6809RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy), actualParam) =>
+        case (AssemblyOrMacroParam(typ, v@M6809RegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy), actualParam) =>
           if (hadRegisterParam) {
             ctx.log.error("Only one macro assembly function parameter can be passed via a register", actualParam.position)
           }
@@ -56,10 +58,10 @@ object M6809MacroExpander extends MacroExpander[MLine] {
               ctx.log.error(s"Invalid parameter for macro: ${typ.name} ${register.toString.toLowerCase(Locale.ROOT)}", actualParam.position)
               Nil
           }
-        case (AssemblyParam(_, _, AssemblyParameterPassingBehaviour.Copy), actualParam) =>
+        case (AssemblyOrMacroParam(_, _, AssemblyParameterPassingBehaviour.Copy), actualParam) =>
           ???
         case (_, actualParam) =>
       }
-      paramPreparation -> actualCode
+      paramPreparation -> stmtPreprocess(ctx, actualCode)
     }
   }

@@ -151,9 +151,11 @@ Non-macro functions can only have their parameters passed via registers:
 * `word xa`, `word ax`, `word ay`, `word ya`, `word xy`, `word yx`: a 2-byte word byte passed via given two CPU registers,
 with the high byte passed through the first register and the low byte passed through the second register; any 2-byte type can be used
 
+* the above, but written more explicitly: `byte register(a) paramname`, `byte register(x) paramname`, `word register(ax) paramname` etc.
+
 For example, this piece of code:
 
-    asm void f(word ax) @F_ADDR extern
+    asm void f(word register(ax) value) @F_ADDR extern
     
     f(5)
     
@@ -179,7 +181,7 @@ Macro assembly functions can have maximum one parameter passed via a register.
 An external function should be declared with a defined memory address 
 and the `extern` keyword instead of the body:
 
-    asm void putchar(byte a) @$FFD2 extern
+    asm void putchar(byte register(a) char) @$FFD2 extern
 
 ## Safe assembly
 

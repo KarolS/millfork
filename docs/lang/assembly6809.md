@@ -120,6 +120,8 @@ Non-macro functions can only have their parameters passed via registers:
 
 * `word d`, `word x`, `word y`: a 2-byte word byte passed via given 16-bit register; any 2-byte type can be used
 
+* the above, but written more explicitly: `byte register(a) paramname`, `byte register(b) paramname`, `word register(x) paramname` etc.
+
 Parameters passed via other registers (`U`, `S` etc.) or combinations of registers do not work yet.
 
 **Work in progress**: 

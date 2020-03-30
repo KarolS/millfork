@@ -3,7 +3,7 @@
 #warn a8_kernel module should be used only on Atari computer-compatible targets
 #endif
 
-noinline asm void putchar(byte a) {
+noinline asm void putchar(byte register(a) char) {
     ? tax
     lda $347
     pha

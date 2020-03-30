@@ -23,7 +23,7 @@ case class M6809Parser(filename: String,
 
   override def allowIntelHexAtomsInAssembly: Boolean = false
 
-  val appcSimple: P[ParamPassingConvention] = P(("a" | "b" | "d" | "x" | "y" | "u" | "s" | "dp") ~ !letterOrDigit).!.map {
+  override val appcRegister: P[ParamPassingConvention] = P(("a" | "b" | "d" | "x" | "y" | "u" | "s" | "dp") ~ !letterOrDigit).!.map {
     case "a" => ByM6809Register(M6809Register.A)
     case "b" => ByM6809Register(M6809Register.B)
     case "d" => ByM6809Register(M6809Register.D)
@@ -35,7 +35,7 @@ case class M6809Parser(filename: String,
   override val asmParamDefinition: P[ParameterDeclaration] = for {
     p <- position()
     typ <- identifier ~ SWS
-    appc <- appcSimple | appcComplex
+    appc <- appcRegister | appcComplex
   } yield ParameterDeclaration(typ, appc).pos(p)
 
   def fastAlignmentForArrays: MemoryAlignment = WithinPageAlignment

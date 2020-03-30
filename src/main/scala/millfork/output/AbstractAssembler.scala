@@ -135,9 +135,12 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case _: StackOverflowError =>
             log.fatal("Stack overflow " + c)
         }
-      case UnexpandedConstant(name, _) =>
+      case badThing@UnexpandedConstant(name, _) =>
         if (labelMap.contains(name)) labelMap(name)._2
-        else ???
+        else {
+          println(badThing)
+          ???
+        }
       case SubbyteConstant(cc, i) => deepConstResolve(cc).>>>(i * 8).&(0xff)
       case s: StructureConstant =>
         try {

@@ -2,7 +2,7 @@ package millfork.assembly.z80.opt
 
 import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
 import millfork.assembly.z80._
-import millfork.env.{AssemblyParam, AssemblyParamSignature, FunctionInMemory, MemoryAddressConstant, NormalFunction, NormalParamSignature, NumericConstant, ParamSignature, ZRegisterVariable}
+import millfork.env.{AssemblyOrMacroParam, AssemblyOrMacroParamSignature, FunctionInMemory, MemoryAddressConstant, NormalFunction, NormalParamSignature, NumericConstant, ParamSignature, ZRegisterVariable}
 import millfork.error.Logger
 import millfork.node.ZRegister
 
@@ -45,7 +45,7 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
   override def name = "Changing registers pairs"
 
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
-    if (f.params.isInstanceOf[AssemblyParamSignature]) return code
+    if (f.params.isInstanceOf[AssemblyOrMacroParamSignature]) return code
     val usesBC = code.exists(l => (l.readsRegister(BC) || l.changesRegister(BC)) && l.opcode != CALL)
     val usesDE = code.exists(l => (l.readsRegister(DE) || l.changesRegister(DE)) && l.opcode != CALL)
     val canDE2BC = f.returnType.size < 3 && canOptimize(code, DE2BC, Loaded()) && canOptimize2(code, DE2BC) && (f.params match {
@@ -102,8 +102,8 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
   private def readsBCorDE(params: ParamSignature): Boolean = {
     import ZRegister._
     params match {
-      case AssemblyParamSignature(ps) => ps.exists {
-        case AssemblyParam(_, ZRegisterVariable(B | C | D | E | BC | DE, _), _) => true
+      case AssemblyOrMacroParamSignature(ps) => ps.exists {
+        case AssemblyOrMacroParam(_, ZRegisterVariable(B | C | D | E | BC | DE, _), _) => true
         case _ => false
       }
       case NormalParamSignature(List(p)) => p.typ.size == 3 || p.typ.size == 4

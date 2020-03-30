@@ -435,7 +435,7 @@ object ReverseFlowAnalyzer {
                   sf = Unimportant,
                   hf = Unimportant
                 )
-              case NormalParamSignature(_) | AssemblyParamSignature(Nil) =>
+              case NormalParamSignature(_) | AssemblyOrMacroParamSignature(Nil) =>
                 currentImportance = currentImportance.copy(
                   a = if (readsA(n)) Important else Unimportant,
                   b = if (readsB(n)) Important else Unimportant,

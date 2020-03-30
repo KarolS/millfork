@@ -7,10 +7,10 @@
 To call an external function, you need to declare it as `asm extern`. For example:
 
 ```
-asm void putchar(byte a) @$FFD2 extern
+asm void putchar(byte register(a) char) @$FFD2 extern
 ```
 
-The function parameter will be passed via the accumulator,
+In this example, the function parameter will be passed via the accumulator,
 the function itself is located in ROM at $FFD2. A call like this:
 
 ```
@@ -36,7 +36,7 @@ To call a function that has its address calculated dynamically,
 you just need to do the same as what you would do in assembly; 6502 example:
 
 ```
-asm void call_function(byte a) {
+asm void call_function(byte register(a) param) {
     JMP (function_address)
 }
 ```

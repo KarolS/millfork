@@ -61,7 +61,7 @@ macro asm void simulate_reset() {
     JMP (reset_vector.addr)
 }
 
-inline asm void ppu_set_addr(word ax) {
+inline asm void ppu_set_addr(word register(ax) address) {
     ! STX ppu_addr
     ! STA ppu_addr
     ?RTS
@@ -72,19 +72,19 @@ inline asm byte read_ppu_status() {
     ? RTS
 }
 
-inline asm void ppu_set_scroll(byte a, byte x) {
+inline asm void ppu_set_scroll(byte register(a) xscroll, byte register(x) yscroll) {
     BIT ppu_status
     ! STA ppu_scroll
     ! STX ppu_scroll
     ? RTS
 }
 
-inline asm void ppu_write_data(byte a) {
+inline asm void ppu_write_data(byte register(a) data) {
     ! STA ppu_data
     ? RTS
 }
 
-inline asm void ppu_oam_dma_write(byte a) {
+inline asm void ppu_oam_dma_write(byte register(a) page) {
     ! STA oam_dma
     ? RTS
 }

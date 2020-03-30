@@ -1236,34 +1236,34 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                       case _ => ()
                     }
                     val result = function.params match {
-                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.A, typ2), AssemblyParameterPassingBehaviour.Copy)))
+                      case AssemblyOrMacroParamSignature(List(AssemblyOrMacroParam(typ1, ZRegisterVariable(ZRegister.A, typ2), AssemblyParameterPassingBehaviour.Copy)))
                         if typ1.size == 1 && typ2.size == 1 =>
                         compileToA(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
-                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(
+                      case AssemblyOrMacroParamSignature(List(AssemblyOrMacroParam(typ1, ZRegisterVariable(
                       register@(ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E | ZRegister.H | ZRegister.L),
                       typ2), AssemblyParameterPassingBehaviour.Copy)))
                         if typ1.size == 1 && typ2.size == 1 =>
                         compile8BitTo(ctx, params.head, register) :+ ZLine(CALL, NoRegisters, function.toAddress)
-                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.HL, typ2), AssemblyParameterPassingBehaviour.Copy)))
+                      case AssemblyOrMacroParamSignature(List(AssemblyOrMacroParam(typ1, ZRegisterVariable(ZRegister.HL, typ2), AssemblyParameterPassingBehaviour.Copy)))
                         if typ1.size == 2 && typ2.size == 2 =>
                         compileToHL(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
-                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.DE, typ2), AssemblyParameterPassingBehaviour.Copy)))
+                      case AssemblyOrMacroParamSignature(List(AssemblyOrMacroParam(typ1, ZRegisterVariable(ZRegister.DE, typ2), AssemblyParameterPassingBehaviour.Copy)))
                         if typ1.size == 2 && typ2.size == 2 =>
                         compileToDE(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
-                      case AssemblyParamSignature(List(AssemblyParam(typ1, ZRegisterVariable(ZRegister.BC, typ2), AssemblyParameterPassingBehaviour.Copy)))
+                      case AssemblyOrMacroParamSignature(List(AssemblyOrMacroParam(typ1, ZRegisterVariable(ZRegister.BC, typ2), AssemblyParameterPassingBehaviour.Copy)))
                         if typ1.size == 2 && typ2.size == 2 =>
                         compileToBC(ctx, params.head) :+ ZLine(CALL, NoRegisters, function.toAddress)
-                      case AssemblyParamSignature(Nil) =>
+                      case AssemblyOrMacroParamSignature(Nil) =>
                         List(ZLine(CALL, NoRegisters, function.toAddress))
-                      case AssemblyParamSignature(paramConvs) =>val pairs = params.zip(paramConvs)
+                      case AssemblyOrMacroParamSignature(paramConvs) =>val pairs = params.zip(paramConvs)
                         val viaMemory = pairs.flatMap {
-                          case (paramExpr, AssemblyParam(typ, paramVar: VariableInMemory, AssemblyParameterPassingBehaviour.Copy)) =>
+                          case (paramExpr, AssemblyOrMacroParam(typ, paramVar: VariableInMemory, AssemblyParameterPassingBehaviour.Copy)) =>
                             ctx.log.error("Variable parameters to assembly functions are not supported", expression.position)
                             Nil
                           case _ => Nil
                         }
                         val viaRegisters = pairs.flatMap {
-                          case (paramExpr, AssemblyParam(typ, paramVar@ZRegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy)) =>
+                          case (paramExpr, AssemblyOrMacroParam(typ, paramVar@ZRegisterVariable(register, _), AssemblyParameterPassingBehaviour.Copy)) =>
                             if (typ.size != ZRegister.registerSize(register)) {
                               ctx.log.error(s"Type ${typ.name} and register $register are of different sizes", expression.position)
                             }
