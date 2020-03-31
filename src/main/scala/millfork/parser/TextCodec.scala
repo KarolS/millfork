@@ -21,12 +21,16 @@ sealed trait TextCodec {
 
   def decode(by: Int): Char
 
-  // encodes one char from BMP, without any lookup tables, conversions, and stuff
-  // useful only for things like ASCII digits
-  def encodeOneChar(c: Char): List[Int]
+  // encodes one decimal digit to one byte
+  def encodeDigit(digit: Int): List[Int]
 
   def dump(): Unit = {
     (0 until 256).map(decode).zipWithIndex.grouped(32).map(row => row.head._2.toHexString + "\t" + row.map(_._1).mkString("")).foreach(println(_))
+  }
+
+  {
+    // sanity check:
+    (0 to 9) foreach encodeDigit
   }
 }
 
@@ -109,9 +113,7 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
     }
   }
 
-  def encodeOneChar(c: Char): List[Int] = {
-    c.toString.getBytes(charset).map(_.&(0xff)).toList
-  }
+  def encodeDigit(digit: Int): List[Int] =  digit.toString.getBytes(charset).map(_.toInt.&(0xff)).toList
 
   override def decode(by: Int): Char = {
     if (by >= 0x20 && by <= 0x7E) by.toChar
@@ -255,7 +257,11 @@ class TableTextCodec(override val name: String,
     if (index < map.length) map(index) else TextCodec.NotAChar
   }
 
-  override def encodeOneChar(c: Char): List[Int] = List(map.indexOf(c.toInt))
+  override def encodeDigit(digit: Int): List[Int] = {
+    val i = map.indexOf(digit + '0'.toInt)
+    if (i < 0) throw new IllegalStateException(s"For some reason, there is no digit $digit in the $name encoding?")
+    List(i)
+  }
 }
 
 object TextCodec {
