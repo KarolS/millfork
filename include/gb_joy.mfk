@@ -1,5 +1,5 @@
 #if not(GAMEBOY)
-#warn gb_joy module should be only used on NES/Famicom targets
+#warn gb_joy module should be only used on Game Boy targets
 #endif
 
 import gb_hardware

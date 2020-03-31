@@ -1,5 +1,5 @@
 #if not(GAMEBOY)
-#warn gb_header_small module should be only used on NES/Famicom targets
+#warn gb_header_small module should be only used on Game Boy targets
 #endif
 
 #pragma zilog_syntax
