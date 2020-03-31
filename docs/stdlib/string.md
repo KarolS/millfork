@@ -2,7 +2,7 @@
 
 ## string
 
-The `string` module automatically imports the `err` module.  
+The `string` module automatically imports the [`err` module](./other.md).  
 
 All the functions are designed to work for the strings in the default encoding.
 If passed a string in an encoding that has a different null terminator,
@@ -40,7 +40,7 @@ Modifies the given null-terminated buffer by appending a null-terminated string 
 
 ## scrstring
 
-The `scrstring` module automatically imports the `string` and `err` modules.  
+The `scrstring` module automatically imports the `string` and [`err`](./other.md).   modules.  
 
 It contains functions for handling strings in the screen encoding with the same semantics as the functions from the string module.
 

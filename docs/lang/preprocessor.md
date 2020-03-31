@@ -54,9 +54,11 @@ The following features are defined based on the chosen CPU and compilation optio
 `CPUFEATURE_8080`, `CPUFEATURE_8085`, `CPUFEATURE_GAMEBOY`, `CPUFEATURE_Z80`,
 `CPUFEATURE_6502_ILLEGALS`, `CPUFEATURE_8085_ILLEGALS`, `CPUFEATURE_Z80_ILLEGALS`, `CPUFEATURE_Z80_NEXT` – 1 if given instruction subset is enabled, 0 otherwise
 
-* `ENCCONV_SUPPORTED` - 1 if the module `encconv` supports the function `to_screencode` and other related funtions, 0 otherwise.
+* `ENCCONV_SUPPORTED` - 1 if the module `encconv` supports the function `to_screencode` and other related functions, 0 otherwise.
 
 * `ENCODING_SAME` - 1 if the encodings `default` and `src` are the same, 0 otherwise.
+
+* `DECIMALS_SAME` - 1 if the encodings `default` and `src` have the same string terminator and decimal digits `'0'`-`'9'`, 0 otherwise.
 
 * `NULLCHAR_SAME` - 1 if the encodings `default` and `src` have the same string terminator, 0 otherwise.
 
@@ -90,15 +92,10 @@ See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
 
 ### Commonly used features
 
+These features are frequently defined in the platform definition file.
+Some libraries may require that some of these be defined.
+
 * `WIDESCREEN` – 1 if the horizontal screen resolution, ignoring borders, is greater than 256, 0 otherwise
-
-* `CBM` – 1 if the target is an 8-bit Commodore computer (or a compatible one), 0 otherwise
-
-* `CBM_64_COMPAT` – 1 if the target is an 8-bit Commodore computer compatible with Commodore 64, 0 otherwise
-
-* `CBM_64_CRT` – 1 if the target is a cartridge for Commodore 64, 0 otherwise
-
-* `CBM_264` – 1 if the target is an 8-bit Commodore computer from the 264 line, 0 otherwise
 
 * `KEYBOARD` – 1 if the target has a keyboard, 0 otherwise
 
@@ -106,21 +103,25 @@ See [the ROM vs RAM guide](../api/rom-vs-ram.md) for more information.
 
 * `HAS_BITMAP_MODE` – 1 if the target has a display mode with every pixel addressable, 0 otherwise
 
-* `MOS_6510` – 1 if the target uses a MOS 6510-compatible processor (with an I/O port at $0000/$0001)
-
-* `CPM` – 1 if the target is CP/M, 0 otherwise
-
-* `IBM_PC` – 1 if the target is IBM PC, 0 otherwise
-
-* `MSX` – 1 if the target is MSX, 0 otherwise
-
 * `NTSC` – 1 if the target is NTSC, 0 otherwise
 
 * `PAL` – 1 if the target is PAL, 0 otherwise
 
 * `NULLPTR` – physical value of `nullptr`, default 0
 
+### Target-specific features
+
+These features are used to identify the target machine in multiplatform programs and libraries:
+
+* `CBM` – 1 if the target is an 8-bit Commodore computer (or a compatible one), 0 otherwise
+(for more Commodore-related preprocessor options, see [Preprocessor options for Commodore computer targets](./preprocessor_cbm.md))
+
+* `AMSTRAD_CPC`, `ATARI_2600`, `ATARI_8`, `ATARI_LYNX`, `APPLE_2`, `BBC_MICRO`,
+`COMMANDER_X16`, `CPM`, `GAMEBOY`, `IBM_PC`, `MSX`, `NEC_PC_88`, `NES`, `ZX_SPECTRUM`
+– 1 if the target is the machine in question, 0 otherwise
+
 * `VERA_VERSION` – on Commander X16, the version of the VERA chip: `7` for 0.7, `8` for 0.8
+
 
 ### Built-in preprocessor functions and operators
 

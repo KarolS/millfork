@@ -4,9 +4,9 @@
 
 ## atari_lynx_hardware
 
-The `atari_lynx_hardware` module is imported automatically on NES targets.
+The `atari_lynx_hardware` module is imported automatically on Atari Lynx targets.
 
-It also implements a joystick API compatible with the `joy` module.
+It also implements a joystick API compatible with the [`joy` module](./joy.md).
 
 TODO
 

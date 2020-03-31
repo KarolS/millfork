@@ -8,17 +8,23 @@
 
 * Various improvements to the C64 libraries (thanks to @bsutherland).
 
+* Added detection for various PET variants and implemented `readkey` for PET.
+
 * Added `breakpoint` macro (#44).
 
 * **Potentially breaking change!** Added `min`, `max` and `if` compile-time functions.
 
-* Added experimental `signed16` and `unsigned16` types.
+* Added experimental `signed16` and `unsigned16` types. Added `putsigned16` function.
+
+* Fixed `scrstr2word` in some rare encoding combinations. 
 
 * Added warnings for calling from one segment to another overlapping one.
 
 * 6502: Fixed undocumented mnemonics.
 
 * Create output directories when needed (#21).
+
+* Allow defining different output formats for different segments when outputting one file per segment.
 
 * Fixed multiple optimization bugs (#32, #38, #41, #46 and others) – thanks to @agg23 for detailed bug reports!
 

@@ -3,7 +3,8 @@
 ## stdio
 
 The `stdio` module automatically imports the `string` and `err` modules.  
-It requires an implementation of `void putchar(byte a)` and therefore works only on targets with console output.
+It requires an implementation of `void putchar(byte a)` and therefore works only on targets with console output
+(see [the frequently provided definitions](./frequent.md) for details).
 On targets with idiosyncratic behaviour of `putchar`, functions in this module inherit that behaviour.
 
 #### `void putstr(pointer str, byte len)`
@@ -18,6 +19,10 @@ If the string is longer than 255 bytes, then the behaviour is undefined (might e
 #### `void putword(word w)`
 
 Prints the decimal representation of the 16-bit unsigned integer `w`.
+
+#### `void putsigned16(signed16 w)`
+
+Prints the decimal representation of the 16-bit signed integer `w`.
 
 #### `void ensure_mixedcase()`
 

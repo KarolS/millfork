@@ -15,7 +15,7 @@ It contains the default header for 32K Game Boy programs.
 
 ## gb_joy
 
-Provides an interface for reading joypads that is compatible with the `joy` module.
+Provides an interface for reading joypads that is compatible with the [`joy` module](./joy.md).
 
 #### `alias input_a = input_btn`
 

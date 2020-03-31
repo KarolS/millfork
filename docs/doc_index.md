@@ -48,25 +48,35 @@
 
 * [`stdio` module](stdlib/stdio.md)
 
-* [Modules for reading input devices](stdlib/input.md)
+* Reading input devices:
+
+    * [`joy` module](stdlib/joy.md)
+
+    * [`keyboard` module](stdlib/keyboard.md)
+
+    * [`mouse` module](stdlib/mouse.md)
 
 * [`encconv` module](stdlib/encconv.md)
 
-* [Other cross-platform modules (`keyboard`, `err`, `random`)](stdlib/other.md)
+* [Other cross-platform modules (`err`, `random`)](stdlib/other.md)
 
-* [Definitions available on only some platforms](stdlib/frequent.md)
+* Platform-specific modules:
 
-* [C64-only modules](stdlib/c64.md)
+    * [Definitions available on only some platforms](stdlib/frequent.md)
 
-* [`cbm_file` module](stdlib/cbm_file.md)
-
-* [NES-only modules](stdlib/nes.md)
-
-* [Atari Lynx-only modules](stdlib/lynx.md)
-
-* [Game Boy–only modules](stdlib/gb.md)
-
-* [X16–only modules](stdlib/x16.md)
+    * [C64-only modules](stdlib/c64.md)
+    
+    * [PET-only modules](stdlib/cbm_pet.md)
+    
+    * [`cbm_file` module](stdlib/cbm_file.md)
+    
+    * [NES-only modules](stdlib/nes.md)
+    
+    * [Atari Lynx-only modules](stdlib/lynx.md)
+    
+    * [Game Boy–only modules](stdlib/gb.md)
+    
+    * [X16–only modules](stdlib/x16.md)
 
 ## Implementation details
 

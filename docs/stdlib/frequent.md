@@ -87,21 +87,6 @@ Various colour constants.
 
 Available for: VIC-20, C64, C128, C264 series, ZX Spectrum.
 
-#### `macro void memory_barrier()`
-
-Informs the optimizer that at this point arbitrary memory has been accessed and either read or written by an external device.
-The optimizer should not optimize any memory accesses across that macro.
-
-Available for: all targets.
-
-#### `macro void breakpoint()`
-
-If the `-fbreakpoints` option is selected (default), then it emits a memory barrier,
-and also outputs a breakpoint to the label file (if the format of the label file allows it).
-
-If the `-fno-breakpoints` option is selected, then it does nothing.
-
-Available for: all targets.
  
 
 

@@ -219,6 +219,8 @@ Default: `main,*`
     * `d88` - a D88 floppy disk image for PC-88
     
     * `tap` - a tape disk image for ZX Spectrum
+
+* `format_segment_NAME` – if using the `per_segment` style, overrides the format for the given segment 
     
 * `extension` – target file extension, with or without the dot
 

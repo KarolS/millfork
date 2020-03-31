@@ -26,7 +26,7 @@ Available variables:
 
 #### `byte strobe_joypad()`
 
-Updates joypad1 by querying for new button states.
+Strobes joypads in preparation for reading new joypad states. 
 
 #### `byte read_joypad1()`
 
@@ -99,7 +99,7 @@ Switches nametable mirroring to horizontal.
 
 ## nes_joy
 
-Provides an interface for reading joypads that is compatible with the `joy` module.
+Provides an interface for reading joypads that is compatible with the [`joy` module](./joy.md).
 
 #### `alias input_a = input_btn`
 

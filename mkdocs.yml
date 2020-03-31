@@ -36,12 +36,15 @@ nav:
     - stdlib module: stdlib/stdlib.md
     - string and scrstring modules: stdlib/string.md
     - stdio module: stdlib/stdio.md
-    - keyboard, err, random: stdlib/other.md
-    - joy, mouse, x_coord: stdlib/input.md
+    - err and random modules: stdlib/other.md
+    - keyboard module: stdlib/keyboard.md
+    - mouse and x_coord modules: stdlib/mouse.md
+    - joy module: stdlib/joy.md
     - encconv module: stdlib/encconv.md
-    - Platform-dependent modules: stdlib/frequent.md
+    - Platform-dependent definitions: stdlib/frequent.md
     - cbm_file module: stdlib/cbm_file.md
     - C64-only modules: stdlib/c64.md
+    - PET-only modules: stdlib/cbm_pet.md
     - NES-only modules: stdlib/nes.md
     - Lynx-only modules: stdlib/lynx.md
     - Game Boy–only modules: stdlib/gb.md
