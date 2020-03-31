@@ -18,7 +18,7 @@ All Commodore targets define the `CBM` feature as 1.
 
 * `CBM_64_CRT` – 1 if the target is a cartridge for Commodore 64, 0 otherwise
 
-* `LUNIX` – 1 if the target is Commodore 64 running Lunix, 0 otherwise
+* `LUNIX` – 1 if the target is Commodore 64 running LUnix, 0 otherwise
 
 * `CBM_128` – 1 if the target is Commodore 128, 0 otherwise
 

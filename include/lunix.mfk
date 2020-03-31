@@ -1,5 +1,5 @@
 #if not(LUNIX)
-#warn lunix module should be only used on Lunix targets
+#warn lunix module should be only used on LUnix targets
 #endif
 
 const word lkf_jumptab = $200
