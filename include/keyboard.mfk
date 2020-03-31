@@ -66,9 +66,12 @@ __read_key__start:
 #endif
 
 noinline asm byte readkey() {
-#if PET2001_SUPPORT
+#if PET2001_SUPPORT && (PET3000_SUPPORT || PET4000_SUPPORT)
     JSR is_pet2000
     BNE __read_key__start_new
+#endif
+
+#if PET2001_SUPPORT
     // ROM 1.0:
     LDA #0
     STA $20D
@@ -77,7 +80,9 @@ __read_key__start1:
     BEQ __read_key__start1
     LDA $20F
     RTS
+#endif
 
+#if PET3000_SUPPORT || PET4000_SUPPORT
     // ROM 2.0 and above:
 __read_key__start_new:
     LDA #0
@@ -87,6 +92,7 @@ __read_key__start2:
     BEQ __read_key__start2
     LDA $026F
     RTS
+#endif
 }
 #define OK = 1
 #endif
