@@ -1,0 +1,13 @@
+import stdio
+import keyboard
+void main() {
+    byte c
+    ensure_mixedcase()
+    while true {
+        c = readkey()
+        putchar(c)
+        putchar(hi_nibble_to_hex(c))
+        putchar(lo_nibble_to_hex(c))
+        putchar(' ')
+    }
+}

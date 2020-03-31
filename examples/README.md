@@ -11,7 +11,7 @@ If you are using a release version of the compiler, consider browsing the older 
 
 ## Cross-platform examples
 
-* [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – simple text output
+* [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – simple text output
 
 * [Fizzbuzz](crossplatform/fizzbuzz.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/X16) – everyone's favourite programming task
 
@@ -28,6 +28,8 @@ If you are using a release version of the compiler, consider browsing the older 
 * [Guessing game](crossplatform/guess.mfk) (C64/C16/ZX Spectrum/PC-88/MSX) – a guess-a-number game
 
 * [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
+
+* [`readkey` test](crossplatform/readkeytest.mfk) (C64/C16/PET/VIC-20/Atari/Armstrad CPC/ZX Spectrum/PC-88) – keyboard reading test
 
 * [Screen encoding test](crossplatform/screnctest.mfk) (C64/C16) – default-to-screen encoding conversion test
 
