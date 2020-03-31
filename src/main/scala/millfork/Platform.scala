@@ -295,6 +295,9 @@ object Platform {
 
     val builtInFeatures = builtInCpuFeatures(cpu) ++ Map(
       "ENCODING_SAME" -> toLong(codec.name == srcCodec.name),
+      "DECIMALS_SAME" -> toLong(codec.stringTerminator == srcCodec.stringTerminator && ('0' to '9').forall{c =>
+        codec.encodeOneChar(c) == srcCodec.encodeOneChar(c)
+      }),
       "ENCCONV_SUPPORTED" -> toLong((codec.name, srcCodec.name) match {
         case (TextCodec.Petscii.name, TextCodec.CbmScreencodes.name) |
              (TextCodec.PetsciiJp.name, TextCodec.CbmScreencodesJp.name) |

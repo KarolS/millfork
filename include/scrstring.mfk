@@ -6,7 +6,6 @@ alias scrstrzcmp = strzcmp
 alias scrstrzcopy = strzcopy
 alias scrstrzpaste = strzpaste
 alias scrstrzappendchar = strzappendchar
-alias scrstrz2word = strz2word
 alias scrstrzappend = strzappend
 
 
@@ -26,6 +25,14 @@ void scrstrzappendchar(pointer buffer, byte char) {
    buffer[0] = char
    buffer[1] = nullchar_scr
 }
+
+#endif
+
+#if DECIMALS_SAME
+
+alias scrstrz2word = strz2word
+
+#else
 
 word scrstrz2word(pointer str) {
     byte i

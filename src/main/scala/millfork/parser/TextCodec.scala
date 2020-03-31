@@ -21,6 +21,10 @@ sealed trait TextCodec {
 
   def decode(by: Int): Char
 
+  // encodes one char from BMP, without any lookup tables, conversions, and stuff
+  // useful only for things like ASCII digits
+  def encodeOneChar(c: Char): List[Int]
+
   def dump(): Unit = {
     (0 until 256).map(decode).zipWithIndex.grouped(32).map(row => row.head._2.toHexString + "\t" + row.map(_._1).mkString("")).foreach(println(_))
   }
@@ -103,6 +107,10 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
         Character.toChars(head).mkString("").getBytes(charset).map(_.&(0xff)).toList ++ encode(log, position, tail, options, lenient)
       case Nil => Nil
     }
+  }
+
+  def encodeOneChar(c: Char): List[Int] = {
+    c.toString.getBytes(charset).map(_.&(0xff)).toList
   }
 
   override def decode(by: Int): Char = {
@@ -246,6 +254,8 @@ class TableTextCodec(override val name: String,
     val index = by & 0xff
     if (index < map.length) map(index) else TextCodec.NotAChar
   }
+
+  override def encodeOneChar(c: Char): List[Int] = List(map.indexOf(c.toInt))
 }
 
 object TextCodec {
