@@ -25,7 +25,8 @@ class Platform(
                 val defaultCodec: TextCodec,
                 val screenCodec: TextCodec,
                 val features: Map[String, Long],
-                val outputPackager: OutputPackager,
+                val outputPackagers: Map[String, OutputPackager],
+                val defaultOutputPackager: OutputPackager,
                 val codeAllocators: Map[String, UpwardByteAllocator],
                 val variableAllocators: Map[String, VariableAllocator],
                 val zpRegisterSize: Int,
@@ -247,7 +248,7 @@ object Platform {
       }))
 
     val os = conf.getSection("output")
-    val outputPackager = SequenceOutput(os.get(classOf[String], "format", "").split("[, \n\t\r]+").filter(_.nonEmpty).map {
+    def parseOutputPackager(s: String): OutputPackager = SequenceOutput(s.split("[, \n\t\r]+").filter(_.nonEmpty).map {
       case "startaddr" => StartAddressOutput(0)
       case "startaddr_be" => StartAddressOutputBe(0)
       case "startpage" => StartPageOutput
@@ -279,6 +280,15 @@ object Platform {
         case x => log.fatal(s"Invalid output format: `$x`")
       }
     }.toList)
+    val outputPackagers = banks.flatMap{ b =>
+      val f = os.get(classOf[String], "format_segment_" + b, null)
+      if (f eq null) {
+        None
+      } else {
+        Some(b -> parseOutputPackager(f))
+      }
+    }.toMap
+    val defaultOutputPackager = parseOutputPackager(os.get(classOf[String], "format", ""))
     val fileExtension = os.get(classOf[String], "extension", ".bin")
     val generateBbcMicroInfFile = os.get(classOf[Boolean], "bbc_inf", false)
     val generateGameBoyChecksums = os.get(classOf[Boolean], "gb_checksum", false)
@@ -287,6 +297,9 @@ object Platform {
       case "per_bank" | "per_segment" => OutputStyle.PerBank
       case "lunix" => OutputStyle.LUnix
       case x => log.fatal(s"Invalid output style: `$x`")
+    }
+    if (outputStyle != OutputStyle.PerBank && outputPackagers.nonEmpty) {
+      log.error("Different output formats per segment are allowed only if style=per_segment")
     }
     val debugOutputFormatName = os.get(classOf[String], "labels", "vice")
     val debugOutputFormat = DebugOutputFormat.map.getOrElse(
@@ -331,7 +344,8 @@ object Platform {
       codec,
       srcCodec,
       builtInFeatures ++ definedFeatures,
-      outputPackager,
+      outputPackagers,
+      defaultOutputPackager,
       codeAllocators.toMap,
       variableAllocators.toMap,
       zpRegisterSize,

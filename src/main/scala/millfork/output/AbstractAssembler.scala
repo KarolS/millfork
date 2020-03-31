@@ -678,7 +678,10 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val code = (platform.outputStyle match {
       case OutputStyle.Single | OutputStyle.LUnix => List("default")
       case OutputStyle.PerBank => platform.bankNumbers.keys.toList
-    }).map(b => b -> platform.outputPackager.packageOutput(mem, b)).toMap
+    }).map{b =>
+      val outputPackager = platform.outputPackagers.getOrElse(b, platform.defaultOutputPackager)
+      b -> outputPackager.packageOutput(mem, b)
+    }.toMap
     AssemblerOutput(code, assembly.toArray, labelMap.toList, breakpointSet.toList.sorted)
   }
 
