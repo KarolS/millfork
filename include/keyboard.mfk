@@ -7,6 +7,8 @@ const byte KEY_ENTER = 13
 
 #if CBM_64
 noinline asm byte readkey() {
+    LDA #0
+    STA $C6
 __read_key__start:
     LDA $C6
     BEQ __read_key__start
@@ -18,6 +20,8 @@ __read_key__start:
 
 #if CBM_128
 noinline asm byte readkey() {
+    LDA #0
+    STA $D0
 __read_key__start:
     LDA $D0
     BEQ __read_key__start
@@ -30,6 +34,8 @@ __read_key__start:
 
 #if CBM_264
 noinline asm byte readkey() {
+    LDA #0
+    STA $EF
 __read_key__start:
     LDA $EF
     BEQ __read_key__start
@@ -42,10 +48,45 @@ __read_key__start:
 
 #if CBM_VIC
 noinline asm byte readkey() {
+    LDA #0
+    STA $C6
 __read_key__start:
     LDA $C6
     BEQ __read_key__start
     JMP $E5CF
+}
+#define OK = 1
+#endif
+
+
+#if CBM_PET
+
+#if not(PET2001_SUPPORT) && not(PET3000_SUPPORT) && not(PET4000_SUPPORT)
+#error At least one of PET2000_SUPPORT, PET3000_SUPPORT, PET4000_SUPPORT has to be defined
+#endif
+
+noinline asm byte readkey() {
+#if PET2001_SUPPORT
+    JSR is_pet2000
+    BNE __read_key__start_new
+    // ROM 1.0:
+    LDA #0
+    STA $20D
+__read_key__start1:
+    LDA $20D
+    BEQ __read_key__start1
+    LDA $20F
+    RTS
+
+    // ROM 2.0 and above:
+__read_key__start_new:
+    LDA #0
+    STA $9E
+__read_key__start2:
+    LDA $9E
+    BEQ __read_key__start2
+    LDA $026F
+    RTS
 }
 #define OK = 1
 #endif
