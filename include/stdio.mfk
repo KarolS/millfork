@@ -60,6 +60,14 @@ void putword(word w) {
     }
 }
 
+void putsigned16(signed16 x) {
+    if x < 0 {
+        putchar('-')
+        x = 0000-x
+    }
+    putword(x)
+}
+
 #if CBM_PET
 inline asm void ensure_mixedcase() {
     ? lda #14
