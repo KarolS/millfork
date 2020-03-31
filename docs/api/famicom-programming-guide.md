@@ -60,7 +60,7 @@ just specify them correctly in the `[output]format` tag.
 
 The `[output]format` tag should contain a valid iNES or NES 2.0 header of the mapper of your choice
 and then all the segments in proper order (first PRGROM, then CHRROM).
-See [the MMC4 example](../../include/nes_mmc4.ini) to see how it can be done.
+See [the MMC4 example](https://github.com/KarolS/millfork/blob/master/include/nes_mmc4.ini) to see how it can be done.
 
 See [the NesDev wiki](https://wiki.nesdev.com/w/index.php/NES_2.0) for more info about the NES 2.0 file format.
 
