@@ -179,6 +179,7 @@ object OptimizationPresets {
     AlwaysGoodOptimizations.SimplifiableStackOperation,
     LaterOptimizations.UseBit,
     LaterOptimizations.ReplaceableLoad,
+    LaterOptimizations.BranchlessSignExtension,
   )
 
   val Good: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](
@@ -261,6 +262,7 @@ object OptimizationPresets {
     UseAccumulatorInsteadOfYRegister,
     VariableToRegisterOptimization,
     TwoVariablesToIndexRegistersOptimization,
+    LaterOptimizations.BranchlessSignExtension,
   )
 
   val QuickPreset: List[AssemblyOptimization[AssemblyLine]] = List[AssemblyOptimization[AssemblyLine]](

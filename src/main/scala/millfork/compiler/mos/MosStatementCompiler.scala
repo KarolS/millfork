@@ -61,9 +61,9 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
             AssemblyLine.zeropage(STA, reg,i).copy(elidability = Elidability.Volatile))
         }.toList
       } else Nil)
-    val someRegisterA = Some(b, RegisterVariable(MosRegister.A, b))
-    val someRegisterAX = Some(w, RegisterVariable(MosRegister.AX, w))
-    val someRegisterYA = Some(w, RegisterVariable(MosRegister.YA, w))
+//    val someRegisterA = Some(b, RegisterVariable(MosRegister.A, b))
+//    val someRegisterAX = Some(w, RegisterVariable(MosRegister.AX, w))
+//    val someRegisterYA = Some(w, RegisterVariable(MosRegister.YA, w))
     lazy val returnInstructions = if (m.interrupt) {
       if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
         if (zpRegisterSize > 0) {
@@ -241,6 +241,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       case s : ReturnDispatchStatement =>
         MosReturnDispatch.compile(ctx, s) -> Nil
       case ReturnStatement(Some(e)) =>
+        val exprType = AbstractExpressionCompiler.getExpressionType(ctx, e)
         (m.returnType match {
           case _: BooleanType =>
             m.returnType.size match {
@@ -248,9 +249,9 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 ctx.log.error("Cannot return anything from a void function", statement.position)
                 stackPointerFixBeforeReturn(ctx) ++ returnInstructions
               case 1 =>
-                MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true) ++ returnInstructions
+                MosExpressionCompiler.compile(ctx, e, Some(exprType, RegisterVariable(MosRegister.A, b)), NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true) ++ returnInstructions
               case 2 =>
-                MosExpressionCompiler.compile(ctx, e, someRegisterAX, NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true, preserveX = true) ++ returnInstructions
+                MosExpressionCompiler.compile(ctx, e, Some(exprType, RegisterVariable(MosRegister.AX, w)), NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true, preserveX = true) ++ returnInstructions
               case _ =>
                 // TODO: is this case ever used?
                 MosExpressionCompiler.compileAssignment(ctx, e, VariableExpression(ctx.function.name + "`return")) ++
@@ -267,14 +268,14 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
                 ctx.log.error("Cannot return anything from a void function", statement.position)
                 stackPointerFixBeforeReturn(ctx) ++ List(AssemblyLine.discardAF(), AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
               case 1 =>
-                MosExpressionCompiler.compile(ctx, e, someRegisterA, NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true) ++ List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
+                MosExpressionCompiler.compile(ctx, e, Some(exprType, RegisterVariable(MosRegister.A, w)), NoBranching) ++ stackPointerFixBeforeReturn(ctx, preserveA = true) ++ List(AssemblyLine.discardXF(), AssemblyLine.discardYF()) ++ returnInstructions
               case 2 =>
                 // TODO: ???
                 val stackPointerFix = stackPointerFixBeforeReturn(ctx, preserveA = true, preserveY = true)
                 if (stackPointerFix.isEmpty) {
-                  MosExpressionCompiler.compile(ctx, e, someRegisterAX, NoBranching) ++ List(AssemblyLine.discardYF()) ++ returnInstructions
+                  MosExpressionCompiler.compile(ctx, e, Some(exprType, RegisterVariable(MosRegister.AX, w)), NoBranching) ++ List(AssemblyLine.discardYF()) ++ returnInstructions
                 } else {
-                  MosExpressionCompiler.compile(ctx, e, someRegisterYA, NoBranching) ++
+                  MosExpressionCompiler.compile(ctx, e, Some(exprType, RegisterVariable(MosRegister.YA, w)), NoBranching) ++
                     stackPointerFix ++
                     List(AssemblyLine.implied(TAX), AssemblyLine.implied(TYA), AssemblyLine.discardYF()) ++
                     returnInstructions

@@ -559,7 +559,34 @@ object LaterOptimizations {
 
   )
 
+  val BranchlessSignExtension = new RuleBasedAssemblyOptimization("Branchless sign extension",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+    (NotFixed & HasOpcode(LDA) & HasAddrModeIn(Absolute, ZeroPage, AbsoluteX, IndexedX, IndexedY, AbsoluteY, ZeroPageX) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ORA) & HasImmediate(0x7F)) ~
+      (Elidable & HasOpcode(BMI) & MatchParameter(10)) ~
+      (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
+      (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10) & DoesntMatterWhatItDoesWith(State.V)) ~~> { code =>
+      List(AssemblyLine.immediate(LDA, 0x7F), code.head.copy(opcode = CMP), AssemblyLine.immediate(SBC, 0x7F))
+    },
+
+    (NotFixed & HasOpcode(LDA) & HasAddrModeIn(Absolute, ZeroPage, AbsoluteX, IndexedX, IndexedY, AbsoluteY, ZeroPageX) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(AND) & HasImmediate(0x80)) ~
+      (Elidable & HasOpcode(BPL) & MatchParameter(10)) ~
+      (Elidable & HasOpcode(LDA) & HasImmediate(0xff)) ~
+      (Elidable & HasOpcode(LABEL) & IsNotALabelUsedManyTimes & MatchParameter(10) & DoesntMatterWhatItDoesWith(State.V)) ~~> { code =>
+      List(AssemblyLine.immediate(LDA, 0x7F), code.head.copy(opcode = CMP), AssemblyLine.immediate(SBC, 0x7F))
+    },
+
+  )
+
+//  AssemblyLine.immediate(ORA, 0x7F),
+//  AssemblyLine.relative(BMI, label),
+//  AssemblyLine.immediate(LDA, 0),
+//  AssemblyLine.label(label))
+
+  // use the lists in OptimizationPresets to actually add these to the normal pipeline
   val All = List(
+    BranchlessSignExtension,
     CommutativeInPlaceModifications,
     DontUseIndexRegisters,
     DoubleLoadToDifferentRegisters,

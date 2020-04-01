@@ -14,11 +14,11 @@ class SignExtensionSuite extends FunSuite with Matchers {
         | word output @$c000
         | void main () {
         |   sbyte b
-        |   b = -1
+        |   b = -2
         |   output = b
         | }
       """.stripMargin){m =>
-      m.readWord(0xc000) should equal(0xffff)
+      m.readWord(0xc000) should equal(0xfffe)
     }
   }
   test("Sbyte to Word 2") {
@@ -28,9 +28,9 @@ class SignExtensionSuite extends FunSuite with Matchers {
         |   output = b()
         | }
         | sbyte b() {
-        |   return -1
+        |   return -2
         | }
-      """.stripMargin){m => m.readWord(0xc000) should equal(0xffff)}
+      """.stripMargin){m => m.readWord(0xc000) should equal(0xfffe)}
   }
   test("Sbyte to Long") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
@@ -75,12 +75,12 @@ class SignExtensionSuite extends FunSuite with Matchers {
         | word output @$c000
         | void main () {
         |   sbyte b
-        |   b = -1
+        |   b = -2
         |   memory_barrier()
         |   output = byte(b)
         | }
       """.stripMargin){m =>
-      m.readWord(0xc000) should equal(0x00ff)
+      m.readWord(0xc000) should equal(0x00fe)
     }
   }
 
@@ -89,12 +89,12 @@ class SignExtensionSuite extends FunSuite with Matchers {
         | word output @$c000
         | void main () {
         |   sbyte b
-        |   b = -1
+        |   b = -2
         |   memory_barrier()
         |   output = word(byte(b))
         | }
       """.stripMargin){m =>
-      m.readWord(0xc000) should equal(0x00ff)
+      m.readWord(0xc000) should equal(0x00fe)
     }
   }
 
@@ -102,11 +102,11 @@ class SignExtensionSuite extends FunSuite with Matchers {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
-        |   output = f($ff)
+        |   output = f($f4)
         | }
         | noinline word f(byte x) = sbyte(x)
       """.stripMargin){m =>
-      m.readWord(0xc000) should equal(0xffff)
+      m.readWord(0xc000) should equal(0xfff4)
     }
   }
 
@@ -130,11 +130,11 @@ class SignExtensionSuite extends FunSuite with Matchers {
         |word output @$c000
         |word output2 @$c002
         |void main() {
-        |  output = -1
+        |  output = -3
         |  output2 = -30000
         |}
         |""".stripMargin) { m =>
-      m.readWord(0xc000) should equal(0xffff)
+      m.readWord(0xc000) should equal(0xfffd)
       m.readWord(0xc002).toShort.toInt should equal(-30000)
     }
   }
@@ -146,12 +146,12 @@ class SignExtensionSuite extends FunSuite with Matchers {
         |
         |void main() {
         |  static volatile signed16 tmp
-        |  tmp = -1
+        |  tmp = -3
         |  memory_barrier()
         |  output = tmp
         |}
         |""".stripMargin){ m =>
-      m.readLong(0xc000) should equal(-1)
+      m.readLong(0xc000) should equal(-3)
     }
   }
 
@@ -162,13 +162,33 @@ class SignExtensionSuite extends FunSuite with Matchers {
         |
         |void main() {
         |  static volatile signed16 tmp
-        |  tmp = -1
+        |  tmp = -3
         |  output = 0
         |  memory_barrier()
         |  output += tmp
         |}
         |""".stripMargin){ m =>
-      m.readLong(0xc000) should equal(-1)
+      m.readLong(0xc000) should equal(-3)
+    }
+  }
+
+  test("Trivial implicit sbyte to word extension") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |word output @$c000
+        |
+        |sbyte c
+        |
+        |noinline word f() {
+        |  return c
+        |}
+        |
+        |void main() {
+        |  c = -2
+        |  output = f()
+        |}
+        |""".stripMargin){ m =>
+      m.readWord(0xc000) should equal(0xFFFE)
     }
   }
 
