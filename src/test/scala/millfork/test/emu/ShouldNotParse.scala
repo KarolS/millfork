@@ -39,7 +39,11 @@ object ShouldNotParse extends Matchers {
       }
     parserF.toAst match {
       case Success(program, _) =>
-        fail("Parse succeeded")
+        if (!log.hasErrors) {
+          fail("Parse succeeded")
+        } else {
+          log.warn("Non-fatal parse errors encountered. OK.")
+        }
       case f: Failure[_, _] =>
         println(f.extra.toString)
         log.warn("Last parser: " + f.lastParser, Some(parserF.indexToPosition(f.index, f.lastParser.toString)))

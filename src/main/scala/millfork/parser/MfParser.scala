@@ -98,12 +98,19 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt", "const")
 
-  val codec: P[((TextCodec, Boolean), Boolean)] = P(position("text codec identifier") ~ identifier.?.map(_.getOrElse(""))).map {
-    case (_, "" | "default") => (options.platform.defaultCodec -> false) -> options.flag(CompilationFlag.LenientTextEncoding)
-    case (_, "z" | "defaultz") => (options.platform.defaultCodec -> true) -> options.flag(CompilationFlag.LenientTextEncoding)
-    case (_, "scr") => (options.platform.screenCodec -> false) -> options.flag(CompilationFlag.LenientTextEncoding)
-    case (_, "scrz") => (options.platform.screenCodec -> true) -> options.flag(CompilationFlag.LenientTextEncoding)
-    case (p, x) => TextCodec.forName(x, Some(p), log) -> false
+  val codec: P[TextCodecWithFlags] = P(position("text codec identifier") ~ identifier.?.map(_.getOrElse(""))).map { case (position, encoding) =>
+    val lenient = options.flag(CompilationFlag.LenientTextEncoding)
+    encoding match {
+      case "" | "default" => TextCodecWithFlags(options.platform.defaultCodec, nullTerminated = false, lengthPrefixed = false, lenient = lenient)
+      case "z" | "defaultz" => TextCodecWithFlags(options.platform.defaultCodec, nullTerminated = true, lengthPrefixed = false, lenient = lenient)
+      case "p" | "pdefault" => TextCodecWithFlags(options.platform.defaultCodec, nullTerminated = false, lengthPrefixed = true, lenient = lenient)
+      case "pz" | "pdefaultz" => TextCodecWithFlags(options.platform.defaultCodec, nullTerminated = true, lengthPrefixed = true, lenient = lenient)
+      case "scr" => TextCodecWithFlags(options.platform.screenCodec, nullTerminated = false, lengthPrefixed = false, lenient = lenient)
+      case "scrz" => TextCodecWithFlags(options.platform.screenCodec, nullTerminated = true, lengthPrefixed = false, lenient = lenient)
+      case "pscr" => TextCodecWithFlags(options.platform.screenCodec, nullTerminated = false, lengthPrefixed = true, lenient = lenient)
+      case "pscrz" => TextCodecWithFlags(options.platform.screenCodec, nullTerminated = true, lengthPrefixed = true, lenient = lenient)
+      case _ => TextCodec.forName(encoding, Some(position), log)
+    }
   }
 
   //  def operator: P[String] = P(CharsWhileIn("!-+*/><=~|&^", min=1).!) // TODO: only valid operators
@@ -111,10 +118,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val charAtom: P[LiteralExpression] = for {
     p <- position()
     c <- "'" ~/ CharPred(c => c >= ' ' && c != '\'' && !invalidCharLiteralTypes(Character.getType(c))).rep.! ~/ "'"
-    ((co, zt), lenient) <- HWS ~ codec
+    TextCodecWithFlags(co, zt, pascal, lenient) <- HWS ~ codec
   } yield {
     if (zt) {
       log.error("Zero-terminated encoding is not a valid encoding for a character literal", Some(p))
+    }
+    if (pascal) {
+      log.error("Length-prefixed encoding is not a valid encoding for a character literal", Some(p))
     }
     co.encode(options.log, Some(p), c.codePoints().toArray.toList, options, lenient = lenient) match {
       case List(value) =>
@@ -134,10 +144,19 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   }
 
   val textLiteral: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
-      case (p, s, ((co, zt), lenient)) =>
-        val characters = co.encode(options.log, None, s.codePoints().toArray.toList, options, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
-        if (zt) characters ++ co.stringTerminator.map(nul => LiteralExpression(nul, 1))
-        else characters
+      case (p, s, TextCodecWithFlags(co, zt, lp, lenient)) =>
+        var characters = co.encode(options.log, None, s.codePoints().toArray.toList, options, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
+        if (lp) {
+          val sizeof = co.stringTerminator.length
+          val codeUnitCount = characters.length / sizeof
+          val maxAllowed = 1.<<(8*sizeof) - 1
+          if (codeUnitCount > maxAllowed) {
+            log.error(s"Length-prefixed string too long, the length is $codeUnitCount, maximum allowed is $maxAllowed", Some(p))
+          }
+          characters = (0 until sizeof).map(i => LiteralExpression(codeUnitCount.>>>(8*i).&(0xff), 1)).toList ++ characters
+        }
+        if (zt) characters ++= co.stringTerminator.map(nul => LiteralExpression(nul, 1))
+        characters
     }
 
   val textLiteralAtom: P[TextLiteralExpression] = textLiteral.map(TextLiteralExpression)

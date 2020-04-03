@@ -7,7 +7,7 @@ import java.util.Locale
 
 import millfork.error.Logger
 import millfork.output._
-import millfork.parser.TextCodec
+import millfork.parser.{TextCodec, TextCodecWithFlags}
 import org.apache.commons.configuration2.INIConfiguration
 
 /**
@@ -126,16 +126,22 @@ object Platform {
 
     val codecName = cs.get(classOf[String], "encoding", "ascii")
     val srcCodecName = cs.get(classOf[String], "screen_encoding", codecName)
-    val (codec, czt) = TextCodec.forName(codecName, None, log)
+    val TextCodecWithFlags(codec, czt, clp, _) = TextCodec.forName(codecName, None, log)
     if (czt) {
       log.error("Default encoding cannot be zero-terminated")
+    }
+    if (clp) {
+      log.error("Default encoding cannot be length-prefixed")
     }
     if (codec.stringTerminator.length != 1) {
       log.warn("Default encoding should be byte-based")
     }
-    val (srcCodec, szt) = TextCodec.forName(srcCodecName, None, log)
+    val TextCodecWithFlags(srcCodec, szt, slp, _) = TextCodec.forName(srcCodecName, None, log)
     if (szt) {
       log.error("Default screen encoding cannot be zero-terminated")
+    }
+    if (slp) {
+      log.error("Default screen encoding cannot be length-prefixed")
     }
 
     val as = conf.getSection("allocation")

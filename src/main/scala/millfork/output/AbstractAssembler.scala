@@ -687,15 +687,25 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   private def printArrayToAssemblyOutput(assembly: ArrayBuffer[String], name: String, elementType: Type, items: Seq[Expression]): Unit = {
     if (name.startsWith("textliteral$")) {
-      val chars = items.lastOption match {
-        case Some(LiteralExpression(0, _)) => items.init
+      var suffix = ""
+      var chars = items.lastOption match {
+        case Some(LiteralExpression(0, _)) =>
+          suffix = "z"
+          items.init
         case _ => items
+      }
+      chars.headOption match {
+        case Some(LiteralExpression(n, _)) if n + 1 == chars.size  =>
+          // length-prefixed
+          suffix = "p" + suffix
+          chars = chars.tail
+        case _ =>
       }
       val text = chars.map {
         case LiteralExpression(i, _) if i >= 0 && i <= 255 => platform.defaultCodec.decode(i.toInt)
         case _ => TextCodec.NotAChar
       }.mkString("")
-      if (!text.contains(TextCodec.NotAChar) && !text.exists(c => c.isControl)) assembly.append("    ; \"" + text + "\"")
+      if (!text.contains(TextCodec.NotAChar) && !text.exists(c => c.isControl)) assembly.append("    ; \"" + text + "\"" + suffix)
     }
     items.flatMap(expr => env.eval(expr) match {
       case Some(c) => List.tabulate(elementType.size)(i => subbyte(c, i, elementType.size).quickSimplify.toString)

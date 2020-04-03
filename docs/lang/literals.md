@@ -70,6 +70,32 @@ Warning: If you define UTF-16 to be you default or screen encoding, you will enc
 * `nullchar` and `nullchar_scr` will still be bytes, equal to zero.
 * the `string` module in the Millfork standard library will not work correctly
 
+## Length-prefixed strings (Pascal strings)
+
+You can also prepend `p` to the name of the encoding to make the string length-prefixed.
+
+The length is measured in bytes and doesn't include the zero terminator, if present.
+In all encodings except for UTF-16 the prefix takes one byte,
+which means that length-prefixed strings cannot be longer than 255 bytes.
+ 
+In case of UTF-16, the length prefix contains the number of code units,
+so the number of bytes divided by two,
+which allows for strings of practically unlimited length.
+The length is stores as two bytes and is always little endian,
+even in case of the `utf16be` encoding or a big-endian processor.
+
+        "this is a Pascal string" pascii
+        "this is also a Pascal string"p
+        "this is a zero-terminated Pascal string"pz
+
+Note: A string that's both length-prefixed and zero-terminated does not count as a normal zero-terminated string!
+To pass it to a function that expects a zero-terminated string, add 1 (or, in case of UTF-16, 2):
+
+    pointer p
+    p = "test"pz
+    // putstrz(p)  // won't work correctly
+    putstrz(p + 1) // ok
+
 ## Escape sequences and miscellaneous compatibility issues
 
 Most characters between the quotes are interpreted literally.

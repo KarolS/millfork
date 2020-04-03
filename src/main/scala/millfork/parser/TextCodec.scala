@@ -12,6 +12,8 @@ import millfork.node.Position
   * @author Karol Stasiak
   */
 
+final case class TextCodecWithFlags(code: TextCodec, nullTerminated: Boolean, lengthPrefixed: Boolean, lenient: Boolean)
+
 sealed trait TextCodec {
   def name: String
 
@@ -265,65 +267,76 @@ class TableTextCodec(override val name: String,
 }
 
 object TextCodec {
+  val allCodecs = Map(
+    "ascii" -> TextCodec.Ascii,
+    "petscii" -> TextCodec.Petscii,
+    "pet" -> TextCodec.Petscii,
+    "petsciijp" -> TextCodec.PetsciiJp,
+    "petjp" -> TextCodec.PetsciiJp,
+    "oldpetscii" -> TextCodec.OldPetscii,
+    "oldpet" -> TextCodec.OldPetscii,
+    "origpetscii" -> TextCodec.OriginalPetscii,
+    "origpet" -> TextCodec.OriginalPetscii,
+    "cbmscr" -> TextCodec.CbmScreencodes,
+    "petscr" -> TextCodec.CbmScreencodes,
+    "cbmscrjp" -> TextCodec.CbmScreencodesJp,
+    "petscrjp" -> TextCodec.CbmScreencodesJp,
+    "atascii" -> TextCodec.Atascii,
+    "atari" -> TextCodec.Atascii,
+    "atasciiscr" -> TextCodec.AtasciiScreencodes,
+    "atariscr" -> TextCodec.AtasciiScreencodes,
+    "bbc" -> TextCodec.Bbc,
+    "sinclair" -> TextCodec.Sinclair,
+    "apple2" -> TextCodec.Apple2,
+    "jis" -> TextCodec.Jis,
+    "jisx" -> TextCodec.Jis,
+    "iso_de" -> TextCodec.IsoIec646De,
+    "iso_no" -> TextCodec.IsoIec646No,
+    "iso_dk" -> TextCodec.IsoIec646No,
+    "iso_se" -> TextCodec.IsoIec646Se,
+    "iso_fi" -> TextCodec.IsoIec646Se,
+    "iso_yu" -> TextCodec.IsoIec646Yu,
+    "msx_intl" -> TextCodec.MsxWest,
+    "msx_us" -> TextCodec.MsxWest,
+    "msx_uk" -> TextCodec.MsxWest,
+    "msx_de" -> TextCodec.MsxWest,
+    "msx_fr" -> TextCodec.MsxWest,
+    "msx_es" -> TextCodec.MsxWest,
+    "msx_ru" -> TextCodec.MsxRu,
+    "msx_jp" -> TextCodec.MsxJp,
+    "msx_br" -> TextCodec.MsxBr,
+    "vectrex" -> TextCodec.Vectrex,
+    "koi7n2" -> TextCodec.Koi7N2,
+    "short_koi" -> TextCodec.Koi7N2,
+    "zx80" -> TextCodec.Zx80,
+    "zx81" -> TextCodec.Zx81,
+    "iso8859_15" -> TextCodec.Iso8859_15,
+    "latin0" -> TextCodec.Iso8859_15,
+    "latin9" -> TextCodec.Iso8859_15,
+    "iso15" -> TextCodec.Iso8859_15,
+    "utf8" -> TextCodec.Utf8,
+    "utf16be" -> TextCodec.Utf16Be,
+    "utf16le" -> TextCodec.Utf16Le,
+  )
 
-  def forName(name: String, position: Option[Position], log: Logger): (TextCodec, Boolean) = {
-    val zeroTerminated = name.endsWith("z")
-    val cleanName = name.stripSuffix("z")
-    val codec = (position, cleanName) match {
-      case (_, "ascii") => TextCodec.Ascii
-      case (_, "petscii") => TextCodec.Petscii
-      case (_, "pet") => TextCodec.Petscii
-      case (_, "petsciijp") => TextCodec.PetsciiJp
-      case (_, "petjp") => TextCodec.PetsciiJp
-      case (_, "oldpetscii") => TextCodec.OldPetscii
-      case (_, "oldpet") => TextCodec.OldPetscii
-      case (_, "origpetscii") => TextCodec.OriginalPetscii
-      case (_, "origpet") => TextCodec.OriginalPetscii
-      case (_, "cbmscr") => TextCodec.CbmScreencodes
-      case (_, "petscr") => TextCodec.CbmScreencodes
-      case (_, "cbmscrjp") => TextCodec.CbmScreencodesJp
-      case (_, "petscrjp") => TextCodec.CbmScreencodesJp
-      case (_, "atascii") => TextCodec.Atascii
-      case (_, "atari") => TextCodec.Atascii
-      case (_, "atasciiscr") => TextCodec.AtasciiScreencodes
-      case (_, "atariscr") => TextCodec.AtasciiScreencodes
-      case (_, "bbc") => TextCodec.Bbc
-      case (_, "sinclair") => TextCodec.Sinclair
-      case (_, "apple2") => TextCodec.Apple2
-      case (_, "jis") => TextCodec.Jis
-      case (_, "jisx") => TextCodec.Jis
-      case (_, "iso_de") => TextCodec.IsoIec646De
-      case (_, "iso_no") => TextCodec.IsoIec646No
-      case (_, "iso_dk") => TextCodec.IsoIec646No
-      case (_, "iso_se") => TextCodec.IsoIec646Se
-      case (_, "iso_fi") => TextCodec.IsoIec646Se
-      case (_, "iso_yu") => TextCodec.IsoIec646Yu
-      case (_, "msx_intl") => TextCodec.MsxWest
-      case (_, "msx_us") => TextCodec.MsxWest
-      case (_, "msx_uk") => TextCodec.MsxWest
-      case (_, "msx_de") => TextCodec.MsxWest
-      case (_, "msx_fr") => TextCodec.MsxWest
-      case (_, "msx_es") => TextCodec.MsxWest
-      case (_, "msx_ru") => TextCodec.MsxRu
-      case (_, "msx_jp") => TextCodec.MsxJp
-      case (_, "msx_br") => TextCodec.MsxBr
-      case (_, "vectrex") => TextCodec.Vectrex
-      case (_, "koi7n2") => TextCodec.Koi7N2
-      case (_, "short_koi") => TextCodec.Koi7N2
-      case (_, "zx80") => TextCodec.Zx80
-      case (_, "zx81") => TextCodec.Zx81
-      case (_, "iso8859_15") => TextCodec.Iso8859_15
-      case (_, "latin0") => TextCodec.Iso8859_15
-      case (_, "latin9") => TextCodec.Iso8859_15
-      case (_, "iso15") => TextCodec.Iso8859_15
-      case (_, "utf8") => TextCodec.Utf8
-      case (_, "utf16be") => TextCodec.Utf16Be
-      case (_, "utf16le") => TextCodec.Utf16Le
-      case (p, _) =>
-        log.error(s"Unknown string encoding: `$name`", p)
-        TextCodec.Ascii
+  def forName(name: String, position: Option[Position], log: Logger): TextCodecWithFlags = {
+    if (allCodecs.contains(name)) return TextCodecWithFlags(allCodecs(name), nullTerminated = false, lengthPrefixed = false, lenient = false)
+    if (name.endsWith("z")) {
+      val cleanName = name.stripSuffix("z")
+      if (allCodecs.contains(cleanName)) return TextCodecWithFlags(allCodecs(cleanName), nullTerminated = true, lengthPrefixed = false, lenient = false)
     }
-    codec -> zeroTerminated
+    val lengthPrefixed = name.startsWith("p")
+    if (name.startsWith("p")) {
+      val cleanName = name.stripPrefix("p")
+      if (allCodecs.contains(cleanName)) return TextCodecWithFlags(allCodecs(cleanName), nullTerminated = false, lengthPrefixed = true, lenient = false)
+
+      if (cleanName.endsWith("z")) {
+        val cleanName2 = cleanName.stripSuffix("z")
+        if (allCodecs.contains(cleanName2)) return TextCodecWithFlags(allCodecs(cleanName2), nullTerminated = true, lengthPrefixed = true, lenient = false)
+      }
+    }
+    log.error(s"Unknown string encoding: `$name`", position)
+    TextCodecWithFlags(TextCodec.Ascii, nullTerminated = false, lengthPrefixed = false, lenient = false)
   }
 
   private val Utf8 = new UnicodeTextCodec("UTF-8", StandardCharsets.UTF_8, List(0))
@@ -337,7 +350,7 @@ object TextCodec {
   private lazy val DefaultOverrides: Map[Char, Int] = ('\u2400' to '\u2420').map(c => c->(c.toInt - 0x2400)).toMap + ('\u2421' -> 127)
 
   //noinspection ScalaUnusedSymbol
-  private val AsciiEscapeSequences: Map[String, List[Int]] = Map(
+  private lazy val AsciiEscapeSequences: Map[String, List[Int]] = Map(
     "n" -> List(13, 10),
     "t" -> List(9),
     "b" -> List(8),
@@ -347,12 +360,12 @@ object TextCodec {
     "rbrace" -> List('}'.toInt))
 
   //noinspection ScalaUnusedSymbol
-  private val MinimalEscapeSequencesWithoutBraces: Map[String, List[Int]] = Map(
+  private lazy val MinimalEscapeSequencesWithoutBraces: Map[String, List[Int]] = Map(
     "apos" -> List('\''.toInt),
     "q" -> List('\"'.toInt))
 
   //noinspection ScalaUnusedSymbol
-  private val MinimalEscapeSequencesWithBraces: Map[String, List[Int]] = Map(
+  private lazy val MinimalEscapeSequencesWithBraces: Map[String, List[Int]] = Map(
     "apos" -> List('\''.toInt),
     "q" -> List('\"'.toInt),
     "lbrace" -> List('{'.toInt),
