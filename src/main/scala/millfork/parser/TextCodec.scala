@@ -267,7 +267,7 @@ class TableTextCodec(override val name: String,
 }
 
 object TextCodec {
-  val allCodecs = Map(
+  lazy val allCodecs = Map(
     "ascii" -> TextCodec.Ascii,
     "petscii" -> TextCodec.Petscii,
     "pet" -> TextCodec.Petscii,
