@@ -40,7 +40,7 @@ Modifies the given null-terminated buffer by appending a null-terminated string 
 
 ## scrstring
 
-The `scrstring` module automatically imports the `string` and [`err`](./other.md).   modules.  
+The `scrstring` module automatically imports the `string` and [`err`](./other.md) modules.  
 
 It contains functions for handling strings in the screen encoding with the same semantics as the functions from the string module.
 
