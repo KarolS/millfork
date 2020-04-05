@@ -82,3 +82,7 @@ inline void ensure_mixedcase() {
 inline void ensure_mixedcase() {
 }
 #endif
+
+void putpstr(pointer pstr) {
+    putstr(pstr + 1, pstr[0])
+}

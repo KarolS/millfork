@@ -1,0 +1,74 @@
+import err
+
+byte pstrlen(pointer str) {
+    return str[0]
+}
+
+sbyte pstrcmp(pointer str1, pointer str2) {
+    byte size
+    byte i
+    size = str1[0]
+    if str2[0] < size {
+        size = str2[0]
+    }
+    for i,1,to,size{
+        if str1[i] != str2[i] {
+            if str1[i] < str2[i] { return -1 }
+            return 1
+        }
+    }
+    if str1[0] == size {
+        if str2[0] == size { return 0 }
+        return -1
+    }
+    return 1
+}
+
+void pstrcopy(pointer dest, pointer src) {
+    byte i
+    byte size
+    size = src[0]
+    for i,0,parallelto,size{
+        dest[i] = src[i]
+    }
+}
+
+void pstrappend(pointer buffer, pointer str) {
+    byte i
+    byte size
+    pointer dest
+    dest = buffer + buffer[0] + 1
+    size = str[0]
+    for i,0,paralleluntil,size{
+        dest[i] = str[i + 1]
+    }
+    buffer[0] += size
+}
+
+void pstrappendchar(pointer buffer, byte char) {
+   buffer[0] += 1
+   buffer[buffer[0]] = char
+}
+
+word pstr2word(pointer str) {
+    byte size, i, char
+    word next, result
+    result = 0
+    size = str[0]
+    errno = err_ok
+    for i,1,to,size {
+        char = str[i]
+        if '0' <= char <= '0' + 9 {
+            next = result * 10
+            next += char - '0'
+            if next < result {
+                errno = err_range
+            }
+            result = next
+        } else {
+            errno = err_numberformat
+            return result
+        }
+    }
+    return result
+}

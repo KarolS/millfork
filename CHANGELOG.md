@@ -16,6 +16,8 @@
 
 * Added experimental `signed16` and `unsigned16` types. Added `putsigned16` function.
 
+* Added length-prefixed strings (Pascal strings), `pstring` module and `putpstr` function.        
+
 * Fixed `scrstr2word` in some rare encoding combinations. 
 
 * Added warnings for calling from one segment to another overlapping one.

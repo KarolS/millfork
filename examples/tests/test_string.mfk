@@ -1,0 +1,23 @@
+import string
+import framework
+
+void test_string() {
+    array buffer[256]
+
+    start_suite("string"z)
+    assert_equal(0, strzcmp("a"z, "a"z))
+    assert_equal(-1, strzcmp("a"z, "b"z))
+    assert_equal(-1, strzcmp("a"z, "ab"z))
+    assert_equal(1, strzcmp("b"z, "a"z))
+    assert_equal(1, strzcmp("ab"z, "a"z))
+
+    strzcopy(buffer, "test"z)
+    assert_equal(4, strzlen(buffer))
+    assert_equal(0, strzcmp("test"z, buffer))
+    strzappend(buffer, "hello"z)
+    assert_equal(9, strzlen(buffer))
+    assert_equal(0, strzcmp("testhello"z, buffer))
+    assert_equal(1234, strz2word("1234"z))
+
+
+}

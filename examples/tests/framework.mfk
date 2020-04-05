@@ -23,13 +23,22 @@ void print_failure() {
 }
 
 void assert_equal(word expected, word actual) {
+    current_test_number += 1
     if actual != expected {
         print_failure()
-        putstrz("Expected:"z)
+        putstrz("Expected: "z)
         putword(expected)
-        putstrz("Actual:"z)
+        putstrz("  Actual: "z)
         putword(actual)
         new_line()
+        readkey()
+    }
+}
+
+void assert_true(bool result) {
+    current_test_number += 1
+    if not(result) {
+        print_failure()
         readkey()
     }
 }

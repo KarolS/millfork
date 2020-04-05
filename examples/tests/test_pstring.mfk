@@ -1,0 +1,23 @@
+import pstring
+import framework
+
+void test_pstring() {
+    array buffer[256]
+
+    start_suite("pstring"z)
+    assert_equal(0, pstrcmp("a"p, "a"p))
+    assert_equal(-1, pstrcmp("a"p, "b"p))
+    assert_equal(-1, pstrcmp("a"p, "ab"p))
+    assert_equal(1, pstrcmp("b"p, "a"p))
+    assert_equal(1, pstrcmp("ab"p, "a"p))
+
+    pstrcopy(buffer, "test"p)
+    assert_equal(4, pstrlen(buffer))
+    assert_equal(0, pstrcmp("test"p, buffer))
+    pstrappend(buffer, "hello"p)
+    assert_equal(9, pstrlen(buffer))
+    assert_equal(0, pstrcmp("testhello"p, buffer))
+    assert_equal(1234, pstr2word("1234"p))
+
+
+}

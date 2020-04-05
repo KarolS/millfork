@@ -51,3 +51,17 @@ It contains functions for handling strings in the screen encoding with the same 
 #### `word scrstrz2word(pointer str)`
 #### `void scrstrzappend(pointer buffer, pointer str)`
 #### `void scrstrzappendchar(pointer buffer, byte char)`
+
+## pstring
+
+The `scrstring` module automatically imports the [`err` module](./other.md).
+
+It contains functions for handling length-prefixed strings in any 8-bit encoding.
+
+#### `byte pstrlen(pointer str)`
+#### `sbyte pstrcmp(pointer str1, pointer str2)`
+#### `void pstrcopy(pointer dest, pointer src)`
+#### `void pstrpaste(pointer dest, pointer src)`
+#### `word pstr2word(pointer str)`
+#### `void pstrappend(pointer buffer, pointer str)`
+#### `void pstrappendchar(pointer buffer, byte char)`
