@@ -1,0 +1,41 @@
+import stdio
+import keyboard
+
+pointer current_suite_name
+byte current_test_number
+word failure_count = 0
+
+void start_suite(pointer suite_name) {
+    putstrz("Running "z)
+    putstrz(suite_name)
+    new_line()
+    current_suite_name = suite_name
+    current_test_number = 0
+}
+
+void print_failure() {
+    putstrz("Test failed: "z)
+    putstrz(current_suite_name)
+    putstrz(" #"z)
+    putword(current_test_number)
+    new_line()
+    failure_count += 1
+}
+
+void assert_equal(word expected, word actual) {
+    if actual != expected {
+        print_failure()
+        putstrz("Expected:"z)
+        putword(expected)
+        putstrz("Actual:"z)
+        putword(actual)
+        new_line()
+        readkey()
+    }
+}
+
+void begin_test() {
+
+}
+
+void byte

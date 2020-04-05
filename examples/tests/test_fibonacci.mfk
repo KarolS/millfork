@@ -1,0 +1,18 @@
+import framework
+
+word fib(byte n) {
+    stack byte i
+    i = n
+    if i < 2 { return 1 }
+    return fib(i-1) + fib(i-2)
+}
+
+void test_fibonacci() {
+    start_suite("Fibonacci"z)
+
+    assert_equal(1, fib(0))
+    assert_equal(1, fib(1))
+    assert_equal(2, fib(2))
+    assert_equal(3, fib(3))
+    assert_equal(5, fib(4))
+}

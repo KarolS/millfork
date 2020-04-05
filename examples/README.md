@@ -37,6 +37,8 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Life](crossplatform/life.mfk) (C64/C16/Atari/ZX Spectrum) – Conway's game of life
 
+* [Test suite](tests) (C64/ZX Spectrum) – the semi-official test-suite for Millfork
+
 ## Commodore 64 examples
 
 ### Graphical examples

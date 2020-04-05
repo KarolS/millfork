@@ -1,0 +1,8 @@
+import test_fibonacci
+
+void main() {
+    ensure_mixedcase()
+    test_fibonacci()
+    putstrz("Total failures: "z)
+    putword(failure_count)
+}
