@@ -871,4 +871,24 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
 
     }
   }
+
+  test("Some combinations of shifting and indexing") {
+    EmuZ80BenchmarkRun(
+      """
+        |volatile byte x
+        |
+        |noinline void f() {
+        |    pointer(x/8)[0] |= 0x80>>(x&7)
+        |}
+        |
+        |void main() {
+        |    byte i
+        |    for i,0,parallelto,255 { pointer(i)[0] = 0 }
+        |    x = $91
+        |    f()
+        |}
+        |""".stripMargin) { m =>
+      m.readByte(0x91/8) should be (0x80>>(0x91 & 7))
+    }
+  }
 }

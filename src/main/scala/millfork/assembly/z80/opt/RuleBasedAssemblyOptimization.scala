@@ -163,7 +163,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     import millfork.assembly.z80.ZOpcode._
     get[List[ZLine]](i).foreach {
       // JSR and BSR are allowed
-      case ZLine0(RET | RST | RETI | RETN, _, _) =>
+      case ZLine0(RET | RST | RETI | RETN | BYTE, _, _) =>
         return false
       case ZLine0(JP | JR, OneRegister(_), _) =>
         return false
@@ -184,7 +184,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     import millfork.assembly.z80.ZOpcode._
     var pushCount = 0
     get[List[ZLine]](i).foreach {
-      case ZLine0(RET | RST | RETI | RETN, _, _) =>
+      case ZLine0(RET | RST | RETI | RETN | BYTE, _, _) =>
         return false
       case ZLine0(PUSH, _, _) =>
         pushCount += 1
@@ -203,7 +203,7 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions) {
     import ZRegister.{SP, HL, IMM_16}
     @tailrec
     def impl(list: List[ZLine]): Boolean = list match {
-      case ZLine0(PUSH | POP | CALL | RET | RETI | RETN | EX_SP | EXX | EX_AF_AF | RST | RSTV | HALT | STOP, _, _) :: _ => false
+      case ZLine0(PUSH | POP | CALL | RET | RETI | RETN | EX_SP | EXX | EX_AF_AF | RST | RSTV | HALT | STOP | BYTE, _, _) :: _ => false
       case ZLine0(LD_DESP | LD_HLSP, _, c) :: xs => if (c.isProvablyInRange(2, 127)) impl(xs) else false
       case ZLine0(LD_16, TwoRegisters(HL, IMM_16), c) :: ZLine0(ADD_16, TwoRegisters(HL, SP), _) :: xs => if (c.isProvablyInRange(2, 127)) impl(xs) else false
       case ZLine0(_, TwoRegisters(SP, _), _) :: _ => false

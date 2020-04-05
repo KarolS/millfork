@@ -474,7 +474,7 @@ object AlwaysGoodI80Optimizations {
     //27-31
     for5LargeRegisters(register => {
       (Elidable & HasOpcode(PUSH) & HasRegisterParam(register)) ~
-        (Linear & IsLocallyAlignable).*.capture(1) ~
+        (IsLocallyAlignable & Not(HasOpcode(POP) & HasRegisterParam(register))).*.capture(1) ~
         Where(ctx => ctx.isAlignableBlock(1)) ~
         (Elidable & HasOpcode(POP) & HasRegisterParam(register) & DoesntMatterWhatItDoesWith(register)) ~~> { (code, _) =>
         shallowerStack(code.tail.init)
@@ -482,11 +482,20 @@ object AlwaysGoodI80Optimizations {
     }),
     //32
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.AF)) ~
-      (Linear & Not(Changes(ZRegister.A)) & Not(ReadsStackPointer)).*.capture(2) ~
+      (Not(Changes(ZRegister.A)) & Not(ReadsStackPointer)).*.capture(2) ~
       Where(ctx => ctx.isStackPreservingBlock(2)) ~
       (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.AF) & DoesntMatterWhatItDoesWithFlags) ~~> {code =>
       code.tail.init
     },
+    //32-36
+    for5LargeRegisters(register => {
+      (Elidable & HasOpcode(PUSH) & HasRegisterParam(register)) ~
+        (IsLocallyAlignable & Not(Changes(register))).*.capture(1) ~
+        Where(ctx => ctx.isAlignableBlock(1)) ~
+        (Elidable & HasOpcode(POP) & HasRegisterParam(register)) ~~> { (code, _) =>
+        shallowerStack(code.tail.init)
+      }
+    }),
   )
 
   private def shallowerStack(lines: List[ZLine]): List[ZLine] = lines match {
