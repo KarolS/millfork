@@ -161,7 +161,7 @@ object Main {
           val start = platform.codeAllocators(bankName).startAt
           val codeLength = code.length
           Files.write(Paths.get(prgOutput +".inf"),
-            s"${path.getFileName} ${start.toHexString} ${start.toHexString} ${codeLength.toHexString}".getBytes(StandardCharsets.UTF_8))
+            f"${path.getFileName}%s ${start}%04X ${start}%04X ${codeLength}%04X".getBytes(StandardCharsets.UTF_8))
         }
     }
     errorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
