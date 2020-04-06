@@ -13,6 +13,9 @@ Supported platforms:
 
 * Commodore 64, 128 and Plus/4, loadable program (`c64`, `c128`, `plus4`)
 
+* Commodore PET, VIC-20, C16, loadable program (`pet`, `vic20`, `c16`) – 
+note that support for these targets may end when the suite grows beyond their memory capacity
+
 * ZX Spectrum (`zxspectrum`)
 
 * NEC PC-88, bootable floppy (`pc88`)
