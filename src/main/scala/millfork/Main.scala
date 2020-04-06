@@ -157,6 +157,12 @@ object Main {
         errorReporting.debug("Writing output to " + path.toAbsolutePath)
         errorReporting.debug(s"Total output size: ${code.length} bytes")
         Files.write(path, code)
+        if (platform.generateBbcMicroInfFile) {
+          val start = platform.codeAllocators(bankName).startAt
+          val codeLength = code.length
+          Files.write(Paths.get(prgOutput +".inf"),
+            s"${path.getFileName} ${start.toHexString} ${start.toHexString} ${codeLength.toHexString}".getBytes(StandardCharsets.UTF_8))
+        }
     }
     errorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
     c.runFileName.foreach{ program =>
@@ -164,12 +170,6 @@ object Main {
       val cmdline = program +: c.runParams :+ outputAbsolutePath
       errorReporting.debug(s"Running: ${cmdline.mkString(" ")}")
       new ProcessBuilder(cmdline.toArray: _*).directory(new File(program).getParentFile).start()
-    }
-    if (platform.generateBbcMicroInfFile) {
-      val start = platform.codeAllocators("default").startAt
-      val codeLength = result.code("default").length
-      Files.write(Paths.get(defaultPrgOutput+".inf"),
-        s"$defaultPrgOutput ${start.toHexString} ${start.toHexString} ${codeLength.toHexString}".getBytes(StandardCharsets.UTF_8))
     }
   }
 
