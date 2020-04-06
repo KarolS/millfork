@@ -10,3 +10,5 @@ asm void putchar(byte register(a) char) @$FFE3 extern
 inline void new_line() {
     putchar(13)
 }
+
+const array __basic_padding = [$EA, $EA]
