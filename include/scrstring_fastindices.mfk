@@ -40,7 +40,7 @@ void scrstrzcopy(pointer dest, pointer src) {
     } while c != nullchar_scr
 }
 
-void strzpaste(pointer dest, pointer src) {
+void scrstrzpaste(pointer dest, pointer src) {
     byte i
     byte c
     i = 0
