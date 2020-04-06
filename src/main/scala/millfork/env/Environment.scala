@@ -1480,7 +1480,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     stmt.assemblyParamPassingConvention match {
       case ByVariable(name) =>
         val zp = pointies(name) // TODO
-        val allocationMethod = if (pointies(name)) VariableAllocationMethod.Zeropage else if (typ.isPointy) VariableAllocationMethod.Register else VariableAllocationMethod.Auto
+        val allocationMethod =
+          if (pointies(name)) VariableAllocationMethod.Zeropage
+          else if (typ.isPointy && options.platform.cpuFamily == CpuFamily.M6502) VariableAllocationMethod.Register
+          else VariableAllocationMethod.Auto
         val v = UninitializedMemoryVariable(prefix + name, typ, allocationMethod, None, defaultVariableAlignment(options, 2), isVolatile = false)
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position, options, Some(typ))

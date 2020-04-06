@@ -177,6 +177,8 @@ object ZBuiltIns {
           }
         case NumericConstant(n, _) if n < 0 && !decimal =>
           result += ZLine.imm8(SUB, (-n.toInt) & 0xff)
+        case NumericConstant(0, _) =>
+          // nothing
         case _ =>
           result += ZLine.imm8(ADD, const.loByte)
           if (decimal) {

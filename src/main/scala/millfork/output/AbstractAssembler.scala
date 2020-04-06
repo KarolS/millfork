@@ -730,6 +730,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         inlinedFunctions,
         options.jobContext))
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
+    // unoptimized.foreach(l => log.trace(l.toString))
     val code = optimizations.foldLeft(quickSimplify(unoptimized)) { (c, opt) =>
       val code = opt.optimize(f, c, OptimizationContext(options, labelMap, env.maybeGet[ThingInMemory]("__reg"), niceFunctionProperties))
       if (code eq c) code else quickSimplify(code)
