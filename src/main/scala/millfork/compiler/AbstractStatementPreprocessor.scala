@@ -99,8 +99,10 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     }
     // generic warnings:
     stmt match {
-      case ExpressionStatement(expr@FunctionCallExpression("strzlen" | "putstrz" | "strzcmp" | "strzcopy", params)) =>
+      case ExpressionStatement(expr@FunctionCallExpression("strzlen" | "putstrz" | "strzcmp" | "strzcopy" | "strzpaste", params)) =>
         for (param <- params) checkIfNullTerminated(ctx, stmt, param)
+      case ExpressionStatement(expr@FunctionCallExpression("pstrlen" | "putpstr" | "pstrcmp" | "pstrcopy" | "pstrpaste", params)) =>
+        for (param <- params) checkIfLengthPrefixed(ctx, stmt, param)
 
       case ExpressionStatement(expr@FunctionCallExpression(f, List(VariableExpression(v)))) if hiddenEffectFreeFunctions(f)=>
         val volatile = ctx.env.maybeGet[ThingInMemory](v).fold(false)(_.isVolatile)
@@ -276,9 +278,29 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     val TERMINATOR = ctx.options.platform.defaultCodec.stringTerminator.head
     param match {
       case TextLiteralExpression(ch) =>
-        ch.last match {
-          case LiteralExpression(TERMINATOR, _) => //ok
+        ch.lastOption match {
+          case Some(LiteralExpression(TERMINATOR, _)) => //ok
           case _ => ctx.log.warn("Passing a non-null-terminated string to a function that expects a null-terminated string.", stmt.position)
+        }
+      case _ =>
+    }
+  }
+
+  private def checkIfLengthPrefixed(ctx: CompilationContext, stmt: ExecutableStatement, param: Expression): Unit = {
+    if (!ctx.options.flag(CompilationFlag.BuggyCodeWarning)) return
+    val TERMINATOR = ctx.options.platform.defaultCodec.stringTerminator.head
+    param match {
+      case TextLiteralExpression(ch) =>
+        if (ch.headOption match {
+          case Some(LiteralExpression(length, _)) if length == ch.size - 1 => false
+          case Some(LiteralExpression(length, _)) if length == ch.size + 2 =>
+            ch.lastOption match {
+              case Some(LiteralExpression(TERMINATOR, _)) => false
+              case _ => true
+            }
+          case _ => true
+        }) {
+          ctx.log.warn("Passing a non-length-prefixed string to a function that expects a length-prefixed string.", stmt.position)
         }
       case _ =>
     }

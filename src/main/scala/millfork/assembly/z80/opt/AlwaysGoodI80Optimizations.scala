@@ -419,7 +419,7 @@ object AlwaysGoodI80Optimizations {
     },
     //20
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~
-      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer) & Not(Changes(DE))).* ~
       (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> { code =>
       ZLine.ld8(ZRegister.D, ZRegister.H) ::
         ZLine.ld8(ZRegister.E, ZRegister.L) ::
@@ -427,7 +427,7 @@ object AlwaysGoodI80Optimizations {
     },
     //21
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.HL) & DoesntMatterWhatItDoesWith(ZRegister.BC)) ~
-      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer) & Not(Changes(BC))).* ~
       (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> { code =>
       ZLine.ld8(ZRegister.B, ZRegister.H) ::
         ZLine.ld8(ZRegister.C, ZRegister.L) ::
@@ -435,7 +435,7 @@ object AlwaysGoodI80Optimizations {
     },
     //22
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~
-      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer) & Not(Changes(HL))).* ~
       (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> { code =>
       ZLine.ld8(ZRegister.H, ZRegister.D) ::
         ZLine.ld8(ZRegister.L, ZRegister.E) ::
@@ -443,7 +443,7 @@ object AlwaysGoodI80Optimizations {
     },
     //23
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~
-      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer) & Not(Changes(HL))).* ~
       (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.HL)) ~~> { code =>
       ZLine.ld8(ZRegister.H, ZRegister.B) ::
         ZLine.ld8(ZRegister.L, ZRegister.C) ::
@@ -451,7 +451,7 @@ object AlwaysGoodI80Optimizations {
     },
     //24
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.BC) & DoesntMatterWhatItDoesWith(ZRegister.DE)) ~
-      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer) & Not(Changes(DE))).* ~
       (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.DE)) ~~> { code =>
       ZLine.ld8(ZRegister.D, ZRegister.B) ::
         ZLine.ld8(ZRegister.E, ZRegister.C) ::
@@ -459,7 +459,7 @@ object AlwaysGoodI80Optimizations {
     },
     //25
     (Elidable & HasOpcode(PUSH) & HasRegisterParam(ZRegister.DE) & DoesntMatterWhatItDoesWith(ZRegister.BC)) ~
-      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer)).* ~
+      (Linear & Not(HasOpcodeIn(Set(POP, PUSH))) & Not(ReadsStackPointer) & Not(Changes(BC))).* ~
       (Elidable & HasOpcode(POP) & HasRegisterParam(ZRegister.BC)) ~~> { code =>
       ZLine.ld8(ZRegister.B, ZRegister.D) ::
         ZLine.ld8(ZRegister.C, ZRegister.E) ::
