@@ -194,7 +194,6 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
         canBeInlined(vx, vy, "-", loadedY, xs)
 
       case (AssemblyLine0(LDY, _, constant), _) :: xs if "--" == vy && !constant.refersTo(vx) =>
-        println(s"$constant doesn't refer to $vx")
         canBeInlined(vx, vy, loadedX, "-", xs)
 
       case (l@AssemblyLine0(STY, ZeroPage | Absolute, _), _) :: xs if loadedY == vx =>
