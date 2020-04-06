@@ -34,6 +34,8 @@ void strzcopy(pointer dest, pointer src) {
     ___strzcopy_loop:
         LD A,(HL)
         LD (DE),A
+        INC HL
+        INC DE
         ? CP nullchar
         ? JP NZ, ___strzcopy_loop
     }
@@ -47,6 +49,8 @@ void strzpaste(pointer dest, pointer src) {
         ? CP nullchar
         ? RET Z
         LD (DE),A
+        INC HL
+        INC DE
         ? JP ___strzpaste_loop
     }
 }
