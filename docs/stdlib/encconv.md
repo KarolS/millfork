@@ -53,6 +53,18 @@ Destructively converts a null-terminated string from the `scr` encoding into the
 
 Available only if `from_screencode` is available.
 
+#### void pstr_to_screencode(pointer)
+
+Destructively converts a length-prefixed string from the `default` encoding into the `scr` encoding. 
+
+Available only if `to_screencode` is available.
+
+#### void pstr_from_screencode(pointer)
+
+Destructively converts a length-prefixed string from the `scr` encoding into the `default` encoding. 
+
+Available only if `from_screencode` is available.
+
 #### byte petscii_to_petscr(byte)
 
 Converts a byte from PETSCII to a CBM screencode.  

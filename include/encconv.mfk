@@ -1,24 +1,26 @@
 #if ENCODING_SAME
 
 #if ARCH_6502
-inline byte __byte_identity(byte register(a) value) { ? rts }
-inline void __pointer_to_void(pointer register(ax) value) { ? rts }
+inline asm byte __byte_identity(byte register(a) value) { ? rts }
+inline asm void __pointer_to_void(pointer register(ax) value) { ? rts }
 #elseif ARCH_I80
 #pragma zilog_syntax
-inline byte __byte_identity(byte register(a) value) { ? ret }
-inline void __pointer_to_void(pointer register(hl) value) { ? ret }
+inline asm byte __byte_identity(byte register(a) value) { ? ret }
+inline asm void __pointer_to_void(pointer register(hl) value) { ? ret }
 #elseif ARCH_M6809
-inline byte __byte_identity(byte register(b) value) { ? rts }
-inline void __pointer_to_void(pointer register(d) value) { ? rts }
+inline asm byte __byte_identity(byte register(b) value) { ? rts }
+inline asm void __pointer_to_void(pointer register(d) value) { ? rts }
 #else
-inline byte __byte_identity(byte register(a) value) = a
-inline void __pointer_to_void(pointer register(a) value) { }
+inline byte __byte_identity(byte value) = a
+inline void __pointer_to_void(pointer value) { }
 #endif
 
 alias from_screencode = __byte_identity
 alias to_screencode = __byte_identity
 alias strz_from_screencode = __pointer_to_void
 alias strz_to_screencode = __pointer_to_void
+alias pstr_from_screencode = __pointer_to_void
+alias pstr_to_screencode = __pointer_to_void
 
 #elseif ENCCONV_SUPPORTED
 
@@ -80,6 +82,22 @@ void strz_to_screencode(pointer p) {
         p += 1
     }
 }
+
+void pstr_from_screencode(pointer p) {
+    byte i, l
+    l = p[0]
+    for i,1,parallelto,l {
+        p[i] = from_screencode(p[i])
+    }
+}
+void pstr_to_screencode(pointer p) {
+    byte i, l
+    l = p[0]
+    for i,1,parallelto,l {
+        p[i] = to_screencode(p[i])
+    }
+}
+
 #endif
 
 #endif // ENCODING_SAME/ENCCONV_SUPPORTED
