@@ -1,0 +1,15 @@
+import framework
+import encconv
+import scrstring
+import string
+
+void test_encconv() {
+    array buffer[256]
+    start_suite("encconv"z)
+
+    strzcopy(buffer, "test"z)
+    strz_to_screencode(buffer)
+    assert_equal(0, scrstrzcmp("test"scrz, buffer))
+    strz_from_screencode(buffer)
+    assert_equal(0, strzcmp("test"z, buffer))
+}

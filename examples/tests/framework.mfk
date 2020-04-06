@@ -1,9 +1,23 @@
 import stdio
-import keyboard
 
 pointer current_suite_name
 byte current_test_number
 word failure_count = 0
+
+#if ZX_SPECTRUM || CBM || NEC_PC88 || ATARI_8 || AMSTRAD_CPC
+
+import keyboard
+alias wait_after_failure = readkey
+
+#elseif MSX
+
+alias wait_after_failure = readline
+
+#else
+
+macro void wait_after_failure() { while true {} }
+
+#endif
 
 void start_suite(pointer suite_name) {
     putstrz("Running "z)
@@ -14,12 +28,20 @@ void start_suite(pointer suite_name) {
 }
 
 void print_failure() {
-    putstrz("Test failed: "z)
+    putstrz("[FAIL]: "z)
     putstrz(current_suite_name)
     putstrz(" #"z)
     putword(current_test_number)
     new_line()
     failure_count += 1
+}
+
+void print_success() {
+    putstrz("[ OK ]: "z)
+    putstrz(current_suite_name)
+    putstrz(" #"z)
+    putword(current_test_number)
+    new_line()
 }
 
 void assert_equal(word expected, word actual) {
@@ -31,7 +53,11 @@ void assert_equal(word expected, word actual) {
         putstrz("  Actual: "z)
         putword(actual)
         new_line()
-        readkey()
+        wait_after_failure()
+#if PRINT_SUCCESSES
+     } else {
+         print_success()
+#endif
     }
 }
 
@@ -40,11 +66,9 @@ void assert_true(bool result) {
     if not(result) {
         print_failure()
         readkey()
+#if PRINT_SUCCESSES
+     } else {
+         print_success()
+#endif
     }
 }
-
-void begin_test() {
-
-}
-
-void byte

@@ -19,5 +19,7 @@ void test_string() {
     assert_equal(0, strzcmp("testhello"z, buffer))
     assert_equal(1234, strz2word("1234"z))
 
-
+    strzcopy(buffer, "test****test"z)
+    strzpaste(buffer+4, "test"z)
+    assert_equal(0, strzcmp("testtesttest"z, buffer))
 }

@@ -4,6 +4,7 @@ import framework
 void test_pstring() {
     array buffer[256]
 
+    // #1-5
     start_suite("pstring"z)
     assert_equal(0, pstrcmp("a"p, "a"p))
     assert_equal(-1, pstrcmp("a"p, "b"p))
@@ -11,6 +12,7 @@ void test_pstring() {
     assert_equal(1, pstrcmp("b"p, "a"p))
     assert_equal(1, pstrcmp("ab"p, "a"p))
 
+    // #6-10
     pstrcopy(buffer, "test"p)
     assert_equal(4, pstrlen(buffer))
     assert_equal(0, pstrcmp("test"p, buffer))
@@ -19,5 +21,9 @@ void test_pstring() {
     assert_equal(0, pstrcmp("testhello"p, buffer))
     assert_equal(1234, pstr2word("1234"p))
 
+    // #11
+    pstrcopy(buffer, "test****test"p)
+    pstrpaste(buffer+5, "test"p)
+    assert_equal(0, pstrcmp("testtesttest"p, buffer))
 
 }

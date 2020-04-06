@@ -54,6 +54,7 @@ HELLOCPC
 FIZZBUZZ
 __hw_bbcmicro
 __hw_cpc464
+tests-cpc-*
 
 #heap dumps
 java_pid*

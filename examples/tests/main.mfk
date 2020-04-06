@@ -1,15 +1,19 @@
 import test_fibonacci
 import test_pstring
 import test_string
+import test_encconv
 
 void main() {
     ensure_mixedcase()
 
+    // readkey()
     test_fibonacci()
     test_string()
     test_pstring()
+    test_encconv()
 
     new_line()
     putstrz("Total failures: "z)
     putword(failure_count)
+    while true {} // don't exit
 }
