@@ -45,6 +45,15 @@ void pstrappend(pointer buffer, pointer str) {
     buffer[0] += size
 }
 
+void pstrpaste(pointer dest, pointer str) {
+    byte i, size
+    dest -= 1
+    size = str[0]
+    for i,1,parallelto,size{
+        dest[i] = str[i]
+    }
+}
+
 void pstrappendchar(pointer buffer, byte char) {
    buffer[0] += 1
    buffer[buffer[0]] = char
