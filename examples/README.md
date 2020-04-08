@@ -3,6 +3,8 @@
 The examples showcased here are designed to compile with a compiler built from newest sources.  
 If you are using a release version of the compiler, consider browsing the older versions of the examples:
 
+* [for version 0.3.16](https://github.com/KarolS/millfork/tree/v0.3.16/examples)
+
 * [for version 0.3.14](https://github.com/KarolS/millfork/tree/v0.3.14/examples)
 
 * [for version 0.3.12](https://github.com/KarolS/millfork/tree/v0.3.12/examples)

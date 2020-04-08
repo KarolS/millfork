@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.16 (2020-04-08)
 
 * Language improvements:
 
@@ -74,7 +74,7 @@
 
     * Updated to Scala 2.12.11.
 
-## 0.3.14
+## 0.3.14 (2019-12-03)
 
 * Full assembly support for HuC6280.
 
@@ -90,7 +90,7 @@
 
 * Other bug fixes.
 
-## 0.3.12
+## 0.3.12 (2019-11-06)
 
 * **Breaking change!**
 The `petscr`, `petscrjp` and `atasciiscr` encodings now use $E0, $E0 and $DB respectively as their string terminator.
@@ -114,7 +114,7 @@ Changed the identifiers for various subtypes of the 65C02 processors.
 
 * Other bugfixes
 
-## 0.3.10
+## 0.3.10 (2019-10-24)
 
 * Preliminary support for the CPU from ZX Spectrum Next.
 
@@ -154,7 +154,7 @@ Changed the identifiers for various subtypes of the 65C02 processors.
 
 * Added another NES example (thanks to @Garydos).
 
-## 0.3.8
+## 0.3.8 (2019-06-21)
 
 * `sizeof` now supports arrays.
 
@@ -190,7 +190,7 @@ Changed the identifiers for various subtypes of the 65C02 processors.
 
 * 6502: Inlining improvements.
 
-## 0.3.6
+## 0.3.6 (2019-08-05)
 
 * **Breaking change!**
 The `petscii` encoding now uses the $C0-$DE range for uppercase characters instead of $60-$7E.
@@ -252,7 +252,7 @@ This matches both the CC65 behaviour and the return values from `readkey()`.
 
 * Other fixes and improvements.
 
-## 0.3.4
+## 0.3.4 (2019-07-01)
 
 * Preliminary experimental Game Boy support.
 
@@ -349,7 +349,7 @@ can no longer be read before an explicit call to `init_rw_memory`, either add th
 
 * Optimization improvements.
 
-## 0.3.2
+## 0.3.2 (2018-12-28)
 
 * Almost complete support for the Zilog Z80, Intel 8080 and Sharp LR35902 microprocessors.
 
@@ -422,7 +422,7 @@ Code that uses a custom platform definitions will cause extra warnings until fix
 
 * Other improvements.
 
-## 0.3.0
+## 0.3.0 (2018-06-25)
 
 * Finally faster than C. 
 
@@ -454,7 +454,7 @@ Code that uses a custom platform definitions will cause extra warnings until fix
 
 * Other improvements.
 
-## 0.2.2
+## 0.2.2 (2018-03-19)
 
 * Allowed adding constant words to variable bytes without the zeropage pseudoregister.
 
@@ -466,7 +466,7 @@ Code that uses a custom platform definitions will cause extra warnings until fix
 
 * Other improvements.
 
-## 0.2
+## 0.2 (2018-03-17)
 
 * **Breaking change!** Renamed `inline` to `macro`.
 
@@ -515,6 +515,6 @@ Detailed flow analysis was slow, broken, hard to maintain, and didn't even help 
 
 * Other improvements.
 
-## 0.1
+## 0.1 (2018-01-24)
 
 * Initial numbered version.

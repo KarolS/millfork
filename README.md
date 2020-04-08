@@ -5,7 +5,7 @@
 A middle-level programming language targeting 6502-based, 8080-based and Z80-based microcomputers. 
 
 For binary releases, see: [https://github.com/KarolS/millfork/releases](https://github.com/KarolS/millfork/releases)
-(latest: 0.3.14).  
+(latest: 0.3.16).  
 For build instructions, see [Build instructions](./COMPILING.md).
 
 ## Features
@@ -36,7 +36,7 @@ For build instructions, see [Build instructions](./COMPILING.md).
     
     * reasonably well supported: Sharp LR35902, CSG 65CE02
     
-    * partially supported: Hudson Soft HuC6280, WDC 65816, Intel 8086
+    * partially supported: Hudson Soft HuC6280, WDC 65816, Intel 8086, Motorola 6809
 
 * inline assembly
 
