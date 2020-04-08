@@ -2,51 +2,75 @@
 
 ## Current version
 
-* Added compile-time evaluation for user-defined functions.
+* Language improvements:
 
-* 6809 improvements (no full support yet).
+    * Added compile-time evaluation for user-defined functions.
+    
+    * Added `breakpoint` macro (#44).
 
-* Various improvements to the C64 libraries (thanks to @bsutherland).
+    * **Potentially breaking change!** Added `min`, `max` and `if` compile-time functions.
+    
+    * Added experimental `signed16` and `unsigned16` types.
+    
+    * Added length-prefixed strings (Pascal strings).  
+    
+    * Improved operator support for word-sized arguments (#24, #25).
+    
+    * **Potentially breaking change!** Various macros improvements, including the requirement of parameter types matching exactly (#23, #39, #40).
 
-* Added detection for various PET variants and implemented `readkey` for PET.
+* Compiler improvements:
 
-* Added `breakpoint` macro (#44).
+    * 6809 improvements (no full support yet).
+    
+    * Added warnings for calling from one segment to another overlapping one.
+    
+    * 6502: Fixed undocumented mnemonics.
+    
+    * Create output directories when needed (#21).
+    
+    * Allow defining different output formats for different segments when outputting one file per segment.
+    
+    * Fixed multiple optimization bugs (#32, #38, #41, #46 and others) – thanks to @agg23 for detailed bug reports!
+    
+    * 6502: Fix boolean arrays and pointers (#28).
 
-* **Potentially breaking change!** Added `min`, `max` and `if` compile-time functions.
+    * Fixed and improved memset-like loops (#47).
+    
+    * Minor improvements to inline assembly.
+    
+    * Improvements to constant evaluation, including more arithmetic operators.
+    
+    * **Potentially breaking change!** Detect overflowing constants, like `const byte x = 256`.
+    
+    * Optimization improvements.
+    
+    * 6502: Memory allocation improvements for pointers.
+    
+    * Support for MkImg (tool for creating BBC Micro disk images) and multiple output files on BBC Micro.
+    
+    * Other minor fixes.
 
-* Added experimental `signed16` and `unsigned16` types. Added `putsigned16` function.
+* Library improvements:
 
-* Added length-prefixed strings (Pascal strings), `pstring` module and `putpstr` function.        
+    * Added `putsigned16` function.
+    
+    * Added `pstring` module and `putpstr` function.  
 
-* Fixed `scrstr2word` in some rare encoding combinations. 
+    * Various improvements to the C64 libraries (thanks to @bsutherland).
+    
+    * Added detection for various PET variants and implemented `readkey` for PET.
+    
+    * Changed the default load address for BBC Micro.
 
-* Added warnings for calling from one segment to another overlapping one.
+    * Multiple fixes to the `string`, `scrstring` and `encconv` modules.
+    
+    * Other minor fixes.
 
-* 6502: Fixed undocumented mnemonics.
+* Other changes:
 
-* Create output directories when needed (#21).
+    * Created a pure-Millfork test suite.
 
-* Allow defining different output formats for different segments when outputting one file per segment.
-
-* Fixed multiple optimization bugs (#32, #38, #41, #46 and others) – thanks to @agg23 for detailed bug reports!
-
-* 6502: Fix boolean arrays and pointers (#28).
-
-* Improved operator support for word-sized arguments (#24, #25).
-
-* Fixed and improved memset-like loops (#47).
-
-* **Potentially breaking change!** Detect overflowing constants, like `const byte x = 256`.
-
-* **Potentially breaking change!** Various macros improvements, including the requirement of parameter types matching exactly (#23, #39, #40).
-
-* Minor improvements to inline assembly.
-
-* Improvements to constant evaluation.
-
-* Optimization improvements.
-
-* Updated to Scala 2.12.11.
+    * Updated to Scala 2.12.11.
 
 ## 0.3.14
 
