@@ -26,6 +26,8 @@ note that support for these targets may end when the suite grows beyond their me
 
 * Amstrad CPC, loadable programs (`cpc464`)
 
+* BBC Micro, loadable programs (`bbcmicro`)
+
 Compiling with the `-D PRINT_SUCCESSES` will cause the suite to print all tests, including successful ones.
 Otherwise, only failed tests will be printed.
 
