@@ -10,7 +10,7 @@ import c64_basic
 import c264_basic
 #endif
 
-#define READKEY = CBM_64 | CBM_264 | ZX_SPECTRUM | NEC_PC_88
+#define READKEY = CBM_64 | CBM_264 | ZX_SPECTRUM | NEC_PC_88 | APPLE_2
 
 #if READKEY
 import keyboard

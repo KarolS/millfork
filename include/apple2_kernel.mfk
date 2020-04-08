@@ -10,3 +10,16 @@ asm void bell() @$FBE4 extern
 
 asm void putchar(byte register(a) char) @$FDED extern
 asm void new_line() @$FC62 extern
+asm pointer readline() {
+    jsr $FD6A
+    ldx #$ff
+    __readline_loop:
+    inx
+    lda $200,x
+    cmp #$8d
+    bne __readline_loop
+    lda #0
+    sta $200,x
+    ldx #2
+    rts
+}

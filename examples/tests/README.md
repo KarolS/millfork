@@ -28,6 +28,8 @@ note that support for these targets may end when the suite grows beyond their me
 
 * BBC Micro, loadable programs (`bbcmicro`)
 
+* Apple II, loadable programs (`apple2`)
+
 Compiling with the `-D PRINT_SUCCESSES` will cause the suite to print all tests, including successful ones.
 Otherwise, only failed tests will be printed.
 

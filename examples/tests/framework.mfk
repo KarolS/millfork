@@ -4,7 +4,7 @@ pointer current_suite_name
 byte current_test_number
 word failure_count = 0
 
-#if ZX_SPECTRUM || CBM || NEC_PC88 || ATARI_8 || AMSTRAD_CPC
+#if ZX_SPECTRUM || CBM || NEC_PC88 || ATARI_8 || AMSTRAD_CPC || APPLE_2
 
 import keyboard
 alias wait_after_failure = readkey

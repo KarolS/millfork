@@ -48,6 +48,7 @@ Available for:
 ZX Spectrum,
 NEC PC-88,
 MSX,
+Apple II,
 Commodore 64 with `c64_basic` module (requires KERNAL and BASIC),
 Commodore 16 or Plus/4 with `c264_basic` module (requires KERNAL and BASIC).
 
@@ -59,6 +60,7 @@ Available for:
 ZX Spectrum,
 NEC PC-88,
 MSX,
+Apple II,
 Commodore 64 with `c64_basic` module (requires KERNAL and BASIC),
 Commodore 16 or Plus/4 with `c264_basic` module (requires KERNAL and BASIC).
 

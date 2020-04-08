@@ -112,6 +112,12 @@ noinline asm byte readkey() {
 #endif
 
 
+#if APPLE_2
+asm byte readkey() @$FD0C extern
+#define OK = 1
+#endif
+
+
 #if NEC_PC_88
 asm byte readkey() @$3583 extern
 #define OK = 1

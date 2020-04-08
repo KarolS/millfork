@@ -15,8 +15,9 @@ void main() {
     pointer line
     while true {
         line = readline()
-        // empty line is read as a single space
+        // empty line is read as a single space on C64
         if line[0] == 32 && line[1] == 0 { return }
+        if line[0] == 0 { return }
         putstrz(line)
         new_line()
     }

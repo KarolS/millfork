@@ -60,6 +60,8 @@
     
     * Added detection for various PET variants and implemented `readkey` for PET.
     
+    * Implemented `readkey` and `readline` for Apple II.
+    
     * Changed the default load address for BBC Micro.
 
     * Multiple fixes to the `string`, `scrstring` and `encconv` modules.

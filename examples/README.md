@@ -21,15 +21,15 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Text encodings](crossplatform/text_encodings.mfk) (C64/ZX Spectrum) – examples of text encoding features
 
-* [Echo](crossplatform/echo.mfk) (C64/C16/ZX Spectrum/PC-88/MSX)– simple text input and output
+* [Echo](crossplatform/echo.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX)– simple text input and output
 
-* [Calculator](crossplatform/calculator.mfk) (C64/C16/ZX Spectrum/PC-88/MSX) – simple numeric input and output
+* [Calculator](crossplatform/calculator.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX) – simple numeric input and output
 
-* [Guessing game](crossplatform/guess.mfk) (C64/C16/ZX Spectrum/PC-88/MSX) – a guess-a-number game
+* [Guessing game](crossplatform/guess.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX) – a guess-a-number game
 
 * [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
 
-* [`readkey` test](crossplatform/readkeytest.mfk) (C64/C16/PET/VIC-20/Atari/Armstrad CPC/ZX Spectrum/PC-88) – keyboard reading test
+* [`readkey` test](crossplatform/readkeytest.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/Armstrad CPC/ZX Spectrum/PC-88) – keyboard reading test
 
 * [Screen encoding test](crossplatform/screnctest.mfk) (C64/C16) – default-to-screen encoding conversion test
 
@@ -37,7 +37,7 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Life](crossplatform/life.mfk) (C64/C16/Atari/ZX Spectrum) – Conway's game of life
 
-* [Test suite](tests) (C64/C16/Atari/Armstrad CPC/ZX Spectrum/PC-88) – the semi-official test-suite for Millfork
+* [Test suite](tests) (C64/C16/Atari/Apple II/BBC Micro/Armstrad CPC/ZX Spectrum/PC-88) – the semi-official test-suite for Millfork
 
 ## Commodore 64 examples
 
