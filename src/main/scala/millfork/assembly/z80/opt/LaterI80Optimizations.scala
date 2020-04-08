@@ -142,9 +142,68 @@ object LaterI80Optimizations {
     },
   )
 
+  val UseRegistersInsteadOfAbsoluteAddressing = new RuleBasedAssemblyOptimization("Use registers instead of absolute adressing",
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(A, MEM_ABS_8)) & MatchParameter(1) & MatchRegister(HL, 1)) ~~> { code =>
+      code.map(_.copy(registers = TwoRegisters(A, MEM_HL), parameter = Constant.Zero))
+    },
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(MEM_ABS_8, A)) & MatchParameter(1) & MatchRegister(HL, 1)) ~~> { code =>
+      code.map(_.copy(registers = TwoRegisters(MEM_HL, A), parameter = Constant.Zero))
+    },
+
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(A, MEM_ABS_8)) & MatchParameter(1) & MatchRegister(BC, 1)) ~~> { code =>
+      code.map(_.copy(registers = TwoRegisters(A, MEM_BC), parameter = Constant.Zero))
+    },
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(MEM_ABS_8, A)) & MatchParameter(1) & MatchRegister(BC, 1)) ~~> { code =>
+      code.map(_.copy(registers = TwoRegisters(MEM_BC, A), parameter = Constant.Zero))
+    },
+
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(A, MEM_ABS_8)) & MatchParameter(1) & MatchRegister(DE, 1)) ~~> { code =>
+      code.map(_.copy(registers = TwoRegisters(A, MEM_DE), parameter = Constant.Zero))
+    },
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(MEM_ABS_8, A)) & MatchParameter(1) & MatchRegister(DE, 1)) ~~> { code =>
+      code.map(_.copy(registers = TwoRegisters(MEM_DE, A), parameter = Constant.Zero))
+    },
+
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(A, MEM_ABS_8)) & MatchParameter(1)) ~
+      (Linear & Not(Concerns(HL))).* ~
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(HL, IMM_16)) & MatchParameter(1)) ~~> { code =>
+      code.last :: code.head.copy(registers = TwoRegisters(A, MEM_HL), parameter = Constant.Zero) :: code.tail.init
+    },
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(MEM_ABS_8, A)) & MatchParameter(1)) ~
+      (Linear & Not(Concerns(HL))).* ~
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(HL, IMM_16)) & MatchParameter(1)) ~~> { code =>
+      code.last :: code.head.copy(registers = TwoRegisters(MEM_HL, A), parameter = Constant.Zero) :: code.tail.init
+    },
+
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(A, MEM_ABS_8)) & MatchParameter(1)) ~
+      (Linear & Not(Concerns(BC))).* ~
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(BC, IMM_16)) & MatchParameter(1)) ~~> { code =>
+      code.last :: code.head.copy(registers = TwoRegisters(A, MEM_BC), parameter = Constant.Zero) :: code.tail.init
+    },
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(MEM_ABS_8, A)) & MatchParameter(1)) ~
+      (Linear & Not(Concerns(BC))).* ~
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(BC, IMM_16)) & MatchParameter(1)) ~~> { code =>
+      code.last :: code.head.copy(registers = TwoRegisters(MEM_BC, A), parameter = Constant.Zero) :: code.tail.init
+    },
+
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(A, MEM_ABS_8)) & MatchParameter(1)) ~
+      (Linear & Not(Concerns(DE))).* ~
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(DE, IMM_16)) & MatchParameter(1)) ~~> { code =>
+      code.last :: code.head.copy(registers = TwoRegisters(A, MEM_DE), parameter = Constant.Zero) :: code.tail.init
+    },
+    (Elidable & HasOpcode(LD) & HasRegisters(TwoRegisters(MEM_ABS_8, A)) & MatchParameter(1)) ~
+      (Linear & Not(Concerns(DE))).* ~
+      (Elidable & HasOpcode(LD_16) & HasRegisters(TwoRegisters(DE, IMM_16)) & MatchParameter(1)) ~~> { code =>
+      code.last :: code.head.copy(registers = TwoRegisters(MEM_DE, A), parameter = Constant.Zero) :: code.tail.init
+    },
+  )
+
   val All: List[AssemblyOptimization[ZLine]] = List(
     VariousSmallOptimizations,
     FreeHL,
     TailCall,
+    UseRegistersInsteadOfAbsoluteAddressing,
   )
 }
