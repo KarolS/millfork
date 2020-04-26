@@ -1,5 +1,7 @@
 # Change log
 
+## Current version
+
 ## 0.3.16 (2020-04-08)
 
 * Language improvements:
