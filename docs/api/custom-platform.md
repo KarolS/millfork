@@ -3,6 +3,7 @@
 ## Adding a custom platform
 
 Every platform is defined in an `.ini` file with an appropriate name.
+The file is looked up in the directories on the include path, first directly, then in the `platform` subdirectory.
 
 As an extension, multiline entries are supported:
 if a line ends with a backslash character, the value continues to the next line. 

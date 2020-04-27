@@ -1,0 +1,27 @@
+
+import random
+
+#if not(ARCH_6809)
+#warn random_6809 module should be only used on 6809-compatible targets
+#endif
+
+asm byte rand() {
+    ? lda #8
+    ? ldb rand_seed+0
+__rand_loop:
+    aslb
+    ? rolb rand_seed+1
+    bcc __no_eor
+    eorb #$2D
+__no_eor:
+    deca
+    bne __rand_loop
+    ? sta rand_seed+0
+    ? rts
+}
+
+inline void init_rand_seed() {
+    // TODO: find a better source of randomness
+    rand_seed = 1
+}
+

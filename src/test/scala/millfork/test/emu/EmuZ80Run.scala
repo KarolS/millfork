@@ -56,7 +56,7 @@ object EmuZ80Run {
   private def get(cpu: millfork.Cpu.Value, path: String): Program =
     synchronized { cache.getOrElseUpdate(cpu->path, preload(cpu, path)).getOrElse(throw new IllegalStateException()) }
 
-  def cachedMath(cpu: millfork.Cpu.Value): Program = get(cpu, "include/i80_math.mfk")
+  def cachedMath(cpu: millfork.Cpu.Value): Program = get(cpu, "include/i80/i80_math.mfk")
   def cachedStdio(cpu: millfork.Cpu.Value): Program = get(cpu, "src/test/resources/include/dummy_stdio.mfk")
 }
 

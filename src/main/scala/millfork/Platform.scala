@@ -71,8 +71,13 @@ object Platform {
       if (file.exists()) {
         return load(file)
       }
+      val file2 = Paths.get(dir, "platform", platformName + ".ini").toFile
+      log.debug("Checking " + file2)
+      if (file2.exists()) {
+        return load(file2)
+      }
     }
-    log.fatal(s"Platfom definition `$platformName` not found", None)
+    log.fatal(s"Platform definition `$platformName` not found", None)
   }
 
   def load(file: File)(implicit log: Logger): Platform = {

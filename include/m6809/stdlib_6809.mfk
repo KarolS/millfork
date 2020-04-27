@@ -1,0 +1,51 @@
+// target-independent things
+
+#if not(ARCH_6809)
+#warn stdlib_6809 module should be only used on 6809-compatible targets
+#endif
+
+word nmi_routine_addr   @$FFFC
+word reset_routine_addr @$FFFE
+word irq_routine_addr   @$FFF8
+word swi_routine_addr   @$FFFA
+word firq_routine_addr   @$FFF6
+word swi2_routine_addr   @$FFF4
+word swi3_routine_addr   @$FFF2
+
+macro asm void poke(word const addr, byte register(b) value) {
+    ! STB addr
+}
+
+macro asm byte peek(word const addr) {
+    ! LDB addr
+}
+
+macro asm void disable_irq() {
+    ORCC #$30
+}
+
+macro asm void enable_irq() {
+    ANDCC #$CF
+}
+
+asm byte hi_nibble_to_hex(byte register(a) value) {
+    LSRB
+    LSRB
+    LSRB
+    LSRB
+    ? JMP lo_nibble_to_hex
+}
+
+asm byte lo_nibble_to_hex(byte register(a) value) {
+    ! ANDB #$F
+    ADDB #$30
+    CMPB #$3A
+    BCC _lo_nibble_to_hex_lbl
+    ADDB #$7 // carry is set
+_lo_nibble_to_hex_lbl:
+    ? RTS
+}
+
+macro asm void panic() {
+    ? JSR _panic
+}

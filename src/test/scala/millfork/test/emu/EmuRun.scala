@@ -187,7 +187,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
         // prepare
         val withLibraries = {
           var tmp = unoptimized
-          if(source.contains("import zp_reg"))
+          if(source.contains("import zp_reg") || source.contains("import m6502/zp_reg"))
             tmp += EmuRun.cachedZpreg
           if(source.contains("import stdio"))
             tmp += EmuRun.cachedStdio

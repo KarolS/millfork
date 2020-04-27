@@ -218,7 +218,11 @@ is equivalent to:
 
     import <module>
     
-Adds a module to the program.
+Adds a module to the program. The module name can be a valid identifier
+or a sequence of identifiers separated by forward slashes:
+
+    import module1
+    import library1/module2
 
 The module is looked up first in the current working directory, and then in the include directories.
 

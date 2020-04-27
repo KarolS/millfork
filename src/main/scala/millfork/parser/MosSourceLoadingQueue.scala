@@ -13,14 +13,14 @@ class MosSourceLoadingQueue(initialFilenames: List[String],
   override def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long], pragmas: Set[String]): MfParser[AssemblyLine] =
     MosParser(filename, src, parentDir, options, featureConstants)
 
-  override def standardModules: IndexedSeq[String] = IndexedSeq("zp_reg", "bcd_6502")
+  override def standardModules: IndexedSeq[String] = IndexedSeq("m6502/zp_reg", "m6502/bcd_6502")
 
   def enqueueStandardModules(): Unit = {
     if (options.zpRegisterSize > 0) {
-      moduleQueue.enqueue(() => parseModule("zp_reg", includePath, Left(None)))
+      moduleQueue.enqueue(() => parseModule("m6502/zp_reg", includePath, Left(None)))
     }
     if (options.zpRegisterSize >= 4 && !options.flag(CompilationFlag.DecimalMode)) {
-      moduleQueue.enqueue(() => parseModule("bcd_6502", includePath, Left(None)))
+      moduleQueue.enqueue(() => parseModule("m6502/bcd_6502", includePath, Left(None)))
     }
   }
 

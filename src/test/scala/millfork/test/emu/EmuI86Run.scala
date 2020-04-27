@@ -54,7 +54,7 @@ object EmuI86Run {
   private def get(path: String): Program =
     synchronized { cache.getOrElseUpdate(path, preload(path)).getOrElse(throw new IllegalStateException()) }
 
-  def cachedMath(): Program = get("include/i80_math.mfk") // TODO
+  def cachedMath(): Program = get("include/i80/i80_math.mfk") // TODO
   def cachedStdio(): Program = get("src/test/resources/include/dummy_stdio.mfk")
 
   val leakSaverCpu = new Intel8086()

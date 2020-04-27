@@ -12,9 +12,9 @@ alias scrstrzappend = strzappend
 #else
 
 #if ARCH_I80
-import scrstring_fastpointers
+import internal/scrstring_fastpointers
 #else
-import scrstring_fastindices
+import internal/scrstring_fastindices
 #endif
 
 void scrstrzappend(pointer buffer, pointer str) {

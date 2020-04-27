@@ -2,12 +2,14 @@
 word rand_seed
 
 #if ARCH_6502
-import random_6502
+import m6502/random_6502
 #elseif ARCH_I80
-import random_i80
+import i80/random_i80
 #elseif ARCH_X86
 #warn 8086 is a partially supported architecture
-import random_i80
+import m6502/random_i80
+#elseif ARCH_6809
+import m6809/random_6809
 #else
 #warn Unsupported architecture
 #endif

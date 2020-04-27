@@ -6,7 +6,7 @@
 
 #pragma zilog_syntax
 
-import i80_math
+import i80/i80_math
 
 macro asm void poke(word const addr, byte register(a) value) {
     ! LD (addr), A

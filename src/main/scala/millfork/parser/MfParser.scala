@@ -83,7 +83,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val continueStatement: P[Seq[ExecutableStatement]] = ("continue" ~ !letterOrDigit ~/ HWS ~ identifier.?).map(l => Seq(ContinueStatement(l.getOrElse(""))))
 
-  val importStatement: P[Seq[ImportStatement]] = ("import" ~ !letterOrDigit ~/ SWS ~/ identifier).map(x => Seq(ImportStatement(x)))
+  val importStatement: P[Seq[ImportStatement]] = ("import" ~ !letterOrDigit ~/ SWS ~/ identifier.rep(min = 1, sep = "/")).map(x => Seq(ImportStatement(x.mkString("/"))))
 
   val forDirection: P[ForDirection.Value] =
     ("parallel" ~ HWS ~ "to").!.map(_ => ForDirection.ParallelTo) |

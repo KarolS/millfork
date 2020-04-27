@@ -1,9 +1,9 @@
 import err
 
 #if ARCH_I80
-import string_fastpointers
+import internal/string_fastpointers
 #else
-import string_fastindices
+import internal/string_fastindices
 #endif
 
 void strzappend(pointer buffer, pointer str) {

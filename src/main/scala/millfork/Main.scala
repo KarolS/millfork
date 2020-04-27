@@ -211,7 +211,7 @@ object Main {
         "zxspectrum", "zxspectrum_8080", "pc88", "cpc464", "msx_crt",
         "cpm", "cpm_z80", "dos_com")
       case Right(path) =>
-        Seq(new File(".").list(), new File(path).list())
+        Seq(new File(".").list(), new File(".", "platform").list(), new File(path).list(), new File(path, "platform").list())
           .filter(_ ne null)
           .flatMap(_.toSeq)
           .filter(_.endsWith(".ini"))

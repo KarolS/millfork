@@ -49,8 +49,8 @@ object ShouldNotCompile extends Matchers {
           else effectiveSource += "\nnoinline asm word call(word de) {\npush de\nret\n}\n"
       }
     }
-    if (source.contains("import zp_reg"))
-      effectiveSource += Files.readAllLines(Paths.get("include/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
+    if (source.contains("import zp_reg") || source.contains("import m6502/zp_reg"))
+      effectiveSource += Files.readAllLines(Paths.get("include/m6502/zp_reg.mfk"), StandardCharsets.US_ASCII).asScala.mkString("\n", "\n", "")
     log.setSource(Some(effectiveSource.linesIterator.toIndexedSeq))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, effectiveSource)
     val parserF =
