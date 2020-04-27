@@ -74,8 +74,13 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
       case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
       case _ => None
     }.toSet
+    if (stillUsedVariables.isEmpty) {
+      return code
+    }
+
     val variablesWithAddressesTaken = code.flatMap {
       case AssemblyLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
+      case AssemblyLine0(_, WordImmediate, MemoryAddressConstant(th)) => Some(th.name)
       case _ => None
     }.toSet
     val localVariables = f.environment.getAllLocalVariables.filter {
@@ -83,6 +88,10 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
         typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name) && !v.isVolatile
       case _ => false
     }
+    if (localVariables.isEmpty) {
+      return code
+    }
+
     val variablesWithRegisterHint = f.environment.getAllLocalVariables.filter {
       case v@MemoryVariable(name, typ, VariableAllocationMethod.Register) =>
         typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name) && !v.isVolatile
@@ -318,32 +327,40 @@ object TwoVariablesToIndexRegistersOptimization extends AssemblyOptimization[Ass
         if th.name == vx =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           tailcall(inlineVars(vx, vy, vx, loadedY, xs))
-        } else {
+        } else if (imp.c == Unimportant) {
           tailcall(inlineVars(vx, vy, vx, loadedY, xs)).map(AssemblyLine.immediate(CPX, 0).pos(s) :: _)
+        } else {
+          tailcall(inlineVars(vx, vy, vx, loadedY, xs)).map(AssemblyLine.implied(INX).pos(s) :: AssemblyLine.implied(DEX).pos(s) :: _)
         }
 
       case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), imp) :: xs
         if th.name == vx =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           tailcall(inlineVars(vx, vy, loadedX, vx, xs))
-        } else {
+        } else if (imp.c == Unimportant) {
           tailcall(inlineVars(vx, vy, loadedX, vx, xs)).map(AssemblyLine.immediate(CPX, 0).pos(s) :: _)
+        } else {
+          tailcall(inlineVars(vx, vy, loadedX, vy, xs)).map(AssemblyLine.implied(INX).pos(s) :: AssemblyLine.implied(DEX).pos(s) :: _)
         }
 
       case (AssemblyLine(LDY, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), imp) :: xs
         if th.name == vy =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           inlineVars(vx, vy, loadedX, vy, xs)
-        } else {
+        } else if (imp.c == Unimportant) {
           tailcall(inlineVars(vx, vy, loadedX, vy, xs)).map(AssemblyLine.immediate(CPY, 0).pos(s) ::  _)
+        } else {
+          tailcall(inlineVars(vx, vy, loadedX, vy, xs)).map(AssemblyLine.implied(INY).pos(s) :: AssemblyLine.implied(DEY).pos(s) ::  _)
         }
 
       case (AssemblyLine(LDX, Absolute | ZeroPage, MemoryAddressConstant(th), _, s), imp) :: xs
         if th.name == vy =>
         if (imp.z == Unimportant && imp.n == Unimportant) {
           inlineVars(vx, vy, vy, loadedY, xs)
-        } else {
+        } else if (imp.c == Unimportant) {
           tailcall(inlineVars(vx, vy, vy, loadedY, xs)).map(AssemblyLine.immediate(CPY, 0).pos(s) ::  _)
+        } else {
+          tailcall(inlineVars(vx, vy, vy, loadedY, xs)).map(AssemblyLine.implied(INY).pos(s) :: AssemblyLine.implied(DEY).pos(s) ::  _)
         }
 
       case (x@AssemblyLine(LDY, _, _, _, _), imp) :: xs =>

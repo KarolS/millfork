@@ -3186,4 +3186,42 @@ object AlwaysGoodOptimizations {
       }).flatten)
 
   )
+
+  lazy val ReuseIndex = new RuleBasedAssemblyOptimization("Reuse right index register",
+    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+
+    (Elidable & HasOpcode(LDX) & MatchParameter(0) & HasAddrModeIn(Absolute, ZeroPage)) ~
+      (Elidable & Linear & Not(ConcernsY) &
+        (Not(ConcernsX) | HasOpcodeIn(LDA, STA, LDA_W, STA_W, ADC, ADC_W, SBC, SBC_W, ORA, ORA_W, AND, AND_W, EOR, EOR_W, CMP, CMP_W) & HasAddrMode(AbsoluteX))).*.capture(1) ~
+      ((Elidable & HasOpcode(LDY) & MatchParameter(0) & HasAddrModeIn(Absolute, ZeroPage))).capture(2) ~~> { (code, ctx) =>
+      code.head.copy(opcode = LDY) :: (ctx.get[List[AssemblyLine]](1).map(l => if (l.addrMode == AbsoluteX) l.copy(addrMode = AbsoluteY) else l) ++ ctx.get[List[AssemblyLine]](2))
+    },
+
+    (Elidable & HasOpcode(LDY) & MatchParameter(0) & HasAddrModeIn(Absolute, ZeroPage)) ~
+      (Elidable & Linear & Not(ConcernsX) &
+        (Not(ConcernsY) | HasOpcodeIn(LDA, STA, LDA_W, STA_W, ADC, ADC_W, SBC, SBC_W, ORA, ORA_W, AND, AND_W, EOR, EOR_W, CMP, CMP_W) & HasAddrMode(AbsoluteY))).*.capture(1) ~
+      ((Elidable & HasOpcode(LDX) & MatchParameter(0) & HasAddrModeIn(Absolute, ZeroPage))).capture(2) ~~> { (code, ctx) =>
+      code.head.copy(opcode = LDX) :: (ctx.get[List[AssemblyLine]](1).map(l => if (l.addrMode == AbsoluteY) l.copy(addrMode = AbsoluteX) else l) ++ ctx.get[List[AssemblyLine]](2))
+    },
+
+    (Elidable & HasOpcode(LDX) & MatchParameter(0) & HasAddrModeIn(Absolute, ZeroPage)) ~
+      (Elidable & Linear & Not(ConcernsY) &
+        (Not(ConcernsX) | HasOpcodeIn(LDA, STA, LDA_W, STA_W, ADC, ADC_W, SBC, SBC_W, ORA, ORA_W, AND, AND_W, EOR, EOR_W, CMP, CMP_W) & HasAddrMode(AbsoluteX))).*.capture(1) ~
+      ((HasOpcode(LDX) & Not(MatchParameter(0))) ~
+        (Linear & Not(ConcernsY)).* ~
+        (Elidable & HasOpcode(LDY) & MatchParameter(0) & HasAddrModeIn(Absolute, ZeroPage))).capture(2) ~~> { (code, ctx) =>
+      code.head.copy(opcode = LDY) :: (ctx.get[List[AssemblyLine]](1).map(l => if (l.addrMode == AbsoluteX) l.copy(addrMode = AbsoluteY) else l) ++ ctx.get[List[AssemblyLine]](2))
+    },
+
+    (Elidable & HasOpcode(LDY) & MatchParameter(0) & HasAddrModeIn(Absolute, ZeroPage)) ~
+      (Elidable & Linear & Not(ConcernsX) &
+        (Not(ConcernsY) | HasOpcodeIn(LDA, STA, LDA_W, STA_W, ADC, ADC_W, SBC, SBC_W, ORA, ORA_W, AND, AND_W, EOR, EOR_W, CMP, CMP_W) & HasAddrMode(AbsoluteY))).*.capture(1) ~
+      ((HasOpcode(LDY) & Not(MatchParameter(0))) ~
+        (Linear & Not(ConcernsY)).* ~
+        (Elidable & HasOpcode(LDX) & MatchParameter(0) & HasAddrModeIn(Absolute, ZeroPage))).capture(2) ~~> { (code, ctx) =>
+      code.head.copy(opcode = LDX) :: (ctx.get[List[AssemblyLine]](1).map(l => if (l.addrMode == AbsoluteY) l.copy(addrMode = AbsoluteX) else l) ++ ctx.get[List[AssemblyLine]](2))
+    },
+
+
+  )
 }
