@@ -209,6 +209,14 @@ An array is initialized with either:
 
 Trailing commas (`[1, 2,]`) are not allowed.
 
+String literals are laid out in the arrays as-is, flat.
+To have an array of pointers to strings, wrap each string in `pointer(...)`:
+
+    // a.length = 12; identical to [$48, $45, $4C, $4C, $4F, 0, $57, $4F, $52, $4C, $44, 0]
+    array a = [ "hello"z, "world"z ] 
+    // b.length = 2
+    array(pointer) b = [ pointer("hello"z), pointer("world"z) ]
+
 The parameters for `file` are: file path, optional start offset, optional length
 (if only two parameters are present, then the second one is assumed to be the start offset).
 The `file` expression is expanded at the compile time to an array of bytes equal to the bytes contained in the file.
