@@ -2,6 +2,12 @@
 
 ## Current version
 
+* Allow importing modules from subdirectories.
+
+* Allow placing platform definitions in a dedicated subdirectory.
+
+* 6502: Optimization improvements. 
+
 ## 0.3.16 (2020-04-08)
 
 * Language improvements:
