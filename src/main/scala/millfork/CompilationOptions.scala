@@ -3,6 +3,7 @@ package millfork
 import millfork.buildinfo.BuildInfo
 import millfork.compiler.LabelGenerator
 import millfork.error.{ConsoleLogger, Logger}
+import millfork.parser.TextCodecRepository
 
 /**
   * @author Karol Stasiak
@@ -12,6 +13,7 @@ case class CompilationOptions(platform: Platform,
                               outputFileName: Option[String],
                               zpRegisterSize: Int,
                               featureOverrides: Map[String, Long],
+                              textCodecRepository: TextCodecRepository,
                               jobContext: JobContext) {
 
   import CompilationFlag._

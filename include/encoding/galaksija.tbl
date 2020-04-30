@@ -1,0 +1,16 @@
+NAME=Galaksija
+EOT=00
+
+20=U+0020
+21-26=!"#$%&
+28-3f=()*+,-./0123456789:;<=>?
+41-5f=ABCDEFGHIJKLMNOPQRSTUVWXYZČĆŽŠ_
+
+a-z=41
+č=5b
+ć=5c
+ž=5d
+š=5e
+{n}=0d
+{q}=22
+{galaksija}=4027

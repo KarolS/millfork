@@ -32,7 +32,7 @@ object EmuM6809Run {
     val source = Files.readAllLines(Paths.get(filename), StandardCharsets.US_ASCII).asScala.mkString("\n")
     val options = CompilationOptions(EmuPlatform.get(cpu), Map(
           CompilationFlag.LenientTextEncoding -> true
-        ), None, 0, Map(), JobContext(TestErrorReporting.log, new LabelGenerator))
+        ), None, 0, Map(), EmuPlatform.textCodecRepository, JobContext(TestErrorReporting.log, new LabelGenerator))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
     TestErrorReporting.log.debug(s"Features: $features")
     TestErrorReporting.log.info(s"Parsing $filename")
@@ -96,7 +96,7 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
-    ), None, 0, Map(), JobContext(log, new LabelGenerator))
+    ), None, 0, Map(), EmuPlatform.textCodecRepository, JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source

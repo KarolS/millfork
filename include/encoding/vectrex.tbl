@@ -1,0 +1,14 @@
+NAME=Vectrex
+EOT=80
+
+20=U+0020
+21-3f=!"#$%&'()*+,-./0123456789:;<=>?
+40-5f=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+61=↑
+63=↓
+67=©
+6c=∞
+a-z=41
+{copy}=67
+{q}=22
+{apos}=27

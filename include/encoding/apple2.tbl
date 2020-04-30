@@ -1,0 +1,13 @@
+NAME=APPLE-II
+EOT=00
+
+A0=U+0020
+A1-BF=!"#$%&'()*+,-./0123456789:;<=>?
+C0-DF=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+
+a-z=C1
+
+{q}=02
+{apos}=07
+{nbsp}=40
+

@@ -1,0 +1,12 @@
+NAME=APPLE-IIgs
+EOT=00
+
+A0=U+0020
+A1-BF=!"#$%&'()*+,-./0123456789:;<=>?
+C0-DF=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+E0-FE=`abcdefghijklmnopqrstuvwxyz{\}~
+
+{q}=A2
+{apos}=A7
+{lbrace}=FB
+{rbrace}=FC

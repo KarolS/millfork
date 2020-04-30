@@ -25,11 +25,12 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
 
   def pseudoModules: List[DeclarationStatement] = {
     val encodingConversionAliases = (options.platform.defaultCodec.name, options.platform.screenCodec.name) match {
-      case (TextCodec.Petscii.name, TextCodec.CbmScreencodes.name) |
-           (TextCodec.PetsciiJp.name, TextCodec.CbmScreencodesJp.name)=>
+        // TODO: don't rely on names!
+      case ("PETSCII", "CBM-Screen") |
+           ("PETSCII-JP", "CBM-Screen-JP") =>
         List(AliasDefinitionStatement("__from_screencode", "petscr_to_petscii", important = false),
           AliasDefinitionStatement("__to_screencode", "petscii_to_petscr", important = false))
-      case (TextCodec.Atascii.name, TextCodec.AtasciiScreencodes.name)=>
+      case ("ATASCII", "ATASCII-Screen") =>
         List(AliasDefinitionStatement("__from_screencode", "atasciiscr_to_atascii", important = false),
           AliasDefinitionStatement("__to_screencode", "atascii_to_atasciiscr", important = false))
       case _ => Nil

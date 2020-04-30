@@ -1,0 +1,26 @@
+NAME=Old PETSCII
+EOT=00
+
+20=U+0020
+21-3f=!"#$%&'()*+,-./0123456789:;<=>?
+40-5f=@abcdefghijklmnopqrstuvwxyz[\]↑←
+c0-da=–ABCDEFGHIJKLMNOPQRSTUVWXYZ
+de=π
+
+{n}=0d
+{apos}=27
+{q}=22
+{pi}=de
+{up}=91
+{down}=11
+{left}=9d
+{right}=1d
+{reverse}=12
+{reverseoff}=92
+^=5E
+♥=D3
+♡=D3
+♠=C1
+♣=D8
+♢=DA
+•=D1

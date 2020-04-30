@@ -109,7 +109,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       case "scrz" => TextCodecWithFlags(options.platform.screenCodec, nullTerminated = true, lengthPrefixed = false, lenient = lenient)
       case "pscr" => TextCodecWithFlags(options.platform.screenCodec, nullTerminated = false, lengthPrefixed = true, lenient = lenient)
       case "pscrz" => TextCodecWithFlags(options.platform.screenCodec, nullTerminated = true, lengthPrefixed = true, lenient = lenient)
-      case _ => TextCodec.forName(encoding, Some(position), log)
+      case _ => options.textCodecRepository.forName(encoding, Some(position), log)
     }
   }
 

@@ -35,7 +35,7 @@ object EmuZ80Run {
     val source = Files.readAllLines(Paths.get(filename), StandardCharsets.US_ASCII).asScala.mkString("\n")
     val options = CompilationOptions(EmuPlatform.get(cpu), Map(
           CompilationFlag.LenientTextEncoding -> true
-        ), None, 0, Map(), JobContext(TestErrorReporting.log, new LabelGenerator))
+        ), None, 0, Map(), EmuPlatform.textCodecRepository, JobContext(TestErrorReporting.log, new LabelGenerator))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
     TestErrorReporting.log.debug(s"Features: $features")
     TestErrorReporting.log.info(s"Parsing $filename")
@@ -87,7 +87,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
       CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80 || cpu == millfork.Cpu.Intel8085 || cpu == millfork.Cpu.Z80Next),
       CompilationFlag.EmitZ80NextOpcodes -> (cpu == millfork.Cpu.Z80Next),
       CompilationFlag.LenientTextEncoding -> true)
-    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0, Map(), JobContext(log, new LabelGenerator))
+    val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0, Map(), EmuPlatform.textCodecRepository, JobContext(log, new LabelGenerator))
     println(cpu)
     println(options.flags.filter(_._2).keys.toSeq.sorted)
     log.hasErrors = false

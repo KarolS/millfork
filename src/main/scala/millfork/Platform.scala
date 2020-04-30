@@ -7,7 +7,7 @@ import java.util.Locale
 
 import millfork.error.Logger
 import millfork.output._
-import millfork.parser.{TextCodec, TextCodecWithFlags}
+import millfork.parser.{TextCodec, TextCodecRepository, TextCodecWithFlags}
 import org.apache.commons.configuration2.INIConfiguration
 
 /**
@@ -64,23 +64,23 @@ class Platform(
 
 object Platform {
 
-  def lookupPlatformFile(includePath: List[String], platformName: String)(implicit log: Logger): Platform = {
+  def lookupPlatformFile(includePath: List[String], platformName: String, textCodecRepository: TextCodecRepository)(implicit log: Logger): Platform = {
     includePath.foreach { dir =>
       val file = Paths.get(dir, platformName + ".ini").toFile
       log.debug("Checking " + file)
       if (file.exists()) {
-        return load(file)
+        return load(file, textCodecRepository)
       }
       val file2 = Paths.get(dir, "platform", platformName + ".ini").toFile
       log.debug("Checking " + file2)
       if (file2.exists()) {
-        return load(file2)
+        return load(file2, textCodecRepository)
       }
     }
     log.fatal(s"Platform definition `$platformName` not found", None)
   }
 
-  def load(file: File)(implicit log: Logger): Platform = {
+  def load(file: File, textCodecRepository: TextCodecRepository)(implicit log: Logger): Platform = {
     val conf = new INIConfiguration()
     val bytes = Files.readAllBytes(file.toPath)
     conf.read(new StringReader(new String(bytes, StandardCharsets.UTF_8)))
@@ -131,7 +131,7 @@ object Platform {
 
     val codecName = cs.get(classOf[String], "encoding", "ascii")
     val srcCodecName = cs.get(classOf[String], "screen_encoding", codecName)
-    val TextCodecWithFlags(codec, czt, clp, _) = TextCodec.forName(codecName, None, log)
+    val TextCodecWithFlags(codec, czt, clp, _) = textCodecRepository.forName(codecName, None, log)
     if (czt) {
       log.error("Default encoding cannot be zero-terminated")
     }
@@ -141,7 +141,7 @@ object Platform {
     if (codec.stringTerminator.length != 1) {
       log.warn("Default encoding should be byte-based")
     }
-    val TextCodecWithFlags(srcCodec, szt, slp, _) = TextCodec.forName(srcCodecName, None, log)
+    val TextCodecWithFlags(srcCodec, szt, slp, _) = textCodecRepository.forName(srcCodecName, None, log)
     if (szt) {
       log.error("Default screen encoding cannot be zero-terminated")
     }
@@ -323,9 +323,10 @@ object Platform {
         codec.encodeDigit(c) == srcCodec.encodeDigit(c)
       }),
       "ENCCONV_SUPPORTED" -> toLong((codec.name, srcCodec.name) match {
-        case (TextCodec.Petscii.name, TextCodec.CbmScreencodes.name) |
-             (TextCodec.PetsciiJp.name, TextCodec.CbmScreencodesJp.name) |
-             (TextCodec.Atascii.name, TextCodec.AtasciiScreencodes.name) =>
+        // TODO: don't rely on names!
+        case ("PETSCII", "CBM-Screen") |
+             ("PETSCII-JP", "CBM-Screen-JP") |
+             ("ATASCII", "ATASCII-Screen") =>
           CpuFamily.forType(cpu) == CpuFamily.M6502
         case _ => codec.name == srcCodec.name
       }),

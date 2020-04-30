@@ -1,0 +1,14 @@
+NAME=APPLE-IIe
+EOT=7F
+# TODO
+
+00=U+0020
+01-1f=!"#$%&'()*+,-./0123456789:;<=>?
+20-3f=@abcdefghijklmnopqrstuvwxyz[\]^_
+60-7e=πABCDEFGHIJKLMNOPQRSTUVWXYZ{|}~
+
+{q}=22
+{apos}=27
+{lbrace}=7b
+{rbrace}=7d
+{pi}=60

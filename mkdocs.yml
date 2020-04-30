@@ -25,6 +25,7 @@ nav:
     - Literals: lang/literals.md
     - Predefined constants: lang/predefined_constants.md
     - Text encodings: lang/text.md
+    - Custom text encodings: lang/custom-encoding.md
     - Operators: lang/operators.md
     - Functions: lang/functions.md
     - Inline 6502 assembly: lang/assembly.md

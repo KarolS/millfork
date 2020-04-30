@@ -35,7 +35,7 @@ object EmuRun {
     val source = Files.readAllLines(Paths.get(filename), StandardCharsets.US_ASCII).asScala.mkString("\n")
     val options = CompilationOptions(EmuPlatform.get(millfork.Cpu.Mos), Map(
           CompilationFlag.LenientTextEncoding -> true
-        ), None, 4, Map(), JobContext(TestErrorReporting.log, new LabelGenerator))
+        ), None, 4, Map(), EmuPlatform.textCodecRepository, JobContext(TestErrorReporting.log, new LabelGenerator))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
     TestErrorReporting.log.info(s"Parsing $filename")
     val parser = MosParser("", preprocessedSource, "", options, features)
@@ -51,8 +51,8 @@ object EmuRun {
     }
   }
 
-  private lazy val cachedZpregO:  Option[Program]= preload("include/zp_reg.mfk")
-  private lazy val cachedBcdO:  Option[Program] = preload("include/bcd_6502.mfk")
+  private lazy val cachedZpregO:  Option[Program]= preload("include/m6502/zp_reg.mfk")
+  private lazy val cachedBcdO:  Option[Program] = preload("include/m6502/bcd_6502.mfk")
   private lazy val cachedStdioO:  Option[Program] = preload("src/test/resources/include/dummy_stdio.mfk")
   def cachedZpreg: Program = synchronized { cachedZpregO.getOrElse(throw new IllegalStateException()) }
   def cachedStdio: Program = synchronized { cachedStdioO.getOrElse(throw new IllegalStateException()) }
@@ -161,7 +161,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
-    ), None, 4, Map(), JobContext(log, new LabelGenerator))
+    ), None, 4, Map(), EmuPlatform.textCodecRepository, JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     if (native16 && platform.cpu != millfork.Cpu.Sixteen) throw new IllegalStateException

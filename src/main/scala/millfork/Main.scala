@@ -17,7 +17,7 @@ import millfork.env.Environment
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.StandardCallGraph
 import millfork.output._
-import millfork.parser.{MSourceLoadingQueue, MosSourceLoadingQueue, ZSourceLoadingQueue}
+import millfork.parser.{MSourceLoadingQueue, MosSourceLoadingQueue, TextCodecRepository, ZSourceLoadingQueue}
 
 
 
@@ -56,11 +56,12 @@ object Main {
       errorReporting.warn("Failed to detect the default include directory, consider using the -I option")
     }
 
+    val textCodecRepository = new TextCodecRepository("." :: c.includePath)
     val platform = Platform.lookupPlatformFile("." :: c.includePath, c.platform.getOrElse {
       errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
-    })
-    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, JobContext(errorReporting, new LabelGenerator))
+    }, textCodecRepository)
+    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, textCodecRepository, JobContext(errorReporting, new LabelGenerator))
     errorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")

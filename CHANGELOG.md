@@ -2,6 +2,30 @@
 
 ## Current version
 
+* Allowed defining custom text encodings.
+**Potentially breaking change!**
+There are no built-in encodings now, the include path needs to contain the necessary encodings.
+
+* Fixed encodings: 
+`apple2`, `atasciiscr`, `iso_de`, `iso_no`, `iso_se`, 
+`koi7n2`, `msx_jp`, 
+`oldpet`, `origpet`,  `petscii`, `petsciijp`, `petscr`, `petscrjp`, 
+`zx80`.
+
+* Added encodings:
+`apple2c`, `apple2e`, `apple2gs`,
+`cpc_da`, `cpc_en`, `cpc_es`, `cpc_fr`,
+`cp437`, `cp850`, `cp851`, `cp852`, `cp855`, `cp858`, `cp866`, 
+`cp1250`, `cp1251`, `cp1252`,
+`ebcdic`,
+`galaksija`,
+`iso8859_1`, `iso8859_2`, `iso8859_3`, `iso8859_4`, `iso8859_5`,
+`iso8859_7`, `iso8859_9`, `iso8859_10`, `iso8859_13`, `iso8859_14`, `iso8859_16`,
+`kamenicky`,`mazovia`, `pcw`,
+`pokemon1en`, `pokemon1es`, `pokemon1fr`, `pokemon1jp`.
+
+* **Potentially breaking change!** Changed default encoding for CPC to `cpc_en`.
+
 * Allow importing modules from subdirectories.
 
 * Allow placing platform definitions in a dedicated subdirectory.

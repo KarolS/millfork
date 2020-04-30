@@ -26,6 +26,8 @@
 
 * [List of text encodings and escape sequences](lang/text.md)
 
+* [Defining custom encodings](lang/custom-encoding.md)
+
 * [Operators reference](lang/operators.md)
 
 * [Functions](lang/functions.md)

@@ -1,7 +1,7 @@
 package millfork.test.emu
 
 import millfork.output.{AfterCodeByteAllocator, CurrentBankFragmentOutput, UpwardByteAllocator, VariableAllocator}
-import millfork.parser.TextCodec
+import millfork.parser.{TextCodec, TextCodecRepository}
 import millfork.{Cpu, CpuFamily, OutputStyle, Platform, ViceDebugOutputFormat}
 
 /**
@@ -9,6 +9,8 @@ import millfork.{Cpu, CpuFamily, OutputStyle, Platform, ViceDebugOutputFormat}
   */
 object EmuPlatform {
   private val pointers: List[Int] = (0 until 256).toList
+
+  val textCodecRepository = new TextCodecRepository(List("include"))
 
   def get(cpu: Cpu.Value) = new Platform(
     cpu,

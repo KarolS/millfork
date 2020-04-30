@@ -1,0 +1,25 @@
+NAME=ISO 8859-2
+EOT=00
+
+20=U+0020
+21-3f=!"#$%&'()*+,-./0123456789:;<=>?
+40-5f=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
+60-7e=`abcdefghijklmnopqrstuvwxyz{|}~
+a1-ac=Ą˘Ł¤ĽŚ§¨ŠŞŤŹ
+ae-af=ŽŻ
+b0-bf=°ą˛ł´ľśˇ¸šşťź˝žż
+c0-cf=ŔÁÂĂÄĹĆÇČÉĘËĚÍÎĎ
+d0-df=ĐŃŇÓÔŐÖ×ŘŮÚŰÜÝŢß
+e0-ef=ŕáâăäĺćçčéęëěíîď
+f0-ff=đńňóôőö÷řůúűüýţ˙
+
+{b}=08
+{t}=09
+{n}=0d0a
+{q}=22
+{apos}=27
+{lbrace}=7b
+{rbrace}=7d
+{ss}=df
+{nbsp}=A0
+{shy}=AD
