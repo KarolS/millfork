@@ -34,6 +34,8 @@ There are no built-in encodings now, the include path needs to contain the neces
 
 * Allow placing platform definitions in a dedicated subdirectory.
 
+* Commander X16: Updated to support VERA 0.9 and the new joystick API. Added mouse support.
+
 * 6502: Optimization improvements. 
 
 ## 0.3.16 (2020-04-08)
