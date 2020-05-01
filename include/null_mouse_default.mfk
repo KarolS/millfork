@@ -5,6 +5,9 @@ import mouse
 void read_mouse() {
     mouse_x = 0
     mouse_y = 0
-    mouse_lbm = 0
-    mouse_rbm = 0
+    mouse_lbm = false
+#if USE_MOUSE_MBM
+	mouse_mbm = false
+#endif
+    mouse_rbm = false
 }

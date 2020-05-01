@@ -26,6 +26,10 @@ There are no built-in encodings now, the include path needs to contain the neces
 
 * **Potentially breaking change!** Changed default encoding for CPC to `cpc_en`.
 
+* **Potentially breaking change!** Changed the type of `mouse_lbm` and `mouse_rbm` to `bool`. Added `mouse_mbm`
+
+* Renamed the `x_coord` module to `coord`. Added the `y_coord` type and `TALLSCREEN` preprocessor feature.
+
 * Allow importing modules from subdirectories.
 
 * Allow placing platform definitions in a dedicated subdirectory.

@@ -1,0 +1,12 @@
+
+#if WIDESCREEN
+alias x_coord = word
+#else
+alias x_coord = byte
+#endif
+
+#if TALLSCREEN
+alias y_coord = word
+#else
+alias y_coord = byte
+#endif

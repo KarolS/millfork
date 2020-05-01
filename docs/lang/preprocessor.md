@@ -97,7 +97,11 @@ Some libraries may require that some of these be defined.
 
 * `WIDESCREEN` – 1 if the horizontal screen resolution, ignoring borders, is greater than 256, 0 otherwise
 
+* `TALLSCREEN` – 1 if the vertical screen resolution, ignoring borders, is greater than 256, 0 otherwise
+
 * `KEYBOARD` – 1 if the target has a keyboard, 0 otherwise
+
+* `USE_MOUSE_MBM` –  set this to 1 if you want to enable middle button support for the mouse. 
 
 * `JOYSTICKS` – the maximum number of joysticks using standard hardware configurations, may be 0
 

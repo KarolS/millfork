@@ -64,6 +64,9 @@ void c1531_mouse () {
     byte value
 	poke($dc03, 0)
 	value = peek($dc01)
-	mouse_rbm = (value & 1) ^ 1
-	if value & 16 == 0 { mouse_lbm = 1 } else { mouse_lbm = 0}
+	mouse_rbm = bool((value & 1) ^ 1)
+	mouse_lbm = value & 16 == 0
+#if USE_MOUSE_MBM
+	mouse_mbm = false
+#endif
 }

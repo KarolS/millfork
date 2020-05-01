@@ -2,7 +2,7 @@
 
 ## mouse
 
-The `mouse` module automatically imports the `x_coord` module.
+The `mouse` module automatically imports the `coord` module.
 
 The module contains global variables representing the state of the mouse.
 If the program is not using any mouse driver, the state of these variables is undefined.
@@ -13,25 +13,36 @@ To actually use this module, an appropriate mouse module must be used, such as [
 
 Mouse X position.
 
-#### `byte mouse_y`
+#### `y_coord mouse_y`
 
 Mouse Y position.
 
-#### `byte mouse_lbm`
+#### `bool mouse_lbm`
 
-1 if the left mouse button is being pressed, 0 otherwise
+`true` if the left mouse button is being pressed, `false` otherwise
+
+#### `byte mouse_mbm`
+
+`true` if the middle mouse button is being pressed, `false` otherwise.
+Available only if `USE_MOUSE_MBM` is set and non-zero.
 
 #### `byte mouse_rbm`
 
-1 if the right mouse button is being pressed, 0 otherwise
+`true` if the right mouse button is being pressed, `false` otherwise
 
-## x_coord
+## coord
 
 #### `alias x_coord`
 
 The type for representing horizontal screen coordinates.
 It's `byte` if the screen is 256 pixels wide or less,
 or `word` if the screen is more that 256 pixels wide.
+
+#### `alias y_coord`
+
+The type for representing vertical screen coordinates.
+It's `byte` if the screen is 256 pixels tall or less,
+or `word` if the screen is more that 256 pixels tall.
 
 ## null_mouse_default
 

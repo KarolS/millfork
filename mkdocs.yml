@@ -39,7 +39,7 @@ nav:
     - stdio module: stdlib/stdio.md
     - err and random modules: stdlib/other.md
     - keyboard module: stdlib/keyboard.md
-    - mouse and x_coord modules: stdlib/mouse.md
+    - mouse and coord modules: stdlib/mouse.md
     - joy module: stdlib/joy.md
     - encconv module: stdlib/encconv.md
     - Platform-dependent definitions: stdlib/frequent.md

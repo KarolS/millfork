@@ -1,6 +1,3 @@
+#warn Module x_coord is deprecated, use coord
 
-#if WIDESCREEN
-alias x_coord = word
-#else
-alias x_coord = byte
-#endif
+import coord
