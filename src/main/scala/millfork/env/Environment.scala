@@ -992,6 +992,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case "nonet" | "sin" | "cos" | "tan" =>
             log.error("Function not supported in inline assembly", e.position)
             None
+          case "sizeof" =>
+            Some(evalSizeof(params.head))
           case _ =>
             None
         }
