@@ -1,2 +1,32 @@
 // Let's be lazy:
 import c64_kernal
+
+array(word) kernal_registers [16] @ 2
+
+struct clock_date_time_t {
+    byte year
+    byte month
+    byte day
+    byte hour
+    byte minute
+    byte second
+    byte jiffies
+}
+
+clock_date_time_t clock_date_time @ 2
+
+asm void clock_set_date_time() @$FF4D extern
+
+asm void clock_get_date_time() @$FF50 extern
+
+asm void mouse_config(byte register(a) enable, byte register(x) scale) @$FF68 extern
+
+asm byte mouse_get(byte register(x) offset) @$FF6B extern
+
+asm void mouse_scan() @$FF71 extern
+
+asm byte joystick_get(byte register(a) joy_id) @$FF56 extern
+
+asm void joystick_scan() @$FF53 extern
+
+

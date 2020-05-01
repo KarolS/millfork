@@ -1,0 +1,15 @@
+import x16_kernal
+import mouse
+
+void read_mouse() {
+    byte btn
+    mouse_scan()
+    btn = mouse_get(0)
+    mouse_x = kernal_registers[0]
+    mouse_y = kernal_registers[1]
+    mouse_lbm = btn & 1 != 0
+    mouse_rbm = btn & 2 != 0
+#if USE_MOUSE_MBM
+    mouse_mbm = btn & 4 != 0
+#endif
+}

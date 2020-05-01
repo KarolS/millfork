@@ -1,3 +1,4 @@
+import joy
 
 void x16_reset_joy() {
 	input_dx = 0
@@ -40,6 +41,15 @@ byte input_l
 // SNES:R
 byte input_r
 
+enum x16_joy_type {
+    joy_nes = 0
+    joy_keyboard = 1
+    joy_snes = 15
+    joy_none = 255
+}
+
+x16_joy_type joy_type
+
 void read_joy1() {
     x16_reset_joy()
     read_also_joy1()
@@ -48,26 +58,25 @@ void read_joy2() {
     x16_reset_joy()
     read_also_joy2()
 }
-asm void read_also_joy1() {
-    JSR $FF06
-    LDA $F1
-    BNE __read_also_joy1_skip
-    LDA $EF
-    JSR x16_joy_byte0
-    LDA $F0
-    JSR x16_joy_byte1
-__read_also_joy1_skip:
-    RTS
+
+inline void read_also_joy1() {
+    __read_joy(0)
 }
-asm void read_also_joy2() {
-    JSR $FF06
-    LDA $F4
-    BNE __read_also_joy2_skip
-    LDA $F2
+inline void read_also_joy2() {
+    __read_joy(1)
+}
+
+asm void __read_joy(byte register(a) joy_id) {
+    JSR $FF53 // TODO: should we?
+    JSR $FF56
+    STY joy_type
+    CPY #0
+    BMI __read_joy_skip
+    PHX
     JSR x16_joy_byte0
-    LDA $F3
+    PLA
     JSR x16_joy_byte1
-__read_also_joy2_skip:
+__read_joy_skip:
     RTS
 }
 
@@ -86,4 +95,5 @@ void x16_joy_byte1(byte value) {
 	if value & 32 == 0 { input_l += 1 }
 	if value & 64 == 0 { input_x += 1 }
 	if value & 128 == 0 { input_a += 1 }
+	joy_type = x16_joy_type(value & 15)
 }

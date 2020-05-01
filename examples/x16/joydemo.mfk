@@ -1,56 +1,31 @@
-// the emulator supports only 16 sprites:
-const byte SPRITE_COUNT = 16
-array(vera_sprite_data) sprites[SPRITE_COUNT]
-array(sbyte) vx[SPRITE_COUNT]
-array(sbyte) vy[SPRITE_COUNT]
+import x16_kernal
+import x16_hardware
+import x16_joy1_default
 
-import random
+vera_sprite_data sprite
 
-void main () {
-    pointer.vera_sprite_data p
+void main() {
 
-    byte i,j
-    word x,y
-    init_rand_seed()
-    // make balls striped
-    for i,0,parallelto,$1f {
-        for j,1,parallelto,$f {
-            sprite_bitmap[nonet(j<<5) + i] *= j
-        }
-    }
-    for i,0,paralleluntil,SPRITE_COUNT {
-        p = sprites[i].pointer
-        // bitmap is at $10000:
-        p->address = $800
-        p->x.lo = rand()
-        p->x.hi = rand() & 1
-        p->y = rand()
-        // no collision, above all layers, no flipping
-        p->ctrl0 = $c
-        // 32×32 pixels, different palette offsets
-        p->ctrl1 = $a0 | (i & $f)
-        vx[i] = 1 - (rand() & 2)
-        vy[i] = 1 - (rand() & 2)
-    }
+    sprite.address = $800
+    sprite.x = 100
+    sprite.y = 100
+    // no collision, above all layers, no flipping
+    sprite.ctrl0 = $c
+    // 32×32 pixels
+    sprite.ctrl1 = $a0
+
+    vera_upload_sprite(0, sprite.pointer)
     vera_upload_large($10000, sprite_bitmap.addr, sizeof(sprite_bitmap))
-    vera_upload_large(VERA_SPRITES, sprites.addr, sizeof(sprites))
-    // enable sprites:
     vera_set_sprites_enable(true)
     while true {
-        for i,0,paralleluntil,SPRITE_COUNT {
-            p = sprites[i].pointer
-            x = p->x
-            y = p->y
-            x += vx[i]
-            y += vy[i]
-            p->x = x
-            p->y = y
-            if x == 0 { vx[i] = 1 }
-            if x >= 640-32 { vx[i] = 0-1 }
-            if y == 0 { vy[i] = 1 }
-            if y >= 480-32 { vy[i] = 0-1 }
+        read_joy()
+        sprite.x += input_dx
+        sprite.y += input_dy
+        if input_start != 0 {
+            sprite.ctrl1 = (sprite.ctrl1 & $f0) | ($f & (sprite.ctrl1 + 1))
         }
-        vera_upload_large(VERA_SPRITES, sprites.addr, sizeof(sprites))
+        vera_upload_sprite(0, sprite.pointer)
+        //vera_upload_large(VERA_SPRITES, sprite.addr, sizeof(sprite))
     }
 }
 
@@ -89,4 +64,3 @@ $00,$00,$00,$01,$11,$11,$11,$11,$11,$11,$11,$11,$10,$00,$00,$00,
 $00,$00,$00,$00,$01,$11,$11,$11,$11,$11,$11,$10,$00,$00,$00,$00,
 $00,$00,$00,$00,$00,$00,$11,$11,$11,$11,$00,$00,$00,$00,$00,$00
 ]
-

@@ -1,0 +1,196 @@
+
+#if VERA_VERSION == 7
+
+const int24 VERA_COMPOSER_CTRL = $40040
+const int24 VERA_PALETTE = $40200
+const int24 VERA_LAYER_1 = $40000
+const int24 VERA_LAYER_2 = $40010
+const int24 VERA_SPRITE_CTRL = $40020
+const int24 VERA_SPRITES = $40800
+
+volatile byte vera_addr_hi @ $9f20
+volatile byte vera_addr_mi @ $9f21
+volatile byte vera_addr_lo @ $9f22
+
+#elseif VERA_VERSION == 8
+
+const int24 VERA_COMPOSER_CTRL = $F0000
+const int24 VERA_PALETTE = $F1000
+const int24 VERA_LAYER_1 = $F2000
+const int24 VERA_LAYER_2 = $F3000
+const int24 VERA_SPRITE_CTRL = $F4000
+const int24 VERA_SPRITES = $F5000
+
+volatile byte vera_addr_hi @ $9f22
+volatile byte vera_addr_mi @ $9f21
+volatile byte vera_addr_lo @ $9f20
+volatile int24 vera_addr @ $9f20
+
+#else
+#error Unsupported VERA_VERSION
+#endif
+
+volatile byte vera_data1 @ $9f23
+volatile byte vera_data2 @ $9f24
+volatile byte vera_ctrl @ $9f25
+volatile byte vera_ien @ $9f26
+volatile byte vera_isr @ $9f27
+
+
+
+
+struct vera_layer_setup {
+    byte ctrl0
+    byte ctrl1
+    word map_base
+    word tile_base
+    word hscroll
+    word vscroll
+}
+
+asm void set_vera_layer_internal(pointer.vera_layer_setup ax, byte y) {
+    sta __reg
+    stx __reg+1
+    stz vera_ctrl
+#if VERA_VERSION == 7
+    lda $14
+    sta vera_addr_hi
+    stz vera_addr_mi
+    sty vera_addr_lo
+#elseif VERA_VERSION == 8
+    lda $1F
+    sta vera_addr_hi
+    sty vera_addr_mi
+    stz vera_addr_lo
+#else
+#error Unsupported VERA_VERSION
+#endif
+    ldy #0
+    __set_layer_internal_loop:
+    lda (__reg),y
+    sta vera_data1
+    iny
+    cpy #sizeof(vera_layer_setup)
+    bne __set_layer_internal_loop
+    ? rts
+}
+
+asm void set_vera_layer1(pointer.vera_layer_setup ax) {
+#if VERA_VERSION == 7
+    ? ldy #0
+#elseif VERA_VERSION == 8
+    ? ldy #$20
+#else
+#error Unsupported VERA_VERSION
+#endif
+    ? jmp set_vera_layer_internal
+}
+
+asm void set_vera_layer2(pointer.vera_layer_setup ax) {
+#if VERA_VERSION == 7
+    ? ldy #$10
+#elseif VERA_VERSION == 8
+    ? ldy #$30
+#else
+#error Unsupported VERA_VERSION
+#endif
+    ? jmp set_vera_layer_internal
+}
+
+inline void vera_poke(int24 address, byte value) {
+    vera_addr_lo = address.b0
+    vera_addr_mi = address.b1
+    vera_addr_hi = address.b2
+    vera_ctrl = 0
+    vera_data1 = value
+}
+
+inline byte vera_peek(int24 address) {
+    vera_addr_lo = address.b0
+    vera_addr_mi = address.b1
+    vera_addr_hi = address.b2
+    vera_ctrl = 0
+    return vera_data1
+}
+
+inline void vera_fill(int24 address, byte value, word size) {
+    word i
+    vera_addr_lo = address.b0
+    vera_addr_mi = address.b1
+    vera_addr_hi = address.b2 | $10
+    vera_ctrl = 0
+    for i,0,paralleluntil,size {
+        vera_data1 = value
+    }
+}
+
+void vera_upload_large(int24 address, pointer source, word size) {
+    word i
+    vera_ctrl = 0
+    vera_addr_lo = address.b0
+    vera_addr_mi = address.b1
+    vera_addr_hi = address.b2 | $10
+    for i,0,paralleluntil,size {
+        vera_data1 = source[i]
+    }
+}
+
+inline void vera_upload(int24 address, pointer source, byte size) {
+    vera_ctrl = 0
+    vera_addr_lo = address.b0
+    vera_addr_mi = address.b1
+    vera_addr_hi = address.b2 | $10
+    asm {
+        ? ldy #0
+        __vera_upload_loop:
+        ? lda (source),y
+        ! sta vera_data1
+        ? iny
+        ? cpy size
+        ? bne __vera_upload_loop
+    }
+}
+
+inline void vera_reset() {
+    vera_ctrl = $80
+    vera_ctrl = 0
+}
+
+inline void vera_set_sprites_enable(bool enabled) {
+    vera_ctrl = 0
+    vera_ctrl = 0
+}
+
+struct vera_sprite_data {
+    word address
+    word x
+    word y
+    byte ctrl0
+    byte ctrl1
+}
+
+void vera_upload_sprite(byte sprite_id, pointer.vera_sprite_data source) {
+    vera_ctrl = 0
+    vera_addr_lo = sprite_id << 3
+    vera_addr_mi = (sprite_id >> 5) | VERA_SPRITES.b1
+    vera_addr_hi = VERA_SPRITES.b2 | $10
+    asm {
+        ? ldy #7
+        __vera_upload_sprite_loop:
+        ? lda (source),y
+        ! sta vera_data0
+        ? iny
+        ? cpy #sizeof(vera_sprite_data)
+        ? bne __vera_upload_sprite_loop
+    }
+}
+
+inline void vera_set_sprites_enable(bool enabled) {
+    vera_poke(VERA_SPRITE_CTRL, byte(enabled))
+}
+
+inline void vera_set_border(byte color) {
+    vera_poke(VERA_COMPOSER_CTRL + 3, color)
+}
+
+alias set_border = vera_set_border

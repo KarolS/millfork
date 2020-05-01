@@ -124,7 +124,7 @@ These features are used to identify the target machine in multiplatform programs
 `COMMANDER_X16`, `CPM`, `GAMEBOY`, `IBM_PC`, `MSX`, `NEC_PC_88`, `NES`, `ZX_SPECTRUM`
 – 1 if the target is the machine in question, 0 otherwise
 
-* `VERA_VERSION` – on Commander X16, the version of the VERA chip: `7` for 0.7, `8` for 0.8
+* `VERA_VERSION` – on Commander X16, the version of the VERA chip: `7` for 0.7, `8` for 0.8, `9` for 0.9
 
 
 ### Built-in preprocessor functions and operators
