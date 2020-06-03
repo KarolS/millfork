@@ -57,10 +57,10 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
       moduleDependecies += standardModules(later) -> standardModules(earlier)
     }
     initialFilenames.foreach { i =>
-      parseModule(extractName(i), includePath, Right(i))
+      parseModule(extractName(i), includePath, Right(i), Nil)
     }
     options.platform.startingModules.foreach {m =>
-      moduleQueue.enqueue(() => parseModule(m, includePath, Left(None)))
+      moduleQueue.enqueue(() => parseModule(m, includePath, Left(None), Nil))
     }
     enqueueStandardModules()
     while (moduleQueue.nonEmpty) {
@@ -91,13 +91,17 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
 
   def createParser(filename: String, src: String, parentDir: String, featureConstants: Map[String, Long], pragmas: Set[String]) : MfParser[T]
 
-  def parseModule(moduleName: String, includePath: List[String], why: Either[Option[Position], String]): Unit = {
+  def fullModuleName(moduleNameBase: String, templateParams: List[String]): String = {
+    if (templateParams.isEmpty) moduleNameBase else moduleNameBase + templateParams.mkString("<", ",", ">")
+  }
+
+  def parseModule(moduleName: String, includePath: List[String], why: Either[Option[Position], String], templateParams: List[String]): Unit = {
     val filename: String = why.fold(p => lookupModuleFile(includePath, moduleName, p), s => s)
     options.log.debug(s"Parsing $filename")
     val path = Paths.get(filename)
     val parentDir = path.toFile.getAbsoluteFile.getParent
     val shortFileName = path.getFileName.toString
-    val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, shortFileName, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq)
+    val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, shortFileName, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq, templateParams)
     for (pragma <- pragmas) {
       if (!supportedPragmas(pragma._1) && options.flag(CompilationFlag.BuggyCodeWarning)) {
         options.log.warn(s"Unsupported pragma: #pragma ${pragma._1}", Some(Position(moduleName, pragma._2, 1, 0)))
@@ -109,12 +113,12 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     parser.toAst match {
       case Success(prog, _) =>
         parsedModules.synchronized {
-          parsedModules.put(moduleName, prog)
+          parsedModules.put(fullModuleName(moduleName, templateParams), prog)
           prog.declarations.foreach {
-            case s@ImportStatement(m) =>
+            case s@ImportStatement(m, ps) =>
               moduleDependecies += moduleName -> m
-              if (!parsedModules.contains(m)) {
-                moduleQueue.enqueue(() => parseModule(m, parentDir :: includePath, Left(s.position)))
+              if (!parsedModules.contains(fullModuleName(m, ps))) {
+                moduleQueue.enqueue(() => parseModule(m, parentDir :: includePath, Left(s.position), ps))
               }
             case _ => ()
           }

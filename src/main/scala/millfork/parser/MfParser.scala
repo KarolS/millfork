@@ -83,8 +83,6 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val continueStatement: P[Seq[ExecutableStatement]] = ("continue" ~ !letterOrDigit ~/ HWS ~ identifier.?).map(l => Seq(ContinueStatement(l.getOrElse(""))))
 
-  val importStatement: P[Seq[ImportStatement]] = ("import" ~ !letterOrDigit ~/ SWS ~/ identifier.rep(min = 1, sep = "/")).map(x => Seq(ImportStatement(x.mkString("/"))))
-
   val forDirection: P[ForDirection.Value] =
     ("parallel" ~ HWS ~ "to").!.map(_ => ForDirection.ParallelTo) |
       ("parallel" ~ HWS ~ "until").!.map(_ => ForDirection.ParallelUntil) |
@@ -168,6 +166,15 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val atom: P[Expression] = P(position() ~ (variableAtom | literalAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
   val atomWithIntel: P[Expression] = P(position() ~ (variableAtom | literalAtomWithIntel | textLiteralAtom)).map{case (p,a) => a.pos(p)}
+
+  val quotedAtom: P[String] = variableAtom.! | literalAtomWithIntel.map{
+    case LiteralExpression(value, _) => value.toString
+    case x => x.toString
+  } | textLiteralAtom.!
+
+  val importStatement: P[Seq[ImportStatement]] = ("import" ~ !letterOrDigit ~/ SWS ~/
+    identifier.rep(min = 1, sep = "/") ~ HWS ~ ("<" ~/ HWS ~/ quotedAtom.rep(min = 1, sep = HWS ~ "," ~/ HWS) ~/ HWS ~/ ">" ~/ Pass).?).
+    map{case (name, params) => Seq(ImportStatement(name.mkString("/"), params.getOrElse(Nil).toList))}
 
   val globalVariableDefinition: P[Seq[BankedDeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)

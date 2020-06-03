@@ -129,6 +129,16 @@ These features are used to identify the target machine in multiplatform programs
 
 ### Built-in preprocessor functions and operators
 
+The `same` function returns 1 if given identical identifiers and 0 otherwise.
+It is the only function that does not support any other kind of parameters, and it's only useful in module templates.
+
+    // prints 1:
+    #infoeval same(a,a)
+    // prints 0:
+    #infoeval same(a,b)
+    // fails to compile
+    #infoeval same(a,1)
+
 The `defined` function returns 1 if the feature is defined, 0 otherwise.  
 All the other functions and operators treat undefined features as if they were defined as 0. 
 
@@ -144,6 +154,11 @@ TODO
 
 The following Millfork operators and functions are not available in the preprocessor:  
 `+'`, `-'`, `*'`, `<<'`, `>>'`, `:`, `>>>>`, `nonet`, all the assignment operators
+
+### `#template`
+
+Defines the source to be a module template. See [Modules](./modules.md) for more information.
+
 
 ### `#if/#elseif/#else/#endif`
 

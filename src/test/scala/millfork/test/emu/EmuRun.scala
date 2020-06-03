@@ -14,7 +14,7 @@ import millfork.compiler.{CompilationContext, LabelGenerator}
 import millfork.compiler.mos.MosCompiler
 import millfork.env.{Environment, InitializedArray, InitializedMemoryVariable, NormalFunction}
 import millfork.error.Logger
-import millfork.node.{Program, StandardCallGraph}
+import millfork.node.{ImportStatement, Program, StandardCallGraph}
 import millfork.node.opt.NodeOptimization
 import millfork.output.{MemoryBank, MosAssembler}
 import millfork.parser.{MosParser, PreprocessingResult, Preprocessor}
@@ -22,6 +22,7 @@ import millfork.{CompilationFlag, CompilationOptions, CpuFamily, JobContext}
 import org.scalatest.Matchers
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * @author Karol Stasiak
@@ -183,14 +184,36 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
     parserF.toAst match {
       case Success(unoptimized, _) =>
         log.assertNoErrors("Parse failed")
-
         // prepare
+        val alreadyImported = mutable.Set[String]()
         val withLibraries = {
           var tmp = unoptimized
-          if(source.contains("import zp_reg") || source.contains("import m6502/zp_reg"))
-            tmp += EmuRun.cachedZpreg
-          if(source.contains("import stdio"))
-            tmp += EmuRun.cachedStdio
+          unoptimized.declarations.foreach {
+            case ImportStatement("zp_reg", Nil) =>
+              if (alreadyImported.add("zp_reg")) {
+                tmp += EmuRun.cachedZpreg
+              }
+            case ImportStatement("m6502/zp_reg", Nil) =>
+              if (alreadyImported.add("zp_reg")) {
+                tmp += EmuRun.cachedZpreg
+              }
+            case ImportStatement("stdio", Nil) =>
+              if (alreadyImported.add("stdio")) {
+                tmp += EmuRun.cachedStdio
+              }
+            case ImportStatement(name, params) =>
+              val fullName = if(params.isEmpty) name else name + params.mkString("<", ",", ">")
+              if (alreadyImported.add(fullName)) {
+                val source2 = Files.readAllLines(Paths.get(s"src/test/resources/include/$name.mfk"))
+                val PreprocessingResult(preprocessedSource2, _, _) = Preprocessor(options, name, source2.asScala.toList, params)
+                MosParser("", preprocessedSource2, "", options, features).toAst match {
+                  case Success(unoptimized2, _) =>
+                    tmp += unoptimized2
+                  case _ => ???
+                }
+              }
+            case _ =>
+          }
           if(!options.flag(CompilationFlag.DecimalMode) && (source.contains("+'") || source.contains("-'") || source.contains("<<'") || source.contains("*'")))
             tmp += EmuRun.cachedBcd
           tmp

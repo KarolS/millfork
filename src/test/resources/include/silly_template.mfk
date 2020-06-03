@@ -1,0 +1,3 @@
+#template $TYPE, $NAME, $VALUE
+
+const $TYPE $NAME = $VALUE

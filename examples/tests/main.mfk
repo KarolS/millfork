@@ -2,6 +2,11 @@ import test_fibonacci
 import test_pstring
 import test_string
 import test_encconv
+#if MILLFORK_VERSION >= 000317
+import test_template<ignored1, 1>
+import test_template<ignored1, 1>
+import test_template<ignored2, 2>
+#endif
 
 void main() {
     ensure_mixedcase()

@@ -590,7 +590,7 @@ case class ArrayDeclarationStatement(name: String,
 case class ParameterDeclaration(typ: String,
                                 assemblyParamPassingConvention: ParamPassingConvention) extends Node
 
-case class ImportStatement(filename: String) extends DeclarationStatement {
+case class ImportStatement(filename: String, templateParams: List[String]) extends DeclarationStatement {
   override def getAllExpressions: List[Expression] = Nil
 
   override def name: String = ""

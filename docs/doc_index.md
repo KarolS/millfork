@@ -16,6 +16,8 @@
 
 * [Preprocessor](lang/preprocessor.md)
 
+* [Modules](lang/modules.md)
+
 * [Syntax](lang/syntax.md)
 
 * [Types](lang/types.md)

@@ -60,7 +60,8 @@ See [the list of available encodings](../lang/text.md).
 * `screen_encoding` – default encoding for screencodes (literals with encoding specified as `scr`). 
 Default: the same as `encoding`.
 
-* `modules` – comma-separated list of modules that will be automatically imported
+* `modules` – comma-separated list of modules that will be automatically imported.
+This list cannot contain module template instantiations.
 
 * other compilation options (they can be overridden using commandline options):
 

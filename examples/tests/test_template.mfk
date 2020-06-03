@@ -1,0 +1,3 @@
+#template $NAME, $VALUE
+
+const byte $NAME = $VALUE

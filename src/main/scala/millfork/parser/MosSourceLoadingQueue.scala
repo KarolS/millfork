@@ -17,10 +17,10 @@ class MosSourceLoadingQueue(initialFilenames: List[String],
 
   def enqueueStandardModules(): Unit = {
     if (options.zpRegisterSize > 0) {
-      moduleQueue.enqueue(() => parseModule("m6502/zp_reg", includePath, Left(None)))
+      moduleQueue.enqueue(() => parseModule("m6502/zp_reg", includePath, Left(None), Nil))
     }
     if (options.zpRegisterSize >= 4 && !options.flag(CompilationFlag.DecimalMode)) {
-      moduleQueue.enqueue(() => parseModule("m6502/bcd_6502", includePath, Left(None)))
+      moduleQueue.enqueue(() => parseModule("m6502/bcd_6502", includePath, Left(None), Nil))
     }
   }
 
