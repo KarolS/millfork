@@ -45,21 +45,26 @@ case class M6809Parser(filename: String,
   val asmOpcode: P[(MOpcode.Value, Option[MAddrMode])] =
     (position() ~ (letter.rep ~ ("2" | "3").?).! ).map { case (p, o) => MOpcode.lookup(o, Some(p), log) }
 
-  private def mapRegister(r: String): M6809Register.Value = r.toLowerCase(Locale.ROOT) match {
+  private def mapRegister(p: (Position, String)): M6809Register.Value = p._2.toLowerCase(Locale.ROOT) match {
     case "x" => M6809Register.X
     case "y" => M6809Register.Y
     case "s" => M6809Register.S
     case "u" => M6809Register.U
     case "a" => M6809Register.A
     case "b" => M6809Register.B
+    case "d" => M6809Register.D
     case "dp" => M6809Register.DP
     case "pc" => M6809Register.PC
     case "cc" => M6809Register.CC
+    case _ =>
+      log.error("Invalid register " + p._2, Some(p._1))
+      M6809Register.D
   }
 
-  val anyRegister: P[M6809Register.Value] = P(("x" | "X" | "y" | "Y" | "s" | "S" | "u" | "U" | "a" | "A" | "b" | "B" | "dp" | "DP" | "cc" | "CC").!).map(mapRegister)
+  // only used for TFR, EXG, PSHS, PULS, PSHU, PULU, so it is allowed to accept any register name in order to let parsing continue:
+  val anyRegister: P[M6809Register.Value] = P(position() ~ identifier.!).map(mapRegister)
 
-  val indexRegister: P[M6809Register.Value] = P(("x" | "X" | "y" | "Y" | "s" | "S" | "u" | "U" | "pc" | "PC").!).map(mapRegister)
+  val indexRegister: P[M6809Register.Value] = P(position() ~ ("x" | "X" | "y" | "Y" | "s" | "S" | "u" | "U" | "pc" | "PC").!).map(mapRegister)
 
   val asmIndexedAddrMode: P[MAddrMode] = {
     (position() ~ "," ~/ HWS ~/ "-".rep.! ~/ HWS ~/ indexRegister ~/ HWS ~/ "+".rep.!).map {
