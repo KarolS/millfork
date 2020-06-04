@@ -4,6 +4,8 @@
 #warn stdlib_6809 module should be only used on 6809-compatible targets
 #endif
 
+import m6809/m6809_math
+
 word nmi_routine_addr   @$FFFC
 word reset_routine_addr @$FFFE
 word irq_routine_addr   @$FFF8

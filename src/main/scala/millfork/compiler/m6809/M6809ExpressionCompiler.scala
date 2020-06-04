@@ -3,7 +3,7 @@ package millfork.compiler.m6809
 import millfork.CompilationFlag
 import millfork.assembly.m6809.{DAccumulatorIndexed, Immediate, Indexed, InherentB, MLine, MLine0, MOpcode, RegisterSet, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
-import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SumExpression, VariableExpression}
+import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SeparateBytesExpression, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
 import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
 
@@ -139,6 +139,12 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
           case 1 => M6809Buitins.compileByteSum(ctx, e, fromScratch = true) ++ targetifyB(ctx, target, isSigned = false)
           case 2 => M6809Buitins.compileWordSum(ctx, e, fromScratch = true) ++ targetifyD(ctx, target)
         }
+      case SeparateBytesExpression(hi, lo) =>
+        val h = compile(ctx, hi, MExpressionTarget.A)
+        val l = compile(ctx, lo, MExpressionTarget.B)
+        (if (l.exists(_.changesRegister(M6809Register.A))) {
+          if (h.exists(_.changesRegister(M6809Register.B))) h ++ stashAIfNeeded(ctx, l) else l ++ h
+        } else h ++ l) ++ targetifyD(ctx, target)
       case fce@FunctionCallExpression(functionName, params) =>
         functionName match {
           case "not" =>
@@ -209,7 +215,11 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 ctx.log.error("Invalid call syntax", fce.position)
                 Nil
             }
-          case "*" => ???
+          case "*" =>
+            getArithmeticParamMaxSize(ctx, params) match {
+              case 1 => M6809MulDiv.compileByteMultiplication(ctx, params, updateDerefX = false) ++ targetifyB(ctx, target, isSigned = false)
+              case 2 => M6809MulDiv.compileWordMultiplication(ctx, params, updateDerefX = false) ++ targetifyD(ctx, target)
+            }
           case "*'" => ctx.log.error("Decimal multiplication not implemented yet", fce.position); Nil
           case "/" => ???
           case "%%" => ???
@@ -340,7 +350,12 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case _ => ???
             }
           case "-'=" => ???
-          case "*=" => ???
+          case "*=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileByteMultiplication(ctx, List(r), updateDerefX = true)
+              case 2 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileWordMultiplication(ctx, List(r), updateDerefX = true)
+            }
           case "*'=" => ctx.log.error("Decimal multiplication not implemented yet", fce.position); Nil
           case "/=" => ???
           case "%%=" => ???
@@ -551,6 +566,11 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
       case MExpressionTarget.U => List(extendToA, MLine.tfr(M6809Register.D, M6809Register.U))
       case _ => ???
     }
+  }
+
+  def stashAIfNeeded(ctx: CompilationContext, lines: List[MLine]): List[MLine] = {
+    if (lines.exists(_.changesRegister(M6809Register.A))) MLine.pp(PSHS, M6809Register.A) :: (lines :+ MLine.pp(PULS, M6809Register.A))
+    else lines
   }
 
   def stashBIfNeeded(ctx: CompilationContext, lines: List[MLine]): List[MLine] = {

@@ -1,0 +1,30 @@
+
+#if not(ARCH_6809)
+#warn m6809_math module should be used only on 6809-like targets
+#endif
+
+noinline asm word __mul_u16u16u16(word register(x) x, word register(d) d) {
+    pshs d,x
+    exg d,x
+    lda ,s
+    mul
+    tfr d,x
+    ldd 1,s
+    mul
+    abx
+    tfr x,d
+    tfr b,a
+    ldb #0
+    tfr d,x
+    puls d
+    lda 1,s
+    mul
+    leax d,x
+    tfr x,d
+    leas 2,s
+    rts
+}
+
+noinline asm word __divmod_u16u16u16u16(word register(x) x, word register(d) d) {
+
+}

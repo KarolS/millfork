@@ -36,7 +36,7 @@ object EmuM6809Run {
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
     TestErrorReporting.log.debug(s"Features: $features")
     TestErrorReporting.log.info(s"Parsing $filename")
-    val parser = Z80Parser(filename, preprocessedSource, "", options, features, useIntelSyntax = false)
+    val parser = M6809Parser(filename, preprocessedSource, "", options, features)
     parser.toAst match {
       case Success(x, _) => Some(x)
       case f: Failure[_, _] =>
@@ -53,7 +53,7 @@ object EmuM6809Run {
   private def get(cpu: millfork.Cpu.Value, path: String): Program =
     synchronized { cache.getOrElseUpdate(cpu->path, preload(cpu, path)).getOrElse(throw new IllegalStateException()) }
 
-  def cachedMath(cpu: millfork.Cpu.Value): Program = get(cpu, "include/m6809_math.mfk")
+  def cachedMath(cpu: millfork.Cpu.Value): Program = get(cpu, "include/m6809/m6809_math.mfk")
   def cachedStdio(cpu: millfork.Cpu.Value): Program = get(cpu, "src/test/resources/include/dummy_stdio.mfk")
 }
 
@@ -113,9 +113,8 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
         val withLibraries = {
           var tmp = unoptimized
           if(source.contains("import stdio"))
-            tmp += EmuRun.cachedStdio
-          if(!options.flag(CompilationFlag.DecimalMode) && (source.contains("+'") || source.contains("-'") || source.contains("<<'") || source.contains("*'")))
-            tmp += EmuRun.cachedBcd
+            tmp += EmuM6809Run.cachedStdio(cpu)
+          tmp += EmuM6809Run.cachedMath(cpu)
           tmp
         }
         val program = nodeOptimizations.foldLeft(withLibraries.applyImportantAliases)((p, opt) => p.applyNodeOptimization(opt, options))
