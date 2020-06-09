@@ -12,7 +12,6 @@ class Issue11Test extends FunSuite with Matchers {
   test("Test issue 11") {
     val src =
       """
-        |import c64_basic
         |import stdio
         |
         |struct Box {
