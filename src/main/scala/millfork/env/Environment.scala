@@ -2318,6 +2318,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def nameCheck(node: Node): Unit = node match {
     case _:MosAssemblyStatement => ()
     case _:Z80AssemblyStatement => ()
+    case _:M6809AssemblyStatement => ()
     case _:DeclarationStatement => ()
     case s:ForStatement =>
       checkName[Variable]("Variable", s.variable, s.position)

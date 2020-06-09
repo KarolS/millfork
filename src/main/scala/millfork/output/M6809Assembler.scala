@@ -153,11 +153,11 @@ class M6809Assembler(program: Program,
         writeByte(bank, index, M6809Assembler.indexable(op) + 0x20)
         val ri = getRegByte(register, indirect)
         param match {
-          case NumericConstant(n, _) if !indirect && n >= -16 && n <= 15 =>
-            writeByte(bank, index + 1, ri + n.toInt.&(0x1f))
-            index + 2
           case NumericConstant(0, _) =>
             writeByte(bank, index + 1, 0x84 + ri)
+            index + 2
+          case NumericConstant(n, _) if !indirect && n >= -16 && n <= 15 =>
+            writeByte(bank, index + 1, ri + n.toInt.&(0x1f))
             index + 2
           case NumericConstant(n, _) if n >= -128 && n <= 127 =>
             writeByte(bank, index + 1, 0x88 + ri)
@@ -298,7 +298,7 @@ object M6809Assembler {
   inab(CLR, 0x4f)
   inab(COM, 0x43)
   inab(DEC, 0x4a)
-  inab(INC, 0x48)
+  inab(INC, 0x4c)
   inab(LSR, 0x44)
   inab(NEG, 0x40)
   inab(ROL, 0x49)

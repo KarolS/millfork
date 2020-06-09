@@ -126,7 +126,7 @@ case class M6809Parser(filename: String,
     } yield {
       val effAddrMode = (addrModeOverride, addrMode) match {
         case (Some(InherentA), Inherent) => InherentA
-        case (Some(InherentB), Inherent) => InherentA
+        case (Some(InherentB), Inherent) => InherentB
         case (Some(InherentA | InherentB), _) =>
           log.error("Inherent accumulator instructions cannot have parameters", Some(position))
           addrMode
@@ -171,6 +171,7 @@ case class M6809Parser(filename: String,
             case M6809AssemblyStatement(MOpcode.RTI, _, _, _) => () // OK
             case M6809AssemblyStatement(MOpcode.JMP, _, _, _) => () // OK
             case M6809AssemblyStatement(MOpcode.BRA, _, _, _) => () // OK
+            case M6809AssemblyStatement(MOpcode.PULS, set:RegisterSet, _, _) if set.contains(M6809Register.PC) => () // OK
             case _ =>
               val validReturn = if (flags("interrupt")) "RTI" else "RTS"
               log.warn(s"Non-macro assembly function `$name` should end in " + validReturn, Some(p))
