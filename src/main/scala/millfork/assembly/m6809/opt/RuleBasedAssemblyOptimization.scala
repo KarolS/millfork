@@ -1051,6 +1051,39 @@ case class HasAddrMode(am: MAddrMode) extends TrivialMLinePattern {
   override def hitRate: Double = 0.295
 }
 
+case class IsTfr(s: M6809Register.Value, t: M6809Register.Value) extends TrivialMLinePattern {
+  override def apply(line: MLine): Boolean =
+    line.opcode == MOpcode.TFR && line.addrMode == TwoRegisters(s, t)
+
+  override def toString: String = s"(TFR $s,$t)"
+
+  override def hitRate: Double = 0.006
+}
+
+case class IsTfrFrom(s: M6809Register.Value) extends TrivialMLinePattern {
+  override def apply(line: MLine): Boolean =
+    line.opcode == MOpcode.TFR && (line.addrMode match {
+      case TwoRegisters(s1, _) => s == s1
+      case _ => false
+    })
+
+  override def toString: String = s"(TFR $s,_)"
+
+  override def hitRate: Double = 0.006
+}
+
+case class IsTfrTo(t: M6809Register.Value) extends TrivialMLinePattern {
+  override def apply(line: MLine): Boolean =
+    line.opcode == MOpcode.TFR && (line.addrMode match {
+      case TwoRegisters(_, t1) => t == t1
+      case _ => false
+    })
+
+  override def toString: String = s"(TFR _,$t)"
+
+  override def hitRate: Double = 0.006
+}
+
 case class HasAddrModeIn(ams: Set[MAddrMode]) extends TrivialMLinePattern {
   override def apply(line: MLine): Boolean =
     ams(line.addrMode)

@@ -4,6 +4,7 @@ package millfork.assembly.m6809.opt
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.m6809.MOpcode._
 import millfork.assembly.m6809.{MLine, MState}
+import millfork.node.M6809Register
 
 /**
   * @author Karol Stasiak
@@ -27,6 +28,12 @@ object AlwaysGoodMOptimizations {
     (Elidable & HasOpcode(LDB) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.CF)) ~~> {
       _ => List(MLine.inherentB(CLR))
     },
+    (Elidable & HasOpcode(LDD) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.A, MState.CF)) ~~> {
+      _ => List(MLine.inherentB(CLR))
+    },
+    (Elidable & HasOpcode(LDD) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.B, MState.CF)) ~~> {
+      _ => List(MLine.inherentA(CLR))
+    },
     (Elidable & HasOpcode(STA) & HasA(0) & DoesntMatterWhatItDoesWith(MState.CF)) ~~> {
       code => code.map(_.copy(opcode = CLR))
     },
@@ -35,8 +42,21 @@ object AlwaysGoodMOptimizations {
     },
   )
 
+  val PointlessRegisterTransfers = new RuleBasedAssemblyOptimization("Pointless register transfers",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (Elidable & IsTfr(M6809Register.D, M6809Register.X)) ~
+      (Elidable & IsTfr(M6809Register.X, M6809Register.D)) ~~> (_.init),
+    (Elidable & IsTfr(M6809Register.A, M6809Register.B)) ~
+      (Elidable & IsTfr(M6809Register.B, M6809Register.A)) ~~> (_.init),
+    (Elidable & IsTfrTo(M6809Register.B) & DoesntMatterWhatItDoesWith(MState.B)) ~~> (_ => Nil),
+    (Elidable & IsTfrTo(M6809Register.A) & DoesntMatterWhatItDoesWith(MState.A)) ~~> (_ => Nil),
+    (Elidable & IsTfrTo(M6809Register.D) & DoesntMatterWhatItDoesWith(MState.A, MState.B)) ~~> (_ => Nil),
+    (Elidable & IsTfrTo(M6809Register.X) & DoesntMatterWhatItDoesWith(MState.X)) ~~> (_ => Nil),
+  )
+
   val All: Seq[AssemblyOptimization[MLine]] = Seq(
     PointlessLoad,
+    PointlessRegisterTransfers,
     SimplifiableZeroStore
   )
 }

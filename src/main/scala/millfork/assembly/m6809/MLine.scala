@@ -177,6 +177,7 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
       case (EXG, TwoRegisters(r1, r2)) => overlaps(r1) || overlaps(r2)
       case (op, _) if MOpcode.ChangesAAlways(op) => overlaps(A) || addrMode.changesRegister(reg)
       case (op, _) if MOpcode.ChangesBAlways(op) => overlaps(B) || addrMode.changesRegister(reg)
+      case (LDA, _) => overlaps(A) || addrMode.changesRegister(reg)
       case (LDB, _) => overlaps(B) || addrMode.changesRegister(reg)
       case (LDD, _) => overlaps(D) || addrMode.changesRegister(reg)
       case (LDU | LEAU, _) => reg == U || addrMode.changesRegister(reg)
