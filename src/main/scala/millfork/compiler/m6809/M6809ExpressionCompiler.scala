@@ -617,7 +617,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         val variable = ctx.env.get[Variable](name)
         List(MLine.variable(ctx, STB, variable))
       case DerefExpression(inner, offset, _) =>
-        compileToX(ctx, inner) :+ MLine.indexedX(STB, NumericConstant(offset, 2))
+        stashBIfNeeded(ctx, compileToX(ctx, inner)) :+ MLine.indexedX(STB, NumericConstant(offset, 2))
       case IndexedExpression(name, index) =>
         ctx.env.getPointy(name) match {
           case p: ConstantPointy =>
@@ -639,7 +639,9 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 v.indexType.size match {
                   case 1 | 2 =>
                     stashBIfNeeded(ctx,
-                      compileToD(ctx, index) :+ MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero)) :+
+                      MLine.absolute(LDX, v.addr) ::
+                        (compileToD(ctx, index) :+
+                          MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero))) :+
                       MLine.indexedX(STB, Constant.Zero)
                 }
             }

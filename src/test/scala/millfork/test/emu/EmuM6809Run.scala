@@ -94,6 +94,8 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
       CompilationFlag.SubroutineExtraction -> optimizeForSize,
       CompilationFlag.OptimizeForSize -> optimizeForSize,
       CompilationFlag.OptimizeForSpeed -> blastProcessing,
+//      CompilationFlag.SourceInAssembly -> true,
+//      CompilationFlag.LineNumbersInAssembly -> true,
       CompilationFlag.OptimizeForSonicSpeed -> blastProcessing
       //      CompilationFlag.CheckIndexOutOfBounds -> true,
     ), None, 0, Map(), EmuPlatform.textCodecRepository, JobContext(log, new LabelGenerator))
@@ -141,7 +143,7 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
 
 
         // compile
-        val env2 = new Environment(None, "", CpuFamily.M6502, options)
+        val env2 = new Environment(None, "", CpuFamily.M6809, options)
         env2.collectDeclarations(program, options)
         val assembler = new M6809Assembler(program, env2, platform)
         val output = assembler.assemble(callGraph, assemblyOptimizations, options, VeryLateM6809AssemblyOptimizations.All)

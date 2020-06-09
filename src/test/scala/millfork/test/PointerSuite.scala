@@ -10,7 +10,7 @@ import org.scalatest.{AppendedClues, FunSuite, Matchers}
 class PointerSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Pointers outside zeropage") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | pointer p @$c004
         | array output[2] @$c000
@@ -25,7 +25,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Pointers on stack") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output[2] @$c000
         | void main() {
@@ -40,7 +40,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Typed byte-targeting pointers") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | enum e {}
         | array(e) output [3] @$c000
@@ -57,7 +57,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Typed word-targeting pointers") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | void main() {
@@ -130,7 +130,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Pointer optimization") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | struct s { word a, byte b }
         |
@@ -154,7 +154,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("nullptr") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | void main() {
         |   pointer.word pw
@@ -171,7 +171,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Complex pointers") {
     // TODO: optimize it when inlined
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output[3] @$c000
         | struct s {
@@ -193,7 +193,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Indexing returned pointers") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output[10] @$c000
         | pointer get() = output.addr
@@ -211,7 +211,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Pointers and arrays") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | struct P {
         |    word i
@@ -233,7 +233,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Pointers and arrays to large elements") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | struct P {
         |    word i
@@ -255,7 +255,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Page crossing with arrays of large elements") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | import zp_reg
         | struct P {
@@ -287,7 +287,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word pointers") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080) (
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Motorola6809) (
       """
         |pointer.word p
         |word output @$c000
@@ -304,7 +304,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word pointers and byte-to-word promotions") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080) (
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Motorola6809) (
       """
         |pointer.word p
         |word output @$c000
@@ -324,7 +324,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Fast pointer indexing") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos) (
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Motorola6809) (
       """
         |pointer.word p
         |array(word) input [6]
@@ -341,7 +341,7 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Modifying a word via a pointer") {
-    EmuUnoptimizedCrossPlatformRun(/*Cpu.Mos, Cpu.Z80,*/ Cpu.Motorola6809)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         |word output @$c000
         |void main () {
