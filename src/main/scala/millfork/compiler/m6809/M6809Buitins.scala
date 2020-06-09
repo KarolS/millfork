@@ -27,7 +27,7 @@ object M6809Buitins {
         lc ++ List(ldr.copy(opcode = opcode), lc.last.copy(opcode = STB))
       case _ if lc.last.opcode == LDB =>
         // TODO: preserve X?
-        lc ++ List(MLine.pp(PSHS, M6809Register.B)) ++ rc ++ List(MLine.accessAndPullS(opcode), lc.last.copy(opcode = STB))
+        rc ++ List(MLine.pp(PSHS, M6809Register.B)) ++ lc ++ List(MLine.accessAndPullS(opcode), lc.last.copy(opcode = STB))
       case _ =>
         println(lc)
         ???
