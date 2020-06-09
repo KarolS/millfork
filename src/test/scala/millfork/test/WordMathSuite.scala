@@ -252,7 +252,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word addition 5") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   word v
@@ -364,7 +364,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word multiplication 5") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   output = alot()
@@ -383,7 +383,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word multiplication optimization") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   output = alot()
@@ -424,7 +424,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def multiplyCase1(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       s"""
          | import zp_reg
          | word output @$$c000
@@ -459,7 +459,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def multiplyCase2(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       s"""
          | import zp_reg
          | word output1 @$$c000
@@ -502,7 +502,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def divisionCase1(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos /*,Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086*/)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       s"""
          | import zp_reg
          | word output_q1 @$$c000
@@ -561,7 +561,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def divisionCase2(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       s"""
          | import zp_reg
          | word output_q1 @$$c000
@@ -616,7 +616,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def divisionCase4(x: Int, y: Int): Unit = {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       s"""
          | import zp_reg
          | word output_q1 @$$c000
@@ -640,7 +640,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc000) should equal(x / y) withClue s"= $x / $y"
       m.readByte(0xc002) should equal(x % y) withClue s"= $x %% $y"
       m.readWord(0xc004) should equal(x / y) withClue s"= $x / $y"
-      m.readByte(0xc006) should equal(x % y) withClue s"= $x %% $y"
+      m.readWord(0xc006) should equal(x % y) withClue s"= $x %% $y"
     }
   }
 
@@ -661,7 +661,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def multiplyCaseWW1(x: Int, y: Int): Unit = {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Motorola6809)(
       s"""
          | import zp_reg
          | word output0 @$$c000
@@ -695,7 +695,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   private def divisionCaseWW1(x: Int, y: Int): Unit = {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
       s"""
          | import zp_reg
          | word output0 @$$c000
@@ -723,7 +723,7 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
 //      i <- Seq(5324)
 //      j <- Seq(-1)
     } {
-      EmuUnoptimizedCrossPlatformRun(/*Cpu.Mos, */Cpu.Z80)(
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
         s"""
            | word output0 @$$c000
            | word output1 @$$c002

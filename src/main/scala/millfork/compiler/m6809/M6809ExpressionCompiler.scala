@@ -221,8 +221,21 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 2 => M6809MulDiv.compileWordMultiplication(ctx, params, updateDerefX = false) ++ targetifyD(ctx, target)
             }
           case "*'" => ctx.log.error("Decimal multiplication not implemented yet", fce.position); Nil
-          case "/" => ???
-          case "%%" => ???
+          case "/" =>
+            assertArithmeticBinary(ctx, params) match {
+              case (l, r, 1) => M6809MulDiv.compileByteDivision(ctx, Some(l), r, mod=false) ++ targetifyB(ctx, target, isSigned = false)
+              case (l, r, 2) => M6809MulDiv.compileWordDivision(ctx, Some(l), r, mod=false) ++ targetifyD(ctx, target)
+            }
+          case "%%" =>
+            assertArithmeticBinary(ctx, params) match {
+              case (l, r, 1) => M6809MulDiv.compileByteDivision(ctx, Some(l), r, mod=true) ++ targetifyB(ctx, target, isSigned = false)
+              case (l, r, 2) =>
+                if (AbstractExpressionCompiler.getExpressionType(ctx, r).size == 1) {
+                  M6809MulDiv.compileWordDivision(ctx, Some(l), r, mod=true) ++ targetifyDWithNarrowing(ctx, target)
+                } else {
+                  M6809MulDiv.compileWordDivision(ctx, Some(l), r, mod=true) ++ targetifyD(ctx, target)
+                }
+            }
           case "&" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, ANDB, MathOperator.And, 0xff) ++ targetifyB(ctx, target, isSigned = false)
@@ -357,8 +370,18 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 2 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileWordMultiplication(ctx, List(r), updateDerefX = true)
             }
           case "*'=" => ctx.log.error("Decimal multiplication not implemented yet", fce.position); Nil
-          case "/=" => ???
-          case "%%=" => ???
+          case "/=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileByteDivision(ctx, None, r, mod=false)
+              case 2 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileWordDivision(ctx, None, r, mod=false)
+            }
+          case "%%=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileByteDivision(ctx, None, r, mod=true)
+              case 2 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileWordDivision(ctx, None, r, mod=true)
+            }
           case "&=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
@@ -655,6 +678,17 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
 
   def targetifyD(ctx: CompilationContext, target: MExpressionTarget.Value): List[MLine] = target match {
     case MExpressionTarget.NOTHING => Nil
+    case MExpressionTarget.D => Nil
+    case MExpressionTarget.X => List(MLine.tfr(M6809Register.D, M6809Register.X))
+    case MExpressionTarget.Y => List(MLine.tfr(M6809Register.D, M6809Register.Y))
+    case MExpressionTarget.U => List(MLine.tfr(M6809Register.D, M6809Register.U))
+  }
+
+  //Assume that A=0 and the source type is an unsigned byte stored in D
+  def targetifyDWithNarrowing(ctx: CompilationContext, target: MExpressionTarget.Value): List[MLine] = target match {
+    case MExpressionTarget.NOTHING => Nil
+    case MExpressionTarget.B => Nil
+    case MExpressionTarget.A => List(MLine.tfr(M6809Register.B, M6809Register.A))
     case MExpressionTarget.D => Nil
     case MExpressionTarget.X => List(MLine.tfr(M6809Register.D, M6809Register.X))
     case MExpressionTarget.Y => List(MLine.tfr(M6809Register.D, M6809Register.Y))
