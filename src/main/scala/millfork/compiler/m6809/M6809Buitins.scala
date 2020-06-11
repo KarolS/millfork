@@ -88,7 +88,7 @@ object M6809Buitins {
               case (false, false) => MathOperator.Plus
               case (true, false) => MathOperator.Minus
               case (false, true) => MathOperator.DecimalPlus
-              case (false, true) => MathOperator.DecimalMinus
+              case (true, true) => MathOperator.DecimalMinus
             },
             constant, c
           ).quickSimplify
@@ -133,27 +133,51 @@ object M6809Buitins {
     val result = ListBuffer[MLine]()
     for ((neg, load) <- addendReads) {
       if (result.isEmpty && fromScratch) {
-        result ++= load
-        if (neg) result += MLine.inherentB(NEG)
+        if (expr.decimal) {
+          if (load.nonEmpty && load.last.opcode == LDB) {
+            result ++= load.init
+            result += load.last.copy(opcode = LDA)
+          } else {
+            result ++= load
+            result += MLine.tfr(M6809Register.B, M6809Register.A)
+          }
+          if (neg) ???
+        } else {
+          result ++= load
+          if (neg) result += MLine.inherentB(NEG)
+        }
       } else {
         load match {
           case List(l@MLine0(LDB, _, _)) =>
             if (neg) {
-              result += l.copy(opcode = sub)
-              if (expr.decimal) ???
+              if (expr.decimal) {
+                result += MLine.pp(PSHS, M6809Register.A)
+                result += MLine.immediate(LDA, 0x9a)
+                result += l.copy(opcode = SUBA)
+                result += MLine.accessAndPullS(ADDA)
+                result += MLine.inherent(DAA)
+              } else {
+                result += l.copy(opcode = sub)
+              }
             } else {
               result += l.copy(opcode = add)
               if (expr.decimal) result += MLine.inherent(DAA)
             }
           case _ =>
             if (expr.decimal) {
-              result += MLine.pp(PSHS, M6809Register.A)
-              result ++= load
-              result += MLine.pp(PULS, M6809Register.A)
               if (neg) {
-                ???
-                if (expr.decimal) ???
+                result += MLine.pp(PSHS, M6809Register.A)
+                result ++= load
+                result += MLine.pp(PSHS, M6809Register.B)
+                result += MLine.immediate(LDA, 0x9a)
+                result += MLine.accessAndPullS(SUBA)
+                result += MLine.accessAndPullS(ADDA)
+                result += MLine.inherent(DAA)
               } else {
+                result += MLine.pp(PSHS, M6809Register.A)
+                result ++= load
+                result += MLine.pp(PULS, M6809Register.A)
+                result += MLine.pp(PSHS, M6809Register.B)
                 result += MLine.accessAndPullS(ADDA)
                 result += MLine.inherent(DAA)
               }

@@ -22,6 +22,8 @@ class M6809Memory(memoryBank: MemoryBank, resetVector: Int) extends MemorySegmen
 
   override def load(addr: Int): Int = {
     if (!memoryBank.readable(addr)) {
+      val start = addr & 0xff00
+      (0 until 0x100).grouped(16).map(range => (start + range.head).toHexString + range.map(i => memoryBank.output(start + i)).map(v => f" $v%02X").mkString("")).foreach(println)
       println(s"Accessing memory for read at $$${addr.toHexString}")
       ???
     }

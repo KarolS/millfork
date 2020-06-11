@@ -345,7 +345,12 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 M6809Buitins.compileWordShiftForD(ctx, params(1), left = false) ++
                 targetifyB(ctx, target, isSigned = false)
             }
-          case "<<'" => ???
+          case "<<'" =>
+            assertArithmeticBinary(ctx, params) match {
+              case (l, r, 1) => M6809DecimalBuiltins.compileByteDecimalShiftLeft(ctx, Some(l), r) ++ targetifyA(ctx, target, isSigned = false)
+              case (l, r, 2) => ???
+              case (l, r, _) => ???
+            }
           case ">>'" => ???
           case "+=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
@@ -354,7 +359,22 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ADDD, commutative = true)
               case _ => ctx.log.error("Long addition not implemented yet", fce.position); Nil
             }
-          case "+'=" => ???
+          case "+'=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 =>
+                val lc = compileAddressToX(ctx, l)
+                val rc = compileToA(ctx, r)
+                val add = List(MLine.indexedX(ADDA, 0), MLine.inherent(DAA), MLine.indexedX(STA, 0))
+                (lc.exists(_.changesRegister(M6809Register.A)), rc.exists(_.changesRegister(M6809Register.X))) match {
+                  case (false, false) => rc ++ lc ++ add
+                  case (false, true) => rc ++ lc ++ add
+                  case (true, false) => lc ++ rc ++ add
+                  case (true, true) => rc ++ stashAIfNeeded(ctx, lc) ++ add
+                }
+              case 2 => ???
+              case _ => ???
+            }
           case "-=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
@@ -362,7 +382,17 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, SUBD, commutative = false)
               case _ => ???
             }
-          case "-'=" => ???
+          case "-'=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 =>
+                val lc = compileAddressToX(ctx, l)
+                val rc = compileToB(ctx, r)
+                lc ++ List(MLine.pp(PSHS, M6809Register.B)) ++
+                  rc ++ List(MLine.pp(PSHS, M6809Register.B), MLine.immediate(LDA, 0x9a), MLine.accessAndPullS(SUBA), MLine.accessAndPullS(ADDA), MLine.inherent(DAA), MLine.indexedX(STA, 0))
+              case 2 => ???
+              case _ => ???
+            }
           case "*=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
@@ -412,7 +442,13 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 2 =>
                 handleInPlaceModification(ctx, l, 2, M6809Buitins.compileWordShiftForD(ctx, r, left = true))
             }
-          case "<<'=" => ???
+          case "<<'=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 =>
+                compileAddressToX(ctx, l) ++ M6809DecimalBuiltins.compileByteDecimalShiftLeft(ctx, None, r)
+              case 2 => ???
+            }
           case ">>=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             // TODO: optimize shifts directly in memory
