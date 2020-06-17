@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class EnumSuite extends FunSuite with Matchers {
 
   test("Enum basic test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | enum ugly {
         |   a
@@ -32,6 +32,9 @@ class EnumSuite extends FunSuite with Matchers {
         | #elseif ARCH_I80
         |   ld ($bfff),a
         |   ret
+        | #elseif ARCH_6809
+        |   sta $bfff
+        |   rts
         | #else
         | #error
         | #endif
@@ -60,7 +63,7 @@ class EnumSuite extends FunSuite with Matchers {
   }
 
   test("Enum arrays") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | enum ugly {
         |   a
@@ -79,6 +82,9 @@ class EnumSuite extends FunSuite with Matchers {
         | #elseif ARCH_I80
         |   ld ($bfff),a
         |   ret
+        | #elseif ARCH_6809
+        |   sta $bfff
+        |   rts
         | #else
         | #error
         | #endif
@@ -87,7 +93,7 @@ class EnumSuite extends FunSuite with Matchers {
   }
 
   test("Loops over enums") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | enum ugly {
         |   a

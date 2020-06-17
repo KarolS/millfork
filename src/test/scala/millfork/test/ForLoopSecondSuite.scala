@@ -62,7 +62,7 @@ class ForLoopSecondSuite extends FunSuite with Matchers with AppendedClues {
     subcase("byte", from, dir, to, expectedCount)(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)
   }
   def wordSubcase(from: IterationBound, dir: String, to: IterationBound, expectedCount: Int)(implicit pos: org.scalactic.source.Position, prettifier: Prettifier): Unit = {
-    subcase("word", from, dir, to, expectedCount)(Cpu.Mos, Cpu.Z80/*, Cpu.Motorola6809*/)
+    subcase("word", from, dir, to, expectedCount)(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)
   }
 
   test("Basic iteration count test") {

@@ -30,7 +30,7 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
   }
 
   test("Function pointers 2") {
-    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
       """
         | const byte COUNT = 128
         | array output0[COUNT] @$c000

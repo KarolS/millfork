@@ -1,17 +1,18 @@
 package millfork.compiler.m6809
 
-import millfork.assembly.BranchingOpcodeMapping
-import millfork.assembly.m6809.{MLine, NonExistent}
+import millfork.assembly.{BranchingOpcodeMapping, Elidability}
+import millfork.assembly.m6809.{Inherent, MLine, MOpcode, NonExistent}
 import millfork.compiler.{AbstractCompiler, AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
-import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, FunctionCallExpression, IfStatement, M6809AssemblyStatement, MemsetStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
+import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, FunctionCallExpression, GotoStatement, IfStatement, LabelStatement, LiteralExpression, M6809AssemblyStatement, MemsetStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{BooleanType, ConstantBooleanType, FatBooleanType, Label, ThingInMemory}
+import millfork.env.{BooleanType, ConstantBooleanType, FatBooleanType, Label, MemoryAddressConstant, StructureConstant, ThingInMemory}
 
 /**
   * @author Karol Stasiak
   */
 object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
   def compile(ctx: CompilationContext, statement: ExecutableStatement): (List[MLine], List[MLine]) = {
+    val env = ctx.env
     val code: (List[MLine], List[MLine]) = statement match {
       case ReturnStatement(None) =>
         // TODO: clean stack
@@ -91,6 +92,14 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
             ctx.log.error("Invalid parameter", expression.position)
             Nil -> Nil
         }
+      case s:LabelStatement =>
+        List(MLine.label(env.prefix + s.name)) -> Nil
+      case s: GotoStatement =>
+        env.eval(s.target) match {
+          case Some(e) => List(MLine.absolute(JMP, e)) -> Nil
+          case None =>
+            (M6809ExpressionCompiler.compileToX(ctx, s.target) :+ MLine.indexedX(JMP, 0)) -> Nil
+        }
       case _ =>
         println(statement)
         ctx.log.error("Not implemented yet", statement.position)
@@ -115,9 +124,13 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
       M6809ExpressionCompiler.compile(ctx, expr, MExpressionTarget.NOTHING, branching)
     }
 
-  override def replaceLabel(ctx: CompilationContext, line: MLine, from: String, to: String): MLine = ???
+  override def replaceLabel(ctx: CompilationContext, line: MLine, from: String, to: String): MLine = line.parameter match {
+      case MemoryAddressConstant(Label(l)) if l == from => line.copy(parameter = MemoryAddressConstant(Label(to)))
+      case StructureConstant(s, List(z, MemoryAddressConstant(Label(l)))) if l == from => line.copy(parameter = StructureConstant(s, List(z, MemoryAddressConstant(Label(to)))))
+      case _ => line
+    }
 
-  override def returnAssemblyStatement: ExecutableStatement = ???
+  override def returnAssemblyStatement: ExecutableStatement = M6809AssemblyStatement(opcode = MOpcode.RTS, Inherent, LiteralExpression(0, 1), Elidability.Elidable )
 
   override def callChunk(label: ThingInMemory): List[MLine] = List(MLine.absolute(JSR, label.toAddress))
 

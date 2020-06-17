@@ -647,13 +647,18 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     else lines
   }
 
-  def storeB(ctx: CompilationContext, target: LhsExpression): List[MLine] = {
+  def storeA(ctx: CompilationContext, target: LhsExpression): List[MLine] = store8(ctx, target, stashAIfNeeded, STA)
+
+  def storeB(ctx: CompilationContext, target: LhsExpression): List[MLine] = store8(ctx, target, stashBIfNeeded, STB)
+
+  @inline
+  private def store8(ctx: CompilationContext, target: LhsExpression, stashIfNeeded: (CompilationContext, List[MLine]) => List[MLine], store: MOpcode.Value): List[MLine] = {
     target match {
       case VariableExpression(name) =>
         val variable = ctx.env.get[Variable](name)
-        List(MLine.variable(ctx, STB, variable))
+        List(MLine.variable(ctx, store, variable))
       case DerefExpression(inner, offset, _) =>
-        stashBIfNeeded(ctx, compileToX(ctx, inner)) :+ MLine.indexedX(STB, NumericConstant(offset, 2))
+        stashIfNeeded(ctx, compileToX(ctx, inner)) :+ MLine.indexedX(store, NumericConstant(offset, 2))
       case IndexedExpression(name, index) =>
         ctx.env.getPointy(name) match {
           case p: ConstantPointy =>
@@ -664,26 +669,26 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             val effectiveBase = (p.value + constOffset).quickSimplify
             variableIndex match {
               case Some(ix) =>
-                stashBIfNeeded(ctx, compileToX(ctx, ix)) :+ MLine.indexedX(STB, effectiveBase)
+                stashIfNeeded(ctx, compileToX(ctx, ix)) :+ MLine.indexedX(store, effectiveBase)
               case None =>
-                List(MLine.absolute(STB, effectiveBase))
+                List(MLine.absolute(store, effectiveBase))
             }
           case v: VariablePointy =>
             ctx.env.eval(index) match {
-              case Some(ix) => List(MLine.absolute(LDX, v.addr), MLine.indexedX(STB, ix * v.elementType.size))
+              case Some(ix) => List(MLine.absolute(LDX, v.addr), MLine.indexedX(store, ix * v.elementType.size))
               case _ =>
                 v.indexType.size match {
                   case 1 | 2 =>
-                    stashBIfNeeded(ctx,
+                    stashIfNeeded(ctx,
                       MLine.absolute(LDX, v.addr) ::
                         (compileToD(ctx, index) :+
                           MLine(LEAX, DAccumulatorIndexed(M6809Register.X, indirect = false), Constant.Zero))) :+
-                      MLine.indexedX(STB, Constant.Zero)
+                      MLine.indexedX(store, Constant.Zero)
                 }
             }
           case v: StackVariablePointy =>
             ctx.env.eval(index) match {
-              case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(STB, ix * v.elementType.size))
+              case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(store, ix * v.elementType.size))
             }
         }
     }
@@ -694,6 +699,10 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
       case VariableExpression(name) =>
         val variable = ctx.env.get[Variable](name)
         List(MLine.variable(ctx, STD, variable))
+      case SeparateBytesExpression(hi: LhsExpression, lo: LhsExpression) =>
+        val sh = storeA(ctx, hi)
+        val sl = storeB(ctx, lo)
+        stashBIfNeeded(ctx, sh) ++ sl // TODO: optimize
       case DerefExpression(inner, offset, _) =>
         stashDIfNeeded(ctx, compileToX(ctx, inner)) :+ MLine(STD, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
     }

@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class GotoSuite extends FunSuite with Matchers {
 
   test("Goto 1") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
       """
         |
         | byte output @$c000
@@ -34,7 +34,7 @@ class GotoSuite extends FunSuite with Matchers {
   }
 
   test("Cross-loop goto") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         |
         | byte output @$c000

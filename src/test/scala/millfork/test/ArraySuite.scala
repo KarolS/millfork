@@ -84,7 +84,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Array assignment through a pointer") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output [3] @$c000
         | pointer p
@@ -104,7 +104,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Array in place math") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output [4] @$c000
         | void main () {
@@ -132,7 +132,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Array simple read 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | array a[7]
@@ -144,13 +144,12 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
         |   output = a[i]
         | }
       """.stripMargin){m =>
-      m.readByte(0xc000) should equal(6)
-      m.readByte(0xc001) should equal(0)
+      m.readWord(0xc000) should equal(6)
     }
   }
 
   test("Pointers") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output
         |   pointer a
@@ -175,7 +174,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Pointer indexing test") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output [4] @$c000
         |   pointer a
@@ -192,7 +191,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Syntax") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array a = [1, 2, 3]
         | array b = "text" ascii
@@ -204,7 +203,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Negative subindex") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         |
         | array output [$fff] @$c000
@@ -243,7 +242,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Word subindex 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         |
         | array output [$fff] @$c000
@@ -265,9 +264,9 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Array filters") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
-        | array x = @word [$1144]
+        | array x = @word_le [$1144]
         | byte output @$c000
         | void main () {
         |   output = x[0]
@@ -278,9 +277,9 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Array filters 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
-        | array x = @long [$1144]
+        | array x = @long_le [$1144]
         | byte output @$c000
         | void main () {
         |   output = x[0]
@@ -291,7 +290,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Const arrays") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | const array square = [0, 1, 4, 9, 16, 25, 36, 49, 64]
         | byte five() = 5
@@ -318,7 +317,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Struct array initializers") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | struct p { byte x, byte y }
         | struct line { p from, p to }
@@ -383,7 +382,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Arrays of words") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809)(
       """
         | array(word) words[10] @$c000
         | void main () {
@@ -406,7 +405,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Initialized arrays of words") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809)(
       """
         | struct coord { byte x, byte y }
         |
@@ -430,7 +429,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Pointers to array elements") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809)(
       """
         | struct coord { byte x, byte y }
         |

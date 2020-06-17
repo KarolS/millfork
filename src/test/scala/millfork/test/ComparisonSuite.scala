@@ -560,7 +560,7 @@ class ComparisonSuite extends FunSuite with Matchers with AppendedClues {
         |  }
         |  noinline word id(word x) = x
         |""".stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(code) {m =>
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Sixteen, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(code) {m =>
       m.readByte(0xc000) should equal (code.count(_ == '↑'))
     }
   }

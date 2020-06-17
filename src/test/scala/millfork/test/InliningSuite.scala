@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class InliningSuite extends FunSuite with Matchers {
 
   test("Should inline square") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | import zp_reg
         | byte output @$c000
@@ -24,7 +24,7 @@ class InliningSuite extends FunSuite with Matchers {
   }
 
   test("Should inline <<") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | word output2 @$c006
@@ -46,7 +46,7 @@ class InliningSuite extends FunSuite with Matchers {
   }
 
   test("Should inline this weird thing") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | inline word square(word x) {
@@ -61,7 +61,7 @@ class InliningSuite extends FunSuite with Matchers {
   }
 
   test("Should inline this even weirder thing") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output@$c000
         | inline word square(word x) {

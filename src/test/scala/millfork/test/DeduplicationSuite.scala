@@ -31,7 +31,7 @@ class DeduplicationSuite extends FunSuite with Matchers {
   }
 
   test("Subroutine extraction") {
-    EmuSizeOptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086)(
+    EmuSizeOptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output @$c000
         | void main() {
@@ -71,7 +71,7 @@ class DeduplicationSuite extends FunSuite with Matchers {
   }
 
   test("Loop subroutine extraction") {
-    EmuSizeOptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086)(
+    EmuSizeOptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | array output [8] @$c000
         | void main() {
