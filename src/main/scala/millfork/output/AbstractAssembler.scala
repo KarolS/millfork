@@ -247,6 +247,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               for (i <- 0 until tim.typ.size) {
                 m.occupied(i + n.toInt) = true
               }
+              labelMap.put(tim.name, m.index -> n.toInt)
             case _ =>
           }
         case arr: MfArray =>
@@ -256,6 +257,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               for (i <- 0 until arr.sizeInBytes) {
                 m.occupied(i + n.toInt) = true
               }
+              labelMap.put(arr.name, m.index -> n.toInt)
             case _ =>
           }
         case _ =>
