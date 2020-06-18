@@ -33,7 +33,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
       """.stripMargin){m => m.readWord(0xc000) should equal(0xfffe)}
   }
   test("Sbyte to Long") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | long output @$c000
         | void main () {
         |   output = 421
@@ -46,7 +46,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
   }
 
   test("Optimize pointless sign extension") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | array output [10] @$c000
         | word w
         | void main () {
@@ -66,7 +66,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
         |   return 5
         | }
       """.stripMargin){m =>
-      m.readWord(0xc000) should equal(440)
+      m.readWord(0xc001, 0xc000) should equal(440)
     }
   }
 
@@ -111,7 +111,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
   }
 
   test("Check multilayered conversions of signed and unsigned types") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         |long output @$c000
         |noinline sbyte f() = $FE
@@ -140,7 +140,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
   }
 
   test("Signed16 to int32 extension") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         |int32 output @$c000
         |
@@ -156,7 +156,7 @@ class SignExtensionSuite extends FunSuite with Matchers {
   }
 
   test("Signed16 to int32 extension 2") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         |int32 output @$c000
         |

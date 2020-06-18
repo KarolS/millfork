@@ -46,7 +46,6 @@ object MOpcode extends Enumeration {
   val ChangesAAlways: Set[MOpcode.Value] = Set(ADDA, ADCA, SUBA, SBCA, ANDA, ORA, EORA, SEX, DAA)
   val ChangesBAlways: Set[MOpcode.Value] = Set(ADDB, ADCB, SUBB, SBCB, ANDB, ORB, EORB)
   val ChangesDAlways: Set[MOpcode.Value] = Set(ADDD, SUBD, ANDB, ORB, EORB)
-  val ChangesCFAlways: Set[MOpcode.Value] = Set(ADDD, SUBD, ANDB, ORB, EORB)
   val ReadsAAlways: Set[MOpcode.Value] = Set(ADDD, SUBD, ANDB, ORB, EORB)
   val AccessesWordInMemory: Set[MOpcode.Value] = Set(ADDD, SUBD, LDD, STD, LDX, LDY, LDU, LDS, STX, STY, STU, STS, CMPD, CMPX, CMPY, CMPU, CMPS)
   val AllLinear: Set[MOpcode.Value] = Set(
@@ -77,6 +76,15 @@ object MOpcode extends Enumeration {
     ASL, BITA, BITB, CLR, COM,
     CMPA, CMPB, CMPD, CMPX, CMPY, CMPU, CMPS,
     MUL,
+  )
+  val PreservesC: Set[MOpcode.Value] = Set(
+    ANDA, ANDB, BITA, BITB, DEC, EXG, INC,
+    LDA, LDB, LDD, LDX, LDY, LDU, LDS,
+    LEAS, LEAX, LEAY, LEAU,
+    NOP, ORA, ORB,
+    PSHS, PSHU, PULS, PULU,
+    STA, STB, STD, STX, STY, STS, STU,
+    TFR, TST
   )
   // The following are incomplete:
   val ChangesN: Set[MOpcode.Value] = Set(

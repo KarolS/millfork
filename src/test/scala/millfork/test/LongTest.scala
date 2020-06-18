@@ -28,7 +28,7 @@ class LongTest extends FunSuite with Matchers {
   }
 
   test("Long assignment") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output4 @$c000
         | long output2 @$c004
@@ -47,7 +47,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long assignment 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output4 @$c000
         | long output2 @$c004
@@ -66,11 +66,11 @@ class LongTest extends FunSuite with Matchers {
       """.stripMargin) { m =>
       m.readLong(0xc000) should equal(0x11223344)
       m.readLong(0xc004) should equal(0x7788)
-      m.readLong(0xc008) should equal(0x55)
+      m.readWord(0xc008) should equal(0x55)
     }
   }
   test("Long addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {
@@ -90,7 +90,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {
@@ -104,7 +104,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long addition 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {
@@ -138,7 +138,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {
@@ -158,7 +158,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long subtraction 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {
@@ -172,7 +172,7 @@ class LongTest extends FunSuite with Matchers {
     }
   }
   test("Long subtraction 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {
@@ -192,7 +192,7 @@ class LongTest extends FunSuite with Matchers {
   }
 
   test("Long AND") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {
@@ -212,7 +212,7 @@ class LongTest extends FunSuite with Matchers {
   }
 
   test("Long INC/DEC") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output0 @$c000
         | long output1 @$c004
@@ -252,7 +252,7 @@ class LongTest extends FunSuite with Matchers {
   }
 
   test("Returning long") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {
@@ -267,7 +267,7 @@ class LongTest extends FunSuite with Matchers {
   }
 
   test("Various combinations involving promotions") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output0 @$c000
         | long output1 @$c004
@@ -329,7 +329,7 @@ class LongTest extends FunSuite with Matchers {
   }
 
   test("Larger than long") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int64 output0 @$c000
         | int64 output1 @$c008
@@ -364,18 +364,11 @@ class LongTest extends FunSuite with Matchers {
         |   return param
         | }
       """.stripMargin) { m =>
-      m.readLong(0xc000) should equal(0x91929394)
-      m.readLong(0xc008) should equal(0x929394)
-      m.readLong(0xc010) should equal(0x9394)
-      m.readLong(0xc018) should equal(0x94)
-
-      m.readLong(0xc004) should equal(0)
-      m.readLong(0xc00c) should equal(0)
-      m.readLong(0xc014) should equal(0)
-      m.readLong(0xc01c) should equal(0)
-
-      m.readLong(0xc020) should equal(0x91929394)
-      m.readLong(0xc024) should equal(0x01010101)
+      m.readLongLong(0xc000) should equal(0x91929394L)
+      m.readLongLong(0xc008) should equal(0x929394L)
+      m.readLongLong(0xc010) should equal(0x9394L)
+      m.readLongLong(0xc018) should equal(0x94L)
+      m.readLongLong(0xc020) should equal(0x0101010191929394L)
     }
   }
 }

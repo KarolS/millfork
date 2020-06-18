@@ -34,6 +34,10 @@ class MemoryBank(val index: Int, val isBigEndian: Boolean) {
     if (isBigEndian) readByte(addr + 3) + (readByte(addr + 2) << 8) + (readByte(addr + 1) << 16) + (readByte(addr) << 24)
     else readByte(addr) + (readByte(addr + 1) << 8) + (readByte(addr + 2) << 16) + (readByte(addr + 3) << 24)
 
+  def readLongLong(addr: Int): Long =
+    if (isBigEndian) readLong(addr).toLong.<<(32) + readLong(addr + 4).&(1L.<<(32).-(1))
+    else readLong(addr + 4).toLong.<<(32) + readLong(addr).&(1L.<<(32).-(1))
+
   def readWord(addrHi: Int, addrLo: Int): Int = readByte(addrLo) + (readByte(addrHi) << 8)
 
   val output: Array[Byte] = Array.fill[Byte](1 << 16)(0)

@@ -50,7 +50,7 @@ object Settings {
 
   /**
     * Should the Motorola 6809 tests be enabled?
-    * Motorola 6809 emulation is not yet implemented, so keep this false for the time being.
+    * Motorola 6809 emulation is currently under development and more and more tests are ran against it.
     */
   val enableMotorola6809Tests: Boolean = true
 

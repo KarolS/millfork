@@ -1,11 +1,13 @@
 package millfork.compiler.m6809
 
+import java.util.concurrent.AbstractExecutorService
+
 import millfork.CompilationFlag
 import millfork.assembly.m6809.{DAccumulatorIndexed, Immediate, Indexed, InherentB, MLine, MLine0, MOpcode, RegisterSet, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SeparateBytesExpression, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
+import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, StructureConstant, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -357,7 +359,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, ADDB)
               case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ADDD, commutative = true)
-              case _ => ctx.log.error("Long addition not implemented yet", fce.position); Nil
+              case _ => M6809LargeBuiltins.modifyInPlaceViaX(ctx, l, r, ADDB)
             }
           case "+'=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
@@ -372,15 +374,14 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                   case (true, false) => lc ++ rc ++ add
                   case (true, true) => rc ++ stashAIfNeeded(ctx, lc) ++ add
                 }
-              case 2 => ???
-              case _ => ???
+              case _ => M6809LargeBuiltins.modifyInPlaceViaX(ctx, l, r, ADDA)
             }
           case "-=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, SUBB)
               case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, SUBD, commutative = false)
-              case _ => ???
+              case _ => M6809LargeBuiltins.modifyInPlaceViaX(ctx, l, r, SUBB)
             }
           case "-'=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
@@ -390,8 +391,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 val rc = compileToB(ctx, r)
                 lc ++ List(MLine.pp(PSHS, M6809Register.B)) ++
                   rc ++ List(MLine.pp(PSHS, M6809Register.B), MLine.immediate(LDA, 0x9a), MLine.accessAndPullS(SUBA), MLine.accessAndPullS(ADDA), MLine.inherent(DAA), MLine.indexedX(STA, 0))
-              case 2 => ???
-              case _ => ???
+              case _ => M6809LargeBuiltins.modifyInPlaceViaX(ctx, l, r, SUBA)
             }
           case "*=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
@@ -417,21 +417,21 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, ANDB)
               case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ANDA, ANDB, commutative = true)
-              case _ => ???
+              case _ => M6809LargeBuiltins.modifyInPlaceViaX(ctx, l, r, ANDB)
             }
           case "|=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, ORB)
               case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, ORA, ORB, commutative = true)
-              case _ => ???
+              case _ => M6809LargeBuiltins.modifyInPlaceViaX(ctx, l, r, ORB)
             }
           case "^=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => M6809Buitins.perform8BitInPlace(ctx, l, r, EORB)
               case 2 => M6809Buitins.perform16BitInPlace(ctx, l, r, EORA, EORB, commutative = true)
-              case _ => ???
+              case _ => M6809LargeBuiltins.modifyInPlaceViaX(ctx, l, r, EORB)
             }
           case "<<=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
@@ -441,6 +441,8 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 handleInPlaceModification(ctx, l, 1, M6809Buitins.compileByteShiftForB(ctx, r, left = true))
               case 2 =>
                 handleInPlaceModification(ctx, l, 2, M6809Buitins.compileWordShiftForD(ctx, r, left = true))
+              case _ =>
+                M6809LargeBuiltins.compileShiftInPlace(ctx, size, l, r, left = true)
             }
           case "<<'=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
@@ -455,6 +457,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             size match {
               case 1 => handleInPlaceModification(ctx, l, 1, M6809Buitins.compileByteShiftForB(ctx, r, left = false))
               case 2 => handleInPlaceModification(ctx, l, 2, M6809Buitins.compileWordShiftForD(ctx, r, left = false))
+              case _ => M6809LargeBuiltins.compileShiftInPlace(ctx, size, l, r, left = false)
             }
           case ">>'=" => ???
           case ">>>>=" => ???
@@ -499,7 +502,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                         case 2 =>
                           compileToD(ctx, paramExpr) ++ storeD(callCtx, VariableExpression(paramVar.name + "`aa"))
                         case _ =>
-                          ???
+                          M6809LargeBuiltins.storeLarge(callCtx, VariableExpression(paramVar.name + "`aa"), paramExpr)
                       }
                     }
                   case AssemblyOrMacroParamSignature(signature) =>
@@ -644,6 +647,11 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
 
   def stashXIfNeeded(ctx: CompilationContext, lines: List[MLine]): List[MLine] = {
     if (lines.exists(_.changesRegister(M6809Register.X))) MLine.pp(PSHS, M6809Register.X) :: (lines :+ MLine.pp(PULS, M6809Register.X))
+    else lines
+  }
+
+  def stashCarryIfNeeded(ctx: CompilationContext, lines: List[MLine]): List[MLine] = {
+    if (lines.exists(_.changesCarryFlag)) MLine.pp(PSHS, M6809Register.CC) :: (lines :+ MLine.pp(PULS, M6809Register.CC))
     else lines
   }
 
@@ -838,5 +846,75 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
       }
     }
     false
+  }
+
+  def compileToByteReads(ctx: CompilationContext, source: Expression, targetSize: Int): List[List[MLine]] = {
+    val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
+    ctx.env.eval(source) match {
+      case Some(const) =>
+        List.tabulate(targetSize)(i => List(MLine.immediate(LDB, const.subbyteBe(targetSize - 1 - i, targetSize))))
+      case None =>
+        sourceType.size match {
+          case 0 => ???
+          case 1 =>
+            List.tabulate(targetSize)(i =>
+              if (sourceType.isSigned) {
+                if (i == 0) compileToB(ctx, source) :+ MLine.tfr(M6809Register.B, M6809Register.A)
+                else if (i == 1) List(
+                  MLine.tfr(M6809Register.A, M6809Register.B),
+                  MLine.inherent(SEX),
+                  MLine.tfr(M6809Register.B, M6809Register.A)
+                )
+                else List(MLine.tfr(M6809Register.A, M6809Register.B))
+              } else {
+                if (i == 0) compileToB(ctx, source)
+                else List(MLine.immediate(LDB, 0))
+              }
+            )
+          case 2 =>
+            List.tabulate(targetSize)(i =>
+              if (sourceType.isSigned) {
+                if (i == 0) compileToD(ctx, source)
+                else if (i == 1) List(MLine.tfr(M6809Register.A, M6809Register.B))
+                else if (i == 2) {
+                  if (targetSize > 3) List(
+                    MLine.tfr(M6809Register.A, M6809Register.B),
+                    MLine.inherent(SEX),
+                    MLine.tfr(M6809Register.B, M6809Register.A)
+                  ) else List(
+                    MLine.tfr(M6809Register.A, M6809Register.B),
+                    MLine.inherent(SEX)
+                  )
+                } else List(MLine.tfr(M6809Register.A, M6809Register.B))
+              } else {
+                if (i == 0) compileToD(ctx, source)
+                else if (i == 1) List(MLine.tfr(M6809Register.A, M6809Register.B))
+                else List(MLine.immediate(LDB, 0))
+              }
+            )
+          case _ =>
+            source match {
+              case LiteralExpression(value, size) =>
+                val const = NumericConstant(value, size)
+                List.tabulate(targetSize)(i => List(MLine.immediate(LDB, const.subbyte(i))))
+              case GeneratedConstantExpression(const, _) =>
+                List.tabulate(targetSize)(i => List(MLine.immediate(LDB, const.subbyteBe(targetSize - 1 - i, targetSize))))
+              case VariableExpression(name) =>
+                val v = ctx.env.get[Variable](name)
+                List.tabulate(targetSize)(i => List(if (i < v.typ.size) MLine.variable(ctx, LDB, v, v.typ.size - 1 - i) else MLine.immediate(LDB, 0)))
+              case e:FunctionCallExpression =>
+                ctx.env.maybeGet[NormalFunction](e.functionName) match {
+                  case Some(function) =>
+                    val load = M6809ExpressionCompiler.compile(ctx, e, MExpressionTarget.NOTHING)
+                    val v = ctx.env.get[VariableInMemory](function.name + ".return")
+                    List.tabulate(targetSize) { i =>
+                      if (i == 0) load :+ MLine.variable(ctx, LDB, v, v.typ.size - 1 - i)
+                      else List(if (i < v.typ.size) MLine.variable(ctx, LDB, v, v.typ.size - 1 - i) else MLine.immediate(LDB, 0))
+                    }
+                  case _ => ???
+                }
+            }
+        }
+    }
   }
 }

@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class FarwordTest extends FunSuite with Matchers {
 
   test("Int24 assignment") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output3 @$c000
         | int24 output2 @$c004
@@ -29,7 +29,7 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
   test("Int24 assignment 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output3 @$c000
         | int24 output2 @$c004
@@ -48,12 +48,12 @@ class FarwordTest extends FunSuite with Matchers {
       """.stripMargin) { m =>
       m.readMedium(0xc000) should equal(0x23344)
       m.readMedium(0xc004) should equal(0x7788)
-      m.readMedium(0xc008) should equal(0x55)
+      m.readWord(0xc008) should equal(0x55)
     }
   }
 
   test("Int24 assignment 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output0 @$c000
         | int24 output1 @$c003
@@ -70,7 +70,7 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
   test("Int24 addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output @$c000
         | void main () {
@@ -90,7 +90,7 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
   test("Int24 addition 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output @$c000
         | void main () {
@@ -104,7 +104,7 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
   test("Int24 subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output @$c000
         | void main () {
@@ -124,7 +124,7 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
   test("Int24 subtraction 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output @$c000
         | void main () {
@@ -138,7 +138,7 @@ class FarwordTest extends FunSuite with Matchers {
     }
   }
   test("Int24 subtraction 3") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output @$c000
         | void main () {
@@ -158,7 +158,7 @@ class FarwordTest extends FunSuite with Matchers {
   }
 
   test("Int24 AND") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output @$c000
         | void main () {
@@ -178,7 +178,7 @@ class FarwordTest extends FunSuite with Matchers {
   }
 
   test("Int24 INC/DEC") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int24 output0 @$c000
         | int24 output1 @$c004

@@ -33,6 +33,12 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
                 M6809ExpressionCompiler.compile(ctx, e, MExpressionTarget.NOTHING)
               case 1 => M6809ExpressionCompiler.compileToB(ctx, e)
               case 2 => M6809ExpressionCompiler.compileToD(ctx, e)
+              case _ =>
+                if (ctx.function.hasElidedReturnVariable) {
+                  Nil
+                } else {
+                  M6809LargeBuiltins.storeLarge(ctx, VariableExpression(ctx.function.name + ".return"), e)
+                }
             }
         }
         (eval ++ rts) -> Nil
@@ -65,6 +71,7 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
             case _ => M6809ExpressionCompiler.compileToB(ctx, source) ++ M6809ExpressionCompiler.storeB(ctx, destination)
           }
           case 2 => M6809ExpressionCompiler.compileToD(ctx, source) ++ M6809ExpressionCompiler.storeD(ctx, destination)
+          case _ => M6809LargeBuiltins.storeLarge(ctx, destination, source)
         }) -> Nil
       case ExpressionStatement(expression) =>
         M6809ExpressionCompiler.compile(ctx, expression, MExpressionTarget.NOTHING) -> Nil
