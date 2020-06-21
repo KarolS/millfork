@@ -234,23 +234,36 @@ object M6809Buitins {
   }
 
   def compileWordSum(ctx: CompilationContext, expr: SumExpression, fromScratch: Boolean): List[MLine] = {
-    if (expr.decimal) ???
     val (constant, variable) = split(ctx, expr)
     val addendReads = variable
       .map(addend => addend._1 -> M6809ExpressionCompiler.compileToD(ctx, addend._2))
       .map(code => (if (code._1) 1 else 0, complexityD(code._2)) -> code).sortBy(_._1).map(_._2)
     val result = ListBuffer[MLine]()
+    def decimalInvertD(): Unit = {
+      // TODO: check if it's ok:
+      val label = ctx.nextLabel("xx")
+      result += MLine.immediate(CMPD, 0)
+      result += MLine.shortBranch(BEQ, label)
+      result += MLine.immediate(EORA, 0xff)
+      result += MLine.immediate(EORB, 0xff)
+      result += MLine.immediate(ADDD, 0x999B)
+      result += MLine.label(label)
+    }
     for ((neg, load) <- addendReads) {
       if (result.isEmpty && fromScratch) {
         result ++= load
         if (neg) {
-          result += MLine.immediate(EORA, 0xff)
-          result += MLine.immediate(EORB, 0xff)
-          result += MLine.immediate(ADDD, 1)
+          if (expr.decimal) {
+            decimalInvertD()
+          } else {
+            result += MLine.immediate(EORA, 0xff)
+            result += MLine.immediate(EORB, 0xff)
+            result += MLine.immediate(ADDD, 1)
+          }
         }
       } else {
         load match {
-          case List(l@MLine0(LDD, _, _)) =>
+          case List(l@MLine0(LDD, _, _)) if !expr.decimal=>
             if (neg) {
               result += l.copy(opcode = SUBD)
             } else {
@@ -258,17 +271,42 @@ object M6809Buitins {
             }
           case _ =>
             if (neg) {
-              result += MLine.pp(PSHS, M6809Register.D)
-              result ++= load
-              // TODO: optimize
-              result += MLine.immediate(EORA, 0xff)
-              result += MLine.immediate(EORB, 0xff)
-              result += MLine.immediate(ADDD, 1)
-              result += MLine.accessAndPullSTwice(ADDD)
+              if (expr.decimal) {
+                result += MLine.exg(M6809Register.A, M6809Register.B)
+                result += MLine.pp(PSHS, M6809Register.D)
+                result ++= load
+                decimalInvertD()
+                result += MLine.exg(M6809Register.A, M6809Register.B)
+                result += MLine.accessAndPullS(ADDA)
+                result += MLine.inherent(DAA)
+                result += MLine.exg(M6809Register.A, M6809Register.B)
+                result += MLine.accessAndPullS(ADCA)
+                result += MLine.inherent(DAA)
+              } else {
+                result += MLine.pp(PSHS, M6809Register.D)
+                result ++= load
+                // TODO: optimize
+                result += MLine.immediate(EORA, 0xff)
+                result += MLine.immediate(EORB, 0xff)
+                result += MLine.immediate(ADDD, 1)
+                result += MLine.accessAndPullSTwice(ADDD)
+              }
             } else {
-              result += MLine.pp(PSHS, M6809Register.D)
-              result ++= load
-              result += MLine.accessAndPullSTwice(ADDD)
+              if (expr.decimal) {
+                result += MLine.exg(M6809Register.A, M6809Register.B)
+                result += MLine.pp(PSHS, M6809Register.D)
+                result ++= load
+                result += MLine.exg(M6809Register.A, M6809Register.B)
+                result += MLine.accessAndPullS(ADDA)
+                result += MLine.inherent(DAA)
+                result += MLine.exg(M6809Register.A, M6809Register.B)
+                result += MLine.accessAndPullS(ADCA)
+                result += MLine.inherent(DAA)
+              } else {
+                result += MLine.pp(PSHS, M6809Register.D)
+                result ++= load
+                result += MLine.accessAndPullSTwice(ADDD)
+              }
             }
         }
       }
@@ -276,6 +314,13 @@ object M6809Buitins {
     if (!constant.isProvablyZero) {
       if (result.isEmpty) {
         result += MLine.immediate(LDD, constant)
+      } else if (expr.decimal) {
+        result += MLine.exg(M6809Register.A, M6809Register.B)
+        result += MLine.immediate(ADDA, constant.loByte)
+        result += MLine.inherent(DAA)
+        result += MLine.exg(M6809Register.A, M6809Register.B)
+        result += MLine.immediate(ADCA, constant.hiByte)
+        result += MLine.inherent(DAA)
       } else {
         result += MLine.immediate(ADDD, constant)
       }

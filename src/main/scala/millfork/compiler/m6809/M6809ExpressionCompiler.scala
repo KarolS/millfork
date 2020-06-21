@@ -222,7 +222,6 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 1 => M6809MulDiv.compileByteMultiplication(ctx, params, updateDerefX = false) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809MulDiv.compileWordMultiplication(ctx, params, updateDerefX = false) ++ targetifyD(ctx, target)
             }
-          case "*'" => ctx.log.error("Decimal multiplication not implemented yet", fce.position); Nil
           case "/" =>
             assertArithmeticBinary(ctx, params) match {
               case (l, r, 1) => M6809MulDiv.compileByteDivision(ctx, Some(l), r, mod=false) ++ targetifyB(ctx, target, isSigned = false)
@@ -353,7 +352,12 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case (l, r, 2) => ???
               case (l, r, _) => ???
             }
-          case ">>'" => ???
+          case ">>'" =>
+            assertArithmeticBinary(ctx, params) match {
+              case (l, r, 1) => M6809DecimalBuiltins.compileByteDecimalShiftRight(ctx, Some(l), r) ++ targetifyA(ctx, target, isSigned = false)
+              case (l, r, 2) => ???
+              case (l, r, _) => ???
+            }
           case "+=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
@@ -399,7 +403,10 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 1 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileByteMultiplication(ctx, List(r), updateDerefX = true)
               case 2 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileWordMultiplication(ctx, List(r), updateDerefX = true)
             }
-          case "*'=" => ctx.log.error("Decimal multiplication not implemented yet", fce.position); Nil
+          case "*'=" =>
+            assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
+            val (l, r, 1) = assertArithmeticAssignmentLike(ctx, params)
+            M6809DecimalBuiltins.compileInPlaceByteMultiplication(ctx, l, r)
           case "/=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
@@ -449,7 +456,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             size match {
               case 1 =>
                 compileAddressToX(ctx, l) ++ M6809DecimalBuiltins.compileByteDecimalShiftLeft(ctx, None, r)
-              case 2 => ???
+              case _ => M6809DecimalBuiltins.compileLongDecimalShiftLeft(ctx, l, r)
             }
           case ">>=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
@@ -459,7 +466,13 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case 2 => handleInPlaceModification(ctx, l, 2, M6809Buitins.compileWordShiftForD(ctx, r, left = false))
               case _ => M6809LargeBuiltins.compileShiftInPlace(ctx, size, l, r, left = false)
             }
-          case ">>'=" => ???
+          case ">>'=" =>
+            val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
+            size match {
+              case 1 =>
+                compileAddressToX(ctx, l) ++ M6809DecimalBuiltins.compileByteDecimalShiftRight(ctx, None, r)
+              case _ => M6809DecimalBuiltins.compileLongDecimalShiftRight(ctx, l, r)
+            }
           case ">>>>=" => ???
           case _ =>
             env.maybeGet[Type](fce.functionName) match {
@@ -532,7 +545,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 }
                 val storeResult = f.returnType.size match {
                   case 1 => targetifyB(ctx, target, f.returnType.isSigned)
-                  case 2 => targetifyD(ctx, target)
+                  case 2 => targetifyDWithNarrowing(ctx, target)
                   case _ =>
                     if (target == MExpressionTarget.NOTHING) {
                       Nil

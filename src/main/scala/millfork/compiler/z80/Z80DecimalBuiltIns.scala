@@ -209,7 +209,7 @@ object Z80DecimalBuiltIns {
       case Some(NumericConstant(v, _)) =>
         if (v.&(0xf0) > 0x90 || v.&(0xf) > 9)
           ctx.log.error("Invalid decimal constant", r.position)
-        (v.&(0xf0).>>(4) * 10 + v.&(0xf)).toInt
+        (v.&(0xf0).>>(4) * 10 + v.&(0xf)).toInt min 99
       case _ =>
         ctx.log.error("Cannot multiply by a non-constant amount", r.position)
         return Nil

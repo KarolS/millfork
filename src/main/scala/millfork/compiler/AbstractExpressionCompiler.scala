@@ -500,6 +500,7 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression(">>", List(a1, a2)) =>
         if (getExpressionTypeImpl(env, log, a2, loosely).size > 1) log.error("Shift amount too large", a2.position)
         getExpressionTypeImpl(env, log, a1, loosely)
+      case FunctionCallExpression("*'", _) => b
       case FunctionCallExpression("<<'", _) => b
       case FunctionCallExpression(">>'", _) => b
       case FunctionCallExpression(">>>>", _) => b

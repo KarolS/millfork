@@ -63,12 +63,16 @@ object M6809LargeBuiltins {
     }
     // TODO: use loop for very large structures
     // TODO: use D to speed up certain loads
-    targetInit ++ byteLoads.zipWithIndex.flatMap{ case (loadByte, ix) =>
-      M6809ExpressionCompiler.stashXIfNeeded(ctx, loadByte) :+ ( targetAddr match {
-        case Some(addr) => MLine.absolute(STB, addr + (byteCount - 1 - ix))
-        case None => MLine.indexedX(STB, byteCount - 1 - ix)
-      } )
-    }
+    targetInit ++ (targetAddr match {
+      case Some(addr) =>
+        byteLoads.zipWithIndex.flatMap { case (loadByte, ix) =>
+          loadByte :+ MLine.absolute(STB, addr + (byteCount - 1 - ix))
+        }
+      case None =>
+        byteLoads.zipWithIndex.flatMap { case (loadByte, ix) =>
+          M6809ExpressionCompiler.stashXIfNeeded(ctx, loadByte) :+ MLine.indexedX(STB, byteCount - 1 - ix)
+        }
+    })
   }
 
   def convertToLda(ldb: List[MLine]): List[MLine] = {
@@ -145,19 +149,41 @@ object M6809LargeBuiltins {
         case (ADDB | SUBB | ADDA | SUBA, Some(0)) if i == firstNonzeroByte =>
            firstNonzeroByte = i + 1
 
-        case (SUBA, _) => ???
+        case (SUBA, _) =>
+          targetAddr match {
+            case Some(addr) =>
+              if (i == firstNonzeroByte) {
+                result ++= ldb
+              } else {
+                result ++= M6809ExpressionCompiler.stashCarryIfNeeded(ctx, ldb)
+              }
+              result += MLine.pp(PSHS, M6809Register.B)
+              result += MLine.immediate(LDA, if (i == firstNonzeroByte) 0x9a else 0x99)
+              result += MLine.accessAndPullS(SUBA)
+              result += MLine.absolute(if (i == firstNonzeroByte) ADDA else ADCA, addr + (sizeInBytes - 1 - i))
+              result += MLine.inherent(DAA)
+              result += MLine.absolute(STA, addr + (sizeInBytes - 1 - i))
+            case None =>
+              result ++= M6809ExpressionCompiler.stashXIfNeeded(ctx, ldb)
+              result += MLine.pp(PSHS, M6809Register.B)
+              result += MLine.immediate(LDA, if (i == firstNonzeroByte) 0x9a else 0x99)
+              result += MLine.accessAndPullS(SUBA)
+              result += MLine.indexedX(if (i == firstNonzeroByte) ADDA else ADCA, sizeInBytes - 1 - i)
+              result += MLine.inherent(DAA)
+              result += MLine.indexedX(STA, sizeInBytes - 1 - i)
+          }
 
         case (ADDA, _) if i == firstNonzeroByte =>
           val lda = convertToLda(ldb)
           targetAddr match {
             case Some(addr) =>
               result ++= lda
-              result += MLine.absolute(ADCA, addr + (sizeInBytes - 1 - i))
+              result += MLine.absolute(ADDA, addr + (sizeInBytes - 1 - i))
               result += MLine.inherent(DAA)
               result += MLine.absolute(STA, addr + (sizeInBytes - 1 - i))
             case None =>
               result ++= M6809ExpressionCompiler.stashXIfNeeded(ctx, lda)
-              result += MLine.indexedX(ADCA, sizeInBytes - 1 - i)
+              result += MLine.indexedX(ADDA, sizeInBytes - 1 - i)
               result += MLine.inherent(DAA)
               result += MLine.indexedX(STA, sizeInBytes - 1 - i)
           }

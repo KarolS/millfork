@@ -2,12 +2,12 @@ package millfork.test
 
 import millfork.Cpu
 import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class ByteDecimalMathSuite extends FunSuite with Matchers {
+class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Decimal byte addition") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
@@ -120,7 +120,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | void main () {
@@ -136,7 +136,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal word subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | void main () {
@@ -152,7 +152,8 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place decimal word subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    // TODO: enable 6809 after the DAA bug in the emulator is fixed
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086/*, Cpu.Motorola6809*/)(
       """
         | word output @$c000
         | word a
@@ -166,7 +167,8 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("In-place decimal long subtraction") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    // TODO: enable 6809 after the DAA bug in the emulator is fixed
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086/*, Cpu.Motorola6809*/)(
       """
         | long output @$c000
         | word a
@@ -243,7 +245,8 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal left shift test 3") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    // TODO: enable 6809 after the DAA bug in the emulator is fixed
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086/*, Cpu.Motorola6809*/)(
       """
         | word output @$c000
         | void main () {
@@ -257,7 +260,8 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal left shift test 4") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    // TODO: enable 6809 after the DAA bug in the emulator is fixed
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086/*, Cpu.Motorola6809*/)(
       """
         | long output @$c000
         | void main () {
@@ -271,7 +275,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal right shift test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | void main () {
@@ -286,7 +290,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal right shift test 2") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | void main () {
@@ -300,7 +304,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   }
 
   test("Decimal right shift test 3") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | void main () {
@@ -335,7 +339,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
 
   test("Decimal word right-shift comprehensive suite") {
     for (i <- List(0, 1, 10, 100, 1000, 2000, 500, 200, 280, 300, 5234, 7723, 7344, 9, 16, 605, 1111, 2222, 3333, 9999, 8888, 8100)) {
-      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
         """
           | word output @$c000
           | void main () {
@@ -351,7 +355,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   test("Decimal byte multiplication comprehensive suite") {
     val numbers = List(0, 1, 2, 3, 6, 8, 10, 11, 12, 14, 15, 16, 20, 40, 73, 81, 82, 98, 99)
     for (i <- numbers; j <- numbers) {
-      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
         """
           | byte output @$c000
           | void main () {
@@ -361,7 +365,8 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
           | void init() { output = $#i }
           | void run () { output *'= $#j }
         """.stripMargin.replace("#i", i.toString).replace("#j", j.toString)) { m =>
-        toDecimal(m.readByte(0xc000)) should equal((i * j) % 100)
+        val actualHex = m.readByte(0xc000)
+        toDecimal(actualHex) should equal((i * j) % 100) withClue s"$i×$j = should be ${i*j} was ${actualHex.toHexString}"
       }
     }
   }
@@ -392,7 +397,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers {
   test("Decimal comparison") {
     // CMP#0 shouldn't be elided after a decimal operation.
     // Currently no emulator used for testing can catch that.
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | void main () {
