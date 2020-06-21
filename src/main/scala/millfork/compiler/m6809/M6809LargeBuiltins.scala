@@ -116,6 +116,7 @@ object M6809LargeBuiltins {
     }
     val sizeInBytes = AbstractExpressionCompiler.getExpressionType(ctx, target).size
     val byteLoads = M6809ExpressionCompiler.compileToByteReads(ctx, argument, sizeInBytes)
+    val needsAPreserved = byteLoads.tails.toList.tail.map(_.exists(_.exists(_.readsRegister(M6809Register.A))))
     val result = new ListBuffer[MLine]()
     val targetAddr: Option[Constant] = M6809ExpressionCompiler.compileAddressToX(ctx, target) match {
       case List(MLine(LDX, Immediate, addr, _, _)) => Some(addr)
@@ -152,17 +153,28 @@ object M6809LargeBuiltins {
         case (SUBA, _) =>
           targetAddr match {
             case Some(addr) =>
-              if (i == firstNonzeroByte) {
-                result ++= ldb
-              } else {
-                result ++= M6809ExpressionCompiler.stashCarryIfNeeded(ctx, ldb)
+              val stashCC = i != firstNonzeroByte
+              if (stashCC) result += MLine.pp(PSHS, M6809Register.CC)
+              result ++= ldb
+              if (needsAPreserved(i)) {
+                // TODO: optimize?
+                result += MLine.pp(PSHS, M6809Register.A)
               }
               result += MLine.pp(PSHS, M6809Register.B)
               result += MLine.immediate(LDA, if (i == firstNonzeroByte) 0x9a else 0x99)
               result += MLine.accessAndPullS(SUBA)
+              if (needsAPreserved(i)) {
+                // TODO: optimize?
+                result += MLine.pp(PULS, M6809Register.B)
+              }
+              if (stashCC) result += MLine.pp(PULS, M6809Register.CC)
               result += MLine.absolute(if (i == firstNonzeroByte) ADDA else ADCA, addr + (sizeInBytes - 1 - i))
               result += MLine.inherent(DAA)
               result += MLine.absolute(STA, addr + (sizeInBytes - 1 - i))
+              if (needsAPreserved(i)) {
+                // TODO: optimize?
+                result += MLine.tfr(M6809Register.B, M6809Register.A)
+              }
             case None =>
               result ++= M6809ExpressionCompiler.stashXIfNeeded(ctx, ldb)
               result += MLine.pp(PSHS, M6809Register.B)

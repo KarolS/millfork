@@ -152,8 +152,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("In-place decimal word subtraction") {
-    // TODO: enable 6809 after the DAA bug in the emulator is fixed
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086/*, Cpu.Motorola6809*/)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | word a
@@ -167,8 +166,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("In-place decimal long subtraction") {
-    // TODO: enable 6809 after the DAA bug in the emulator is fixed
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086/*, Cpu.Motorola6809*/)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | word a
@@ -245,8 +243,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Decimal left shift test 3") {
-    // TODO: enable 6809 after the DAA bug in the emulator is fixed
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086/*, Cpu.Motorola6809*/)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | word output @$c000
         | void main () {
@@ -260,8 +257,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Decimal left shift test 4") {
-    // TODO: enable 6809 after the DAA bug in the emulator is fixed
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086/*, Cpu.Motorola6809*/)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Ricoh, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | long output @$c000
         | void main () {

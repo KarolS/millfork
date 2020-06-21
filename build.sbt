@@ -22,7 +22,7 @@ libraryDependencies += "NeatMonster" % "Intel8086" % "1.0" % "test" from "https:
 // https://github.com/sethm/symon/tree/71905fdb1998ee4f142260879504bc46cf27648f
 // https://github.com/andrew-hoffman/halfnes/tree/061
 // https://github.com/trekawek/coffee-gb/tree/coffee-gb-1.0.0
-// https://github.com/sorenroug/osnine-java/tree/1b4e059c5886fe01e8901c70684f7eedefe65010
+// https://github.com/sorenroug/osnine-java/tree/b77349a6c314e1362e69b7158c385ac6f89b7ab8
 
 libraryDependencies += "com.loomcom.symon" % "symon" % "1.3.0-SNAPSHOT" % "test"
 
@@ -30,7 +30,7 @@ libraryDependencies += "com.grapeshot" % "halfnes" % "061" % "test"
 
 libraryDependencies += "eu.rekawek.coffeegb" % "coffee-gb" % "1.0.0" % "test"
 
-libraryDependencies += "roug.org.osnine" % "osnine-core" % "1.0-SNAPSHOT" % "test"
+libraryDependencies += "roug.org.osnine" % "osnine-core" % "2.0-SNAPSHOT" % "test"
 
 mainClass in Compile := Some("millfork.Main")
 

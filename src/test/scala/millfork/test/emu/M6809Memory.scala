@@ -1,7 +1,7 @@
 package millfork.test.emu
 
 import millfork.output.MemoryBank
-import org.roug.osnine.{Bus8Motorola, MemorySegment}
+import org.roug.usim.MemorySegment
 
 /**
   * @author Karol Stasiak

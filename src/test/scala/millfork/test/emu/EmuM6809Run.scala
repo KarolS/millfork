@@ -15,8 +15,9 @@ import millfork.error.ConsoleLogger
 import millfork.node.opt.NodeOptimization
 import millfork.node.{Program, StandardCallGraph}
 import millfork.output.{M6809Assembler, MemoryBank}
-import millfork.parser.{M6809Parser, MosParser, PreprocessingResult, Preprocessor, Z80Parser}
-import org.roug.osnine.{BusStraight, MC6809}
+import millfork.parser.{M6809Parser, PreprocessingResult, Preprocessor}
+import org.roug.usim.mc6809.MC6809
+import org.roug.usim.BusStraight
 import org.scalatest.Matchers
 
 import scala.collection.JavaConverters._
