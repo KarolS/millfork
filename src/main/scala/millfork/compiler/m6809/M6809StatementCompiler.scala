@@ -107,6 +107,8 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
           case None =>
             (M6809ExpressionCompiler.compileToX(ctx, s.target) :+ MLine.indexedX(JMP, 0)) -> Nil
         }
+      case s: ReturnDispatchStatement =>
+        M6809ReturnDispatch.compile(ctx, s) -> Nil
       case _ =>
         println(statement)
         ctx.log.error("Not implemented yet", statement.position)
