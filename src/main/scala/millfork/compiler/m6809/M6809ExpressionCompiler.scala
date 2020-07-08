@@ -7,7 +7,7 @@ import millfork.assembly.m6809.{DAccumulatorIndexed, Immediate, Indexed, Inheren
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SeparateBytesExpression, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackVariablePointy, StructureConstant, ThingInMemory, Type, Variable, VariableInMemory, VariablePointy}
+import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackOffsetThing, StackVariable, StackVariablePointy, StructureConstant, Thing, ThingInMemory, Type, Variable, VariableInMemory, VariableLikeThing, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -73,18 +73,29 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     }
     expr match {
       case VariableExpression(name) =>
-        val variable = env.get[Variable](name)
-        exprType.size match {
-          case 1 =>
-            targetSize match {
-              case 0 => Nil
-              case 1 => List(MLine.variable(ctx, toLd(target), variable))
-              case 2 => List(MLine.variable(ctx, LDB, variable)) ++ zeroextendB(ctx, target, exprType.isSigned)
+        env.get[VariableLikeThing](name) match {
+          case variable: Variable =>
+            exprType.size match {
+              case 1 =>
+                targetSize match {
+                  case 0 => Nil
+                  case 1 => List(MLine.variable(ctx, toLd(target), variable))
+                  case 2 => List(MLine.variable(ctx, LDB, variable)) ++ zeroextendB(ctx, target, exprType.isSigned)
+                }
+              case 2 =>
+                targetSize match {
+                  case 0 => Nil
+                  case 2 => List(MLine.variable(ctx, toLd(target), variable))
+                }
             }
-          case 2 =>
-            targetSize match {
-              case 0 => Nil
-              case 2 => List(MLine.variable(ctx, toLd(target), variable))
+          case sot: StackOffsetThing =>
+            sot.subbyte match {
+              case None =>
+                if (target == MExpressionTarget.X) calculateStackAddressToX(ctx, sot.offset)
+                else calculateStackAddressToD(ctx, sot.offset) ++ targetifyD(ctx, target)
+              case Some(0) => calculateStackAddressToD(ctx, sot.offset) ++ targetifyB(ctx, target, isSigned = false)
+              case Some(1) => calculateStackAddressToD(ctx, sot.offset) ++ targetifyA(ctx, target, isSigned = false)
+              case _ => throw new IllegalArgumentException
             }
         }
       case LiteralExpression(c, _) =>
@@ -93,7 +104,12 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
           case _ => List(MLine.immediate(MExpressionTarget.toLd(target), NumericConstant(c, MExpressionTarget.size(target))))
         }
       case DerefExpression(inner, offset, _) =>
-        compileToX(ctx, inner) :+ MLine(toLd(target), Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+        compileToX(ctx, inner) match {
+          case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable =>
+            List(l.copy(opcode = toLd(target), addrMode = addrMode.dereference()))
+          case _ =>
+            compileToX(ctx, inner) :+ MLine(toLd(target), Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+        }
       case IndexedExpression(name, index) =>
         env.getPointy(name) match {
           case c: ConstantPointy =>
@@ -101,12 +117,18 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             val constantOffset = (c.value + constIndex).quickSimplify
             variableIndex match {
               case (Some(ix)) =>
-                compileToX(ctx, ix) ++ (
-                  targetSize match {
-                    case 0 => Nil
-                    case 1 => List(MLine.indexedX(toLd(target), constantOffset))
-                    case 2 => List(MLine.indexedX(LDB, constantOffset)) ++ zeroextendB(ctx, target, exprType.isSigned)
-                  })
+                val prepareIndex = compileToX(ctx, ix)
+                targetSize match {
+                  case 0 => prepareIndex
+                  case 1 =>
+                    prepareIndex match {
+                      case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable && constantOffset.isProvablyZero =>
+                        List(l.copy(opcode = toLd(target), addrMode = addrMode.dereference()))
+                      case _ =>
+                        prepareIndex ++ List(MLine.indexedX(toLd(target), constantOffset))
+                    }
+                  case 2 => prepareIndex ++ List(MLine.indexedX(LDB, constantOffset)) ++ zeroextendB(ctx, target, exprType.isSigned)++targetifyD(ctx, target)
+                }
               case None =>
                 targetSize match {
                   case 0 => Nil
@@ -126,11 +148,19 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                     )) -> Constant.Zero
                 }
             }
-            prepareIndex ++ (targetSize match {
-              case 0 => Nil
-              case 1 => List(MLine.indexedX(toLd(target), offset))
-              case 2 => List(MLine.indexedX(LDB, offset)) ++ zeroextendB(ctx, target, exprType.isSigned)
-            })
+            targetSize match {
+              case 0 => prepareIndex
+              case 1 =>
+                prepareIndex match {
+                  case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable && offset.isProvablyZero =>
+                    List(l.copy(opcode = toLd(target), addrMode = addrMode.dereference()))
+                  case _ =>
+                    prepareIndex :+ MLine.indexedX(toLd(target), offset)
+                }
+              case 2 =>
+                val toD = prepareIndex ++ List(MLine.indexedX(LDB, offset)) ++ zeroextendB(ctx, target, exprType.isSigned)
+                toD ++ targetifyD(ctx, target)
+            }
           case v:StackVariablePointy =>
             ctx.env.eval(index) match {
               case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(LDB, ix * v.elementType.size))
@@ -280,7 +310,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, ComparisonType.Equal, l, r, branches)
                 case 2 => M6809Comparisons.compile16BitComparison(ctx, ComparisonType.Equal, l, r, branches)
-                case _ => ???
+                case _ => M6809LargeBuiltins.compileComparison(ctx, ComparisonType.Equal, l, r, branches)
               }
             }
           case "!=" =>
@@ -289,7 +319,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
                 case 2 => M6809Comparisons.compile16BitComparison(ctx, ComparisonType.NotEqual, l, r, branches)
-                case _ => ???
+                case _ => M6809LargeBuiltins.compileComparison(ctx, ComparisonType.NotEqual, l, r, branches)
               }
             }
           case "<" =>
@@ -298,7 +328,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
                 case 2 => M6809Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
-                case _ => ???
+                case _ => M6809LargeBuiltins.compileComparison(ctx, if (signed) ComparisonType.LessSigned else ComparisonType.LessUnsigned, l, r, branches)
               }
             }
           case ">" =>
@@ -307,7 +337,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
                 case 2 => M6809Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
-                case _ => ???
+                case _ => M6809LargeBuiltins.compileComparison(ctx, if (signed) ComparisonType.GreaterSigned else ComparisonType.GreaterUnsigned, l, r, branches)
               }
             }
           case "<=" =>
@@ -316,7 +346,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
                 case 2 => M6809Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
-                case _ => ???
+                case _ => M6809LargeBuiltins.compileComparison(ctx, if (signed) ComparisonType.LessOrEqualSigned else ComparisonType.LessOrEqualUnsigned, l, r, branches)
               }
             }
           case ">=" =>
@@ -325,7 +355,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               size match {
                 case 1 => M6809Comparisons.compile8BitComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
                 case 2 => M6809Comparisons.compile16BitComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
-                case _ => ???
+                case _ => M6809LargeBuiltins.compileComparison(ctx, if (signed) ComparisonType.GreaterOrEqualSigned else ComparisonType.GreaterOrEqualUnsigned, l, r, branches)
               }
             }
           case "<<" =>
@@ -766,8 +796,13 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
   def compileAddressToX(ctx: CompilationContext, expr: LhsExpression): List[MLine] = {
     expr match {
       case VariableExpression(name) =>
-        val variable = ctx.env.get[VariableInMemory](name)
-        List(MLine.immediate(MOpcode.LDX, variable.toAddress))
+        ctx.env.get[Thing](name) match {
+          case variable: VariableInMemory =>
+            List(MLine.immediate(MOpcode.LDX, variable.toAddress))
+          case variable: StackVariable =>
+            List(MLine.variable(ctx, LEAX, variable))
+        }
+
       case DerefExpression(inner, offset, _) =>
         compileToX(ctx, inner) :+ MLine.indexedX(MOpcode.LEAX, Constant(offset))
       case IndexedExpression(aname, index) =>
@@ -913,8 +948,12 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case GeneratedConstantExpression(const, _) =>
                 List.tabulate(targetSize)(i => List(MLine.immediate(LDB, const.subbyteBe(targetSize - 1 - i, targetSize))))
               case VariableExpression(name) =>
-                val v = ctx.env.get[Variable](name)
-                List.tabulate(targetSize)(i => List(if (i < v.typ.size) MLine.variable(ctx, LDB, v, v.typ.size - 1 - i) else MLine.immediate(LDB, 0)))
+                ctx.env.get[VariableLikeThing](name) match {
+                  case v: Variable =>
+                    List.tabulate(targetSize)(i => List(if (i < v.typ.size) MLine.variable(ctx, LDB, v, v.typ.size - 1 - i) else MLine.immediate(LDB, 0)))
+                  case sot: StackOffsetThing =>
+                    List(calculateStackAddressToD(ctx, sot.offset), List(MLine.tfr(M6809Register.A, M6809Register.B)))
+                }
               case e:FunctionCallExpression =>
                 ctx.env.maybeGet[NormalFunction](e.functionName) match {
                   case Some(function) =>
@@ -928,6 +967,28 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 }
             }
         }
+    }
+  }
+
+  def calculateStackAddressToD(ctx: CompilationContext, baseOffset: Int): List[MLine] = {
+    import M6809Register._
+    if (ctx.options.flag(CompilationFlag.UseUForStack)) {
+      List(MLine.tfr(U, D), MLine.immediate(ADDD, baseOffset))
+    } else if (ctx.options.flag(CompilationFlag.UseYForStack)) {
+      List(MLine.tfr(Y, D), MLine.immediate(ADDD, baseOffset))
+    } else {
+      List(MLine.tfr(S, D), MLine.immediate(ADDD, baseOffset + ctx.extraStackOffset))
+    }
+  }
+
+  def calculateStackAddressToX(ctx: CompilationContext, baseOffset: Int): List[MLine] = {
+    import M6809Register._
+    if (ctx.options.flag(CompilationFlag.UseUForStack)) {
+      List(MLine.indexedU(LEAX, baseOffset))
+    } else if (ctx.options.flag(CompilationFlag.UseYForStack)) {
+      List(MLine.indexedY(LEAX, baseOffset))
+    } else {
+      List(MLine.indexedS(LEAX, baseOffset + ctx.extraStackOffset))
     }
   }
 }

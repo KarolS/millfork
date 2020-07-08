@@ -114,6 +114,13 @@ This list cannot contain module template instantiations.
     
     * `iy_scratch` – allow using the IY register for other purposes, default is `false`
     
+    * `u_stack` – use the U register to access stack variables, default is `false`. Applicable only to 6809-based targets.
+    
+    * `y_stack` – use the Y register to access stack variables, default is `false`. Applicable only to 6809-based targets.  
+    **Warning: Currently, picking either `u_stack` or `y_stack` is required,
+    unless you want to always specify this option in the compiler's command line!**
+    The compiler doesn't support accessing the stack variables via the S stack pointer register yet.
+    
     * `software_stack` – use software stack for stack variables, default is `false`. Applicable only to 6502-based targets.
     
     * `output_intel_syntax` – use Intel syntax instead of Zilog syntax, default is `true` for Intel 8080/8085 and `false` otherwise

@@ -1,7 +1,7 @@
 package millfork.compiler.m6809
 
 import millfork.assembly.m6809.{Immediate, MLine, MLine0, MOpcode, TwoRegisters}
-import millfork.compiler.{AbstractExpressionCompiler, CompilationContext}
+import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{Expression, LhsExpression, M6809Register}
 import millfork.assembly.m6809.MOpcode._
 import millfork.env.{Constant, NumericConstant}
@@ -83,6 +83,13 @@ object M6809LargeBuiltins {
     }
   }
 
+  def isSingleLdb(code: List[MLine]): Boolean = code.length == 1 && code.head.opcode == LDB
+
+  def replaceLdb(code: List[MLine], op: MOpcode.Value): List[MLine] = {
+    if (code.last.opcode != LDB) ???
+    code.init :+ code.last.copy(opcode = op)
+  }
+
   def compileInc(ctx: CompilationContext, target: LhsExpression): List[MLine] = {
     val sizeInBytes = AbstractExpressionCompiler.getExpressionType(ctx, target).size
     val result = new ListBuffer[MLine]()
@@ -120,6 +127,7 @@ object M6809LargeBuiltins {
     val result = new ListBuffer[MLine]()
     val targetAddr: Option[Constant] = M6809ExpressionCompiler.compileAddressToX(ctx, target) match {
       case List(MLine(LDX, Immediate, addr, _, _)) => Some(addr)
+      case List(MLine(LEAX, _, _, _, _)) => None
       case xs =>
         result ++= xs
         ctx.log.error("Invalid left-hand-side expression", target.position)
@@ -271,6 +279,93 @@ object M6809LargeBuiltins {
       }
     }
     result.toList
+  }
+
+  def compileComparison(ctx: CompilationContext, typ: ComparisonType.Value, l: Expression, r: Expression, branches: BranchSpec): List[MLine] = {
+    typ match {
+      case ComparisonType.GreaterSigned | ComparisonType.GreaterUnsigned | ComparisonType.LessOrEqualSigned | ComparisonType.LessOrEqualUnsigned =>
+        return compileComparison(ctx, ComparisonType.flip(typ), r, l, branches)
+      case _ =>
+    }
+    val targetLabel = branches match {
+      case BranchIfTrue(label) => Some(label)
+      case BranchIfFalse(label) => return compileComparison(ctx, ComparisonType.negate(typ), l, r, BranchIfTrue(label))
+      case NoBranching => None
+    }
+    val ltype = AbstractExpressionCompiler.getExpressionType(ctx, l)
+    val rtype = AbstractExpressionCompiler.getExpressionType(ctx, r)
+    val size = ltype.size max rtype.size
+    val lReads = M6809ExpressionCompiler.compileToByteReads(ctx, l, size)
+    val rReads = M6809ExpressionCompiler.compileToByteReads(ctx, r, size)
+    if (!lReads.forall(isSingleLdb) && !rReads.forall(isSingleLdb)) {
+      ctx.log.error("Too complex comparison", l.position.orElse(r.position))
+      return Nil
+    }
+    val result = ListBuffer[MLine]()
+    typ match {
+      case ComparisonType.Equal =>
+        val skipLabel = ctx.nextLabel("co")
+        for(i <- 0 until size) {
+          (lReads(i), rReads(i)) match {
+            case (List(MLine0(LDB, Immediate, NumericConstant(a, _))), List(MLine0(LDB, Immediate, NumericConstant(b, _)))) if a == b =>
+              if (a != b) {
+                targetLabel.foreach(l => result += MLine.shortBranch(BRA, skipLabel))
+              }
+            case (l, r) =>
+              if (isSingleLdb(l)) {
+                result ++= r ++ replaceLdb(l, CMPB)
+              } else if (isSingleLdb(r)) {
+                result ++= l ++ replaceLdb(r, CMPB)
+              } else ???
+          }
+          if (i != size - 1) {
+            targetLabel.foreach(l => result += MLine.longBranch(BNE, skipLabel))
+          }
+        }
+        targetLabel.foreach(l => result += MLine.longBranch(BEQ, l))
+        result += MLine.label(skipLabel)
+      case ComparisonType.NotEqual =>
+        for(i <- 0 until size) {
+          (lReads(i), rReads(i)) match {
+            case (List(MLine0(LDB, Immediate, NumericConstant(a, _))), List(MLine0(LDB, Immediate, NumericConstant(b, _))))  =>
+              if (a != b) {
+                targetLabel.foreach(l => result += MLine.longBranch(BRA, l))
+              }
+            case (l, r) =>
+              if (isSingleLdb(l)) {
+                result ++= r ++ replaceLdb(l, CMPB)
+              } else if (isSingleLdb(r)) {
+                result ++= l ++ replaceLdb(r, CMPB)
+              } else ???
+          }
+          if (result.nonEmpty) {
+            targetLabel.foreach(l => result += MLine.longBranch(BNE, l))
+          }
+        }
+      case _ =>
+        for(i <- 0 until size) {
+          val l = lReads(i)
+          val r = rReads(i)
+          if (isSingleLdb(r)) {
+            result ++= M6809ExpressionCompiler.stashCarryIfNeeded(ctx, l)
+            result ++= replaceLdb(r, if (i == 0) SUBB else SBCB)
+          } else {
+            result ++= M6809ExpressionCompiler.stashCarryIfNeeded(ctx, r)
+            result += MLine.pp(PSHS, M6809Register.B)
+            result ++= M6809ExpressionCompiler.stashCarryIfNeeded(ctx, l)
+            result += MLine.accessAndPullS(if (i == 0) SUBB else SBCB)
+          }
+        }
+        val j = typ match {
+          case ComparisonType.GreaterOrEqualSigned => MOpcode.BGE
+          case ComparisonType.GreaterOrEqualUnsigned => MOpcode.BCC
+          case ComparisonType.LessSigned => MOpcode.BLT
+          case ComparisonType.LessUnsigned => MOpcode.BCS
+        }
+        targetLabel.foreach(l => result += MLine.longBranch(j, l))
+    }
+    result.toList
+
   }
 
 }

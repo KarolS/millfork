@@ -1,5 +1,6 @@
 package millfork.env
 
+import millfork.CompilationOptions
 import millfork.DecimalUtils._
 import millfork.node.{ResolvedFieldDesc, SumExpression}
 import millfork.output.DivisibleAlignment
@@ -95,13 +96,23 @@ sealed trait Constant {
     }
   }
 
-  def subconstant(offset: Int, length: Int): Constant = {
+  def subconstant(options: CompilationOptions, offset: Int, length: Int): Constant = {
     if (offset == 0 && length == requiredSize) {
       this
+    } else if (options.platform.isBigEndian && length == 1) {
+      // TODO: is this ok?
+      subbyteBe(offset, requiredSize)
     } else if (length == 1) {
       subbyte(offset)
     } else if (offset >= requiredSize) {
       Constant.Zero
+    } else if (options.platform.isBigEndian) {
+      // TODO: is this ok?
+      (0 until length).map { i =>
+        val index = i + offset
+        val shift = 8 * (length - i)
+        CompoundConstant(MathOperator.Shl, subbyteBe(index, requiredSize), NumericConstant(shift, 1)).quickSimplify
+      }.reduceLeft((l, r) => CompoundConstant(MathOperator.Or, l, r).quickSimplify).quickSimplify
     } else {
       ((length - 1) to 0 by (-1)).map { i =>
         val index = i + offset

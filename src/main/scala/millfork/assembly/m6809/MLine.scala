@@ -51,6 +51,12 @@ object MLine {
   def indexedX(opcode: MOpcode.Value, offset: Int): MLine =
     MLine(opcode, Indexed(M6809Register.X, indirect = false), Constant(offset))
 
+  def indexedU(opcode: MOpcode.Value, offset: Int): MLine =
+    MLine(opcode, Indexed(M6809Register.U, indirect = false), Constant(offset))
+
+  def indexedY(opcode: MOpcode.Value, offset: Int): MLine =
+    MLine(opcode, Indexed(M6809Register.Y, indirect = false), Constant(offset))
+
   def accessAndPullS(opcode: MOpcode.Value): MLine =
     MLine(opcode, PostIncremented(M6809Register.S, 1, indirect = false), Constant.Zero)
 

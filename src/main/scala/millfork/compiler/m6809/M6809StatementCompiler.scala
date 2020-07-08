@@ -1,9 +1,10 @@
 package millfork.compiler.m6809
 
+import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly.{BranchingOpcodeMapping, Elidability}
 import millfork.assembly.m6809.{Inherent, MLine, MOpcode, NonExistent}
 import millfork.compiler.{AbstractCompiler, AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
-import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, FunctionCallExpression, GotoStatement, IfStatement, LabelStatement, LiteralExpression, M6809AssemblyStatement, MemsetStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
+import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, EmptyStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, FunctionCallExpression, GotoStatement, IfStatement, LabelStatement, LiteralExpression, M6809AssemblyStatement, MemsetStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
 import millfork.assembly.m6809.MOpcode._
 import millfork.env.{BooleanType, ConstantBooleanType, FatBooleanType, Label, MemoryAddressConstant, StructureConstant, ThingInMemory}
 
@@ -13,11 +14,25 @@ import millfork.env.{BooleanType, ConstantBooleanType, FatBooleanType, Label, Me
 object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
   def compile(ctx: CompilationContext, statement: ExecutableStatement): (List[MLine], List[MLine]) = {
     val env = ctx.env
+    val epilogue = if (ctx.function.stackVariablesSize == 0) Nil else {
+      import millfork.node.M6809Register.{U, Y}
+      if (ctx.options.flag(CompilationFlag.UseUForStack)) {
+        List(
+          MLine.indexedS(LEAS, ctx.function.stackVariablesSize),
+          MLine.pp(PULS, U))
+      } else if (ctx.options.flag(CompilationFlag.UseYForStack)) {
+        List(
+          MLine.indexedS(LEAS, ctx.function.stackVariablesSize),
+          MLine.pp(PULS, Y))
+      } else {
+        List(MLine.indexedS(LEAS, ctx.function.stackVariablesSize))
+      }
+    }
     val code: (List[MLine], List[MLine]) = statement match {
       case ReturnStatement(None) =>
         // TODO: clean stack
         // TODO: RTI
-        List(MLine.inherent(RTS)) -> Nil
+        (epilogue :+ MLine.inherent(RTS)) -> Nil
       case ReturnStatement(Some(e)) =>
         // TODO: clean stack
         // TODO: RTI
@@ -41,7 +56,7 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
                 }
             }
         }
-        (eval ++ rts) -> Nil
+        (eval ++ epilogue ++ rts) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>
         ctx.env.evalForAsm(expression, opcode) match {
           case Some(e) => List(MLine(opcode, addrMode, e, elidability)) -> Nil
@@ -109,6 +124,8 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         }
       case s: ReturnDispatchStatement =>
         M6809ReturnDispatch.compile(ctx, s) -> Nil
+      case EmptyStatement(_) =>
+        Nil -> Nil
       case _ =>
         println(statement)
         ctx.log.error("Not implemented yet", statement.position)

@@ -1844,7 +1844,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
       for(Subvariable(suffix, offset, t, arraySize) <- getSubvariables(typ)) {
         if (arraySize.isDefined) ??? // TODO
-        addThing(ConstantThing(prefix + name + suffix, constantValue.subconstant(offset, t.size), t), stmt.position)
+        addThing(ConstantThing(prefix + name + suffix, constantValue.subconstant(options, offset, t.size), t), stmt.position)
       }
     } else {
       if (stmt.stack && stmt.global) log.error(s"`$name` is static or global and cannot be on stack", position)

@@ -32,6 +32,7 @@ object EmuM6809Run {
     TestErrorReporting.log.info(s"Loading $filename for $cpu")
     val source = Files.readAllLines(Paths.get(filename), StandardCharsets.US_ASCII).asScala.mkString("\n")
     val options = CompilationOptions(EmuPlatform.get(cpu), Map(
+          CompilationFlag.UseUForStack -> true,
           CompilationFlag.LenientTextEncoding -> true
         ), None, 0, Map(), EmuPlatform.textCodecRepository, JobContext(TestErrorReporting.log, new LabelGenerator))
     val PreprocessingResult(preprocessedSource, features, _) = Preprocessor.preprocessForTest(options, source)
@@ -90,6 +91,7 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
       CompilationFlag.EmitIllegals -> this.emitIllegals,
       CompilationFlag.InlineFunctions -> this.inline,
       CompilationFlag.OptimizeStdlib -> this.inline,
+      CompilationFlag.UseUForStack -> true,
       CompilationFlag.InterproceduralOptimization -> true,
       CompilationFlag.CompactReturnDispatchParams -> true,
       CompilationFlag.SubroutineExtraction -> optimizeForSize,

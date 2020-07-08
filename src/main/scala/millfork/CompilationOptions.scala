@@ -190,6 +190,9 @@ case class CompilationOptions(platform: Platform,
         if (flags(UseUForStack) && flags(UseYForStack)) {
           log.error("Cannot use both U and Y registers for stack variables simultaneously")
         }
+        if (!flags(UseUForStack) && !flags(UseYForStack)) {
+          log.error("You need to use either the U register or the Y register as the base pointer. This might be relaxed in the future.")
+        }
     }
   }
 

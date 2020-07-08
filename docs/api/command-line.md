@@ -187,6 +187,14 @@ Allow using the IY register for other purposes.
 Compiling to 8086 is based on translating from a mix of 8085 and Z80 instructions to 8086.
 See [the 8086 support disclaimer](./../lang/x86disclaimer.md).
 
+#### 6809-related
+
+* `-fuse-u-for-stack`, `-fuse-y-for-stack`
+Which of Z80 index registers should be used as the base pointer for accessing stack variables, if any. 
+`.ini` equivalent: `u_stack` and `y_stack`. Default: none.  
+**Warning: Currently, picking one of those two options is required!**
+The compiler doesn't support accessing the stack variables via the S stack pointer register yet.
+
 ## Optimization options
 
 * `-O0` – Disable all optimizations except unused global symbol removal.

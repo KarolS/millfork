@@ -651,10 +651,10 @@ object Main {
       c.changeFlag(CompilationFlag.UseIyForStack, true).changeFlag(CompilationFlag.UseIxForStack, false)
     }.description("Use IY as base pointer for stack variables (Z80 only)")
     flag("-fuse-u-for-stack").action { c =>
-      c.changeFlag(CompilationFlag.UseIxForStack, true).changeFlag(CompilationFlag.UseUForStack, false)
+      c.changeFlag(CompilationFlag.UseUForStack, true).changeFlag(CompilationFlag.UseYForStack, false)
     }.description("Use U as base pointer for stack variables (6809 only)").hidden()
     flag("-fuse-y-for-stack").action { c =>
-      c.changeFlag(CompilationFlag.UseIyForStack, true).changeFlag(CompilationFlag.UseYForStack, false)
+      c.changeFlag(CompilationFlag.UseYForStack, true).changeFlag(CompilationFlag.UseUForStack, false)
     }.description("Use Y as base pointer for stack variables (6809 only)").hidden()
     boolean("-fuse-ix-for-scratch", "-fno-use-ix-for-scratch").action { (c, v) =>
       if (v) {

@@ -49,8 +49,7 @@ object M6809Buitins {
         // TODO: preserve X?
         rc ++ List(MLine.pp(PSHS, M6809Register.D)) ++ lc ++ List(MLine.accessAndPullSTwice(opcode), lc.last.copy(opcode = STD))
       case _ =>
-        println(lc)
-        ???
+        rc ++ List(MLine.pp(PSHS, M6809Register.D)) ++ lc ++ List(MLine.accessAndPullSTwice(opcode)) ++ M6809ExpressionCompiler.storeD(ctx, l)
     }
   }
 
