@@ -456,13 +456,20 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Invalid array things that will become valid in the future") {
-    ShouldNotCompile(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80 , Cpu.Sharp, Cpu.Motorola6809)(
       """
         | array(int32) a[7] @$c000
         | void main () {
+        |   int32 tmp
+        |   tmp = f()
+        |   a[0] = tmp
         |   a[0] += 2
+        |   a[0] <<= 2
         | }
-      """.stripMargin)
+        | noinline int32 f() = 5
+      """.stripMargin) { m =>
+      m.readLong(0xc000) should equal(28)
+    }
   }
 
   test("Various large assignments involving arrays") {

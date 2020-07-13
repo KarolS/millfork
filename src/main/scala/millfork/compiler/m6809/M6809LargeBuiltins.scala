@@ -130,7 +130,6 @@ object M6809LargeBuiltins {
       case List(MLine(LEAX, _, _, _, _)) => None
       case xs =>
         result ++= xs
-        ctx.log.error("Invalid left-hand-side expression", target.position)
         None
     }
     var firstNonzeroByte = 0

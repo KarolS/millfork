@@ -104,6 +104,25 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     } else code
   }
 
+  def preserve2ZpregIfNeededDestroyingAAndX(ctx: CompilationContext, Offset1: Int, Offset2: Int, code: List[AssemblyLine]): List[AssemblyLine] = {
+    if (changesZpreg(code, Offset1) || changesZpreg(code, Offset2)) {
+      val reg = ctx.env.get[VariableInMemory]("__reg")
+      List(
+        AssemblyLine.zeropage(LDA, reg, Offset1),
+        AssemblyLine.implied(PHA),
+        AssemblyLine.zeropage(LDA, reg, Offset2),
+        AssemblyLine.implied(PHA)) ++
+      code ++
+        List(
+          AssemblyLine.implied(TAX),
+          AssemblyLine.implied(PLA),
+          AssemblyLine.zeropage(STA, reg, Offset2),
+          AssemblyLine.implied(PLA),
+          AssemblyLine.zeropage(STA, reg, Offset1),
+          AssemblyLine.implied(TXA))
+    } else code
+  }
+
   def changesZpreg(code: List[AssemblyLine], Offset: Int): Boolean = {
     code.exists {
       case AssemblyLine0(op,
@@ -1500,11 +1519,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
               case i if i > 2 =>
                 l match {
-                  case v: VariableExpression =>
+                  case v: LhsExpression =>
                     BuiltIns.compileInPlaceWordOrLongAddition(ctx, v, r, subtract = false, decimal = false)
-                  case _ =>
-                    ctx.log.error("Cannot modify large object accessed via such complex expression", l.position)
-                    compile(ctx, r, None, BranchSpec.None)
                 }
             }
           case "-=" =>
@@ -1519,11 +1535,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
               case i if i > 2 =>
                 l match {
-                  case v: VariableExpression =>
+                  case v: LhsExpression =>
                     BuiltIns.compileInPlaceWordOrLongAddition(ctx, v, r, subtract = true, decimal = false)
-                  case _ =>
-                    ctx.log.error("Cannot modify large object accessed via such complex expression", l.position)
-                    compile(ctx, r, None, BranchSpec.None)
                 }
             }
           case "+'=" =>
@@ -1538,11 +1551,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
               case i if i > 2 =>
                 l match {
-                  case v: VariableExpression =>
+                  case v: LhsExpression =>
                     BuiltIns.compileInPlaceWordOrLongAddition(ctx, v, r, subtract = false, decimal = true)
-                  case _ =>
-                    ctx.log.error("Cannot modify large object accessed via such complex expression", l.position)
-                    compile(ctx, r, None, BranchSpec.None)
                 }
             }
           case "-'=" =>
@@ -1557,11 +1567,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 }
               case i if i > 2 =>
                 l match {
-                  case v: VariableExpression =>
+                  case v: LhsExpression =>
                     BuiltIns.compileInPlaceWordOrLongAddition(ctx, v, r, subtract = true, decimal = true)
-                  case _ =>
-                    ctx.log.error("Cannot modify large object accessed via such complex expression", l.position)
-                    compile(ctx, r, None, BranchSpec.None)
                 }
             }
           case "<<=" =>
