@@ -10,7 +10,7 @@ import org.scalatest.{AppendedClues, FunSuite, Matchers}
 class MemBulkSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Memcpy should work fine") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         |
         |array input @$c000 = [5,89,6,1,8,6,87,52,6,45,8,52,8,6,14,89]
@@ -31,7 +31,7 @@ class MemBulkSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Correctly increment array elements") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         |array output [$100] @$c000
         |void main() {

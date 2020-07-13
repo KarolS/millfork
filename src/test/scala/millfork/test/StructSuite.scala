@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StructSuite extends FunSuite with Matchers {
 
   test("Basic struct support") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086)("""
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086, Cpu.Motorola6809)("""
         | struct point {
         |   byte x
         |   byte y
@@ -171,7 +171,7 @@ class StructSuite extends FunSuite with Matchers {
         |   outputY = p.y
         | }
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086)(code){ m =>
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(code){ m =>
       m.readWord(0xc000) should equal(code.count(_ == '→') + 6)
       m.readWord(0xc002) should equal(code.count(_ == '↑') + 8)
     }

@@ -9,7 +9,7 @@ import org.scalatest.{FunSuite, Matchers}
 class InterruptSuite extends FunSuite with Matchers {
 
     test("Interrupts should compile") {
-      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
         """
           | interrupt void f() {
           |   asm { nop }

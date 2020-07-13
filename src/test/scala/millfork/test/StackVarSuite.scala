@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class StackVarSuite extends FunSuite with Matchers {
 
   test("Basic stack assignment") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | byte output @$c000
         | void main () {
         |   stack byte a, b
@@ -23,7 +23,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack byte addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | byte output @$c000
         | void main () {
         |   stack byte a, b
@@ -36,7 +36,7 @@ class StackVarSuite extends FunSuite with Matchers {
         | byte zzz() {
         |   return $22
         | }
-      """.stripMargin)(_.readWord(0xc000) should equal(0x77))
+      """.stripMargin)(_.readByte(0xc000) should equal(0x77))
   }
 
   test("Complex expressions involving stack variables (6502)") {
@@ -68,7 +68,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack byte subtraction") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         | void main () {
@@ -88,7 +88,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Stack word addition") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000
         | void main () {
         |   stack word a, b
@@ -105,7 +105,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
@@ -149,7 +149,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Recursion 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | array output [6] @$c000
         | byte fails @$c010
         | void main () {
@@ -181,7 +181,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Complex stack-related stuff") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | byte output @$c000
         | array id = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         | void main() {
@@ -199,7 +199,7 @@ class StackVarSuite extends FunSuite with Matchers {
 
 
   test("Indexing") {
-    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | array output [200] @$c000
         | void main () {
         |   stack byte a, b
@@ -207,11 +207,11 @@ class StackVarSuite extends FunSuite with Matchers {
         |   b = $44
         |   output[a + b] = $66
         | }
-      """.stripMargin){m => m.readWord(0xc055) should equal(0x66) }
+      """.stripMargin){m => m.readByte(0xc055) should equal(0x66) }
   }
 
     test("Double array with stack variables") {
-      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
         """
           | array output[5]@$c001
           | array input = [0,1,4,9,16,25,36,49]
@@ -229,7 +229,7 @@ class StackVarSuite extends FunSuite with Matchers {
     }
 
     test("Complex large stacks") {
-      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+      EmuCrossPlatformBenchmarkRun(Cpu.StrictMos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
 //      val m = EmuUnoptimizedZ80Run(
         """
           | array output[5]@$c000
@@ -258,7 +258,7 @@ class StackVarSuite extends FunSuite with Matchers {
     }
 
   test("Large stack storage") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int32 output @$c000
         | void main () {
@@ -275,7 +275,7 @@ class StackVarSuite extends FunSuite with Matchers {
   }
 
   test("Large stack-to-stack transfer") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | int32 output @$c000
         | void main () {
@@ -346,7 +346,7 @@ class StackVarSuite extends FunSuite with Matchers {
         | }
       """.stripMargin
 
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp)(code) { m =>
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(code) { m =>
       println("$" + m.readWord(0xc002).toHexString)
 //      (0x1f0 until 0x200).foreach { a =>
 //        printf(f"$$$a%04x = $$${m.readByte(a)}%02x%n");
@@ -386,7 +386,7 @@ class StackVarSuite extends FunSuite with Matchers {
         | }
       """.stripMargin
 
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(code) { m =>
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code) { m =>
     }
     EmuSoftwareStackBenchmarkRun(code) { m =>
     }

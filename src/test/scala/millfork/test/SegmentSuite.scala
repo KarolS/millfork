@@ -28,7 +28,7 @@ class SegmentSuite extends FunSuite with Matchers {
         |   if a5.addr.hi & $e0 == $00 { output += 1 }
         | }
       """.stripMargin
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(source) { m =>
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(source) { m =>
       m.readByte(0xc000) should equal(source.count(_ == '+'))
     }
   }

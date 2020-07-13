@@ -391,7 +391,7 @@ class ComparisonSuite extends FunSuite with Matchers with AppendedClues {
         |  if c >  335444 { output += 1 }
         | }
       """.stripMargin
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(src){m =>
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(src){m =>
       m.readByte(0xc000) should equal(src.count(_ == '+'))
     }
   }

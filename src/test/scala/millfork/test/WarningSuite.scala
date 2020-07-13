@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 class WarningSuite extends FunSuite with Matchers {
 
   test("Various warnings") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | void putstrz(pointer p) {}
         | byte output@0xc000

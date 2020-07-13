@@ -50,7 +50,7 @@ class ShiftSuite extends FunSuite with Matchers {
         |   output <<= 2
         | }
       """.stripMargin)(_.readLong(0xc000) should equal(0x4040C04))
-    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | long output @$c000
         | void main () {
         |   output = $1010301
@@ -60,7 +60,7 @@ class ShiftSuite extends FunSuite with Matchers {
   }
 
   test("Long shifting right") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)("""
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | long output @$c000
         | void main () {
         |   output = $4040C04

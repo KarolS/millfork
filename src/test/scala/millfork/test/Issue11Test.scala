@@ -100,7 +100,7 @@ class Issue11Test extends FunSuite with Matchers {
         |}
         |""".stripMargin
 
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos)(src) { m =>
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Motorola6809)(src) { m =>
       m.readByte(0xc000) should equal(15)
     }
   }

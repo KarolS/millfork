@@ -30,7 +30,7 @@ class NonetSuite extends FunSuite with Matchers {
   }
 
   test("Nonet operations on bytes") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
       """
         | byte output @$c000
         |

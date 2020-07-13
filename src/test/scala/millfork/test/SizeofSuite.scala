@@ -9,7 +9,7 @@ import org.scalatest.{AppendedClues, FunSuite, Matchers}
 class SizeofSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Basic sizeof test") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | const word sizeofbyte = sizeof(byte)
         | array output [6] @$c000
