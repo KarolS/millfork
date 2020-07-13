@@ -3,7 +3,7 @@ package millfork.compiler.m6809
 import java.util.concurrent.AbstractExecutorService
 
 import millfork.CompilationFlag
-import millfork.assembly.m6809.{DAccumulatorIndexed, Immediate, Indexed, InherentB, MLine, MLine0, MOpcode, RegisterSet, TwoRegisters}
+import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, Indexed, InherentB, MLine, MLine0, MOpcode, RegisterSet, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SeparateBytesExpression, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
@@ -105,7 +105,9 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         }
       case DerefExpression(inner, offset, _) =>
         compileToX(ctx, inner) match {
-          case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable =>
+          case List(l@MLine0(LDX, Immediate, _)) =>
+            List(l.copy(opcode = toLd(target), addrMode = Absolute(false), parameter = l.parameter + offset))
+          case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable && offset == 0 =>
             List(l.copy(opcode = toLd(target), addrMode = addrMode.dereference()))
           case _ =>
             compileToX(ctx, inner) :+ MLine(toLd(target), Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
@@ -122,6 +124,8 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                   case 0 => prepareIndex
                   case 1 =>
                     prepareIndex match {
+                      case List(l@MLine0(LDX, Immediate, _)) =>
+                        List(l.copy(opcode = toLd(target), addrMode = Absolute(false), parameter = l.parameter + constantOffset))
                       case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable && constantOffset.isProvablyZero =>
                         List(l.copy(opcode = toLd(target), addrMode = addrMode.dereference()))
                       case _ =>
