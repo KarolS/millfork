@@ -145,8 +145,9 @@ class M6809Assembler(program: Program,
         index + 3
       case MLine0(op, Absolute(true), param) if M6809Assembler.indexable.contains(op) =>
         writeByte(bank, index, M6809Assembler.standard(op) + 0x20)
+        writeByte(bank, index + 1, 0x9f)
         writeWord(bank, index + 2, param)
-        index + 3
+        index + 4
       case MLine0(op, Indexed(M6809Register.PC, indirect), param) if M6809Assembler.indexable.contains(op) =>
         ???
       case MLine0(op, Indexed(register, indirect), param) if M6809Assembler.indexable.contains(op) =>
