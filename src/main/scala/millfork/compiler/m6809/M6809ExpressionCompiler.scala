@@ -724,13 +724,22 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             val effectiveBase = (p.value + constOffset).quickSimplify
             variableIndex match {
               case Some(ix) =>
-                stashIfNeeded(ctx, compileToX(ctx, ix)) :+ MLine.indexedX(store, effectiveBase)
+                compileToX(ctx, ix) match {
+                  case List(MLine0(LDX, Immediate, constAddr)) =>
+                    List(MLine(store, Absolute(false), constAddr + effectiveBase))
+                  case List(MLine0(LDX, Absolute(false), constAddr)) if effectiveBase.isProvablyZero =>
+                    List(MLine(store, Absolute(true), constAddr))
+                  case xs =>
+                    stashIfNeeded(ctx, xs) :+ MLine.indexedX(store, effectiveBase)
+                }
               case None =>
                 List(MLine.absolute(store, effectiveBase))
             }
           case v: VariablePointy =>
             ctx.env.eval(index) match {
-              case Some(ix) => List(MLine.absolute(LDX, v.addr), MLine.indexedX(store, ix * v.elementType.size))
+              case Some(ix) =>
+                if (ix.isProvablyZero) List(MLine(store, Absolute(true), v.addr))
+                else List(MLine.absolute(LDX, v.addr), MLine.indexedX(store, ix * v.elementType.size))
               case _ =>
                 v.indexType.size match {
                   case 1 | 2 =>
@@ -759,7 +768,14 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         val sl = storeB(ctx, lo)
         stashBIfNeeded(ctx, sh) ++ sl // TODO: optimize
       case DerefExpression(inner, offset, _) =>
-        stashDIfNeeded(ctx, compileToX(ctx, inner)) :+ MLine(STD, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+        compileToX(ctx, inner) match {
+          case List(MLine0(LDX, Immediate, constAddr)) =>
+            List(MLine(STD, Absolute(false), constAddr + offset))
+          case List(MLine0(LDX, Absolute(false), constAddr)) if offset == 0 =>
+            List(MLine(STD, Absolute(true), constAddr))
+          case xs =>
+            stashDIfNeeded(ctx, xs) :+ MLine(STD, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+        }
     }
   }
 
