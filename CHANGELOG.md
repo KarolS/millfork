@@ -2,6 +2,10 @@
 
 ## Current version
 
+* Support for Motorola 6809 (complete, but still experimental).
+
+* Added support for modifying large variables via pointers.
+
 * Allowed defining custom text encodings.
 **Potentially breaking change!**
 There are no built-in encodings now, the include path needs to contain the necessary encodings.
@@ -29,6 +33,8 @@ There are no built-in encodings now, the include path needs to contain the neces
 * **Potentially breaking change!** Changed the type of `mouse_lbm` and `mouse_rbm` to `bool`. Added `mouse_mbm`
 
 * Renamed the `x_coord` module to `coord`. Added the `y_coord` type and `TALLSCREEN` preprocessor feature.
+
+* Labels with fixed addresses are now exported to the label file (#49).
 
 * Allow importing modules from subdirectories.
 
