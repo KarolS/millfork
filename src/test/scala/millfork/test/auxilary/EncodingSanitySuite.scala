@@ -43,6 +43,7 @@ class EncodingSanitySuite extends FunSuite with Matchers {
         case _ =>
 
       }
+      log.assertNoErrors("No errors")
     }
   }
 
