@@ -435,7 +435,7 @@ object Z80BulkMemoryOperations {
                         loadA: ZOpcode.Value => List[ZLine],
                         z80Bulk: Boolean => Option[ZOpcode.Value]): List[ZLine] = {
     val pointy = ctx.env.getPointy(target.name)
-    if (pointy.elementType.size > 1) return Z80StatementCompiler.compileForStatement(ctx, f)._1
+    if (pointy.elementType.alignedSize > 1) return Z80StatementCompiler.compileForStatement(ctx, f)._1
     val targetOffset = removeVariableOnce(ctx, f.variable, target.index).getOrElse(return compileForStatement(ctx, f)._1)
     if (!targetOffset.isPure) return compileForStatement(ctx, f)._1
     val indexVariableSize = ctx.env.get[Variable](f.variable).typ.size

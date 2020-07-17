@@ -359,7 +359,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         for (item <- items) {
           env.eval(item) match {
             case Some(c) =>
-              for(i <- 0 until elementType.size) {
+              for(i <- 0 until elementType.alignedSize) {
                 writeByte(bank, index, subbyte(c, i, elementType.size))(None)
                 bank0.occupied(index) = true
                 bank0.initialized(index) = true
@@ -544,11 +544,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               log.error(s"Preinitialized variable `$name` should be defined in the `default` bank")
             }
             val bank0 = mem.banks(bank)
-            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.size, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
+            var index = codeAllocators(bank).allocateBytes(bank0, options, typ.alignedSize, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
             labelMap(name) = bank0.index -> index
             if (!readOnlyPass) {
               rwDataStart = rwDataStart.min(index)
-              rwDataEnd = rwDataEnd.max(index + typ.size)
+              rwDataEnd = rwDataEnd.max(index + typ.alignedSize)
             }
             val altName = m.name.stripPrefix(env.prefix) + "`"
             env.things += altName -> ConstantThing(altName, NumericConstant(index, 2), env.get[Type]("pointer"))

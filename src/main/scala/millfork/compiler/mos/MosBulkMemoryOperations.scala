@@ -19,7 +19,7 @@ object MosBulkMemoryOperations {
       return MosStatementCompiler.compileForStatement(ctx, f)._1
     }
     val pointy = ctx.env.getPointy(target.name)
-    if (pointy.elementType.size != 1) {
+    if (pointy.elementType.alignedSize != 1) {
       return MosStatementCompiler.compileForStatement(ctx, f)._1
     }
     val w = ctx.env.get[Type]("word")

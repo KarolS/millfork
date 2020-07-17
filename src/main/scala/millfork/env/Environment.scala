@@ -384,9 +384,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     InitializedMemoryVariable
     UninitializedMemoryVariable
     getArrayOrPointer(name) match {
-      case th@InitializedArray(_, _, cs, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(e.size * cs.length), Some(cs.length), i, e, th.alignment, readOnly = ro)
-      case th@UninitializedArray(_, elementCount, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(elementCount * e.size), Some(elementCount / e.size), i, e, th.alignment, readOnly = ro)
-      case th@RelativeArray(_, _, elementCount, _, i, e, ro) => ConstantPointy(th.toAddress, Some(name), Some(elementCount * e.size), Some(elementCount / e.size), i, e, NoAlignment, readOnly = ro)
+      case th@InitializedArray(_, _, cs, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(e.alignedSize * cs.length), Some(cs.length), i, e, th.alignment, readOnly = ro)
+      case th@UninitializedArray(_, elementCount, _, i, e, ro, _) => ConstantPointy(th.toAddress, Some(name), Some(elementCount * e.alignedSize), Some(elementCount / e.size), i, e, th.alignment, readOnly = ro)
+      case th@RelativeArray(_, _, elementCount, _, i, e, ro) => ConstantPointy(th.toAddress, Some(name), Some(elementCount * e.alignedSize), Some(elementCount / e.size), i, e, NoAlignment, readOnly = ro)
       case ConstantThing(_, value, typ) if typ.size <= 2 && typ.isPointy =>
         val e = get[VariableType](typ.pointerTargetName)
         val w = get[VariableType]("word")
@@ -535,8 +535,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S), MOpcode.BPL),
       BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S), MOpcode.BMI)),
       None)
-    val byte_and_pointer$ = StructType("byte_and_pointer$", List(FieldDesc("byte", "zp", None), FieldDesc("pointer", "branch", None)))
-    val hudson_transfer$ = StructType("hudson_transfer$", List(FieldDesc("word", "a", None), FieldDesc("word", "b", None), FieldDesc("word", "c", None)))
+    val byte_and_pointer$ = StructType("byte_and_pointer$", List(FieldDesc("byte", "zp", None), FieldDesc("pointer", "branch", None)), NoAlignment)
+    val hudson_transfer$ = StructType("hudson_transfer$", List(FieldDesc("word", "a", None), FieldDesc("word", "b", None), FieldDesc("word", "c", None)), NoAlignment)
     addThing(byte_and_pointer$, None)
     addThing(hudson_transfer$, None)
     Environment.constOnlyBuiltinFunction.foreach(n => addThing(ConstOnlyCallable(n), None))
@@ -642,8 +642,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             hintTypo(name)
             1
           case Some(thing) => thing match {
-            case t: Type => t.size
-            case v: Variable => v.typ.size
+            case t: Type => t.alignedSize
+            case v: Variable => v.typ.alignedSize
             case a: MfArray => a.sizeInBytes
             case ConstantThing(_,  MemoryAddressConstant(a: MfArray), _) => a.sizeInBytes
             case x =>
@@ -652,7 +652,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
         }
       case _ =>
-        AbstractExpressionCompiler.getExpressionType(this, log, expr).size
+        AbstractExpressionCompiler.getExpressionType(this, log, expr).alignedSize
     }
     NumericConstant(size, Constant.minimumSize(size))
   }
@@ -675,7 +675,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
       case IndexedExpression(arrName, index) =>
         getPointy(arrName) match {
-          case ConstantPointy(MemoryAddressConstant(arr:InitializedArray), _, _, _, _, _, _, _) if arr.readOnly && arr.elementType.size == 1 =>
+          case ConstantPointy(MemoryAddressConstant(arr:InitializedArray), _, _, _, _, _, _, _) if arr.readOnly && arr.elementType.alignedSize == 1 =>
             evalImpl(index, vv).flatMap {
               case NumericConstant(constIndex, _) =>
                 if (constIndex >= 0 && constIndex < arr.sizeInBytes) {
@@ -1062,7 +1062,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         log.error(s"Invalid field name: `${f.fieldName}`", stmt.position)
       }
     }
-    addThing(StructType(stmt.name, stmt.fields), stmt.position)
+    addThing(StructType(stmt.name, stmt.fields, stmt.alignment.getOrElse(NoAlignment)), stmt.position)
   }
 
   def registerUnion(stmt: UnionDefinitionStatement): Unit = {
@@ -1071,7 +1071,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         log.error(s"Invalid field name: `${f.fieldName}`", stmt.position)
       }
     }
-    addThing(UnionType(stmt.name, stmt.fields), stmt.position)
+    addThing(UnionType(stmt.name, stmt.fields, stmt.alignment.getOrElse(NoAlignment)), stmt.position)
   }
 
   def getTypeSize(t: VariableType, path: Set[String]): Int = {
@@ -1765,7 +1765,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
         val length = contents.length
         if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
-        val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
+        val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length)) & e.alignment
         val address = stmt.address.map(a => eval(a).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant address", stmt.position)))
         for (element <- contents) {
           AbstractExpressionCompiler.checkAssignmentTypeLoosely(this, element, e)
@@ -1825,7 +1825,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val b = get[Type]("byte")
     val w = get[Type]("word")
     val typ = get[VariableType](stmt.typ)
-    val alignment = stmt.alignment.getOrElse(defaultVariableAlignment(options, typ.size))
+    val alignment = stmt.alignment.getOrElse(defaultVariableAlignment(options, typ.size)) & typ.alignment
     if (stmt.constant) {
       if (stmt.stack) log.error(s"`$name` is a constant and cannot be on stack", position)
       if (stmt.register) log.error(s"`$name` is a constant and cannot be in a register", position)
@@ -2161,8 +2161,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def fixStructSizes(): Unit = {
     val allStructTypes: Iterable[VariableType] = things.values.flatMap {
-      case s@StructType(name, _) => Some(s)
-      case s@UnionType(name, _) => Some(s)
+      case s@StructType(name, _, _) => Some(s)
+      case s@UnionType(name, _, _) => Some(s)
       case _ => None
     }
     var iterations = allStructTypes.size
@@ -2180,7 +2180,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def fixStructFields(): Unit = {
     // TODO: handle arrays?
     things.values.foreach {
-      case st@StructType(_, fields) =>
+      case st@StructType(_, fields, _) =>
         st.mutableFieldsWithTypes = fields.map {
           case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map { x =>
             eval(x) match {
@@ -2191,7 +2191,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
           })
         }
-      case ut@UnionType(_, fields) =>
+      case ut@UnionType(_, fields, _) =>
         ut.mutableFieldsWithTypes = fields.map {
           case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map { x =>
             eval(x) match {

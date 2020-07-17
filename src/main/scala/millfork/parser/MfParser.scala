@@ -725,17 +725,19 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     p <- position()
     _ <- "struct" ~ !letterOrDigit ~/ SWS ~ position("struct name")
     name <- identifier ~/ HWS
-    _ <- position("struct defintion block")
+    align <- alignmentDeclaration(NoAlignment).? ~/ HWS
+    _ <- position("struct definition block")
     fields <- compoundTypeFields ~/ Pass
-  } yield Seq(StructDefinitionStatement(name, fields).pos(p))
+  } yield Seq(StructDefinitionStatement(name, fields, align).pos(p))
 
   val unionDefinition: P[Seq[UnionDefinitionStatement]] = for {
     p <- position()
     _ <- "union" ~ !letterOrDigit ~/ SWS ~ position("union name")
     name <- identifier ~/ HWS
-    _ <- position("union defintion block")
+    align <- alignmentDeclaration(NoAlignment).? ~/ HWS
+    _ <- position("union definition block")
     fields <- compoundTypeFields ~/ Pass
-  } yield Seq(UnionDefinitionStatement(name, fields).pos(p))
+  } yield Seq(UnionDefinitionStatement(name, fields, align).pos(p))
 
   val segmentBlock: P[Seq[BankedDeclarationStatement]] = for {
     (_, bankName) <- "segment" ~ AWS ~ "(" ~ AWS ~ position("segment name") ~ identifier ~ AWS ~ ")" ~ AWS ~ "{" ~/ AWS

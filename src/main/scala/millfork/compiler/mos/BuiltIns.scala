@@ -1309,7 +1309,6 @@ object BuiltIns {
     val adc = addingCode.last
     val indexing = addingCode.init
     result ++= indexing
-    result += AssemblyLine.immediate(LDA, 0)
     val mult = c & 0xff
     var mask = 128
     var empty = true
@@ -1318,8 +1317,12 @@ object BuiltIns {
         result += AssemblyLine.implied(ASL)
       }
       if ((mult & mask) != 0) {
+        if (empty) {
+          result += adc.copy(opcode = LDA)
+        } else {
         result += AssemblyLine.implied(CLC)
         result += adc
+        }
         empty = false
       }
 

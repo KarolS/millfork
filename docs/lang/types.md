@@ -224,7 +224,7 @@ as there are no checks on values when converting bytes to enumeration values and
 
 Struct is a compound type containing multiple fields of various types:
 
-    struct <name> { <field definitions (type and name), separated by commas or newlines>}
+    struct <name> [align (alignment)] { <field definitions (type and name), separated by commas or newlines>}
 
 A struct is represented in memory as a contiguous area of variables laid out one after another.
 
@@ -254,9 +254,27 @@ You can create constant expressions of struct types using so-called struct const
 
 All arguments to the constructor must be constant.
 
+Structures declared with an alignment are allocated at appropriate memory addresses.
+The alignment has to be a power of two.  
+If the structs are in an array, they are padded with unused bytes.
+If the struct is smaller that its alignment, then arrays of it are faster
+
+    struct a align(4) { byte x,byte y, byte z }
+    struct b          { byte x,byte y, byte z }
+    array(a) as [4] @ $C000
+    array(b) bs [4] @ $C800
+    
+    a[1].addr - a[0].addr // equals 4
+    b[1].addr - b[0].addr // equals 3
+    sizeof(a) // equals 16
+    sizeof(b) // equals 12
+    
+    return a[i].x // requires XXXX cycles on 6502
+    return b[i].x // requires XXXX cycles on 6502
+
 ## Unions
 
-    union <name> { <field definitions (type and name), separated by commas or newlines>}
+    union <name> [align (alignment)] { <field definitions (type and name), separated by commas or newlines>}
 
 Unions are pretty similar to structs, with the difference that all fields of the union
 start at the same point in memory and therefore overlap each other.

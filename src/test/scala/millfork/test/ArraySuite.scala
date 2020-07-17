@@ -641,4 +641,60 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
         | }
       """.stripMargin)
   }
+
+  test("Arrays of aligned structs") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | struct s align(2) { byte x }
+        | array(s) a[7]
+        | word output @$c000
+        | byte output2 @$c002
+        | void main () {
+        |   output = a[1].pointer - a[0].pointer
+        |   a[f(3)].x = 5
+        |   output2 = a[3].x
+        | }
+        | noinline byte f(byte x) = x
+      """.stripMargin) { m =>
+      m.readWord(0xc000) should equal(2)
+      m.readByte(0xc002) should equal(5)
+    }
+  }
+
+  test("Accessing large fields of structs in arrays") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos/*, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809*/)(
+      """
+        | struct s { word x, word y}
+        | array(s) a[7]
+        | word output @$c000
+        |
+        | void main () {
+        |    a[f(4)].y = 5
+        |    a[f(4)].y = a[f(4)].y
+        |    output = a[f(4)].y
+        | }
+        | noinline byte f(byte x) = x
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(5)
+    }
+  }
+
+  test("Accessing large fields of structs in arrays 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos/*, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809*/)(
+      """
+        | struct s { word x, word y}
+        | array(s) a[7] @$c000
+        |
+        | void main () {
+        |    byte t
+        |    t = f(4)
+        |    a[t+4].x = t << 3
+        |    a[t+4].y = t ^ 6
+        | }
+        | noinline byte f(byte x) = x
+      """.stripMargin) { m =>
+      m.readWord(0xc020) should equal(32)
+      m.readWord(0xc022) should equal(2)
+    }
+  }
 }

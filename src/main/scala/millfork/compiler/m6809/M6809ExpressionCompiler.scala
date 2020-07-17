@@ -142,7 +142,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             }
           case v:VariablePointy =>
             val (prepareIndex, offset): (List[MLine], Constant) = ctx.env.eval(index) match {
-              case Some(ix) => List(MLine.absolute(LDX, v.addr)) -> (ix * v.elementType.size).quickSimplify
+              case Some(ix) => List(MLine.absolute(LDX, v.addr)) -> (ix * v.elementType.alignedSize).quickSimplify
               case _ =>
                 v.indexType.size match {
                   case 1 | 2 =>
@@ -167,7 +167,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             }
           case v:StackVariablePointy =>
             ctx.env.eval(index) match {
-              case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(LDB, ix * v.elementType.size))
+              case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(LDB, ix * v.elementType.alignedSize))
             }
         }
       case e@SumExpression(expressions, decimal) =>
@@ -739,7 +739,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             ctx.env.eval(index) match {
               case Some(ix) =>
                 if (ix.isProvablyZero) List(MLine(store, Absolute(true), v.addr))
-                else List(MLine.absolute(LDX, v.addr), MLine.indexedX(store, ix * v.elementType.size))
+                else List(MLine.absolute(LDX, v.addr), MLine.indexedX(store, ix * v.elementType.alignedSize))
               case _ =>
                 v.indexType.size match {
                   case 1 | 2 =>
@@ -752,7 +752,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             }
           case v: StackVariablePointy =>
             ctx.env.eval(index) match {
-              case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(store, ix * v.elementType.size))
+              case Some(ix) => List(MLine.variablestack(ctx, LDX, v.offset), MLine.indexedX(store, ix * v.elementType.alignedSize))
             }
         }
     }
@@ -827,14 +827,14 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         compileToX(ctx, inner) :+ MLine.indexedX(MOpcode.LEAX, Constant(offset))
       case IndexedExpression(aname, index) =>
         ctx.env.getPointy(aname) match {
-          case p: VariablePointy => compileToD(ctx, index #*# p.elementType.size) ++ List(MLine.absolute(ADDD, p.addr), MLine.tfr(M6809Register.D, M6809Register.X))
+          case p: VariablePointy => compileToD(ctx, index #*# p.elementType.alignedSize) ++ List(MLine.absolute(ADDD, p.addr), MLine.tfr(M6809Register.D, M6809Register.X))
           case p: ConstantPointy =>
             if (p.sizeInBytes.exists(_ < 255)) {
-              compileToB(ctx, index #*# p.elementType.size) ++ List(MLine.immediate(LDX, p.value), MLine.inherent(ABX))
+              compileToB(ctx, index #*# p.elementType.alignedSize) ++ List(MLine.immediate(LDX, p.value), MLine.inherent(ABX))
             } else {
-              compileToX(ctx, index #*# p.elementType.size) :+ MLine.indexedX(LEAX, p.value)
+              compileToX(ctx, index #*# p.elementType.alignedSize) :+ MLine.indexedX(LEAX, p.value)
             }
-          case p:StackVariablePointy => compileToD(ctx, index #*# p.elementType.size) ++ List(MLine.variablestack(ctx, ADDD, p.offset), MLine.tfr(M6809Register.D, M6809Register.X))
+          case p:StackVariablePointy => compileToD(ctx, index #*# p.elementType.alignedSize) ++ List(MLine.variablestack(ctx, ADDD, p.offset), MLine.tfr(M6809Register.D, M6809Register.X))
         }
       case _ => ???
     }

@@ -64,7 +64,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
   }
 
   def isWordPointy(name: String): Boolean = {
-    env.getPointy(name).elementType.size == 2
+    env.getPointy(name).elementType.alignedSize == 2
   }
 
   def optimizeStmt(stmt: ExecutableStatement, currentVarValues: VV): (ExecutableStatement, VV) = {
@@ -409,32 +409,39 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
               }
               ctx.log.trace(s"$result is $x and targets $targetType")
               env.eval(index) match {
-                case Some(NumericConstant(n, _)) if n >= 0 && (targetType.size * n) <= 127 =>
+                case Some(NumericConstant(n, _)) if n >= 0 && (targetType.alignedSize * n) <= 127 =>
                   x match {
                     case _: PointerType =>
-                      DerefExpression(result, targetType.size * n.toInt, targetType)
+                      DerefExpression(result, targetType.alignedSize * n.toInt, targetType)
                     case _ =>
                       DerefExpression(
                         ("pointer." + targetType.name) <| result,
-                        targetType.size * n.toInt, targetType)
+                        targetType.alignedSize * n.toInt, targetType)
                   }
                 case _ =>
+                  val shifts = Integer.numberOfTrailingZeros(targetType.alignedSize)
+                  val shrunkElementSize = targetType.alignedSize >> shifts
+                  val shrunkArraySize = arraySizeInBytes.fold(9999)(_.>>(shifts))
                   val scaledIndex = arraySizeInBytes match {
-                    case Some(n) if n <= 256 => targetType.size match {
+                    case Some(n) if n <= 256 => targetType.alignedSize match {
                       case 1 => "byte" <| index
                       case 2 => "<<" <| ("byte" <| index, LiteralExpression(1, 1))
                       case 4 => "<<" <| ("byte" <| index, LiteralExpression(2, 1))
                       case 8 => "<<" <| ("byte" <| index, LiteralExpression(3, 1))
-                      case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.size, 1))
+                      case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.alignedSize, 1))
                     }
-                    case Some(n) if n <= 512 && targetType.size == 2 =>
+                    case Some(n) if n <= 512 && targetType.alignedSize == 2 =>
                       "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
-                    case _ => targetType.size match {
+                    case Some(n) if n <= 512 && targetType.alignedSize == 2 =>
+                      "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
+                    case Some(_) if shrunkArraySize <= 256 =>
+                      "<<" <| ("word" <| ("*" <| ("byte" <| index, LiteralExpression(shrunkElementSize, 1))), LiteralExpression(shifts, 1))
+                    case _ => targetType.alignedSize match {
                       case 1 => "word" <| index
                       case 2 => "<<" <| ("word" <| index, LiteralExpression(1, 1))
                       case 4 => "<<" <| ("word" <| index, LiteralExpression(2, 1))
                       case 8 => "<<" <| ("word" <| index, LiteralExpression(3, 1))
-                      case _ => "*" <| ("word" <| index, LiteralExpression(targetType.size, 1))
+                      case _ => "*" <| ("word" <| index, LiteralExpression(targetType.alignedSize, 1))
                     }
                   }
                   // TODO: re-cast pointer type
@@ -618,13 +625,13 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
       case IndexedExpression(name, index) =>
         val pointy = env.getPointy(name)
         val targetType = pointy.elementType
-        targetType.size match {
+        targetType.alignedSize match {
           case 1 => IndexedExpression(name, optimizeExpr(index, Map())).pos(pos)
           case _ =>
             val constantOffset: Option[Long] = env.eval(index) match {
               case Some(z) if z.isProvablyZero => Some(0L)
               case Some(NumericConstant(n, _)) =>
-                if (targetType.size * (n+1) <= 256) Some(targetType.size * n) else None
+                if (targetType.alignedSize * (n+1) <= 256) Some(targetType.alignedSize * n) else None
               case _ => None
             }
             constantOffset match {
@@ -643,22 +650,27 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                   case p: ConstantPointy => p.sizeInBytes
                   case _ => None
                 }
+                val shifts = Integer.numberOfTrailingZeros(targetType.alignedSize)
+                val shrunkElementSize = targetType.alignedSize >> shifts
+                val shrunkArraySize = arraySizeInBytes.fold(9999)(_.>>(shifts))
                 val scaledIndex = arraySizeInBytes match {
-                  case Some(n) if n <= 256 => targetType.size match {
+                  case Some(n) if n <= 256 => targetType.alignedSize match {
                     case 1 => "byte" <| index
                     case 2 => "<<" <| ("byte" <| index, LiteralExpression(1, 1))
                     case 4 => "<<" <| ("byte" <| index, LiteralExpression(2, 1))
                     case 8 => "<<" <| ("byte" <| index, LiteralExpression(3, 1))
-                    case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.size, 1))
+                    case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.alignedSize, 1))
                   }
-                  case Some(n) if n <= 512 && targetType.size == 2 =>
+                  case Some(n) if n <= 512 && targetType.alignedSize == 2 =>
                     "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
-                  case _ => targetType.size match {
+                  case Some(_) if shrunkArraySize <= 256 =>
+                    "<<" <| ("word" <| ("*" <| ("byte" <| index, LiteralExpression(shrunkElementSize, 1))), LiteralExpression(shifts, 1))
+                  case _ => targetType.alignedSize match {
                     case 1 => "word" <| index
                     case 2 => "<<" <| ("word" <| index, LiteralExpression(1, 1))
                     case 4 => "<<" <| ("word" <| index, LiteralExpression(2, 1))
                     case 8 => "<<" <| ("word" <| index, LiteralExpression(3, 1))
-                    case _ => "*" <| ("word" <| index, LiteralExpression(targetType.size, 1))
+                    case _ => "*" <| ("word" <| index, LiteralExpression(targetType.alignedSize, 1))
                   }
                 }
                 DerefExpression(

@@ -967,7 +967,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case IndexedExpression(arrayName, indexExpr) =>
         val pointy = env.getPointy(arrayName)
         AbstractExpressionCompiler.checkIndexType(ctx, pointy, indexExpr)
-        if (pointy.elementType.size != 1) ctx.log.fatal("Whee!") // the statement preprocessor should have removed all of those
+        if (pointy.elementType.alignedSize != 1) ctx.log.fatal("Whee!") // the statement preprocessor should have removed all of those
         // TODO: check
         val (variableIndex, constantIndex) = env.evalVariableAndConstantSubParts(indexExpr)
         val variableIndexSize = variableIndex.map(v => getExpressionType(ctx, v).size).getOrElse(0)
