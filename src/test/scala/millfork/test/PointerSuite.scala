@@ -475,4 +475,20 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
     m.readWord(0xc000) should be <(256)
     m.readWord(0xc002) should be <(256)
   }
+
+  test("Raw pointers should work") {
+    val m = EmuUnoptimizedRun(
+      """
+        |
+        | array(word) arr [252] @$c000
+        |
+        | void main () {
+        |   pointer.word p
+        |   p = arr.pointer
+        |   p.raw += sizeof(word)
+        |   p[0] = 4
+        | }
+        |""".stripMargin)
+    m.readWord(0xc002) should equal(4)
+  }
 }

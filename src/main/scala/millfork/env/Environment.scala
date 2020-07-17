@@ -2038,14 +2038,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
         case _ => Nil
       }
-      case p: PointerType => if (options.isBigEndian) List(
-        Subvariable(".raw", 0, p),
+      case _: PointerType => if (options.isBigEndian) List(
+        Subvariable(".raw", 0, get[VariableType]("pointer")),
         Subvariable(".raw.lo", 1, b),
         Subvariable(".raw.hi", 0, b),
         Subvariable(".lo", 1, b),
         Subvariable(".hi", 0, b)
       ) else List(
-        Subvariable(".raw", 0, p),
+        Subvariable(".raw", 0, get[VariableType]("pointer")),
         Subvariable(".raw.lo", 0, b),
         Subvariable(".raw.hi", 1, b),
         Subvariable(".lo", 0, b),

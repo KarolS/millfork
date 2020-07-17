@@ -82,6 +82,8 @@ You can create pointer values by suffixing `.pointer` to the name of a variable,
 
 You can replace C-style pointer arithmetic by combining indexing and `.pointer`: C `p+5`, Millfork `p[5].pointer`.
 
+You can use the typed pointer as a raw pointer by suffixing `.raw`.
+
 Examples:
 
     pointer.t p
@@ -93,6 +95,7 @@ Examples:
     p[i]        // accessing the ith element; if 'sizeof(t) == 1', then equivalent to 't(p.raw[i])'
     p->x        // valid only if the type 't' has a field called 'x', accesses the field 'x' of the pointed element
     p->x.y[0]->z[0][6]   // you can stack it
+    p.raw += sizeof(t) // if p points to an element of an array, then advances it to the next element
   
 ## `nullptr`
 
