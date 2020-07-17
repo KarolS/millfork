@@ -465,29 +465,30 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
         |   a[0] = tmp
         |   a[0] += 2
         |   a[0] <<= 2
+        |   a[0] -= 7
         | }
         | noinline int32 f() = 5
       """.stripMargin) { m =>
-      m.readLong(0xc000) should equal(28)
+      m.readLong(0xc000) should equal(21)
     }
   }
 
   test("Various large assignments involving arrays") {
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809)(
       """
         | array(int32) a[7] @$c000
         | void main () {
         |   a[0] = 2
         | }
       """.stripMargin) { m => }
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809)(
       """
         | array(int32) a[7] @$c000
         | int32 main () {
         |   return a[4]
         | }
       """.stripMargin) { m => }
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80)(
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809)(
       """
         | array(int32) a[7] @$c000
         | noinline void f(byte i) {

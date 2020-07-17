@@ -496,6 +496,9 @@ object AlwaysGoodI80Optimizations {
         shallowerStack(code.tail.init)
       }
     }),
+    //37
+    (Elidable & HasOpcode(PUSH) & HasRegisterParam(AF)) ~
+      (Elidable & HasOpcode(POP) & HasRegisterParam(AF)) ~~> (_.tail.init),
   )
 
   private def shallowerStack(lines: List[ZLine]): List[ZLine] = lines match {

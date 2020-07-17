@@ -974,6 +974,11 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                   case sot: StackOffsetThing =>
                     List(calculateStackAddressToD(ctx, sot.offset), List(MLine.tfr(M6809Register.A, M6809Register.B)))
                 }
+              case e:DerefExpression =>
+                List.tabulate(targetSize)(i =>
+                  if (i == 0) compileAddressToX(ctx, e) :+ MLine.indexedX(LDB, 0)
+                  else List(MLine.indexedX(LDB, i))
+                )
               case e:FunctionCallExpression =>
                 ctx.env.maybeGet[NormalFunction](e.functionName) match {
                   case Some(function) =>

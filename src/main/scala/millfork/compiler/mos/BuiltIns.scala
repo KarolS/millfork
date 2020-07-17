@@ -446,7 +446,7 @@ object BuiltIns {
                 AssemblyLine.implied(TAX),
                 AssemblyLine.label(labelRepeat)) ++ singleShift ++ List(
                 AssemblyLine.implied(DEX),
-                AssemblyLine.relative(BEQ, labelRepeat))
+                AssemblyLine.relative(BNE, labelRepeat))
             case _ =>
               val labelSkip = ctx.nextLabel("ss")
               val labelRepeat = ctx.nextLabel("sr")
@@ -455,7 +455,7 @@ object BuiltIns {
                 AssemblyLine.relative(BEQ, labelSkip),
                 AssemblyLine.label(labelRepeat)) ++ singleShift ++ List(
                 AssemblyLine.implied(DEX),
-                AssemblyLine.relative(BEQ, labelRepeat),
+                AssemblyLine.relative(BNE, labelRepeat),
                 AssemblyLine.label(labelSkip))
           }
         }))
@@ -1320,8 +1320,8 @@ object BuiltIns {
         if (empty) {
           result += adc.copy(opcode = LDA)
         } else {
-        result += AssemblyLine.implied(CLC)
-        result += adc
+          result += AssemblyLine.implied(CLC)
+          result += adc
         }
         empty = false
       }

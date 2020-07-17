@@ -1002,7 +1002,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case DE => changesRegister(D) || changesRegister(E)
       case IX => changesRegister(IXH) || changesRegister(IXL)
       case IY => changesRegister(IYH) || changesRegister(IYL)
-      case AF => ???
+      case AF => true
       case IMM_8 | IMM_16 => false
       case MEM_ABS_8 | MEM_ABS_16 | MEM_DE | MEM_HL | MEM_BC | MEM_IX_D | MEM_IY_D | SP => ???
       case _ =>

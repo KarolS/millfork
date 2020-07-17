@@ -113,17 +113,17 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
 
   def compileToHL(ctx: CompilationContext, expression: Expression): List[ZLine] = compile(ctx, expression, ZExpressionTarget.HL)
 
-  def compileDerefPointer(ctx: CompilationContext, expression: DerefExpression): List[ZLine] = {
+  def compileDerefPointer(ctx: CompilationContext, expression: DerefExpression, extraOffset: Int = 0): List[ZLine] = {
     import ZRegister._
     val innerPart = compileToHL(ctx, expression.inner)
     innerPart match {
       case List(ZLine0(LD_16, TwoRegisters(HL, IMM_16), c)) =>
-        List(ZLine(LD_16, TwoRegisters(HL, IMM_16), c + expression.offset))
+        List(ZLine(LD_16, TwoRegisters(HL, IMM_16), c + expression.offset + extraOffset))
       case _ =>
-        innerPart ++ (expression.offset match {
+        innerPart ++ ((expression.offset + extraOffset) match {
           case 0 => Nil
-          case i if i < 5 => List.fill(i)(ZLine.register(INC_16, ZRegister.HL)) // TODO: a better threshold
-          case _ => List(ZLine.ldImm8(ZRegister.C, expression.offset), ZLine.ldImm8(ZRegister.B, 0), ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
+          case i if i > 0 && i < 5 => List.fill(i)(ZLine.register(INC_16, ZRegister.HL)) // TODO: a better threshold
+          case n => List(ZLine.ldImm8(ZRegister.C, n & 0xff), ZLine.ldImm8(ZRegister.B, n >> 8), ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
         })
     }
   }
@@ -1355,12 +1355,12 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def calculateAddressToAppropriatePointer(ctx: CompilationContext, expr: LhsExpression, forWriting: Boolean): Option[(LocalVariableAddressOperand, List[ZLine])] = {
+  def calculateAddressToAppropriatePointer(ctx: CompilationContext, expr: LhsExpression, forWriting: Boolean, extraOffset: Int = 0): Option[(LocalVariableAddressOperand, List[ZLine])] = {
     val env = ctx.env
     expr match {
       case VariableExpression(name) =>
         env.get[Variable](name) match {
-          case v:VariableInMemory => Some(LocalVariableAddressViaHL -> List(ZLine.ldImm16(ZRegister.HL, v.toAddress)))
+          case v:VariableInMemory => Some(LocalVariableAddressViaHL -> List(ZLine.ldImm16(ZRegister.HL, v.toAddress + extraOffset)))
           case v:StackVariable =>
             if (ctx.options.flag(CompilationFlag.UseIxForStack)){
               Some(LocalVariableAddressViaIX(v.baseOffset) -> Nil)
@@ -1370,8 +1370,8 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               Some(LocalVariableAddressViaHL -> calculateStackAddressToHL(ctx, v))
             }
         }
-      case i:IndexedExpression => Some(LocalVariableAddressViaHL -> calculateAddressToHL(ctx, i, forWriting))
-      case i:DerefExpression => Some(LocalVariableAddressViaHL -> compileDerefPointer(ctx, i))
+      case i:IndexedExpression => Some(LocalVariableAddressViaHL -> calculateAddressToHL(ctx, i, forWriting, extraOffset))
+      case i:DerefExpression => Some(LocalVariableAddressViaHL -> compileDerefPointer(ctx, i, extraOffset))
       case _:SeparateBytesExpression => None
       case _ => ???
     }
@@ -1391,11 +1391,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def calculateAddressToHL(ctx: CompilationContext, i: IndexedExpression, forWriting: Boolean): List[ZLine] = {
+  def calculateAddressToHL(ctx: CompilationContext, i: IndexedExpression, forWriting: Boolean, extraOffset: Int = 0): List[ZLine] = {
     val env = ctx.env
     val pointy = env.getPointy(i.name)
     AbstractExpressionCompiler.checkIndexType(ctx, pointy, i.index)
-    val elementSize = pointy.elementType.size
+    val elementSize = pointy.elementType.alignedSize
     val logElemSize = elementSize match {
       case 1 => 0
       case 2 => 1
@@ -1409,9 +1409,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
           ctx.log.error("Writing to a constant array", i.position)
         }
         env.evalVariableAndConstantSubParts(i.index) match {
-          case (None, offset) => List(ZLine.ldImm16(ZRegister.HL, (baseAddr + offset * elementSize).quickSimplify))
+          case (None, offset) => List(ZLine.ldImm16(ZRegister.HL, (baseAddr + extraOffset + offset * elementSize).quickSimplify))
           case (Some(index), offset) =>
-            val constantPart = (baseAddr + offset * elementSize).quickSimplify
+            val constantPart = (baseAddr + extraOffset + offset * elementSize).quickSimplify
             if (getExpressionType(ctx, i.index).size == 1 && sizeInBytes.exists(_ < 256) && alignment == WithinPageAlignment) {
               compileToA(ctx, i.index) ++ List.fill(logElemSize)(ZLine.register(ADD, ZRegister.A)) ++ List(
                 ZLine.imm8(ADD, constantPart.loByte),
@@ -1426,7 +1426,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         }
       case VariablePointy(varAddr, _, _, _) =>
         env.eval(i.index) match {
-          case Some(NumericConstant(0, _)) =>
+          case Some(NumericConstant(0, _)) if extraOffset == 0 =>
             if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
               List(ZLine.ldAbs16(ZRegister.HL, varAddr))
             } else {
@@ -1439,12 +1439,12 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             }
           case _ =>
             if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
-              compileToBC(ctx, i.index) ++
+              compileToBC(ctx, i.index #*# elementSize #+# extraOffset) ++
                 List(ZLine.ldAbs16(ZRegister.HL, varAddr)) ++
                   List.fill(elementSize)(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
             } else {
               // TODO: is this reasonable?
-              compileToBC(ctx, i.index) ++
+              compileToBC(ctx, i.index #*# elementSize #+# extraOffset) ++
                 List(
                   ZLine.ldAbs8(ZRegister.A, varAddr),
                   ZLine.ld8(ZRegister.L, ZRegister.A),
@@ -1455,7 +1455,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         }
       case _: StackVariablePointy =>
         compileToHL(ctx, VariableExpression(i.name).pos(i.position)) ++
-          stashHLIfChanged(ctx, compileToBC(ctx, i.index)) ++
+          stashHLIfChanged(ctx, compileToBC(ctx, i.index #*# elementSize #+# extraOffset)) ++
           List.fill(elementSize)(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
     }
   }

@@ -9,6 +9,7 @@ import millfork.env._
 import millfork.error.ConsoleLogger
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * @author Karol Stasiak
@@ -548,8 +549,35 @@ object ZBuiltIns {
             }
           }
         } else {
-          ctx.log.error("Too complex left-hand-side expression", lhs.position)
-          return Z80ExpressionCompiler.compile(ctx, lhs, ZExpressionTarget.NOTHING) ++ Z80ExpressionCompiler.compile(ctx, rhs, ZExpressionTarget.NOTHING)
+          val target = Z80ExpressionCompiler.compileToHL(ctx, inner #+# offset)
+          val sourceBytes = Z80ExpressionCompiler.compileByteReads(ctx, rhs, size, ZExpressionTarget.BC).map(l => Z80ExpressionCompiler.stashHLIfChanged(ctx, l))
+          val result = ListBuffer[ZLine]()
+          result ++= target
+          if (opcodeFirst == SUB && decimal) {
+            ???
+          } else if (opcodeFirst == SUB && !decimal) {
+            for (i <- 0 until size) {
+              if (i != 0) result += ZLine.register(PUSH, ZRegister.AF)
+              result ++= sourceBytes(i)
+              result += ZLine.ld8(ZRegister.E, ZRegister.A)
+              if (i != 0) result += ZLine.register(POP, ZRegister.AF)
+              result += ZLine.ld8(ZRegister.A, ZRegister.MEM_HL)
+              result += ZLine.register(if (i == 0) opcodeFirst else opcodeLater, ZRegister.E)
+              result += ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+              if (i != size - 1) result += ZLine.register(INC_16, ZRegister.HL)
+            }
+          } else {
+            for (i <- 0 until size) {
+              result ++= sourceBytes(i)
+              result += ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.MEM_HL)
+              if (decimal) result += ZLine.implied(DAA)
+              result += ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+              if (i != size -1) result += ZLine.register(INC_16, ZRegister.HL)
+            }
+          }
+          return result.toList
+//          ctx.log.error("Too complex left-hand-side expression", lhs.position)
+//          return Z80ExpressionCompiler.compile(ctx, lhs, ZExpressionTarget.NOTHING) ++ Z80ExpressionCompiler.compile(ctx, rhs, ZExpressionTarget.NOTHING)
         }
       case _ =>
     }
