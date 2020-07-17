@@ -8,6 +8,8 @@ releases
 src/test/scala/experiments/
 # doesn't work yet
 examples/lunix/
+# older copies
+include-*/
 
 # hidden files
 *.~

@@ -6,9 +6,13 @@
 
 * Added support for modifying large variables via pointers.
 
+* Added the ability to declare structure alignment.
+
 * Allowed defining custom text encodings.
 **Potentially breaking change!**
 There are no built-in encodings now, the include path needs to contain the necessary encodings.
+
+* Fixed raw views of typed pointers.
 
 * Fixed encodings: 
 `apple2`, `atasciiscr`, `iso_de`, `iso_no`, `iso_se`, 
@@ -42,7 +46,15 @@ There are no built-in encodings now, the include path needs to contain the neces
 
 * Commander X16: Updated to support VERA 0.9 and the new joystick API. Added mouse support.
 
-* 6502: Optimization improvements. 
+* 6502: Optimization improvements:
+
+    * Fixed index register optimization regressions.
+    
+    * Small array optimizations are now available for more operations.
+    
+    * Index calculations for arrays of structs with sizes divisible by an even power of two are now sometimes optimized.
+    
+    * Redundant index calculations are now removed.
 
 ## 0.3.16 (2020-04-08)
 
