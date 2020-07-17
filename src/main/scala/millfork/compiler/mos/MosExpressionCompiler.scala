@@ -536,6 +536,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     compile(ctx, expr, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
   }
 
+  def compileToY(ctx: CompilationContext, expr: Expression): List[AssemblyLine] = {
+    val env = ctx.env
+    val b = env.get[Type]("byte")
+    compile(ctx, expr, Some(b -> RegisterVariable(MosRegister.Y, b)), BranchSpec.None)
+  }
+
   def compileToAX(ctx: CompilationContext, expr: Expression): List[AssemblyLine] = {
     val env = ctx.env
     val w = env.get[Type]("word")
@@ -584,7 +590,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               ctx.env.eval(base).map { baseConst =>
                 baseConst -> { (i: Int) =>
                   val b = ctx.env.get[Type]("byte")
-                  compile(ctx, index #+# i, Some(b -> RegisterVariable(MosRegister.Y, b)), BranchSpec.None)
+                  compileToY(ctx, index #+# i)
                 }
               }
             }
@@ -2137,10 +2143,20 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   AssemblyLine.immediate(LDA, constant.subbyte(i)),
                   AssemblyLine.absolute(STA, addr + offset + i)))
               case _ =>
-                prepare ++ (0 until targetType.size).flatMap(i => List(
-                  if (i == 0) AssemblyLine.immediate(LDY, offset) else AssemblyLine.implied(INY),
-                  AssemblyLine.immediate(LDA, constant.subbyte(i)),
-                  AssemblyLine(STA, am, addr)))
+                fastTarget match {
+                  case Some((constAddr, initializeY)) =>
+                    initializeY(offset) ++ (0 until targetType.size).flatMap { i =>
+                      val load = List(AssemblyLine.immediate(LDA, constant.subbyte(i)))
+                      load ++ (if (i == 0) List(AssemblyLine.absoluteY(STA, constAddr)) else List(
+                        AssemblyLine.implied(INY),
+                        AssemblyLine.absoluteY(STA, constAddr)))
+                    }
+                  case _ =>
+                    prepare ++ (0 until targetType.size).flatMap(i => List(
+                      if (i == 0) AssemblyLine.immediate(LDY, offset) else AssemblyLine.implied(INY),
+                      AssemblyLine.immediate(LDA, constant.subbyte(i)),
+                      AssemblyLine(STA, am, addr)))
+                }
             }
           case None =>
             source match {
@@ -2151,7 +2167,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     prepare ++
                       AssemblyLine.variable(ctx, LDA, variable) :+
                       AssemblyLine.absolute(STA, addr + offset)
-                  case (1, _) =>
+                  case (1, _) if fastTarget.isEmpty =>
                     prepare ++
                       AssemblyLine.variable(ctx, LDA, variable) ++ List(
                       AssemblyLine.immediate(LDY, offset),
@@ -2163,11 +2179,21 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                         AssemblyLine.absolute(STA, addr + offset + i))
                     }
                   case (_, _) =>
-                    prepare ++ (0 until targetType.size).flatMap { i =>
-                      val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
-                      load ++ List(
-                        if (i == 0) AssemblyLine.immediate(LDY, offset) else AssemblyLine.implied(INY),
-                        AssemblyLine(STA, am, addr))
+                    fastTarget match {
+                      case Some((constAddr, initializeY)) =>
+                        initializeY(offset) ++ (0 until targetType.size).flatMap { i =>
+                          val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
+                          load ++ (if (i == 0) List(AssemblyLine.absoluteY(STA, constAddr)) else List(
+                            AssemblyLine.implied(INY),
+                            AssemblyLine.absoluteY(STA, constAddr)))
+                        }
+                      case _ =>
+                        prepare ++ (0 until targetType.size).flatMap { i =>
+                          val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
+                          load ++ List(
+                            if (i == 0) AssemblyLine.immediate(LDY, offset) else AssemblyLine.implied(INY),
+                            AssemblyLine(STA, am, addr))
+                        }
                     }
                   case _ =>
                     ctx.log.error("Cannot assign to a large object indirectly", target.position)
@@ -2303,24 +2329,35 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     }
                   case (2, _) =>
                     val someTuple = Some(targetType, RegisterVariable(MosRegister.AX, targetType))
-                    if (prepare.isEmpty) {
-                      compile(ctx, source, someTuple, BranchSpec.None) ++ List(
-                        AssemblyLine.immediate(LDY, offset),
-                        AssemblyLine.indexedY(STA, addr),
-                        AssemblyLine.implied(TXA),
-                        AssemblyLine.implied(INY),
-                        AssemblyLine.indexedY(STA, addr))
-                    } else {
-                      compile(ctx, source, someTuple, BranchSpec.None) ++ List(
-                        AssemblyLine.implied(PHA),
-                        AssemblyLine.implied(TXA),
-                        AssemblyLine.implied(PHA)) ++ prepare ++ List(
-                        AssemblyLine.immediate(LDY, offset+1),
-                        AssemblyLine.implied(PLA),
-                        AssemblyLine.indexedY(STA, addr),
-                        AssemblyLine.implied(PLA),
-                        AssemblyLine.implied(DEY),
-                        AssemblyLine.indexedY(STA, addr))
+                    fastTarget match {
+                      case Some((baseOffset, initializeY)) =>
+                        compile(ctx, source, someTuple, BranchSpec.None) ++
+                          preserveRegisterIfNeeded(ctx, MosRegister.AX, initializeY(offset)) ++
+                          List(
+                            AssemblyLine.absoluteY(STA, baseOffset),
+                            AssemblyLine.implied(TXA),
+                            AssemblyLine.implied(INY),
+                            AssemblyLine.absoluteY(STA, baseOffset))
+                      case _ =>
+                        if (prepare.isEmpty) {
+                          compile(ctx, source, someTuple, BranchSpec.None) ++ List(
+                            AssemblyLine.immediate(LDY, offset),
+                            AssemblyLine.indexedY(STA, addr),
+                            AssemblyLine.implied(TXA),
+                            AssemblyLine.implied(INY),
+                            AssemblyLine.indexedY(STA, addr))
+                        } else {
+                          compile(ctx, source, someTuple, BranchSpec.None) ++ List(
+                            AssemblyLine.implied(PHA),
+                            AssemblyLine.implied(TXA),
+                            AssemblyLine.implied(PHA)) ++ prepare ++ List(
+                            AssemblyLine.immediate(LDY, offset+1),
+                            AssemblyLine.implied(PLA),
+                            AssemblyLine.indexedY(STA, addr),
+                            AssemblyLine.implied(PLA),
+                            AssemblyLine.implied(DEY),
+                            AssemblyLine.indexedY(STA, addr))
+                        }
                     }
                   case _ =>
                     ctx.log.error("Cannot assign to a large object indirectly", target.position)
