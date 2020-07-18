@@ -1505,7 +1505,7 @@ object BuiltIns {
             AssemblyLine.implied(CLC),
             AssemblyLine.absolute(JSR, ctx.env.get[ThingInMemory]("__adc_decimal"))
           )) ++ storeLhs
-        } else if (!subtract && simplicity(env, v) > simplicity(env, addend)) {
+        } else if (!subtract && simplicity(env, v) >= simplicity(env, addend)) {
           val loadRhs = MosExpressionCompiler.compile(ctx, addend, Some(b -> RegisterVariable(MosRegister.A, b)), NoBranching)
           val modifyAcc = insertBeforeLast(AssemblyLine.implied(CLC), simpleOperation(ADC, ctx, v, IndexChoice.PreferY, preserveA = true, commutative = true, decimal = decimal))
           val storeLhs = MosExpressionCompiler.compileByteStorage(ctx, MosRegister.A, v)

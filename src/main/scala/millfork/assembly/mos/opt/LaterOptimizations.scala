@@ -501,6 +501,14 @@ object LaterOptimizations {
       (Elidable & HasOpcode(LDA) & MatchParameter(0) & MatchAddrMode(1)) ~~>{ code =>
       code.init :+ AssemblyLine.implied(TYA).pos(code.last.source)
     },
+
+    ((HasOpcode(STA) & HasAddrModeIn(Absolute, LongAbsolute, ZeroPage) & MatchAddrMode(0) & MatchParameter(1)) ~
+      (Linear & DoesntChangeMemoryAt(0, 1) & Not(ChangesA)).*).capture(4) ~
+      (Elidable & HasOpcode(LDA) & DoesntMatterWhatItDoesWith(State.N, State.Z) & MatchAddrMode(2) & MatchParameter(3)).capture(66) ~
+      ((Linear & DoesntChangeMemoryAt(0, 1) & DoesntChangeMemoryAt(2, 3) & DoesntChangeIndexingInAddrMode(2) & Not(ConcernsA)).*).capture(5) ~
+      (Elidable & HasOpcodeIn(ADC, ORA, EOR, AND) & HasAddrModeIn(Absolute, LongAbsolute, ZeroPage) & MatchParameter(1)) ~~> { (code, ctx) =>
+      ctx.get[List[AssemblyLine]](4) ++ ctx.get[List[AssemblyLine]](5) ++ ctx.get[List[AssemblyLine]](66).map(_.copy(opcode = code.last.opcode))
+    },
   )
 
   val DontUseIndexRegisters = new RuleBasedAssemblyOptimization("Don't use index registers unnecessarily",
