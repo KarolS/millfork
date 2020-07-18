@@ -98,7 +98,11 @@ case class RepeatedIndexCalculationOptimization(forX: Boolean) extends AssemblyO
               List.fill(-delta)(AssemblyLine.implied(IN_).pos(newPos)) :+ AssemblyLine.implied(T_A).pos(newPos)
           }
           result ++= replacement
-          log.debug(s"Applied $name for run $ix ($from-$to) with delta $delta")
+          if (log.traceEnabled) {
+            log.debug(s"Applied $name for run $ix ($from-$to) with delta $delta")
+          } else {
+            log.debug(s"Applied $name")
+          }
           firstFrom = firstFrom min from
           lastTo = lastTo max to
           if (log.traceEnabled) {
@@ -152,9 +156,23 @@ case class RepeatedIndexCalculationOptimization(forX: Boolean) extends AssemblyO
     Some(delta)
   }
 
+  def endsWithSecRolTar(code: List[AssemblyLine]): Boolean = {
+    if (code.size < 4) return false
+    val penpenult = code(code.size - 3)
+    val penult = code(code.size - 2)
+    val last = code.last
+    penpenult.opcode == SEC && penult.opcode == ROL && penult.addrMode == Implied && (last.opcode == TAX || last.opcode == TAY)
+  }
+
   def getExtraDelta(code1: List[AssemblyLine], code2: List[AssemblyLine]): Option[Int] = {
-    var delta = 0
-    // TODO: handle extra CLC/ADC#0
+    if (endsWithSecRolTar(code1)) {
+      return getExtraDelta(code1.dropRight(3) ++ List(AssemblyLine.implied(ASL), AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, 1), code1.last) ,
+        code2)
+    }
+    if (endsWithSecRolTar(code2)) {
+      return getExtraDelta(code1,
+        code2.dropRight(3) ++ List(AssemblyLine.implied(ASL), AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, 1), code2.last))
+    }
     if (code1.size != code2.size) {
       if (code1.size == code2.size + 2) {
         return getExtraDelta(code1, code2.init ++ List(AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, 0), code2.last))
@@ -164,6 +182,7 @@ case class RepeatedIndexCalculationOptimization(forX: Boolean) extends AssemblyO
       }
       return None
     }
+    var delta = 0
     for (i <- code1.indices) {
       val l1 = code1(i)
       val l2 = code2(i)
@@ -203,6 +222,9 @@ case class RepeatedIndexCalculationOptimization(forX: Boolean) extends AssemblyO
     xs match {
       case AssemblyLine0(LDA, Immediate | ZeroPage | Absolute | LongAbsolute, _) :: tail =>
         tailcall(findAllRuns(tail, offset + 1, Some(offset)))
+      case AssemblyLine0(CLC | SEC, _, _) :: (l2@AssemblyLine0(ROL | ROR, Implied, _)) :: tail
+        if l2.elidability == Elidability.Elidable =>
+        tailcall(findAllRuns(tail, offset + 2, latestStart))
       case AssemblyLine0(CLC | SEC, _, _) :: (l2@AssemblyLine0(ADC | ADC, Immediate | ZeroPage | Absolute | LongAbsolute, _)) :: tail
         if l2.elidability == Elidability.Elidable =>
         tailcall(findAllRuns(tail, offset + 2, latestStart))
