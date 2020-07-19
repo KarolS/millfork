@@ -788,7 +788,7 @@ object Main {
       c
     }).description("Display this message.")
 
-    flag("--version").action(c => {
+    flag("--version", "-version").action(c => {
       println("millfork version " + BuildInfo.version)
       assumeStatus(CliStatus.Quit)
       System.exit(0)
