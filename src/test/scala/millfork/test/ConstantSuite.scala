@@ -2,7 +2,7 @@ package millfork.test
 
 import millfork.Cpu
 import millfork.env.{BasicPlainType, DerivedPlainType, NumericConstant}
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
+import millfork.test.emu.{EmuBenchmarkRun, EmuOptimizedCmosRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -129,5 +129,20 @@ class ConstantSuite extends FunSuite with Matchers {
     m.readByte(arrayStart + 11) should equal(89)
     m.readByte(0xc011) should equal(89)
 
+  }
+
+  test("Constant array sizes") {
+    val m = EmuOptimizedCmosRun(
+          """
+            | const byte A = 8
+            | const byte B = 8
+            | const byte SIZE = A * B
+            | array(byte) arr[SIZE] @$c000
+            | void main() {
+            |   arr[0] = 1
+            | }
+            |
+          """.stripMargin)
+    m.readByte(0xc000) should equal(1)
   }
 }

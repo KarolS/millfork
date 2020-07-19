@@ -1676,10 +1676,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                   case Some(typ) =>
                     log.error(s"Type $name cannot be used as an array index", l.position)
                     w -> Constant.Zero
-                  case _ => w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                  case _ =>
+                    val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                    w -> constant
                 }
               case _ =>
-                w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                w -> constant
             }
             lengthConst match {
               case NumericConstant(length, _) =>

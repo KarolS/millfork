@@ -16,7 +16,7 @@ object UnusedGlobalVariables extends NodeOptimization {
       case _ => None
     }.toMap
     val allNonvolatileGlobalVariables = nodes.flatMap {
-      case v: VariableDeclarationStatement => if (v.address.isDefined || v.volatile) Nil else List(v.name)
+      case v: VariableDeclarationStatement => if (v.address.isDefined || v.volatile || v.constant) Nil else List(v.name)
       case v: ArrayDeclarationStatement => if (v.address.isDefined) Nil else List(v.name)
       case _ => Nil
     }.toSet
@@ -50,7 +50,7 @@ object UnusedGlobalVariables extends NodeOptimization {
 
   def getAllReadVariables(expressions: List[Node]): List[String] = expressions.flatMap {
     case s: VariableDeclarationStatement => getAllReadVariables(s.address.toList) ++ getAllReadVariables(s.initialValue.toList) ++ (if (s.stack) List("__sp", "__stack") else Nil)
-    case s: ArrayDeclarationStatement => getAllReadVariables(s.address.toList) ++ getAllReadVariables(s.elements.toList)
+    case s: ArrayDeclarationStatement => getAllReadVariables(s.address.toList) ++ getAllReadVariables(s.length.toList) ++ getAllReadVariables(s.elements.toList)
     case s: ArrayContents => getAllReadVariables(s.getAllExpressions(false)) // endianness doesn't matter here at all
     case s: FunctionDeclarationStatement => getAllReadVariables(s.address.toList) ++ getAllReadVariables(s.statements.getOrElse(Nil))
     case Assignment(VariableExpression(_), expr) => getAllReadVariables(expr :: Nil)
