@@ -102,6 +102,8 @@ English, Japanese, Spanish/Italian and French/German respectively
 
 * `koi7n2` or `short_koi` – KOI-7 N2
 
+* `koi8r`, `koi8u`, `koi8ru`, `koi8e`, `koi8f`, `koi8t` – various variants of KOI-8
+
 * `vectrex` – built-in Vectrex font
 
 * `galaksija` – text encoding used on Galaksija computers
@@ -200,6 +202,7 @@ Encoding | lowercase letters | backslash | currencies | intl | card suits
 `msx_jp`            | yes  | no  | ¥    | katakana  | yes   
 `msx_ru`            | yes  | yes |      | Russian⁴  | yes   
 `koi7n2`            | no   | yes |      | Russian⁵  | no   
+`koi8*`             | yes  | yes |      | Russian   | no   
 `cpc_en`            | yes  | yes | £    | none      | yes 
 `cpc_es`            | yes  | yes |      | Spanish⁶  | yes 
 `cpc_fr`            | yes  | no  | £    | French⁷   | yes 
@@ -259,6 +262,7 @@ Encoding | new line | braces | backspace | cursor movement | text colour | rever
 `atasciiscr`        | no  | no  | no  | no  | no  | no  | no  
 `msx_*`             | yes | yes | yes | yes | no  | no  | no  
 `koi7n2`            | yes | no  | yes | no  | no  | no  | no  
+`koi8*`             | yes | yes | yes | no  | no  | no  | no  
 `vectrex`           | no  | no  | no  | no  | no  | no  | no  
 `utf*`              | yes | yes | yes | no  | no  | no  | no  
 all the rest        | yes | yes | no  | no  | no  | no  | no
