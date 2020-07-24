@@ -18,7 +18,7 @@ Millfork has different operator precedence compared to most other languages. Fro
 
 * `->` and `[]`
 
-* `*`, `*'`
+* `*`, `*'`, `/`, `%%`
 
 * `+`, `+'`, `-`, `-'`, `|`, `&`, `^`, `>>`, `>>'`, `<<`, `<<'`, `>>>>`
 
@@ -37,6 +37,9 @@ It is to prevent confusion about whether `a + b & c << d` means `(a + b) & (c <<
 The only exceptions are `+` and `-`, and `+'` and `-'`. 
 They are interpreted as expected: `5 - 3 + 2 == 4` and `5 -' 3 +' 2 == 4`.  
 Note that you cannot mix `+'` and `-'` with `+` and `-`. 
+
+Certain operators (`/`, `%%`, `<<`, `>>`, `<<'`, `>>'`, `>>>>`, `:`, `!=`) cannot have more than 2 parameters,
+i.e. `x / y / z` will not compile.
 
 ## Argument types
 
