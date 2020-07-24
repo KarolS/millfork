@@ -36,6 +36,10 @@ where `X` is a power of two. Even if this makes the struct 12 bytes instead of 1
 * Avoid reusing temporary variables.
 It makes it easier for the optimizer to eliminate the variable entirely.   
 
+* Mark the most frequently used local variables as `register`.
+It will increase chances that those variables, and not the ones less frequently used,
+are inlined into registers or put in the zeropage.
+
 ## Functions
 
 * Write many functions with no parameters and use `-finline`.

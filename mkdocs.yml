@@ -58,6 +58,10 @@ nav:
     - Undefined behaviour: abi/undefined-behaviour.md
     - Undocumented instruction support: abi/undocumented.md
     - Variable storage: abi/variable-storage.md
+  - Additional guides:
+    - Optimization guide: various/optimization.md
+    - Differences from C: various/cdiff.md
+    - Differences in assembly: various/asmdiff.md
   - External links:
     - Downloads: https://github.com/KarolS/millfork/releases/
     - Source code: https://github.com/KarolS/millfork

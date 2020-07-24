@@ -417,13 +417,33 @@ for <variable> : [ <comma separated expressions> ]  {
 
 * `<enum type>` – traverse enum constants of given type, in arbitrary order
 
-* `<array>` – traverse array contents, in arbitrary order,
+* `<array>` – traverse given array, in arbitrary order,
 assigning the index to `<variable>` and either the element or the pointer to the element to `<variable2>`
 
 * `<comma separated expressions>` – traverse every value in the list, in the given order.
 Values do not have to be constant.
 If a value is not a constant and its value changes while executing the loop, the behaviour is undefined.
 Jumps using `goto` across the scope of this kind of loop are disallowed.
+
+Examples:
+
+    struct S { ... }
+    pointer.S p
+    S s
+    byte i
+    array(str) arr [8]
+    enum E { E_1, E_2, E_3 }
+    E e
+    
+    for i,0,until,8 { ... }  // executes the body with i=0, i=1, ... i=7
+    for i,0,to,7 { ... }     // executes the body with i=0, i=1, ... i=7
+    for i,0,paralleluntil,8 { ... }  // executes the body with i=0, i=1, ... i=7 (in arbitrary order)
+    for i,0,parallelto,8 { ... }  // executes the body with i=0, i=1, ... i=7 (in arbitrary order)
+    for i,7,downto,0 { ... } // executes the body with i=7, i=6, ... i=0
+    for i:arr { ... }        // executes the body with i=0, i=1, ... i=7 (in arbitrary order)
+    for i,s:arr { ... }      // executes the body with i=0, s=arr[0]; i=1, s=arr[1]; ... i=7, s=arr[7] (in arbitrary order)
+    for i,p:arr { ... }      // executes the body with i=0, p=arr[0].pointer; ... i=7, p=arr[7].pointer (in arbitrary order)
+    for e:E { ... }          // executes the body with e=E_1, e=E_2, e=E_3 (in arbitrary order)
 
 ### `break` and `continue` statements
 
@@ -447,6 +467,7 @@ Labelless `break` and `continue` apply to the innermost `for`, `while` or `do-wh
 `break for`, `continue do` etc. apply to the innermost loop of the given type.
 
 `break i` and `continue i` apply to the innermost `for` loop that uses the `i` variable.
+`for` loops of the form `for i,j:array` can be broken from using `break i` only, not `break j`.
 
 ### `goto` and `label`
 
