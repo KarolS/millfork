@@ -8,11 +8,11 @@
 
 * Added the ability to declare structure alignment.
 
+* `for` loops over arrays.
+
 * Allowed defining custom text encodings.
 **Potentially breaking change!**
 There are no built-in encodings now, the include path needs to contain the necessary encodings.
-
-* Fixed raw views of typed pointers.
 
 * Fixed encodings: 
 `apple2`, `atasciiscr`, `iso_de`, `iso_no`, `iso_se`, 
@@ -29,20 +29,28 @@ There are no built-in encodings now, the include path needs to contain the neces
 `galaksija`,
 `iso8859_1`, `iso8859_2`, `iso8859_3`, `iso8859_4`, `iso8859_5`,
 `iso8859_7`, `iso8859_9`, `iso8859_10`, `iso8859_13`, `iso8859_14`, `iso8859_16`,
-`kamenicky`,`mazovia`, `pcw`,
+`kamenicky`,
+`koi8e`, `koi8f`, `koi8r`, `koi8ru`, `koi8t`, `koi8u`,
+`mazovia`, `pcw`,
 `pokemon1en`, `pokemon1es`, `pokemon1fr`, `pokemon1jp`.
+
+* Fixed raw views of typed pointers.
+
+* Fixed dead code elimination (#51). 
 
 * **Potentially breaking change!** Changed default encoding for CPC to `cpc_en`.
 
 * **Potentially breaking change!** Changed the type of `mouse_lbm` and `mouse_rbm` to `bool`. Added `mouse_mbm`
 
-* Renamed the `x_coord` module to `coord`. Added the `y_coord` type and `TALLSCREEN` preprocessor feature.
+* **Potentially breaking change!** Renamed the `x_coord` module to `coord`. Added the `y_coord` type and `TALLSCREEN` preprocessor feature.
 
 * Labels with fixed addresses are now exported to the label file (#49).
 
 * Allow importing modules from subdirectories.
 
 * Allow placing platform definitions in a dedicated subdirectory.
+
+* Z80: Intel syntax for all Z80 instructions, based on Digital Research's Z80.LIB.
 
 * Commander X16: Updated to support VERA 0.9 and the new joystick API. Added mouse support.
 
