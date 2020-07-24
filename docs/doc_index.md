@@ -81,6 +81,14 @@
     * [Game Boy–only modules](stdlib/gb.md)
     
     * [X16–only modules](stdlib/x16.md)
+    
+## Guides
+
+* [Differences from C](various/cdiff.md) 
+
+* [Differences from other assemblers](various/asmdiff.md) 
+
+* [Optimization guide](various/optimization.md) 
 
 ## Implementation details
 

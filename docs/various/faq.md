@@ -83,6 +83,10 @@ or generate a static binary and link it manually using the `file` directive.
 
 Since the compiler is a work-in-progress, some of the mentioned issues might be improved upon in the future.
 
+### I have experience with C and/or assembly. What should I keep in mind?
+
+See the [differences from C](./cdiff.md) and the [differences from assembly](./asmdiff.md).
+
 ### Why is it called Millfork?
 
 It stands for **MI**ddle **L**evel **L**anguage **FOR** **K**ommodore computers.
