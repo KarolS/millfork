@@ -22,10 +22,15 @@ LR35902 instructions that load/store the accumulator indirectly via HL and then 
 LR35902 instructions for faster access to the $FFxx addresses use the `LDH` mnemonic: `LDH A,(4)`, `LDH (C),A` etc.
 
 Only instructions available on the current CPU architecture are available.
-Intel syntax does not support instructions that are unavailable on the 8080.
-Undocumented Z80 instructions are not supported, except for `SLL`.
+Undocumented Z80 instructions are partially supported:
+* `SLL` – supported
+* instructions using the IXH, IXL, IYH, IYL registers – supported (can only be used in Zilog syntax)
+* instructions of the form `RLC IX(1),B` – not supported
 
-Not all ZX Spectrum Next are supported. `JP (C)`, `BSLA` and similar instructions are not supported.
+Intel syntax supports the 8080 instructions, the documented Z80 instructions and `SLL`.
+It does not support instructions that are unavailable on the Z80 or other undocumented Z80 instructions.
+
+Not all ZX Spectrum Next instructions are supported. `JP (C)`, `BSLA` and similar instructions are not supported.
 
 Labels have to be followed by a colon and they can optionally be on a separate line.
 Indentation is not important:
@@ -200,3 +205,108 @@ it should abide to the following rules:
 * end non-inline assembly functions with `RET`, `JP`, `RETI` or `RETN` (Zilog) / `RET` or `JMP` (Intel) as appropriate
 
 The above list is not exhaustive.
+
+## Z80 instructions in the Intel syntax
+
+Millfork uses the same extensions for Intel syntax as Z80.LIB from Digital Research.
+Some mnemonics from the TDL Z80 Relocating/Linking Assembler are also supported.
+
+In the list below, `c` is a flag, `r` is a register, and `n` and `d` are parameters.  
+For instructions using the index registers, only the IY variant is given;
+the IX variant has the same mnemonic, but with `Y` replaced with `X`.
+
+Intel syntax | Zilog syntax    
+----|----
+**EXAF** | **EX AF,AF'**   
+**JR n**, JMPR n | **JR n**
+**JRc n** | **JR c,n**   
+**INP r** | **IN r,(C)**  
+**OUTP r** | **OUT r,(C)**
+**CCI** | **CPI** 
+**CCIR** | **CPIR** 
+**CCD** | **CPD** 
+**CCDR** | **CPDR** 
+**OUTIR** | **OTIR**, OUTIR
+**OUTDR** | **OTDR**, OUTDR
+**IM0** | **IM 0**
+**IM1** | **IM 1**
+**IM2** | **IM 2**
+**DSBC r** | **SBC HL,rr**
+**DADC r** | **ADC HL,rr**
+**DADY r** | **ADD IY,rr**
+**INXIY**, INX IY | **INC IY**
+**DCXIY**, DCX IY | **DEC IY**
+**SBCD nn** | **LD (nn),BC**
+**SDED nn** | **LD (nn),DE**
+**SSPD nn** | **LD (nn),SP**
+**SIYD nn** | **LD (nn),IY**
+**LBCD nn** | **LD BC,(nn)**
+**LDED nn** | **LD DE,(nn)**
+**LSPD nn** | **LD SP,(nn)**
+**LIYD nn** | **LD IY,(nn)**
+**SETB n,r**, SET n,r | **SET n,r**
+**BITY n,d** | **BIT n,IY(d)**
+**SETY n,d** | **SET n,IY(d)**
+**RESY n,d** | **RES n,IY(d)**
+**PCIY** | **JP IY**
+**RLCR r** | **RLC r**
+**RALR r** | **RL r**
+**RRCR r** | **RRC r**
+**RARR r** | **RR r**
+**SLAR r** | **SLA r**
+**SRAR r** | **SRA r**
+**SRLR r** | **SRL r**
+**RLCX r** | **RLC r**
+**RALY d** | **RL IY(d)**
+**RRCY d** | **RRC IY(d)**
+**RARY d** | **RR IY(d)**
+**SLAY d** | **SLA IY(d)**
+**SRAY d** | **SRA IY(d)**
+**SRLY d** | **SRL IY(d)**
+**SLLR r** | **SLL r**
+**SLLY d** | **SLL IY(d)**
+**SPIY** | **LD SP,IY**
+**PUSHIY**, PUSH IY | **PUSH IY**
+**POPIY**, POP IY | **POP IY**
+**XTIY** | **EX (SP),IY**
+**LDAI** | **LD A,I**
+**LDAR** | **LD A,R**
+**STAI** | **LD I,A**
+**STAR** | **LD R,A**
+**LXIY nn**, LXI IY,nn | **LD IY,nn**
+**ADDY d** | **ADD A,IY(d)**
+**ADCY d** | **ADC A,IY(d)**
+**SUBY d** | **SUB IY(d)**
+**SBCY d** | **SBC A,IY(d)**
+**ANDY d** | **AND IY(d)**
+**XORY d** | **XOR IY(d)**
+**ORY d** | **OR IY(d)**
+**CMPY d** | **CMP IY(d)**
+**INRY d** | **INC IY(d)**
+**DCRY d** | **DEC IY(d)**
+**MVIY n,d** | **LD IY(d),n**
+**LDY r,d** | **LD r,IY(d)**
+**STY r,d** | **LD IY(d),r**
+
+
+Instructions that are the same in both syntaxes:  
+
+**BIT n,r**,
+**RES n,r**,
+**DJNZ n**,
+**EXX**,
+**NEG**,
+**RETI**,
+**RETN**,
+**RLD**,
+**RRD**,
+**LDI**,
+**LDIR**,
+**LDD**,
+**LDDR**,
+**INI**,
+**INIR**,
+**IND**,
+**INDR**,
+**OUTI**,
+**OUTD**

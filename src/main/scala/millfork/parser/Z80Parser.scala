@@ -9,7 +9,7 @@ import millfork.{CompilationFlag, CompilationOptions, node}
 import millfork.assembly.z80.{ZOpcode, _}
 import millfork.env.{ByZRegister, Constant, ParamPassingConvention}
 import millfork.error.ConsoleLogger
-import millfork.node._
+import millfork.node.{ZRegister, _}
 import millfork.output.{MemoryAlignment, NoAlignment, WithinPageAlignment}
 
 /**
@@ -73,6 +73,13 @@ case class Z80Parser(filename: String,
     "SP" -> ZRegister.SP, "sp" -> ZRegister.SP,
   )
 
+  private val toIndexHalf: Map[String, ZRegister.Value] = Map(
+    "IXH" -> ZRegister.IXH, "ixh" -> ZRegister.IXH,
+    "IXL" -> ZRegister.IXL, "ixl" -> ZRegister.IXL,
+    "IYH" -> ZRegister.IYH, "iyh" -> ZRegister.IYH,
+    "IYL" -> ZRegister.IYL, "iyl" -> ZRegister.IYL,
+  )
+
   private val toIntelRegister8: Map[String, ZRegister.Value] = Map(
     "A" -> ZRegister.A, "a" -> ZRegister.A,
     "B" -> ZRegister.B, "b" -> ZRegister.B,
@@ -86,16 +93,25 @@ case class Z80Parser(filename: String,
 
   private val toIntelRegister16: Map[String, ZRegister.Value] = Map(
     "H" -> ZRegister.HL, "h" -> ZRegister.HL,
+    "HL" -> ZRegister.HL, "hl" -> ZRegister.HL,
     "PSW" -> ZRegister.AF, "psw" -> ZRegister.AF,
     "B" -> ZRegister.BC, "b" -> ZRegister.BC,
+    "BC" -> ZRegister.BC, "bc" -> ZRegister.BC,
     "D" -> ZRegister.DE, "d" -> ZRegister.DE,
+    "DE" -> ZRegister.DE, "de" -> ZRegister.DE,
     "SP" -> ZRegister.SP, "sp" -> ZRegister.SP,
+    "IX" -> ZRegister.IX, "ix" -> ZRegister.IX,
+    "IY" -> ZRegister.IY, "iy" -> ZRegister.IY,
   )
 
   private def param(allowAbsolute: Boolean, allowRI: Boolean = false, allowFfc: Boolean = false): P[(ZRegister.Value, Option[Expression])] = asmExpressionWithParens.map {
     case (VariableExpression("R" | "r"), false) if allowRI => (ZRegister.R, None)
     case (VariableExpression("I" | "i"), false) if allowRI => (ZRegister.I, None)
     case (VariableExpression(r), false) if toRegister.contains(r)=> (toRegister(r), None)
+    case (VariableExpression(r), false)
+      if options.flag(CompilationFlag.EmitZ80Opcodes) &&
+        options.flag(CompilationFlag.EmitIllegals) &&
+        toIndexHalf.contains(r)=> (toIndexHalf(r), None)
     case (SumExpression(List(
     (false, LiteralExpression(0xff00, _)),
     (false, VariableExpression("C" | "c"))
@@ -137,6 +153,8 @@ case class Z80Parser(filename: String,
     case (reg@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), Some(e)) => (op, OneRegister(reg), Some(e), zero)
     case (reg, addr) => (op, OneRegister(reg), None, addr.getOrElse(zero))
   }
+
+  def one8RegisterIntel(op: ZOpcode.Value): P[(ZOpcode.Value, OneRegister, Option[Expression], Expression)] = intel8.map(reg => (op, OneRegister(reg), None, zero))
 
   def one8RegisterOr8085Illegal(op: ZOpcode.Value, illegalTarget: ZRegister.Value, illegalOp: ZOpcode.Value): P[(ZOpcode.Value, ZRegisters, Option[Expression], Expression)] = param(allowAbsolute = false).map{
     case (reg@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), Some(e)) => (op, OneRegister(reg), Some(e), zero)
@@ -236,6 +254,27 @@ case class Z80Parser(filename: String,
 
   private val jumpConditionWithComma: P[ZRegisters] = (jumpCondition ~ "," ~/ HWS).?.map (_.getOrElse(NoRegisters))
   private val jumpConditionWithoutComma: P[ZRegisters] = (jumpCondition ~/ HWS).?.map (_.getOrElse(NoRegisters))
+
+  private val indexHalves: Set[ZRegister.Value] = {
+    import ZRegister._
+    Set(IXH, IXL, IYH, IYL)
+  }
+  private val MEM_R: Set[ZRegister.Value] = {
+    import ZRegister._
+    Set(MEM_HL,MEM_IX_D,MEM_IY_D)
+  }
+
+  def invalidIllegalRegisters(r1: ZRegister.Value, r2: ZRegister.Value): Boolean = {
+    import ZRegister._
+    if (MEM_R(r1) && MEM_R(r2)) return true
+    if (!indexHalves(r1) && !indexHalves(r2)) return false
+    if (!options.flag(CompilationFlag.EmitIllegals) && !options.flag(CompilationFlag.EmitZ80Opcodes) && (indexHalves(r1) || indexHalves(r2))) return true
+    if ((r1 == H || r1 == L || r1 == MEM_IX_D || r1 == MEM_IY_D) && indexHalves(r2)) return true
+    if ((r2 == H || r2 == L || r2 == MEM_IX_D || r2 == MEM_IY_D) && indexHalves(r1)) return true
+    if ((r1 == IYH || r1 == IYL) && (r2 == IXH || r2 == IXL)) return true
+    if ((r1 == IXH || r1 == IXL) && (r2 == IYH || r2 == IYL)) return true
+    false // TODO
+  }
 
   val zilogAsmInstruction: P[ExecutableStatement] = {
     import ZOpcode._
@@ -449,7 +488,11 @@ case class Z80Parser(filename: String,
             if options.flags(CompilationFlag.EmitSharpOpcodes) =>
             (LD_HLDA, NoRegisters, None, zero)
 
-          case (r1, e1, (r2, e2)) => merge(LD, LD_16, skipTargetA = false)((r1, e1, r2, e2))
+          case (r1, e1, (r2, e2)) =>
+            if (invalidIllegalRegisters(r1,r2)) {
+              log.error("Invalid parameters for LD", Some(pos))
+            }
+            merge(LD, LD_16, skipTargetA = false)((r1, e1, r2, e2))
         }
         case "ADD" => (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
 
@@ -534,13 +577,73 @@ case class Z80Parser(filename: String,
         case "RIM" => imm(RIM)
         case "SIM" => imm(SIM)
 
+        case "EXAF" => imm(EX_AF_AF)
+        case "EXX" => imm(EXX)
+        case "NEG" => imm(NEG)
+        case "IM0" => P("").map(_ => (IM, NoRegisters, None, LiteralExpression(0, 1)))
+        case "IM1" => P("").map(_ => (IM, NoRegisters, None, LiteralExpression(1, 1)))
+        case "IM2" => P("").map(_ => (IM, NoRegisters, None, LiteralExpression(2, 1)))
+        case "RETI" => imm(RETI)
+        case "RETN" => imm(RETN)
+        case "RLD" => imm(RLD)
+        case "RRD" => imm(RRD)
+        case "INI" => imm(INI)
+        case "INIR" => imm(INIR)
+        case "IND" => imm(IND)
+        case "INDR" => imm(INDR)
+        case "OUTI" => imm(OUTI)
+        case "OUTIR" => imm(OUTIR)
+        case "OUTD" => imm(OUTD)
+        case "OUTDR" => imm(OUTDR)
+        case "LDI" => imm(LDI)
+        case "LDIR" => imm(LDIR)
+        case "LDD" => imm(LDD)
+        case "LDDR" => imm(LDDR)
+        case "CCI" => imm(CPI)
+        case "CCIR" => imm(CPIR)
+        case "CCD" => imm(CPD)
+        case "CCDR" => imm(CPDR)
+
+        case "RALR" => one8RegisterIntel(RL)
+        case "RARR" => one8RegisterIntel(RR)
+        case "RLCR" => one8RegisterIntel(RLC)
+        case "RRCR" => one8RegisterIntel(RRC)
+        case "SLAR" => one8RegisterIntel(SLA)
+        case "SLLR" => one8RegisterIntel(SLL)
+        case "SRAR" => one8RegisterIntel(SRA)
+        case "SRLR" => one8RegisterIntel(SRL)
+          
+        case "RALX" => asmExpression.map(d => (RL, OneRegister(MEM_IX_D), Some(d), zero))
+        case "RARX" => asmExpression.map(d => (RR, OneRegister(MEM_IX_D), Some(d), zero))
+        case "RLCX" => asmExpression.map(d => (RLC, OneRegister(MEM_IX_D), Some(d), zero))
+        case "RRCX" => asmExpression.map(d => (RRC, OneRegister(MEM_IX_D), Some(d), zero))
+        case "SLAX" => asmExpression.map(d => (SLA, OneRegister(MEM_IX_D), Some(d), zero))
+        case "SLLX" => asmExpression.map(d => (SLL, OneRegister(MEM_IX_D), Some(d), zero))
+        case "SRAX" => asmExpression.map(d => (SRA, OneRegister(MEM_IX_D), Some(d), zero))
+        case "SRLX" => asmExpression.map(d => (SRL, OneRegister(MEM_IX_D), Some(d), zero))
+          
+        case "RALY" => asmExpression.map(d => (RL, OneRegister(MEM_IY_D), Some(d), zero))
+        case "RARY" => asmExpression.map(d => (RR, OneRegister(MEM_IY_D), Some(d), zero))
+        case "RLCY" => asmExpression.map(d => (RLC, OneRegister(MEM_IY_D), Some(d), zero))
+        case "RRCY" => asmExpression.map(d => (RRC, OneRegister(MEM_IY_D), Some(d), zero))
+        case "SLAY" => asmExpression.map(d => (SLA, OneRegister(MEM_IY_D), Some(d), zero))
+        case "SLLY" => asmExpression.map(d => (SLL, OneRegister(MEM_IY_D), Some(d), zero))
+        case "SRAY" => asmExpression.map(d => (SRA, OneRegister(MEM_IY_D), Some(d), zero))
+        case "SRLY" => asmExpression.map(d => (SRL, OneRegister(MEM_IY_D), Some(d), zero))
+
         case "HLT" => imm(HALT)
         case "EI" => imm(EI)
         case "DI" => imm(DI)
         case "XCHG" => imm(EX_DE_HL)
         case "XTHL" => P("").map(_ => (EX_SP, OneRegister(HL), None, zero))
+        case "XTIX" => P("").map(_ => (EX_SP, OneRegister(IX), None, zero))
+        case "XTIY" => P("").map(_ => (EX_SP, OneRegister(IY), None, zero))
         case "SPHL" => P("").map(_ => (LD_16, TwoRegisters(SP, HL), None, zero))
+        case "SPIX" => P("").map(_ => (LD_16, TwoRegisters(SP, IX), None, zero))
+        case "SPIY" => P("").map(_ => (LD_16, TwoRegisters(SP, IY), None, zero))
         case "PCHL" => P("").map(_ => (JP, z80.OneRegister(HL), None, zero))
+        case "PCIX" => P("").map(_ => (JP, z80.OneRegister(IX), None, zero))
+        case "PCIY" => P("").map(_ => (JP, z80.OneRegister(IY), None, zero))
 
         case "MOV" => (intel8 ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ intel8).map {
           case (r1, r2) => (LD, TwoRegisters(r1, r2), None, zero)
@@ -548,10 +651,38 @@ case class Z80Parser(filename: String,
         case "LXI" => (intel16(false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
           case (r, e) => (LD_16, TwoRegisters(r, IMM_16), None, e)
         }
+        case "LXIX" => asmExpression.map {
+          case (e) => (LD_16, TwoRegisters(IX, IMM_16), None, e)
+        }
+        case "LXIY" => asmExpression.map {
+          case (e) => (LD_16, TwoRegisters(IY, IMM_16), None, e)
+        }
         case "MVI" => (intel8 ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
           case (r, e) => (LD, TwoRegisters(r, IMM_8), None, e)
         }
+        case "MVIX" => (asmExpression ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
+          case (e, d) => (LD, TwoRegisters(MEM_IX_D, IMM_8), Some(d), e)
+        }
+        case "MVIY" => (asmExpression ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
+          case (e, d) => (LD, TwoRegisters(MEM_IY_D, IMM_8), Some(d), e)
+        }
+        case "LDX" => (intel8 ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
+          case (r, d) => (LD, TwoRegisters(r, MEM_IX_D), Some(d), zero)
+        }
+        case "LDY" => (intel8 ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
+          case (r, d) => (LD, TwoRegisters(r, MEM_IY_D), Some(d), zero)
+        }
+        case "STX" => (intel8 ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
+          case (r, d) => (LD, TwoRegisters(MEM_IX_D, r), Some(d), zero)
+        }
+        case "STY" => (intel8 ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
+          case (r, d) => (LD, TwoRegisters(MEM_IY_D, r), Some(d), zero)
+        }
         case "DAD" => intel16(false).map { r => (ADD_16, TwoRegisters(HL, r), None, zero)}
+        case "DADC" => intel16(false).map { r => (ADC_16, TwoRegisters(HL, r), None, zero)}
+        case "DSBC" => intel16(false).map { r => (SBC_16, TwoRegisters(HL, r), None, zero)}
+        case "DADX" => intel16(false).map { r => (ADD_16, TwoRegisters(IX, r), None, zero)}
+        case "DADY" => intel16(false).map { r => (ADD_16, TwoRegisters(IY, r), None, zero)}
         case "STAX" => intel16(false).map {
           case r@(ZRegister.BC | ZRegister.DE) => (LD, TwoRegisters(r, A), None, zero)
           case _ =>
@@ -565,19 +696,47 @@ case class Z80Parser(filename: String,
             (NOP, NoRegisters, None, zero)
         }
         case "INX" => intel16(false).map { r => (INC_16, OneRegister(r), None, zero)}
+        case "INXIX" => P("").map(_ => (INC_16, OneRegister(IX), None, zero))
+        case "INXIY" => P("").map(_ => (INC_16, OneRegister(IY), None, zero))
         case "DCX" => intel16(false).map { r => (DEC_16, OneRegister(r), None, zero)}
+        case "DCXIX" => P("").map(_ => (DEC_16, OneRegister(IX), None, zero))
+        case "DCXIY" => P("").map(_ => (DEC_16, OneRegister(IY), None, zero))
         case "POP" => intel16(true).map { r => (POP, OneRegister(r), None, zero)}
+        case "POPIX" => P("").map(_ => (POP, OneRegister(IX), None, zero))
+        case "POPIY" => P("").map(_ => (POP, OneRegister(IY), None, zero))
         case "PUSH" => intel16(true).map { r => (PUSH, OneRegister(r), None, zero)}
+        case "PUSHIX" => P("").map(_ => (PUSH, OneRegister(IX), None, zero))
+        case "PUSHIY" => P("").map(_ => (PUSH, OneRegister(IY), None, zero))
         case "INR" => intel8.map { r => (INC, OneRegister(r), None, zero)}
+        case "INRX" => asmExpression.map { d => (INC, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "INRY" => asmExpression.map { d => (INC, OneRegister(MEM_IY_D), Some(d), zero)}
         case "DCR" => intel8.map { r => (DEC, OneRegister(r), None, zero)}
+        case "DCRX" => asmExpression.map { d => (DEC, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "DCRY" => asmExpression.map { d => (DEC, OneRegister(MEM_IY_D), Some(d), zero)}
         case "ADD" => intel8.map { r => (ADD, OneRegister(r), None, zero)}
+        case "ADDX" => asmExpression.map { d => (ADD, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "ADDY" => asmExpression.map { d => (ADD, OneRegister(MEM_IY_D), Some(d), zero)}
         case "SUB" => intel8.map { r => (SUB, OneRegister(r), None, zero)}
+        case "SUBX" => asmExpression.map { d => (SUB, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "SUBY" => asmExpression.map { d => (SUB, OneRegister(MEM_IY_D), Some(d), zero)}
         case "ADC" => intel8.map { r => (ADC, OneRegister(r), None, zero)}
+        case "ADCX" => asmExpression.map { d => (ADC, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "ADCY" => asmExpression.map { d => (ADC, OneRegister(MEM_IY_D), Some(d), zero)}
         case "SBB" => intel8.map { r => (SBC, OneRegister(r), None, zero)}
+        case "SBCX" => asmExpression.map { d => (SBC, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "SBCY" => asmExpression.map { d => (SBC, OneRegister(MEM_IY_D), Some(d), zero)}
         case "ORA" => intel8.map { r => (OR, OneRegister(r), None, zero)}
+        case "ORX" => asmExpression.map { d => (OR, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "ORY" => asmExpression.map { d => (OR, OneRegister(MEM_IY_D), Some(d), zero)}
         case "ANA" => intel8.map { r => (AND, OneRegister(r), None, zero)}
+        case "ANDX" => asmExpression.map { d => (AND, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "ANDY" => asmExpression.map { d => (AND, OneRegister(MEM_IY_D), Some(d), zero)}
         case "XRA" => intel8.map { r => (XOR, OneRegister(r), None, zero)}
+        case "XORX" => asmExpression.map { d => (XOR, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "XORY" => asmExpression.map { d => (XOR, OneRegister(MEM_IY_D), Some(d), zero)}
         case "CMP" => intel8.map { r => (CP, OneRegister(r), None, zero)}
+        case "CMPX" => asmExpression.map { d => (CP, OneRegister(MEM_IX_D), Some(d), zero)}
+        case "CMPY" => asmExpression.map { d => (CP, OneRegister(MEM_IY_D), Some(d), zero)}
         case "ADI" => asmExpression.map { e => (ADD, OneRegister(IMM_8), None, e)}
         case "ACI" => asmExpression.map { e => (ADC, OneRegister(IMM_8), None, e)}
         case "SUI" => asmExpression.map { e => (SUB, OneRegister(IMM_8), None, e)}
@@ -589,8 +748,22 @@ case class Z80Parser(filename: String,
 
         case "SHLD" => asmExpression.map { e => (LD_16, TwoRegisters(MEM_ABS_16, HL), None, e)}
         case "LHLD" => asmExpression.map { e => (LD_16, TwoRegisters(HL, MEM_ABS_16), None, e)}
+        case "LBCD" => asmExpression.map { e => (LD_16, TwoRegisters(BC, MEM_ABS_16), None, e)}
+        case "SBCD" => asmExpression.map { e => (LD_16, TwoRegisters(MEM_ABS_16, BC), None, e)}
+        case "LDED" => asmExpression.map { e => (LD_16, TwoRegisters(DE, MEM_ABS_16), None, e)}
+        case "SDED" => asmExpression.map { e => (LD_16, TwoRegisters(MEM_ABS_16, DE), None, e)}
+        case "LSPD" => asmExpression.map { e => (LD_16, TwoRegisters(SP, MEM_ABS_16), None, e)}
+        case "SSPD" => asmExpression.map { e => (LD_16, TwoRegisters(MEM_ABS_16, SP), None, e)}
+        case "LIXD" => asmExpression.map { e => (LD_16, TwoRegisters(IX, MEM_ABS_16), None, e)}
+        case "SIXD" => asmExpression.map { e => (LD_16, TwoRegisters(MEM_ABS_16, IX), None, e)}
+        case "LIYD" => asmExpression.map { e => (LD_16, TwoRegisters(IY, MEM_ABS_16), None, e)}
+        case "SIYD" => asmExpression.map { e => (LD_16, TwoRegisters(MEM_ABS_16, IY), None, e)}
         case "STA" => asmExpression.map { e => (LD, TwoRegisters(MEM_ABS_8, A), None, e)}
         case "LDA" => asmExpression.map { e => (LD, TwoRegisters(A, MEM_ABS_8), None, e)}
+        case "LDAI" => P("").map(_ => (LD, TwoRegisters(A, I), None, zero))
+        case "LDAR" => P("").map(_ => (LD, TwoRegisters(A, R), None, zero))
+        case "STAI" => P("").map(_ => (LD, TwoRegisters(I, A), None, zero))
+        case "STAR" => P("").map(_ => (LD, TwoRegisters(R, A), None, zero))
         case "RST" => asmExpression.map {
           case LiteralExpression(value, _) if value >=0 && value <= 7=> (RST, NoRegisters, None, LiteralExpression(value * 8, 1))
           case _ =>
@@ -598,10 +771,14 @@ case class Z80Parser(filename: String,
             (NOP, NoRegisters, None, zero)
         }
 
+        case "INP" => intel8.map { r => (IN_C, OneRegister(r), None, zero) }
+        case "OUTP" => intel8.map { r => (OUT_C, OneRegister(r), None, zero) }
         case "IN" => asmExpression.map { e => (IN_IMM, OneRegister(A), None, e) }
         case "OUT" => asmExpression.map { e => (OUT_IMM, OneRegister(A), None, e) }
 
+        case "DJNZ" => asmExpression.map { e => (DJNZ, NoRegisters, None, e)}
         case "JMP" => asmExpression.map { e => (JP, NoRegisters, None, e)}
+        case "JMPR" | "JR" => asmExpression.map { e => (JR, NoRegisters, None, e)}
         case "JC" => asmExpression.map { e => (JP, IfFlagSet(ZFlag.C), None, e)}
         case "JZ" => asmExpression.map { e => (JP, IfFlagSet(ZFlag.Z), None, e)}
         case "JM" => asmExpression.map { e => (JP, IfFlagSet(ZFlag.S), None, e)}
@@ -610,6 +787,14 @@ case class Z80Parser(filename: String,
         case "JNZ" => asmExpression.map { e => (JP, IfFlagClear(ZFlag.Z), None, e)}
         case "JP" => asmExpression.map { e => (JP, IfFlagClear(ZFlag.S), None, e)}
         case "JPO" => asmExpression.map { e => (JP, IfFlagClear(ZFlag.P), None, e)}
+        case "JRC" => asmExpression.map { e => (JR, IfFlagSet(ZFlag.C), None, e)}
+        case "JRZ" => asmExpression.map { e => (JR, IfFlagSet(ZFlag.Z), None, e)}
+        case "JRM" => asmExpression.map { e => (JR, IfFlagSet(ZFlag.S), None, e)}
+        case "JRPE" => asmExpression.map { e => (JR, IfFlagSet(ZFlag.P), None, e)}
+        case "JRNC" => asmExpression.map { e => (JR, IfFlagClear(ZFlag.C), None, e)}
+        case "JRNZ" => asmExpression.map { e => (JR, IfFlagClear(ZFlag.Z), None, e)}
+        case "JRP" => asmExpression.map { e => (JR, IfFlagClear(ZFlag.S), None, e)}
+        case "JRPO" => asmExpression.map { e => (JR, IfFlagClear(ZFlag.P), None, e)}
           
         case "RET" => imm(RET)
         case "RC" => P("").map { _ => (RET, IfFlagSet(ZFlag.C), None, zero)}
@@ -642,6 +827,18 @@ case class Z80Parser(filename: String,
         case "SHLDE" | "SHLX" => imm(SHLX)
         case "LHLDE" | "LHLX" =>imm(LHLX)
 
+
+        case "RES" => parseSingleBitOpWithIntelSyntax(ZOpcodeClasses.RES_seq, "RES", pos)
+        case "SETB" => parseSingleBitOpWithIntelSyntax(ZOpcodeClasses.SET_seq, "SETB", pos)
+        case "SET" => parseSingleBitOpWithIntelSyntax(ZOpcodeClasses.SET_seq, "SET", pos)
+        case "BIT" => parseSingleBitOpWithIntelSyntax(ZOpcodeClasses.BIT_seq, "BIT", pos)
+        case "RESX" => parseSingleBitIndexedOpWithIntelSyntax(ZOpcodeClasses.RES_seq, MEM_IX_D, "RESX", pos)
+        case "SETX" => parseSingleBitIndexedOpWithIntelSyntax(ZOpcodeClasses.SET_seq, MEM_IX_D, "SETX", pos)
+        case "BITX" => parseSingleBitIndexedOpWithIntelSyntax(ZOpcodeClasses.BIT_seq, MEM_IX_D, "BITX", pos)
+        case "RESY" => parseSingleBitIndexedOpWithIntelSyntax(ZOpcodeClasses.RES_seq, MEM_IY_D, "RESY", pos)
+        case "SETY" => parseSingleBitIndexedOpWithIntelSyntax(ZOpcodeClasses.SET_seq, MEM_IY_D, "SETY", pos)
+        case "BITY" => parseSingleBitIndexedOpWithIntelSyntax(ZOpcodeClasses.BIT_seq, MEM_IY_D, "BITY", pos)
+
         case _ =>
           log.error("Unsupported opcode " + opcode, Some(pos))
           imm(NOP)
@@ -649,6 +846,30 @@ case class Z80Parser(filename: String,
     } yield {
       val (actualOpcode, registers, offset, param) = tuple4
       Z80AssemblyStatement(actualOpcode, registers, offset, param, el)
+    }
+  }
+
+  private def parseSingleBitOpWithIntelSyntax(OP_seq: IndexedSeq[ZOpcode.Value], opcodeString: String, pos: Position): P[(ZOpcode.Value, ZRegisters, Option[Expression], Expression)] = {
+    import ZOpcode.NOP
+    (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ intel8).map {
+      case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), r2)
+        if n >= 0 && n <= 7 && r2 != ZRegister.MEM_BC && r2 != ZRegister.MEM_DE =>
+        (OP_seq(n.toInt), OneRegister(r2), None, zero)
+      case _ =>
+        log.error("Invalid parameters for " + opcodeString, Some(pos))
+        (NOP, NoRegisters, None, zero)
+    }
+  }
+
+  private def parseSingleBitIndexedOpWithIntelSyntax(OP_seq: IndexedSeq[ZOpcode.Value], memIndex: ZRegister.Value, opcodeString: String, pos: Position): P[(ZOpcode.Value, ZRegisters, Option[Expression], Expression)] = {
+    import ZOpcode.NOP
+    (param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ asmExpression).map {
+      case (ZRegister.IMM_8, Some(LiteralExpression(n, _)), e2)
+        if n >= 0 && n <= 7 =>
+        (OP_seq(n.toInt), OneRegister(memIndex), Some(e2), zero)
+      case _ =>
+        log.error("Invalid parameters for " + opcodeString, Some(pos))
+        (NOP, NoRegisters, None, zero)
     }
   }
 

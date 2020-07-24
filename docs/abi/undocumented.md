@@ -69,8 +69,11 @@ AHX, LAS, LXA, SHX, SHY, TAS, XAA.
 ## Z80
 
 Original Z80 processors accidentally supported a bunch of extra undocumented instructions.
-Millfork will not emit them.
-The only exception is SLL, which will be emitted if it occurs in a handwritten assembly block. 
+Millfork will emit some of them if used in an assembly block:
+
+* `SLL` – supported
+* instructions using the IXH, IXL, IYH, IYL registers – supported (can only be used in Zilog syntax)
+* instructions of the form `RLC IX(1),B` – not supported
 
 ## 8085
 

@@ -32,6 +32,10 @@ class Z80Assembler(program: Program,
     case ZRegister.E => 3
     case ZRegister.H => 4
     case ZRegister.L => 5
+    case ZRegister.IXH => 4
+    case ZRegister.IXL => 5
+    case ZRegister.IYH => 4
+    case ZRegister.IYL => 5
     case ZRegister.MEM_HL => 6
     case ZRegister.MEM_IX_D => 6
     case ZRegister.MEM_IY_D => 6
@@ -46,6 +50,8 @@ class Z80Assembler(program: Program,
   private def prefixByte(reg: ZRegister.Value): Int = reg match {
     case ZRegister.IX | ZRegister.MEM_IX_D => 0xdd
     case ZRegister.IY | ZRegister.MEM_IY_D => 0xfd
+    case ZRegister.IXH | ZRegister.IXL => 0xdd
+    case ZRegister.IYH | ZRegister.IYL => 0xfd
   }
 
   override def emitInstruction(bank: String, options: CompilationOptions, index: Int, instr: ZLine): Int = {
@@ -317,6 +323,12 @@ class Z80Assembler(program: Program,
         writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ZRegister.HL) * o.multiplier)
         writeByte(bank, index + 2, instr.parameter)
         index + 3
+      case ZLine0(op, OneRegister(ix@(IXH | IYH | IXL | IYL)), _) if oneRegister.contains(op) =>
+        requireZ80Illegals()
+        val o = oneRegister(op)
+        writeByte(bank, index, prefixByte(ix))
+        writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ix) * o.multiplier)
+        index + 2
       case ZLine0(op, OneRegister(reg), _) if reg != ZRegister.IMM_8 && oneRegister.contains(op) =>
         val o = oneRegister(op)
         writeByte(bank, index, o.opcode + internalRegisterIndex(reg) * o.multiplier)
@@ -428,6 +440,33 @@ class Z80Assembler(program: Program,
             writeByte(bank, index + 1, 0x40 + internalRegisterIndex(ZRegister.MEM_HL) + internalRegisterIndex(target) * 8)
             writeByte(bank, index + 2, offset)
             index + 3
+          case TwoRegisters(target@(IXH | IYH | IXL | IYL), source@(A | B | C | D | E)) =>
+            requireZ80Illegals()
+            writeByte(bank, index, prefixByte(target))
+            writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
+            index + 2
+          case TwoRegisters(target@(A | B | C | D | E), source@(IXH | IYH | IXL | IYL)) =>
+            requireZ80Illegals()
+            writeByte(bank, index, prefixByte(source))
+            writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
+            index + 2
+          case TwoRegisters(target@(IXH | IXL), source@(IXH | IXL)) =>
+            requireZ80Illegals()
+            writeByte(bank, index, prefixByte(source))
+            writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
+            index + 2
+          case TwoRegisters(target@(IYH | IYL), source@(IYH | IYL)) =>
+            requireZ80Illegals()
+            writeByte(bank, index, prefixByte(source))
+            writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
+            index + 2
+          case TwoRegisters(target@(H | L), source@(H | L)) =>
+            writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
+            index + 1
+          case TwoRegisters(target@(IXH | IYH | IXL | IYL | H | L), source@(IXH | IYH | IXL | IYL | H | L)) =>
+            log.error("Cannot assemble " + instr)
+            writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
+            index + 1
           case TwoRegisters(target, source) =>
             writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
             index + 1

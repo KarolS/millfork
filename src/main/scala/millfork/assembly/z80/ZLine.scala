@@ -275,7 +275,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
 
   override def isPrintable: Boolean = true
 
-  private def asAssemblyString(r: ZRegister.Value, offset: Int = 0): String = r match {
+  private def asAssemblyString(r: ZRegister.Value, offset: Int = 666): String = r match {
     case ZRegister.A => "A"
     case ZRegister.B => "B"
     case ZRegister.C => "C"
@@ -325,6 +325,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     case ZRegister.IMM_8 => s"$parameter"
     case ZRegister.IMM_16 => s"$parameter"
     case ZRegister.MEM_HL => "M"
+    case ZRegister.IX => "IX"
+    case ZRegister.IY => "IY"
     case _ => "???"
   }
 
@@ -467,6 +469,12 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case DISCARD_IY => "    ; DISCARD_IY"
       case BYTE => "    DB " + parameter.toString
       case LD => registers match {
+        case TwoRegistersOffset(MEM_IX_D, IMM_8, offset) => s"    MVIX ${parameter.toIntelString}, ${offset}"
+        case TwoRegistersOffset(MEM_IY_D, IMM_8, offset) => s"    MVIY ${parameter.toIntelString}, ${offset}"
+        case TwoRegistersOffset(MEM_IX_D, source, offset) => s"    STX ${asIntelAssemblyString(source)}, ${offset}"
+        case TwoRegistersOffset(MEM_IY_D, source, offset) => s"    STY ${asIntelAssemblyString(source)}, ${offset}"
+        case TwoRegistersOffset(target, MEM_IX_D, offset) => s"    LDX ${asIntelAssemblyString(target)}, ${offset}"
+        case TwoRegistersOffset(target, MEM_IY_D, offset) => s"    LDY ${asIntelAssemblyString(target)}, ${offset}"
         case TwoRegisters(target, IMM_8) => s"    MVI ${asIntelAssemblyString(target)}, ${parameter.toIntelString}"
         case TwoRegisters(A, MEM_ABS_8) => s"    LDA ${parameter.toIntelString}"
         case TwoRegisters(MEM_ABS_8, A) => s"    STA ${parameter.toIntelString}"
@@ -474,42 +482,154 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
         case TwoRegisters(MEM_BC, A) => "    STAX B"
         case TwoRegisters(A, MEM_DE) => "    LDAX D"
         case TwoRegisters(MEM_DE, A) => "    STAX D"
+        case TwoRegisters(I, A) => "    STAI"
+        case TwoRegisters(A, I) => "    LDAI"
+        case TwoRegisters(R, A) => "    STAR"
+        case TwoRegisters(A, R) => "    LDAR"
         case TwoRegisters(target, source) => s"    MOV ${asIntelAssemblyString(target)}, ${asIntelAssemblyString(source)}"
         case _ => "???"
       }
       case LD_16 => registers match {
         case TwoRegisters(SP, HL) => "    SPHL"
+        case TwoRegisters(SP, IX) => "    SPIX"
+        case TwoRegisters(SP, IY) => "    SPIY"
+        case TwoRegisters(IX, IMM_16) => s"    LXIX ${parameter.toIntelString}"
+        case TwoRegisters(IY, IMM_16) => s"    LXIY ${parameter.toIntelString}"
         case TwoRegisters(target, IMM_16) => s"    LXI ${asIntelAssemblyString(target)}, ${parameter.toIntelString}"
         case TwoRegisters(HL, MEM_ABS_16) => s"    LHLD ${parameter.toIntelString}"
+        case TwoRegisters(BC, MEM_ABS_16) => s"    LBCD ${parameter.toIntelString}"
+        case TwoRegisters(DE, MEM_ABS_16) => s"    LDED ${parameter.toIntelString}"
+        case TwoRegisters(IX, MEM_ABS_16) => s"    LIXD ${parameter.toIntelString}"
+        case TwoRegisters(IY, MEM_ABS_16) => s"    LIYD ${parameter.toIntelString}"
+        case TwoRegisters(SP, MEM_ABS_16) => s"    LSPD ${parameter.toIntelString}"
         case TwoRegisters(MEM_ABS_16, HL) => s"    SHLD ${parameter.toIntelString}"
+        case TwoRegisters(MEM_ABS_16, BC) => s"    SBCD ${parameter.toIntelString}"
+        case TwoRegisters(MEM_ABS_16, DE) => s"    SDED ${parameter.toIntelString}"
+        case TwoRegisters(MEM_ABS_16, IX) => s"    SIXD ${parameter.toIntelString}"
+        case TwoRegisters(MEM_ABS_16, IY) => s"    SIYD ${parameter.toIntelString}"
+        case TwoRegisters(MEM_ABS_16, SP) => s"    SSPD ${parameter.toIntelString}"
         case _ => "???"
       }
       case ADD_16 => registers match {
+        case TwoRegisters(IX, source) => s"    DADX ${asIntelAssemblyString(source)}"
+        case TwoRegisters(IY, source) => s"    DADY ${asIntelAssemblyString(source)}"
         case TwoRegisters(HL, source) => s"    DAD ${asIntelAssemblyString(source)}"
         case _ => "???"
       }
+      case ADC_16 => registers match {
+        case TwoRegisters(HL, source) => s"    DADC ${asIntelAssemblyString(source)}"
+        case _ => "???"
+      }
+      case SBC_16 => registers match {
+        case TwoRegisters(HL, source) => s"    DSBC ${asIntelAssemblyString(source)}"
+        case _ => "???"
+      }
       case DEC_16 => registers match {
+        case OneRegister(IX) => s"    DCXIX"
+        case OneRegister(IY) => s"    DCXIY"
         case OneRegister(register) => s"    DCX ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case INC_16 => registers match {
+        case OneRegister(IX) => s"    INXIX"
+        case OneRegister(IY) => s"    INXIY"
         case OneRegister(register) => s"    INX ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case DEC => registers match {
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    DCRX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    DCRY ${offset}"
         case OneRegister(register) => s"    DCR ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case INC => registers match {
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    INRX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    INRY ${offset}"
         case OneRegister(register) => s"    INR ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
+      case op if ZOpcodeClasses.RES(op) => registers match {
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    RESX ${ZOpcodeClasses.RES_seq.indexOf(op)},${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    RESY ${ZOpcodeClasses.RES_seq.indexOf(op)},${offset}"
+        case OneRegister(register) => s"    RES ${ZOpcodeClasses.RES_seq.indexOf(op)},${asIntelAssemblyString(register)}"
+        case _ => "???"
+      }
+      case op if ZOpcodeClasses.SET(op) => registers match {
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SETX ${ZOpcodeClasses.SET_seq.indexOf(op)},${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    SETY ${ZOpcodeClasses.SET_seq.indexOf(op)},${offset}"
+        case OneRegister(register) => s"    SETB ${ZOpcodeClasses.SET_seq.indexOf(op)},${asIntelAssemblyString(register)}"
+        case _ => "???"
+      }
+      case op if ZOpcodeClasses.BIT(op) => registers match {
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    BITX ${ZOpcodeClasses.BIT_seq.indexOf(op)},${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    BITY ${ZOpcodeClasses.BIT_seq.indexOf(op)},${offset}"
+        case OneRegister(register) => s"    BIT ${ZOpcodeClasses.BIT_seq.indexOf(op)},${asIntelAssemblyString(register)}"
+        case _ => "???"
+      }
       case PUSH => registers match {
+        case OneRegister(IX) => s"    PUSHIX"
+        case OneRegister(IY) => s"    PUSHIY"
         case OneRegister(register) => s"    PUSH ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case POP => registers match {
+        case OneRegister(IX) => s"    POPIX"
+        case OneRegister(IY) => s"    POPIY"
         case OneRegister(register) => s"    POP ${asIntelAssemblyString(register)}"
+        case _ => "???"
+      }
+      case IM => parameter match {
+        case NumericConstant(0, _) => s"    IM0"
+        case NumericConstant(1, _) => s"    IM1"
+        case NumericConstant(2, _) => s"    IM2"
+        case _ => "???"
+      }
+      case RL => registers match {
+        case OneRegister(register) => s"    RALR ${asIntelAssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    RALX $offset"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    RALY $offset"
+        case _ => "???"
+      }
+      case RLC => registers match {
+        case OneRegister(register) => s"    RLCR ${asIntelAssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    RLCX $offset"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    RLCY $offset"
+        case _ => "???"
+      }
+      case RR => registers match {
+        case OneRegister(register) => s"    RARR ${asIntelAssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    RARX $offset"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    RARY $offset"
+        case _ => "???"
+      }
+      case RRC => registers match {
+        case OneRegister(register) => s"    RRCR ${asIntelAssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    RRCX $offset"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    RRCY $offset"
+        case _ => "???"
+      }
+      case SLA => registers match {
+        case OneRegister(register) => s"    SLAR ${asIntelAssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SLAX $offset"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    SLAY $offset"
+        case _ => "???"
+      }
+      case SLL => registers match {
+        case OneRegister(register) => s"    SLLR ${asIntelAssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SLLX $offset"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    SLLY $offset"
+        case _ => "???"
+      }
+      case SRA => registers match {
+        case OneRegister(register) => s"    SRAR ${asIntelAssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SRAX $offset"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    SRAY $offset"
+        case _ => "???"
+      }
+      case SRL => registers match {
+        case OneRegister(register) => s"    SRLR ${asIntelAssemblyString(register)}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SRLX $offset"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    SRLY $offset"
         case _ => "???"
       }
       case DAA => "    DAA"
@@ -518,6 +638,13 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case RRA => "    RAR"
       case RRCA => "    RRC"
       case HALT => "    HLT"
+      case LDI|LDIR|LDD|LDDR|INI|INIR|IND|INDR|OUTI|OUTD|EXX|NEG|RLD|RRD|RETN|RETI => "    " + opcode
+      case OUTIR => "    OUTIR"
+      case OUTDR => "    OUTDR"
+      case CPI => "    CCI"
+      case CPIR => "    CCIR"
+      case CPD => "    CCD"
+      case CPDR => "    CCDR"
       case RET => registers match {
         case NoRegisters => "    RET" 
         case IfFlagClear(ZFlag.C) => "    RNC"
@@ -532,6 +659,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       }
       case JP => registers match {
         case OneRegister(HL) => "    PCHL"
+        case OneRegister(IX) => "    PCIX"
+        case OneRegister(IY) => "    PCIY"
         case NoRegisters => s"    JMP ${parameter.toIntelString}"
         case IfFlagClear(ZFlag.C) => s"    JNC ${parameter.toIntelString}"
         case IfFlagClear(ZFlag.Z) => s"    JNZ ${parameter.toIntelString}"
@@ -545,6 +674,15 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
         case IfFlagSet(ZFlag.K) => s"    JK ${parameter.toIntelString}"
         case _ => "???"
       }
+      case JR => registers match {
+        case NoRegisters => s"    JR ${parameter.toIntelString}"
+        case IfFlagClear(ZFlag.C) => s"    JRNC ${parameter.toIntelString}"
+        case IfFlagClear(ZFlag.Z) => s"    JRNZ ${parameter.toIntelString}"
+        case IfFlagSet(ZFlag.C) => s"    JRC ${parameter.toIntelString}"
+        case IfFlagSet(ZFlag.Z) => s"    JRZ ${parameter.toIntelString}"
+        case _ => "???"
+      }
+      case DJNZ => s"    DJNZ ${parameter.toIntelString}"
       case CALL => registers match {
         case NoRegisters => s"    CALL ${parameter.toIntelString}"
         case IfFlagClear(ZFlag.C) => s"    CNC ${parameter.toIntelString}"
@@ -559,50 +697,76 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       }
       case ADD => registers match {
         case OneRegister(IMM_8) => s"    ADI ${parameter.toIntelString}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    ADDX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    ADDY ${offset}"
         case OneRegister(register) => s"    ADD ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case ADC => registers match {
         case OneRegister(IMM_8) => s"    ACI ${parameter.toIntelString}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    ADCX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    ADCY ${offset}"
         case OneRegister(register) => s"    ADC ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case SUB => registers match {
         case OneRegister(IMM_8) => s"    SUI ${parameter.toIntelString}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SUBX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    SUBY ${offset}"
         case OneRegister(register) => s"    SUB ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case SBC => registers match {
         case OneRegister(IMM_8) => s"    SBI ${parameter.toIntelString}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    SBCX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    SBCY ${offset}"
         case OneRegister(register) => s"    SBB ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case AND => registers match {
         case OneRegister(IMM_8) => s"    ANI ${parameter.toIntelString}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    ANDX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    ANDY ${offset}"
         case OneRegister(register) => s"    ANA ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case OR => registers match {
         case OneRegister(IMM_8) => s"    ORI ${parameter.toIntelString}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    ORX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    ORY ${offset}"
         case OneRegister(register) => s"    ORA ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case XOR => registers match {
         case OneRegister(IMM_8) => s"    XRI ${parameter.toIntelString}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    XORX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    XORY ${offset}"
         case OneRegister(register) => s"    XRA ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case CP => registers match {
         case OneRegister(IMM_8) => s"    CPI ${parameter.toIntelString}"
+        case OneRegisterOffset(MEM_IX_D, offset) => s"    CMPX ${offset}"
+        case OneRegisterOffset(MEM_IY_D, offset) => s"    CMPY ${offset}"
         case OneRegister(register) => s"    CMP ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case EX_SP => registers match {
         case OneRegister(HL) => s"    XTHL"
+        case OneRegister(IX) => s"    XTIX"
+        case OneRegister(IY) => s"    XTIY"
         case _ => "???"
       }
       case RST => parameter match {
         case NumericConstant(n, _) if n % 8 == 0 => s"    RST ${n / 8}"
+        case _ => "???"
+      }
+      case IN_C => registers match {
+        case OneRegister(register) => s"    INP ${asIntelAssemblyString(register)}"
+        case _ => "???"
+      }
+      case OUT_C => registers match {
+        case OneRegister(register) => s"    OUTP ${asIntelAssemblyString(register)}"
         case _ => "???"
       }
       case IN_IMM => s"    IN ${parameter.toIntelString}"
@@ -615,6 +779,8 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
       case SCF => "    STC"
       case CCF => "    CMC"
       case EI => "    EI"
+
+      case EX_AF_AF => "    EXAF"
 
       case DSUB => "    DSUB"
       case RRHL => "    ARHL"

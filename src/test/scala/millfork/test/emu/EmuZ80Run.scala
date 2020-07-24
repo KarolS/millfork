@@ -77,7 +77,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
     val log = TestErrorReporting.log
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val extraFlags = Map(
+    var extraFlags = Map(
       CompilationFlag.DangerousOptimizations -> true,
       CompilationFlag.EnableInternalTestSyntax -> true,
       CompilationFlag.InlineFunctions -> this.inline,
@@ -87,6 +87,9 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
       CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80 || cpu == millfork.Cpu.Intel8085 || cpu == millfork.Cpu.Z80Next),
       CompilationFlag.EmitZ80NextOpcodes -> (cpu == millfork.Cpu.Z80Next),
       CompilationFlag.LenientTextEncoding -> true)
+    if (source.contains("intel_syntax")) {
+      extraFlags += CompilationFlag.UseIntelSyntaxForOutput -> true
+    }
     val options = CompilationOptions(platform, millfork.Cpu.defaultFlags(cpu).map(_ -> true).toMap ++ extraFlags, None, 0, Map(), EmuPlatform.textCodecRepository, JobContext(log, new LabelGenerator))
     println(cpu)
     println(options.flags.filter(_._2).keys.toSeq.sorted)
