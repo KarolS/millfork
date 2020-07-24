@@ -6,7 +6,7 @@ volatile byte vic_raster @$9004
 byte vic_freq1  @$900a
 byte vic_freq2  @$900b
 byte vic_freq3  @$900c
-byte vic_volume @$9003
+byte vic_volume @$900e
 byte vic_colors @$900f
 
 macro void set_volume(byte volume) {
