@@ -44,7 +44,13 @@ There are no built-in encodings now, the include path needs to contain the neces
 
 * **Potentially breaking change!** Renamed the `x_coord` module to `coord`. Added the `y_coord` type and `TALLSCREEN` preprocessor feature.
 
+* Added `pscrstr2word` function.
+
 * Labels with fixed addresses are now exported to the label file (#49).
+
+* Fixed address of the VIC 20 volume register (#52) (thanks to @FreddyOffenga).
+
+* Fixed and improved stdlib optimizations.
 
 * Allow importing modules from subdirectories.
 
