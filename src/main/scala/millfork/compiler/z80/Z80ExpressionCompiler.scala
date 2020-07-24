@@ -1404,7 +1404,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         0
     }
     pointy match {
-      case ConstantPointy(baseAddr, _, sizeInBytes, _, _, _, alignment, readOnly) =>
+      case ConstantPointy(baseAddr, _, sizeInBytes, elementCount, _, _, alignment, readOnly) =>
         if (forWriting && readOnly) {
           ctx.log.error("Writing to a constant array", i.position)
         }
@@ -1412,7 +1412,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
           case (None, offset) => List(ZLine.ldImm16(ZRegister.HL, (baseAddr + extraOffset + offset * elementSize).quickSimplify))
           case (Some(index), offset) =>
             val constantPart = (baseAddr + extraOffset + offset * elementSize).quickSimplify
-            if (getExpressionType(ctx, i.index).size == 1 && sizeInBytes.exists(_ < 256) && alignment == WithinPageAlignment) {
+            if (getExpressionType(ctx, i.index).size == 1 && sizeInBytes.exists(_ < 256) && elementCount.forall(_ > 1) && alignment == WithinPageAlignment) {
               compileToA(ctx, i.index) ++ List.fill(logElemSize)(ZLine.register(ADD, ZRegister.A)) ++ List(
                 ZLine.imm8(ADD, constantPart.loByte),
                 ZLine.ld8(ZRegister.L, ZRegister.A),

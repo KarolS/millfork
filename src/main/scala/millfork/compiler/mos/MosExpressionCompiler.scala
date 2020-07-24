@@ -2381,7 +2381,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case _: VariablePointy => return Nil
       case p: ConstantPointy => p.sizeInBytes match {
         case None => return Nil
-        case Some(s) => s
+        case Some(s) =>
+          // don't do checks on arrays size 0 or 1
+          if (p.elementCount.exists(_ < 2)) return Nil
+          s
       }
     }
     ctx.env.eval(index) match {

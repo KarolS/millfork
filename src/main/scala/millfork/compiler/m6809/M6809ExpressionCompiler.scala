@@ -829,7 +829,8 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         ctx.env.getPointy(aname) match {
           case p: VariablePointy => compileToD(ctx, index #*# p.elementType.alignedSize) ++ List(MLine.absolute(ADDD, p.addr), MLine.tfr(M6809Register.D, M6809Register.X))
           case p: ConstantPointy =>
-            if (p.sizeInBytes.exists(_ < 255)) {
+            // don't optimize arrays of size 0 or 1
+            if (p.sizeInBytes.exists(_ < 255) && p.elementCount.forall(_ > 1)) {
               compileToB(ctx, index #*# p.elementType.alignedSize) ++ List(MLine.immediate(LDX, p.value), MLine.inherent(ABX))
             } else {
               compileToX(ctx, index #*# p.elementType.alignedSize) :+ MLine.indexedX(LEAX, p.value)

@@ -437,18 +437,20 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                   val shrunkElementSize = targetType.alignedSize >> shifts
                   val shrunkArraySize = arraySizeInBytes.fold(9999)(_.>>(shifts))
                   val scaledIndex = arraySizeInBytes match {
-                    case Some(n) if n <= 256 => targetType.alignedSize match {
+                    // "n > targetType.alignedSize" means
+                    // "don't do optimizations on arrays size 0 or 1"
+                    case Some(n) if n > targetType.alignedSize && n <= 256 => targetType.alignedSize match {
                       case 1 => "byte" <| index
                       case 2 => "<<" <| ("byte" <| index, LiteralExpression(1, 1))
                       case 4 => "<<" <| ("byte" <| index, LiteralExpression(2, 1))
                       case 8 => "<<" <| ("byte" <| index, LiteralExpression(3, 1))
                       case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.alignedSize, 1))
                     }
-                    case Some(n) if n <= 512 && targetType.alignedSize == 2 =>
+                    case Some(n) if n > targetType.alignedSize && n <= 512 && targetType.alignedSize == 2 =>
                       "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
-                    case Some(n) if n <= 512 && targetType.alignedSize == 2 =>
+                    case Some(n) if n > targetType.alignedSize && n <= 512 && targetType.alignedSize == 2 =>
                       "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
-                    case Some(_) if shrunkArraySize <= 256 =>
+                    case Some(n) if n > targetType.alignedSize && shrunkArraySize <= 256 =>
                       "<<" <| ("word" <| ("*" <| ("byte" <| index, LiteralExpression(shrunkElementSize, 1))), LiteralExpression(shifts, 1))
                     case _ => targetType.alignedSize match {
                       case 1 => "word" <| index
@@ -668,16 +670,18 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 val shrunkElementSize = targetType.alignedSize >> shifts
                 val shrunkArraySize = arraySizeInBytes.fold(9999)(_.>>(shifts))
                 val scaledIndex = arraySizeInBytes match {
-                  case Some(n) if n <= 256 => targetType.alignedSize match {
+                  // "n > targetType.alignedSize" means
+                  // "don't do optimizations on arrays size 0 or 1"
+                  case Some(n) if n > targetType.alignedSize && n <= 256 => targetType.alignedSize match {
                     case 1 => "byte" <| index
                     case 2 => "<<" <| ("byte" <| index, LiteralExpression(1, 1))
                     case 4 => "<<" <| ("byte" <| index, LiteralExpression(2, 1))
                     case 8 => "<<" <| ("byte" <| index, LiteralExpression(3, 1))
                     case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.alignedSize, 1))
                   }
-                  case Some(n) if n <= 512 && targetType.alignedSize == 2 =>
+                  case Some(n) if n > targetType.alignedSize && n <= 512 && targetType.alignedSize == 2 =>
                     "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
-                  case Some(_) if shrunkArraySize <= 256 =>
+                  case Some(n) if n > targetType.alignedSize && shrunkArraySize <= 256 =>
                     "<<" <| ("word" <| ("*" <| ("byte" <| index, LiteralExpression(shrunkElementSize, 1))), LiteralExpression(shifts, 1))
                   case _ => targetType.alignedSize match {
                     case 1 => "word" <| index
