@@ -143,16 +143,16 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       case f:MemsetStatement =>
         Z80BulkMemoryOperations.compileMemset(ctx, f) -> Nil
 
-      case f@ForStatement(_, _, _, _, List(Assignment(target: IndexedExpression, source: IndexedExpression))) =>
+      case f@ForStatement(_, _, _, _, List(Assignment(target: IndexedExpression, source: IndexedExpression)), Nil) =>
         Z80BulkMemoryOperations.compileMemcpy(ctx, target, source, f) -> Nil
 
-      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if ctx.env.overlapsVariable(variable, source) =>
+      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression)), Nil) if ctx.env.overlapsVariable(variable, source) =>
         Z80BulkMemoryOperations.compileMemset(ctx, target, source, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(ExpressionStatement(FunctionCallExpression(
       operator@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
       List(target: IndexedExpression, source: Expression)
-      )))) =>
+      ))), Nil) =>
         Z80BulkMemoryOperations.compileMemtransform(ctx, target, operator, source, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(
@@ -164,7 +164,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       operator2@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
       List(target2: IndexedExpression, source2: Expression)
       ))
-      )) =>
+      ), Nil) =>
         Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, operator1, source1, target2, operator2, source2, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(
@@ -173,7 +173,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       operator2@("+=" | "-=" | "|=" | "&=" | "^=" | "+'=" | "-'=" | "<<=" | ">>="),
       List(target2: IndexedExpression, source2: Expression)
       ))
-      )) =>
+      ), Nil) =>
         Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, "=", source1, target2, operator2, source2, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(
@@ -182,13 +182,13 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
       List(target1: IndexedExpression, source1: Expression)
       )),
       Assignment(target2: IndexedExpression, source2: Expression)
-      )) =>
+      ), Nil) =>
         Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, operator1, source1, target2, "=", source2, f) -> Nil
 
       case f@ForStatement(variable, _, _, _, List(
       Assignment(target1: IndexedExpression, source1: Expression),
       Assignment(target2: IndexedExpression, source2: Expression)
-      )) =>
+      ), Nil) =>
         Z80BulkMemoryOperations.compileMemtransform2(ctx, target1, "=", source1, target2, "=", source2, f) -> Nil
 
       case f: ForStatement =>

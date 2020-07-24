@@ -507,4 +507,89 @@ class ForLoopSuite extends FunSuite with Matchers {
       // OK
     }
   }
+
+
+  test("Looping across arrays") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |
+        | array source = [1,2,3,4,5]
+        | array target[5] @$c000
+        | void main() {
+        |   byte i
+        |   for i:source {
+        |     target[i] = source[i]
+        |   }
+        | }
+        |""".stripMargin) { m =>
+      m.readByte(0xc000) should equal(1)
+      m.readByte(0xc001) should equal(2)
+      m.readByte(0xc002) should equal(3)
+      m.readByte(0xc003) should equal(4)
+      m.readByte(0xc004) should equal(5)
+    }
+  }
+  test("Looping across arrays 2") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |
+        | array source = [1,2,3,4,5]
+        | array target[5] @$c000
+        | void main() {
+        |   byte i
+        |   byte w
+        |   for i,w:source {
+        |     target[i] = w
+        |   }
+        | }
+        |""".stripMargin) { m =>
+      m.readByte(0xc000) should equal(1)
+      m.readByte(0xc001) should equal(2)
+      m.readByte(0xc002) should equal(3)
+      m.readByte(0xc003) should equal(4)
+      m.readByte(0xc004) should equal(5)
+    }
+  }
+  test("Looping across arrays 3") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |
+        | array source = [1,2,3,4,5]
+        | array target[5] @$c000
+        | void main() {
+        |   byte i
+        |   pointer.byte p
+        |   for i,p:source {
+        |     target[i] = p[0]
+        |   }
+        | }
+        |""".stripMargin) { m =>
+      m.readByte(0xc000) should equal(1)
+      m.readByte(0xc001) should equal(2)
+      m.readByte(0xc002) should equal(3)
+      m.readByte(0xc003) should equal(4)
+      m.readByte(0xc004) should equal(5)
+    }
+  }
+  test("Looping across arrays 4") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |
+        | array target[5] @$c000 = [1,2,3,4,5]
+        | void main() {
+        |   byte i
+        |   pointer.byte p
+        |   for i,p:target {
+        |     p[0] += 1
+        |   }
+        | }
+        |""".stripMargin) { m =>
+      m.readByte(0xc000) should equal(2)
+      m.readByte(0xc001) should equal(3)
+      m.readByte(0xc002) should equal(4)
+      m.readByte(0xc003) should equal(5)
+      m.readByte(0xc004) should equal(6)
+    }
+  }
+
 }

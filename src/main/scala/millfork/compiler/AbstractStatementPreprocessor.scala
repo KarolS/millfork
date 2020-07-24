@@ -199,12 +199,12 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         val (b, _) = optimizeStmts(body, Map())
         val (i, _) = optimizeStmts(inc, Map())
         DoWhileStatement(b, i, c, labels).pos(pos) -> Map()
-      case f@ForEachStatement(v, arr, body) =>
+      case f@ForEachStatement(v, pv, arr, body) =>
         for (a <- arr.right.getOrElse(Nil)) cv = search(a, cv)
         val a = arr.map(_.map(optimizeExpr(_, Map())))
         val (b, _) = optimizeStmts(body, Map())
-        ForEachStatement(v, a, b).pos(pos) -> Map()
-      case f@ForStatement(v, st, en, dir, body) =>
+        ForEachStatement(v, pv, a, b).pos(pos) -> Map()
+      case f@ForStatement(v, st, en, dir, body, Nil) =>
 
         // detect a memset
         f.body match {
@@ -269,6 +269,12 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
             val (b, _) = optimizeStmts(body, Map())
             ForStatement(v, s, e, dir, b).pos(pos) -> Map()
         }
+      case f@ForStatement(v, st, en, dir, body, increment) =>
+        val s = optimizeExpr(st, Map())
+        val e = optimizeExpr(en, Map())
+        val (b, _) = optimizeStmts(body, Map())
+        val (i, _) = optimizeStmts(increment, Map())
+        ForStatement(v, s, e, dir, b, i).pos(pos) -> Map()
       case _ => stmt -> Map()
     }
   }

@@ -544,8 +544,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       labelStatement |
       ifStatement |
       whileStatement |
-      forStatement |
       forEachStatement |
+      forStatement |
       doWhileStatement |
       breakStatement |
       continueStatement |
@@ -618,7 +618,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   } yield Seq(WhileStatement(condition, body.toList, Nil))
 
   def forStatement: P[Seq[ExecutableStatement]] = for {
-    identifier <- "for" ~ SWS ~ identifier ~ HWS ~ "," ~/ HWS ~ Pass
+    identifier <- "for" ~/ SWS ~/ identifier ~/ HWS ~ "," ~/ HWS ~ Pass
     start <- mfExpression(nonStatementLevel, false) ~ HWS ~ "," ~/ HWS ~/ Pass
     direction <- forDirection ~/ HWS ~/ "," ~/ HWS ~/ Pass
     end <- mfExpression(nonStatementLevel, false)
@@ -626,10 +626,10 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   } yield Seq(ForStatement(identifier, start, end, direction, body.toList))
 
   def forEachStatement: P[Seq[ExecutableStatement]] = for {
-    id <- "for" ~ SWS ~/ identifier ~/ HWS ~ ":" ~/ HWS ~ Pass
+    id <- "for" ~ SWS ~ identifier ~ HWS ~ ("," ~ HWS ~ identifier ~ HWS).? ~ ":" ~/ HWS ~ Pass
     values <- ("[" ~/ AWS ~/ mfExpression(0, false).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ "]" ~/ "").map(seq => Right(seq.toList)) | mfExpression(0, false).map(Left(_))
     body <- AWS ~ executableStatements
-  } yield Seq(ForEachStatement(id, values, body.toList))
+  } yield Seq(ForEachStatement(id._1, id._2, values, body.toList))
 
   def inlineAssembly: P[Seq[ExecutableStatement]] = "asm" ~ !letterOrDigit ~/ AWS ~ asmStatements
 

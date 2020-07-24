@@ -112,6 +112,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
   def compileForStatement(ctx: CompilationContext, f: ForStatement): (List[T], List[T]) = {
     // TODO: check sizes
     // TODO: special faster cases
+    val extraIncrement = f.extraIncrement
     val p = f.position
     val vex = VariableExpression(f.variable)
     val indexType = ctx.env.get[Variable](f.variable).typ
@@ -175,13 +176,13 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
       case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(255, _))) if indexType.size == 1 =>
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
-          DoWhileStatement(f.body, List(increment), FunctionCallExpression("!=", List(vex, LiteralExpression(0, 1).pos(p))), names).pos(p)
+          DoWhileStatement(f.body, increment :: extraIncrement, FunctionCallExpression("!=", List(vex, LiteralExpression(0, 1).pos(p))), names).pos(p)
         ))
 
       case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(0xffff, _))) if indexType.size == 2 =>
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
-          DoWhileStatement(f.body, List(increment), FunctionCallExpression("!=", List(vex, LiteralExpression(0, 2).pos(p))), names).pos(p)
+          DoWhileStatement(f.body, increment :: extraIncrement, FunctionCallExpression("!=", List(vex, LiteralExpression(0, 2).pos(p))), names).pos(p)
         ))
 
       case (ForDirection.Until | ForDirection.ParallelUntil, Some(c), Some(NumericConstant(256, _)))
@@ -193,19 +194,19 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
         // BNE loop
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
-          DoWhileStatement(f.body, List(increment), FunctionCallExpression("!=", List(vex, LiteralExpression(0, 1).pos(p))), names).pos(p)
+          DoWhileStatement(f.body, increment :: extraIncrement, FunctionCallExpression("!=", List(vex, LiteralExpression(0, 1).pos(p))), names).pos(p)
         ))
 
       case (ForDirection.ParallelUntil, Some(NumericConstant(0, _)), Some(NumericConstant(e, _))) if e > 0 =>
         compile(ctx, List(
           Assignment(vex, f.end),
-          DoWhileStatement(Nil, decrement :: f.body, FunctionCallExpression("!=", List(vex, f.start)), names).pos(p)
+          DoWhileStatement(Nil, decrement :: (f.body ++ extraIncrement), FunctionCallExpression("!=", List(vex, f.start)), names).pos(p)
         ))
 
       case (ForDirection.Until, Some(NumericConstant(s, _)), Some(NumericConstant(e, _))) if s >= 0 && e > 0 && s < e =>
         compile(ctx, List(
           Assignment(vex, f.start).pos(p),
-          DoWhileStatement(f.body, increment::Nil, FunctionCallExpression("!=", List(vex, f.end)).pos(p), names).pos(p)
+          DoWhileStatement(f.body, increment :: extraIncrement, FunctionCallExpression("!=", List(vex, f.end)).pos(p), names).pos(p)
         ))
 
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(e, esize))) if s == e =>
@@ -222,7 +223,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           ).pos(p),
           DoWhileStatement(
             decrement :: f.body,
-            Nil,
+            extraIncrement,
             FunctionCallExpression("!=", List(vex, f.end)).pos(p), names).pos(p)
         ))
       case (ForDirection.DownTo, Some(NumericConstant(s, ssize)), Some(NumericConstant(0, _))) if s > 0 =>
@@ -233,7 +234,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           ).pos(p),
           DoWhileStatement(
             decrement :: f.body,
-            Nil,
+            extraIncrement,
             FunctionCallExpression("!=", List(vex, f.end)).pos(p),
             names
           ).pos(p)
@@ -245,7 +246,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           Assignment(vex, f.start).pos(p),
           WhileStatement(
             FunctionCallExpression("!=", List(vex, f.end)).pos(p),
-            f.body, List(increment), names).pos(p)
+            f.body, increment :: extraIncrement, names).pos(p)
         ))
 //          case (ForDirection.To | ForDirection.ParallelTo, _, Some(NumericConstant(n, _))) if n > 0 && n < 255 =>
 //            compile(ctx, List(
@@ -263,7 +264,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
             List(IfStatement(
               FunctionCallExpression("==", List(vex, f.end)).pos(p),
               List(BreakStatement(f.variable).pos(p)),
-              List(increment)
+              increment :: extraIncrement
             )),
             names)
         ))
@@ -274,7 +275,7 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
           Assignment(vex, f.start).pos(p),
           DoWhileStatement(
             f.body,
-            List(decrement),
+            decrement :: extraIncrement,
             FunctionCallExpression("!=", List(vex, endMinusOne)).pos(p),
             names
           ).pos(p)
@@ -317,14 +318,75 @@ abstract class AbstractStatementCompiler[T <: AbstractCode] {
       case Left(expr) =>
         expr match {
           case VariableExpression(id) =>
-            ctx.env.get[Thing](id) match {
-              case EnumType(_, Some(count)) =>
+            (ctx.env.maybeGet[Thing](id), ctx.env.maybeGet[Thing](id + ".array")) match {
+              case (Some(EnumType(_, Some(count))), _) =>
+                if (f.pointerVariable.isDefined) {
+                  ctx.log.error("You can use only one variable when iteration over an enum type", f.position)
+                }
                 return compile(ctx, ForStatement(
                   f.variable,
                   FunctionCallExpression(id, List(LiteralExpression(0, 1))),
                   FunctionCallExpression(id, List(LiteralExpression(count, 1))),
                   ForDirection.ParallelUntil,
                   f.body
+                ))
+              case pair@(
+                (Some(ConstantThing(_, MemoryAddressConstant(_: MfArray), _)), _) |
+                (_, Some(_: MfArray))
+                ) =>
+                val arr: MfArray = pair match {
+                  case (_, Some(a: MfArray)) => a
+                  case (Some(ConstantThing(_, MemoryAddressConstant(a: MfArray) ,_)), _) => a
+                  case _ => ???
+                }
+                val (initialAssignment, inLoopAssignment, extraIncrement, orderImportant):
+                  (List[ExecutableStatement], List[ExecutableStatement], List[ExecutableStatement], Boolean) = f.pointerVariable match {
+                  case Some(pv) =>
+                    ctx.env.maybeGet[Variable](pv) match {
+                      case Some(v: Variable) =>
+                        val elTyp = arr.elementType
+                        val isValue = elTyp.isAssignableTo(v.typ)
+                        val isPointer = v.typ match {
+                          case PointerType(_, targetName, _) => elTyp.name == targetName
+                          case _ => false
+                        }
+                        if (!isValue && !isPointer) {
+                          ctx.log.error(s"Incompatible type for second iteration variable: got ${v.typ.name}, required ${elTyp.name} or pointer.${elTyp.name}", f.position)
+                        }
+                        val initialAss = if (isPointer) {
+                          List(Assignment(
+                            VariableExpression(pv),
+                            VariableExpression(arr.name.stripSuffix(".array") + ".pointer")
+                          ))
+                        } else Nil
+                        val inLoopAss = if (isValue) {
+                          List(Assignment(
+                            VariableExpression(pv),
+                            IndexedExpression(arr.name, VariableExpression(f.variable))
+                          ))
+                        } else Nil
+                        val increment = if (isPointer) {
+                          List(ExpressionStatement(FunctionCallExpression("+=", List(
+                            VariableExpression(pv + ".raw"),
+                            FunctionCallExpression("sizeof", List(VariableExpression(elTyp.name)))
+                          ))))
+                        } else Nil
+                        (initialAss, inLoopAss, increment, isPointer)
+                      case None =>
+                        ctx.log.error(s"Undefined variable: ${pv}", f.position)
+                        (Nil, Nil, Nil, true)
+                    }
+                  case None =>
+                    (Nil, Nil, Nil, true)
+                }
+                val usesIterationVariable = f.body.exists(_.getAllExpressions.exists(_.containsVariable(f.variable)))
+                return compile(ctx, initialAssignment :+ ForStatement(
+                  f.variable,
+                  LiteralExpression(0, 1),
+                  LiteralExpression(arr.elementCount, Constant.minimumSize(arr.elementCount)),
+                  if (usesIterationVariable && orderImportant) ForDirection.Until else ForDirection.ParallelUntil,
+                  inLoopAssignment ++ f.body,
+                  extraIncrement
                 ))
               case _ =>
             }

@@ -11,7 +11,7 @@ import millfork.node._
 class MosStatementPreprocessor(ctx: CompilationContext, statements: List[ExecutableStatement]) extends AbstractStatementPreprocessor(ctx, statements) {
 
   def maybeOptimizeForStatement(f: ForStatement): Option[(ExecutableStatement, VV)] = {
-    if (optimize && !f.variable.contains(".") && env.get[Variable](f.variable).typ.size == 2) {
+    if (f.extraIncrement.isEmpty && optimize && !f.variable.contains(".") && env.get[Variable](f.variable).typ.size == 2) {
       (env.eval(f.start), env.eval(f.end)) match {
         case (Some(NumericConstant(s, _)), Some(NumericConstant(e, _))) if (s & 0xffff) == s && (e & 0xffff) == e =>
           f.direction match {

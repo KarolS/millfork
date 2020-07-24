@@ -305,11 +305,11 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         compileDoWhileStatement(ctx, s)
       case f:MemsetStatement =>
         MosBulkMemoryOperations.compileMemset(ctx, f) -> Nil
-      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression))) if !ctx.env.overlapsVariable(variable, source) =>
+      case f@ForStatement(variable, _, _, _, List(Assignment(target: IndexedExpression, source: Expression)), Nil) if !ctx.env.overlapsVariable(variable, source) =>
         MosBulkMemoryOperations.compileMemset(ctx, target, source, f) -> Nil
       case f@ForStatement(variable, start, end, _, List(ExpressionStatement(
       FunctionCallExpression(operator@("+=" | "-=" | "+'=" | "-'=" | "|=" | "^=" | "&="), List(target: VariableExpression, source))
-      ))) if !ctx.env.overlapsVariable(variable, source) &&
+      )), Nil) if !ctx.env.overlapsVariable(variable, source) &&
         !ctx.env.overlapsVariable(variable, target) &&
         !ctx.env.overlapsVariable(target.name, start) &&
         !ctx.env.overlapsVariable(target.name, end) =>
@@ -319,7 +319,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         }
       case f@ForStatement(variable, start, end, _, List(ExpressionStatement(
       FunctionCallExpression(operator@("+=" | "-=" | "<<=" | ">>="), List(target: IndexedExpression, source))
-      ))) if !ctx.env.overlapsVariable(variable, source) &&
+      )), Nil) if !ctx.env.overlapsVariable(variable, source) &&
         !ctx.env.overlapsVariable(target.name, start) &&
         !ctx.env.overlapsVariable(target.name, end) && target.name != variable =>
         MosBulkMemoryOperations.compileMemmodify(ctx, target, operator, source, f) match {

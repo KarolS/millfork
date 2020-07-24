@@ -371,11 +371,17 @@ for <variable> , <start> , <direction> , <end> {
 }
 for <variable> : <enum type> {
 }
+for <variable> : <array> {
+}
+for <variable> , <variable2> : <array> {
+}
 for <variable> : [ <comma separated expressions> ]  {
 }
 ```
 
 * `<variable>` – an already defined numeric variable
+
+* `<variable2>` – an already defined numeric variable
 
 * `<direction>` – the type of range to traverse:
 
@@ -410,6 +416,9 @@ for <variable> : [ <comma separated expressions> ]  {
     
 
 * `<enum type>` – traverse enum constants of given type, in arbitrary order
+
+* `<array>` – traverse array contents, in arbitrary order,
+assigning the index to `<variable>` and either the element or the pointer to the element to `<variable2>`
 
 * `<comma separated expressions>` – traverse every value in the list, in the given order.
 Values do not have to be constant.

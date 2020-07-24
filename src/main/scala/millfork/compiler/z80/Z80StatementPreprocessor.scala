@@ -39,7 +39,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
 
 
   def maybeOptimizeForStatement(f: ForStatement): Option[(ExecutableStatement, VV)] = {
-    if (!ctx.options.flag(CompilationFlag.DangerousOptimizations)) return None
+    if (f.extraIncrement.isEmpty && !ctx.options.flag(CompilationFlag.DangerousOptimizations)) return None
     // TODO: figure out when this is useful
     // Currently all instances of arr[i] are replaced with arr`popt##`i[0], where arr`popt`i is a new pointer variable.
     // This breaks the main Millfork promise of not using hidden variables!

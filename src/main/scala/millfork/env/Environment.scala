@@ -2328,6 +2328,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       nameCheck(s.start)
       nameCheck(s.end)
       nameCheck(s.body)
+      nameCheck(s.extraIncrement)
+    case s: ForEachStatement =>
+      checkName[Variable]("Variable", s.variable, s.position)
+      s.pointerVariable.foreach(pv => checkName[Variable]("Variable", pv, s.position))
+      nameCheck(s.body)
     case s:IfStatement =>
       nameCheck(s.condition)
       nameCheck(s.thenBranch)

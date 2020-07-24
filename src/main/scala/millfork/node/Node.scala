@@ -755,14 +755,15 @@ object ForDirection extends Enumeration {
   val To, Until, DownTo, ParallelTo, ParallelUntil = Value
 }
 
-case class ForStatement(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: List[ExecutableStatement]) extends CompoundStatement {
-  override def getAllExpressions: List[Expression] = VariableExpression(variable) :: start :: end :: body.flatMap(_.getAllExpressions)
+case class ForStatement(variable: String, start: Expression, end: Expression, direction: ForDirection.Value, body: List[ExecutableStatement], extraIncrement: List[ExecutableStatement] = Nil) extends CompoundStatement {
+  override def getAllExpressions: List[Expression] = VariableExpression(variable) :: start :: end :: (body.flatMap(_.getAllExpressions) ++ extraIncrement.flatMap(_.getAllExpressions))
 
-  override def getChildStatements: Seq[Statement] = body
+  override def getChildStatements: Seq[Statement] = body ++ extraIncrement
 
   override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {
     val b = body.map(f)
-    if (b.forall(_.isDefined)) Some(ForStatement(variable, start, end, direction, b.map(_.get)).pos(this.position))
+    val i = extraIncrement.map(f)
+    if (b.forall(_.isDefined) && i.forall(_.isDefined)) Some(ForStatement(variable, start, end, direction, b.map(_.get), i.map(_.get)).pos(this.position))
     else None
   }
 
@@ -785,13 +786,13 @@ case class MemsetStatement(start: Expression, size: Constant, value: Expression,
   override def loopVariable: String = original.fold("_none")(_.loopVariable)
 }
 
-case class ForEachStatement(variable: String, values: Either[Expression, List[Expression]], body: List[ExecutableStatement]) extends CompoundStatement {
+case class ForEachStatement(variable: String, pointerVariable: Option[String], values: Either[Expression, List[Expression]], body: List[ExecutableStatement]) extends CompoundStatement {
   override def getAllExpressions: List[Expression] = VariableExpression(variable) :: (values.fold[List[Expression]](_ => Nil, identity) ++ body.flatMap(_.getAllExpressions))
 
   override def getChildStatements: Seq[Statement] = body
   override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {
     val b = body.map(f)
-    if (b.forall(_.isDefined)) Some(ForEachStatement(variable,values, b.map(_.get)).pos(this.position))
+    if (b.forall(_.isDefined)) Some(ForEachStatement(variable, pointerVariable, values, b.map(_.get)).pos(this.position))
     else None
   }
 
