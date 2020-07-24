@@ -73,27 +73,36 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     // stdlib:
     if (optimizeStdlib) {
       stmt match {
-        case ExpressionStatement(FunctionCallExpression("putstrz", List(TextLiteralExpression(text)))) =>
-          text.lastOption match {
-            case Some(LiteralExpression(0, _)) =>
-              text.size match {
-                case 1 =>
-                  ctx.log.debug("Removing putstrz with empty argument", stmt.position)
-                  return EmptyStatement(Nil) -> currentVarValues
-                case 2 =>
+        case ExpressionStatement(FunctionCallExpression("putstrz", List(TextLiteralExpression(text))))
+          if StdLibOptUtils.isValidNulTerminated(ctx.options.platform.defaultCodec, text) =>
+            text.size match {
+              case 1 =>
+                ctx.log.debug("Removing putstrz with empty argument", stmt.position)
+                return EmptyStatement(Nil) -> currentVarValues
+              case 2 =>
+                ctx.log.debug("Replacing putstrz with putchar", stmt.position)
+                return ExpressionStatement(FunctionCallExpression("putchar", List(text.head))) -> currentVarValues
+              case 3 =>
+                if (ctx.options.platform.cpuFamily == CpuFamily.M6502) {
                   ctx.log.debug("Replacing putstrz with putchar", stmt.position)
-                  return ExpressionStatement(FunctionCallExpression("putchar", List(text.head))) -> currentVarValues
-                case 3 =>
-                  if (ctx.options.platform.cpuFamily == CpuFamily.M6502) {
-                    ctx.log.debug("Replacing putstrz with putchar", stmt.position)
-                    return IfStatement(FunctionCallExpression("==", List(LiteralExpression(1, 1), LiteralExpression(1, 1))), List(
-                      ExpressionStatement(FunctionCallExpression("putchar", List(text.head))),
-                      ExpressionStatement(FunctionCallExpression("putchar", List(text(1))))
-                    ), Nil) -> currentVarValues
-                  }
-                case _ =>
-              }
-          }
+                  return IfStatement(FunctionCallExpression("==", List(LiteralExpression(1, 1), LiteralExpression(1, 1))), List(
+                    ExpressionStatement(FunctionCallExpression("putchar", List(text.head))),
+                    ExpressionStatement(FunctionCallExpression("putchar", List(text(1))))
+                  ), Nil) -> currentVarValues
+                }
+              case _ =>
+            }
+        case ExpressionStatement(FunctionCallExpression("putpstr", List(TextLiteralExpression(text))))
+          if StdLibOptUtils.isValidPascal(text) =>
+            text.length match {
+              case 1 =>
+                ctx.log.debug("Removing putpstr with empty argument", stmt.position)
+                return EmptyStatement(Nil) -> currentVarValues
+              case 2 =>
+                ctx.log.debug("Replacing putpstr with putchar", stmt.position)
+                return ExpressionStatement(FunctionCallExpression("putchar", List(text(1)))) -> currentVarValues
+              case _ =>
+            }
         case _ =>
       }
     }
@@ -360,12 +369,11 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
     if (optimizeStdlib) {
       expr match {
         case FunctionCallExpression("strzlen", List(TextLiteralExpression(text))) =>
-          text.lastOption match {
-            case Some(LiteralExpression(0, _)) if text.size <= 256 =>
-              ctx.log.debug("Replacing strzlen with constant argument", expr.position)
-              return LiteralExpression(text.size - 1, 1)
-            case _ =>
-          }
+          StdLibOptUtils.evalStrzLen(ctx, expr, ctx.options.platform.defaultCodec , text).foreach(return _)
+        case FunctionCallExpression("scrstrzlen", List(TextLiteralExpression(text))) =>
+          StdLibOptUtils.evalStrzLen(ctx, expr, ctx.options.platform.defaultCodec, text).foreach(return _)
+        case FunctionCallExpression("pstrlen", List(TextLiteralExpression(text))) =>
+          StdLibOptUtils.evalPStrLen(ctx, expr, text).foreach(return _)
         case _ =>
       }
     }

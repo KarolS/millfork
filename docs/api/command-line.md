@@ -218,7 +218,7 @@ Default: yes.
 
 * `-foptimize-stdlib`, `-fno-optimize-stdlib` – 
 Whether should replace some standard library calls with constant parameters with more efficient variants.
-Currently affects `putstrz` and `strzlen`, but may affect more functions in the future.
+Currently affects `putstrz`, `putpstr`, `strzlen`, `scrstrlen` and `pstrlen`, but may affect more functions in the future.
 `.ini` equivalent: `optimize_stdlib`.
 Default: no.
 

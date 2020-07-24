@@ -1,10 +1,22 @@
 noinline void putchar(byte b) { }
 noinline void putstrz(pointer p) { putchar(0) }
-byte strzlen(pointer str) {
+noinline void putpstr(pointer p) { putchar(0) }
+noinline byte strzlen(pointer str) {
     byte index
     index = 0
-    while str[index] != 0 {
+    while str[index] != nullchar {
         index += 1
     }
     return index
+}
+noinline byte scrstrzlen(pointer str) {
+    byte index
+    index = 0
+    while str[index] != nullchar_scr {
+        index += 1
+    }
+    return index
+}
+noinline byte pstrlen(pointer str) {
+    return str[0]
 }

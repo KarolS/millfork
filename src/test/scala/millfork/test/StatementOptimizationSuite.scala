@@ -62,16 +62,24 @@ class StatementOptimizationSuite extends FunSuite with Matchers {
       """
         | import stdio
         | byte output @$c000
+        | byte output2 @$c002
+        | byte output3 @$c003
         | void main() {
         |   output = strzlen("test"z)
+        |   output2 = scrstrzlen("test"z)
+        |   output3 = pstrlen("test"p)
         |   putstrz(""z)
         |   putstrz("a"z)
+        |   putpstr(""p)
+        |   putpstr("a"p)
         |   putstrz("bc"z)
         |   putstrz("def"z)
         | }
       """.stripMargin
     ) { m =>
       m.readByte(0xc000) should equal(4)
+      m.readByte(0xc002) should equal(4)
+      m.readByte(0xc003) should equal(4)
     }
   }
 }
