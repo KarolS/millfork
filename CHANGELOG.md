@@ -48,7 +48,7 @@ There are no built-in encodings now, the include path needs to contain the neces
 
 * Labels with fixed addresses are now exported to the label file (#49).
 
-* Fixed address of the VIC 20 volume register (#52) (thanks to @FreddyOffenga).
+* Fixed address of the VIC 20 volume register (#52) (thanks to @nippur72).
 
 * Fixed and improved stdlib optimizations.
 
