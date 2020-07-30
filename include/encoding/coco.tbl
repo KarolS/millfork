@@ -1,0 +1,12 @@
+NAME=Color-Computer
+EOT=00
+
+20=U+0020
+21-3f=!"#$%&'()*+,-./0123456789:;<=>?
+40-5f=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]↑←
+
+{b}=08
+{n}=0d
+{q}=22
+{apos}=27
+^=5E

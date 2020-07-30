@@ -27,7 +27,8 @@ VIC 20 (requires KERNAL),
 Atari,
 Amstrad CPC,
 ZX Spectrum,
-NEC PC-88.
+NEC PC-88,
+Tandy Color Computer.
 
 #### `const byte KEY_ENTER`
 

@@ -4,6 +4,8 @@
 
 * Support for Motorola 6809 (complete, but still experimental).
 
+* Preliminary support for Tandy Color Computer running RS-DOS.
+
 * Added support for modifying large variables via pointers.
 
 * Added the ability to declare structure alignment.
@@ -22,6 +24,7 @@ There are no built-in encodings now, the include path needs to contain the neces
 
 * Added encodings:
 `apple2c`, `apple2e`, `apple2gs`,
+`coco`, `cocoscr`,
 `cpc_da`, `cpc_en`, `cpc_es`, `cpc_fr`,
 `cp437`, `cp850`, `cp851`, `cp852`, `cp855`, `cp858`, `cp866`, 
 `cp1250`, `cp1251`, `cp1252`,

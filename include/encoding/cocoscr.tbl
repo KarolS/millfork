@@ -1,0 +1,11 @@
+NAME=Color-Computer-Screen
+EOT=D0
+
+60=U+0020
+61-7f=!"#$%&'()*+,-./0123456789:;<=>?
+40-5f=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]↑←
+
+{b}=08
+{q}=62
+{apos}=67
+^=5E

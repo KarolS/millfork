@@ -108,6 +108,10 @@ English, Japanese, Spanish/Italian and French/German respectively
 
 * `galaksija` – text encoding used on Galaksija computers
 
+* `coco` – text encoding used on Tandy Color Computer
+
+* `cocoscr` – Tandy Color Computer screencodes
+
 * `ebcdic` – EBCDIC codepage 037 (partial coverage)
 
 * `utf8` – UTF-8
@@ -208,6 +212,7 @@ Encoding | lowercase letters | backslash | currencies | intl | card suits
 `cpc_fr`            | yes  | no  | £    | French⁷   | yes 
 `cpc_da`            | yes  | no  | £    | Nor/Dan.  | yes 
 `vectrex`           | no   | yes |      | none      | no   
+`coco`,`cocoscr`    | no   | yes |      | none      | no   
 `pokemon1jp`        | no   | no  |      | both kana | no
 `pokemon1en`        | yes  | no  |      | none      | no
 `pokemon1fr`        | yes  | no  |      | Ger/Fre.  | no
@@ -264,5 +269,7 @@ Encoding | new line | braces | backspace | cursor movement | text colour | rever
 `koi7n2`            | yes | no  | yes | no  | no  | no  | no  
 `koi8*`             | yes | yes | yes | no  | no  | no  | no  
 `vectrex`           | no  | no  | no  | no  | no  | no  | no  
+`coco`              | yes | no  | yes | no  | no  | no  | no  
+`cocoscr`           | no  | no  | no  | no  | no  | no  | no  
 `utf*`              | yes | yes | yes | no  | no  | no  | no  
 all the rest        | yes | yes | no  | no  | no  | no  | no

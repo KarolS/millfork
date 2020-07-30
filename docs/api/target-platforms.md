@@ -99,6 +99,9 @@ The compiler emits COM files.
 
 * `cpm_z80` – CP/M on Z80
 
+* `coco_rsdos` – Tandy Color Computer running RS-DOS. (very experimental)
+Read [the Color Computer programming guide](./coco-programming-guide.md) for more info.
+
 * `dos_com` – a COM file for DOS on IBM PC. (very experimental)
 
 * `x16_experimental` – Commander X16; very experimental,

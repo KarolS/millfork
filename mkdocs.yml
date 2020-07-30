@@ -18,6 +18,7 @@ nav:
         - BBC Micro: api/bbcmicro-programming-guide.md
         - Game Boy: api/gb-programming-guide.md
         - NES/Famicom: api/famicom-programming-guide.md
+        - Color Computer: api/coco-programming-guide.md
   - Language reference:
     - Preprocessor: lang/preprocessor.md
     - Modules: lang/modules.md

@@ -144,6 +144,10 @@ __readkey__start:
 #define OK = 1
 #endif
 
+#if COCO
+import coco/keyboard
+#define OK = 1
+#endif
 
 #if not(OK)
     #if KEYBOARD

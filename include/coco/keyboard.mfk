@@ -1,0 +1,7 @@
+
+noinline asm byte readkey() {
+    clr <$6f
+    jsr [$A000]
+    tfr b,a
+    rts
+}
