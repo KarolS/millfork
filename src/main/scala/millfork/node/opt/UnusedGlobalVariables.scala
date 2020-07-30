@@ -23,7 +23,7 @@ object UnusedGlobalVariables extends NodeOptimization {
     val allReadVariables = resolveAliases(aliases, getAllReadVariables(nodes).toSet)
     val unusedVariables = allNonvolatileGlobalVariables -- allReadVariables
     if (unusedVariables.nonEmpty) {
-      options.log.debug("Removing unused global variables: " + unusedVariables.mkString(", "))
+      options.log.debug("Removing unused global variables: " + unusedVariables.toSeq.sorted.mkString(", "))
     }
     removeVariablesFromProgram(nodes, unusedVariables.flatMap(v => Set(v, v + ".hi", v + ".lo")))
   }

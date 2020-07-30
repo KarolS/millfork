@@ -63,7 +63,7 @@ object UnusedLocalVariables extends NodeOptimization {
         }.flatMap(getAllReadVariables(_)).toSet
     val localsToRemove = allLocals.filterNot(allRead).toSet
     if (localsToRemove.nonEmpty) {
-      log.debug("Removing unused local variables: " + localsToRemove.mkString(", "))
+      log.debug("Removing unused local variables: " + localsToRemove.toSeq.sorted.mkString(", "))
     }
     removeVariables(statements, localsToRemove)
   }

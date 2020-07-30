@@ -28,6 +28,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   @inline
   def nextLabel: LabelGenerator = jobContext.nextLabel
 
+  private val constantsThatShouldHaveBeenImportedEarlier = new MutableMultimap[String, Option[Position]]()
+
   private var baseStackOffset: Int = cpuFamily match {
     case CpuFamily.M6502 => 0x101
     case CpuFamily.I80 => 0
@@ -35,9 +37,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     case CpuFamily.M6809 => 0
   }
 
-  def errorConstant(msg: String, position: Option[Position] = None): Constant = {
-    log.error(msg, position)
+  def errorConstant(msg: String, invalidExpression: Option[Expression], position: Option[Position] = None): Constant = {
+    log.error(msg, position.orElse(invalidExpression.flatMap(_.position)))
     log.info("Did you forget to import an appropriate module?")
+    invalidExpression.foreach(markAsConstantsThatShouldHaveBeenImportedEarlier)
     Constant.Zero
   }
 
@@ -919,7 +922,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
-  def evalForAsm(e: Expression, op: MOpcode.Value = MOpcode.NOP): Option[Constant] = {
+  def evalForAsm(e: Expression, op: MOpcode.Value = MOpcode.NOP, silent: Boolean = false): Option[Constant] = {
     e match {
       // TODO: hmmm
       case VariableExpression(name) =>
@@ -934,7 +937,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case ConstantArrayElementExpression(c) => Some(c)
       case VariableExpression(name) =>
         val result = maybeGet[ConstantThing](name).map(_.value).orElse(maybeGet[ThingInMemory](name).map(_.toAddress))
-        if (result.isEmpty) log.warn(s"$name is not known")
+        if (!silent && result.isEmpty) log.warn(s"$name is not known", e.position)
         result
       case IndexedExpression(name, index) => (evalForAsm(VariableExpression(name)), evalForAsm(index)) match {
         case (Some(a), Some(b)) => Some(CompoundConstant(MathOperator.Plus, a, b).quickSimplify)
@@ -984,13 +987,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case "lo" =>
             oneArgFunctionForAsm(_.loByte, params)
           case ">>>>" | ">>'" | "<<'" | ">" | "<" =>
-            log.error(s"Operator `$name` not supported in inline assembly", e.position)
+            if (!silent) log.error(s"Operator `$name` not supported in inline assembly", e.position)
             None
           case _ if name.endsWith("=") =>
-            log.error(s"Operator `$name` not supported in inline assembly", e.position)
+            if (!silent) log.error(s"Operator `$name` not supported in inline assembly", e.position)
             None
           case "nonet" | "sin" | "cos" | "tan" =>
-            log.error("Function not supported in inline assembly", e.position)
+            if (!silent) log.error("Function not supported in inline assembly", e.position)
             None
           case "sizeof" =>
             Some(evalSizeof(params.head))
@@ -1048,7 +1051,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     for((name, optValue) <- stmt.variants) {
       optValue match {
         case Some(v) =>
-          value = eval(v).getOrElse(errorConstant(s"Enum constant `${stmt.name}.$name` is not a constant", stmt.position))
+          value = eval(v).getOrElse(errorConstant(s"Enum constant `${stmt.name}.$name` is not a constant", Some(v), stmt.position))
         case _ =>
       }
       addThing(ConstantThing(name, value.fitInto(t), t), stmt.position)
@@ -1214,7 +1217,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case None =>
             log.error(s"Extern function `${stmt.name}`needs an address", stmt.position)
           case Some(a) =>
-            val addr = eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant", stmt.position))
+            val addr = eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant", Some(a), stmt.position))
             val mangled = ExternFunction(
               name,
               resultType,
@@ -1339,7 +1342,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             params,
             env,
             stackVariablesSize,
-            stmt.address.map(a => this.eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant"))),
+            stmt.address.map(a => this.eval(a).getOrElse(errorConstant(s"Address of `${stmt.name}` is not a constant", Some(a), a.position))),
             executableStatements ++ paramForAutomaticReturn.map(param => ReturnStatement(param).pos(executableStatements.lastOption.fold(stmt.position)(_.position))),
             hasElidedReturnVariable = hasElidedReturnVariable,
             interrupt = stmt.interrupt,
@@ -1596,6 +1599,34 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  //noinspection ScalaUnusedExpression
+  private def markAsConstantsThatShouldHaveBeenImportedEarlier(node: Expression): Unit = {
+    node match {
+      case VariableExpression(v) =>
+        if (eval(node).isEmpty && evalForAsm(node, silent = true).isEmpty) {
+          log.error(s"The constant $v is undefined", node.position)
+          log.info("Did you forget to import an appropriate module?")
+          constantsThatShouldHaveBeenImportedEarlier.addBinding(v.takeWhile(_ != '.').mkString(""), node.position)
+        }
+      case FunctionCallExpression(_, params) =>
+        params.foreach(markAsConstantsThatShouldHaveBeenImportedEarlier)
+      case SumExpression(params, _) =>
+        params.foreach(i => markAsConstantsThatShouldHaveBeenImportedEarlier(i._2))
+      case SeparateBytesExpression(h, l) =>
+        markAsConstantsThatShouldHaveBeenImportedEarlier(h)
+        markAsConstantsThatShouldHaveBeenImportedEarlier(l)
+      case IndexedExpression(a, i) =>
+        constantsThatShouldHaveBeenImportedEarlier.addBinding(a, node.position)
+        markAsConstantsThatShouldHaveBeenImportedEarlier(i)
+      case DerefExpression(p, _, _) =>
+        markAsConstantsThatShouldHaveBeenImportedEarlier(p)
+      case DerefDebuggingExpression(p, _) =>
+        markAsConstantsThatShouldHaveBeenImportedEarlier(p)
+      case _ =>
+        // not a variable
+    }
+  }
+
   def extractArrayContents(contents1: ArrayContents): List[Expression] = contents1 match {
     case LiteralContents(xs) => xs
     case CombinedContents(xs) => xs.flatMap(extractArrayContents)
@@ -1606,7 +1637,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       log.error(s"Invalid struct array contents", pc.position)
       Nil
     case pc@ProcessedContents(f, xs) => pc.getAllExpressions(options.isBigEndian)
-    case ForLoopContents(v, start, end, direction, body) =>
+    case flc@ForLoopContents(v, start, end, direction, body) =>
       (eval(start), eval(end)) match {
         case (Some(NumericConstant(s, sz1)), Some(NumericConstant(e, sz2))) =>
           val size = sz1 max sz2
@@ -1617,10 +1648,21 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }).toList
           range.flatMap(i => extractArrayContents(body).map(_.replaceVariable(v, LiteralExpression(i, size))))
         case (Some(_), Some(_)) =>
-          log.error("Array range bounds cannot be evaluated")
+          log.error("Array range bounds cannot be evaluated", flc.position.orElse(flc.start.position))
           Nil
-        case _ =>
-          log.error("Non-constant array range bounds")
+        case (a, b) =>
+          if (a.isEmpty) {
+            log.error("Non-constant array range bounds",  flc.start.position)
+          }
+          if (b.isEmpty) {
+            log.error("Non-constant array range bounds",  flc.`end`.position)
+          }
+          if (a.isEmpty){
+            markAsConstantsThatShouldHaveBeenImportedEarlier(flc.start)
+          }
+          if (b.isEmpty){
+            markAsConstantsThatShouldHaveBeenImportedEarlier(flc.`end`)
+          }
           Nil
 
       }
@@ -1677,11 +1719,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                     log.error(s"Type $name cannot be used as an array index", l.position)
                     w -> Constant.Zero
                   case _ =>
-                    val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                    val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", Some(l), stmt.position))
                     w -> constant
                 }
               case _ =>
-                val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", Some(l), stmt.position))
                 w -> constant
             }
             lengthConst match {
@@ -1754,10 +1796,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                     log.error(s"Type $name cannot be used as an array index", l.position)
                     w -> Constant.Zero
                   case _ =>
-                    w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                    w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", Some(l), stmt.position))
                 }
               case _ =>
-                w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", stmt.position))
+                w -> eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", Some(l), stmt.position))
             }
             lengthConst match {
               case NumericConstant(ll, _) =>
@@ -1769,7 +1811,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         val length = contents.length
         if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
         val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length)) & e.alignment
-        val address = stmt.address.map(a => eval(a).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant address", stmt.position)))
+        val address = stmt.address.map(a => eval(a).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant address", Some(a), stmt.position)))
         for (element <- contents) {
           AbstractExpressionCompiler.checkAssignmentTypeLoosely(this, element, e)
         }
@@ -1830,11 +1872,23 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     val typ = get[VariableType](stmt.typ)
     val alignment = stmt.alignment.getOrElse(defaultVariableAlignment(options, typ.size)) & typ.alignment
     if (stmt.constant) {
+      val invalidUsesBefore = constantsThatShouldHaveBeenImportedEarlier.get(stmt.name)
+      if (invalidUsesBefore.nonEmpty) {
+        log.info(s"The constant ${stmt.name} has been used before it was defined in a way that requires a definition beforehand", stmt.position)
+        invalidUsesBefore.foreach{use =>
+          if (use.isDefined) {
+            log.info(s"here:", use)
+          }
+        }
+        if (invalidUsesBefore(None)) {
+          log.info("and in some other place or places.")
+        }
+      }
       if (stmt.stack) log.error(s"`$name` is a constant and cannot be on stack", position)
       if (stmt.register) log.error(s"`$name` is a constant and cannot be in a register", position)
       if (stmt.address.isDefined) log.error(s"`$name` is a constant and cannot have an address", position)
       if (stmt.initialValue.isEmpty) log.error(s"`$name` is a constant and requires a value", position)
-      val rawConstantValue = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", position)).quickSimplify
+      val rawConstantValue = stmt.initialValue.flatMap(eval).getOrElse(errorConstant(s"`$name` has a non-constant value", stmt.initialValue, position)).quickSimplify
       rawConstantValue match {
         case NumericConstant(nv, _) if nv >= 2 && typ.size < 8  =>
           if (nv >= 1L.<<(8*typ.size)) {
@@ -1902,7 +1956,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           registerAddressConstant(v, stmt.position, options, Some(typ))
           (v, v.toAddress)
         })(a => {
-          val addr = eval(a).getOrElse(errorConstant(s"Address of `$name` has a non-constant value", position))
+          val addr = eval(a).getOrElse(errorConstant(s"Address of `$name` has a non-constant value", Some(a), position))
           val zp = addr match {
             case NumericConstant(n, _) => n < 0x100
             case _ => false

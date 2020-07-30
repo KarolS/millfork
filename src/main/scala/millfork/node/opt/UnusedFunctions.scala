@@ -84,7 +84,7 @@ object UnusedFunctions extends NodeOptimization {
       }
     }
     if (unusedFunctions.nonEmpty) {
-      options.log.debug("Removing unused functions: " + unusedFunctions.mkString(", "))
+      options.log.debug("Removing unused functions: " + unusedFunctions.toSeq.sorted.mkString(", "))
       optimize(removeFunctionsFromProgram(nodes, unusedFunctions), options)
     } else {
       nodes

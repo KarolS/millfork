@@ -43,6 +43,7 @@ class ConsoleLogger extends Logger {
   override def info(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 0) return
     println("INFO:  " + f(position) + msg)
+    printErrorContext(position)
     flushOutput()
   }
 

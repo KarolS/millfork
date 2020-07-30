@@ -234,7 +234,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
               env.evalForAsm(expression).orElse(env.maybeGet[ThingInMemory](name).map(_.toAddress)).getOrElse(MemoryAddressConstant(Label(name)))
             }
           case _ =>
-            env.evalForAsm(expression).getOrElse(env.errorConstant(s"`$expression` is not a constant", expression.position))
+            env.evalForAsm(expression).getOrElse(env.errorConstant(s"`$expression` is not a constant", Some(expression), expression.position))
         }
         val registers = (reg, offset) match {
           case (OneRegister(r), Some(o)) => env.evalForAsm(expression) match {

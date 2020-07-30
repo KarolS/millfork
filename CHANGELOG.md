@@ -56,6 +56,8 @@ There are no built-in encodings now, the include path needs to contain the neces
 
 * Allow placing platform definitions in a dedicated subdirectory.
 
+* Improved error reporting for constants used before their definitions.
+
 * Z80: Intel syntax for all Z80 instructions, based on Digital Research's Z80.LIB.
 
 * Commander X16: Updated to support VERA 0.9 and the new joystick API. Added mouse support.

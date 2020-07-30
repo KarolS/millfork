@@ -360,7 +360,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       case FunctionCallExpression("hudson_transfer$", params) =>
         StructureConstant(env.get[StructType]("hudson_transfer$"), params.map(y => compileParameterForAssemblyStatement(env, o, y)))
       case _ =>
-        env.evalForAsm(x).getOrElse(env.errorConstant(s"`$x` is not a constant", x.position))
+        env.evalForAsm(x).getOrElse(env.errorConstant(s"`$x` is not a constant", Some(x), x.position))
     }
   }
 
