@@ -563,7 +563,9 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                         case M6809RegisterVariable(M6809Register.U, _) => compileToU(ctx, e)
                         case _ => ???
                       }
-                      if (compiled.length > 1) ???
+                      if (compiled.length > 1 && params.length > 1) {
+                        ctx.log.error("Too complex parameter for an assembly routine call", e.position)
+                      }
                       compiled
                     }
                   case _ => ???
