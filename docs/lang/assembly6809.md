@@ -42,6 +42,11 @@ but you need to be careful with using absolute vs immediate addressing:
         }
         return result
     }
+    
+To use the direct addressing mode, prepend the argument with `<`:
+
+    CLR <$6f  // clears the byte $6f in the direct page
+    CLR $6f   // clears the byte $006f (absolute address!)
 
 Any assembly opcode can be prefixed with `?`, which allows the optimizer change it or elide it if needed.
 Opcodes without that prefix will be always compiled as written.

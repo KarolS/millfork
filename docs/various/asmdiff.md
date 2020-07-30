@@ -30,5 +30,7 @@ Colons are required in label declarations.
 
 * 6809: `0,X` is assembled the same as `,X`.
 
+* 6502: To enforce direct-page addressing, prepend the argument with `<`: `<arg`.
+
   
 
