@@ -937,8 +937,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case ConstantArrayElementExpression(c) => Some(c)
       case VariableExpression(name) =>
         val result = maybeGet[ConstantThing](name).map(_.value).orElse(maybeGet[ThingInMemory](name).map(_.toAddress))
-        if (!silent && result.isEmpty) log.warn(s"$name is not known", e.position)
-        result
+        result match {
+          case Some(x) => result
+          case None =>
+            if (name.startsWith(".")) Some(Label(name).toAddress)
+            else {
+              if (!silent) log.warn(s"$name is not known", e.position)
+              None
+            }
+        }
       case IndexedExpression(name, index) => (evalForAsm(VariableExpression(name)), evalForAsm(index)) match {
         case (Some(a), Some(b)) => Some(CompoundConstant(MathOperator.Plus, a, b).quickSimplify)
       }
