@@ -30,7 +30,7 @@ macro asm void enable_irq() {
     ANDCC #$CF
 }
 
-asm byte hi_nibble_to_hex(byte register(a) value) {
+asm byte hi_nibble_to_hex(byte register(b) value) {
     LSRB
     LSRB
     LSRB
@@ -38,11 +38,11 @@ asm byte hi_nibble_to_hex(byte register(a) value) {
     ? JMP lo_nibble_to_hex
 }
 
-asm byte lo_nibble_to_hex(byte register(a) value) {
+asm byte lo_nibble_to_hex(byte register(b) value) {
     ! ANDB #$F
     ADDB #$30
     CMPB #$3A
-    BCC _lo_nibble_to_hex_lbl
+    BCS _lo_nibble_to_hex_lbl
     ADDB #$7 // carry is set
 _lo_nibble_to_hex_lbl:
     ? RTS
