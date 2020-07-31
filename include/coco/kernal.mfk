@@ -1,7 +1,10 @@
 
 noinline asm void putchar(byte register(a) character) {
-    clr <$6f
+    clr $6f
     jsr [$a002]
     rts
 }
 
+inline void new_line() {
+    putchar(13)
+}
