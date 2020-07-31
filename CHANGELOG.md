@@ -37,6 +37,8 @@ There are no built-in encodings now, the include path needs to contain the neces
 `mazovia`, `pcw`,
 `pokemon1en`, `pokemon1es`, `pokemon1fr`, `pokemon1jp`.
 
+* Added `ENCODING_NOLOWER` preprocessor feature.
+
 * Fixed raw views of typed pointers.
 
 * Fixed dead code elimination (#51). 
@@ -59,7 +61,13 @@ There are no built-in encodings now, the include path needs to contain the neces
 
 * Allow placing platform definitions in a dedicated subdirectory.
 
+* Allow using Batch files with the `-r` option.
+
 * Improved error reporting for constants used before their definitions.
+
+* Improved typo hints.
+
+* Typo hints for non-ASCII characters.
 
 * Z80: Intel syntax for all Z80 instructions, based on Digital Research's Z80.LIB.
 
