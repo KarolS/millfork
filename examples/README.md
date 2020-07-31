@@ -17,7 +17,7 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Fizzbuzz](crossplatform/fizzbuzz.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/X16) – everyone's favourite programming task
 
-* [Fizzbuzz 2](crossplatform/fizzbuzz2.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – an alternative, more extensible implemententation of fizzbuzz
+* [Fizzbuzz 2](crossplatform/fizzbuzz2.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/CoCo) – an alternative, more extensible implemententation of fizzbuzz
 
 * [Fizzbuzz JP](crossplatform/fizzbuzz_jp.mfk) (PC-88/Japanese C64) – Fizzbuzz, but in Japanese
 
@@ -39,7 +39,9 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Life](crossplatform/life.mfk) (C64/C16/Atari/ZX Spectrum) – Conway's game of life
 
-* [Test suite](tests) (C64/C16/Atari/Apple II/BBC Micro/Armstrad CPC/ZX Spectrum/PC-88) – the semi-official test-suite for Millfork
+* [Reg dump](crossplatform/regdump.mfk) (C64/C16/ZX Spectrum/CoCo) – a program that simply prints the initial values of CPU registers 
+
+* [Test suite](tests) (C64/C16/Atari/Apple II/BBC Micro/Armstrad CPC/ZX Spectrum/PC-88/CoCo) – the semi-official test-suite for Millfork
 
 ## Commodore 64 examples
 

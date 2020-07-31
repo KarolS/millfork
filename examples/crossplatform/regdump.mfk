@@ -1,0 +1,136 @@
+import stdio
+
+struct reg {
+    pointer name
+    byte size
+}
+
+#if ARCH_6502
+
+    const array(reg) reg_defs = [reg("A"z, 1),reg("X"z, 1),reg("Y"z, 1),reg("S"z, 1),reg("P"z, 1),reg("PC"z, 2)]
+
+    macro asm void save_regs() {
+        JSR save_regs_inner
+    save_regs_inner:
+        STA reg_values
+        STX reg_values + 2
+        STY reg_values + 4
+        PHP
+        PLA
+        STA reg_values + 8
+        TSX
+        STX reg_values + 6
+        PLA
+        TAY
+        PLA
+        TAX
+        CPY #2
+        BCS save_regs_pcl_large
+        DEX
+    save_regs_pcl_large:
+        DEY
+        DEY
+        STY reg_values + 10
+        STX reg_values + 11
+    }
+
+#elseif ARCH_6809
+
+    const array(reg) reg_defs = [reg("D"z, 2),reg("X"z, 2),reg("Y"z, 2),reg("U"z, 2),reg("S"z, 2),reg("CC"z, 1),reg("DP"z, 1),reg("PC"z, 2)]
+
+    macro asm void save_regs() {
+        PSHS PC
+        STD reg_values
+        TFR CC,B
+        STB reg_values+10
+        STB reg_values+11
+        STX reg_values+2
+        STY reg_values+4
+        STU reg_values+6
+        PULS D
+        SUBD #2
+        STD reg_values+14
+        STS reg_values+8
+        TFR DP,B
+        STB reg_values+12
+        STB reg_values+13
+    }
+
+#elseif CPUFEATURE_Z80
+
+    #pragma zilog_syntax
+    const array(reg) reg_defs = [reg("AF"z, 2),reg("BC"z, 2),reg("DE"z, 2),reg("HL"z, 2),reg("SP"z, 2),reg("IX"z, 2),reg("IY"z, 2),reg("PC"z, 2)]
+
+    macro asm void save_regs() {
+        CALL save_regs_inner
+    save_regs_inner:
+        LD (reg_values+6),HL
+        PUSH AF
+        POP HL
+        LD (reg_values+0),HL
+        LD (reg_values+2),BC
+        LD (reg_values+3),DE
+        POP HL
+        LD B, $ff
+        LD C, $fd
+        ADD HL,BC
+        LD (reg_values+14),HL
+        LD (reg_values+10),IX
+        LD (reg_values+12),IY
+    }
+
+#elseif ARCH_I80
+
+    #pragma intel_syntax
+    const array(reg) reg_defs = [reg("AF"z, 2),reg("BC"z, 2),reg("DE"z, 2),reg("HL"z, 2),reg("SP"z, 2),reg("PC"z, 2)]
+
+    macro asm void save_regs() {
+        CALL save_regs_inner
+    save_regs_inner:
+        LD (reg_values+6),HL
+        PUSH AF
+        POP HL
+        LD (reg_values+0),HL
+        LD H,B
+        LD L,C
+        LD (reg_values+2),HL
+        EX HL,DE
+        LD (reg_values+3),HL
+        POP HL
+        LD B, $ff
+        LD C, $fd
+        ADD HL,BC
+        LD (reg_values+10),HL
+    }
+
+#else
+
+    #error unsupported architecture
+
+#endif
+
+array(word) reg_values[reg_defs.length]
+
+void main() {
+    word w
+    byte i
+    pointer.reg r
+    save_regs()
+    ensure_mixedcase()
+    for i,r:reg_defs {
+        putstrz(r->name)
+        putchar('=')
+        w = reg_values[i]
+        if r->size == 1 {
+            putchar(hi_nibble_to_hex(w.lo))
+            putchar(lo_nibble_to_hex(w.lo))
+        } else {
+            putchar(hi_nibble_to_hex(w.hi))
+            putchar(lo_nibble_to_hex(w.hi))
+            putchar(hi_nibble_to_hex(w.lo))
+            putchar(lo_nibble_to_hex(w.lo))
+        }
+        new_line()
+    }
+    while true {}
+}

@@ -51,3 +51,7 @@ _lo_nibble_to_hex_lbl:
 macro asm void panic() {
     ? JSR _panic
 }
+
+noinline asm word call(word register(x) routine) {
+    JMP ,X
+}

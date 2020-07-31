@@ -9,10 +9,17 @@ struct stage {
     pointer text
 }
 
+#if ENCODING_NOLOWER
+array(stage) stages = [
+    stage(divisible3.pointer, "FIZZ"z),
+    stage(divisible5.pointer, "BUZZ"z)
+]
+#else
 array(stage) stages = [
     stage(divisible3.pointer, "fizz"z),
     stage(divisible5.pointer, "buzz"z)
 ]
+#endif
 
 void main() {
     byte i, s

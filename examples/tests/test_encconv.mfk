@@ -4,12 +4,12 @@ import scrstring
 import string
 
 void test_encconv() {
-    array buffer[256]
+    array buffer[16]
     start_suite("encconv"z)
 
-    strzcopy(buffer, "test"z)
+    strzcopy(buffer, "test 132"z)
     strz_to_screencode(buffer)
-    assert_equal(0, scrstrzcmp("test"scrz, buffer))
+    assert_equal(0, scrstrzcmp("test 132"scrz, buffer))
     strz_from_screencode(buffer)
-    assert_equal(0, strzcmp("test"z, buffer))
+    assert_equal(0, strzcmp("test 132"z, buffer))
 }
