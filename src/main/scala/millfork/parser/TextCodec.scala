@@ -8,6 +8,8 @@ import millfork.{CompilationFlag, CompilationOptions}
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.Position
 
+import scala.collection.mutable
+
 /**
   * @author Karol Stasiak
   */
@@ -140,6 +142,8 @@ class TableTextCodec(override val name: String,
                 val directDecompositions: Map[Char, List[Int]],
                 val escapeSequences: Map[String, List[Int]]) extends TextCodec {
 
+  private val alreadyWarned = mutable.Set[Char]()
+
   override val stringTerminator: List[Int] = List(stringTerminatorChar)
 
   private def isPrintable(c: Int) = {
@@ -200,8 +204,9 @@ class TableTextCodec(override val name: String,
           Some(List(index))
         } else if (lenient) {
           val alternative = TextCodec.lossyAlternatives.getOrElse(c, Nil).:+("?").find(alts => alts.forall(alt => encodeChar(log, position, alt, options, lenient = false).isDefined)).getOrElse("")
-          if (options.flag(CompilationFlag.FallbackValueUseWarning)) {
+          if (options.flag(CompilationFlag.FallbackValueUseWarning) && !alreadyWarned(c)) {
             log.warn(s"Cannot encode ${format(c)} in encoding `$name`, replaced it with ${format(alternative)}", position)
+            alreadyWarned += c
           }
           Some(alternative.toList.flatMap(encodeChar(log, position, _, options, lenient = false).get))
         } else {
