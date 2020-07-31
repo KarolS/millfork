@@ -167,8 +167,16 @@ object Main {
     }
     errorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
     c.runFileName.foreach{ program =>
+      if (!new File(program).exists()) {
+        errorReporting.error(s"Program $program does not exist")
+      }
       val outputAbsolutePath = Paths.get(defaultPrgOutput).toAbsolutePath.toString
-      val cmdline = program +: c.runParams :+ outputAbsolutePath
+      val isBatch = File.separatorChar == '\\' && program.toLowerCase(Locale.ROOT).endsWith(".bat")
+      val cmdline = if (isBatch) {
+        List("cmd", "/c", program) ++ c.runParams :+ outputAbsolutePath
+      } else {
+        program +: c.runParams :+ outputAbsolutePath
+      }
       errorReporting.debug(s"Running: ${cmdline.mkString(" ")}")
       new ProcessBuilder(cmdline.toArray: _*).directory(new File(program).getParentFile).start()
     }

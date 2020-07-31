@@ -66,7 +66,10 @@ Unlike `-I`, this does not replace the default include directory and allows usin
  
 * `-t <platform>` – Target platform. It is loaded from an `.ini` file found in any of the include directories. See also [this document](target-platforms.md).
 
-* `-r <program>` – Run given program after successful compilation. Useful for automatically launching emulators without any external scripting.
+* `-r <program>` – Run given program after successful compilation.
+Useful for automatically launching emulators without any external scripting.
+The program is run with the working directory set to its own directory,
+and it's passed the full path to the output file as its argument.
 
 * `-R <param>` – Adds a parameter to the command line of the program run with `-r`. All `-R` options are added in order, before the output file name.
 
