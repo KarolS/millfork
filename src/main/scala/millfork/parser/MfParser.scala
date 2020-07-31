@@ -33,14 +33,16 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   def toAst: Parsed[Program] = {
     val parse = program.parse(input + "\n\n\n")
     parse match {
-      case _:Failure[_, _] =>
-        val c = input(lastPosition.cursor)
-        if (c >= 0x100 || c < 0x20 || c == '`') {
-          log.error("Invalid character U+%04X %s".format(c.toInt, Character.getName(c)), Some(lastPosition))
-          Confusables.map.get(c) match {
-            case Some(ascii) =>
-              log.info(s"Did you mean: $ascii")
-            case _ =>
+      case _: Failure[_, _] =>
+        if (lastPosition.cursor >= 0 && lastPosition.cursor < input.length) {
+          val c = input(lastPosition.cursor)
+          if (c >= 0x100 || c < 0x20 || c == '`') {
+            log.error("Invalid character U+%04X %s".format(c.toInt, Character.getName(c)), Some(lastPosition))
+            Confusables.map.get(c) match {
+              case Some(ascii) =>
+                log.info(s"Did you mean: $ascii")
+              case _ =>
+            }
           }
         }
       case _ =>
