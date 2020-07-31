@@ -2364,9 +2364,36 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def hintTypo(name: String): Unit = {
     val realThings = this.things.keySet ++ parent.map(_.things.keySet).getOrElse(Set())
     //noinspection ScalaDeprecation
-    val matchingThings = realThings.filter(thing => !thing.contains("$") && StringUtils.getJaroWinklerDistance(thing,name) > 0.9)
+    val matchingThings = realThings.filter(thing => !thing.contains("$") && StringUtils.getJaroWinklerDistance(thing,name) > 0.9) ++ hardcodedHints(name)
     if (matchingThings.nonEmpty) {
-      log.info("Did you mean: " + matchingThings.mkString(", "))
+      log.info("Did you mean: " + matchingThings.toSeq.sorted.mkString(", "))
+    }
+  }
+
+  private def hardcodedHints(name: String): Set[String] = {
+    name match {
+      case "int" => Set("word", "signed16", "int32")
+      case "unsigned" => Set("word", "ubyte", "unsigned16", "unsigned32")
+      case "char" => Set("byte", "sbyte")
+      case "signed" => Set("sbyte", "signed16")
+      case "uintptr_t" | "size_t" | "usize" => Set("word")
+      case "short" | "intptr_t" | "ptrdiff_t" | "ssize_t" | "isize" => Set("word", "signed16")
+      case "uint8_t" | "u8" => Set("byte", "ubyte")
+      case "int8_t" | "i8" => Set("byte", "sbyte")
+      case "uint16_t" | "u16" => Set("word", "unsigned16")
+      case "int16_t" | "i16" => Set("word", "signed16")
+      case "uint32_t" | "u32" => Set("int32", "unsigned32")
+      case "int32_t" | "i32" => Set("int32", "signed32")
+      case "int64_t" | "i64" => Set("int64", "signed64")
+      case "boolean" | "_Bool" => Set("bool")
+      case "string" => Set("pointer")
+      case "puts" | "printf" | "print" => Set("putstrz")
+      case "println" => Set("putstrz", "new_line")
+      case "strlen" => Set("strzlen", "scrstrzlen")
+      case "strcmp" => Set("strzcmp", "scrstrzcmp")
+      case "strcpy" => Set("strzcopy", "scrstrzcopy")
+      case "getch" | "getchar" => Set("readkey")
+      case _ => Set.empty
     }
   }
 
