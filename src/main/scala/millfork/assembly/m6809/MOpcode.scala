@@ -37,7 +37,7 @@ object MOpcode extends Enumeration {
     values.filterNot(notActualOpcodes).map(o => o.toString -> o).toMap ++ Map("BHS" -> BCC, "BLO" -> BCS, "LSL" -> ASL)
   }
   val NoopDiscard: Set[MOpcode.Value] = Set(DISCARD_D, DISCARD_X, DISCARD_Y, DISCARD_CC)
-  val PrefixedBy10: Set[MOpcode.Value] = Set(CMPD, CMPY, LDS, LDY, SWI2) // TODO: branches
+  val PrefixedBy10: Set[MOpcode.Value] = Set(CMPD, CMPY, LDS, LDY, SWI2, STS, STY) // TODO: branches
   val PrefixedBy11: Set[MOpcode.Value] = Set(CMPS, CMPU, SWI3)
   val Prefixed: Set[MOpcode.Value] = PrefixedBy10 ++ PrefixedBy11
   val CanHaveInherentAccumulator: Set[MOpcode.Value] = Set(ASL, ASR, CLR, COM, DEC, INC, LSR, NEG, ROL, ROR, TST)
