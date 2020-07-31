@@ -31,6 +31,8 @@ Available only if one of the following is true:
 
 * the default encoding is `atascii`, the screen encoding is `atasciiscr`, and the platform is 6502-based
 
+* the default encoding is `coco`, the screen encoding is `cococsr`, and the platform is 6809-based
+
 You can test for the availability of this function using the `ENCCONV_SUPPORTED` preprocessor feature.
 
 #### byte from_screencode(byte)
@@ -97,4 +99,18 @@ but they require to be escaped with $1B to be printed.
 Reverse characters are interpreted as non-reverse characters.
 
 Available only on 6502-based platforms.
+
+#### byte coco_to_cocoscr(byte)
+
+Converts a byte from Color Computer pseudo-ASCII to a Color Computer screencode.  
+Control characters <$20 are converted inverted punctuation.
+
+Available only on 6809-based platforms.
+
+#### byte cocoscr_to_coco(byte)
+
+Converts a byte from a Color Computer screencode to Color Computer pseudo-ASCII.  
+Inverted punctuation is converted to control characters.
+
+Available only on 6809-based platforms.
 

@@ -329,6 +329,8 @@ object Platform {
              ("PETSCII-JP", "CBM-Screen-JP") |
              ("ATASCII", "ATASCII-Screen") =>
           CpuFamily.forType(cpu) == CpuFamily.M6502
+        case ("Color-Computer", "Color-Computer-Screen") =>
+          CpuFamily.forType(cpu) == CpuFamily.M6809
         case _ => codec.name == srcCodec.name
       }),
       "NULLCHAR_SAME" -> toLong(codec.stringTerminator == srcCodec.stringTerminator)

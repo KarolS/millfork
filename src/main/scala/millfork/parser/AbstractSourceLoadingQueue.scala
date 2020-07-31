@@ -33,6 +33,9 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
       case ("ATASCII", "ATASCII-Screen") =>
         List(AliasDefinitionStatement("__from_screencode", "atasciiscr_to_atascii", important = false),
           AliasDefinitionStatement("__to_screencode", "atascii_to_atasciiscr", important = false))
+      case ("Color-Computer", "Color-Computer-Screen") =>
+        List(AliasDefinitionStatement("__from_screencode", "cocoscr_to_coco", important = false),
+          AliasDefinitionStatement("__to_screencode", "coco_to_cocoscr", important = false))
       case _ => Nil
     }
     encodingConversionAliases

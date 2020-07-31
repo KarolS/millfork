@@ -151,6 +151,7 @@ The exact value of `{nullchar}` is encoding-dependent:
     * in the `petscr` and `petscrjp` encodings it's `{xe0}`,
     * in the `atasciiscr` encoding it's `{xdb}`,
     * in the `pokemon1*` encodings it's `{x50}`,
+    * in the `cocoscr` encoding it's exceptionally two bytes: `{xd0}`
     * in the `utf16be` and `utf16le` encodings it's exceptionally two bytes: `{x00}{x00}`
     * in other encodings it's `{x00}` (this may be a subject to change in future versions).
 

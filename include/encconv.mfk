@@ -83,6 +83,8 @@ void strz_to_screencode(pointer p) {
     }
 }
 
+#endif
+
 void pstr_from_screencode(pointer p) {
     byte i, l
     l = p[0]
@@ -97,8 +99,6 @@ void pstr_to_screencode(pointer p) {
         p[i] = to_screencode(p[i])
     }
 }
-
-#endif
 
 #endif // ENCODING_SAME/ENCCONV_SUPPORTED
 
@@ -196,6 +196,54 @@ __atascii_to_atasciiscr_60:
     bcs __atascii_to_atasciiscr_end
     and #$1f
 __atascii_to_atasciiscr_end:
+    rts
+}
+
+#endif
+
+#if ARCH_6809
+
+asm byte coco_to_cocoscr(byte register(b) char) {
+    cmpb #$20
+    bcc __coco_to_cocoscr_40
+    eorb #$20
+    rts
+__coco_to_cocoscr_40:
+    cmpb #$40
+    bcc __coco_to_cocoscr_60
+    eorb #$40
+    rts
+__coco_to_cocoscr_60:
+    cmpb #$60
+    bcc __coco_to_cocoscr_80
+    rts
+__coco_to_cocoscr_80:
+    cmpb #$80
+    bcc __coco_to_cocoscr_end
+    eorb #$60
+__coco_to_cocoscr_end:
+    rts
+}
+
+asm byte cocoscr_to_coco(byte register(b) char) {
+    cmpb #$20
+    bcc __cocoscr_to_coco_40
+    eorb #$60
+    rts
+__cocoscr_to_coco_40:
+    cmpb #$40
+    bcc __cocoscr_to_coco_60
+    eorb #$20
+    rts
+__cocoscr_to_coco_60:
+    cmpb #$60
+    bcc __cocoscr_to_coco_80
+    rts
+__cocoscr_to_coco_80:
+    cmpb #$80
+    bcc __coco_to_cocoscr_end
+    eorb #$40
+__cocoscr_to_coco_end:
     rts
 }
 
