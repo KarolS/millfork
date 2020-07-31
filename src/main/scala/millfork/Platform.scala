@@ -318,6 +318,7 @@ object Platform {
       log.fatal(s"Invalid label file format: `$debugOutputFormatName`"))
 
     val builtInFeatures = builtInCpuFeatures(cpu) ++ Map(
+      "ENCODING_NOLOWER" -> toLong(codec.supportsLowercase),
       "ENCODING_SAME" -> toLong(codec.name == srcCodec.name),
       "DECIMALS_SAME" -> toLong(codec.stringTerminator == srcCodec.stringTerminator && (0 to 9).forall{c =>
         codec.encodeDigit(c) == srcCodec.encodeDigit(c)

@@ -58,6 +58,8 @@ The following features are defined based on the chosen CPU and compilation optio
 
 * `ENCODING_SAME` - 1 if the encodings `default` and `src` are the same, 0 otherwise.
 
+* `ENCODING_NOLOWER` – 1 if the `default` encoding does not support lowercase ASCII letters.
+
 * `DECIMALS_SAME` - 1 if the encodings `default` and `src` have the same string terminator and decimal digits `'0'`-`'9'`, 0 otherwise.
 
 * `NULLCHAR_SAME` - 1 if the encodings `default` and `src` have the same string terminator, 0 otherwise.

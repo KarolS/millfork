@@ -15,6 +15,8 @@ import millfork.node.Position
 final case class TextCodecWithFlags(codec: TextCodec, nullTerminated: Boolean, lengthPrefixed: Boolean, lenient: Boolean)
 
 sealed trait TextCodec {
+  val supportsLowercase: Boolean
+
   def name: String
 
   def stringTerminator: List[Int]
@@ -126,6 +128,8 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
     else if (by == 0) '.'
     else '?'
   }
+
+  override val supportsLowercase: Boolean = true
 }
 
 class TableTextCodec(override val name: String,
@@ -180,6 +184,11 @@ class TableTextCodec(override val name: String,
     if (codePoints.forall(isPrintable)) f"`$s%s` ($u%s)"
     else u
   }
+
+  private def supportsChar(c: Char): Boolean = {
+    decompositions.contains(c) || directDecompositions.contains(c) || map.indexOf(c) >= 0
+  }
+
   private def encodeChar(log: Logger, position: Option[Position], c: Char, options: CompilationOptions, lenient: Boolean): Option[List[Int]] = {
       if (decompositions.contains(c)) {
         Some(decompositions(c).toList.flatMap(x => encodeChar(log, position, x, options, lenient).getOrElse(List(x.toInt))))
@@ -271,6 +280,8 @@ class TableTextCodec(override val name: String,
     if (i < 0) throw new IllegalStateException(s"For some reason, there is no digit $digit in the $name encoding?")
     List(i)
   }
+
+  override val supportsLowercase: Boolean = 'a' to 'z' forall(c => supportsChar(c))
 }
 
 object TextCodec {
