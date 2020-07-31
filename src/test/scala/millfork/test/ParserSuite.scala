@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, ShouldNotCompile, ShouldNotParse}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -52,5 +52,12 @@ class ParserSuite extends FunSuite with Matchers  {
       m.readByte(0xc002) should equal(251)
       m.readByte(0xc003) should equal(5)
     }
+  }
+
+  test("I hate Millfork, it won't let me prank my coworkers") {
+    ShouldNotParse(
+      """
+        |const array a = ‟aa"
+        |""".stripMargin)
   }
 }

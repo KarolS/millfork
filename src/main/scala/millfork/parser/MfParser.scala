@@ -5,12 +5,13 @@ import java.nio.file.{Files, Paths}
 import java.util
 
 import fastparse.all._
+import fastparse.core.Parsed.Failure
 import millfork.assembly.Elidability
 import millfork.env._
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node._
 import millfork.output.{DivisibleAlignment, MemoryAlignment, NoAlignment}
-import millfork.{CompilationFlag, CompilationOptions, SeparatedList}
+import millfork.{CompilationFlag, CompilationOptions, Confusables, SeparatedList}
 
 import scala.collection.immutable.BitSet
 
@@ -29,7 +30,23 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val enableDebuggingOptions: Boolean = options.flag(CompilationFlag.EnableInternalTestSyntax)
 
-  def toAst: Parsed[Program] = program.parse(input + "\n\n\n")
+  def toAst: Parsed[Program] = {
+    val parse = program.parse(input + "\n\n\n")
+    parse match {
+      case _:Failure[_, _] =>
+        val c = input(lastPosition.cursor)
+        if (c >= 0x100 || c < 0x20 || c == '`') {
+          log.error("Invalid character U+%04X %s".format(c.toInt, Character.getName(c)), Some(lastPosition))
+          Confusables.map.get(c) match {
+            case Some(ascii) =>
+              log.info(s"Did you mean: $ascii")
+            case _ =>
+          }
+        }
+      case _ =>
+    }
+    parse
+  }
 
   private val lineStarts: Array[Int] = (0 +: input.zipWithIndex.filter(_._1 == '\n').map(_._2)).toArray
 

@@ -22,7 +22,11 @@ object ShouldNotParse extends Matchers {
     val log = TestErrorReporting.log
     println(source)
     val platform = EmuPlatform.get(cpu)
-    val options = CompilationOptions(platform, Map(CompilationFlag.LenientTextEncoding -> true), None, platform.zpRegisterSize, Map(), EmuPlatform.textCodecRepository, JobContext(log, new LabelGenerator))
+    val flags = CpuFamily.forType(cpu) match {
+      case CpuFamily.M6809 => Map(CompilationFlag.LenientTextEncoding -> true, CompilationFlag.UseUForStack -> true)
+      case _ => Map(CompilationFlag.LenientTextEncoding -> true)
+    }
+    val options = CompilationOptions(platform, flags, None, platform.zpRegisterSize, Map(), EmuPlatform.textCodecRepository, JobContext(log, new LabelGenerator))
     log.hasErrors = false
     log.verbosity = 999
     var effectiveSource = source
