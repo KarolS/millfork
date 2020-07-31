@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -263,5 +263,29 @@ class BooleanSuite extends FunSuite with Matchers {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(code){ m =>
       m.readByte(0xc000) should equal(code.count(_ == '↑'))
     }
+  }
+
+  test("Booleans should not work arithmetically") {
+    ShouldNotCompile(
+      """
+        |byte b
+        |void main() {
+        |  b += b == 1
+        |}
+        |""".stripMargin)
+    ShouldNotCompile(
+      """
+        |byte b
+        |void main() {
+        |  b = (b == 1) + (b == 1)
+        |}
+        |""".stripMargin)
+    ShouldNotCompile(
+      """
+        |byte b
+        |void main() {
+        |  b = (b == 1) | (b == 1)
+        |}
+        |""".stripMargin)
   }
 }

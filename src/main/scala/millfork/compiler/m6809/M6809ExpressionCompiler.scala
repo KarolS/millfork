@@ -174,6 +174,10 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         getArithmeticParamMaxSize(ctx, expressions.map(_._2)) match {
           case 1 => M6809Buitins.compileByteSum(ctx, e, fromScratch = true) ++ targetifyB(ctx, target, isSigned = false)
           case 2 => M6809Buitins.compileWordSum(ctx, e, fromScratch = true) ++ targetifyD(ctx, target)
+          case 0 => Nil
+          case _ =>
+            ctx.log.error("Non-in-place addition or subtraction of variables larger than 2 bytes is not supported", expr.position)
+            Nil
         }
       case SeparateBytesExpression(hi, lo) =>
         val h = compile(ctx, hi, MExpressionTarget.A)
@@ -255,11 +259,19 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809MulDiv.compileByteMultiplication(ctx, params, updateDerefX = false) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809MulDiv.compileWordMultiplication(ctx, params, updateDerefX = false) ++ targetifyD(ctx, target)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Multiplication of variables larger than 2 bytes is not supported", expr.position)
+                Nil
             }
           case "/" =>
             assertArithmeticBinary(ctx, params) match {
-              case (l, r, 1) => M6809MulDiv.compileByteDivision(ctx, Some(l), r, mod=false) ++ targetifyB(ctx, target, isSigned = false)
-              case (l, r, 2) => M6809MulDiv.compileWordDivision(ctx, Some(l), r, mod=false) ++ targetifyD(ctx, target)
+              case (l, r, 1) => M6809MulDiv.compileByteDivision(ctx, Some(l), r, mod = false) ++ targetifyB(ctx, target, isSigned = false)
+              case (l, r, 2) => M6809MulDiv.compileWordDivision(ctx, Some(l), r, mod = false) ++ targetifyD(ctx, target)
+              case (_, _, 0) => Nil
+              case _ =>
+                ctx.log.error("Division of variables larger than 2 bytes is not supported", expr.position)
+                Nil
             }
           case "%%" =>
             assertArithmeticBinary(ctx, params) match {
@@ -270,21 +282,37 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 } else {
                   M6809MulDiv.compileWordDivision(ctx, Some(l), r, mod=true) ++ targetifyD(ctx, target)
                 }
+              case (_, _, 0) => Nil
+              case _ =>
+                ctx.log.error("Division of variables larger than 2 bytes is not supported", expr.position)
+                Nil
             }
           case "&" =>
-            getArithmeticParamMaxSize(ctx, params) match {
+            getArithmeticParamMaxSize(ctx, params, booleanHint = "&&") match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, ANDB, MathOperator.And, 0xff) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, ANDA, ANDB, MathOperator.And, 0xffff) ++ targetifyD(ctx, target)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expr.position)
+                Nil
             }
           case "|" =>
-            getArithmeticParamMaxSize(ctx, params) match {
+            getArithmeticParamMaxSize(ctx, params, booleanHint = "||") match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, ORB, MathOperator.Or, 0) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, ORA, ORB, MathOperator.Or, 0) ++ targetifyD(ctx, target)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expr.position)
+                Nil
             }
           case "^" =>
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809Buitins.compileByteBitwise(ctx, params, fromScratch = true, EORB, MathOperator.Exor, 0) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809Buitins.compileWordBitwise(ctx, params, fromScratch = true, EORA, EORB, MathOperator.Exor, 0) ++ targetifyD(ctx, target)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expr.position)
+                Nil
             }
           case "&&" =>
             assertBool(ctx, "&&", params)
@@ -446,12 +474,20 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             size match {
               case 1 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileByteDivision(ctx, None, r, mod=false)
               case 2 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileWordDivision(ctx, None, r, mod=false)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Division of variables larger than 2 bytes is not supported", expr.position)
+                Nil
             }
           case "%%=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileByteDivision(ctx, None, r, mod=true)
               case 2 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileWordDivision(ctx, None, r, mod=true)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Division of variables larger than 2 bytes is not supported", expr.position)
+                Nil
             }
           case "&=" =>
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)

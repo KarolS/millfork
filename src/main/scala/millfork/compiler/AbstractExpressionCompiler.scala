@@ -14,11 +14,14 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
 
   def getExpressionType(ctx: CompilationContext, expr: Expression): Type = AbstractExpressionCompiler.getExpressionType(ctx, expr)
 
-  def assertAllArithmetic(ctx: CompilationContext,expressions: List[Expression]): Unit = {
+  def assertAllArithmetic(ctx: CompilationContext,expressions: List[Expression], booleanHint: String = ""): Unit = {
      for(e <- expressions) {
        val typ = getExpressionType(ctx, e)
        if (!typ.isArithmetic) {
          ctx.log.error(s"Cannot perform arithmetic operations on type `$typ`", e.position)
+         if (booleanHint != "" && typ.isBoollike) {
+           ctx.log.info(s"Did you mean: $booleanHint")
+         }
        }
      }
   }
@@ -36,8 +39,8 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
     ctx.copy(env = result)
   }
 
-  def getArithmeticParamMaxSize(ctx: CompilationContext, params: List[Expression]): Int = {
-    assertAllArithmetic(ctx, params)
+  def getArithmeticParamMaxSize(ctx: CompilationContext, params: List[Expression], booleanHint: String = ""): Int = {
+    assertAllArithmetic(ctx, params, booleanHint = booleanHint)
     params.map(expr => getExpressionType(ctx, expr).size).max
   }
 
@@ -159,8 +162,8 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
       getExpressionType(ctx, param) match {
         case _: BooleanType =>
         case FatBooleanType =>
-        case _=>
-          ctx.log.fatal("Parameter should be boolean", param.position)
+        case t =>
+          ctx.log.fatal(s"Parameter has type `${t.name}`, but it should be boolean", param.position)
       }
     }
   }
@@ -429,6 +432,7 @@ object AbstractExpressionCompiler {
             }
           case 3 => env.get[Type]("int24")
           case 4 => env.get[Type]("int32")
+          case 0 => b
           case _ => log.error("Adding values bigger than longs", expr.position); env.get[Type]("int32")
         }
       case FunctionCallExpression("nonet", _) => w
@@ -470,14 +474,16 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression("sin", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("cos", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
       case FunctionCallExpression("tan", params) => if (params.size < 2) b else getExpressionTypeImpl(env, log, params(1), loosely)
-      case FunctionCallExpression("min" | "max", params) => if (params.isEmpty) b else params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
+      case FunctionCallExpression(name@("min" | "max"), params) => if (params.isEmpty) b else params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
         case 1 => b
         case 2 => w
+        case 0 => log.error(s"Invalid parameters to $name", expr.position); b
         case n if n >= 3 => env.get[Type]("int" + n * 8)
       } // TODO: ?
       case FunctionCallExpression("if", params) => if (params.length < 3) b else params.tail.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
         case 1 => b
         case 2 => w
+        case 0 => log.error(s"Invalid parameters to if", expr.position); b
         case n if n >= 3 => env.get[Type]("int" + n * 8)
       } // TODO: ?
       case FunctionCallExpression("sizeof", params) => env.evalSizeof(params.head).requiredSize match {
@@ -487,10 +493,11 @@ object AbstractExpressionCompiler {
       case FunctionCallExpression("%%", params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size } match {
         case List(1, 1) | List(2, 1) => b
         case List(1, 2) | List(2, 2) => w
+        case List(0, _) | List(_, 0) => b
         case _ => log.error("Combining values bigger than words", expr.position); w
       }
       case FunctionCallExpression("*" | "|" | "&" | "^" | "/", params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
-        case 1 => b
+        case 0 | 1 => b
         case 2 => w
         case _ => log.error("Combining values bigger than words", expr.position); w
       }

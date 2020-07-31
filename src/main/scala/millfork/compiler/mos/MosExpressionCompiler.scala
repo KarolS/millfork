@@ -1171,6 +1171,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               } else {
                 PseudoregisterBuiltIns.compileWordAdditionViaAX(ctx, exprTypeAndVariable, expr.position, params, decimal = decimal)
               }
+            case 0 =>
+              Nil
             case _ =>
               ctx.log.error("Non-in-place addition or subtraction of variables larger than 2 bytes is not supported", expr.position)
               Nil
@@ -1382,11 +1384,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
           case "^^" => ???
           case "&" =>
-            getArithmeticParamMaxSize(ctx, params) match {
+            getArithmeticParamMaxSize(ctx, params, booleanHint = "&&") match {
               case 1 =>
                 zeroExtend = true
                 BuiltIns.compileBitOps(AND, ctx, params)
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, AND)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expr.position)
+                Nil
             }
           case "*" =>
             assertSizesForMultiplication(ctx, params, inPlace = false)
@@ -1397,13 +1403,21 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case 2 =>
                 //noinspection ZeroIndexToHead
                 PseudoregisterBuiltIns.compileWordMultiplication(ctx, Some(params(0)), params(1), storeInRegLo = false)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Multiplication of variables larger than 2 bytes are not supported", expr.position)
+                Nil
             }
           case "|" =>
-            getArithmeticParamMaxSize(ctx, params) match {
+            getArithmeticParamMaxSize(ctx, params, booleanHint = "||") match {
               case 1 =>
                 zeroExtend = true
                 BuiltIns.compileBitOps(ORA, ctx, params)
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, ORA)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expr.position)
+                Nil
             }
           case "^" =>
             getArithmeticParamMaxSize(ctx, params) match {
@@ -1411,6 +1425,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 zeroExtend = true
                 BuiltIns.compileBitOps(EOR, ctx, params)
               case 2 => PseudoregisterBuiltIns.compileWordBitOpsToAX(ctx, params, EOR)
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expr.position)
+                Nil
             }
           case ">>>>" =>
             val (l, r, size) = assertArithmeticBinary(ctx, params)
@@ -1421,7 +1439,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case 1 =>
                 zeroExtend = true
                 BuiltIns.compileShiftOps(LSR, ctx, l ,r)
-              case _ => ???
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Non-in-place shifts of variables larger than 2 bytes is not supported", expr.position)
+                Nil
             }
           case "<<" =>
             val (l, r, size) = assertArithmeticBinary(ctx, params)
@@ -1431,6 +1452,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 BuiltIns.compileShiftOps(ASL, ctx, l, r)
               case 2 =>
                 BuiltIns.maybeCompileShiftFromByteToWord(ctx, l, r, left = true).getOrElse(PseudoregisterBuiltIns.compileWordShiftOps(left = true, ctx, l, r))
+              case 0 => Nil
               case _ =>
                 ctx.log.error("Long shift ops not supported", l.position)
                 Nil
@@ -1443,6 +1465,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 BuiltIns.compileShiftOps(LSR, ctx, l, r)
               case 2 =>
                 BuiltIns.maybeCompileShiftFromByteToWord(ctx, l, r, left = false).getOrElse(PseudoregisterBuiltIns.compileWordShiftOps(left = false, ctx, l, r))
+              case 0 => Nil
               case _ =>
                 ctx.log.error("Long shift ops not supported", l.position)
                 Nil
@@ -1643,7 +1666,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 } else {
                   compileAssignment(ctx, FunctionCallExpression("/", List(l, r)).pos(f.position), l)
                 }
-              case _ => ctx.log.fatal("Oops")
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Division of variables larger than 2 bytes is not supported", expr.position)
+                Nil
             }
           case "/" | "%%" =>
             assertSizesForDivision(ctx, params, inPlace = false)
@@ -1654,6 +1680,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 BuiltIns.compileUnsignedByteDivision(ctx, l, r, f.functionName == "%%")
               case 2 =>
                 BuiltIns.compileUnsignedWordByByteDivision(ctx, l, r, f.functionName == "%%")
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Division of variables larger than 2 bytes is not supported", expr.position)
+                Nil
             }
           case "*'=" =>
             assertAllArithmeticBytes("Long multiplication not supported", ctx, params)

@@ -559,6 +559,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             getArithmeticParamMaxSize(ctx, params.map(_._2)) match {
               case 1 => targetifyA(ctx, target, ZBuiltIns.compile8BitSum(ctx, params, decimal), isSigned = false)
               case 2 => targetifyHL(ctx, target, ZBuiltIns.compile16BitSum(ctx, params, decimal))
+              case 0 => Nil
+              case _ =>
+                ctx.log.error("Non-in-place addition or subtraction of variables larger than 2 bytes is not supported", expression.position)
+                Nil
             }
           case SeparateBytesExpression(h, l) =>
             val hi = compileToA(ctx, h)
@@ -890,9 +894,13 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case "^^" => ???
 
               case "&" =>
-                getArithmeticParamMaxSize(ctx, params) match {
+                getArithmeticParamMaxSize(ctx, params, booleanHint = "&&") match {
                   case 1 => targetifyA(ctx, target, ZBuiltIns.compile8BitOperation(ctx, AND, params), isSigned = false)
                   case 2 => targetifyHL(ctx, target, ZBuiltIns.compile16BitOperation(ctx, AND, params))
+                  case 0 => Nil
+                  case _ =>
+                    ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expression.position)
+                    Nil
                 }
               case "*" =>
                 assertSizesForMultiplication(ctx, params, inPlace = false)
@@ -904,14 +912,22 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     targetifyHL(ctx, target, Z80Multiply.compile16BitMultiplyToHL(ctx, params(0), params(1)))
                 }
               case "|" =>
-                getArithmeticParamMaxSize(ctx, params) match {
+                getArithmeticParamMaxSize(ctx, params, booleanHint = "||") match {
                   case 1 => targetifyA(ctx, target, ZBuiltIns.compile8BitOperation(ctx, OR, params), isSigned = false)
                   case 2 => targetifyHL(ctx, target, ZBuiltIns.compile16BitOperation(ctx, OR, params))
+                  case 0 => Nil
+                  case _ =>
+                    ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expression.position)
+                    Nil
                 }
               case "^" =>
                 getArithmeticParamMaxSize(ctx, params) match {
                   case 1 => targetifyA(ctx, target, ZBuiltIns.compile8BitOperation(ctx, XOR, params), isSigned = false)
                   case 2 => targetifyHL(ctx, target, ZBuiltIns.compile16BitOperation(ctx, XOR, params))
+                  case 0 => Nil
+                  case _ =>
+                    ctx.log.error("Non-in-place bit operations of variables larger than 2 bytes are not supported", expression.position)
+                    Nil
                 }
               case ">>>>" =>
                 val (l, r, size) = assertArithmeticBinary(ctx, params)
@@ -1154,6 +1170,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                           Nil
                       }
                     }
+                  case 0 => Nil
+                  case _ =>
+                    ctx.log.error("Division of variables larger than 2 bytes is not supported", expression.position)
+                    Nil
                 }
               case "/" | "%%" =>
                 assertSizesForDivision(ctx, params, inPlace = false)
@@ -1169,6 +1189,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     } else {
                       targetifyHL(ctx, target, Z80Multiply.compileUnsignedWordDivision(ctx, Right(l), r, modulo, rhsWord))
                     }
+                  case 0 => Nil
+                  case _ =>
+                    ctx.log.error("Division of variables larger than 2 bytes is not supported", expression.position)
+                    Nil
                 }
               case "*'=" =>
                 assertAllArithmeticBytes("Long multiplication not supported", ctx, params)
