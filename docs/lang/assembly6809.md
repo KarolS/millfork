@@ -48,6 +48,9 @@ To use the direct addressing mode, prepend the argument with `<`:
     CLR <$6f  // clears the byte $6f in the direct page
     CLR $6f   // clears the byte $006f (absolute address!)
 
+You can use `>` do signify the absolute addressing mode, but it is never necessary.
+This option exists only for compatibility with other assemblers.
+
 Any assembly opcode can be prefixed with `?`, which allows the optimizer change it or elide it if needed.
 Opcodes without that prefix will be always compiled as written.
 

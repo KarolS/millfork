@@ -100,6 +100,7 @@ case class M6809Parser(filename: String,
       pos <- position()
       (a, e) <-
         ("#" ~/ HWS ~/ asmExpression).map(Immediate -> _) |
+        (">" ~/ HWS ~/ asmExpression).map(Absolute(false) -> _) |
         ("<" ~/ HWS ~/ asmExpression).map(DirectPage -> _) |
           ("[" ~/ AWS ~/ asmParameterNoIndirectOrImmediate ~/ AWS ~/ "]").map { case (a, e) => a.makeIndirect(pos) -> e } |
           asmParameterNoIndirectOrImmediate
