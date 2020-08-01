@@ -167,8 +167,14 @@ object Main {
     }
     errorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
     c.runFileName.foreach{ program =>
-      if (!new File(program).exists()) {
-        errorReporting.error(s"Program $program does not exist")
+      if (File.separatorChar == '\\') {
+        if (!new File(program).exists() && !new File(program + ".exe").exists()) {
+          errorReporting.error(s"Program $program does not exist")
+        }
+      } else {
+        if (!new File(program).exists()) {
+          errorReporting.error(s"Program $program does not exist")
+        }
       }
       val outputAbsolutePath = Paths.get(defaultPrgOutput).toAbsolutePath.toString
       val isBatch = File.separatorChar == '\\' && program.toLowerCase(Locale.ROOT).endsWith(".bat")
