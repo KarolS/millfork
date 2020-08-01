@@ -1,0 +1,5 @@
+asm void __init() @$c000 {
+    JSR main
+    __init__infinite_loop:
+    BRA __init__infinite_loop
+}

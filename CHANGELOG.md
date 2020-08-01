@@ -6,6 +6,8 @@
 
 * Preliminary support for Tandy Color Computer running RS-DOS.
 
+* Preliminary support for 16K cartridges for Tandy Color Computer.
+
 * Added support for modifying large variables via pointers.
 
 * Added the ability to declare structure alignment.
