@@ -2,7 +2,7 @@ name := "millfork"
 
 version := "0.3.17-SNAPSHOT"
 
-scalaVersion := "2.12.11"
+scalaVersion := "2.12.12"
 
 resolvers += Resolver.mavenLocal
 
