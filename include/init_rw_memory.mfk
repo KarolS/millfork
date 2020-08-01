@@ -77,13 +77,13 @@ __init_rw_memory__skip3:
 
 #pragma zilog_syntax
 noinline asm void init_rw_memory() {
+    ld bc,__rwdata_size
     ld a,b
     or c
     ret z
     + memory_barrier()
     ld hl,__rwdata_init_start
     ld de,__rwdata_start
-    ld bc,__rwdata_size
     ldir
     + memory_barrier()
     ret
@@ -93,11 +93,11 @@ noinline asm void init_rw_memory() {
 
 #pragma zilog_syntax
 noinline asm void init_rw_memory() {
+      ld bc,__rwdata_size
       ld a,b
       or c
       ret z
     + memory_barrier()
-      ld bc,__rwdata_size
       ld hl,__rwdata_init_start
       ld de,__rwdata_start
 __init_rw_memory__loop1:
@@ -109,6 +109,28 @@ __init_rw_memory__loop1:
     ? jp nz,__init_rw_memory__loop1
     + memory_barrier()
       ret
+}
+
+#elseif ARCH_6809
+
+noinline asm void init_rw_memory() {
+    // TODO: optimal register allocation
+    ldd __rwdata_size
+    beq __init_rw_memory_end
+    + memory_barrier()
+    pshs u
+    ldx __rwdata_init_start
+    ldu __rwdata_start
+    __init_rw_memory__loop1:
+    ldb ,x
+    stb ,u
+    leax 1,x
+    cmpx #__rwdata_init_start+__rwdata_size
+    ? bne __init_rw_memory__loop1
+    + memory_barrier()
+    puls u
+    __init_rw_memory_end:
+    rts
 }
 
 #else
