@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.18 (2020-04-08)
 
 * Support for Motorola 6809 (complete, but still experimental).
 
