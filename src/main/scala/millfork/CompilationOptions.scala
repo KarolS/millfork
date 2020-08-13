@@ -499,6 +499,7 @@ object Cpu extends Enumeration {
     case "z80" => Z80
     case "strictz80" => Z80
     case "zx80next" => Z80Next
+    case "z80next" => Z80Next
       // disabled for now:
 //    case "ez80" => EZ80
     case "gameboy"  => Sharp

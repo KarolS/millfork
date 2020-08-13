@@ -38,7 +38,8 @@ if a line ends with a backslash character, the value continues to the next line.
     
     * `strictz80` (Z80 without illegal instructions)
     
-    * `z80next` (Z80 core from ZX Spectrum Next)
+    * `z80next` (Z80 core from ZX Spectrum Next)  
+    Note: Millfork version 0.3.18 and earlier uses the name `zx80next` for this architecture.
     
     * `i8080` (Intel 8080)
     
