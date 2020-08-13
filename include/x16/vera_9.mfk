@@ -18,7 +18,7 @@ volatile byte vera_ien @ $9f26
 volatile byte vera_isr @ $9f27
 volatile byte vera_irqline @ $9f28
 volatile byte vera_dc_video_hstart @ $9f29
-volatile byte vera_dc_hscale_hstop @ $9f29
+volatile byte vera_dc_hscale_hstop @ $9f2a
 volatile byte vera_dc_vscale_vstart @ $9f2b
 volatile byte vera_dc_border_vstop @ $9f2c
 
