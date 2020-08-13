@@ -145,4 +145,22 @@ class ConstantSuite extends FunSuite with Matchers {
           """.stripMargin)
     m.readByte(0xc000) should equal(1)
   }
+
+  test("Large constants should work") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80)(
+          """
+            | const int24 A = 200
+            | const int24 B = 8
+            | const int24 C = A/B
+            | array(int24) arr[10] @$c000
+            | void main() {
+            |   arr[0] = C
+            |   arr[1] = A/B
+            | }
+            |
+          """.stripMargin) {m =>
+      m.readMedium(0xc000) should equal(200/8)
+      m.readMedium(0xc003) should equal(200/8)
+    }
+  }
 }

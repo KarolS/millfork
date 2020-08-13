@@ -494,12 +494,14 @@ object AbstractExpressionCompiler {
         case List(1, 1) | List(2, 1) => b
         case List(1, 2) | List(2, 2) => w
         case List(0, _) | List(_, 0) => b
-        case _ => log.error("Combining values bigger than words", expr.position); w
+        case List(n, _) if n >= 3 => env.get[Type]("int" + n * 8)
+        case _ => log.error(s"Invalid parameters to %%", expr.position); w
       }
-      case FunctionCallExpression("*" | "|" | "&" | "^" | "/", params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
+      case FunctionCallExpression(op@("*" | "|" | "&" | "^" | "/"), params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
         case 0 | 1 => b
         case 2 => w
-        case _ => log.error("Combining values bigger than words", expr.position); w
+        case n if n >= 3 => env.get[Type]("int" + n * 8)
+        case _ => log.error(s"Invalid parameters to " + op, expr.position); w
       }
       case FunctionCallExpression("<<", List(a1, a2)) =>
         if (getExpressionTypeImpl(env, log, a2, loosely).size > 1) log.error("Shift amount too large", a2.position)
