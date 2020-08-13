@@ -1,6 +1,6 @@
 name := "millfork"
 
-version := "0.3.18"
+version := "0.3.21-SNAPSHOT"
 
 scalaVersion := "2.12.11"
 
