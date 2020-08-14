@@ -1,5 +1,23 @@
 # Change log
 
+## Current version
+
+* Added alternate decimal operators (with `$` instead of `'`).
+
+* Added `z80next` as an alternate name for the ZX Spectrum Next's processor (#55).
+
+* Improved some error messages.
+
+* Fixed evaluation of division of large constants.
+
+* X16: Fixed the address of `vera_dc_hscale_hstop` register (#54) (thanks to @Kobrasadetin).
+
+* Fixed evaluation of more complex boolean expressions (#56).
+
+* Fixed accesses to volatile variables.
+
+* 8080/Z80: Optimization improvements. 
+
 ## 0.3.18 (2020-04-08)
 
 * Support for Motorola 6809 (complete, but still experimental).
