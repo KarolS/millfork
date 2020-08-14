@@ -454,14 +454,14 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         xs.separators.distinct match {
           case Nil =>
             if (xs.tail.nonEmpty)
-              log.error("Too many different operators", xs.head.head._2.position)
+              log.error("Too many different operators; consider using parentheses for disambiguation", xs.head.head._2.position)
             p(xs.head, level + 1)
           case List("+") | List("-") | List("+", "-") | List("-", "+") =>
             SumExpression(xs.toPairList("+").map {
               case (op, value) =>
                 if (value.count(_._1) > 0) {
                   if (value.size == 1) {
-                    log.error("Too many different operators", xs.head.head._2.position)
+                    log.error("Too many different operators; consider using parentheses for disambiguation", xs.head.head._2.position)
                   }
                   (op == "+", p(value.map(p => (false, p._2)), level + 1))
                 } else {
@@ -470,7 +470,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
             }, decimal = false).pos(list.head._2.position)
           case List("+'") | List("-'") | List("+'", "-'") | List("-'", "+'") =>
             SumExpression(xs.toPairList("+").map { case (op, value) =>
-              if (value.exists(_._1)) log.error("Too many different operators", xs.head.head._2.position)
+              if (value.exists(_._1)) log.error("Too many different operators; consider using parentheses for disambiguation", xs.head.head._2.position)
               (op == "-'", p(value, level + 1))
             }, decimal = true).pos(list.head._2.position)
           case List(":") =>
@@ -490,7 +490,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
           case List(op) =>
             FunctionCallExpression(op, xs.items.map(value => p(value, level + 1))).pos(list.head._2.position)
           case _ =>
-            log.error("Too many different operators", xs.head.head._2.position)
+            log.error("Too many different operators; consider using parentheses for disambiguation", xs.head.head._2.position)
             LiteralExpression(0, 1)
         }
       }
