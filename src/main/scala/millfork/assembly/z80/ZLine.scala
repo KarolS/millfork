@@ -89,7 +89,7 @@ object ZLine {
   import ZOpcode._
   import ZRegister._
 
-  private def elidability(source: ThingInMemory): Elidability.Value = {
+  def elidability(source: ThingInMemory): Elidability.Value = {
     if (source.isVolatile) Elidability.Volatile else Elidability.Elidable
   }
 

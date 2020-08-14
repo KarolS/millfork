@@ -1,5 +1,6 @@
 package millfork.env
 
+import millfork.assembly.Elidability
 import millfork.output.MemoryAlignment
 
 trait Pointy {
@@ -16,10 +17,11 @@ case class StackVariablePointy(offset: Int, indexType: VariableType, elementType
   override def isArray: Boolean = false
 }
 
-case class VariablePointy(addr: Constant, indexType: VariableType, elementType: VariableType, zeropage: Boolean) extends Pointy {
+case class VariablePointy(addr: Constant, indexType: VariableType, elementType: VariableType, zeropage: Boolean, volatile: Boolean) extends Pointy {
   override def name: Option[String] = None
   override def readOnly: Boolean = false
   override def isArray: Boolean = false
+  def elidability: Elidability.Value = if (volatile) Elidability.Volatile else Elidability.Elidable
 }
 
 case class ConstantPointy(value: Constant,

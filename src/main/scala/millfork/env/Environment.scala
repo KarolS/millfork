@@ -397,7 +397,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case th:VariableInMemory if th.typ.isPointy=>
         val e = get[VariableType](th.typ.pointerTargetName)
         val w = get[VariableType]("word")
-        VariablePointy(th.toAddress, w, e, th.zeropage)
+        VariablePointy(th.toAddress, w, e, th.zeropage, th.isVolatile)
       case th:StackVariable if th.typ.isPointy =>
         val e = get[VariableType](th.typ.pointerTargetName)
         val w = get[VariableType]("word")

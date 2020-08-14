@@ -140,11 +140,12 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
             val newCode = inlineVars(v, register, addressInHl = false, addressInBc = false, addressInDe = false, oldCode.map(_._2))
             reportOptimizedBlock(oldCode, newCode)
             if (vs.paramVariables(v)) {
-              val addr = vs.localVariables.find(_.name.==(v)).get.asInstanceOf[MemoryVariable].toAddress
+              val variable = vs.localVariables.find(_.name.==(v)).get.asInstanceOf[MemoryVariable]
+              val addr = variable.toAddress
               if (register == ZRegister.A) {
-                output += ZLine.ldAbs8(ZRegister.A, addr)
+                output += ZLine.ldAbs8(ZRegister.A, addr, elidability = ZLine.elidability(variable))
               } else {
-                output += ZLine.ldAbs8(ZRegister.A, addr)
+                output += ZLine.ldAbs8(ZRegister.A, addr, elidability = ZLine.elidability(variable))
                 output += ZLine.ld8(register, ZRegister.A)
               }
             }

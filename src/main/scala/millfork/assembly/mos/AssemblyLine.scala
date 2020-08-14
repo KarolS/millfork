@@ -547,6 +547,8 @@ object AssemblyLine0 {
 
 case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var parameter: Constant, elidability: Elidability.Value = Elidability.Elidable, source: Option[SourceLine] = None) extends AbstractCode {
 
+  def applyVolatile(v: Boolean): AssemblyLine = if (v) copy(elidability = Elidability.Volatile) else this
+
   def pos(s: Option[SourceLine]): AssemblyLine = if (s.isEmpty || s == source) this else this.copy(source = s)
 
   def pos(s1: Option[SourceLine], s2: Option[SourceLine]): AssemblyLine = pos(Seq(s1, s2))

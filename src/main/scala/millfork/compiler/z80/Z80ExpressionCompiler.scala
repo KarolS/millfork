@@ -432,10 +432,10 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                     case ZExpressionTarget.DEHL =>
                       // TODO: signed int24s
                       if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
-                        List(ZLine.ldAbs16(HL, v), ZLine.ldAbs16(DE, v.toAddress + 2))
+                        List(ZLine.ldAbs16(HL, v), ZLine.ldAbs16(DE, v.toAddress + 2, ZLine.elidability(v)))
                       } else if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
                         // The optimizer might spit out an EX DE,HL
-                        List(ZLine.ldAbs16(HL, v.toAddress + 2), ZLine.ld8(D,H), ZLine.ld8(E,L),ZLine.ldAbs16(HL, v))
+                        List(ZLine.ldAbs16(HL, v.toAddress + 2, ZLine.elidability(v)), ZLine.ld8(D,H), ZLine.ld8(E,L),ZLine.ldAbs16(HL, v))
                       } else {
                         // TODO: is it optimal?
                         List(
@@ -1102,7 +1102,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                   case 1 =>
                     calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
                       case Some((LocalVariableAddressViaHL, List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)))) =>
-                        Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%=") :+ ZLine.ldAbs8(addr, ZRegister.A)
+                        Z80Multiply.compileUnsignedByteDivision(ctx, Right(l), r, f.functionName == "%%=") :+ ZLine.ldAbs8(addr, ZRegister.A, Elidability.Elidable)
                       case Some((LocalVariableAddressViaHL, code)) =>
                         code ++ (stashHLIfChanged(ctx, Z80Multiply.compileUnsignedByteDivision(ctx, Left(LocalVariableAddressViaHL), r, f.functionName == "%%=")) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
                       case Some((lvo, code)) =>
@@ -1118,9 +1118,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                       calculateAddressToAppropriatePointer(ctx, l, forWriting = true) match {
                         case Some((LocalVariableAddressViaHL, List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)))) =>
                           Z80Multiply.compileUnsignedWordDivision(ctx, Right(l), r, modulo = true, rhsWord = false) ++ List(
-                            ZLine.ldAbs8(addr, ZRegister.A),
+                            ZLine.ldAbs8(addr, ZRegister.A, Elidability.Elidable),
                             ZLine.register(XOR, ZRegister.A),
-                            ZLine.ldAbs8(addr+1, ZRegister.A)
+                            ZLine.ldAbs8(addr+1, ZRegister.A, Elidability.Elidable)
                           )
                         case Some((lvo@LocalVariableAddressViaHL, code)) =>
                           code ++ stashHLIfChanged(ctx, Z80Multiply.compileUnsignedWordDivision(ctx, Left(lvo), r, modulo = true, rhsWord = false)) ++ List(
@@ -1448,31 +1448,31 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 List(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
             }
         }
-      case VariablePointy(varAddr, _, _, _) =>
+      case vp@VariablePointy(varAddr, _, _, _, _) =>
         env.eval(i.index) match {
           case Some(NumericConstant(0, _)) if extraOffset == 0 =>
             if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
-              List(ZLine.ldAbs16(ZRegister.HL, varAddr))
+              List(ZLine.ldAbs16(ZRegister.HL, varAddr, vp.elidability))
             } else {
               // TODO: is this reasonable?
               List(
-                ZLine.ldAbs8(ZRegister.A, varAddr),
+                ZLine.ldAbs8(ZRegister.A, varAddr, vp.elidability),
                 ZLine.ld8(ZRegister.L, ZRegister.A),
-                ZLine.ldAbs8(ZRegister.A, varAddr + 1),
+                ZLine.ldAbs8(ZRegister.A, varAddr + 1, vp.elidability),
                 ZLine.ld8(ZRegister.H, ZRegister.A))
             }
           case _ =>
             if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
               compileToBC(ctx, i.index #*# elementSize #+# extraOffset) ++
-                List(ZLine.ldAbs16(ZRegister.HL, varAddr)) ++
+                List(ZLine.ldAbs16(ZRegister.HL, varAddr, vp.elidability)) ++
                   List.fill(elementSize)(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
             } else {
               // TODO: is this reasonable?
               compileToBC(ctx, i.index #*# elementSize #+# extraOffset) ++
                 List(
-                  ZLine.ldAbs8(ZRegister.A, varAddr),
+                  ZLine.ldAbs8(ZRegister.A, varAddr, vp.elidability),
                   ZLine.ld8(ZRegister.L, ZRegister.A),
-                  ZLine.ldAbs8(ZRegister.A, varAddr + 1),
+                  ZLine.ldAbs8(ZRegister.A, varAddr + 1, vp.elidability),
                   ZLine.ld8(ZRegister.H, ZRegister.A)) ++
                   List.fill(elementSize)(ZLine.registers(ADD_16, ZRegister.HL, ZRegister.BC))
             }
@@ -1570,14 +1570,15 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def signExtend(ctx: CompilationContext, targetAddr: Constant, hiRegister: ZRegister.Value, bytes: Int, signedSource: Boolean): List[ZLine] = {
+  def signExtend(ctx: CompilationContext, targetAddr: Constant, hiRegister: ZRegister.Value, bytes: Int, signedSource: Boolean, volatile: Boolean): List[ZLine] = {
+    val elidability = if (volatile) Elidability.Volatile else Elidability.Elidable
     if (bytes <= 0) return Nil
     val prepareA = if (signedSource) {
       signExtendHighestByte(ctx, hiRegister)
     } else {
       List(ZLine.ldImm8(ZRegister.A, 0))
     }
-    val fillUpperBytes = List.tabulate(bytes)(i => ZLine.ldAbs8((targetAddr + i).quickSimplify, ZRegister.A))
+    val fillUpperBytes = List.tabulate(bytes)(i => ZLine.ldAbs8((targetAddr + i).quickSimplify, ZRegister.A, elidability))
     prepareA ++ fillUpperBytes
   }
 
@@ -1639,11 +1640,12 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     prepareA ++ fillUpperBytes
   }
 
-  def storeA(ctx: CompilationContext, targetAddr: Constant, targetSize: Int, signedSource: Boolean): List[ZLine] = {
+  def storeA(ctx: CompilationContext, targetAddr: Constant, targetSize: Int, signedSource: Boolean, volatile: Boolean): List[ZLine] = {
+    val elidability = if (volatile) Elidability.Volatile else Elidability.Elidable
     targetSize match {
       case 0 => Nil
-      case 1 => List(ZLine.ldAbs8(targetAddr, ZRegister.A))
-      case n => ZLine.ldAbs8(targetAddr, ZRegister.A) :: signExtend(ctx, targetAddr + 1, ZRegister.A, n - 1, signedSource)
+      case 1 => List(ZLine.ldAbs8(targetAddr, ZRegister.A, elidability))
+      case n => ZLine.ldAbs8(targetAddr, ZRegister.A, elidability) :: signExtend(ctx, targetAddr + 1, ZRegister.A, n - 1, signedSource, volatile)
     }
   }
 
@@ -1671,103 +1673,106 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     }
   }
 
-  def storeHL(ctx: CompilationContext, targetAddr: Constant, targetSize: Int, signedSource: Boolean): List[ZLine] = {
+  def storeHL(ctx: CompilationContext, targetAddr: Constant, targetSize: Int, signedSource: Boolean, volatile: Boolean): List[ZLine] = {
     // TODO: LD (nnnn),HL compatibility?
+    val elidability = if (volatile) Elidability.Volatile else Elidability.Elidable
     targetSize match {
       case 0 => Nil
-      case 1 => List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.ldAbs8(targetAddr, ZRegister.A))
+      case 1 => List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.ldAbs8(targetAddr, ZRegister.A, elidability))
       case n =>
         if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)){
-          ZLine.ldAbs16(targetAddr, ZRegister.HL) :: signExtend(ctx, targetAddr + 2, ZRegister.H, n - 2, signedSource)
+          ZLine.ldAbs16(targetAddr, ZRegister.HL, elidability) :: signExtend(ctx, targetAddr + 2, ZRegister.H, n - 2, signedSource, volatile)
         } else {
           List(
             ZLine.ld8(ZRegister.A, ZRegister.L),
-            ZLine.ldAbs8(targetAddr, ZRegister.A),
+            ZLine.ldAbs8(targetAddr, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.H),
-            ZLine.ldAbs8(targetAddr + 1, ZRegister.A)) ++ signExtend(ctx, targetAddr + 2, ZRegister.H, n - 2, signedSource)
+            ZLine.ldAbs8(targetAddr + 1, ZRegister.A, elidability)) ++ signExtend(ctx, targetAddr + 2, ZRegister.H, n - 2, signedSource, volatile)
         }
     }
   }
 
-  def storeEHL(ctx: CompilationContext, targetAddr: Constant, targetSize: Int, signedSource: Boolean): List[ZLine] = {
+  def storeEHL(ctx: CompilationContext, targetAddr: Constant, targetSize: Int, signedSource: Boolean, volatile: Boolean): List[ZLine] = {
+    val elidability = if (volatile) Elidability.Volatile else Elidability.Elidable
     targetSize match {
       case 0 => Nil
-      case 1 => List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.ldAbs8(targetAddr, ZRegister.A))
+      case 1 => List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.ldAbs8(targetAddr, ZRegister.A, elidability))
       case 2 =>
         if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)){
-          List(ZLine.ldAbs16(targetAddr, ZRegister.HL))
+          List(ZLine.ldAbs16(targetAddr, ZRegister.HL, elidability))
         } else {
           List(
             ZLine.ld8(ZRegister.A, ZRegister.L),
-            ZLine.ldAbs8(targetAddr, ZRegister.A),
+            ZLine.ldAbs8(targetAddr, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.H),
-            ZLine.ldAbs8(targetAddr + 1, ZRegister.A))
+            ZLine.ldAbs8(targetAddr + 1, ZRegister.A, elidability))
         }
       case n =>
         if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)){
           List(
-            ZLine.ldAbs16(targetAddr, ZRegister.HL),
+            ZLine.ldAbs16(targetAddr, ZRegister.HL, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.E),
-            ZLine.ldAbs8(targetAddr + 2, ZRegister.A)) ++ signExtend(ctx, targetAddr + 3, ZRegister.E, n - 3, signedSource)
+            ZLine.ldAbs8(targetAddr + 2, ZRegister.A, elidability)) ++ signExtend(ctx, targetAddr + 3, ZRegister.E, n - 3, signedSource, volatile)
         } else {
           List(
             ZLine.ld8(ZRegister.A, ZRegister.L),
-            ZLine.ldAbs8(targetAddr, ZRegister.A),
+            ZLine.ldAbs8(targetAddr, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.H),
-            ZLine.ldAbs8(targetAddr + 1, ZRegister.A),
+            ZLine.ldAbs8(targetAddr + 1, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.E),
-            ZLine.ldAbs8(targetAddr + 2, ZRegister.A)) ++ signExtend(ctx, targetAddr + 3, ZRegister.E, n - 3, signedSource)
+            ZLine.ldAbs8(targetAddr + 2, ZRegister.A, elidability)) ++ signExtend(ctx, targetAddr + 3, ZRegister.E, n - 3, signedSource, volatile)
         }
     }
   }
 
-  def storeDEHL(ctx: CompilationContext, targetAddr: Constant, targetSize: Int, signedSource: Boolean): List[ZLine] = {
+  def storeDEHL(ctx: CompilationContext, targetAddr: Constant, targetSize: Int, signedSource: Boolean, volatile: Boolean): List[ZLine] = {
+    val elidability = if (volatile) Elidability.Volatile else Elidability.Elidable
     targetSize match {
       case 0 => Nil
-      case 1 => List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.ldAbs8(targetAddr, ZRegister.A))
+      case 1 => List(ZLine.ld8(ZRegister.A, ZRegister.L), ZLine.ldAbs8(targetAddr, ZRegister.A, elidability))
       case 2 =>
         if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)){
-          List(ZLine.ldAbs16(targetAddr, ZRegister.HL))
+          List(ZLine.ldAbs16(targetAddr, ZRegister.HL, elidability))
         } else {
           List(
             ZLine.ld8(ZRegister.A, ZRegister.L),
-            ZLine.ldAbs8(targetAddr, ZRegister.A),
+            ZLine.ldAbs8(targetAddr, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.H),
-            ZLine.ldAbs8(targetAddr + 1, ZRegister.A))
+            ZLine.ldAbs8(targetAddr + 1, ZRegister.A, elidability))
         }
       case 3 =>
         if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
           List(
-            ZLine.ldAbs16(targetAddr, ZRegister.HL),
+            ZLine.ldAbs16(targetAddr, ZRegister.HL, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.E),
-            ZLine.ldAbs8(targetAddr + 2, ZRegister.A))
+            ZLine.ldAbs8(targetAddr + 2, ZRegister.A, elidability))
         } else {
           List(
             ZLine.ld8(ZRegister.A, ZRegister.L),
-            ZLine.ldAbs8(targetAddr, ZRegister.A),
+            ZLine.ldAbs8(targetAddr, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.H),
-            ZLine.ldAbs8(targetAddr + 1, ZRegister.A),
+            ZLine.ldAbs8(targetAddr + 1, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.E),
-            ZLine.ldAbs8(targetAddr + 2, ZRegister.A))
+            ZLine.ldAbs8(targetAddr + 2, ZRegister.A, elidability))
         }
       case n =>
         if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)){
           List(
-            ZLine.ldAbs16(targetAddr, ZRegister.HL),
+            ZLine.ldAbs16(targetAddr, ZRegister.HL, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.E),
-            ZLine.ldAbs8(targetAddr + 2, ZRegister.A),
+            ZLine.ldAbs8(targetAddr + 2, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.D),
-            ZLine.ldAbs8(targetAddr + 3, ZRegister.A)) ++ signExtend(ctx, targetAddr + 4, ZRegister.D, n - 4, signedSource)
+            ZLine.ldAbs8(targetAddr + 3, ZRegister.A, elidability)) ++ signExtend(ctx, targetAddr + 4, ZRegister.D, n - 4, signedSource, volatile)
         } else {
           List(
             ZLine.ld8(ZRegister.A, ZRegister.L),
-            ZLine.ldAbs8(targetAddr, ZRegister.A),
+            ZLine.ldAbs8(targetAddr, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.H),
-            ZLine.ldAbs8(targetAddr + 1, ZRegister.A),
+            ZLine.ldAbs8(targetAddr + 1, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.E),
-            ZLine.ldAbs8(targetAddr + 2, ZRegister.A),
+            ZLine.ldAbs8(targetAddr + 2, ZRegister.A, elidability),
             ZLine.ld8(ZRegister.A, ZRegister.D),
-            ZLine.ldAbs8(targetAddr + 3, ZRegister.A)) ++ signExtend(ctx, targetAddr + 4, ZRegister.D, n - 4, signedSource)
+            ZLine.ldAbs8(targetAddr + 3, ZRegister.A, elidability)) ++ signExtend(ctx, targetAddr + 4, ZRegister.D, n - 4, signedSource, volatile)
         }
     }
   }
@@ -1837,7 +1842,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     target match {
       case VariableExpression(vname) =>
         env.get[Variable](vname) match {
-          case v: VariableInMemory => storeA(ctx, v.toAddress, v.typ.size, signedSource)
+          case v: VariableInMemory => storeA(ctx, v.toAddress, v.typ.size, signedSource, v.isVolatile)
           case v: StackVariable =>
             if (ctx.options.flag(CompilationFlag.UseIxForStack)){
               storeAViaIX(ctx, v.baseOffset, v.typ.size, signedSource)
@@ -1849,7 +1854,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         }
       case i:IndexedExpression =>
         calculateAddressToHL(ctx, i, forWriting = true) match {
-          case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)) => storeA(ctx, addr, 1, signedSource)
+          case List(ZLine0(LD_16, TwoRegisters(ZRegister.HL, ZRegister.IMM_16), addr)) => storeA(ctx, addr, 1, signedSource, volatile = false)
           case code => if (code.exists(changesA)) {
             List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++ stashDEIfChanged(ctx, code) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.E)
           } else code :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
@@ -1888,7 +1893,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     target match {
       case VariableExpression(vname) =>
         env.get[Variable](vname) match {
-          case v: VariableInMemory => storeHL(ctx, v.toAddress, v.typ.size, signedSource)
+          case v: VariableInMemory => storeHL(ctx, v.toAddress, v.typ.size, signedSource, v.isVolatile)
           case v: StackVariable =>
             if (ctx.options.flag(CompilationFlag.UseIxForStack)){
               storeHLViaIX(ctx, v.baseOffset, v.typ.size, signedSource)
@@ -1935,7 +1940,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         env.getPointy(pointyName) match {
           case p: ConstantPointy =>
             env.evalVariableAndConstantSubParts(indexExpr) match {
-              case (None, offset) => ZLine.ld8(ZRegister.A, ZRegister.L) :: storeA(ctx, (p.value + offset).quickSimplify, 1, signedSource)
+              case (None, offset) => ZLine.ld8(ZRegister.A, ZRegister.L) :: storeA(ctx, (p.value + offset).quickSimplify, 1, signedSource, volatile = false)
             }
           case _ => ctx.log.fatal("Whee!") // the statement preprocessor should have removed all of those
         }
@@ -1983,7 +1988,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     val preparePointer = target match {
       case VariableExpression(vname) =>
         env.get[Variable](vname) match {
-          case v: VariableInMemory => return storeEHL(ctx, v.toAddress, v.typ.size, signedSource)
+          case v: VariableInMemory => return storeEHL(ctx, v.toAddress, v.typ.size, signedSource, v.isVolatile)
           case v: StackVariable =>
             if (ctx.options.flag(CompilationFlag.UseIxForStack)){
               return storeEHLViaIX(ctx, v.baseOffset, v.typ.size, signedSource)
@@ -2015,7 +2020,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     val preparePointer = target match {
       case VariableExpression(vname) =>
         env.get[Variable](vname) match {
-          case v: VariableInMemory => return storeDEHL(ctx, v.toAddress, v.typ.size, signedSource)
+          case v: VariableInMemory => return storeDEHL(ctx, v.toAddress, v.typ.size, signedSource, v.isVolatile)
           case v: StackVariable =>
             if (ctx.options.flag(CompilationFlag.UseIxForStack)){
               return storeDEHLViaIX(ctx, v.baseOffset, v.typ.size, signedSource)
@@ -2166,9 +2171,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case v: VariableInMemory =>
                 List.tabulate(size) { i =>
                   if (i < v.typ.size) {
-                    List(ZLine.ldAbs8(ZRegister.A, v.toAddress + i))
+                    List(ZLine.ldAbs8(ZRegister.A, v.toAddress + i, ZLine.elidability(v)))
                   } else if (v.typ.isSigned) {
-                    ZLine.ldAbs8(ZRegister.A, v.toAddress + v.typ.size - 1) :: signExtendHighestByte(ctx, ZRegister.A)
+                    ZLine.ldAbs8(ZRegister.A, v.toAddress + v.typ.size - 1, Elidability.Elidable) :: signExtendHighestByte(ctx, ZRegister.A)
                   } else {
                     List(ZLine.ldImm8(ZRegister.A, 0))
                   }
@@ -2279,7 +2284,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                         val result = env.get[VariableInMemory](function.name + ".return")
                         List.tabulate(size) {
                           case 0 => compile(ctx, rhs, ZExpressionTarget.NOTHING, BranchSpec.None) :+ ZLine.ldAbs8(ZRegister.A, result)
-                          case i if i < typ.size => List(ZLine.ldAbs8(ZRegister.A, result.toAddress + i))
+                          case i if i < typ.size => List(ZLine.ldAbs8(ZRegister.A, result.toAddress + i, Elidability.Elidable))
                           case _ => List(ZLine.ldImm8(ZRegister.A, 0)) // TODO: signed large types?
                         }
                     }
@@ -2316,7 +2321,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             }
             List.tabulate(size) { i =>
               if (i < size) {
-                List(ZLine.ldAbs8(v.toAddress + i, ZRegister.A))
+                List(ZLine.ldAbs8(v.toAddress + i, ZRegister.A, ZLine.elidability(v)))
               } else {
                 Nil
               }

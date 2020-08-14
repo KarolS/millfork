@@ -224,19 +224,19 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           AssemblyLine.zeropage(STA, reg, 1),
           AssemblyLine.immediate(LDA, p.value.loByte),
           AssemblyLine.zeropage(STA, reg))
-      case VariablePointy(addr, _, _, true) =>
+      case VariablePointy(addr, _, _, true, v) =>
         List(
           AssemblyLine.implied(CLC),
-          AssemblyLine.zeropage(ADC, addr + 1),
+          AssemblyLine.zeropage(ADC, addr + 1).applyVolatile(v),
           AssemblyLine.zeropage(STA, reg, 1),
-          AssemblyLine.zeropage(LDA, addr),
+          AssemblyLine.zeropage(LDA, addr).applyVolatile(v),
           AssemblyLine.zeropage(STA, reg))
-      case VariablePointy(addr, _, _, false) =>
+      case VariablePointy(addr, _, _, false, v) =>
         List(
           AssemblyLine.implied(CLC),
-          AssemblyLine.absolute(ADC, addr + 1),
+          AssemblyLine.absolute(ADC, addr + 1).applyVolatile(v),
           AssemblyLine.zeropage(STA, reg, 1),
-          AssemblyLine.absolute(LDA, addr),
+          AssemblyLine.absolute(LDA, addr).applyVolatile(v),
           AssemblyLine.zeropage(STA, reg))
       case StackVariablePointy(offset, _, _) =>
         if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
@@ -370,25 +370,25 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             }
             storeToArrayAtUnknownIndex(v, p.value)
           //TODO: should there be a type check or a zeropage check?
-          case (pointerVariable@VariablePointy(varAddr, _, _, true), None, _, 0 | 1) =>
+          case (pointerVariable@VariablePointy(varAddr, _, _, true, volatile), None, _, 0 | 1) =>
             register match {
               case MosRegister.A =>
-                List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.indexedY(STA, pointerVariable.addr))
+                List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.indexedY(STA, pointerVariable.addr).applyVolatile(volatile))
               case MosRegister.Y =>
-                List(AssemblyLine.implied(TYA), AssemblyLine.immediate(LDY, constIndex), AssemblyLine.indexedY(STA, pointerVariable.addr), AssemblyLine.implied(TAY))
+                List(AssemblyLine.implied(TYA), AssemblyLine.immediate(LDY, constIndex), AssemblyLine.indexedY(STA, pointerVariable.addr).applyVolatile(volatile), AssemblyLine.implied(TAY))
               case MosRegister.X =>
-                List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, pointerVariable.addr))
+                List(AssemblyLine.immediate(LDY, constIndex), AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, pointerVariable.addr).applyVolatile(volatile))
               case _ =>
                 ctx.log.error("Cannot store a word in an array", target.position)
                 Nil
             }
-          case (p@VariablePointy(varAddr, _, _, true), Some(_), _, 0 | 1) =>
+          case (p@VariablePointy(varAddr, _, _, true, volatile), Some(_), _, 0 | 1) =>
             val calculatingIndex = compile(ctx, indexExpr, Some(b, RegisterVariable(MosRegister.Y, b)), NoBranching)
             register match {
               case MosRegister.A =>
-                preserveRegisterIfNeeded(ctx, MosRegister.A, calculatingIndex) :+ AssemblyLine.indexedY(STA, varAddr)
+                preserveRegisterIfNeeded(ctx, MosRegister.A, calculatingIndex) :+ AssemblyLine.indexedY(STA, varAddr).applyVolatile(volatile)
               case MosRegister.X =>
-                preserveRegisterIfNeeded(ctx, MosRegister.X, calculatingIndex) ++ List(AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, varAddr))
+                preserveRegisterIfNeeded(ctx, MosRegister.X, calculatingIndex) ++ List(AssemblyLine.implied(TXA), AssemblyLine.indexedY(STA, varAddr).applyVolatile(volatile))
               case MosRegister.Y =>
                 AssemblyLine.implied(TYA) :: preserveRegisterIfNeeded(ctx, MosRegister.A, calculatingIndex) ++ List(
                   AssemblyLine.indexedY(STA, varAddr), AssemblyLine.implied(TAY)
