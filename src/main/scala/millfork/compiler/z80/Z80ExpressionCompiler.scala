@@ -53,7 +53,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               // TODO: helper functions to convert flags to booleans, to make code smaller
           }
         }
-        if (ctx.options.flag(CompilationFlag.OptimizeForSpeed)) {
+        if (ctx.options.flag(CompilationFlag.OptimizeForSpeed) || !hasOnlyOneJump) {
           val skip = ctx.env.nextLabel("bo")
           condition ++ List(
             ZLine.ldImm8(ZRegister.A, 1),

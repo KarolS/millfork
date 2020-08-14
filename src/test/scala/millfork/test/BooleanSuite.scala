@@ -288,4 +288,56 @@ class BooleanSuite extends FunSuite with Matchers {
         |}
         |""".stripMargin)
   }
+
+  test("Complex boolean expressions") {
+    for ((x,y,w,h) <- Seq(
+      (2,3,2,2),
+      (2,2,1,1),
+      (0,0,0,0),
+      (0,5,0,0),
+      (5,0,0,0),
+      (0,0,5,0),
+      (0,0,0,5),
+    )) {
+
+      EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+        s"""
+          |const byte MAX_SIZE = 4
+          |
+          |macro void is_room_within_bounds(byte x, byte y, byte width, byte height, bool output) {
+          |  output = x < MAX_SIZE && y < MAX_SIZE && x + width < MAX_SIZE && y + height < MAX_SIZE
+          |}
+          |
+          |byte temp
+          |
+          |bool in_bounds
+          |bool output0 @0xc000
+          |
+          |void main() {
+          |    byte x
+          |    byte y
+          |    byte width
+          |    byte height
+          |
+          |    temp=$x
+          |    x = temp
+          |    temp=$y
+          |    y = temp
+          |    temp=$w
+          |    width = temp
+          |    temp=$h
+          |    height = temp
+          |
+          |    is_room_within_bounds(x, y, width, height, in_bounds)
+          |
+          |    output0 = in_bounds
+          |
+          |}
+          |""".stripMargin) { m =>
+        val MAX_SIZE = 4
+        val bool = x < MAX_SIZE && y < MAX_SIZE && x + w < MAX_SIZE && y + h < MAX_SIZE
+        m.readByte(0xc000) should equal(if (bool) 1 else 0)
+      }
+    }
+  }
 }

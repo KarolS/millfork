@@ -662,8 +662,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             MLine.shortBranch(BRA, label2),
             MLine.label(label),
             MLine.immediate(LDB, 0),
-            MLine.label(label2),
-            MLine.inherentB(ROL)
+            MLine.label(label2)
           )
         }
 

@@ -1840,7 +1840,7 @@ object AlwaysGoodOptimizations {
     val ifSet = Elidable & HasOpcode(LDA) & HasImmediate(if (zeroIfSet) 0 else nonZero)
     val ifClear = Elidable & HasOpcode(LDA) & HasImmediate(if (zeroIfSet) nonZero else 0)
     val jump = Elidable & HasOpcodeIn(Set(JMP, if (firstSet) BCS else BCC, if (zeroIfSet) BEQ else BNE)) & MatchParameter(1)
-    val elseLabel = (Elidable & HasOpcode(LABEL) & MatchParameter(0)).capture(10)
+    val elseLabel = (Elidable & HasOpcode(LABEL) & MatchParameter(0) & IsNotALabelUsedManyTimes).capture(10)
     val afterLabel = Elidable & HasOpcode(LABEL) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.C, State.N, State.V, State.Z) & IsNotALabelUsedManyTimes
     val store = Elidable & (Not(ReadsC) & Linear | HasOpcodeIn(RTS, JSR, RTI, RTL, BSR))
     val secondReturn = (Elidable & (HasOpcodeIn(RTS, RTI) | NoopDiscardsFlags)).*.capture(6)
