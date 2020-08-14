@@ -214,7 +214,17 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
               }
             case _ =>
           }
-          if(!options.flag(CompilationFlag.DecimalMode) && (source.contains("+'") || source.contains("-'") || source.contains("<<'") || source.contains("*'")))
+          if(!options.flag(CompilationFlag.DecimalMode) && (
+            source.contains("+'") ||
+              source.contains("-'") ||
+              source.contains("<<'") ||
+              source.contains(">>'") ||
+              source.contains("*'") ||
+              source.contains("$+") ||
+              source.contains("$-") ||
+              source.contains("$<<") ||
+              source.contains("$>>") ||
+              source.contains("$*")))
             tmp += EmuRun.cachedBcd
           tmp
         }

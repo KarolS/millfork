@@ -16,7 +16,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         | byte a
         | void main () {
         |  a = $36
-        |  output = a +' a
+        |  output = a $+ a
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(0x72))
   }
@@ -28,7 +28,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         | byte a
         | void main () {
         |  a = 1
-        |  output = a +' $69
+        |  output = a$+$69
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(0x70))
   }

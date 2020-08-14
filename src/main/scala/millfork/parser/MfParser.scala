@@ -435,7 +435,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       for {
         minus <- ("-".rep(min = 1).!.map(_.length().&(1).==(1)) ~/ HWS).?.map(_.getOrElse(false))
         head <- tightMfExpression(allowIntelHex, allowTopLevelIndexing) ~/ HWS
-        maybeOperator <- (StringIn(allowedOperators: _*).! ~ !CharIn(Seq('/', '=', '-', '+', ':', '>', '<', '\''))).?
+        maybeOperator <- (StringIn(allowedOperators: _*).! ~ !CharIn(Seq('/', '=', '-', '+', ':', '>', '<', '\''))).map(op => if (mfOperatorNormalizations.contains(op)) mfOperatorNormalizations(op) else op).?
         maybeTail <- maybeOperator.fold[P[Option[List[(String, (Boolean, Expression))]]]](Pass.map(_ => None))(o => (AWS ~/ inner ~/ HWS).map(x2 => Some((o -> x2.head) :: x2.tail)))
       } yield {
         maybeTail.fold[SeparatedList[(Boolean, Expression), String]](SeparatedList.of(minus -> head))(t => SeparatedList(minus -> head, t))
@@ -799,9 +799,12 @@ object MfParser {
 
   val letterOrDigit: P[Unit] = P(CharIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_.$1234567890"))
 
-  val lettersOrDigits: P[String] = P(CharsWhileIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_.$1234567890", min = 0).!)
+  val realLetterOrDigit: P[Unit] = P(CharIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_.1234567890"))
 
-  val identifier: P[String] = P((letter ~ lettersOrDigits).map { case (a, b) => a + b }).opaque("<identifier>")
+  val identifierTail: P[String] =
+    CharsWhileIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_.1234567890", min = 1).rep(min = 1, sep = "$").!
+
+  val identifier: P[String] = (letter ~ ("$".? ~ identifierTail).?).!.opaque("<identifier>")
 
   val doubleQuotedString: P[String] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').?.! ~ "\"")
 
@@ -895,13 +898,26 @@ object MfParser {
     }
 
   val mfOperators = List(
-    List("+=", "-=", "+'=", "-'=", "^=", "&=", "|=", "*=", "*'=", "<<=", ">>=", "<<'=", ">>'=", "/=", "%%=", "="),
+    List("+=", "-=", "+'=", "-'=", "^=", "&=", "|=", "*=", "*'=", "<<=", ">>=", "<<'=", ">>'=", "/=", "%%=", "=", "$*=", "$+=", "$-=", "$<<=", "$>>="),
     List("||", "^^"),
     List("&&"),
     List("==", "<=", ">=", "!=", "<", ">"),
     List(":"),
-    List("+'", "-'", "<<'", ">>'", ">>>>", "+", "-", "&", "|", "^", "<<", ">>"),
-    List("*'", "*", "/", "%%"))
+    List("+'", "-'", "<<'", ">>'", ">>>>", "+", "-", "&", "|", "^", "<<", ">>", "$+", "$-", "$<<", "$>>"),
+    List("*'", "$*", "*", "/", "%%"))
+
+  val mfOperatorNormalizations = Map(
+    "$+" -> "+'",
+    "$-" -> "-'",
+    "$+=" -> "+'=",
+    "$-=" -> "-'=",
+    "$<<" -> "<<'",
+    "$>>" -> ">>'",
+    "$<<=" -> "<<'=",
+    "$>>=" -> ">>'=",
+    "$*" -> "*'",
+    "$*=" -> "*'=",
+  )
 
   val mfOperatorsDropFlatten: IndexedSeq[List[String]] = mfOperators.indices.map(i => mfOperators.drop(i).flatten)
 

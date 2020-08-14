@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, ShouldNotCompile, ShouldNotParse}
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile, ShouldNotParse}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -58,6 +58,32 @@ class ParserSuite extends FunSuite with Matchers  {
     ShouldNotParse(
       """
         |const array a = ‟aa"
+        |""".stripMargin)
+  }
+
+  test("Various valid identifiers") {
+    // yes, this spews warnings.
+    // I'll deal with them later.
+    EmuUnoptimizedRun(
+      """
+        |byte a
+        |byte a$a
+        |byte a.$a
+        |byte a.a
+        |byte a.$a
+        |byte a$a$a
+        |byte a$.$a
+        |byte a...
+        |void main(){
+        |  a += 0
+        |  a$a += 0
+        |  a.$a += 0
+        |  a.a += 0
+        |  a.$a += 0
+        |  a$a$a += 0
+        |  a$.$a += 0
+        |  a... += 0
+        |}
         |""".stripMargin)
   }
 }

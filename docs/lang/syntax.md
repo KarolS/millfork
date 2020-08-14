@@ -13,6 +13,26 @@ Allowed line endings are U+000A, U+000D and U+000D/U+000A.
 Outside of text strings and comments, the only allowed characters are U+0009 and U+0020–U+007E
 (so-called printable ASCII).
 
+## Valid identifiers
+
+Identifiers are used for variable names, function names, array names, segment names.
+
+Identifiers have to start with a letter or an underscore, and they can contain letters, underscores, digits and dollar signs.
+
+An identifier cannot end with a dollar sign, nor can it contain two consecutive dollar signs. 
+
+Identifiers using dollar signs are reserved for internal use, do not use them without a good reason.
+
+There is no hard limit on the identifier length.
+
+    a     // valid
+    1a    // invalid
+    a1    // valid
+    _1    // valid
+    a$1   // valid, but discouraged
+    a$$a  // invalid
+    a$    // invalid
+
 ## Comments
 
 Comments start with `//` and last until the end of line.

@@ -41,6 +41,12 @@ Note that you cannot mix `+'` and `-'` with `+` and `-`.
 Certain operators (`/`, `%%`, `<<`, `>>`, `<<'`, `>>'`, `>>>>`, `:`, `!=`) cannot have more than 2 parameters,
 i.e. `x / y / z` will not compile.
 
+The decimal operators have two different forms:
+
+* apostrophe form (e.g. `+'`) – the original one, to be deprecated in the future, may be removed in Millfork 0.4
+
+* dollar form (e.g. `$+`) – available since Millfork 0.3.22
+
 ## Argument types
 
 In the descriptions below, arguments to the operators are explained as follows:
@@ -130,15 +136,18 @@ These operators work using the decimal arithmetic (packed BCD).
 On Ricoh-based targets (e.g. Famicom) they require the zeropage register to have size at least 4
 
 * `+'`, `-'`: decimal addition/subtraction  
+`$+`, `$-` (since Millfork 0.3.22)  
 `byte +' byte`  
 `constant word +' constant word`  
 `constant long +' constant long`  
 `word +' word` (zpreg)
 
 * `*'`: decimal multiplication  
+`$*` (since Millfork 0.3.22)  
 `constant *' constant`
 
 * `<<'`, `>>'`: decimal multiplication/division by power of two  
+`$<<`, `$>>` (since Millfork 0.3.22)  
 `byte <<' constant byte`
 
 ## Comparison operators
@@ -193,6 +202,7 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 `mutable long = long`
 
 * `+=`, `+'=`, `|=`, `^=`, `&=`: modification in place  
+`$+=` (since Millfork 0.3.22)   
 `mutable byte += byte`  
 `mutable word += word`  
 `mutable trivial long += long`
@@ -203,11 +213,13 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 `mutable trivial long <<= byte`
 
 * `<<'=`, `>>'=`: decimal shift in place  
+`$<<=`, `$>>=` (since Millfork 0.3.22)  
 `mutable byte <<'= constant byte`  
 `mutable word <<'= constant byte`  
 `mutable trivial long <<'= constant byte`
 
 * `-=`, `-'=`: subtraction in place  
+`$-=` (since Millfork 0.3.22)  
 `mutable byte -= byte`  
 `mutable word -= simple word`  
 `mutable trivial long -= simple long`
@@ -219,6 +231,7 @@ An expression of form `a[f()] += b` may call `f` an undefined number of times.
 `mutable word *= word` (zpreg)
 
 * `*'=`: decimal multiplication in place  
+`$*=` (since Millfork 0.3.22)  
 `mutable byte *'= constant byte`
 
 * `/=`, `%%=`: unsigned division and modulo in place  

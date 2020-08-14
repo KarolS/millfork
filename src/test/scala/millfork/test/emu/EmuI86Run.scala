@@ -162,7 +162,7 @@ class EmuI86Run(nodeOptimizations: List[NodeOptimization], assemblyOptimizations
         }
 
         (0x100 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
-        val resetN = source.contains("-'") && !options.flag(CompilationFlag.EmitExtended80Opcodes)
+        val resetN = (source.contains("-'") || source.contains("$-")) && !options.flag(CompilationFlag.EmitExtended80Opcodes)
         val resetNMethod = {
           val clazz = classOf[Z80Core]
           val method = clazz.getDeclaredMethod("resetN")
