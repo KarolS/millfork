@@ -563,7 +563,10 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
         case MathOperator.Minimum => lv min rv
         case MathOperator.Maximum => lv max rv
         case MathOperator.Plus => lv + rv
-        case MathOperator.Minus => lv - rv
+        case MathOperator.Minus =>
+          val tmp = lv - rv
+          if (size == 1 && (tmp < -128 || tmp > 255) ) return l.quickSimplify - r.quickSimplify
+          tmp
         case MathOperator.Times => lv * rv
         case MathOperator.Shl => lv << rv
         case MathOperator.Shr => lv >> rv
