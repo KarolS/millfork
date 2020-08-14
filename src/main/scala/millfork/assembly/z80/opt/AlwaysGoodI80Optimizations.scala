@@ -334,6 +334,22 @@ object AlwaysGoodI80Optimizations {
     (HasOpcode(CP) & MatchSoleRegisterAndOffset(1) & Not(Match8BitImmediate(2))) ~
       (HasOpcodeIn(Set(JP, JR, RET)) & HasRegisters(IfFlagClear(ZFlag.Z))) ~
       (Elidable & HasOpcode(LD) & HasTargetRegister(A) & MatchSourceRegisterAndOffset(1)) ~~> (_.init),
+
+    // 69
+    (Elidable & HasOpcode(LD) & HasTargetRegister(MEM_ABS_8) & MatchParameter(0)) ~
+      (Linear & Not(ConcernsMemory)).* ~
+      (HasOpcode(LD) & HasTargetRegister(MEM_ABS_8) & MatchParameter(0)) ~~> (_.tail),
+
+    // 70
+    (Elidable & HasOpcode(LD) & HasTargetRegister(MEM_HL)) ~
+      (Linear & Not(ConcernsMemory) & Not(Changes(ZRegister.HL))).* ~
+      (HasOpcode(LD) & HasTargetRegister(MEM_HL)) ~~> (_.tail),
+
+    // 71
+    (Elidable & HasOpcode(LD_16) & HasTargetRegister(MEM_ABS_16) & MatchParameter(0)) ~
+      (Linear & Not(ConcernsMemory)).* ~
+      (HasOpcode(LD_16) & HasTargetRegister(MEM_ABS_16) & MatchParameter(0)) ~~> (_.tail),
+
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",
@@ -1706,8 +1722,30 @@ object AlwaysGoodI80Optimizations {
     ),
   )
 
+  val ActuallyUnconditionalJump = new RuleBasedAssemblyOptimization("Actually unconditional jump",
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.C)) & HasSet(ZFlag.C)) ~~> (code => code.map(_.copy(opcode = JP, registers = NoRegisters))),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.C)) & HasClear(ZFlag.C)) ~~> (code => code.map(_.copy(opcode = JP, registers = NoRegisters))),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.Z)) & HasSet(ZFlag.Z)) ~~> (code => code.map(_.copy(opcode = JP, registers = NoRegisters))),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.Z)) & HasClear(ZFlag.Z)) ~~> (code => code.map(_.copy(opcode = JP, registers = NoRegisters))),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.S)) & HasSet(ZFlag.S)) ~~> (code => code.map(_.copy(opcode = JP, registers = NoRegisters))),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.S)) & HasClear(ZFlag.S)) ~~> (code => code.map(_.copy(opcode = JP, registers = NoRegisters))),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.P)) & HasSet(ZFlag.P)) ~~> (code => code.map(_.copy(opcode = JP, registers = NoRegisters))),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.P)) & HasClear(ZFlag.P)) ~~> (code => code.map(_.copy(opcode = JP, registers = NoRegisters))),
+
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.C)) & HasSet(ZFlag.C)) ~~> (code => Nil),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.C)) & HasClear(ZFlag.C)) ~~> (code => Nil),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.Z)) & HasSet(ZFlag.Z)) ~~> (code => Nil),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.Z)) & HasClear(ZFlag.Z)) ~~> (code => Nil),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.S)) & HasSet(ZFlag.S)) ~~> (code => Nil),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.S)) & HasClear(ZFlag.S)) ~~> (code => Nil),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagClear(ZFlag.P)) & HasSet(ZFlag.P)) ~~> (code => Nil),
+    (Elidable & HasOpcodeIn(Set(JP, JR)) & HasRegisters(IfFlagSet(ZFlag.P)) & HasClear(ZFlag.P)) ~~> (code => Nil),
+  )
+
 
   val All: List[AssemblyOptimization[ZLine]] = List[AssemblyOptimization[ZLine]](
+    ActuallyUnconditionalJump,
     BranchInPlaceRemoval,
     ConstantDivision,
     ConstantMultiplication,

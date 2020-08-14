@@ -155,9 +155,22 @@ object CoarseFlowAnalyzer {
             currentStatus = currentStatus.copy(a = newA,
               nf = Status.SingleFalse, cf = newC, zf = newA.z(), sf = newA.n(), pf = AnyStatus, hf = AnyStatus)
 
+          case ZLine0(SUB, OneRegister(ZRegister.IMM_8), NumericConstant(n, _)) =>
+            val (newA, newC) = currentStatus.a.sbb(SingleStatus(n.toInt & 0xff), Status.SingleFalse)
+            currentStatus = currentStatus.copy(a = newA,
+              nf = Status.SingleTrue, cf = newC, zf = newA.z(), sf = newA.n(), pf = AnyStatus, hf = AnyStatus)
+          case ZLine0(SBC,OneRegister(ZRegister.IMM_8), NumericConstant(n, _))=>
+            val (newA, newC) = currentStatus.a.sbb(SingleStatus(n.toInt & 0xff), currentStatus.cf)
+            currentStatus = currentStatus.copy(a = newA,
+              nf = Status.SingleTrue, cf = newC,zf = newA.z(), sf = newA.n(), pf = AnyStatus, hf = AnyStatus)
           case ZLine0(SUB, OneRegister(s), _) =>
-            currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m - n) & 0xff),
-              nf = Status.SingleTrue, cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+            val (newA, newC) = currentStatus.a.sbb(currentStatus.getRegister(s), Status.SingleFalse)
+            currentStatus = currentStatus.copy(a = newA,
+              nf = Status.SingleTrue, cf = newC, zf = newA.z(), sf = newA.n(), pf = AnyStatus, hf = AnyStatus)
+          case ZLine0(SBC, OneRegister(s), _) =>
+            val (newA, newC) = currentStatus.a.sbb(currentStatus.getRegister(s), currentStatus.cf)
+            currentStatus = currentStatus.copy(a = newA,
+              nf = Status.SingleTrue, cf = newC,zf = newA.z(), sf = newA.n(), pf = AnyStatus, hf = AnyStatus)
 
           case ZLine0(AND, OneRegister(s), _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m & n) & 0xff),
@@ -172,6 +185,13 @@ object CoarseFlowAnalyzer {
           case ZLine0(XOR, OneRegister(s), _) =>
             currentStatus = currentStatus.copy(a = (currentStatus.a <*> currentStatus.getRegister(s)) ((m, n) => (m ^ n) & 0xff),
               nf = Status.SingleFalse, cf = Status.SingleFalse, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
+
+          case ZLine0(CP, OneRegister(ZRegister.IMM_8), NumericConstant(n, _)) =>
+            val (newA, newC) = currentStatus.a.sbb(SingleStatus(n.toInt & 0xff), Status.SingleFalse)
+            currentStatus = currentStatus.copy(nf = AnyStatus, cf = newC, zf = newA.z(), sf = newA.n(), pf = AnyStatus, hf = AnyStatus)
+          case ZLine0(CP, OneRegister(s), _) =>
+            val (newA, newC) = currentStatus.a.sbb(currentStatus.getRegister(s), Status.SingleFalse)
+            currentStatus = currentStatus.copy(nf = AnyStatus, cf = newC, zf = newA.z(), sf = newA.n(), pf = AnyStatus, hf = AnyStatus)
 
           case ZLine0(INC, OneRegister(r), _) =>
             val newV = currentStatus.getRegister(r).map(i => i.+(1).&(0xff))

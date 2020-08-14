@@ -234,6 +234,19 @@ object Status {
       case _ => AnyStatus -> AnyStatus
     }
 
+    def sbb(value: Status[Int], carry: Status[Boolean]): (Status[Int], Status[Boolean]) = (inner, value) match {
+      case (SingleStatus(x), SingleStatus(v)) => carry match {
+        case SingleStatus(false) => SingleStatus((x - v) & 0xff) -> SingleStatus((x.&(0xff) - v.&(0xff)) < 0)
+        case SingleStatus(true) => SingleStatus((x - v - 1) & 0xff) -> SingleStatus((x.&(0xff) - v.&(0xff) - 1) < 0)
+        case _ => AnyStatus -> (if (v == 0) SingleFalse else AnyStatus)
+      }
+      case (_, SingleStatus(0)) => carry match {
+        case SingleStatus(false) => inner -> SingleFalse
+        case _ => AnyStatus -> AnyStatus
+      }
+      case _ => AnyStatus -> AnyStatus
+    }
+
     def adc_w(value: Int, carry: Status[Boolean], decimal: Status[Boolean]): Status[Int] = inner match {
       case SingleStatus(x) => decimal match {
         case SingleStatus(false) => carry match {
