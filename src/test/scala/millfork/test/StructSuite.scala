@@ -202,4 +202,28 @@ class StructSuite extends FunSuite with Matchers {
       m.readByte(0xc005) should equal(1)
     }
   }
+
+  test("Field alignment") {
+    val code =
+      """
+        |
+        |struct alignedbyte align(2) { byte x }
+        |struct S {
+        |    alignedbyte a,
+        |    alignedbyte b
+        |}
+        |
+        |byte offset_a @$c000
+        |byte offset_b @$c001
+        |
+        |void main() {
+        |    offset_a = S.a.offset
+        |    offset_b = S.b.offset
+        |}
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(code){ m =>
+      m.readByte(0xc000) should equal(0)
+      m.readByte(0xc001) should equal(2)
+    }
+  }
 }

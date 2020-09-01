@@ -1086,6 +1086,24 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(UnionType(stmt.name, stmt.fields, stmt.alignment.getOrElse(NoAlignment)), stmt.position)
   }
 
+  def getTypeAlignment(t: VariableType, path: Set[String]): MemoryAlignment = {
+    val name = t.name
+    if (path.contains(name)) return null
+    t match {
+      case s: CompoundVariableType =>
+        if (s.mutableAlignment ne null) return s.mutableAlignment
+        var alignment = s.baseAlignment
+        for( ResolvedFieldDesc(fieldType, _, _) <- s.mutableFieldsWithTypes) {
+          val a = getTypeAlignment(fieldType, path + name)
+          if (a eq null) return null
+          alignment = alignment & a
+        }
+        s.mutableAlignment = alignment
+        alignment
+      case _ => t.alignment
+    }
+  }
+
   def getTypeSize(t: VariableType, path: Set[String]): Int = {
     val name = t.name
     if (path.contains(name)) return -1
@@ -1098,7 +1116,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           for( ResolvedFieldDesc(fieldType, _, count) <- s.mutableFieldsWithTypes) {
             val fieldSize = getTypeSize(fieldType, newPath) * count.getOrElse(1)
             if (fieldSize < 0) return -1
+            sum = fieldType.alignment.roundSizeUp(sum)
             sum += fieldSize
+            sum = fieldType.alignment.roundSizeUp(sum)
           }
           s.mutableSize = sum
           if (sum > 0xff) {
@@ -1107,8 +1127,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           val b = get[Type]("byte")
           var offset = 0
           for( ResolvedFieldDesc(fieldType, fieldName, count) <- s.mutableFieldsWithTypes) {
+            offset = fieldType.alignment.roundSizeUp(offset)
             addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(offset, 1), b), None)
             offset += getTypeSize(fieldType, newPath) * count.getOrElse(1)
+            offset = fieldType.alignment.roundSizeUp(offset)
           }
           sum
         }
@@ -2120,6 +2142,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         val builder = new ListBuffer[Subvariable]
         var offset = 0
         for(ResolvedFieldDesc(typ, fieldName, arraySize) <- s.mutableFieldsWithTypes) {
+          offset = getTypeAlignment(typ, Set()).roundSizeUp(offset)
           arraySize match {
             case None =>
               val suffix = "." + fieldName
@@ -2133,6 +2156,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               // TODO
           }
           offset += typ.size * arraySize.getOrElse(1)
+          offset = getTypeAlignment(typ, Set()).roundSizeUp(offset)
         }
         builder.toList
       case s: UnionType =>
@@ -2225,8 +2249,35 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     aliasesToAdd.foreach(a => things += a.name -> a)
   }
 
+  def fixStructAlignments(): Unit = {
+    val allStructTypes: Iterable[CompoundVariableType] = things.values.flatMap {
+      case s@StructType(name, _, _) => Some(s)
+      case s@UnionType(name, _, _) => Some(s)
+      case _ => None
+    }
+    for (t <- allStructTypes) {
+      t.baseAlignment match {
+        case DivisibleAlignment(n) if n < 1 =>
+          log.error(s"Type ${t.name} has invalid alignment ${t.alignment}")
+        case WithinPageAlignment =>
+          log.error(s"Type ${t.name} has invalid alignment ${t.alignment}")
+        case _ =>
+      }
+    }
+    var iterations = allStructTypes.size
+    while (iterations >= 0) {
+      var ok = true
+      for (t <- allStructTypes) {
+        if (getTypeAlignment(t, Set()) eq null) ok = false
+      }
+      if (ok) return
+      iterations -= 1
+    }
+    log.error("Cycles in struct definitions found")
+  }
+
   def fixStructSizes(): Unit = {
-    val allStructTypes: Iterable[VariableType] = things.values.flatMap {
+    val allStructTypes: Iterable[CompoundVariableType] = things.values.flatMap {
       case s@StructType(name, _, _) => Some(s)
       case s@UnionType(name, _, _) => Some(s)
       case _ => None
@@ -2241,6 +2292,16 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       iterations -= 1
     }
     log.error("Cycles in struct definitions found")
+  }
+
+  def fixAlignedSizes(): Unit = {
+    val allTypes: Iterable[VariableType] = things.values.flatMap {
+      case s:VariableType => Some(s)
+      case _ => None
+    }
+    for (t <- allTypes) {
+      t.alignedSize = getTypeAlignment(t, Set()).roundSizeUp(getTypeSize(t, Set()))
+    }
   }
 
   def fixStructFields(): Unit = {
@@ -2293,7 +2354,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case _ =>
     }
     fixStructFields()
+    fixStructAlignments()
     fixStructSizes()
+    fixAlignedSizes()
     val pointies = collectPointies(program.declarations)
     pointiesUsed("") = pointies
     program.declarations.foreach { decl =>

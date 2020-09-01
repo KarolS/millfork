@@ -24,9 +24,9 @@ sealed trait Type extends CallableThing {
 
   def size: Int
 
-  def alignedSize: Int = alignment.roundSizeUp(size)
-
   def alignment: MemoryAlignment
+
+  def alignedSize: Int
 
   def isSigned: Boolean
 
@@ -49,12 +49,18 @@ sealed trait Type extends CallableThing {
   def pointerTargetName: String = "byte"
 }
 
-sealed trait VariableType extends Type
+sealed trait VariableType extends Type {
+
+  var alignedSize: Int = if (alignment ne null) alignment.roundSizeUp(size) else size
+
+}
 
 case class Subvariable(suffix: String, offset: Int, typ: VariableType, arraySize: Option[Int] = None)
 
 case object VoidType extends Type {
   def size = 0
+
+  def alignedSize = 0
 
   def isSigned = false
 
@@ -137,20 +143,23 @@ case class EnumType(name: String, count: Option[Int]) extends VariableType {
   override def alignment: MemoryAlignment = NoAlignment
 }
 
-sealed trait CompoundVariableType extends VariableType
-
-case class StructType(name: String, fields: List[FieldDesc], override val alignment: MemoryAlignment) extends CompoundVariableType {
+sealed trait CompoundVariableType extends VariableType {
   override def size: Int = mutableSize
   var mutableSize: Int = -1
+
   var mutableFieldsWithTypes: List[ResolvedFieldDesc] = Nil
+
+  override def alignment: MemoryAlignment = mutableAlignment
+  def baseAlignment: MemoryAlignment
+  //noinspection ConvertNullInitializerToUnderscore
+  var mutableAlignment: MemoryAlignment = null
   override def isSigned: Boolean = false
 }
 
-case class UnionType(name: String, fields: List[FieldDesc], override val alignment: MemoryAlignment) extends CompoundVariableType {
-  override def size: Int = mutableSize
-  var mutableSize: Int = -1
-  var mutableFieldsWithTypes: List[ResolvedFieldDesc] = Nil
-  override def isSigned: Boolean = false
+case class StructType(name: String, fields: List[FieldDesc], baseAlignment: MemoryAlignment) extends CompoundVariableType {
+}
+
+case class UnionType(name: String, fields: List[FieldDesc], baseAlignment: MemoryAlignment) extends CompoundVariableType {
 }
 
 case object FatBooleanType extends VariableType {
@@ -175,6 +184,8 @@ case object FatBooleanType extends VariableType {
 
 sealed trait BooleanType extends Type {
   def size = 0
+
+  def alignedSize = 0
 
   def isSigned = false
 

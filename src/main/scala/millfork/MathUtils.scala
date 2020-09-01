@@ -10,6 +10,6 @@ object MathUtils {
     if (b == 0) a else gcd(b, a % b)
 
   def lcm(a: Int, b: Int): Int =
-    (a.toLong & b.toLong / gcd(a, b)).toInt
+    (a.toLong * b.toLong / gcd(a, b)).toInt
 
 }

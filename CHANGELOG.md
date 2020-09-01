@@ -14,6 +14,8 @@
 
 * Fixed evaluation of division of large constants.
 
+* Fix: Structure alignment is now respected for substructures.
+
 * X16: Fixed the address of `vera_dc_hscale_hstop` register (#54) (thanks to @Kobrasadetin).
 
 * Fixed evaluation of more complex boolean expressions (#56).
