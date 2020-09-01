@@ -38,6 +38,8 @@ TODO: document the file format.
 
 * `apple2gs` – Apple IIgs charset
 
+* `macroman` – Macintosh Western Latin charset
+
 * `bbc` – BBC Micro character set
 
 * `sinclair` – ZX Spectrum character set
@@ -51,6 +53,10 @@ TODO: document the file format.
 * `iso_de`, `iso_no`, `iso_se`, `iso_yu` – various variants of ISO/IEC-646
  
     * `iso_dk`, `iso_fi` – aliases for `iso_no` and `iso_se` respectively
+
+* `dmcs` – DEC Multinational Character Set
+
+* `lics` – Lotus International Character Set
 
 * `iso8859_1`, `iso8859_2`, `iso8859_3`,
 `iso8859_4`, `iso8859_5`, `iso8859_7`,
@@ -73,6 +79,8 @@ ISO 8859-14, ISO 8859-15, ISO 8859-16,
     * `iso14`, `latin8` – aliases for `iso8859_14`
     * `iso_15`, `latin9`, `latin0` – aliases for `iso8859_15`
     * `iso16`, `latin10` – aliases for `iso8859_16`
+
+* `brascii` – BraSCII
 
 * `cp437`, `cp850`, `cp851`, `cp852`, `cp855`, `cp858`, `cp866` –
 DOS codepages 437, 850, 851, 852, 855, 858, 866
@@ -203,6 +211,8 @@ Encoding | lowercase letters | backslash | currencies | intl | card suits
 `atascii`           | yes  | yes |      | none      | yes  
 `atasciiscr`        | yes  | yes |      | none      | yes  
 `jis`               | yes  | no  | ¥    | both kana | no  
+`dmcs`,`lics`       | yes  | yes | ¢£¥  | Western   | no 
+`brascii`,`macroman`| yes  | yes | ¢£¥  | Western   | no   
 `msx_intl`,`msx_br` | yes  | yes | ¢£¥  | Western   | yes   
 `msx_jp`            | yes  | no  | ¥    | katakana  | yes   
 `msx_ru`            | yes  | yes |      | Russian⁴  | yes   

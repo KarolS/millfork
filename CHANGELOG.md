@@ -8,6 +8,8 @@
 
 * Added `z80next` as an alternate name for the ZX Spectrum Next's processor (#55).
 
+* Added encodings: `brascii`, `macroman`, `dmcs`, `lics`.
+
 * Improved some error messages.
 
 * Fixed evaluation of division of large constants.
