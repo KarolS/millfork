@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Added local labels in assembly.
+
 * Added alternate decimal operators (with `$` instead of `'`).
 
 * Added `z80next` as an alternate name for the ZX Spectrum Next's processor (#55).

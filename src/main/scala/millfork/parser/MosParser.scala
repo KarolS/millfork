@@ -21,7 +21,7 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
   def fastAlignmentForFunctions: MemoryAlignment = WithinPageAlignment
 
   // TODO: label and instruction in one line
-  val asmLabel: P[ExecutableStatement] = (identifier ~ HWS ~ ":" ~/ HWS).map(l => MosAssemblyStatement(Opcode.LABEL, AddrMode.DoesNotExist, VariableExpression(l), Elidability.Elidable))
+  val asmLabel: P[ExecutableStatement] = ((".".? ~ identifier).! ~ HWS ~ ":" ~/ HWS).map(l => MosAssemblyStatement(Opcode.LABEL, AddrMode.DoesNotExist, VariableExpression(l), Elidability.Elidable))
 
   //  def zeropageAddrModeHint: P[Option[Boolean]] = Pass
 

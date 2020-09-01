@@ -229,7 +229,8 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
           // TODO: hmmm
           case VariableExpression(name) =>
             if (Seq(JP, JR, DJNZ, LABEL, CHANGED_MEM).contains(op)) {
-              MemoryAddressConstant(Label(name))
+              val fqName = if (name.startsWith(".")) env.prefix + name else name
+              MemoryAddressConstant(Label(fqName))
             } else {
               env.evalForAsm(expression).orElse(env.maybeGet[ThingInMemory](name).map(_.toAddress)).getOrElse(MemoryAddressConstant(Label(name)))
             }

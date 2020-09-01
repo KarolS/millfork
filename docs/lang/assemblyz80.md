@@ -48,9 +48,9 @@ Indentation is not important:
     INR c
 
 
-Label names have to start with a letter and can contain digits, underscores and letters.
-This means than they cannot start with a period like in many other assemblers.
-Similarly, anonymous labels designated with `+` or `-` are also not supported.
+Global label names have to start with a letter and can contain digits, underscores and letters.
+Local label names (available since Millfork 0.3.22) start with a period and are visible only in the given function.
+Anonymous labels designated with `+` or `-` are also not supported.
 
 Assembly can refer to variables and constants defined in Millfork,
 but you need to be careful with using absolute vs immediate addressing:

@@ -343,7 +343,8 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
       // TODO: hmmm
       case VariableExpression(name) =>
         if (OpcodeClasses.ShortBranching(o) || o == JMP || o == LABEL || o == CHANGED_MEM || OpcodeClasses.HudsonTransfer(o)) {
-          MemoryAddressConstant(Label(name))
+          val fqName = if (name.startsWith(".")) env.prefix + name else name
+          MemoryAddressConstant(Label(fqName))
         } else {
           env.evalForAsm(x).getOrElse(env.get[ThingInMemory](name, x.position).toAddress)
         }

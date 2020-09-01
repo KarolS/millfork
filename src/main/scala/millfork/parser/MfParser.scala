@@ -160,6 +160,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     }
   }
 
+  val localLabelAtom : P[Expression] = ("." ~ identifier).!.map(VariableExpression)
+
   val textLiteral: P[List[Expression]] = P(position() ~ doubleQuotedString ~/ HWS ~ codec).map {
       case (p, s, TextCodecWithFlags(co, zt, lp, lenient)) =>
         var characters = co.encode(options.log, None, s.codePoints().toArray.toList, options, lenient = lenient).map(c => LiteralExpression(c, 1).pos(p))
@@ -182,9 +184,9 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val literalAtomWithIntel: P[LiteralExpression] = binaryAtom | hexAtom | octalAtom | quaternaryAtom | intelHexAtom | decimalAtom | charAtom
 
-  val atom: P[Expression] = P(position() ~ (variableAtom | literalAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
+  val atom: P[Expression] = P(position() ~ (variableAtom | localLabelAtom | literalAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
-  val atomWithIntel: P[Expression] = P(position() ~ (variableAtom | literalAtomWithIntel | textLiteralAtom)).map{case (p,a) => a.pos(p)}
+  val atomWithIntel: P[Expression] = P(position() ~ (variableAtom | localLabelAtom | literalAtomWithIntel | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
   val quotedAtom: P[String] = variableAtom.! | literalAtomWithIntel.map{
     case LiteralExpression(value, _) => value.toString

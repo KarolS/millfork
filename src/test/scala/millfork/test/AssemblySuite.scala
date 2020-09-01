@@ -1,6 +1,6 @@
 package millfork.test
 import millfork.Cpu
-import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUndocumentedRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedHudsonRun, EmuUnoptimizedRun, ShouldNotCompile}
+import millfork.test.emu.{EmuBenchmarkRun, EmuCrossPlatformBenchmarkRun, EmuOptimizedCmosRun, EmuOptimizedHudsonRun, EmuOptimizedRun, EmuUndocumentedRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedHudsonRun, EmuUnoptimizedM6809Run, EmuUnoptimizedRun, EmuUnoptimizedZ80Run, ShouldNotCompile}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -379,4 +379,85 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
     m.readByte(0xc001) should equal(3)
   }
 
+
+  test("Compile local labels properly (6502)") {
+    val m = EmuUnoptimizedRun(
+      """
+        |byte output1 @$c001
+        |byte output2 @$c002
+        |noinline asm byte one() {
+        |  jmp .l
+        |  .l:
+        |  lda #1
+        |  rts
+        |}
+        |noinline asm byte two() {
+        |  jmp .l
+        |  .l:
+        |  lda #2
+        |  rts
+        |}
+        |
+        |void main() {
+        |   output1 = one()
+        |   output2 = two()
+        |}
+        |""".stripMargin)
+    m.readByte(0xc001) should equal(1)
+    m.readByte(0xc002) should equal(2)
+  }
+
+  test("Compile local labels properly (Z80)") {
+    val m = EmuUnoptimizedZ80Run(
+      """
+        |byte output1 @$c001
+        |byte output2 @$c002
+        |noinline asm byte one() {
+        |  jp .l
+        |  .l:
+        |  ld a,1
+        |  ret
+        |}
+        |noinline asm byte two() {
+        |  jp .l
+        |  .l:
+        |  ld a,2
+        |  ret
+        |}
+        |
+        |void main() {
+        |   output1 = one()
+        |   output2 = two()
+        |}
+        |""".stripMargin)
+    m.readByte(0xc001) should equal(1)
+    m.readByte(0xc002) should equal(2)
+  }
+
+  test("Compile local labels properly (6809)") {
+    val m = EmuUnoptimizedM6809Run(
+      """
+        |byte output1 @$c001
+        |byte output2 @$c002
+        |noinline asm byte one() {
+        |  jmp .l
+        |  .l:
+        |  ldb #1
+        |  rts
+        |}
+        |noinline asm byte two() {
+        |  jmp .l
+        |  .l:
+        |  ldb #2
+        |  rts
+        |}
+        |
+        |void main() {
+        |   output1 = one()
+        |   output2 = two()
+        |}
+        |""".stripMargin)
+    m.readByte(0xc001) should equal(1)
+    m.readByte(0xc002) should equal(2)
+  }
 }

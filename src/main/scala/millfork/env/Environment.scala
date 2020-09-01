@@ -672,6 +672,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case ConstantArrayElementExpression(c) => Some(c)
       case GeneratedConstantExpression(c, t) => Some(c)
       case VariableExpression(name) =>
+        if (name.startsWith(".")) return Some(MemoryAddressConstant(Label(prefix + name)))
         vv match {
           case Some(m) if m.contains(name) => Some(m(name))
           case _ => maybeGet[ConstantThing](name).map(_.value)
@@ -928,7 +929,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case VariableExpression(name) =>
         import MOpcode._
         if (MOpcode.Branching(op) || op == LABEL || op == CHANGED_MEM) {
-          return Some(MemoryAddressConstant(Label(name)))
+          val fqName = if (name.startsWith(".")) prefix + name else name
+          return Some(MemoryAddressConstant(Label(fqName)))
         }
       case _ =>
     }
@@ -940,7 +942,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         result match {
           case Some(x) => result
           case None =>
-            if (name.startsWith(".")) Some(Label(name).toAddress)
+            if (name.startsWith(".")) Some(Label(prefix + name).toAddress)
             else {
               if (!silent) log.warn(s"$name is not known", e.position)
               None
