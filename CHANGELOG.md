@@ -12,6 +12,8 @@
 
 * Improved some error messages.
 
+* Fixed the `a8_os` module (#58).
+
 * Fixed evaluation of division of large constants.
 
 * Fix: Structure alignment is now respected for substructures.

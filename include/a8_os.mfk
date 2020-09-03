@@ -20,8 +20,8 @@
 const byte os_MAXDEV  = 33            // offset to last possible entry of HATABS
 const byte os_IOCBSZ  = 16            // length of IOCB
 
-const byte os_SEIOCB  = 0*IOCBSZ      // ##rev2## screen editor IOCB index
-const byte os_MAXIOC  = 8*IOCBSZ      // first invalid IOCB index
+const byte os_SEIOCB  = 0 * os_IOCBSZ      // ##rev2## screen editor IOCB index
+const byte os_MAXIOC  = 8 * os_IOCBSZ      // first invalid IOCB index
 
 const byte os_DSCTSZ  = 128           // ##rev2## disk sector size
 
@@ -678,50 +678,50 @@ volatile word os_CARTAD @$BFFE         // ##rev2## 2-byte cartridge start vector
 
 // Character sets
 
-const byte os_ICSORG = $CC00             // ##rev2## international character set origin
-const byte os_DCSORG = $E000             // ##rev2## domestic character set origin
+const array os_ICSORG[$400] @$CC00             // ##rev2## international character set origin
+const array os_DCSORG[$400] @$E000             // ##rev2## domestic character set origin
 
 // Device Handler Vector Table Address Equates
 
-const byte os_EDITRV = $E400         // editor handler vector table
-const byte os_SCRENV = $E410         // screen handler vector table
-const byte os_KEYBDV = $E420         // keyboard handler vector table
-const byte os_PRINTV = $E430         // printer handler vector table
-const byte os_CASETV = $E440         // cassette handler vector table
+const array(function.void.to.void) os_EDITRV [8] @$E400         // editor handler vector table
+const array(function.void.to.void) os_SCRENV [8] @$E410         // screen handler vector table
+const array(function.void.to.void) os_KEYBDV [8] @$E420         // keyboard handler vector table
+const array(function.void.to.void) os_PRINTV [8] @$E430         // printer handler vector table
+const array(function.void.to.void) os_CASETV [8] @$E440         // cassette handler vector table
 
 // Jump Vector Address Equates
 
-const byte os_DISKIV = $E450         // vector to initialize DIO
-const byte os_DSKINV = $E453         // vector to DIO
-const byte os_CIOV   = $E456         // vector to CIO
-const byte os_SIOV   = $E459         // vector to SIO
+asm void os_DISKIV() @$E450 extern         // vector to initialize DIO
+asm void os_DSKINV() @$E453 extern         // vector to DIO
+asm void os_CIOV()   @$E456 extern         // vector to CIO
+asm void os_SIOV()   @$E459 extern         // vector to SIO
 
-const byte os_SETVBV = $E45C         // vector to set VBLANK parameters
-const byte os_SYSVBV = $E45F         // vector to process immediate VBLANK
-const byte os_XITVBV = $E462         // vector to process deferred VBLANK
+asm void os_SETVBV() @$E45C extern         // vector to set VBLANK parameters
+asm void os_SYSVBV() @$E45F extern         // vector to process immediate VBLANK
+asm void os_XITVBV() @$E462 extern         // vector to process deferred VBLANK
 
-const byte os_SIOINV = $E465         // vector to initialize SIO
-const byte os_SENDEV = $E468         // vector to enable SEND
-const byte os_INTINV = $E46B         // vector to initialize interrupt handler
-const byte os_CIOINV = $E46E         // vector to initialize CIO
+asm void os_SIOINV() @$E465 extern         // vector to initialize SIO
+asm void os_SENDEV() @$E468 extern         // vector to enable SEND
+asm void os_INTINV() @$E46B extern         // vector to initialize interrupt handler
+asm void os_CIOINV() @$E46E extern         // vector to initialize CIO
 
-const byte os_BLKBDV = $E471         // vector to power-up display
-const byte os_WARMSV = $E474         // vector to warmstart
-const byte os_COLDSV = $E477         // vector to coldstart
+asm void os_BLKBDV() @$E471 extern         // vector to power-up display
+asm void os_WARMSV() @$E474 extern         // vector to warmstart
+asm void os_COLDSV() @$E477 extern         // vector to coldstart
 
-const byte os_RBLOKV = $E47A         // vector to read cassette block
-const byte os_CSOPIV = $E47D         // vector to open cassette for input
+asm void os_RBLOKV() @$E47A extern         // vector to read cassette block
+asm void os_CSOPIV() @$E47D extern         // vector to open cassette for input
 
-const byte os_VCTABL = $E480         // RAM vector initial value table
-const byte os_PUPDIV = $E480         // ##rev2## vector to power-up display
-const byte os_SLFTSV = $E483         // ##rev2## vector to self-test
-const byte os_PHENTV = $E486         // ##rev2## vector to enter peripheral handler
-const byte os_PHUNLV = $E489         // ##rev2## vector to unlink peripheral handler
-const byte os_PHINIV = $E48C         // ##rev2## vector to initialize peripheral handler
-const byte os_GPDVV  = $E48F         // ##rev2## generic parallel device handler vector
+asm void os_VCTABL() @$E480 extern         // RAM vector initial value table
+asm void os_PUPDIV() @$E480 extern         // ##rev2## vector to power-up display
+asm void os_SLFTSV() @$E483 extern         // ##rev2## vector to self-test
+asm void os_PHENTV() @$E486 extern         // ##rev2## vector to enter peripheral handler
+asm void os_PHUNLV() @$E489 extern         // ##rev2## vector to unlink peripheral handler
+asm void os_PHINIV() @$E48C extern         // ##rev2## vector to initialize peripheral handler
+asm void os_GPDVV()  @$E48F extern         // ##rev2## generic parallel device handler vector
 
 // 6502
 
-const byte os_NMIVEC = $FFFA
-const byte os_RESVEC = $FFFC
-const byte os_IRQVEC = $FFFE
+volatile word os_NMIVEC @$FFFA
+volatile word os_RESVEC @$FFFC
+volatile word os_IRQVEC @$FFFE
