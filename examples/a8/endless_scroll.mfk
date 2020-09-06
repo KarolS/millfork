@@ -1,0 +1,70 @@
+const word dlAddr = $3000
+const word lms1Addr = $4000
+const word lms2Addr = $4060
+const word lms3Addr = $40c0
+
+word SDLST @ $230
+
+array(byte) dl @ dlAddr = [
+  $70,$70,$70,
+  $52,$00,$40,
+  $52,$60,$40,
+  $52,$C0,$40,
+  $41,$00,$30
+]
+
+noinline asm void wait(byte register(a) f) {
+  clc
+  adc os_RTCLOK+2
+  rt_check:
+  cmp os_RTCLOK+2
+  bne rt_check
+  rts
+}
+
+void main() {
+  word lms1 @ dlAddr + 4
+  word lms2 @ dlAddr + 7
+  word lms3 @ dlAddr + 10
+  byte hscroli @ $80, a, b, c
+  pointer screeni @ $82
+
+  hscroli = $f
+  screeni = lms1Addr
+
+  wait(1)
+  SDLST = dl.addr
+
+  while true {
+    if hscroli == $b {
+      a = (pokey_random & 15) + 33
+      b = (pokey_random & 15) + 33
+      c = (pokey_random & 15) + 33
+
+      screeni[0] = a
+      screeni[$60] = b
+      screeni[$c0] = c
+
+      screeni[$30] = a
+      screeni[$30 + $60] = b
+      screeni[$30 + $c0] = c
+
+      lms1 += 1
+      lms2 += 1
+      lms3 += 1
+      screeni += 1
+
+      if lms1 == lms1Addr + $30 {
+        lms1 = lms1Addr
+        lms2 = lms2Addr
+        lms3 = lms3Addr
+        screeni = lms1Addr
+      }
+
+      hscroli = $f
+    }
+    antic_hscrol = hscroli
+    hscroli -= 1
+    wait(1)
+  }
+}
