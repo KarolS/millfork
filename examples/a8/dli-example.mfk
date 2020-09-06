@@ -1,0 +1,23 @@
+const word dlAddr = $3000
+const word dliAddr = $3100
+
+const array(byte) dl @ dlAddr = [
+  $70,$70,$70,
+  $42,$00,$40,2,2,2,2,$f0,2,2,2,2,
+  $41,$00,$30
+]
+
+word SDLST @ $230
+
+interrupt void dli() @ dliAddr {
+  gtia_colpf2 = $de
+  antic_wsync = 1
+}
+
+void main() {
+  SDLST = dl.addr
+  os_VDSLST = dli.addr
+  antic_nmien = $c0
+
+  while true {}
+}
