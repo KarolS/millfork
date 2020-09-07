@@ -7,7 +7,7 @@ const array(byte) dl @ dlAddr = [
   $41,lo(dlAddr),hi(dlAddr)
 ]
 
-word SDLST @ $230
+volatile word SDLST @ $230
 
 interrupt void dli() @ dliAddr {
   gtia_colpf2 = $de

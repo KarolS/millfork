@@ -3,7 +3,7 @@ const word lms1Addr = $4000
 const word lms2Addr = $4060
 const word lms3Addr = $40c0
 
-word SDLST @ $230
+volatile word SDLST @ $230
 
 array(byte) dl @ dlAddr = [
   $70,$70,$70,
@@ -12,7 +12,6 @@ array(byte) dl @ dlAddr = [
   $52,lo(lms3Addr),hi(lms3Addr),
   $41,lo(dlAddr),hi(dlAddr)
 ]
-
 
 noinline asm void wait(byte register(a) f) {
   clc
