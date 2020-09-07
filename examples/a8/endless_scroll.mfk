@@ -7,11 +7,12 @@ word SDLST @ $230
 
 array(byte) dl @ dlAddr = [
   $70,$70,$70,
-  $52,$00,$40,
-  $52,$60,$40,
-  $52,$C0,$40,
-  $41,$00,$30
+  $52,lo(lms1Addr),hi(lms1Addr),
+  $52,lo(lms2Addr),hi(lms2Addr),
+  $52,lo(lms3Addr),hi(lms3Addr),
+  $41,lo(dlAddr),hi(dlAddr)
 ]
+
 
 noinline asm void wait(byte register(a) f) {
   clc
