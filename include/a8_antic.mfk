@@ -19,6 +19,5 @@ volatile byte antic_vcount @$D40B // vertical line counter
 volatile byte antic_penh   @$D40C // light pen horizontal position
 volatile byte antic_penv   @$D40D // light pen vertical position
 volatile byte antic_nmien  @$D40E // non-maskable interrupt enable
-
-// nmi reset status
-volatile byte antic_nmires @$D40F
+volatile byte antic_nmist  @$D40F // (R) NMI status; holds cause for the NMI interrupt, corresponding to the same bits in NMIEN
+volatile byte antic_nmires @$D40F // (W) Reset for NMIST; clears the interrupt request register

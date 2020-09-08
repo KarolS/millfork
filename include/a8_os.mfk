@@ -424,6 +424,7 @@ volatile byte os_CDTMF4 @$022C         // COUNT DOWN TIMER 4 FLAG
 volatile byte os_INTEMP @$022D         // IAN'S TEMP
 volatile byte os_CDTMF5 @$022E         // COUNT DOWN TIMER FLAG 5
 volatile byte os_SDMCTL @$022F         // SAVE DMACTL REGISTER
+volatile word os_SDLST  @$0230         // SAVE DISPLAY LIST
 volatile byte os_SDLSTL @$0230         // SAVE DISPLAY LIST LOW BYTE
 volatile byte os_SDLSTH @$0231         // SAVE DISPLAY LIST HI BYTE
 volatile byte os_SSKCTL @$0232         // SKCTL REGISTER RAM
