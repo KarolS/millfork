@@ -133,18 +133,18 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
   def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
     if (!options.flag(CompilationFlag.BuggyCodeWarning)) return
     statements match {
-      case Some(Nil) => log.warn("Assembly function `$name` is empty, did you mean RTS, RTI or JMP", Some(p))
+      case Some(Nil) => log.warn(s"Assembly function `$name` is empty, did you mean RTS, RTI or JMP", Some(p))
       case Some(xs) =>
         if (flags("interrupt")) {
           if (xs.exists {
             case MosAssemblyStatement(Opcode.RTS, _, _, _) => true
             case _ => false
-          }) log.warn("Assembly interrupt function `$name` contains RTS, did you mean RTI?", Some(p))
+          }) log.warn(s"Assembly interrupt function `$name` contains RTS, did you mean RTI?", Some(p))
         } else {
           if (xs.exists {
             case MosAssemblyStatement(Opcode.RTI, _, _, _) => true
             case _ => false
-          }) log.warn("Assembly non-interrupt function `$name` contains RTI, did you mean RTS?", Some(p))
+          }) log.warn(s"Assembly non-interrupt function `$name` contains RTI, did you mean RTS?", Some(p))
         }
         if (!name.startsWith("__") && !flags("macro")) {
           xs.last match {
