@@ -80,6 +80,10 @@ how to create a program made of multiple files loaded on demand
 
 * [Rainbow example](a8/rainbow.mfk) – simple scrolling rasterbars
 
+* [DLI example](a8/dli-example.mfk) – simple display list example
+
+* [Scroll example](a8/endless_scroll.mfk) – simple horizontal scroll example
+
 ## Game Boy examples
 
 * [GB test example](gb/gbtest.mfk) – a partial port of the NES example, with a rudimentary experimental text output implementation
