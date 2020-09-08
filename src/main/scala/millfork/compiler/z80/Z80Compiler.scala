@@ -68,7 +68,7 @@ object Z80Compiler extends AbstractCompiler[ZLine] {
   def preserveRegisters(ctx: CompilationContext): List[ZLine] = {
     import millfork.assembly.z80.ZOpcode._
     import ZRegister._
-    if (ctx.function.interrupt) {
+    if (ctx.function.interrupt && !ctx.function.inAssembly) {
       if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
         if (ctx.options.flag(CompilationFlag.UseShadowRegistersForInterrupts)) {
           List(

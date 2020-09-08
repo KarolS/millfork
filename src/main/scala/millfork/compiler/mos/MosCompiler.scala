@@ -37,7 +37,7 @@ object MosCompiler extends AbstractCompiler[AssemblyLine] {
         List(AssemblyLine.absolute(LDA, ctx.env.get[ThingInMemory]("__sp")), AssemblyLine.implied(PHA))
       } else Nil)
 
-    val prefix = storeParamsFromRegisters ++ (if (ctx.function.interrupt) {
+    val prefix = storeParamsFromRegisters ++ (if (ctx.function.interrupt && !ctx.function.inAssembly) {
 
       if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
         if (zpRegisterSize > 0) {

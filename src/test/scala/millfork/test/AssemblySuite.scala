@@ -460,4 +460,49 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
     m.readByte(0xc001) should equal(1)
     m.readByte(0xc002) should equal(2)
   }
+
+  test("Interrupt functions in assembly should not have prologue (6502)") {
+    val m = EmuUnoptimizedRun(
+      """
+        |byte output @$c000
+        |noinline interrupt asm void i() {
+        |  nop
+        |  rti
+        |}
+        |void main() {
+        |   output = pointer(i.addr)[0]
+        |}
+        |""".stripMargin)
+    m.readByte(0xc000) should equal(0xea)
+  }
+
+  test("Interrupt functions in assembly should not have prologue (Z80)") {
+    val m = EmuUnoptimizedZ80Run(
+      """
+        |byte output @$c000
+        |noinline interrupt asm void i() {
+        |  nop
+        |  reti
+        |}
+        |void main() {
+        |   output = pointer(i.addr)[0]
+        |}
+        |""".stripMargin)
+    m.readByte(0xc000) should equal(0)
+  }
+
+  test("Interrupt functions in assembly should not have prologue (M6809)") {
+    val m = EmuUnoptimizedM6809Run(
+      """
+        |byte output @$c000
+        |noinline interrupt asm void i() {
+        |  nop
+        |  rti
+        |}
+        |void main() {
+        |   output = pointer(i.addr)[0]
+        |}
+        |""".stripMargin)
+    m.readByte(0xc000) should equal(0x12)
+  }
 }

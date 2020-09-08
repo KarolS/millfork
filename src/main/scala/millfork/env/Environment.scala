@@ -1378,6 +1378,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             hasElidedReturnVariable = hasElidedReturnVariable,
             interrupt = stmt.interrupt,
             kernalInterrupt = stmt.kernalInterrupt,
+            inAssembly = stmt.assembly,
             reentrant = stmt.reentrant,
             isConstPure = stmt.constPure,
             position = stmt.position,
