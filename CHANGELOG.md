@@ -12,6 +12,8 @@
 
 * Improved some error messages.
 
+* Fix: interrupt functions written in assembly no longer have the default prologue (#62).
+
 * Fixed the `a8_os` module (#58).
 
 * Fixed evaluation of division of large constants.
@@ -25,6 +27,8 @@
 * Fixed accesses to volatile variables.
 
 * 8080/Z80: Optimization improvements. 
+
+* New Atari examples (thanks to @zbyti).
 
 ## 0.3.18 (2020-04-08)
 
