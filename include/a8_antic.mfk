@@ -6,6 +6,7 @@
 
 volatile byte antic_dmactl @$D400 // direct memory access control
 volatile byte antic_chactl @$D401 // character mode control
+volatile word antic_dlist  @$D402 // display list pointer
 volatile byte antic_dlistl @$D402 // display list pointer low-byte
 volatile byte antic_dlisth @$D403 // display list pointer high-byte
 volatile byte antic_hscrol @$D404 // horizontal scroll enable
