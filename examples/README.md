@@ -1,6 +1,6 @@
 # Examples
 
-The examples showcased here are designed to compile with a compiler built from newest sources.  
+The examples showcased here are designed to compile with a compiler built from newest sources.
 If you are using a release version of the compiler, consider browsing the older versions of the examples:
 
 * [for version 0.3.18](https://github.com/KarolS/millfork/tree/v0.3.18/examples)
@@ -41,7 +41,7 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Life](crossplatform/life.mfk) (C64/C16/Atari/ZX Spectrum) – Conway's game of life
 
-* [Reg dump](crossplatform/regdump.mfk) (C64/C16/ZX Spectrum/CoCo) – a program that simply prints the initial values of CPU registers 
+* [Reg dump](crossplatform/regdump.mfk) (C64/C16/ZX Spectrum/CoCo) – a program that simply prints the initial values of CPU registers
 
 * [Test suite](tests) (C64/C16/Atari/Apple II/BBC Micro/Armstrad CPC/ZX Spectrum/PC-88/CoCo) – the semi-official test-suite for Millfork
 
@@ -53,14 +53,14 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Softscrolling](c64/softscroll.mfk) – soft-scrolling a single line of text
 
-* [Galencia starfield](c64/galencia.mfk) – a port of the starfield effect from the game *Galencia* 
+* [Galencia starfield](c64/galencia.mfk) – a port of the starfield effect from the game *Galencia*
 
 * [Space Poker \[external link\]](https://github.com/KarolS/spacepoker) – a game made for the 2018 Reset C64 Craptastic 4KB Game Competition
 
 ### Other examples
 
 * Multifile ([source code](c64/multifile.mfk), [platform definition](c64/multifile.ini)) –
-how to create a program made of multiple files loaded on demand 
+how to create a program made of multiple files loaded on demand
 
 * [Panic](c64/panic_test.mfk) – how panic works on C64, showing the address of where it happened
 
@@ -80,7 +80,7 @@ how to create a program made of multiple files loaded on demand
 
 * [Rainbow example](a8/rainbow.mfk) – simple scrolling rasterbars
 
-* [DLI example](a8/dli-example.mfk) – simple display list example
+* [DLI example](a8/dli-example.mfk) – simple display list and display list interrupt example
 
 * [Scroll example](a8/endless_scroll.mfk) – simple horizontal scroll example
 
