@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.22 (2020-09-15)
 
 * Added local labels in assembly.
 
