@@ -414,11 +414,11 @@ object Main {
       c.copy(outputFileName = Some(p))
     }.description("The output file name, without extension.")
 
-    flag("-s").action { c =>
+    flag("-s").repeatable().action { c =>
       c.copy(outputAssembly = true)
     }.description("Generate also the assembly output.")
 
-    flag("-g").action { c =>
+    flag("-g").repeatable().action { c =>
       c.copy(outputLabels = true)
     }.description("Generate also the label file in the default format.")
 
@@ -489,23 +489,23 @@ object Main {
       }
     }.description("Define a feature value for the preprocessor.")
 
-    boolean("-finput_intel_syntax", "-finput_zilog_syntax").action((c,v) =>
+    boolean("-finput_intel_syntax", "-finput_zilog_syntax").repeatable().action((c,v) =>
       c.changeFlag(CompilationFlag.UseIntelSyntaxForInput, v)
     ).description("Select syntax for assembly source input.")
 
-    boolean("-foutput_intel_syntax", "-foutput_zilog_syntax").action((c,v) =>
+    boolean("-foutput_intel_syntax", "-foutput_zilog_syntax").repeatable().action((c,v) =>
       c.changeFlag(CompilationFlag.UseIntelSyntaxForOutput, v)
     ).description("Select syntax for assembly output.")
 
-    boolean("--syntax=intel", "--syntax=zilog").action((c,v) =>
+    boolean("--syntax=intel", "--syntax=zilog").repeatable().action((c,v) =>
       c.changeFlag(CompilationFlag.UseIntelSyntaxForInput, v).changeFlag(CompilationFlag.UseIntelSyntaxForOutput, v)
     ).description("Select syntax for assembly input and output.")
 
-    boolean("-fline-numbers", "-fno-line-numbers").action((c,v) =>
+    boolean("-fline-numbers", "-fno-line-numbers").repeatable().action((c,v) =>
       c.changeFlag(CompilationFlag.LineNumbersInAssembly, v)
     ).description("Show source line numbers in assembly.")
 
-    boolean("-fsource-in-asm", "-fno-source-in-asm").action((c,v) =>
+    boolean("-fsource-in-asm", "-fno-source-in-asm").repeatable().action((c,v) =>
       if (v) {
         c.changeFlag(CompilationFlag.SourceInAssembly, true).changeFlag(CompilationFlag.LineNumbersInAssembly, true)
       } else {
@@ -517,7 +517,7 @@ object Main {
 
     fluff("", "Verbosity options:", "")
 
-    flag("-q", "--quiet").action { c =>
+    flag("-q", "--quiet").repeatable().action { c =>
       assertNone(c.verbosity, "Cannot use -v and -q together")
       c.copy(verbosity = Some(-1))
     }.description("Supress all messages except for errors.")
@@ -599,17 +599,17 @@ object Main {
         c.changeFlag(CompilationFlag.EmitCmosOpcodes, false)
       }
     }.description("Whether should emit HuC6280 opcodes.")
-    flag("-fno-65816-ops").action { c =>
+    flag("-fno-65816-ops").repeatable().action { c =>
       c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = false)
       c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = false)
       c.changeFlag(CompilationFlag.ReturnWordsViaAccumulator, b = false)
     }.description("Don't emit 65816 opcodes.")
-    flag("-femulation-65816-ops").action { c =>
+    flag("-femulation-65816-ops").repeatable().action { c =>
       c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = true)
       c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = false)
       c.changeFlag(CompilationFlag.ReturnWordsViaAccumulator, b = false)
     }.description("Emit 65816 opcodes in emulation mode (experimental).")
-    flag("-fnative-65816-ops").action { c =>
+    flag("-fnative-65816-ops").repeatable().action { c =>
       c.changeFlag(CompilationFlag.EmitEmulation65816Opcodes, b = true)
       c.changeFlag(CompilationFlag.EmitNative65816Opcodes, b = true)
     }.description("Emit 65816 opcodes in native mode (very experimental and buggy).")
@@ -658,16 +658,16 @@ object Main {
     boolean("-fshadow-irq", "-fno-shadow-irq").action { (c, v) =>
       c.changeFlag(CompilationFlag.UseShadowRegistersForInterrupts, v)
     }.description("Whether shadow registers should be used in interrupt routines (Z80 only)")
-    flag("-fuse-ix-for-stack").action { c =>
+    flag("-fuse-ix-for-stack").repeatable().action { c =>
       c.changeFlag(CompilationFlag.UseIxForStack, true).changeFlag(CompilationFlag.UseIyForStack, false)
     }.description("Use IX as base pointer for stack variables (Z80 only)")
-    flag("-fuse-iy-for-stack").action { c =>
+    flag("-fuse-iy-for-stack").repeatable().action { c =>
       c.changeFlag(CompilationFlag.UseIyForStack, true).changeFlag(CompilationFlag.UseIxForStack, false)
     }.description("Use IY as base pointer for stack variables (Z80 only)")
-    flag("-fuse-u-for-stack").action { c =>
+    flag("-fuse-u-for-stack").repeatable().action { c =>
       c.changeFlag(CompilationFlag.UseUForStack, true).changeFlag(CompilationFlag.UseYForStack, false)
     }.description("Use U as base pointer for stack variables (6809 only)").hidden()
-    flag("-fuse-y-for-stack").action { c =>
+    flag("-fuse-y-for-stack").repeatable().action { c =>
       c.changeFlag(CompilationFlag.UseYForStack, true).changeFlag(CompilationFlag.UseUForStack, false)
     }.description("Use Y as base pointer for stack variables (6809 only)").hidden()
     boolean("-fuse-ix-for-scratch", "-fno-use-ix-for-scratch").action { (c, v) =>
@@ -684,10 +684,10 @@ object Main {
         c.changeFlag(CompilationFlag.UseIyForScratch, false)
       }
     }.description("Use IY as base pointer for stack variables (Z80 only)")
-    flag("-fno-use-index-for-stack").action { c =>
+    flag("-fno-use-index-for-stack").repeatable().action { c =>
       c.changeFlag(CompilationFlag.UseIyForStack, false).changeFlag(CompilationFlag.UseIxForStack, false)
     }.description("Don't use either IX or IY as base pointer for stack variables (Z80 only)")
-    flag("-fno-use-uy-for-stack").action { c =>
+    flag("-fno-use-uy-for-stack").repeatable().action { c =>
       c.changeFlag(CompilationFlag.UseUForStack, false).changeFlag(CompilationFlag.UseYForStack, false)
     }.description("Don't use either U or Y as base pointer for stack variables (6809 only)").hidden()
     boolean("-fsoftware-stack", "-fno-software-stack").action { (c, v) =>
@@ -697,11 +697,11 @@ object Main {
     fluff("", "Optimization options:", "")
 
 
-    flag("-O0").action { c =>
+    flag("-O0").repeatable().action { c =>
       assertNone(c.optimizationLevel, "Optimization level already defined")
       c.copy(optimizationLevel = Some(0))
     }.description("Disable all optimizations.")
-    flag("-O").action { c =>
+    flag("-O").repeatable().action { c =>
       assertNone(c.optimizationLevel, "Optimization level already defined")
       c.copy(optimizationLevel = Some(1))
     }.description("Optimize code.")
@@ -712,13 +712,13 @@ object Main {
       }.description("Optimize code even more.")
       if (i == 1 || i > 4) f.hidden()
     }
-    flag("--inline").action { c =>
+    flag("--inline").repeatable().action { c =>
       c.changeFlag(CompilationFlag.InlineFunctions, true)
     }.description("Inline functions automatically.").hidden()
     boolean("-finline", "-fno-inline").action { (c, v) =>
       c.changeFlag(CompilationFlag.InlineFunctions, v)
     }.description("Inline functions automatically.")
-    flag("--ipo").action { c =>
+    flag("--ipo").repeatable().action { c =>
       c.changeFlag(CompilationFlag.InterproceduralOptimization, true)
     }.description("Interprocedural optimization.").hidden()
     boolean("--fipo", "--fno-ipo").action { (c, v) =>
@@ -742,42 +742,42 @@ object Main {
     boolean("-fregister-variables", "-fno-register-variables").action { (c, v) =>
       c.changeFlag(CompilationFlag.RegisterVariables, v)
     }.description("Allow moving local variables into CPU registers. Enabled by default.")
-    flag("-Os", "--size").action { c =>
+    flag("-Os", "--size").repeatable().action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, true).
         changeFlag(CompilationFlag.OptimizeForSpeed, false).
         changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
     }.description("Prefer smaller code even if it is slightly slower (experimental). Implies -fsubroutine-extraction.")
-    flag("-Of", "--fast").action { c =>
+    flag("-Of", "--fast").repeatable().action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, false).
         changeFlag(CompilationFlag.OptimizeForSpeed, true).
         changeFlag(CompilationFlag.OptimizeForSonicSpeed, false)
     }.description("Prefer faster code even if it is slightly bigger (experimental). Implies -finline.")
-    flag("-Ob", "--blast-processing").action { c =>
+    flag("-Ob", "--blast-processing").repeatable().action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, false).
         changeFlag(CompilationFlag.OptimizeForSpeed, true).
         changeFlag(CompilationFlag.OptimizeForSonicSpeed, true)
     }.description("Prefer faster code even if it is much bigger (experimental). Implies -finline.")
-    flag("--dangerous-optimizations").action { c =>
+    flag("--dangerous-optimizations").repeatable().action { c =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, true)
     }.description("Use dangerous optimizations (experimental).").hidden()
     boolean("-fdangerous-optimizations", "-fno-dangerous-optimizations").action { (c, v) =>
       c.changeFlag(CompilationFlag.DangerousOptimizations, v)
     }.description("Use dangerous optimizations (experimental). Implies -fipo and -foptimize-stdlib.")
-    flag("-Og", "--optimize-debugging").action { c =>
+    flag("-Og", "--optimize-debugging").repeatable().action { c =>
       c.changeFlag(CompilationFlag.OptimizeForDebugging, true)
     }.description("Disable optimizations that make debugging harder (experimental).")
 
     fluff("", "Warning options:", "")
 
-    flag("-Wall", "--Wall").action { c =>
+    flag("-Wall", "--Wall").repeatable().action { c =>
       CompilationFlag.allWarnings.foldLeft(c) { (c, f) => c.changeFlag(f, true) }
     }.description("Enable extra warnings.")
 
-    flag("-Wnone", "--Wnone").action { c =>
+    flag("-Wnone", "--Wnone").repeatable().action { c =>
       CompilationFlag.allWarnings.foldLeft(c) { (c, f) => c.changeFlag(f, false) }
     }.description("Disable all warnings.")
 
-    flag("-Wfatal", "--Wfatal").action { c =>
+    flag("-Wfatal", "--Wfatal").repeatable().action { c =>
       c.changeFlag(CompilationFlag.FatalWarnings, true)
     }.description("Treat warnings as errors.")
 
@@ -786,7 +786,7 @@ object Main {
     expansion("-Xd")("-O1", "-s", "-fsource-in-asm", "-g").description("Do a debug build. Equivalent to -O1 -s -fsource-in-asm -g")
     expansion("-Xr")("-O4", "-s", "-fsource-in-asm", "-finline", "-fipo", "-foptimize-stdlib").description("Do a release build. Equivalent to -O4 -s -fsource-in-asm -finline -fipo -foptimize-stdlib")
 
-    flag("--single-threaded").action(c =>
+    flag("--single-threaded").repeatable().action(c =>
       c.changeFlag(CompilationFlag.SingleThreaded, true)
     ).description("Run the compiler in a single thread.")
 

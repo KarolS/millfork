@@ -43,7 +43,7 @@ trait CliOption[T, O <: CliOption[T, O]] {
       ok = false
     }
     if (_actualEncounters > _maxEncounters) {
-      _onTooMany.fold()(_ (_actualEncounters))
+      _onTooMany.fold(throw new IllegalArgumentException(s"Too many ${_shortName} options: required ${_minEncounters}, given ${_actualEncounters}"))(_ (_actualEncounters))
       ok = false
     }
     ok
