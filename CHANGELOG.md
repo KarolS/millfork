@@ -6,6 +6,8 @@
 
 * Added alternate decimal operators (with `$` instead of `'`).
 
+* **Potentially breaking change!** Identifiers no longer can end with `$`.
+
 * Added `z80next` as an alternate name for the ZX Spectrum Next's processor (#55).
 
 * Added encodings: `brascii`, `macroman`, `dmcs`, `lics`.
@@ -27,6 +29,10 @@
 * Fixed accesses to volatile variables.
 
 * 8080/Z80: Optimization improvements. 
+
+* 6809: Optimization improvements.
+
+* Various Atari improvements (#60, #63, #65) (thanks to @zbyti).
 
 * New Atari examples (thanks to @zbyti).
 
