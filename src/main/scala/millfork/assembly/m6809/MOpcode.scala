@@ -40,6 +40,8 @@ object MOpcode extends Enumeration {
   val PrefixedBy10: Set[MOpcode.Value] = Set(CMPD, CMPY, LDS, LDY, SWI2, STS, STY) // TODO: branches
   val PrefixedBy11: Set[MOpcode.Value] = Set(CMPS, CMPU, SWI3)
   val Prefixed: Set[MOpcode.Value] = PrefixedBy10 ++ PrefixedBy11
+  val CanHaveImmediateAndIndexedByte: Set[MOpcode.Value] = Set(ADCA, ADCB, ADDA, ADDB, ANDA, ANDB, BITA, BITB, CMPA, CMPB, EORA, EORB, LDA, LDB, ORA, ORB, SBCA, SBCB, SUBA, SUBB)
+  val CanHaveImmediateAndIndexedWord: Set[MOpcode.Value] = Set(ADDD, CMPD, CMPS, CMPU, CMPX, CMPY, LDD, LDS, LDU, LDX, LDY, SUBD)
   val CanHaveInherentAccumulator: Set[MOpcode.Value] = Set(ASL, ASR, CLR, COM, DEC, INC, LSR, NEG, ROL, ROR, TST)
   val Branching: Set[MOpcode.Value] = Set(BRA, BRN, BHI, BLS, BCC, BCS, BNE, BEQ, BVC, BVS, BPL, BMI, BGE, BLT, BGT, BLE)
   val ConditionalBranching: Set[MOpcode.Value] = Set(BHI, BLS, BCC, BCS, BNE, BEQ, BVC, BVS, BPL, BMI, BGE, BLT, BGT, BLE)
@@ -144,6 +146,28 @@ object MOpcode extends Enumeration {
     } else {
       log.error(s"Invalid opcode: $o", position)
       NOP -> None
+    }
+  }
+
+  def invertBranching(opcode: Value): Value = {
+    opcode match {
+      case BCC => BCS
+      case BCS => BCC
+      case BEQ => BNE
+      case BNE => BEQ
+      case BGE => BLT
+      case BLT => BGE
+      case BGT => BLE
+      case BLE => BGT
+      case BHI => BLS
+      case BLS => BHI
+      case BPL => BMI
+      case BMI => BPL
+      case BVC => BVS
+      case BVS => BVC
+      case BRA => BRN
+      case BRN => BRA
+      case _ => opcode
     }
   }
 }

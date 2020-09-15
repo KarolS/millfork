@@ -1,6 +1,7 @@
 package millfork.output
 
 import millfork.assembly.SourceLine
+import millfork.assembly.m6809.opt.JumpFixing
 import millfork.{CompilationOptions, Platform}
 import millfork.assembly.m6809.{MOpcode, _}
 import millfork.compiler.m6809.M6809Compiler
@@ -25,7 +26,9 @@ class M6809Assembler(program: Program,
 
   override def gatherNiceFunctionProperties(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: NormalFunction, code: List[MLine]): Unit = ()
 
-  override def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[MLine]): List[MLine] = code
+  override def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[MLine]): List[MLine] = {
+    JumpFixing(f, code, options)
+  }
 
   private def registerCode(register: M6809Register.Value): Int = {
     import M6809Register._

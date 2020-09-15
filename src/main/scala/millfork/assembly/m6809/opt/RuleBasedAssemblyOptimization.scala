@@ -2,7 +2,7 @@ package millfork.assembly.m6809.opt
 
 import millfork.{CompilationFlag, CompilationOptions}
 import millfork.assembly._
-import millfork.assembly.m6809.{Absolute, Immediate, Inherent, InherentA, InherentB, LongRelative, MAddrMode, MLine, MLine0, MOpcode, MState, Relative, TwoRegisters}
+import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, Indexed, Inherent, InherentA, InherentB, LongRelative, MAddrMode, MLine, MLine0, MOpcode, MState, NonExistent, PostIncremented, PreDecremented, Relative, TwoRegisters}
 import millfork.assembly.opt.SingleStatus
 import millfork.compiler.LabelGenerator
 import millfork.env._
@@ -988,6 +988,25 @@ case class DoesntChangeMemoryAtAssumingNonchangingIndices(addrMode1: Int, param1
 
   override def hitRate: Double = 0.973
 }
+
+case class DoesntChangeIndexingInAddrMode(i: Int) extends MLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: MLine): Boolean = {
+    import M6809Register._
+    ctx.get[MAddrMode](i) match {
+      case Indexed(S, false) => !ConcernsS.matchLineTo(ctx, flowInfo, line)
+      case Indexed(X, false) => !ChangesX.matchLineTo(ctx, flowInfo, line)
+      case Indexed(Y, false) => !ChangesY.matchLineTo(ctx, flowInfo, line)
+      case Absolute(true) => !ChangesMemory.matchLineTo(ctx, flowInfo, line)
+      case Absolute(false) | Inherent | InherentA | InherentB | Immediate => true
+      case _ => false // let's ignore rarer addressing modes
+    }
+  }
+
+  override def toString: String = s"¬(?<$i>AddrMode)"
+
+  override def hitRate: Double = 0.99
+}
+
 
 case object ConcernsMemory extends MLinePattern {
   override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: MLine): Boolean =
