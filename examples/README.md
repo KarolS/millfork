@@ -82,9 +82,11 @@ how to create a program made of multiple files loaded on demand
 
 * [Rainbow example](a8/rainbow.mfk) – simple scrolling rasterbars
 
-* [DLI example](a8/dli-example.mfk) – simple display list and display list interrupt example
+* [DLI example](a8/dli_example.mfk) – simple display list and display list interrupt example
 
 * [Scroll example](a8/endless_scroll.mfk) – simple horizontal scroll example
+
+* [System Off example](a8/systemoff_example.mfk) – Programming example with ROM off
 
 ## Game Boy examples
 
