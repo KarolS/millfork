@@ -115,7 +115,7 @@ void main(){
   system_off();               // turn off OS
 
   wait(100)                   // waint 2 sec on PAL for fun
-  antic_dlist = dl.addr       // set custom displaylist
+  antic_dlist = dl.addr       // set custom display list
   wait(100)                   // waint 2 sec on PAL for the lulz
   vbivec = vbi.addr           // set custom VBI
   wait(100)                   // waint 2 sec on PAL because we can
