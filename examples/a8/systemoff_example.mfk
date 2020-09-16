@@ -112,7 +112,7 @@ interrupt void vbi(){
 
 // main procdure
 void main(){
-  system_off();               // turn off OS
+  system_off()                // turn off OS
 
   wait(100)                   // waint 2 sec on PAL for fun
   antic_dlist = dl.addr       // set custom display list
