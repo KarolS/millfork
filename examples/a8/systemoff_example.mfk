@@ -116,7 +116,7 @@ void main(){
 
   wait(100)                   // waint 2 sec on PAL for fun
   antic_dlist = dl.addr       // set custom displaylist
-  wait(100 )                  // waint 2 sec on PAL for the lulz
+  wait(100)                   // waint 2 sec on PAL for the lulz
   vbivec = vbi.addr           // set custom VBI
   wait(100)                   // waint 2 sec on PAL because we can
   vdslst = dli_first.addr     // set custom DLI
