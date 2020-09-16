@@ -110,7 +110,7 @@ interrupt void vbi(){
   gtia_colpf2 = os_RTCLOK.b2
 }
 
-// main procdure
+// main procedure
 void main(){
   system_off()                // turn off OS
 
