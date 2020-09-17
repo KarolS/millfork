@@ -88,6 +88,8 @@ how to create a program made of multiple files loaded on demand
 
 * [System Off example](a8/systemoff_example.mfk) – Programming example with ROM off
 
+* [GR.8 Chessboard Benchmark](a8/gr8_chessboard_benchmark.mfk) – Chessboard drawing benchmark in GR.0
+
 ## Game Boy examples
 
 * [GB test example](gb/gbtest.mfk) – a partial port of the NES example, with a rudimentary experimental text output implementation

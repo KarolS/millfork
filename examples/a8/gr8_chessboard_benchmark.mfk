@@ -1,0 +1,109 @@
+const word lmsAddr1 = $8400
+const word lmsAddr2 = $6010
+
+byte i@$e0, j@$e2, k@$e4, count@$e6
+pointer screen@$e8
+
+const array(byte) dl align(256) = [
+  $70,$70,$70,
+  $4f,@word[lmsAddr2],
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,
+  $4f,0,lmsAddr2.hi + $10,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,$0f,$0f,$0f,$0f,$0f,$0f,$0f,
+  $0f,
+  $41,@word[dl.addr]
+]
+
+const array(byte) dlPrint align(16) = [
+  $70,$70,$70,
+  $42,@word[lmsAddr1],
+  $41,@word[dlPrint.addr]
+]
+
+asm void pause() {
+  LDA os_RTCLOK.b2
+  .rt_check:
+  CMP os_RTCLOK.b2
+  BEQ .rt_check
+  RTS
+}
+
+//print HEX value
+void printScore() {
+  array(byte) tmp[2]
+  byte iter
+
+  screen = lmsAddr1
+  os_SDLST = dlPrint.addr
+
+  tmp[0] = count >> 4
+  tmp[1] = count & %00001111
+
+  for iter:tmp {
+    if tmp[iter] < 10 {
+      screen[iter] = tmp[iter] + $10
+    } else {
+      screen[iter] = tmp[iter] + $17
+    }
+  }
+}
+
+void drawBoard() {
+  screen = lmsAddr2
+  os_SDLST = dl.addr
+
+  for i,7,downto,0 {
+    for j,23,downto,0 {
+      for k,3,downto,0 {
+        screen[0] = 255
+        screen[1] = 255
+        screen[2] = 255
+        screen += 6
+      }
+      screen += 16
+    }
+    if (i & 1) != 0 {
+      screen += 3
+    } else {
+      screen -= 3
+    }
+  }
+}
+
+void main() {
+  count = 0
+
+  pause()
+  os_RTCLOK.b2 = 0
+
+  while os_RTCLOK.b2 < 150 {
+    drawBoard()
+    count += 1
+  }
+
+  printScore()
+
+  while (true){}
+}
