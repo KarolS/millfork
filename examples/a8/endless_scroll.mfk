@@ -3,22 +3,20 @@ const word lms1Addr = $4000
 const word lms2Addr = $4060
 const word lms3Addr = $40c0
 
-volatile word SDLST @ $230
-
 array(byte) dl @ dlAddr = [
   $70,$70,$70,
-  $52,lo(lms1Addr),hi(lms1Addr),
-  $52,lo(lms2Addr),hi(lms2Addr),
-  $52,lo(lms3Addr),hi(lms3Addr),
+  $52, @word[lms1Addr],
+  $52, @word[lms2Addr],
+  $52, @word[lms3Addr],
   $41,lo(dlAddr),hi(dlAddr)
 ]
 
 noinline asm void wait(byte register(a) f) {
   clc
-  adc os_RTCLOK+2
-  rt_check:
-  cmp os_RTCLOK+2
-  bne rt_check
+  adc os_RTCLOK.b2
+  .rt_check:
+  cmp os_RTCLOK.b2
+  bne .rt_check
   rts
 }
 
@@ -33,7 +31,7 @@ void main() {
   screeni = lms1Addr
 
   wait(1)
-  SDLST = dl.addr
+  os_SDLST = dl.addr
 
   while true {
     if hscroli == $b {

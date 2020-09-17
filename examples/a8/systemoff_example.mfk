@@ -1,0 +1,122 @@
+// ================================================
+//
+// antic_nmien = $40
+//
+// %01000000 $40 VBI
+// %10000000 $80 DLI
+// %11000000 $c0 VBI + DLI
+//
+// ================================================
+//
+// pia_portb = $fe
+//
+// PORTB_BASIC_OFF + PORTB_SELFTEST_OFF + %01111100
+//
+// PORTB_SELFTEST_OFF = %10000000; portb bit value to turn Self-Test off
+// PORTB_BASIC_OFF    = %00000010; portb bit value to turn Basic off
+// PORTB_SYSTEM_ON    = %00000001; portb bit value to turn System on
+//
+// ================================================
+
+byte nmien = $c0
+
+byte rti       @ $15 // default routine for VBI & DLI
+word vbivec    @ $10 // vector for VBI
+word vdslst    @ $16 // vector for DLI
+
+// simple display list; LMS = $e000
+const array(byte) dl align(32) = [
+  $70,$70,$70,
+  $42,$00,$e0,2,2,$f0,2,2,2,$f0,2,2,2,
+  $41,@word[dl.addr]
+]
+
+// init procedure
+void system_off(){
+  asm { sei }                 // turn off IRQ
+  antic_nmien = 0             // turn off ANTIC
+  pia_portb = $fe             // turn off ROM
+  rti = $40                   // set RTI opcode
+  vbivec = rti.addr           // set address for VBI routine
+  vdslst = rti.addr           // set address for DLI routine
+  os_NMIVEC = nmi.addr        // set address for custom NMI handler
+  antic_nmien = nmien
+}
+
+// custom NMI handler
+asm void nmi(){
+  bit antic_nmist             // test nmist
+  bpl .vblclock               // if 7-bit not set handle VBI
+  jmp (vdslst)                // indirect jump to DLI routine
+  .vblclock:                  // RTCLOK maintainer
+  inc os_RTCLOK.b2
+  bne .tickend
+  inc os_RTCLOK.b1
+  bne .tickend
+  inc os_RTCLOK.b0
+  .tickend:
+  jmp (vbivec)                // indirect jump to VBI routine
+}
+
+// example dli
+interrupt asm void dli_first(){
+  pha
+  lda #$2a
+  sta gtia_colpf2
+  sta antic_wsync
+  lda #<dli_second.addr
+  sta vdslst.lo
+  lda #>dli_second.addr
+  sta vdslst.hi
+  pla
+  rti
+}
+
+// example dli
+interrupt void dli_second(){
+  gtia_colpf2 = $de
+  antic_wsync = $de
+  vdslst = dli_first.addr
+}
+
+// wait for VBLANK
+asm void pause() {
+  lda os_RTCLOK.b2
+  .rt_check:
+  cmp os_RTCLOK.b2
+  beq .rt_check
+  rts
+}
+
+// wait 0-255 frames
+noinline asm void wait(byte register(a) f) {
+  clc
+  adc os_RTCLOK.b2
+  .rt_check:
+  cmp os_RTCLOK.b2
+  bne .rt_check
+  rts
+}
+
+// example vbi
+interrupt void vbi(){
+  gtia_colpf2 = os_RTCLOK.b2
+}
+
+// main procedure
+void main(){
+  system_off()                // turn off OS
+
+  wait(100)                   // waint 2 sec on PAL for fun
+  antic_dlist = dl.addr       // set custom display list
+  wait(100)                   // waint 2 sec on PAL for the lulz
+  vbivec = vbi.addr           // set custom VBI
+  wait(100)                   // waint 2 sec on PAL because we can
+  vdslst = dli_first.addr     // set custom DLI
+
+  while(true){
+    wait(100)
+    nmien ^= %10000000        // toggle DLI
+    antic_nmien = nmien
+  }
+}
