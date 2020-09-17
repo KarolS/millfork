@@ -73,17 +73,10 @@ interrupt asm void dli_first(){
 }
 
 // example dli
-interrupt asm void dli_second(){
-  pha
-  lda #$de
-  sta gtia_colpf2
-  sta antic_wsync
-  lda #<dli_first.addr
-  sta vdslst.lo
-  lda #>dli_first.addr
-  sta vdslst.hi
-  pla
-  rti
+interrupt void dli_second(){
+  gtia_colpf2 = $de
+  antic_wsync = $de
+  vdslst = dli_first.addr
 }
 
 // wait for VBLANK
