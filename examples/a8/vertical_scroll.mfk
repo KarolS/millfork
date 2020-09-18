@@ -1,0 +1,37 @@
+const array text align(64) = "...MILLFORK RULEZ..." atariscr
+
+const array(byte) dl align(16) = [
+  $70,$70,$70,$70,
+  $67,@word[text.addr],
+  $41,@word[dl.addr]
+]
+
+noinline asm void wait(byte register(a) f) {
+  clc
+  adc os_RTCLOK.b2
+  .rt_check:
+  cmp os_RTCLOK.b2
+  bne .rt_check
+  rts
+}
+
+void main(){
+  byte i0B @ $80
+
+  i0B = $f
+  os_SDLST = dl.addr
+
+  while true {
+    while (i0B != 0){
+      i0B -= 1
+      antic_vscrol = i0B
+      wait(3)
+    }
+    wait(50)
+    while (i0B < $f){
+      i0B += 1
+      antic_vscrol = i0B
+      wait(2)
+    }
+  }
+}
