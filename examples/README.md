@@ -96,7 +96,7 @@ how to create a program made of multiple files loaded on demand
 
 * [WHILE Countdown Benchmark](a8/countdown_while_benchmark.mfk) – Countdown from 1,999,999 to 0 (WHILE loop)
 
-* [Sieve of Eratosthenes 1899 Benchmark](a8/sieve1899.mfk) – Sieve of Eratosthenes, 1899 primes algorithm
+* [Sieve of Eratosthenes (1899) Benchmark](a8/sieve1899.mfk) – Sieve of Eratosthenes, 1899 primes algorithm
 
 * [Monte Carlo PI estimation Benchmark](a8/montecarlo_pi_benchmark.mfk) – measures the efficiency of multiplication
 
