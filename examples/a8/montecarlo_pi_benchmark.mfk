@@ -1,0 +1,65 @@
+const word probe = 9999
+const word radius = 127 * 127
+pointer screen @ $80
+
+asm void pause() {
+  lda os_RTCLOK.b2
+  .rt_check:
+  cmp os_RTCLOK.b2
+  beq .rt_check
+  rts
+}
+
+// print in HEX
+void printScore(word val) {
+  array(byte) tmp[4]
+  byte iter
+
+  tmp[0] = val.hi >> 4
+  tmp[1] = val.hi & %00001111
+  tmp[2] = val.lo >> 4
+  tmp[3] = val.lo & %00001111
+
+  for iter:tmp {
+    if tmp[iter] < 10 {
+      screen[iter] = tmp[iter] + $10
+    } else {
+      screen[iter] = tmp[iter] + $17
+    }
+  }
+  screen += 40
+}
+
+void main() {
+  array(bool) flags[size] align(1024)
+  word i@$e0, bingo@$e2
+  word x@$e4, y@$e6, p@$e8, t@$ea
+  byte n@$82
+
+  screen = os_SAVMSC
+
+  x = 0
+  y = 0
+  bingo = 0
+
+  pause()
+  os_RTCLOK = 0
+
+  for i,0,to,probe {
+    n = pokey_random & 127
+    x = n * word(n)
+    n = pokey_random & 127
+    y = n * word(n)
+    if ((x + y) <= radius) {
+      bingo += 1
+    }
+  }
+  p = 4 * bingo
+
+  t = os_RTCLOK.b2 + (os_RTCLOK.b1 * 256)
+
+  printScore(t)
+  printScore(p)
+
+  while true {}
+}

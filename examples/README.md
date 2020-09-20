@@ -84,11 +84,21 @@ how to create a program made of multiple files loaded on demand
 
 * [DLI example](a8/dli_example.mfk) – simple display list and display list interrupt example
 
-* [Scroll example](a8/endless_scroll.mfk) – simple horizontal scroll example
+* [Horizontal scroll example](a8/endless_scroll.mfk) – simple horizontal scroll example
+
+* [Vertical scroll example](a8/vertical_scroll.mfk) – simple vertical scroll example
 
 * [System Off example](a8/systemoff_example.mfk) – Programming example with ROM off
 
-* [GR.8 Chessboard Benchmark](a8/gr8_chessboard_benchmark.mfk) – Chessboard drawing benchmark in GR.0
+* [GR.8 Chessboard Benchmark](a8/gr8_chessboard_benchmark.mfk) – Chessboard drawing benchmark in GR.8
+
+* [FOR Countdown Benchmark](a8/countdown_for_benchmark.mfk) – Countdown from 1,999,999 to 0 (FOR loop)
+
+* [WHILE Countdown Benchmark](a8/countdown_while_benchmark.mfk) – Countdown from 1,999,999 to 0 (WHILE loop)
+
+* [Sieve of Eratosthenes (1899) Benchmark](a8/sieve1899.mfk) – Sieve of Eratosthenes, 1899 primes algorithm
+
+* [Monte Carlo PI estimation Benchmark](a8/montecarlo_pi_benchmark.mfk) – measures the efficiency of multiplication
 
 ## Game Boy examples
 

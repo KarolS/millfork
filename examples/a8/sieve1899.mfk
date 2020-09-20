@@ -1,0 +1,68 @@
+const word size = 8192
+
+word RTCLOK @ $13, SAVMSC @ $58
+word i@$e0, prime@$e2, k@$e4, count@$e6
+pointer screen@$e8
+
+asm void pause() {
+  lda $14
+  .rt_check:
+  cmp $14
+  beq .rt_check
+  rts
+}
+
+// print in HEX
+void printScore() {
+  array(byte) tmp[4]
+  byte iter
+
+  screen = SAVMSC
+
+  tmp[0] = RTCLOK.lo >> 4
+  tmp[1] = RTCLOK.lo & %00001111
+  tmp[2] = RTCLOK.hi >> 4
+  tmp[3] = RTCLOK.hi & %00001111
+
+  for iter:tmp {
+    if tmp[iter] < 10 {
+      screen[iter] = tmp[iter] + $10
+    } else {
+      screen[iter] = tmp[iter] + $17
+    }
+  }
+}
+
+void main() {
+  array(bool) flags[size] align(1024)
+  byte iter
+
+  pause()
+  RTCLOK = 0
+
+  for iter,9,downto,0 {
+
+    count = 0
+
+    for i:flags {
+      flags[i] = true
+    }
+
+    for i:flags {
+      if flags[i] {
+        prime = (i * 2) + 3
+        k = i + prime
+        while k <= size {
+          flags[k] = false
+          k += prime
+        }
+        count += 1
+      }
+    }
+
+  }
+
+  printScore()
+
+  while true {}
+}

@@ -1,0 +1,119 @@
+byte RTCLOK @ 0
+byte iter0B @ 1
+word iter0W @ 2
+bool run_counter @ 4
+
+byte zpr_0 @ $24, zpr_1 @ $23, zpr_2 @ $22, zpr_3 @ $21, zpr_4 @ $20
+byte zpc_0 @ $47, zpc_1 @ $46, zpc_2 @ $45, zpc_3 @ $44, zpc_4 @ $43, zpc_5 @ $42, zpc_6 @ $41
+
+const array(byte) dl align(16) = [
+  $70,$70,$70,
+  $42,$20,0,
+  $41,@word[dl.addr]
+]
+
+void system_off(){
+  asm { sei }
+  antic_nmien = 0
+  pia_portb = $fe
+  os_NMIVEC = vbi.addr
+  run_counter = false
+  antic_nmien = $40
+}
+
+asm void pause() {
+  lda RTCLOK
+  .rt_check:
+  cmp RTCLOK
+  beq .rt_check
+  rts
+}
+
+interrupt void vbi(){
+  RTCLOK += 1
+  if run_counter{
+    zpr_0 += 1
+    if zpr_0 == 10 {
+      zpr_1 += 1
+      zpr_0 = 0
+    }
+    if zpr_1 == 10 {
+      zpr_2 += 1
+      zpr_1 = 0
+    }
+    if zpr_2 == 10 {
+      zpr_3 += 1
+      zpr_2 = 0
+    }
+    if zpr_3 == 10 {
+      zpr_4 += 1
+      zpr_3 = 0
+    }
+  }
+}
+
+void copy_block(pointer src, pointer dsc, word size){
+  for iter0W,0,to,size-1{
+    dsc[iter0W] = src[iter0W]
+  }
+}
+
+void set_block(pointer from, word size, byte val){
+  for iter0W,0,to,size-1{
+    from[iter0W] = val
+  }
+}
+
+void main(){
+  copy_block($e080,$4000,80)
+  system_off()
+  set_block($20,40,255)
+  set_block($20,5,0)
+  set_block($41,7,0)
+
+  zpc_0 = 9
+  zpc_1 = 9
+  zpc_2 = 9
+  zpc_3 = 9
+  zpc_4 = 9
+  zpc_5 = 9
+  zpc_6 = 1
+
+  pause()
+  antic_chbase = $40
+  antic_dlist = dl.addr
+
+  run_counter = true
+
+  while(zpc_6 != $ff){
+    zpc_5 = 9
+    while(zpc_5 != $ff){
+      zpc_4 = 9
+      while(zpc_4 != $ff){
+        zpc_3 = 9
+        while(zpc_3 != $ff){
+          zpc_2 = 9
+          while(zpc_2 != $ff){
+            zpc_1 = 9
+            while(zpc_1 != $ff){
+              zpc_0 = 9
+              while(zpc_0 != $ff){
+                zpc_0 -= 1
+              }
+              zpc_1 -= 1
+            }
+            zpc_2 -= 1
+          }
+          zpc_3 -= 1
+        }
+        zpc_4 -= 1
+      }
+      zpc_5 -= 1
+    }
+    zpc_6 -= 1
+  }
+
+  run_counter = false
+
+  while true {}
+}
