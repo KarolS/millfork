@@ -21,7 +21,7 @@ object Z80BulkMemoryOperations {
     */
   def compileMemcpy(ctx: CompilationContext, target: IndexedExpression, source: IndexedExpression, f: ForStatement): List[ZLine] = {
     val sourceOffset = removeVariableOnce(ctx, f.variable, source.index).getOrElse(return compileForStatement(ctx, f)._1)
-    if (!sourceOffset.isPure) return compileForStatement(ctx, f)._1
+    if (!ctx.isConstant(sourceOffset)) return compileForStatement(ctx, f)._1
     val sourceIndexExpression = sourceOffset #+# f.start
     val calculateSource = Z80ExpressionCompiler.calculateAddressToHL(ctx, IndexedExpression(source.name, sourceIndexExpression).pos(source.position), forWriting = false)
     compileMemoryBulk(ctx, target, f,
@@ -85,11 +85,11 @@ object Z80BulkMemoryOperations {
 
     if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
       removeVariableOnce(ctx, f.variable, target.index) match {
-        case Some(targetOffset) if targetOffset.isPure =>
+        case Some(targetOffset) if ctx.isConstant(targetOffset) =>
           return compileForZ80(targetOffset)
         case _ =>
       }
-      if (target.isPure && target.name == f.variable && !ctx.env.overlapsVariable(f.variable, target.index)) {
+      if (ctx.isConstant(target) && target.name == f.variable && !ctx.env.overlapsVariable(f.variable, target.index)) {
         return compileForZ80(target.index)
       }
     }
@@ -437,7 +437,7 @@ object Z80BulkMemoryOperations {
     val pointy = ctx.env.getPointy(target.name)
     if (pointy.elementType.alignedSize > 1) return Z80StatementCompiler.compileForStatement(ctx, f)._1
     val targetOffset = removeVariableOnce(ctx, f.variable, target.index).getOrElse(return compileForStatement(ctx, f)._1)
-    if (!targetOffset.isPure) return compileForStatement(ctx, f)._1
+    if (!ctx.isConstant(targetOffset)) return compileForStatement(ctx, f)._1
     val indexVariableSize = ctx.env.get[Variable](f.variable).typ.size
     val wrapper = createForLoopPreconditioningIfStatement(ctx, f)
     val decreasingDespiteSyntax = preferDecreasing && (f.direction == ForDirection.ParallelTo || f.direction == ForDirection.ParallelUntil)

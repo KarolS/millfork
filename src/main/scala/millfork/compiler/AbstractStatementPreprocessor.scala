@@ -231,8 +231,8 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
               !env.overlapsVariable(f.variable, source) &&
               !env.overlapsVariable(f.variable, f.start) &&
               !env.overlapsVariable(f.variable, f.end) &&
-              source.isPure &&
-              sourceType.size == 1 &&
+              ctx.isConstant(source) &&
+              sourceType.size <= 1 &&
               targetType.size == 1 &&
               sourceType.isAssignableTo(targetType)
             ) {
@@ -738,9 +738,9 @@ object AbstractStatementPreprocessor {
         val sourceType = AbstractExpressionCompiler.getExpressionType(ctx, source)
         val targetType = AbstractExpressionCompiler.getExpressionType(ctx, target)
         if (
-          source.isPure &&
-          index.isPure &&
-          sourceType.size == 1 &&
+          ctx.isConstant(source) &&
+          ctx.isConstant(index) &&
+          sourceType.size <= 1 &&
           targetType.size == 1  &&
           sourceType.isAssignableTo(targetType)&&
           !env.isVolatile(VariableExpression(pointy)) &&

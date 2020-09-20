@@ -1292,7 +1292,7 @@ object BuiltIns {
   def compileByteMultiplication(ctx: CompilationContext, v: Expression, c: Int): List[AssemblyLine] = {
     c match {
       case 0 =>
-        if (v.isPure) return List(AssemblyLine.immediate(LDA, 0))
+        if (ctx.isConstant(v)) return List(AssemblyLine.immediate(LDA, 0))
         else return MosExpressionCompiler.compileToA(ctx, v) ++ List(AssemblyLine.immediate(LDA, 0))
       case 1 => return MosExpressionCompiler.compileToA(ctx, v)
       case 2 | 4 | 8 | 16 | 32 =>

@@ -2,7 +2,7 @@ package millfork.compiler
 
 import millfork.env.{Environment, Label, NormalFunction, NormalParamSignature}
 import millfork.error.Logger
-import millfork.node.NiceFunctionProperty
+import millfork.node.{Expression, NiceFunctionProperty}
 import millfork.{CompilationFlag, CompilationOptions, JobContext}
 
 /**
@@ -15,6 +15,9 @@ case class CompilationContext(env: Environment,
                               niceFunctionProperties: Set[(NiceFunctionProperty, String)],
                               breakLabels: Map[String, Label] = Map(),
                               continueLabels: Map[String, Label] = Map()){
+
+  def isConstant(v: Expression): Boolean = v.isPure || env.eval(v).isDefined
+
   def withInlinedEnv(environment: Environment, newLabel: String): CompilationContext = {
     val newEnv = new Environment(Some(env), newLabel, environment.cpuFamily, options)
     newEnv.things ++= environment.things
