@@ -54,6 +54,7 @@ sealed trait Expression extends Node {
   def #-#(that: Expression): Expression = SumExpression(List(false -> this, true -> that), decimal = false)
 
   @transient var typeCache: Type = _
+  @transient var constantValueCache: Option[Constant] = _
 }
 
 case class ConstantArrayElementExpression(constant: Constant) extends Expression {

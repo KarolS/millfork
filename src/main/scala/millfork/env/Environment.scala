@@ -662,7 +662,12 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def eval(e: Expression, vars: Map[String, Constant]): Option[Constant] = evalImpl(e, Some(vars))
 
-  def eval(e: Expression): Option[Constant] = evalImpl(e, None)
+  def eval(e: Expression): Option[Constant] = {
+    if (e.constantValueCache ne null) return e.constantValueCache
+    val cv = evalImpl(e, None)
+    e.constantValueCache = cv
+    cv
+  }
 
   //noinspection ScalaUnnecessaryParentheses,ZeroIndexToHead
   private def evalImpl(e: Expression, vv: Option[Map[String, Constant]]): Option[Constant] = try{{

@@ -806,7 +806,7 @@ object MfParser {
   val identifierTail: P[String] =
     CharsWhileIn("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_.1234567890", min = 1).rep(min = 1, sep = "$").!
 
-  val identifier: P[String] = (letter ~ ("$".? ~ identifierTail).?).!.opaque("<identifier>")
+  val identifier: P[String] = (letter ~ ("$".? ~ identifierTail).?).!.map(_.intern()).opaque("<identifier>")
 
   val doubleQuotedString: P[String] = P("\"" ~/ CharsWhile(c => c != '\"' && c != '\n' && c != '\r').?.! ~ "\"")
 
