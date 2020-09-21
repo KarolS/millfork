@@ -1,6 +1,6 @@
 package millfork.env
 
-import millfork.node.{Expression, FunctionCallExpression, GeneratedConstantExpression, IfStatement, IndexedExpression, LiteralExpression, ReturnStatement, Statement, SumExpression, VariableExpression}
+import millfork.node.{Expression, FunctionCallExpression, GeneratedConstantExpression, IfStatement, IndexedExpression, LiteralExpression, ReturnStatement, SeparateBytesExpression, Statement, SumExpression, VariableExpression}
 
 /**
   * @author Karol Stasiak
@@ -93,6 +93,9 @@ object ConstPureFunctions {
             env.log.error(s"Calling `${vname}` not allowed in const-pure functions", expr.position)
         }
         checkConstPure(env, index, params)
+      case SeparateBytesExpression(hi, lo) =>
+        checkConstPure(env, hi, params)
+        checkConstPure(env, lo, params)
       case _ =>
         env.log.error(s"Expression not allowed in const-pure functions", expr.position)
 

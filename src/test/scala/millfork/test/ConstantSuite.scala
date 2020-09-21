@@ -95,6 +95,21 @@ class ConstantSuite extends FunSuite with Matchers {
 
   }
 
+  test("Const-pure functions 2") {
+    val m = EmuUnoptimizedRun(
+      """
+        | word output @$c000
+        | const word BASE = $d800
+        | const word pair(byte x, byte y) = (x+BASE.hi):y
+        | const word result = pair(1,2)
+        | void main() {
+        |   output = result
+        | }
+      """.stripMargin)
+    m.readWord(0xc000) should equal(0xd902)
+
+  }
+
   test("Const-pure Fibonacci") {
     val m = EmuUnoptimizedRun(
       """
