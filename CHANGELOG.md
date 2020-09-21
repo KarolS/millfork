@@ -1,5 +1,13 @@
 # Change log
 
+## Current version
+
+* Allowed the `:` operator in const-pure functions.
+
+* Fix: more instances of memset loops should be detected and optimized (#59).
+
+* Even more new Atari examples (thanks to @zbyti).
+
 ## 0.3.22 (2020-09-15)
 
 * Added local labels in assembly.
