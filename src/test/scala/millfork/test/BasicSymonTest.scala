@@ -328,4 +328,25 @@ class BasicSymonTest extends FunSuite with Matchers {
         |}
         |""".stripMargin)
   }
+
+  test("Numeric literals") {
+    EmuUnoptimizedRun(
+      """
+        |array a @$c000 = [
+        | %0,  %1,  %001,  %000001,  %11100,
+        |0b0, 0b1, 0b001, 0b000001, 0b11100,
+        |0q12, 0q1, 0q0, 0q1230,
+        |0o001, 0o0, 0o6, 0o52,
+        |0x23, 0xdd, 0x55, 0x0, 0x1, 0xf,
+        | $23,  $dd,  $55,  $0,  $1,  $f,
+        |000
+        |]
+        |
+        |void main() {
+        |  a[0] = a[0]
+        |}
+        |""".stripMargin)
+  }
+
+
 }
