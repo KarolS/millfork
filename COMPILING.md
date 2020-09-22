@@ -50,7 +50,10 @@ Test suite is useful if you plan on modifying the compiler. Some test dependenci
 
 #### Prerequisites
 
-* JDK 1.8 with Nashorn (tests don't work on newer versions)
+* JDK 1.8 or later
+
+    * Millfork up to version 0.3.22 used to require exactly JDK 1.8 with Nashorn, 
+    as the tests didn't work on newer versions
 
 * sbt
 

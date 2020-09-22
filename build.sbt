@@ -32,6 +32,12 @@ libraryDependencies += "eu.rekawek.coffeegb" % "coffee-gb" % "1.0.0" % "test"
 
 libraryDependencies += "roug.org.osnine" % "osnine-core" % "2.0-SNAPSHOT" % "test"
 
+libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "20.2.0" % "test"
+
+libraryDependencies += "org.graalvm.js" % "js" % "20.2.0" % "test"
+
+libraryDependencies += "org.graalvm.js" % "js-scriptengine" % "20.2.0" % "test"
+
 mainClass in Compile := Some("millfork.Main")
 
 assemblyJarName := "millfork.jar"
