@@ -1,5 +1,6 @@
 void main(){
   array(byte) stars[256] align(fast)
+  array(byte) speed[256] align(fast)
   byte i
 
   os_PCOLR0 = $e
@@ -7,6 +8,7 @@ void main(){
 
   for i:stars {
     stars[i] = pokey_random
+    speed[i] = (pokey_random & 3) + 1
   }
 
   while true {
@@ -14,7 +16,7 @@ void main(){
       for i:stars {
         antic_wsync = 1
         gtia_hposm0 = stars[i]
-        stars[i] += 1
+        stars[i] += speed[i]
       }
     }
   }
