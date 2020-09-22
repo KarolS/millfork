@@ -788,7 +788,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     if (exprType.size > target.typ.size) {
                       ctx.log.error(s"Variable `$target.name` is too small", expr.position)
                       Nil
-                    } else if (exprType.size == 2 && target.typ.size == 2 && ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
+                    } else if (exprType.size == 2 && AbstractExpressionCompiler.getExpressionType(ctx, expr).size == 2 && target.typ.size == 2 && ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
                       AssemblyLine.accu16 :: (AssemblyLine.variable(ctx, LDA_W, source) ++ AssemblyLine.variable(ctx, STA_W, target) :+ AssemblyLine.accu8)
                     } else {
                       val copyFromLo  = List.tabulate(exprType.size)(i => AssemblyLine.variable(ctx, LDA, source, i) ++ AssemblyLine.variable(ctx, STA, target, i))

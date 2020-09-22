@@ -10,6 +10,7 @@ object EmuUnoptimizedCrossPlatformRun {
   def apply(platforms: Cpu.Value*)(source: String)(verifier: MemoryBank => Unit): Unit = {
     val (_, mm) = if (platforms.contains(Cpu.Mos) || platforms.contains(Cpu.StrictMos)) EmuUnoptimizedRun.apply2(source) else Timings(-1, -1) -> null
     val (_, mc) = if (platforms.contains(Cpu.Cmos)) EmuUnoptimizedCmosRun.apply2(source) else Timings(-1, -1) -> null
+    val (_, ma) = if (platforms.contains(Cpu.Sixteen)) EmuUnoptimizedNative65816Run.apply2(source) else Timings(-1, -1) -> null
     val (_, mn) = if (platforms.contains(Cpu.Ricoh)) EmuUnoptimizedRicohRun.apply2(source) else Timings(-1, -1) -> null
     val (_, mz) = if (platforms.contains(Cpu.Z80)) EmuUnoptimizedZ80Run.apply2(source) else Timings(-1, -1) -> null
     val (_, mi) = if (platforms.contains(Cpu.Intel8080)) EmuUnoptimizedIntel8080Run.apply2(source) else Timings(-1, -1) -> null
@@ -23,6 +24,10 @@ object EmuUnoptimizedCrossPlatformRun {
     if (Settings.enableRicohTests && platforms.contains(millfork.Cpu.Ricoh)) {
       println(f"Running Ricoh")
       verifier(mn)
+    }
+    if (Settings.enableWdc85816Tests && platforms.contains(Cpu.Sixteen)) {
+      println(f"Running 65816")
+      verifier(ma)
     }
     if (Settings.enable65C02Tests && platforms.contains(Cpu.Cmos)) {
       println(f"Running 65C02")

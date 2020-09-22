@@ -31,6 +31,12 @@ object SixteenOptimizations {
     (Elidable & HasOpcode(XBA) & DoesntMatterWhatItDoesWith(State.A, State.AH, State.N, State.Z)) ~~> { code =>
       Nil
     },
+    (Elidable & HasOpcode(XBA) & DoesntMatterWhatItDoesWith(State.N, State.Z) & HasAccu8 & HasIndex8) ~
+    (Elidable & HasOpcode(TAX)) ~
+    (Elidable & HasOpcode(XBA)) ~
+    (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.X, State.AH)) ~~> { code =>
+      List(code.head)
+    },
   )
 
   val RepSepWeakening = new RuleBasedAssemblyOptimization("REP/SEP weakening",
