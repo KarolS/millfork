@@ -1,0 +1,21 @@
+void main(){
+  array(byte) stars[256] align(fast)
+  byte i
+
+  os_PCOLR0 = $e
+  gtia_grafm = $e
+
+  for i:stars {
+    stars[i] = pokey_random
+  }
+
+  while true {
+    if antic_vcount == 0 {
+      for i:stars {
+        antic_wsync = 1
+        gtia_hposm0 = stars[i]
+        stars[i] += 1
+      }
+    }
+  }
+}
