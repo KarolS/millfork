@@ -6,6 +6,7 @@ project/project/target/
 stuff
 releases
 src/test/scala/experiments/
+src/test/java/experiments/
 # doesn't work yet
 examples/lunix/
 # older copies

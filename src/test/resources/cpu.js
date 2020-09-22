@@ -1621,13 +1621,14 @@ var EOR_const = {
     if(cpu.p.e||cpu.p.m) {
       cpu.r.a ^= bytes[0];
       cpu.p.n = cpu.r.a >> 7;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a & 0xff);
     } else {
       cpu.cycle_count++;
       cpu.r.a ^= (bytes[1]<<8)|bytes[0];
       cpu.p.n = cpu.r.a >> 15;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a);
     }
 
-    cpu_lib.r.p.check_z(cpu, cpu.r.a);
   }
 };
 
@@ -1690,14 +1691,14 @@ var ORA_const= {
     if(cpu.p.e||cpu.p.m) {
       cpu.r.a |= bytes[0];
       cpu.p.n = cpu.r.a >> 7;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a & 0xff);
     } else {
       cpu.cycle_count++;
 
       cpu.r.a |= (bytes[1]<<8)|bytes[0];
       cpu.p.n = cpu.r.a >> 15;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a);
     }
-
-    cpu_lib.r.p.check_z(cpu, cpu.r.a);
   }
 };
 
@@ -1758,16 +1759,16 @@ var AND_const= {
     cpu.cycle_count+=2;
 
     if(cpu.p.e||cpu.p.m) {
-      cpu.r.a &= bytes[0];
+      cpu.r.a = cpu.r.a & 0xff00 | cpu.r.a & 0xff & bytes[0];
       cpu.p.n = cpu.r.a >> 7;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a & 0xff);
     } else {
       cpu.cycle_count++;
 
       cpu.r.a &= (bytes[1]<<8)|bytes[0];
       cpu.p.n = cpu.r.a >> 15;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a);
     }
-
-    cpu_lib.r.p.check_z(cpu, cpu.r.a);
   }
 };
 
@@ -1829,7 +1830,7 @@ var CPX_const= {
 
     var result;
     if(cpu.p.e||cpu.p.x) {
-      result = cpu.r.x - bytes[0];
+      result = (cpu.r.x & 0xff) - bytes[0];
       if(result<0) {
         cpu.p.c = 0;
         result = 0x100 + result;
@@ -1878,7 +1879,7 @@ var CPY_const= {
 
     var result;
     if(cpu.p.e||cpu.p.x) {
-      result = cpu.r.y - bytes[0];
+      result = (cpu.r.y & 0xff) - bytes[0];
       if(result<0) {
         cpu.p.c = 0;
         result = 0x100 + result;
@@ -1926,7 +1927,7 @@ var CMP_const= {
 
     var result;
     if(cpu.p.e||cpu.p.m) {
-      result = cpu.r.a - bytes[0];
+      result = (cpu.r.a & 0xff) - bytes[0];
       if(result<0) {
         cpu.p.c = 0;
         result = 0x100 + result;
@@ -2433,21 +2434,16 @@ var TYA = {
   execute:function(cpu) {
     cpu.cycle_count+=2;
     if(cpu.p.e||cpu.p.m) {
-      if(cpu.p.e||cpu.p.x) {
-        // 8-bit index register to 8-bit accumulator.
-        cpu.r.a = cpu.r.y;
-      } else {
-        // 16-bit index register to 8-bit accumulator.
-        cpu.r.a = cpu.r.y & 0x00ff;
-      }
+      // 8-bit accumulator.
+      cpu.r.a = cpu.r.a & 0xff00 | cpu.r.y & 0x00ff;
       cpu.p.n = cpu.r.a >> 7;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a & 0xff);
     } else {
-      // 8-bit index register to 16-bit accumulator.
-      // 16-bit index register to 16-bit accumulator.
+      // 16-bit accumulator.
       cpu.r.a = cpu.r.y;
       cpu.p.n = cpu.r.a >> 15;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a);
     }
-    cpu_lib.r.p.check_z(cpu, cpu.r.a);
     cpu.instruction_history += " TYA";
     cpu.instruction_details += "<br />Transfer Y Register to Accumulator";
   }
@@ -2496,21 +2492,16 @@ var TXA = {
   execute:function(cpu) {
     cpu.cycle_count+=2;
     if(cpu.p.e||cpu.p.m) {
-      if(cpu.p.e||cpu.p.x) {
-        // 8-bit index register to 8-bit accumulator.
-        cpu.r.a = cpu.r.x;
-      } else {
-        // 16-bit index register to 8-bit accumulator.
-        cpu.r.a = cpu.r.x & 0x00ff;
-      }
+      // 8-bit accumulator.
+      cpu.r.a = cpu.r.a & 0xff00 | cpu.r.x & 0x00ff;
       cpu.p.n = cpu.r.a >> 7;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a & 0xff);
     } else {
-      // 8-bit index register to 16-bit accumulator.
-      // 16-bit index register to 16-bit accumulator.
+      // 16-bit accumulator.
       cpu.r.a = cpu.r.x;
       cpu.p.n = cpu.r.a >> 15;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a);
     }
-    cpu_lib.r.p.check_z(cpu, cpu.r.a);
     cpu.instruction_history += " TXA";
     cpu.instruction_details += "<br />Transfer X Register to Accumulator";
   }
@@ -3336,15 +3327,16 @@ var LDA_const= {
     cpu.cycle_count+=2;
 
     if(cpu.p.e||cpu.p.m) {
-      cpu.r.a = bytes[0];
+      cpu.r.a = cpu.r.a & 0xff00 | bytes[0];
       cpu.p.n = cpu.r.a >> 7;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a & 0xff);
     } else {
       cpu.cycle_count++;
 
       cpu.r.a = (bytes[1]<<8)|bytes[0];
       cpu.p.n = cpu.r.a >> 15;
+      cpu_lib.r.p.check_z(cpu, cpu.r.a);
     }
-    cpu_lib.r.p.check_z(cpu, cpu.r.a);
   }
 };
 
