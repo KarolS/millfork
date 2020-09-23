@@ -88,15 +88,19 @@ how to create a program made of multiple files loaded on demand
 
 * [Vertical scroll example](a8/vertical_scroll.mfk) – simple vertical scroll example
 
-* [System Off example](a8/systemoff_example.mfk) – Programming example with ROM off
+* [Horizontal stars example](a8/horizontal_stars.mfk) – horizontal stars done on one missile
 
-* [GR.8 Chessboard Benchmark](a8/gr8_chessboard_benchmark.mfk) – Chessboard drawing benchmark in GR.8
+* [Grand Ttheft Antic](a8/grand_theft_antic.mfk) – ANTIC impact on CPU depending on the used graphic mode
 
-* [FOR Countdown Benchmark](a8/countdown_for_benchmark.mfk) – Countdown from 1,999,999 to 0 (FOR loop)
+* [System Off example](a8/systemoff_example.mfk) – programming with ROM off
 
-* [WHILE Countdown Benchmark](a8/countdown_while_benchmark.mfk) – Countdown from 1,999,999 to 0 (WHILE loop)
+* [GR.8 Chessboard Benchmark](a8/gr8_chessboard_benchmark.mfk) – chessboard drawing benchmark in GR.8
 
-* [Sieve of Eratosthenes (1899) Benchmark](a8/sieve1899.mfk) – Sieve of Eratosthenes, 1899 primes algorithm
+* [FOR Countdown Benchmark](a8/countdown_for_benchmark.mfk) – countdown from 1,999,999 to 0 (FOR loop)
+
+* [WHILE Countdown Benchmark](a8/countdown_while_benchmark.mfk) – countdown from 1,999,999 to 0 (WHILE loop)
+
+* [Sieve of Eratosthenes (1899) Benchmark](a8/sieve1899.mfk) – sieve of Eratosthenes, 1899 primes algorithm
 
 * [Monte Carlo PI estimation Benchmark](a8/montecarlo_pi_benchmark.mfk) – measures the efficiency of multiplication
 
