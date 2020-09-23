@@ -34,7 +34,7 @@ const array(byte) dl align(32) = [
 // init procedure
 void system_off(){
   asm { sei }                 // turn off IRQ
-  antic_nmien = 0             // turn off ANTIC
+  antic_nmien = 0             // turn off NMI
   pia_portb = $fe             // turn off ROM
   rti = $40                   // set RTI opcode
   vbivec = rti.addr           // set address for VBI routine
