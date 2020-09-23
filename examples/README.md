@@ -90,6 +90,8 @@ how to create a program made of multiple files loaded on demand
 
 * [Horizontal stars example](a8/horizontal_stars.mfk) – horizontal stars done on one missile
 
+* [Grand Ttheft Antic](a8/grand_theft_antic.mfk) – ANTIC impact on CPU depending on the used graphic mode
+
 * [System Off example](a8/systemoff_example.mfk) – programming with ROM off
 
 * [GR.8 Chessboard Benchmark](a8/gr8_chessboard_benchmark.mfk) – chessboard drawing benchmark in GR.8

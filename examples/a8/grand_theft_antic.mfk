@@ -1,0 +1,86 @@
+byte i @ $b0
+pointer screen @ $b2
+array(word) scores[17] @ $80
+
+asm void openmode(byte register(a) m) @ $ef9c extern
+
+asm void pause() {
+  lda os_RTCLOK.b2
+  .rt_check:
+  cmp os_RTCLOK.b2
+  beq .rt_check
+  rts
+}
+
+// print in HEX
+void printScore(word val) {
+  array(byte) tmp[4]
+  byte iter
+
+  tmp[0] = val.hi >> 4
+  tmp[1] = val.hi & %00001111
+  tmp[2] = val.lo >> 4
+  tmp[3] = val.lo & %00001111
+
+  for iter:tmp {
+    if tmp[iter] < 10 {
+      screen[iter] = tmp[iter] + $10
+    } else {
+      screen[iter] = tmp[iter] + $17
+    }
+  }
+
+  if i < 16 {
+    screen[4] = 0
+    screen[5] = 'G' atariscr
+    screen[6] = 'R' atariscr
+    screen[7] = '.' atariscr
+    if i < 10 {
+      screen[8] = i + $10
+    } else {
+      screen[8] = i + $17
+    }
+  } else {
+    screen[4] = 0
+    screen[5] = 'O' atariscr
+    screen[6] = 'F' atariscr
+    screen[7] = 'F' atariscr
+  }
+
+  screen += 40
+}
+
+
+void main(){
+  for i:scores {
+    scores[i] = 0
+  }
+
+  for i,0,to,15 {
+    openmode(i)
+    pause()
+    os_RTCLOK.b2 = 0
+    while os_RTCLOK.b2 < 100 {
+      scores[i] += 1
+    }
+  }
+
+  os_SDMCTL = 0
+  i = 16
+  pause()
+  os_RTCLOK.b2 = 0
+  while os_RTCLOK.b2 < 100 {
+    scores[i] += 1
+  }
+  os_SDMCTL = $22
+
+  pause()
+  openmode(0)
+  screen = os_SAVMSC
+
+  for i:scores {
+    printScore(scores[i])
+  }
+
+  while true {}
+}
