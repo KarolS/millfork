@@ -74,7 +74,6 @@ void main(){
   }
   os_SDMCTL = $22
 
-  pause()
   openmode(0)
   screen = os_SAVMSC
 
