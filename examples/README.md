@@ -80,7 +80,9 @@ how to create a program made of multiple files loaded on demand
 
 ## Atari 8-bit examples
 
-* [Rainbow example](a8/rainbow.mfk) – simple scrolling rasterbars
+### Hardware specific examples
+
+* [System Off example](a8/systemoff_example.mfk) – programming with ROM off
 
 * [DLI example](a8/dli_example.mfk) – simple display list and display list interrupt example
 
@@ -90,11 +92,9 @@ how to create a program made of multiple files loaded on demand
 
 * [Horizontal stars example](a8/horizontal_stars.mfk) – horizontal stars done on one missile
 
-* [Grand Ttheft Antic](a8/grand_theft_antic.mfk) – ANTIC impact on CPU depending on the used graphic mode
+### Benchmarks
 
-* [Quatari Landscape](a8/landscape.mfk) – part of Quatari 256B intro
-
-* [System Off example](a8/systemoff_example.mfk) – programming with ROM off
+* [Grand Theft Antic](a8/grand_theft_antic.mfk) – ANTIC impact on CPU depending on the used graphic mode
 
 * [GR.8 Chessboard Benchmark](a8/gr8_chessboard_benchmark.mfk) – chessboard drawing benchmark in GR.8
 
@@ -104,9 +104,15 @@ how to create a program made of multiple files loaded on demand
 
 * [Sieve of Eratosthenes (1899) Benchmark](a8/sieve1899.mfk) – sieve of Eratosthenes, 1899 primes algorithm
 
-* [Monte Carlo PI estimation Benchmark](a8/montecarlo_pi_benchmark.mfk) – measures the efficiency of multiplication
+* [Monte Carlo PI approximation Benchmark](a8/montecarlo_pi_benchmark.mfk) – measures the efficiency of multiplication
 
 * [Bubble Sort Benchmark](a8/bubble_sort.mfk) – sort 255 elements
+
+### Other examples
+
+* [Rainbow example](a8/rainbow.mfk) – simple scrolling rasterbars
+
+* [Quatari Landscape](a8/landscape.mfk) – part of Quatari 256B intro
 
 ## Game Boy examples
 
