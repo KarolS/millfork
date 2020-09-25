@@ -7,7 +7,7 @@ alias prev_y = os_OLDROW
 alias cursor_y = os_ROWCRS
 alias color = os_ATACHR
 
-byte tmp, i
+byte i
 
 array(byte) color_height = [
   170,150,144,144,122,122,110,110,94,94,86,86,82,80
@@ -28,17 +28,13 @@ void main(){
 
     while color != $ff {
       cursor_y = color_height[color]
-      tmp = color_height[color]
-
       if (pokey_random & 1) != 0 {
-        tmp += 1
+        color_height[color] += 1
       } else {
         if (pokey_random & 1) != 0 {
-          tmp -= 1
+          color_height[color] -= 1
         }
       }
-
-      color_height[color] = tmp
       drawto()
       color -= 1
     }
