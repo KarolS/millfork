@@ -92,6 +92,8 @@ how to create a program made of multiple files loaded on demand
 
 * [Grand Ttheft Antic](a8/grand_theft_antic.mfk) – ANTIC impact on CPU depending on the used graphic mode
 
+* [Quatari Landscape](a8/landscape.mfk) – part of Quatari 256B intro
+
 * [System Off example](a8/systemoff_example.mfk) – programming with ROM off
 
 * [GR.8 Chessboard Benchmark](a8/gr8_chessboard_benchmark.mfk) – chessboard drawing benchmark in GR.8
@@ -103,6 +105,8 @@ how to create a program made of multiple files loaded on demand
 * [Sieve of Eratosthenes (1899) Benchmark](a8/sieve1899.mfk) – sieve of Eratosthenes, 1899 primes algorithm
 
 * [Monte Carlo PI estimation Benchmark](a8/montecarlo_pi_benchmark.mfk) – measures the efficiency of multiplication
+
+* [Bubble Sort Benchmark](a8/bubble_sort.mfk) – sort 255 elements
 
 ## Game Boy examples
 

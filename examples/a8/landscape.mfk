@@ -1,0 +1,49 @@
+// idea @ilmenit
+// https://demozoo.org/productions/280623/
+
+alias prev_x = os_OLDCOL
+alias cursor_x = os_COLCRS
+alias prev_y = os_OLDROW
+alias cursor_y = os_ROWCRS
+alias color = os_ATACHR
+
+byte tmp, i
+
+array(byte) color_height = [
+  170,150,144,144,122,122,110,110,94,94,86,86,82,80
+]
+
+asm void openmode(byte register(a) m) @ $ef9c extern
+asm void drawto() @ $f9c2 extern
+
+void main(){
+  openmode(9)
+
+  os_COLOR4 = $b0
+
+  for i,0,to,79 {
+    color = 13
+    prev_y = 1
+    cursor_x = i
+    prev_x = i
+
+    while color != $ff {
+      cursor_y = color_height[color]
+      tmp = color_height[color]
+
+      if (pokey_random & 1) != 0 {
+        tmp += 1
+      } else {
+        if (pokey_random & 1) != 0 {
+          tmp -= 1
+        }
+      }
+
+      color_height[color] = tmp
+      drawto()
+      color -= 1
+    }
+  }
+
+  while true {}
+}
