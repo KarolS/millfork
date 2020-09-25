@@ -1,0 +1,62 @@
+pointer screen @ $84
+byte i @ $80, n1 @ $81, n2 @ $82, t @ $83
+array(byte) sorttable align(fast) = [for x,255,downto,1 [x]]
+
+asm void pause() {
+  lda os_RTCLOK.b2
+  .rt_check:
+  cmp os_RTCLOK.b2
+  beq .rt_check
+  rts
+}
+
+// print in HEX
+void printScore(byte val) {
+  array(byte) tmp[2]
+  byte iter
+
+  tmp[0] = val >> 4
+  tmp[1] = val & %00001111
+  for iter:tmp {
+    if tmp[iter] < 10 {
+      screen[0] = tmp[iter] + $10
+    } else {
+      screen[0] = tmp[iter] + $17
+    }
+    screen += 1
+  }
+  screen[0] = 0
+  screen += 1
+}
+
+void main(){
+  screen = os_SAVMSC
+  for i:sorttable {
+    printScore(sorttable[i])
+  }
+
+  pause()
+  os_RTCLOK.b2 = 0
+
+  for t,253,downto,0{
+    for i,0,to,253{
+      n1 = sorttable[i]
+      n2 = sorttable[i+1]
+      if n1>n2 {
+        sorttable[i] = n2
+        sorttable[i+1] = n1
+      }
+    }
+  }
+
+  t = os_RTCLOK.b2
+
+  screen = os_SAVMSC
+  for i:sorttable {
+    printScore(sorttable[i])
+  }
+  // print jiffies
+  printScore(t)
+
+  while true {}
+}
