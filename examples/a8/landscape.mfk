@@ -1,8 +1,8 @@
 // idea @ilmenit
 // https://demozoo.org/productions/280623/
 
-alias prev_x = os_OLDCOL
-alias cursor_x = os_COLCRS
+alias prev_x = os_OLDCOL.lo
+alias cursor_x = os_COLCRS.lo
 alias prev_y = os_OLDROW
 alias cursor_y = os_ROWCRS
 alias color = os_ATACHR
