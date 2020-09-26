@@ -149,6 +149,11 @@ import coco/keyboard
 #define OK = 1
 #endif
 
+#if TRS80
+import trs80/keyboard
+#define OK = 1
+#endif
+
 #if not(OK)
     #if KEYBOARD
         #warn keyboard module is not yet supported

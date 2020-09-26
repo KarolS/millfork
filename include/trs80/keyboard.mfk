@@ -1,0 +1,4 @@
+
+#pragma zilog_syntax
+
+asm byte readkey() @$49 extern

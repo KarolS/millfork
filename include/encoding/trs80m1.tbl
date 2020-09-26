@@ -1,0 +1,13 @@
+NAME=TRS-80-Model-1
+EOT=00
+
+20=U+0020
+21-3f=!"#$%&'()*+,-./0123456789:;<=>?
+40-5f=@ABCDEFGHIJKLMNOPQRSTUVWXYZ↑↓←→_
+61-7a=abcdefghijklmnopqrstuvwxyz
+
+{b}=08
+{t}=09
+{n}=0d0a
+{q}=22
+{apos}=27

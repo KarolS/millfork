@@ -50,6 +50,7 @@ issue*.mfk
 *.rom
 *.ssd
 *.o
+*.cmd
 HELLO
 HELLOCPC
 FIZZBUZZ

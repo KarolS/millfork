@@ -284,10 +284,15 @@ object Platform {
       case "length_be" => AllocatedDataLengthBe(0)
       case "d88" => D88Output
       case "tap" => TapOutput
+      case "trscmd" => TrsCmdOutput
       case n => n.split(":").filter(_.nonEmpty) match {
         case Array(b, s, e) => BankFragmentOutput(b, parseNumber(s), parseNumber(e))
         case Array(s, e) => CurrentBankFragmentOutput(parseNumber(s), parseNumber(e))
-        case Array(b) => ConstOutput(parseNumber(b).toByte)
+        case Array(b) => try {
+          ConstOutput(parseNumber(b).toByte)
+        } catch {
+          case _:NumberFormatException => log.fatal(s"Invalid output format: `$b`")
+        }
         case x => log.fatal(s"Invalid output format: `$x`")
       }
     }.toList)

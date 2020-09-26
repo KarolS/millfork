@@ -1,0 +1,26 @@
+#pragma zilog_syntax
+
+import default_readword
+
+asm void putchar(byte register(a) char) @$33 extern
+
+inline asm void new_line() {
+    ? LD A,13
+    ? JP putchar
+}
+
+array __readline_out[45]
+const pointer readline_out = __readline_out.addr
+
+asm pointer readline() {
+    LD HL,readline_out
+    LD B,__readline_out.length-1
+    CALL $40
+    ; b contains the input length:
+    LD C,B
+    LD B,0
+    ADD HL,BC
+    LD (HL),0
+    LD HL, readline_out
+    RET
+}

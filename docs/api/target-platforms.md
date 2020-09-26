@@ -99,6 +99,10 @@ The compiler emits COM files.
 
 * `cpm_z80` – CP/M on Z80
 
+* `trs80m1cmd` – TRS-80 Model 1 running TRS-DOS. The compiler emits CMD files.
+
+* `trs80m3cmd` – TRS-80 Model 3 running TRS-DOS. The compiler emits CMD files.
+
 * `coco_rsdos` – Tandy Color Computer running RS-DOS. (very experimental)
 Read [the Color Computer programming guide](./coco-programming-guide.md) for more info.
 
