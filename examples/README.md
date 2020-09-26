@@ -127,7 +127,7 @@ how to create a program made of multiple files loaded on demand
 * [Encoding test](msx/encoding_test.mfk) – text encoding test; displays three lines of text in three different languages,
 no more one of which will display correctly depending on the default font of your computer.
 
-# Commander X16 examples
+## Commander X16 examples
 
 * [Palette](x16/palette.mfk) – displays the default 256-colour palette.
 
