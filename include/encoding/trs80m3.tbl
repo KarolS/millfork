@@ -8,8 +8,11 @@ EOT=00
 
 {b}=08
 {t}=09
-{n}=0d0a
+{n}=0d
 {q}=22
 {apos}=27
 {lbrace}=7b
 {rbrace}=7d
+
+; TODO: TRS-80 Model 3 can display katakana, accented Latin letters and some extra symbols
+; This involves control codes $15 and $16 in some way

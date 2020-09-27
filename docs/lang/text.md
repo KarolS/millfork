@@ -116,6 +116,10 @@ English, Japanese, Spanish/Italian and French/German respectively
 
 * `galaksija` – text encoding used on Galaksija computers
 
+* `trs80m1` – text encoding used on TRS-80 Model 1
+
+* `trs80m3` – text encoding used on TRS-80 Model 3
+
 * `coco` – text encoding used on Tandy Color Computer
 
 * `cocoscr` – Tandy Color Computer screencodes
