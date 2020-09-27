@@ -330,7 +330,7 @@ case class Z80Parser(filename: String,
         case "RLC" => one8Register(RLC)
         case "RRC" => one8Register(RRC)
         case "SLA" => one8Register(SLA)
-        case "SLL" => one8Register(SLL)
+        case "SLL" | "SLS" => one8Register(SLL)
         case "SRA" => one8RegisterOr8085Illegal(SRA, ZRegister.HL, RRHL)
         case "SRL" => one8Register(SRL)
         case "SWAP" => one8Register(SWAP)

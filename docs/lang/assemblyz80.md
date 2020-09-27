@@ -263,8 +263,8 @@ Intel syntax | Zilog syntax
 **SLAY d** | **SLA IY(d)**
 **SRAY d** | **SRA IY(d)**
 **SRLY d** | **SRL IY(d)**
-**SLLR r** | **SLL r**
-**SLLY d** | **SLL IY(d)**
+**SLLR r** | **SLL r**, SLS r
+**SLLY d** | **SLL IY(d)**, SLS IY(d)
 **SPIY** | **LD SP,IY**
 **PUSHIY**, PUSH IY | **PUSH IY**
 **POPIY**, POP IY | **POP IY**
