@@ -14,20 +14,20 @@ const byte JMP     = 1            // Jump command - followed by two bytes indica
 const byte JVB     = $41          // Jump and wait for Vertical Blank - suspends the display list until vertical blank and then jumps.
 
                                   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                                  //+ BASIC   + colors + resolution + display mode + scan lines per row + screen memory + bytes per line + bits per pixel +
-const byte MODE_2  = 2            //+   0     +    2   +   40x24    +     text     +        8           +     960 B     +       40       +      8         +
-const byte MODE_3  = 3            //+   -     +    2   +   40x24    +     text     +       10           +     760 B     +       40       +      8         +
-const byte MODE_4  = 4            //+  12     +    5   +   40x24    +     text     +        8           +     960 B     +       40       +      8         +
-const byte MODE_5  = 5            //+  13     +    5   +   40x12    +     text     +       16           +     480 B     +       40       +      8         +
-const byte MODE_6  = 6            //+   1     +    5   +   20x24    +     text     +        8           +     480 B     +       20       +      8         +
-const byte MODE_7  = 7            //+   2     +    5   +   20x12    +     text     +       16           +     240 B     +       20       +      8         +
-const byte MODE_8  = 8            //+   3     +    4   +   40x24    +   graphics   +        8           +     240 B     +       10       +      2         +
-const byte MODE_9  = 9            //+   4     +    2   +   80x48    +   graphics   +        4           +     480 B     +       10       +      1         +
-const byte MODE_A  = $a           //+   5     +    4   +   80x48    +   graphics   +        4           +     960 B     +       20       +      2         +
-const byte MODE_B  = $b           //+   6     +    2   +  160x96    +   graphics   +        2           +    1920 B     +       20       +      1         +
-const byte MODE_C  = $c           //+  14     +    2   +  160x192   +   graphics   +        1           +    3840 B     +       20       +      1         +
-const byte MODE_D  = $d           //+   7     +    4   +  160x96    +   graphics   +        2           +    3840 B     +       40       +      2         +
-const byte MODE_E  = $e           //+  15     +    4   +  160x192   +   graphics   +        1           +    7680 B     +       40       +      2         +
+                                  //+  BASIC  + colors + resolution + display mode + scan lines per row + screen memory + bytes per line + bits per pixel +
+const byte MODE_2  = 2            //+    0    +    2   +   40x24    +     text     +        8           +     960 B     +       40       +      8         +
+const byte MODE_3  = 3            //+    -    +    2   +   40x24    +     text     +       10           +     760 B     +       40       +      8         +
+const byte MODE_4  = 4            //+   12    +    5   +   40x24    +     text     +        8           +     960 B     +       40       +      8         +
+const byte MODE_5  = 5            //+   13    +    5   +   40x12    +     text     +       16           +     480 B     +       40       +      8         +
+const byte MODE_6  = 6            //+    1    +    5   +   20x24    +     text     +        8           +     480 B     +       20       +      8         +
+const byte MODE_7  = 7            //+    2    +    5   +   20x12    +     text     +       16           +     240 B     +       20       +      8         +
+const byte MODE_8  = 8            //+    3    +    4   +   40x24    +   graphics   +        8           +     240 B     +       10       +      2         +
+const byte MODE_9  = 9            //+    4    +    2   +   80x48    +   graphics   +        4           +     480 B     +       10       +      1         +
+const byte MODE_A  = $a           //+    5    +    4   +   80x48    +   graphics   +        4           +     960 B     +       20       +      2         +
+const byte MODE_B  = $b           //+    6    +    2   +  160x96    +   graphics   +        2           +    1920 B     +       20       +      1         +
+const byte MODE_C  = $c           //+   14    +    2   +  160x192   +   graphics   +        1           +    3840 B     +       20       +      1         +
+const byte MODE_D  = $d           //+    7    +    4   +  160x96    +   graphics   +        2           +    3840 B     +       40       +      2         +
+const byte MODE_E  = $e           //+   15    +    4   +  160x192   +   graphics   +        1           +    7680 B     +       40       +      2         +
 const byte MODE_F  = $f           //+8,9,10,11+    2   +  320x192   +   graphics   +        1           +    7680 B     +       40       +      1         +
                                   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
