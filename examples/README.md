@@ -110,6 +110,8 @@ how to create a program made of multiple files loaded on demand
 
 ### Other examples
 
+* [Test OS module](a8/a8_os_test.mfk) – quick test for a8_os.mfk module
+
 * [Rainbow example](a8/rainbow.mfk) – simple scrolling rasterbars
 
 * [Quatari Landscape](a8/landscape.mfk) – part of Quatari 256B intro

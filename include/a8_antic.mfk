@@ -4,6 +4,44 @@
 #warn a8_antic module should be used only on Atari computer-compatible targets
 #endif
 
+// ANTIC Display List Instruction Set
+// THE DISPLAY LIST CANNOT CROSS A 1K BYTE MEMORY BOUNDARY UNLESS A JUMP INSTRUCTION IS USED!
+const byte LMS     = $40          // Load memory scan 10-bit counter, $fff boundary.
+const byte DLI     = $80          // Display list interrupt - Interrupt CPU at beginning of last scan line.
+const byte HSCROL  = $10          // Enable vertical scrolling.
+const byte VSCROL  = $20          // Enable horizontal scrolling.
+const byte JMP     = 1            // Jump command - followed by two bytes indicating the new instruction pointer for the display list.
+const byte JVB     = $41          // Jump and wait for Vertical Blank - suspends the display list until vertical blank and then jumps.
+
+                                  //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                                  //+ colors + resolution + display mode + scan lines per row + screen memory + bytes per line + bits per pixe +
+const byte MODE_2  = 2            //+    2   +   40x24    +     text     +        8           +     960 B     +       40       +      8        +
+const byte MODE_3  = 3            //+    2   +   40x24    +     text     +       10           +     760 B     +       40       +      8        +
+const byte MODE_4  = 4            //+    5   +   40x24    +     text     +        8           +     960 B     +       40       +      8        +
+const byte MODE_5  = 5            //+    5   +   40x12    +     text     +       16           +     480 B     +       40       +      8        +
+const byte MODE_6  = 6            //+    5   +   20x24    +     text     +        8           +     480 B     +       20       +      8        +
+const byte MODE_7  = 7            //+    5   +   20x12    +     text     +       16           +     240 B     +       20       +      8        +
+const byte MODE_8  = 8            //+    4   +   40x24    +   graphics   +        8           +     240 B     +       10       +      2        +
+const byte MODE_9  = 9            //+    2   +   80x48    +   graphics   +        4           +     480 B     +       10       +      1        +
+const byte MODE_A  = $a           //+    4   +   80x48    +   graphics   +        4           +     960 B     +       20       +      2        +
+const byte MODE_B  = $b           //+    2   +  160x96    +   graphics   +        2           +    1920 B     +       20       +      1        +
+const byte MODE_C  = $c           //+    2   +  160x192   +   graphics   +        1           +    3840 B     +       20       +      1        +
+const byte MODE_D  = $d           //+    4   +  160x96    +   graphics   +        2           +    3840 B     +       40       +      2        +
+const byte MODE_E  = $e           //+    4   +  160x192   +   graphics   +        1           +    7680 B     +       40       +      2        +
+const byte MODE_F  = $f           //+    2   +  320x192   +   graphics   +        1           +    7680 B     +       40       +      1        +
+                                  //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+const byte BLANK_1 = 0
+const byte BLANK_2 = $10
+const byte BLANK_3 = $20
+const byte BLANK_4 = $30
+const byte BLANK_5 = $40
+const byte BLANK_6 = $50
+const byte BLANK_7 = $60
+const byte BLANK_8 = $70
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 volatile byte antic_dmactl @$D400 // direct memory access control
 volatile byte antic_chactl @$D401 // character mode control
 volatile word antic_dlist  @$D402 // display list pointer
