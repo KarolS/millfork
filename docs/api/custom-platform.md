@@ -217,11 +217,15 @@ Default: `main,*`
     * `length+123`, `length_be+123` – the same, but incremented by the given number
     
     * `length-123`, `length_be-123` – the same, but decremented by the given number
+    
+    * `programname-123` – the name of the program of the given length, uppercase ASCII, padded with spaces
 
     * `allocated` – all used bytes
     
     * `pagecount` – the number of pages used by all used bytes (including partially filled pages)
     
+    * `"<string>"` – literal ASCII string; commas, non-ASCII characters and escape sequences are not supported
+
     * `<addr>:<addr>` - inclusive range of bytes
     
     * `<segment>:<addr>:<addr>` - inclusive range of bytes in a given segment

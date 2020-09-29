@@ -265,6 +265,8 @@ object Platform {
       case "startpage" => StartPageOutput
       case "endaddr" => EndAddressOutput(0)
       case "endaddr_be" => EndAddressOutputBe(0)
+      case l if l.startsWith("\"") && l.endsWith("\"") => StringOutput(l.substring(1, l.length - 1))
+      case l if l.startsWith("programname-") => ProgramNameOutput(parseNumber(l.stripPrefix("programname-")))
       case l if l.startsWith("startaddr+") => StartAddressOutput(parseNumber(l.stripPrefix("startaddr+")))
       case l if l.startsWith("startaddr-") => StartAddressOutput(-parseNumber(l.stripPrefix("startaddr-")))
       case l if l.startsWith("startaddr_be+") => StartAddressOutputBe(parseNumber(l.stripPrefix("startaddr_be+")))

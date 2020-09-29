@@ -1,6 +1,8 @@
 package millfork.output
 
 import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
+import java.util.Locale
 
 /**
   * @author Karol Stasiak
@@ -35,6 +37,19 @@ case class BankFragmentOutput(alwaysBank: String, start: Int, end: Int) extends 
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(alwaysBank)
     b.output.slice(start, end + 1)
+  }
+}
+
+case class ProgramNameOutput(length: Int) extends OutputPackager {
+  def isAlphanum(c: Char): Boolean = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    mem.programName.toUpperCase(Locale.ROOT).filter(isAlphanum).take(length).padTo(length, ' ').getBytes(StandardCharsets.US_ASCII)
+  }
+}
+
+case class StringOutput(string: String) extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    string.getBytes(StandardCharsets.US_ASCII)
   }
 }
 
