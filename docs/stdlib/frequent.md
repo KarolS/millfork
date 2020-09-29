@@ -51,6 +51,7 @@ MSX,
 Apple II,
 Robotron Z1013 (always trims trailing spaces),
 TRS-80,
+VIC-20 (except for `vic20_a000`),
 Commodore 64 with `c64_basic` module (requires KERNAL and BASIC; empty input is treated like a single space),
 Commodore 16 or Plus/4 with `c264_basic` module (requires KERNAL and BASIC; empty input is treated like a single space).
 
@@ -65,6 +66,7 @@ MSX,
 Apple II,
 Robotron Z1013,
 TRS-80,
+VIC-20 (except for `vic20_a000`),
 Commodore 64 with `c64_basic` module (requires KERNAL and BASIC),
 Commodore 16 or Plus/4 with `c264_basic` module (requires KERNAL and BASIC).
 

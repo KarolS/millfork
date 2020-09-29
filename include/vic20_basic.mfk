@@ -1,0 +1,30 @@
+// Routines from C64 BASIC ROM
+
+#if not(CBM_VIC)
+#warn vic20_basic module should be only used on VIC-20-compatible targets
+#endif
+
+import vic20_kernal
+import err
+
+// print a 16-bit number on the standard output
+asm void putword_basic(word register(xa) num) @$DDCD extern
+
+alias putword = putword_basic!
+
+asm void __readline_basic() @$C560 extern
+
+pointer readline_basic() {
+    __readline_basic()
+    return readline_out
+}
+
+alias readline = readline_basic!
+
+const pointer readline_out = $200
+
+inline word readword_basic() {
+    return strz2word(readline_basic())
+}
+
+alias readword = readword_basic!

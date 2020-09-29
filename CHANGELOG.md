@@ -8,6 +8,8 @@
 
 * Allowed the `:` operator in const-pure functions.
 
+* Implemented `readline` and `readword` for VIC-20.
+
 * Fix: more instances of memset loops should be detected and optimized (#59).
 
 * Fix: things mentioned in the segment layout should not be deleted even if unused.

@@ -27,11 +27,11 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Text encodings](crossplatform/text_encodings.mfk) (C64/ZX Spectrum) – examples of text encoding features
 
-* [Echo](crossplatform/echo.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX)– simple text input and output
+* [Echo](crossplatform/echo.mfk) (C64/C16/VIC-20/Apple II/ZX Spectrum/PC-88/MSX)– simple text input and output
 
-* [Calculator](crossplatform/calculator.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX/TRS-80) – simple numeric input and output
+* [Calculator](crossplatform/calculator.mfk) (C64/C16/VIC-20/Apple II/ZX Spectrum/PC-88/MSX/TRS-80) – simple numeric input and output
 
-* [Guessing game](crossplatform/guess.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX/TRS-80/Z1013) – a guess-a-number game
+* [Guessing game](crossplatform/guess.mfk) (C64/C16/VIC-20/Apple II/ZX Spectrum/PC-88/MSX/TRS-80/Z1013) – a guess-a-number game
 
 * [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
 
