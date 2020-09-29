@@ -17,7 +17,7 @@ If you are using a release version of the compiler, consider browsing the older 
 
 ## Cross-platform examples
 
-* [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – simple text output
+* [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/Z1013) – simple text output
 
 * [Fizzbuzz](crossplatform/fizzbuzz.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/X16) – everyone's favourite programming task
 
@@ -31,11 +31,11 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Calculator](crossplatform/calculator.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX/TRS-80) – simple numeric input and output
 
-* [Guessing game](crossplatform/guess.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX/TRS-80) – a guess-a-number game
+* [Guessing game](crossplatform/guess.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX/TRS-80/Z1013) – a guess-a-number game
 
 * [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
 
-* [`readkey` test](crossplatform/readkeytest.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/Armstrad CPC/ZX Spectrum/PC-88/TRS-80) – keyboard reading test
+* [`readkey` test](crossplatform/readkeytest.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/Armstrad CPC/ZX Spectrum/PC-88/TRS-80/Z1013) – keyboard reading test
 
 * [Screen encoding test](crossplatform/screnctest.mfk) (C64/C16) – default-to-screen encoding conversion test
 
