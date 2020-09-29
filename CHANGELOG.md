@@ -10,6 +10,8 @@
 
 * Implemented `readline` and `readword` for VIC-20.
 
+* `init_rand_seed` uses the POKEY on Atari.
+
 * Fix: more instances of memset loops should be detected and optimized (#59).
 
 * Fix: things mentioned in the segment layout should not be deleted even if unused.

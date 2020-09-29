@@ -33,6 +33,21 @@ void init_rand_seed() {
     rand_seed.lo = peek($D41B)
 }
 
+#elseif ATARI_8
+
+noinline asm void init_rand_seed() {
+    lda $D20A
+    sta rand_seed.lo
+    lda #1
+    .loop:
+    asl
+    bne .loop
+    lda $D20A
+    sta rand_seed.hi
+    rts
+}
+
+
 #else
 
 inline void init_rand_seed() {
