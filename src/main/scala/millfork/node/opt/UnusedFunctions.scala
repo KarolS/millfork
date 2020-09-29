@@ -65,8 +65,9 @@ object UnusedFunctions extends NodeOptimization {
       case _ => None
     }.toMap
     val panicRequired = options.flags(CompilationFlag.CheckIndexOutOfBounds)
+    val entrypointNames = options.platform.bankLayouts.values.flatten.toSet + "main"
     val allNormalFunctions = nodes.flatMap {
-      case v: FunctionDeclarationStatement => if (v.address.isDefined && v.statements.isDefined || v.interrupt || v.name == "main" || panicRequired && v.name == "_panic") Nil else List(v.name)
+      case v: FunctionDeclarationStatement => if (v.address.isDefined && v.statements.isDefined || v.interrupt || entrypointNames(v.name) || panicRequired && v.name == "_panic") Nil else List(v.name)
       case _ => Nil
     }.toSet
     var allCalledFunctions = resolveAliases(aliases, getAllCalledFunctions(nodes).toSet)
