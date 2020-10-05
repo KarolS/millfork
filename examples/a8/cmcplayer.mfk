@@ -1,0 +1,24 @@
+const word ADDRMUS = $a000
+const word ADDRPLA = $b000
+
+byte stop @ ADDRPLA + $62d
+
+asm void comm(byte register(a) a, byte register(x) x, byte register(y) y) @ ADDRPLA+3 extern
+asm void takt() @ ADDRPLA+6 extern
+
+void main(){
+  comm($70,0,ADDRMUS.hi)
+  comm(0,0,0)
+  while os_CH == $ff {
+    if antic_vcount == $10 {
+      antic_wsync = $e
+      gtia_colbk = $e
+      takt()
+      gtia_colbk = 0
+    }
+  }
+  comm($40,0,0)
+}
+
+const array player @ ADDRPLA = file("data/cmc_player.rep", 6)
+const array music @ ADDRMUS = file("data/echo.cmc", 6)
