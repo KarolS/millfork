@@ -21,4 +21,5 @@ void main(){
 }
 
 const array player @ ADDRPLA = file("data/cmc_player.rep", 6)
+//Music by Michal Brzezicki (Caruso) - Echo
 const array music @ ADDRMUS = file("data/echo.cmc", 6)
