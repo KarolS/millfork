@@ -6,7 +6,7 @@
 
 // ANTIC Display List Instruction Set
 // THE DISPLAY LIST CANNOT CROSS A 1K BYTE MEMORY BOUNDARY UNLESS A JUMP INSTRUCTION IS USED!
-const byte LMS     = $40          // Load memory scan 10-bit counter, $fff boundary.
+const byte LMS     = $40          // Load memory scan 12-bit counter, $0-$fff boundary.
 const byte DLI     = $80          // Display list interrupt - Interrupt CPU at beginning of last scan line.
 const byte HSCROL  = $10          // Enable horizontal scrolling.
 const byte VSCROL  = $20          // Enable vertical scrolling.

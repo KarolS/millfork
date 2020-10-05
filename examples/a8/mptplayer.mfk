@@ -1,0 +1,25 @@
+const word ADDRMUS = $a000
+const word ADDRPLA = $b000
+
+byte stop @ ADDRPLA + $62d
+
+asm void comm(byte register(a) a, byte register(x) x, byte register(y) y) @ ADDRPLA extern
+asm void takt() @ ADDRPLA+3 extern
+
+void main(){
+  comm(0,ADDRMUS.hi,0)
+  comm(4,0,0)
+  while os_CH == $ff {
+    if antic_vcount == $10 {
+      antic_wsync = $e
+      gtia_colbk = $e
+      takt()
+      gtia_colbk = 0
+    }
+  }
+  stop = 0
+}
+
+const array player @ ADDRPLA = file("data/mpt_player.obj", 6)
+// Music by Adam Bienias (SoTe): Bitter Reality - Partyland 1
+const array music @ ADDRMUS = file("data/bitter_reality_4.mpt", 6)
