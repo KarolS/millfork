@@ -34,7 +34,9 @@ This prevents most ambiguities in bit-twiddling code, but requires care when por
 * Integer literals starting with zero and containing just digits are decimal, not octal.
 For octal literals, use the `0o` prefix.
 
-* String literals are not null-terminated by default. Use the `z` suffix for null-terminated strings.
+* String literals are not null-terminated by default. Use the `z` suffix for null-terminated strings.  
+Note: this is the opposite of what KickC does!
+Keep this in mind when migrating KickC code to Millfork or the other way around.
 
 * In `if`, `do/while`, `while` and `for` statements, parentheses are not required, but braces are.
 The `else` branch also requires braces, unless the only statement in the `else` block is an `if` statement.
@@ -70,7 +72,7 @@ Unlike `#define`, such definitions are not visible within the preprocessor.
 
     This issue applies mostly to the `*` and `<<` operators.
 
-* There is no padding in structs.
+* There is no padding in structs, except before fields whose type is a struct or a union with a non-trivial alignment. 
 
 
     

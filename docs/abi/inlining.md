@@ -12,6 +12,8 @@ It implies the following:
 
 * cannot be `inline`, `noinline` or `extern`
 
+* cannot contain variable or array declarations
+
 * can be `asm` - in this case, they should **not** end with a return instruction
 
 * do not have an address
