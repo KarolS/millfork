@@ -7,7 +7,7 @@ asm void comm(byte register(a) a, byte register(x) x, byte register(y) y) @ ADDR
 asm void takt() @ ADDRPLA+3 extern
 
 void main(){
-  comm(0,ADDRMUS.hi,0)
+  comm(0,ADDRMUS.hi,ADDRMUS.lo)
   comm(4,0,0)
   while os_CH == $ff {
     if antic_vcount == $10 {
