@@ -1,8 +1,6 @@
 const word ADDRMUS = $a000
 const word ADDRPLA = $b000
 
-byte stop @ ADDRPLA + $62d
-
 asm void comm(byte register(a) a, byte register(x) x, byte register(y) y) @ ADDRPLA+3 extern
 asm void takt() @ ADDRPLA+6 extern
 
