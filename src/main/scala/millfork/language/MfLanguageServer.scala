@@ -89,20 +89,21 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
 
       if (statement.isDefined) {
         val declarationContent = statement.get
-        var formattedHover = declarationContent.toString()
+        val formatting = NodeFormatter.symbol(declarationContent)
 
-        if (declarationContent.isInstanceOf[FunctionDeclarationStatement]) {
-          val funcDeclaration: FunctionDeclarationStatement =
-            declarationContent.asInstanceOf[FunctionDeclarationStatement]
-          formattedHover += " Params: " + funcDeclaration.params
-            .map(p => p.typ)
-            .mkString
-        }
-
-        new Hover(
-          new MarkupContent("plaintext", formattedHover)
-        )
-      } else new Hover(new MarkupContent("plaintext", "No statement found"))
+        if (formatting.isDefined)
+          new Hover(
+            new MarkupContent(
+              "markdown",
+              NodeFormatter.hover(
+                "",
+                formatting.get,
+                ""
+              )
+            )
+          )
+        else null
+      } else null
     }
 
   private def findExpressionAtPosition(
