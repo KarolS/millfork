@@ -19,6 +19,11 @@ import millfork.node.StandardCallGraph
 import millfork.output._
 import millfork.parser.{MSourceLoadingQueue, MosSourceLoadingQueue, TextCodecRepository, ZSourceLoadingQueue}
 
+import millfork.language.{MfLanguageServer,MfLanguageClient}
+import org.eclipse.lsp4j.services.LanguageServer
+import org.eclipse.lsp4j.jsonrpc.Launcher
+import java.util.concurrent.Executors
+import java.io.PrintWriter
 
 
 object Main {
@@ -27,6 +32,8 @@ object Main {
   def main(args: Array[String]): Unit = {
     val errorReporting = new ConsoleLogger
     implicit val __implicitLogger: Logger = errorReporting
+
+    // Console.printf("Starting server")
 
     if (args.isEmpty) {
       errorReporting.info("For help, use --help")
@@ -66,6 +73,23 @@ object Main {
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")
     }
+
+    val server = new MfLanguageServer(c, options)
+
+    val exec = Executors.newCachedThreadPool()
+
+    val tracePrinter = new PrintWriter(new File("/users/adam/millforklsp.log"))
+
+    val launcher = new Launcher.Builder[MfLanguageClient]()
+      .traceMessages(tracePrinter)
+      .setExecutorService(exec)
+      .setInput(System.in)
+      .setOutput(System.out)
+      .setRemoteInterface(classOf[MfLanguageClient])
+      .setLocalService(server)
+      .create()
+    val clientProxy = launcher.getRemoteProxy
+    launcher.startListening().get()
 
     val output = c.outputFileName match {
       case Some(ofn) => ofn

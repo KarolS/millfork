@@ -2,7 +2,7 @@ name := "millfork"
 
 version := "0.3.23-SNAPSHOT"
 
-scalaVersion := "2.12.11"
+scalaVersion := "2.12.12"
 
 resolvers += Resolver.mavenLocal
 
@@ -10,12 +10,14 @@ libraryDependencies += "com.lihaoyi" %% "fastparse" % "1.0.0"
 
 libraryDependencies += "org.apache.commons" % "commons-configuration2" % "2.2"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
+libraryDependencies += "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.9.0"
 
-libraryDependencies += "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test"
+// libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
+
+// libraryDependencies += "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test"
 
 // see: https://github.com/NeatMonster/Intel8086
-libraryDependencies += "NeatMonster" % "Intel8086" % "1.0" % "test" from "https://github.com/NeatMonster/Intel8086/raw/master/IBMPC.jar"
+// libraryDependencies += "NeatMonster" % "Intel8086" % "1.0" % "test" from "https://github.com/NeatMonster/Intel8086/raw/master/IBMPC.jar"
 
 // these three are not in Maven Central or any other public repo
 // get them from the following links or just build millfork without tests:
@@ -24,13 +26,13 @@ libraryDependencies += "NeatMonster" % "Intel8086" % "1.0" % "test" from "https:
 // https://github.com/trekawek/coffee-gb/tree/coffee-gb-1.0.0
 // https://github.com/sorenroug/osnine-java/tree/b77349a6c314e1362e69b7158c385ac6f89b7ab8
 
-libraryDependencies += "com.loomcom.symon" % "symon" % "1.3.0-SNAPSHOT" % "test"
+// libraryDependencies += "com.loomcom.symon" % "symon" % "1.3.0-SNAPSHOT" % "test"
 
-libraryDependencies += "com.grapeshot" % "halfnes" % "061" % "test"
+// libraryDependencies += "com.grapeshot" % "halfnes" % "061" % "test"
 
-libraryDependencies += "eu.rekawek.coffeegb" % "coffee-gb" % "1.0.0" % "test"
+// libraryDependencies += "eu.rekawek.coffeegb" % "coffee-gb" % "1.0.0" % "test"
 
-libraryDependencies += "roug.org.osnine" % "osnine-core" % "2.0-SNAPSHOT" % "test"
+// libraryDependencies += "roug.org.osnine" % "osnine-core" % "2.0-SNAPSHOT" % "test"
 
 libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "20.2.0" % "test"
 
@@ -42,16 +44,17 @@ mainClass in Compile := Some("millfork.Main")
 
 assemblyJarName := "millfork.jar"
 
-lazy val root = (project in file(".")).
-  enablePlugins(BuildInfoPlugin).
-  settings(
+lazy val root = (project in file("."))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "millfork.buildinfo"
   )
 
 import sbtassembly.AssemblyKeys
 
-val releaseDist = TaskKey[File]("release-dist", "Creates a distributable zip file.")
+val releaseDist =
+  TaskKey[File]("release-dist", "Creates a distributable zip file.")
 
 releaseDist := {
   val jar = AssemblyKeys.assembly.value
@@ -68,7 +71,10 @@ releaseDist := {
   IO.createDirectory(distDir)
   IO.copyFile(jar, distDir / jar.name)
   IO.copyFile(base / "LICENSE", distDir / "LICENSE")
-  IO.copyFile(base / "src/3rd-party-licenses.txt", distDir / "3rd-party-licenses.txt")
+  IO.copyFile(
+    base / "src/3rd-party-licenses.txt",
+    distDir / "3rd-party-licenses.txt"
+  )
   IO.copyFile(base / "CHANGELOG.md", distDir / "CHANGELOG.md")
   IO.copyFile(base / "README.md", distDir / "README.md")
   IO.copyFile(base / "COMPILING.md", distDir / "COMPILING.md")
@@ -78,8 +84,14 @@ releaseDist := {
   }
   copyDir("include")
   copyDir("docs")
-  def entries(f: File): List[File] = f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(entries) else Nil)
-  IO.zip(entries(distDir).map(d => (d, d.getAbsolutePath.substring(distDir.getParent.length + 1))), zipFile)
+  def entries(f: File): List[File] =
+    f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(entries) else Nil)
+  IO.zip(
+    entries(distDir).map(d =>
+      (d, d.getAbsolutePath.substring(distDir.getParent.length + 1))
+    ),
+    zipFile
+  )
   IO.delete(distDir)
   zipFile
 }
