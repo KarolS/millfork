@@ -3,6 +3,13 @@ import millfork.CompilationOptions
 import millfork.parser.MosSourceLoadingQueue
 import millfork.Context
 
+import millfork.node.{
+  FunctionDeclarationStatement,
+  ParameterDeclaration,
+  Position,
+  Node
+}
+
 import org.eclipse.lsp4j.services.{
   LanguageServer,
   TextDocumentService,
@@ -24,8 +31,6 @@ import org.eclipse.lsp4j.MarkedString
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.InitializedParams
 import org.eclipse.lsp4j.MarkupContent
-import millfork.node.FunctionDeclarationStatement
-import millfork.node.ParameterDeclaration
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
   @JsonRequest("initialize")
@@ -38,27 +43,12 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       val capabilities = new ServerCapabilities()
       capabilities.setHoverProvider(true)
 
-      // Console.printf("Initializing Millfork language server")
-
       new InitializeResult(capabilities)
     }
-  // ] = {
-  //   val completableFuture = new CompletableFuture[InitializeResult]()
-
-  //   val capabilities = new ServerCapabilities()
-  //   capabilities.setHoverProvider(true)
-
-  //   Console.printf("Initializing Millfork language server")
-
-  //   completableFuture.complete(new InitializeResult(capabilities))
-  //   completableFuture
-  // }
 
   @JsonNotification("initialized")
   def initialized(params: InitializedParams): CompletableFuture[Unit] = {
     val completableFuture = new CompletableFuture[Unit]()
-
-    // Console.printf("Millfork language server Initialization Finished")
 
     completableFuture.complete()
     completableFuture
@@ -87,25 +77,19 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     CompletableFuture.completedFuture {
       val hoverPosition = params.getPosition()
 
-      val unoptimized = new MosSourceLoadingQueue(
-        initialFilenames =
-          List(params.getTextDocument().getUri().stripPrefix("file:")),
-        includePath = context.includePath,
-        options = options
-      ).run()
+      val statement = findExpressionAtPosition(
+        params.getTextDocument().getUri().stripPrefix("file:"),
+        new Position(
+          "",
+          params.getPosition().getLine() + 1,
+          params.getPosition().getCharacter(),
+          0
+        )
+      )
 
-      val declaration = unoptimized.declarations.find(s => {
-        if (s.position.isDefined) {
-          val position = s.position.get
-          position.line - 1 == hoverPosition.getLine()
-          // .getLine() && position.column == hoverPosition.getCharacter()
-        } else false
-      })
-
-      // Console.printf("Hovering")
-      if (declaration.isDefined) {
-        val declarationContent = declaration.get
-        var formattedHover = declaration.get.name
+      if (statement.isDefined) {
+        val declarationContent = statement.get
+        var formattedHover = declarationContent.toString()
 
         if (declarationContent.isInstanceOf[FunctionDeclarationStatement]) {
           val funcDeclaration: FunctionDeclarationStatement =
@@ -118,6 +102,19 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
         new Hover(
           new MarkupContent("plaintext", formattedHover)
         )
-      } else null
+      } else new Hover(new MarkupContent("plaintext", "No statement found"))
     }
+
+  private def findExpressionAtPosition(
+      documentPath: String,
+      position: Position
+  ): Option[Node] = {
+    val unoptimizedProgram = new MosSourceLoadingQueue(
+      initialFilenames = List(documentPath),
+      includePath = context.includePath,
+      options = options
+    ).run()
+
+    NodeFinder.findNodeAtPosition(unoptimizedProgram, position)
+  }
 }
