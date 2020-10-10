@@ -18,7 +18,8 @@ import org.eclipse.lsp4j.services.{
 import org.eclipse.lsp4j.{
   InitializeParams,
   InitializeResult,
-  ServerCapabilities
+  ServerCapabilities,
+  Range
 }
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 
@@ -31,6 +32,8 @@ import org.eclipse.lsp4j.MarkedString
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.InitializedParams
 import org.eclipse.lsp4j.MarkupContent
+import org.eclipse.lsp4j.DefinitionParams
+import org.eclipse.lsp4j.Location
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
   @JsonRequest("initialize")
@@ -42,6 +45,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     CompletableFuture.completedFuture {
       val capabilities = new ServerCapabilities()
       capabilities.setHoverProvider(true)
+      capabilities.setDefinitionProvider(true)
 
       new InitializeResult(capabilities)
     }
@@ -70,6 +74,39 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
   @JsonRequest("shutdown")
   def shutdown(): CompletableFuture[Object] = ???
 
+  @JsonRequest("textDocument/definition")
+  def textDocumentDefinition(
+      params: DefinitionParams
+  ): CompletableFuture[Location] =
+    CompletableFuture.completedFuture {
+      val activePosition = params.getPosition()
+
+      val statement = findExpressionAtPosition(
+        params.getTextDocument().getUri().stripPrefix("file:"),
+        new Position(
+          "",
+          activePosition.getLine() + 1,
+          activePosition.getCharacter(),
+          0
+        )
+      )
+
+      if (statement.isDefined) {
+        val declarationContent = statement.get
+        val formatting = NodeFormatter.symbol(declarationContent)
+
+        if (declarationContent.position.isDefined)
+          new Location(
+            params.getTextDocument().getUri(),
+            new Range(
+              mfPositionToLSP4j(declarationContent.position.get),
+              mfPositionToLSP4j(declarationContent.position.get)
+            )
+          )
+        else null
+      } else null
+    }
+
   @JsonRequest("textDocument/hover")
   def textDocumentHover(
       params: TextDocumentPositionParams
@@ -81,8 +118,8 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
         params.getTextDocument().getUri().stripPrefix("file:"),
         new Position(
           "",
-          params.getPosition().getLine() + 1,
-          params.getPosition().getCharacter(),
+          hoverPosition.getLine() + 1,
+          hoverPosition.getCharacter(),
           0
         )
       )
@@ -129,4 +166,9 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       if (usage.isDefined) usage else node
     } else None
   }
+
+  private def mfPositionToLSP4j(
+      position: Position
+  ): org.eclipse.lsp4j.Position =
+    new org.eclipse.lsp4j.Position(position.line, position.column)
 }
