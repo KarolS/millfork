@@ -4,19 +4,65 @@ import millfork.node.{
   DeclarationStatement,
   Expression,
   FunctionCallExpression,
+  FunctionDeclarationStatement,
   Node,
   Program,
-  Position
+  Position,
+  VariableDeclarationStatement,
+  VariableExpression
 }
+import millfork.parser.ParsedProgram
+
 import scala.collection.mutable
+import millfork.node.ExpressionStatement
 
 object NodeFinder {
-  def findNodeAtPosition(program: Program, position: Position): Option[Node] = {
+  def findDeclarationForUsage(
+      program: ParsedProgram,
+      node: Node
+  ): Option[DeclarationStatement] = {
+    node match {
+      case expression: Expression =>
+        matchingDeclarationForExpression(
+          expression,
+          program.compilationOrderProgram.declarations
+        )
+      case default => None
+    }
+  }
+
+  private def matchingDeclarationForExpression(
+      expression: Expression,
+      declarations: List[DeclarationStatement]
+  ): Option[DeclarationStatement] =
+    expression match {
+      case FunctionCallExpression(name, expressions) =>
+        declarations
+          .filter(d => d.isInstanceOf[FunctionDeclarationStatement])
+          .find(d => d.name == name)
+      case VariableExpression(name) =>
+        declarations
+          .filter(d => d.isInstanceOf[VariableDeclarationStatement])
+          .find(d => d.name == name)
+      case default => None
+    }
+
+  def findNodeAtPosition(
+      module: String,
+      program: ParsedProgram,
+      position: Position
+  ): Option[Node] = {
     val line = position.line
     val column = position.column
 
+    val activeProgram = program.parsedModules.get(module)
+
+    if (activeProgram.isEmpty) {
+      return None
+    }
+
     val declarations =
-      findDeclarationsAtLine(program.declarations, line)
+      findDeclarationsAtLine(activeProgram.get.declarations, line)
 
     if (declarations.isEmpty) {
       return None
@@ -32,12 +78,11 @@ object NodeFinder {
     } else {
       // Declaration is a function or similar wrapper
       // Find inner expressions
-      val matchingExpressions =
-        declarations.get.head.getAllExpressions.filter(e =>
-          lineOrNegOne(e.position) == line
-        )
+      if (declarations.get.length > 1) {
+        throw new Exception("Unexpected number of declarations")
+      }
 
-      findNodeAtColumn(matchingExpressions, line, column)
+      findNodeAtColumn(declarations.get.head.getAllExpressions, line, column)
     }
   }
 
@@ -89,21 +134,27 @@ object NodeFinder {
       column: Int
   ): Option[Node] = {
     var lastNode: Option[Node] = None
+    var lastPosition: Option[Position] = None
 
     // Only consider nodes on this line (if we're opening a declaration, it could span multiple lines)
-    for (nextNode <- nodes) if (lineOrNegOne(nextNode.position) == line) {
-      val innerExpressions = extractNestedExpressions(nextNode)
+    var flattenedNodes = nodes.flatMap(flattenNestedExpressions)
 
-      if (innerExpressions.isDefined) {
-        for (innerExpression <- innerExpressions.get) {
-          if (colOrNegOne(innerExpression.position) < column) {
-            lastNode = Option(innerExpression)
-          }
+    for (nextNode <- flattenedNodes)
+      if (lineOrNegOne(nextNode.position) == line) {
+        if (nextNode.position.isEmpty) {
+          throw new Error("Missing position for node " + nextNode.toString())
         }
-      } else if (colOrNegOne(nextNode.position) < column) {
-        lastNode = Option(nextNode)
+
+        if (
+          colOrNegOne(nextNode.position) < column && colOrNegOne(
+            nextNode.position
+            // Allow equality, because later nodes are of higher specificity
+          ) >= colOrNegOne(lastPosition)
+        ) {
+          lastNode = Some(nextNode)
+          lastPosition = nextNode.position
+        }
       }
-    }
 
     lastNode
   }
@@ -120,12 +171,36 @@ object NodeFinder {
       case None      => -1
     }
 
-  private def extractNestedExpressions(
-      node: Node
-  ): Option[List[Expression]] = {
+  private def flattenNestedExpressions(node: Node): List[Node] =
     node match {
-      case FunctionCallExpression(_, expressions) => Option(expressions)
-      case default                                => None
+      case statement: ExpressionStatement => {
+        val innerExpressions = flattenNestedExpressions(
+          statement.expression
+        )
+
+        List(statement.expression) ++ innerExpressions
+      }
+      case functionExpression: FunctionCallExpression =>
+        List(functionExpression) ++
+          functionExpression.expressions
+            .flatMap(flattenNestedExpressions)
+      case default => List(default)
     }
-  }
+
+  private def sortNodes(nodes: List[Node]) =
+    nodes.sortWith((a, b) => {
+      if (a.position.isEmpty && b.position.isEmpty) {
+        false
+      } else if (a.position.isEmpty) {
+        true
+      } else if (b.position.isEmpty) {
+        false
+      } else {
+        val aPos = a.position.get
+        val bPos = b.position.get
+
+        // aPos.line < bPos.line && aPos.column < bPos.column
+        aPos.column < bPos.column
+      }
+    })
 }

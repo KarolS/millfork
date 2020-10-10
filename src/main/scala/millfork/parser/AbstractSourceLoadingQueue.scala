@@ -10,6 +10,8 @@ import millfork.node.{AliasDefinitionStatement, DeclarationStatement, ImportStat
 import scala.collection.mutable
 import scala.collection.convert.ImplicitConversionsToScala._
 
+case class ParsedProgram(compilationOrderProgram: Program, parsedModules: Map[String, Program])
+
 abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
                                              val includePath: List[String],
                                              val options: CompilationOptions) {
@@ -41,7 +43,12 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     encodingConversionAliases
   }
 
-  def run(): Program = {
+  /**
+    * Tokenizes and parses the configured source file and modules
+    *
+    * @return A ParsedProgram containing an ordered set of statements in order of compilation dependencies, and each individual parsed module
+    */
+  def run(): ParsedProgram = {
     for {
       initialFilename <- initialFilenames
       startingModule <- options.platform.startingModules
@@ -76,7 +83,8 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     options.log.assertNoErrors("Parse failed")
     val compilationOrder = Tarjan.sort(parsedModules.keys, moduleDependecies)
     options.log.debug("Compilation order: " + compilationOrder.mkString(", "))
-    compilationOrder.filter(parsedModules.contains).map(parsedModules).reduce(_ + _).applyImportantAliases
+
+    ParsedProgram(compilationOrder.filter(parsedModules.contains).map(parsedModules).reduce(_ + _).applyImportantAliases, parsedModules.toMap)
   }
 
   def lookupModuleFile(includePath: List[String], moduleName: String, position: Option[Position]): String = {

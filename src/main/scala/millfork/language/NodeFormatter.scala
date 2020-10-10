@@ -108,32 +108,20 @@ object NodeFormatter {
 
   /**
     * TODO: This function is nearly the same as https://github.com/scalameta/metals/blob/main/mtags/src/main/scala/scala/meta/internal/pc/HoverMarkup.scala
-    * It is unclear what "Expression type" and "Symbol signature" do
     *
     * Render the textDocument/hover result into markdown.
     *
-    * @param expressionType The type of the expression over the cursor, for example "List[Int]".
     * @param symbolSignature The signature of the symbol over the cursor, for example
     *                        "def map[B](fn: A => B): Option[B]"
-    * @param docstring The Scaladoc/Javadoc string for the symbol.
+    * @param docstring The Markdown documentation string for the symbol.
     */
   def hover(
-      expressionType: String,
       symbolSignature: String,
       docstring: String
   ): String = {
     val markdown = new StringBuilder()
-    val needsExpressionType = !symbolSignature.endsWith(expressionType)
-    if (needsExpressionType) {
-      markdown
-        .append("**Expression type**:\n")
-        .append("```mfk\n")
-        .append(expressionType)
-        .append("\n```\n")
-    }
     if (symbolSignature.nonEmpty) {
       markdown
-        .append(if (needsExpressionType) "**Symbol signature**:\n" else "")
         .append("```mfk\n")
         .append(symbolSignature)
         .append("\n```")

@@ -276,7 +276,7 @@ object Main {
     val unoptimized = new MosSourceLoadingQueue(
       initialFilenames = c.inputFileNames,
       includePath = c.includePath,
-      options = options).run()
+      options = options).run().compilationOrderProgram
 
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
@@ -330,7 +330,7 @@ object Main {
     val unoptimized = new ZSourceLoadingQueue(
       initialFilenames = c.inputFileNames,
       includePath = c.includePath,
-      options = options).run()
+      options = options).run().compilationOrderProgram
 
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
@@ -370,7 +370,7 @@ object Main {
     val unoptimized = new MSourceLoadingQueue(
       initialFilenames = c.inputFileNames,
       includePath = c.includePath,
-      options = options).run()
+      options = options).run().compilationOrderProgram
 
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
@@ -400,7 +400,7 @@ object Main {
     val unoptimized = new ZSourceLoadingQueue(
       initialFilenames = c.inputFileNames,
       includePath = c.includePath,
-      options = options).run()
+      options = options).run().compilationOrderProgram
 
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))

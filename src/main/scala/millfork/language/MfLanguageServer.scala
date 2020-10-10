@@ -96,7 +96,6 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
             new MarkupContent(
               "markdown",
               NodeFormatter.hover(
-                "",
                 formatting.get,
                 ""
               )
@@ -110,12 +109,24 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       documentPath: String,
       position: Position
   ): Option[Node] = {
-    val unoptimizedProgram = new MosSourceLoadingQueue(
+    val queue = new MosSourceLoadingQueue(
       initialFilenames = List(documentPath),
       includePath = context.includePath,
       options = options
-    ).run()
+    )
+    val unoptimizedProgram = queue.run()
 
-    NodeFinder.findNodeAtPosition(unoptimizedProgram, position)
+    val node = NodeFinder.findNodeAtPosition(
+      queue.extractName(documentPath),
+      unoptimizedProgram,
+      position
+    )
+
+    if (node.isDefined) {
+      val usage =
+        NodeFinder.findDeclarationForUsage(unoptimizedProgram, node.get)
+
+      if (usage.isDefined) usage else node
+    } else None
   }
 }
