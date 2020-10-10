@@ -83,10 +83,10 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
 
       val statement = findExpressionAtPosition(
         params.getTextDocument().getUri().stripPrefix("file:"),
-        new Position(
+        Position(
           "",
           activePosition.getLine() + 1,
-          activePosition.getCharacter(),
+          activePosition.getCharacter() + 2,
           0
         )
       )
@@ -116,10 +116,11 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
 
       val statement = findExpressionAtPosition(
         params.getTextDocument().getUri().stripPrefix("file:"),
-        new Position(
+        Position(
           "",
+          // Millfork positions start at 1,2, rather than 0,0, so add to each coord
           hoverPosition.getLine() + 1,
-          hoverPosition.getCharacter(),
+          hoverPosition.getCharacter() + 2,
           0
         )
       )

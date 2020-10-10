@@ -95,7 +95,7 @@ object NodeFinder {
     for ((nextDeclaration, i) <- declarations.view.zipWithIndex) {
       if (lastDeclarations.isEmpty) {
         // Populate with first item, no matter what
-        lastDeclarations = Option(List(nextDeclaration))
+        lastDeclarations = Some(List(nextDeclaration))
       } else {
         val nextLine = lineOrNegOne(nextDeclaration.position)
 
@@ -112,15 +112,15 @@ object NodeFinder {
                 newDeclarations += checkDeclaration
               } else {
                 // Line doesn't match, done with this line
-                return Option(newDeclarations.toList)
+                return Some(newDeclarations.toList)
               }
             }
           }
 
-          return Option(newDeclarations.toList)
+          return Some(newDeclarations.toList)
         } else if (nextLine < line) {
           // Closer to desired line
-          lastDeclarations = Option(List(nextDeclaration))
+          lastDeclarations = Some(List(nextDeclaration))
         }
       }
     }
