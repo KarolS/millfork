@@ -171,5 +171,5 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
   private def mfPositionToLSP4j(
       position: Position
   ): org.eclipse.lsp4j.Position =
-    new org.eclipse.lsp4j.Position(position.line, position.column)
+    new org.eclipse.lsp4j.Position(position.line - 1, position.column - 1)
 }
