@@ -19,7 +19,7 @@ import millfork.node.StandardCallGraph
 import millfork.output._
 import millfork.parser.{MSourceLoadingQueue, MosSourceLoadingQueue, TextCodecRepository, ZSourceLoadingQueue}
 
-import millfork.language.{MfLanguageServer,MfLanguageClient}
+import millfork.language.{MfLanguageServer,MfLanguageClient,LanguageServerLogger}
 import org.eclipse.lsp4j.services.LanguageServer
 import org.eclipse.lsp4j.jsonrpc.Launcher
 import java.util.concurrent.Executors
@@ -68,7 +68,7 @@ object Main {
       errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     }, textCodecRepository)
-    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, textCodecRepository, JobContext(errorReporting, new LabelGenerator))
+    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, textCodecRepository, JobContext(new LanguageServerLogger(), new LabelGenerator))
     errorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")
