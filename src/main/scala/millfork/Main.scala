@@ -49,7 +49,7 @@ object Main {
     }
     errorReporting.assertNoErrors("Invalid command line")
     errorReporting.verbosity = c0.verbosity.getOrElse(0)
-    if (c0.inputFileNames.isEmpty) {
+    if (c0.inputFileNames.isEmpty && !c0.languageServer) {
       errorReporting.fatalQuit("No input files")
     }
 
@@ -74,22 +74,25 @@ object Main {
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")
     }
 
-    val server = new MfLanguageServer(c, options)
+    if (c0.languageServer) {
+      errorReporting.info("Starting Millfork language server")
 
-    val exec = Executors.newCachedThreadPool()
+      val server = new MfLanguageServer(c, options)
 
-    val tracePrinter = new PrintWriter(new File("/users/adam/millforklsp.log"))
+      val exec = Executors.newCachedThreadPool()
+      val tracePrinter = new PrintWriter(new File("/users/adam/millforklsp.log"))
 
-    val launcher = new Launcher.Builder[MfLanguageClient]()
-      .traceMessages(tracePrinter)
-      .setExecutorService(exec)
-      .setInput(System.in)
-      .setOutput(System.out)
-      .setRemoteInterface(classOf[MfLanguageClient])
-      .setLocalService(server)
-      .create()
-    val clientProxy = launcher.getRemoteProxy
-    launcher.startListening().get()
+      val launcher = new Launcher.Builder[MfLanguageClient]()
+        .traceMessages(tracePrinter)
+        .setExecutorService(exec)
+        .setInput(System.in)
+        .setOutput(System.out)
+        .setRemoteInterface(classOf[MfLanguageClient])
+        .setLocalService(server)
+        .create()
+      val clientProxy = launcher.getRemoteProxy
+      launcher.startListening().get()
+    }
 
     val output = c.outputFileName match {
       case Some(ofn) => ofn
@@ -452,6 +455,10 @@ object Main {
         errorReporting.fatal("Invalid label file format: " + p))
       c.copy(outputLabels = true, outputLabelsFormatOverride = Some(f))
     }.description("Generate also the label file in the given format. Available options: vice, nesasm, sym.")
+
+    flag("-lsp").repeatable().action { c =>
+      c.copy(languageServer = true)
+    }.description("Start the Millfork language server. Does not start compilation")
 
     boolean("-fbreakpoints", "-fno-breakpoints").action((c,v) =>
       c.changeFlag(CompilationFlag.EnableBreakpoints, v)
