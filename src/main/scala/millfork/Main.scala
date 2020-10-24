@@ -65,7 +65,7 @@ object Main {
 
     val textCodecRepository = new TextCodecRepository("." :: c.includePath)
     val platform = Platform.lookupPlatformFile("." :: c.includePath, c.platform.getOrElse {
-      errorReporting.info("No platform selected, defaulting to `c64`")
+      if (!c0.languageServer) errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     }, textCodecRepository)
     val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, textCodecRepository, JobContext(new LanguageServerLogger(), new LabelGenerator))
@@ -75,8 +75,7 @@ object Main {
     }
 
     if (c0.languageServer) {
-      errorReporting.info("Starting Millfork language server")
-
+      // We cannot log anything to stdout when starting the language server (otherwise it's a protocol violation)
       val server = new MfLanguageServer(c, options)
 
       val exec = Executors.newCachedThreadPool()

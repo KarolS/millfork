@@ -2,6 +2,7 @@ package millfork.language
 import millfork.CompilationOptions
 import millfork.parser.MosSourceLoadingQueue
 import millfork.Context
+import millfork.parser.ParsedProgram
 
 import millfork.node.{
   FunctionDeclarationStatement,
@@ -28,6 +29,7 @@ import org.eclipse.lsp4j.TextDocumentPositionParams
 import org.eclipse.lsp4j.Hover
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.{util => ju}
+import scala.collection.mutable
 import org.eclipse.lsp4j.MarkedString
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.InitializedParams
@@ -36,6 +38,9 @@ import org.eclipse.lsp4j.DefinitionParams
 import org.eclipse.lsp4j.Location
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
+  val cache: mutable.Map[String, ParsedProgram] = mutable.Map()
+  val moduleNames: mutable.Map[String, String] = mutable.Map()
+
   @JsonRequest("initialize")
   def initialize(
       params: InitializeParams
@@ -143,19 +148,39 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       } else null
     }
 
-  private def findExpressionAtPosition(
-      documentPath: String,
-      position: Position
-  ): Option[Node] = {
+  private def getProgramForPath(
+      documentPath: String
+  ): (ParsedProgram, String) = {
+    var cachedProgram = cache.get(documentPath)
+    var cachedModuleName = moduleNames.get(documentPath)
+
+    if (cachedProgram.isDefined && cachedModuleName.isDefined) {
+      return (cachedProgram.get, cachedModuleName.get)
+    }
+
     val queue = new MosSourceLoadingQueue(
       initialFilenames = List(documentPath),
       includePath = context.includePath,
       options = options
     )
-    val unoptimizedProgram = queue.run()
+
+    var program = queue.run()
+    var moduleName = queue.extractName(documentPath)
+
+    cache += ((documentPath, program))
+    moduleNames += ((documentPath, moduleName))
+
+    return (program, moduleName)
+  }
+
+  private def findExpressionAtPosition(
+      documentPath: String,
+      position: Position
+  ): Option[Node] = {
+    val (unoptimizedProgram, moduleName) = getProgramForPath(documentPath)
 
     val node = NodeFinder.findNodeAtPosition(
-      queue.extractName(documentPath),
+      moduleName,
       unoptimizedProgram,
       position
     )
