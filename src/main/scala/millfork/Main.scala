@@ -90,6 +90,7 @@ object Main {
         .setLocalService(server)
         .create()
       val clientProxy = launcher.getRemoteProxy
+      server.client = Some(clientProxy)
       launcher.startListening().get()
     }
 

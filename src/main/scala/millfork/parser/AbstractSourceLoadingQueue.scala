@@ -1,7 +1,7 @@
 package millfork.parser
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import fastparse.core.Parsed.{Failure, Success}
 import millfork.{CompilationFlag, CompilationOptions, Tarjan}
@@ -10,13 +10,14 @@ import millfork.node.{AliasDefinitionStatement, DeclarationStatement, ImportStat
 import scala.collection.mutable
 import scala.collection.convert.ImplicitConversionsToScala._
 
-case class ParsedProgram(compilationOrderProgram: Program, parsedModules: Map[String, Program])
+case class ParsedProgram(compilationOrderProgram: Program, parsedModules: Map[String, Program], modulePaths: Map[String, Path])
 
 abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
                                              val includePath: List[String],
                                              val options: CompilationOptions) {
 
   protected val parsedModules: mutable.Map[String, Program] = mutable.Map[String, Program]()
+  protected val modulePaths: mutable.Map[String, Path] = mutable.Map[String, Path]()
   protected val moduleDependecies: mutable.Set[(String, String)] = mutable.Set[(String, String)]()
   protected val moduleQueue: mutable.Queue[() => Unit] = mutable.Queue[() => Unit]()
   val extension: String = ".mfk"
@@ -84,7 +85,7 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     val compilationOrder = Tarjan.sort(parsedModules.keys, moduleDependecies)
     options.log.debug("Compilation order: " + compilationOrder.mkString(", "))
 
-    ParsedProgram(compilationOrder.filter(parsedModules.contains).map(parsedModules).reduce(_ + _).applyImportantAliases, parsedModules.toMap)
+    ParsedProgram(compilationOrder.filter(parsedModules.contains).map(parsedModules).reduce(_ + _).applyImportantAliases, parsedModules.toMap, modulePaths.toMap)
   }
 
   def lookupModuleFile(includePath: List[String], moduleName: String, position: Option[Position]): String = {
@@ -110,6 +111,7 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     val filename: String = why.fold(p => lookupModuleFile(includePath, moduleName, p), s => s)
     options.log.debug(s"Parsing $filename")
     val path = Paths.get(filename)
+    modulePaths.put(moduleName, path)
     val parentDir = path.toFile.getAbsoluteFile.getParent
     val shortFileName = path.getFileName.toString
     val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, shortFileName, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq, templateParams)

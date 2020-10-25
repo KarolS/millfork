@@ -36,10 +36,15 @@ import org.eclipse.lsp4j.InitializedParams
 import org.eclipse.lsp4j.MarkupContent
 import org.eclipse.lsp4j.DefinitionParams
 import org.eclipse.lsp4j.Location
+import net.liftweb.json._
+import net.liftweb.json.Serialization.{read, write}
+import org.eclipse.lsp4j.MessageParams
+import org.eclipse.lsp4j.MessageType
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
-  val cache: mutable.Map[String, ParsedProgram] = mutable.Map()
-  val moduleNames: mutable.Map[String, String] = mutable.Map()
+  var client: Option[MfLanguageClient] = None
+  private val cache: mutable.Map[String, ParsedProgram] = mutable.Map()
+  private val moduleNames: mutable.Map[String, String] = mutable.Map()
 
   @JsonRequest("initialize")
   def initialize(
@@ -86,8 +91,10 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     CompletableFuture.completedFuture {
       val activePosition = params.getPosition()
 
+      val documentPath = params.getTextDocument().getUri().stripPrefix("file:")
+
       val statement = findExpressionAtPosition(
-        params.getTextDocument().getUri().stripPrefix("file:"),
+        documentPath,
         Position(
           "",
           activePosition.getLine() + 1,
@@ -97,12 +104,35 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       )
 
       if (statement.isDefined) {
-        val declarationContent = statement.get
+        val (declarationModule, declarationContent) = statement.get
         val formatting = NodeFormatter.symbol(declarationContent)
+
+        logEvent(
+          TelemetryEvent("Attempting to GoToDef in module", declarationModule)
+        )
+
+        // TODO: Prevent second fetch
+        val (unoptimizedProgram, _) = getProgramForPath(documentPath)
+
+        val modulePath = unoptimizedProgram.modulePaths.getOrElse(
+          declarationModule, {
+            logEvent(
+              TelemetryEvent(
+                "Could not find path for module",
+                declarationModule
+              )
+            )
+            null
+          }
+        )
+
+        logEvent(
+          TelemetryEvent("Found module path", modulePath.toString())
+        )
 
         if (declarationContent.position.isDefined)
           new Location(
-            params.getTextDocument().getUri(),
+            modulePath.toUri().toString(),
             new Range(
               mfPositionToLSP4j(declarationContent.position.get),
               mfPositionToLSP4j(declarationContent.position.get)
@@ -120,7 +150,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       val hoverPosition = params.getPosition()
 
       val statement = findExpressionAtPosition(
-        params.getTextDocument().getUri().stripPrefix("file:"),
+        params.getTextDocument().getUri().stripPrefix("file://"),
         Position(
           "",
           // Millfork positions start at 1,2, rather than 0,0, so add to each coord
@@ -131,7 +161,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       )
 
       if (statement.isDefined) {
-        val declarationContent = statement.get
+        val (_, declarationContent) = statement.get
         val formatting = NodeFormatter.symbol(declarationContent)
 
         if (formatting.isDefined)
@@ -158,6 +188,10 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       return (cachedProgram.get, cachedModuleName.get)
     }
 
+    logEvent(
+      TelemetryEvent("Building program AST")
+    )
+
     val queue = new MosSourceLoadingQueue(
       initialFilenames = List(documentPath),
       includePath = context.includePath,
@@ -166,6 +200,10 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
 
     var program = queue.run()
     var moduleName = queue.extractName(documentPath)
+
+    logEvent(
+      TelemetryEvent("Finished building AST")
+    )
 
     cache += ((documentPath, program))
     moduleNames += ((documentPath, moduleName))
@@ -176,7 +214,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
   private def findExpressionAtPosition(
       documentPath: String,
       position: Position
-  ): Option[Node] = {
+  ): Option[(String, Node)] = {
     val (unoptimizedProgram, moduleName) = getProgramForPath(documentPath)
 
     val node = NodeFinder.findNodeAtPosition(
@@ -186,15 +224,38 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     )
 
     if (node.isDefined) {
+      logEvent(TelemetryEvent("Found node at position", node))
+
       val usage =
         NodeFinder.findDeclarationForUsage(unoptimizedProgram, node.get)
 
-      if (usage.isDefined) usage else node
-    } else None
+      if (usage.isDefined) {
+        logEvent(TelemetryEvent("Found original declaration", usage))
+        usage
+      } else Some((moduleName, node.get))
+    } else {
+      logEvent(TelemetryEvent("Cannot find node for position", position))
+      None
+    }
   }
 
   private def mfPositionToLSP4j(
       position: Position
   ): org.eclipse.lsp4j.Position =
     new org.eclipse.lsp4j.Position(position.line - 1, position.column - 1)
+
+  private def logEvent(event: TelemetryEvent) = {
+    val languageClient = client.getOrElse {
+      throw new Exception("Language client not registered")
+    }
+
+    implicit val formats = Serialization.formats(NoTypeHints)
+    val serializedEvent = write(event)
+
+    languageClient.logMessage(
+      new MessageParams(MessageType.Log, serializedEvent)
+    )
+  }
 }
+
+case class TelemetryEvent(message: String, data: Any = None)

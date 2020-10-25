@@ -12,6 +12,8 @@ libraryDependencies += "org.apache.commons" % "commons-configuration2" % "2.2"
 
 libraryDependencies += "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.9.0"
 
+libraryDependencies += "net.liftweb" %% "lift-json" % "3.4.2"
+
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
 
 libraryDependencies += "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test"

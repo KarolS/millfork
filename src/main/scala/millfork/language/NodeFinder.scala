@@ -20,13 +20,25 @@ object NodeFinder {
   def findDeclarationForUsage(
       program: ParsedProgram,
       node: Node
-  ): Option[DeclarationStatement] = {
+  ): Option[(String, DeclarationStatement)] = {
     node match {
-      case expression: Expression =>
-        matchingDeclarationForExpression(
-          expression,
-          program.compilationOrderProgram.declarations
-        )
+      case expression: Expression => {
+        val foundDeclaration = program.parsedModules.toStream
+          .map {
+            case (module, program) => {
+              val declaration =
+                matchingDeclarationForExpression(
+                  expression,
+                  program.declarations
+                )
+              if (declaration.isDefined) Some((module, declaration.get))
+              else None
+            }
+          }
+          .find(d => d.isDefined)
+
+        if (foundDeclaration.isDefined) foundDeclaration.get else None
+      }
       case default => None
     }
   }
