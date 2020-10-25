@@ -40,6 +40,8 @@ import net.liftweb.json._
 import net.liftweb.json.Serialization.{read, write}
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
+import org.eclipse.lsp4j.DidOpenTextDocumentParams
+import org.eclipse.lsp4j.TextDocumentSyncKind
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
   var client: Option[MfLanguageClient] = None
@@ -56,6 +58,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       val capabilities = new ServerCapabilities()
       capabilities.setHoverProvider(true)
       capabilities.setDefinitionProvider(true)
+      capabilities.setTextDocumentSync(TextDocumentSyncKind.Full)
 
       new InitializeResult(capabilities)
     }
@@ -84,6 +87,16 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
   @JsonRequest("shutdown")
   def shutdown(): CompletableFuture[Object] = ???
 
+  @JsonRequest("textDocument/didOpen")
+  def textDocumentDidOpen(
+      params: DidOpenTextDocumentParams
+  ): CompletableFuture[Unit] =
+    CompletableFuture.completedFuture {
+      // TODO: Get text directly from client, rather than loading via URI
+      getProgramForPath(trimDocumentUri(params.getTextDocument().getUri()))
+      ()
+    }
+
   @JsonRequest("textDocument/definition")
   def textDocumentDefinition(
       params: DefinitionParams
@@ -91,7 +104,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     CompletableFuture.completedFuture {
       val activePosition = params.getPosition()
 
-      val documentPath = params.getTextDocument().getUri().stripPrefix("file:")
+      val documentPath = trimDocumentUri(params.getTextDocument().getUri())
 
       val statement = findExpressionAtPosition(
         documentPath,
@@ -150,7 +163,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       val hoverPosition = params.getPosition()
 
       val statement = findExpressionAtPosition(
-        params.getTextDocument().getUri().stripPrefix("file://"),
+        trimDocumentUri(params.getTextDocument().getUri()),
         Position(
           "",
           // Millfork positions start at 1,2, rather than 0,0, so add to each coord
@@ -256,6 +269,8 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       new MessageParams(MessageType.Log, serializedEvent)
     )
   }
+
+  private def trimDocumentUri(uri: String): String = uri.stripPrefix("file:")
 }
 
 case class TelemetryEvent(message: String, data: Any = None)
