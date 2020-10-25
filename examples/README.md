@@ -92,6 +92,12 @@ how to create a program made of multiple files loaded on demand
 
 * [Horizontal stars example](a8/horizontal_stars.mfk) – horizontal stars done on one missile
 
+### Music
+
+* [CMC Player](a8/cmcplayer.mfk) – CMC player with sample music
+
+* [MPT Player](a8/mptplayer.mfk) – MPT player with sample music
+
 ### Benchmarks
 
 * [Grand Theft Antic](a8/grand_theft_antic.mfk) – ANTIC impact on CPU depending on the used graphic mode
