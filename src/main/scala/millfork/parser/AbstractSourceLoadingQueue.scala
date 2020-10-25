@@ -107,14 +107,24 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     if (templateParams.isEmpty) moduleNameBase else moduleNameBase + templateParams.mkString("<", ",", ">")
   }
 
+  /**
+    * Finds module path and builds module AST, adding to `parsedModules`
+    */
   def parseModule(moduleName: String, includePath: List[String], why: Either[Option[Position], String], templateParams: List[String]): Unit = {
     val filename: String = why.fold(p => lookupModuleFile(includePath, moduleName, p), s => s)
     options.log.debug(s"Parsing $filename")
     val path = Paths.get(filename)
+
     modulePaths.put(moduleName, path)
+    
+    parseModuleWithLines(moduleName, path, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq, includePath, why, templateParams)
+  }
+
+  def parseModuleWithLines(moduleName: String, path: Path, lines: Seq[String], includePath: List[String], why: Either[Option[Position], String], templateParams: List[String]): Option[Program] = {
     val parentDir = path.toFile.getAbsoluteFile.getParent
     val shortFileName = path.getFileName.toString
-    val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, shortFileName, Files.readAllLines(path, StandardCharsets.UTF_8).toIndexedSeq, templateParams)
+    
+    val PreprocessingResult(src, featureConstants, pragmas) = Preprocessor(options, shortFileName, lines, templateParams)
     for (pragma <- pragmas) {
       if (!supportedPragmas(pragma._1) && options.flag(CompilationFlag.BuggyCodeWarning)) {
         options.log.warn(s"Unsupported pragma: #pragma ${pragma._1}", Some(Position(moduleName, pragma._2, 1, 0)))
@@ -136,13 +146,15 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
             case _ => ()
           }
         }
+        Some(prog)
       case f@Failure(a, b, d) =>
-        options.log.error(s"Failed to parse the module `$moduleName` in $filename", Some(parser.indexToPosition(f.index, parser.lastLabel)))
+        options.log.error(s"Failed to parse the module `$moduleName` in ${path.toString()}", Some(parser.indexToPosition(f.index, parser.lastLabel)))
         if (parser.lastLabel != "") {
           options.log.error(s"Syntax error: ${parser.lastLabel} expected", Some(parser.lastPosition))
         } else {
           options.log.error("Syntax error", Some(parser.lastPosition))
         }
+        None
     }
   }
 

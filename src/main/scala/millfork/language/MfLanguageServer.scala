@@ -42,11 +42,20 @@ import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.DidOpenTextDocumentParams
 import org.eclipse.lsp4j.TextDocumentSyncKind
+import org.eclipse.lsp4j.DidChangeTextDocumentParams
+import millfork.parser.AbstractSourceLoadingQueue
+import java.nio.file.Path
+import java.nio.file.Paths
+import org.eclipse.lsp4j.VersionedTextDocumentIdentifier
+import millfork.node.Program
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
   var client: Option[MfLanguageClient] = None
-  private val cache: mutable.Map[String, ParsedProgram] = mutable.Map()
+
+  private val cachedModules: mutable.Map[String, Program] = mutable.Map()
+  private var cachedProgram: Option[ParsedProgram] = None
   private val moduleNames: mutable.Map[String, String] = mutable.Map()
+  private val modulePaths: mutable.Map[String, Path] = mutable.Map()
 
   @JsonRequest("initialize")
   def initialize(
@@ -93,8 +102,57 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
   ): CompletableFuture[Unit] =
     CompletableFuture.completedFuture {
       // TODO: Get text directly from client, rather than loading via URI
-      getProgramForPath(trimDocumentUri(params.getTextDocument().getUri()))
+      populateProgramForPath(trimDocumentUri(params.getTextDocument().getUri()))
       ()
+    }
+
+  @JsonRequest("textDocument/didChange")
+  def textDocumentDidChange(
+      params: DidChangeTextDocumentParams
+  ): CompletableFuture[Unit] =
+    CompletableFuture.completedFuture {
+      val pathString = trimDocumentUri(params.getTextDocument().getUri())
+
+      logEvent(TelemetryEvent("Rebuilding AST for module at path", pathString))
+
+      val queue = new MosSourceLoadingQueue(
+        initialFilenames = context.inputFileNames,
+        includePath = context.includePath,
+        options = options
+      )
+
+      val documentText =
+        params.getContentChanges().get(0).getText().split("\n").toSeq
+
+      val path = Paths.get(pathString)
+
+      logEvent(TelemetryEvent("Path", path.toString()))
+
+      val moduleName = queue.extractName(pathString)
+      val newProgram = queue.parseModuleWithLines(
+        moduleName,
+        path,
+        documentText,
+        context.includePath,
+        Left(None),
+        Nil
+      )
+
+      if (newProgram.isDefined) {
+        cachedModules.put(moduleName, newProgram.get)
+
+        logEvent(
+          TelemetryEvent(
+            "Finished rebuilding AST for module at path",
+            pathString
+          )
+        )
+      } else {
+        logEvent(
+          TelemetryEvent("Failed to rebuild AST for module at path", pathString)
+        )
+      }
+
     }
 
   @JsonRequest("textDocument/definition")
@@ -124,10 +182,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
           TelemetryEvent("Attempting to GoToDef in module", declarationModule)
         )
 
-        // TODO: Prevent second fetch
-        val (unoptimizedProgram, _) = getProgramForPath(documentPath)
-
-        val modulePath = unoptimizedProgram.modulePaths.getOrElse(
+        val modulePath = modulePaths.getOrElse(
           declarationModule, {
             logEvent(
               TelemetryEvent(
@@ -191,16 +246,9 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       } else null
     }
 
-  private def getProgramForPath(
+  private def populateProgramForPath(
       documentPath: String
-  ): (ParsedProgram, String) = {
-    var cachedProgram = cache.get(documentPath)
-    var cachedModuleName = moduleNames.get(documentPath)
-
-    if (cachedProgram.isDefined && cachedModuleName.isDefined) {
-      return (cachedProgram.get, cachedModuleName.get)
-    }
-
+  ) = {
     logEvent(
       TelemetryEvent("Building program AST")
     )
@@ -218,21 +266,31 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       TelemetryEvent("Finished building AST")
     )
 
-    cache += ((documentPath, program))
+    cachedProgram = Some(program)
+    program.parsedModules.foreach {
+      case (moduleName, program) =>
+        cachedModules.put(moduleName, program)
+    }
     moduleNames += ((documentPath, moduleName))
-
-    return (program, moduleName)
+    program.modulePaths.foreach {
+      case (moduleName, path) => modulePaths.put(moduleName, path)
+    }
   }
+
+  private def moduleNameForPath(documentPath: String) =
+    moduleNames.get(documentPath).getOrElse {
+      throw new Exception("Cannot find module at " + documentPath)
+    }
 
   private def findExpressionAtPosition(
       documentPath: String,
       position: Position
   ): Option[(String, Node)] = {
-    val (unoptimizedProgram, moduleName) = getProgramForPath(documentPath)
+    val moduleName = moduleNameForPath(documentPath)
 
     val node = NodeFinder.findNodeAtPosition(
       moduleName,
-      unoptimizedProgram,
+      cachedModules.toMap,
       position
     )
 
@@ -240,7 +298,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       logEvent(TelemetryEvent("Found node at position", node))
 
       val usage =
-        NodeFinder.findDeclarationForUsage(unoptimizedProgram, node.get)
+        NodeFinder.findDeclarationForUsage(cachedModules.toStream, node.get)
 
       if (usage.isDefined) {
         logEvent(TelemetryEvent("Found original declaration", usage))

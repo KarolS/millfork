@@ -18,12 +18,12 @@ import millfork.node.ExpressionStatement
 
 object NodeFinder {
   def findDeclarationForUsage(
-      program: ParsedProgram,
+      parsedModules: Stream[(String, Program)],
       node: Node
   ): Option[(String, DeclarationStatement)] = {
     node match {
       case expression: Expression => {
-        val foundDeclaration = program.parsedModules.toStream
+        val foundDeclaration = parsedModules.toStream
           .map {
             case (module, program) => {
               val declaration =
@@ -61,13 +61,13 @@ object NodeFinder {
 
   def findNodeAtPosition(
       module: String,
-      program: ParsedProgram,
+      parsedModules: Map[String, Program],
       position: Position
   ): Option[Node] = {
     val line = position.line
     val column = position.column
 
-    val activeProgram = program.parsedModules.get(module)
+    val activeProgram = parsedModules.get(module)
 
     if (activeProgram.isEmpty) {
       return None
