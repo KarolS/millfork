@@ -244,8 +244,12 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
         )
 
         if (declarationContent.isInstanceOf[DeclarationStatement]) {
+
           val matchingExpressions =
-            List((declarationModule, declarationContent)) ++ NodeFinder
+            // Only include declaration if params specify it
+            (if (params.getContext().isIncludeDeclaration())
+               List((declarationModule, declarationContent))
+             else List()) ++ NodeFinder
               .matchingExpressionsForDeclaration(
                 cachedModules.toStream,
                 declarationContent.asInstanceOf[DeclarationStatement]
