@@ -62,6 +62,36 @@ object NodeFinder {
       case default => None
     }
 
+  def matchingExpressionsForDeclaration(
+      parsedModules: Stream[(String, Program)],
+      declaration: DeclarationStatement
+  ): List[(String, Node)] = {
+    parsedModules.toStream.flatMap {
+      case (module, program) => {
+        val allDeclarations =
+          program.declarations
+            .flatMap(d => d.getAllExpressions)
+            .flatMap(flattenNestedExpressions)
+
+        declaration match {
+          case f: FunctionDeclarationStatement =>
+            allDeclarations
+              .filter(d => d.isInstanceOf[FunctionCallExpression])
+              .map(d => d.asInstanceOf[FunctionCallExpression])
+              .find(d => d.functionName == f.name)
+              .map(d => (module, d))
+          case v: VariableDeclarationStatement =>
+            allDeclarations
+              .filter(d => d.isInstanceOf[VariableExpression])
+              .map(d => d.asInstanceOf[VariableExpression])
+              .find(d => d.name == v.name)
+              .map(d => (module, d))
+          case default => List()
+        }
+      }
+    }.toList
+  }
+
   def findNodeAtPosition(
       module: String,
       parsedModules: Map[String, Program],

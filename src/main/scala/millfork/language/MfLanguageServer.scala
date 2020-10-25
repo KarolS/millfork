@@ -49,6 +49,9 @@ import java.nio.file.Paths
 import org.eclipse.lsp4j.VersionedTextDocumentIdentifier
 import millfork.node.Program
 import millfork.node.ImportStatement
+import org.eclipse.lsp4j.ReferenceParams
+import millfork.node.DeclarationStatement
+import scala.collection.JavaConverters._
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
   var client: Option[MfLanguageClient] = None
@@ -69,6 +72,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       capabilities.setHoverProvider(true)
       capabilities.setDefinitionProvider(true)
       capabilities.setTextDocumentSync(TextDocumentSyncKind.Full)
+      capabilities.setReferencesProvider(true)
 
       new InitializeResult(capabilities)
     }
@@ -163,10 +167,8 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     CompletableFuture.completedFuture {
       val activePosition = params.getPosition()
 
-      val documentPath = trimDocumentUri(params.getTextDocument().getUri())
-
       val statement = findExpressionAtPosition(
-        documentPath,
+        trimDocumentUri(params.getTextDocument().getUri()),
         Position(
           "",
           activePosition.getLine() + 1,
@@ -214,6 +216,75 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
             )
           )
         else null
+      } else null
+    }
+
+  @JsonRequest("textDocument/references")
+  def textDocumentReferences(
+      params: ReferenceParams
+  ): CompletableFuture[ju.List[Location]] =
+    CompletableFuture.completedFuture {
+      val activePosition = params.getPosition()
+
+      val statement = findExpressionAtPosition(
+        trimDocumentUri(params.getTextDocument().getUri()),
+        Position(
+          "",
+          activePosition.getLine() + 1,
+          activePosition.getCharacter() + 2,
+          0
+        )
+      )
+
+      if (statement.isDefined) {
+        val (declarationModule, declarationContent) = statement.get
+
+        logEvent(
+          TelemetryEvent("Attempting to find references")
+        )
+
+        if (declarationContent.isInstanceOf[DeclarationStatement]) {
+          val matchingExpressions =
+            List((declarationModule, declarationContent)) ++ NodeFinder
+              .matchingExpressionsForDeclaration(
+                cachedModules.toStream,
+                declarationContent.asInstanceOf[DeclarationStatement]
+              )
+
+          logEvent(
+            TelemetryEvent("Prepping references", matchingExpressions)
+          )
+
+          matchingExpressions
+            .map {
+              case (module, expression) => {
+                var position = expression.position
+                val modulePath = modulePaths.getOrElse(
+                  module, {
+                    logEvent(
+                      TelemetryEvent(
+                        "Could not find path for module",
+                        module
+                      )
+                    )
+                    null
+                  }
+                )
+
+                new Location(
+                  modulePath.toUri().toString(),
+                  new Range(
+                    mfPositionToLSP4j(position.get),
+                    mfPositionToLSP4j(position.get)
+                  )
+                )
+              }
+            }
+            .filter(e => e != null)
+            .asJava
+        } else {
+          null
+        }
       } else null
     }
 
