@@ -48,6 +48,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import org.eclipse.lsp4j.VersionedTextDocumentIdentifier
 import millfork.node.Program
+import millfork.node.ImportStatement
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
   var client: Option[MfLanguageClient] = None
@@ -198,12 +199,18 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
           TelemetryEvent("Found module path", modulePath.toString())
         )
 
-        if (declarationContent.position.isDefined)
+        // ImportStatement declaration is the entire "file". Set position to 1,1
+        val position =
+          if (declarationContent.isInstanceOf[ImportStatement])
+            Some(Position(declarationModule, 1, 1, 0))
+          else declarationContent.position
+
+        if (position.isDefined)
           new Location(
             modulePath.toUri().toString(),
             new Range(
-              mfPositionToLSP4j(declarationContent.position.get),
-              mfPositionToLSP4j(declarationContent.position.get)
+              mfPositionToLSP4j(position.get),
+              mfPositionToLSP4j(position.get)
             )
           )
         else null

@@ -15,6 +15,7 @@ import millfork.parser.ParsedProgram
 
 import scala.collection.mutable
 import millfork.node.ExpressionStatement
+import millfork.node.ImportStatement
 
 object NodeFinder {
   def findDeclarationForUsage(
@@ -22,6 +23,8 @@ object NodeFinder {
       node: Node
   ): Option[(String, DeclarationStatement)] = {
     node match {
+      case importStatement: ImportStatement =>
+        Some((importStatement.filename, importStatement))
       case expression: Expression => {
         val foundDeclaration = parsedModules.toStream
           .map {

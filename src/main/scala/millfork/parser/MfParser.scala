@@ -193,9 +193,9 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     case x => x.toString
   } | textLiteralAtom.!
 
-  val importStatement: P[Seq[ImportStatement]] = ("import" ~ !letterOrDigit ~/ SWS ~/
+  val importStatement: P[Seq[ImportStatement]] = (position() ~ "import" ~ !letterOrDigit ~/ SWS ~/
     identifier.rep(min = 1, sep = "/") ~ HWS ~ ("<" ~/ HWS ~/ quotedAtom.rep(min = 1, sep = HWS ~ "," ~/ HWS) ~/ HWS ~/ ">" ~/ Pass).?).
-    map{case (name, params) => Seq(ImportStatement(name.mkString("/"), params.getOrElse(Nil).toList))}
+    map{case (p, name, params) => Seq(ImportStatement(name.mkString("/"), params.getOrElse(Nil).toList).pos(p))}
 
   val globalVariableDefinition: P[Seq[BankedDeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)

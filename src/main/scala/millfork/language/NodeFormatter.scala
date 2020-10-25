@@ -12,6 +12,7 @@ import millfork.env.ParamPassingConvention
 import millfork.env.ByConstant
 import millfork.env.ByVariable
 import millfork.env.ByReference
+import millfork.node.ImportStatement
 
 object NodeFormatter {
   // TODO: Remove Option
@@ -84,6 +85,8 @@ object NodeFormatter {
 
             Some(builder.toString())
           }
+          case importStatement: ImportStatement =>
+            Some(s"""import ${importStatement.filename}""")
           case default => None
         }
       case ParameterDeclaration(typ, assemblyParamPassingConvention) =>
