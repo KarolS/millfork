@@ -21,28 +21,11 @@ Setting up the test suite for Millfork is tricky, so if you don't need the tests
 
 #### Steps
 
-* remove all test dependencies from `build.sbt`: 
-
-      "org.scalatest" %% "scalatest"
-      "com.codingrodent.microprocessor" % "Z80Processor"
-      "NeatMonster" % "Intel8086"
-      "com.loomcom.symon" % "symon"
-      "com.grapeshot" % "halfnes"
-      "eu.rekawek.coffeegb" % "coffee-gb"
-      "roug.org.osnine" % "osnine-core"
-
-* navigate to the project directory 
-
-* run `sbt 'set test in assembly := {}' compile`  
+* run `sbt compile`  
 to compile the project
 
-* run `sbt 'set test in assembly := {}' assembly`  
+* run `sbt assembly`  
 to build the executable jar file, it should appear in `target/scala-2.12`
-
-* on Windows, use double quotes for the last two commands:
-
-      sbt "set test in assembly := {}" compile
-      sbt "set test in assembly := {}" assembly
 
 ### Building with tests
 
@@ -72,9 +55,9 @@ Test suite is useful if you plan on modifying the compiler. Some test dependenci
 
 * navigate to the project directory 
 
-* run `sbt compile` to compile the project
+* run `sbt -DincludeTests compile` to compile the project
 
-* run `sbt assemble` to build the executable jar file, it should appear in `target/scala-2.12`
+* run `sbt -DincludeTests assemble` to build the executable jar file, it should appear in `target/scala-2.12`
 
 ### Building a native executable
 
