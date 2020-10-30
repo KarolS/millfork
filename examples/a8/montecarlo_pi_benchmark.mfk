@@ -31,7 +31,6 @@ void printScore(word val) {
 }
 
 void main() {
-  array(bool) flags[size] align(1024)
   word i@$e0, bingo@$e2
   word x@$e4, y@$e6, p@$e8, t@$ea
   byte n@$82
