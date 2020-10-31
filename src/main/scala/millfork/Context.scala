@@ -9,6 +9,7 @@ import millfork.error.Logger
 case class Context(errorReporting: Logger,
                    inputFileNames: List[String],
                    outputFileName: Option[String] = None,
+                   configFilePath: Option[String] = None,
                    runFileName: Option[String] = None,
                    runParams: Seq[String] = Vector(),
                    optimizationLevel: Option[Int] = None,
