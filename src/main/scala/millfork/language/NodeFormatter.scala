@@ -25,6 +25,7 @@ import millfork.output.MemoryAlignment
 import millfork.output.NoAlignment
 import millfork.output.DivisibleAlignment
 import millfork.output.WithinPageAlignment
+import millfork.node.AliasDefinitionStatement
 
 object NodeFormatter {
   // TODO: Remove Option
@@ -145,6 +146,17 @@ object NodeFormatter {
                 .mkString(", ")
 
               builder.append(s""" = [${formattedInitialValue}]""")
+            }
+
+            Some(builder.toString())
+          }
+          case AliasDefinitionStatement(name, target, important) => {
+            val builder = new StringBuilder()
+
+            builder.append(s"""alias ${name} = ${target}""")
+
+            if (important) {
+              builder.append("!")
             }
 
             Some(builder.toString())
