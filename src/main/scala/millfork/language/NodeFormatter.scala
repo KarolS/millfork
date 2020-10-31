@@ -13,6 +13,13 @@ import millfork.env.ByConstant
 import millfork.env.ByVariable
 import millfork.env.ByReference
 import millfork.node.ImportStatement
+import millfork.env.ByLazilyEvaluableExpressionVariable
+import millfork.env.ByMosRegister
+import millfork.node.MosRegister
+import millfork.env.ByZRegister
+import millfork.node.ZRegister
+import millfork.env.ByM6809Register
+import millfork.node.M6809Register
 
 object NodeFormatter {
   // TODO: Remove Option
@@ -102,11 +109,15 @@ object NodeFormatter {
 
   def symbol(paramConvention: ParamPassingConvention): String =
     paramConvention match {
-      case ByConstant(name)  => name
-      case ByVariable(name)  => name
-      case ByReference(name) => name
-      // TODO: Remove default
-      case default => ""
+      case ByConstant(name)                          => name
+      case ByVariable(name)                          => name
+      case ByReference(name)                         => name
+      case ByLazilyEvaluableExpressionVariable(name) => name
+      case ByMosRegister(register) =>
+        MosRegister.toString(register).getOrElse("")
+      case ByZRegister(register) => ZRegister.toString(register).getOrElse("")
+      case ByM6809Register(register) =>
+        M6809Register.toString(register).getOrElse("")
     }
 
   /**

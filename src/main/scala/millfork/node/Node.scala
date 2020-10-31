@@ -251,11 +251,45 @@ object M6809NiceFunctionProperty {
 
 object MosRegister extends Enumeration {
   val A, X, Y, AX, AY, YA, XA, XY, YX, AW = Value
+
+  private val registerStringToValue = Map[String, MosRegister.Value](
+    "xy" -> MosRegister.XY,
+    "yx" -> MosRegister.YX,
+    "ax" -> MosRegister.AX,
+    "ay" -> MosRegister.AY,
+    "xa" -> MosRegister.XA,
+    "ya" -> MosRegister.YA,
+    "a" -> MosRegister.A,
+    "x" -> MosRegister.X,
+    "y" -> MosRegister.Y,
+  )
+  private val registerValueToString = registerStringToValue.map { case (key, value) => (value, key)}.toMap
+
+  def fromString(name: String): Option[MosRegister.Value] = registerStringToValue.get(name)
+  def toString(value: MosRegister.Value): Option[String] = registerValueToString.get(value)
 }
 
 object ZRegister extends Enumeration {
 
   val A, B, C, D, E, H, L, AF, BC, HL, DE, SP, IXH, IXL, IYH, IYL, IX, IY, R, I, MEM_HL, MEM_BC, MEM_DE, MEM_IX_D, MEM_IY_D, MEM_ABS_8, MEM_ABS_16, IMM_8, IMM_16 = Value
+
+  val registerStringToValue = Map[String, ZRegister.Value](
+    "hl" -> ZRegister.HL,
+    "bc" -> ZRegister.BC,
+    "de" -> ZRegister.DE,
+    "a" -> ZRegister.A,
+    "b" -> ZRegister.B,
+    "c" -> ZRegister.C,
+    "d" -> ZRegister.D,
+    "e" -> ZRegister.E,
+    "h" -> ZRegister.H,
+    "l" -> ZRegister.L,
+  )
+
+  private val registerValueToString = registerStringToValue.map { case (key, value) => (value, key)}.toMap
+
+  def fromString(name: String): Option[ZRegister.Value] = registerStringToValue.get(name)
+  def toString(value: ZRegister.Value): Option[String] = registerValueToString.get(value)
 
   def registerSize(reg: Value): Int = reg match {
     case AF | BC | DE | HL | IX | IY | IMM_16 => 2
@@ -277,6 +311,24 @@ object ZRegister extends Enumeration {
 
 object M6809Register extends Enumeration {
   val A, B, D, DP, X, Y, U, S, PC, CC = Value
+
+    val registerStringToValue = Map[String, M6809Register.Value](
+    "x" -> M6809Register.X,
+    "y" -> M6809Register.Y,
+    "s" -> M6809Register.S,
+    "u" -> M6809Register.U,
+    "a" -> M6809Register.A,
+    "b" -> M6809Register.B,
+    "d" -> M6809Register.D,
+    "dp" -> M6809Register.DP,
+    "pc" -> M6809Register.PC,
+    "cc" -> M6809Register.CC,
+  )
+
+  private val registerValueToString = registerStringToValue.map { case (key, value) => (value, key)}.toMap
+
+  def fromString(name: String): Option[M6809Register.Value] = registerStringToValue.get(name)
+  def toString(value: M6809Register.Value): Option[String] = registerValueToString.get(value)
 
   def registerSize(reg: Value): Int = reg match {
     case D | X | Y | U | S | PC => 2
