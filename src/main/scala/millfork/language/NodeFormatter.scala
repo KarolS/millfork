@@ -20,6 +20,11 @@ import millfork.env.ByZRegister
 import millfork.node.ZRegister
 import millfork.env.ByM6809Register
 import millfork.node.M6809Register
+import millfork.node.ArrayDeclarationStatement
+import millfork.output.MemoryAlignment
+import millfork.output.NoAlignment
+import millfork.output.DivisibleAlignment
+import millfork.output.WithinPageAlignment
 
 object NodeFormatter {
   // TODO: Remove Option
@@ -94,6 +99,57 @@ object NodeFormatter {
           }
           case importStatement: ImportStatement =>
             Some(s"""import ${importStatement.filename}""")
+          case arrayStatement: ArrayDeclarationStatement => {
+            val builder = new StringBuilder()
+
+            if (arrayStatement.const) {
+              builder.append("const ")
+            }
+
+            builder.append(
+              s"""array(${arrayStatement.elementType}) ${arrayStatement.name}"""
+            )
+
+            if (arrayStatement.length.isDefined) {
+              val formattedLength = symbol(arrayStatement.length.get)
+
+              if (formattedLength.isDefined) {
+                builder.append(s""" [${formattedLength.get}]""")
+              }
+            }
+
+            if (arrayStatement.alignment.isDefined) {
+              val formattedAlignment = symbol(
+                arrayStatement.alignment.get
+              )
+
+              if (formattedAlignment.isDefined) {
+                builder.append(s""" align(${formattedAlignment.get})""")
+              }
+            }
+
+            if (arrayStatement.address.isDefined) {
+              val formattedAddress = symbol(arrayStatement.address.get)
+
+              if (formattedAddress.isDefined) {
+                builder.append(s""" @ ${formattedAddress.get}""")
+              }
+            }
+
+            if (arrayStatement.elements.isDefined) {
+              val formattedInitialValue = arrayStatement.elements.get
+                .getAllExpressions(false)
+                .map(e => symbol(e))
+                .filter(e => e.isDefined)
+                .map(e => e.get)
+                .mkString(", ")
+
+              builder.append(s""" = [${formattedInitialValue}]""")
+            }
+
+            Some(builder.toString())
+          }
+          // TODO: Finish
           case default => None
         }
       case ParameterDeclaration(typ, assemblyParamPassingConvention) =>
@@ -120,9 +176,15 @@ object NodeFormatter {
         M6809Register.toString(register).getOrElse("")
     }
 
+  def symbol(alignment: MemoryAlignment): Option[String] =
+    alignment match {
+      case NoAlignment => None
+      // TOOD: Improve
+      case DivisibleAlignment(divisor) => Some(s"""${divisor}""")
+      case WithinPageAlignment         => Some("Within page")
+    }
+
   /**
-    * TODO: This function is nearly the same as https://github.com/scalameta/metals/blob/main/mtags/src/main/scala/scala/meta/internal/pc/HoverMarkup.scala
-    *
     * Render the textDocument/hover result into markdown.
     *
     * @param symbolSignature The signature of the symbol over the cursor, for example
@@ -134,16 +196,18 @@ object NodeFormatter {
       docstring: String
   ): String = {
     val markdown = new StringBuilder()
+
+    if (docstring.nonEmpty)
+      markdown
+        .append("\n")
+        .append(docstring)
+
     if (symbolSignature.nonEmpty) {
       markdown
         .append("```mfk\n")
         .append(symbolSignature)
         .append("\n```")
     }
-    if (docstring.nonEmpty)
-      markdown
-        .append("\n")
-        .append(docstring)
     markdown.toString()
   }
 }
