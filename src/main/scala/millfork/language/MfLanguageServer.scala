@@ -78,12 +78,10 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     }
 
   @JsonNotification("initialized")
-  def initialized(params: InitializedParams): CompletableFuture[Unit] = {
-    val completableFuture = new CompletableFuture[Unit]()
-
-    completableFuture.complete()
-    completableFuture
-  }
+  def initialized(params: InitializedParams): CompletableFuture[Unit] =
+    CompletableFuture.completedFuture {
+      populateProgramForPath()
+    }
 
   // @JsonRequest("getTextDocumentService")
   // def getTextDocumentService(): CompletableFuture[TextDocumentService] = {
@@ -106,9 +104,12 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       params: DidOpenTextDocumentParams
   ): CompletableFuture[Unit] =
     CompletableFuture.completedFuture {
-      // TODO: Get text directly from client, rather than loading via URI
-      populateProgramForPath(trimDocumentUri(params.getTextDocument().getUri()))
-      ()
+      val pathString = trimDocumentUri(params.getTextDocument().getUri())
+
+      val documentText =
+        params.getTextDocument().getText().split("\n").toSeq
+
+      rebuildASTForFile(pathString, documentText)
     }
 
   @JsonRequest("textDocument/didChange")
@@ -118,47 +119,52 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     CompletableFuture.completedFuture {
       val pathString = trimDocumentUri(params.getTextDocument().getUri())
 
-      logEvent(TelemetryEvent("Rebuilding AST for module at path", pathString))
-
-      val queue = new MosSourceLoadingQueue(
-        initialFilenames = context.inputFileNames,
-        includePath = context.includePath,
-        options = options
-      )
-
       val documentText =
         params.getContentChanges().get(0).getText().split("\n").toSeq
 
-      val path = Paths.get(pathString)
-
-      logEvent(TelemetryEvent("Path", path.toString()))
-
-      val moduleName = queue.extractName(pathString)
-      val newProgram = queue.parseModuleWithLines(
-        moduleName,
-        path,
-        documentText,
-        context.includePath,
-        Left(None),
-        Nil
-      )
-
-      if (newProgram.isDefined) {
-        cachedModules.put(moduleName, newProgram.get)
-
-        logEvent(
-          TelemetryEvent(
-            "Finished rebuilding AST for module at path",
-            pathString
-          )
-        )
-      } else {
-        logEvent(
-          TelemetryEvent("Failed to rebuild AST for module at path", pathString)
-        )
-      }
-
+      rebuildASTForFile(pathString, documentText)
     }
+
+  def rebuildASTForFile(pathString: String, text: Seq[String]) = {
+    logEvent(TelemetryEvent("Rebuilding AST for module at path", pathString))
+
+    val queue = new MosSourceLoadingQueue(
+      initialFilenames = context.inputFileNames,
+      includePath = context.includePath,
+      options = options
+    )
+
+    val path = Paths.get(pathString)
+
+    logEvent(TelemetryEvent("Path", path.toString()))
+
+    val moduleName = queue.extractName(pathString)
+    val newProgram = queue.parseModuleWithLines(
+      moduleName,
+      path,
+      text,
+      context.includePath,
+      Left(None),
+      Nil
+    )
+
+    if (newProgram.isDefined) {
+      cachedModules.put(moduleName, newProgram.get)
+
+      moduleNames.put(pathString, moduleName)
+
+      logEvent(
+        TelemetryEvent(
+          "Finished rebuilding AST for module at path",
+          pathString
+        )
+      )
+    } else {
+      logEvent(
+        TelemetryEvent("Failed to rebuild AST for module at path", pathString)
+      )
+    }
+  }
 
   @JsonRequest("textDocument/definition")
   def textDocumentDefinition(
@@ -328,21 +334,21 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       } else null
     }
 
-  private def populateProgramForPath(
-      documentPath: String
-  ) = {
+  /**
+    * Builds the AST for the entire program, based on the configured "inputFileNames"
+    */
+  private def populateProgramForPath() = {
     logEvent(
       TelemetryEvent("Building program AST")
     )
 
     val queue = new MosSourceLoadingQueue(
-      initialFilenames = List(documentPath),
+      initialFilenames = context.inputFileNames,
       includePath = context.includePath,
       options = options
     )
 
     var program = queue.run()
-    var moduleName = queue.extractName(documentPath)
 
     logEvent(
       TelemetryEvent("Finished building AST")
@@ -353,7 +359,6 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       case (moduleName, program) =>
         cachedModules.put(moduleName, program)
     }
-    moduleNames += ((documentPath, moduleName))
     program.modulePaths.foreach {
       case (moduleName, path) => modulePaths.put(moduleName, path)
     }

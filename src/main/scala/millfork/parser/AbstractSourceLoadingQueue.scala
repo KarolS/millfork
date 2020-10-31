@@ -158,6 +158,7 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     }
   }
 
+  // TODO: Separate from Queue
   def extractName(i: String): String = {
     val noExt = i.stripSuffix(extension)
     val lastSlash = noExt.lastIndexOf('/') max noExt.lastIndexOf('\\')
