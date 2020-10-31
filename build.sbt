@@ -12,36 +12,41 @@ libraryDependencies += "org.apache.commons" % "commons-configuration2" % "2.2"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
 
-libraryDependencies += "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test"
-
-if (System.getProperty("includeTests") != null) {
-  println("Including test dependencies")
+val testDependencies = Seq(
+  "com.codingrodent.microprocessor" % "Z80Processor" % "2.0.2" % "test",
   // see: https://github.com/NeatMonster/Intel8086
-  libraryDependencies += "NeatMonster" % "Intel8086" % "1.0" % "test" from "https://github.com/NeatMonster/Intel8086/raw/master/IBMPC.jar"
-
+  "NeatMonster" % "Intel8086" % "1.0" % "test" from "https://github.com/NeatMonster/Intel8086/raw/master/IBMPC.jar",
   // these three are not in Maven Central or any other public repo
   // get them from the following links or just build millfork without tests:
   // https://github.com/sethm/symon/tree/71905fdb1998ee4f142260879504bc46cf27648f
   // https://github.com/andrew-hoffman/halfnes/tree/061
   // https://github.com/trekawek/coffee-gb/tree/coffee-gb-1.0.0
   // https://github.com/sorenroug/osnine-java/tree/b77349a6c314e1362e69b7158c385ac6f89b7ab8
+  "com.loomcom.symon" % "symon" % "1.3.0-SNAPSHOT" % "test",
+  "com.grapeshot" % "halfnes" % "061" % "test",
+  "eu.rekawek.coffeegb" % "coffee-gb" % "1.0.0" % "test",
+  "roug.org.osnine" % "osnine-core" % "2.0-SNAPSHOT" % "test",
+  "org.graalvm.sdk" % "graal-sdk" % "20.2.0" % "test",
+  "org.graalvm.js" % "js" % "20.2.0" % "test",
+  "org.graalvm.js" % "js-scriptengine" % "20.2.0" % "test"
+)
 
-  libraryDependencies += "com.loomcom.symon" % "symon" % "1.3.0-SNAPSHOT" % "test"
+val includesTests = System.getProperty("includeTests") != null
 
-  libraryDependencies += "com.grapeshot" % "halfnes" % "061" % "test"
+libraryDependencies ++=(
+  if (includesTests) {
+    println("Including test dependencies")
+    testDependencies
+  } else {
+    Seq()
+  }
+)
 
-  libraryDependencies += "eu.rekawek.coffeegb" % "coffee-gb" % "1.0.0" % "test"
-
-  libraryDependencies += "roug.org.osnine" % "osnine-core" % "2.0-SNAPSHOT" % "test"
-
-  libraryDependencies += "org.graalvm.sdk" % "graal-sdk" % "20.2.0" % "test"
-
-  libraryDependencies += "org.graalvm.js" % "js" % "20.2.0" % "test"
-
-  libraryDependencies += "org.graalvm.js" % "js-scriptengine" % "20.2.0" % "test"
-} else {
+(if (!includesTests) {
+  // Disable assembling tests
   test in assembly := {}
-}
+  // SBT doesn't like returning Unit, so return Seq
+} else Seq())
 
 mainClass in Compile := Some("millfork.Main")
 
