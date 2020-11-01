@@ -104,10 +104,10 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       params: DidOpenTextDocumentParams
   ): CompletableFuture[Unit] =
     CompletableFuture.completedFuture {
-      val pathString = trimDocumentUri(params.getTextDocument().getUri())
+      val textDocument = params.getTextDocument()
+      val pathString = trimDocumentUri(textDocument.getUri())
 
-      val documentText =
-        params.getTextDocument().getText().split("\n").toSeq
+      val documentText = textDocument.getText().split("\n").toSeq
 
       rebuildASTForFile(pathString, documentText)
     }
@@ -426,9 +426,10 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       if (position.column < 1) 0 else position.column - 1
     )
 
-  private def logEvent(event: TelemetryEvent) = {
+  private def logEvent(event: TelemetryEvent): Unit = {
     val languageClient = client.getOrElse {
-      throw new Exception("Language client not registered")
+      // Language client not registered
+      return
     }
 
     implicit val formats = Serialization.formats(NoTypeHints)
