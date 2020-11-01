@@ -22,6 +22,7 @@ import millfork.env.ByReference
 import millfork.env.ByVariable
 import millfork.node.ArrayDeclarationStatement
 import millfork.node.AliasDefinitionStatement
+import millfork.node.IndexedExpression
 
 object NodeFinder {
   def findDeclarationForUsage(
@@ -50,6 +51,31 @@ object NodeFinder {
     }
   }
 
+  private def matchVariableExpressionName(
+      name: String,
+      declarations: List[DeclarationStatement]
+  ) =
+    declarations
+      .flatMap(flattenNestedDeclarations)
+      .find(d =>
+        d match {
+          case variableDeclaration: VariableDeclarationStatement =>
+            variableDeclaration.name == name
+          case ParameterDeclaration(typ, assemblyParamPassingConvention) =>
+            assemblyParamPassingConvention match {
+              case ByConstant(pName)  => pName == name
+              case ByReference(pName) => pName == name
+              case ByVariable(pName)  => pName == name
+              case default            => false
+            }
+          case arrayDeclaration: ArrayDeclarationStatement =>
+            arrayDeclaration.name == name
+          case AliasDefinitionStatement(aName, target, important) =>
+            aName == name
+          case default => false
+        }
+      )
+
   private def matchingDeclarationForExpression(
       expression: Expression,
       declarations: List[DeclarationStatement]
@@ -60,26 +86,9 @@ object NodeFinder {
           .filter(d => d.isInstanceOf[FunctionDeclarationStatement])
           .find(d => d.name == name)
       case VariableExpression(name) =>
-        declarations
-          .flatMap(flattenNestedDeclarations)
-          .find(d =>
-            d match {
-              case variableDeclaration: VariableDeclarationStatement =>
-                variableDeclaration.name == name
-              case ParameterDeclaration(typ, assemblyParamPassingConvention) =>
-                assemblyParamPassingConvention match {
-                  case ByConstant(pName)  => pName == name
-                  case ByReference(pName) => pName == name
-                  case ByVariable(pName)  => pName == name
-                  case default            => false
-                }
-              case arrayDeclaration: ArrayDeclarationStatement =>
-                arrayDeclaration.name == name
-              case AliasDefinitionStatement(aName, target, important) =>
-                aName == name
-              case default => false
-            }
-          )
+        matchVariableExpressionName(name, declarations)
+      case IndexedExpression(name, index) =>
+        matchVariableExpressionName(name, declarations)
       case default => None
     }
 
@@ -129,7 +138,7 @@ object NodeFinder {
     val column = position.column
 
     val declarations =
-      findClosestDeclarationsAtLine(program.declarations, line)
+      findEnclosingDeclarationsAtLine(program.declarations, line)
 
     log(declarations)
 
@@ -167,7 +176,7 @@ object NodeFinder {
     * @param declarations All program declarations in the file
     * @param line The line to search for
     */
-  private def findClosestDeclarationsAtLine(
+  private def findEnclosingDeclarationsAtLine(
       declarations: List[DeclarationStatement],
       line: Int
   ): Option[List[DeclarationStatement]] = {
