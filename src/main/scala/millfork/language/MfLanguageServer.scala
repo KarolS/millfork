@@ -420,7 +420,11 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
   private def mfPositionToLSP4j(
       position: Position
   ): org.eclipse.lsp4j.Position =
-    new org.eclipse.lsp4j.Position(position.line - 1, position.column - 1)
+    new org.eclipse.lsp4j.Position(
+      position.line - 1,
+      // If subtracting 1 would be < 0, set to 0
+      if (position.column < 1) 0 else position.column - 1
+    )
 
   private def logEvent(event: TelemetryEvent) = {
     val languageClient = client.getOrElse {
