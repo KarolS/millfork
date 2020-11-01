@@ -375,17 +375,37 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
   ): Option[(String, Node)] = {
     val moduleName = moduleNameForPath(documentPath)
 
-    val node = NodeFinder.findNodeAtPosition(
-      moduleName,
-      cachedModules.toMap,
-      position
+    val currentModuleDeclarations = cachedModules.get(moduleName)
+
+    if (currentModuleDeclarations.isEmpty) {
+      return None
+    }
+
+    val (node, enclosingDeclarations) = NodeFinder.findNodeAtPosition(
+      currentModuleDeclarations.get,
+      position,
+      (data) => logEvent(TelemetryEvent("Find event", data))
     )
 
     if (node.isDefined) {
       logEvent(TelemetryEvent("Found node at position", node))
 
+      // Build ordered scopes to search through
+      // First, our current enclosing scope, then the current module (which contains the current scope), then all other modules
+      val orderedScopes = List(
+        (moduleName, enclosingDeclarations.get),
+        (moduleName, currentModuleDeclarations.get.declarations)
+      ) ++ cachedModules.toList
+        .filter {
+          case (cachedModuleName, program) => cachedModuleName != moduleName
+        }
+        .map {
+          case (cachedModuleName, program) =>
+            (cachedModuleName, program.declarations)
+        }
+
       val usage =
-        NodeFinder.findDeclarationForUsage(cachedModules.toStream, node.get)
+        NodeFinder.findDeclarationForUsage(orderedScopes, node.get)
 
       if (usage.isDefined) {
         logEvent(TelemetryEvent("Found original declaration", usage))

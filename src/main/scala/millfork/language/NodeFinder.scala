@@ -25,28 +25,26 @@ import millfork.node.AliasDefinitionStatement
 
 object NodeFinder {
   def findDeclarationForUsage(
-      parsedModules: Stream[(String, Program)],
+      orderedScopes: List[(String, List[DeclarationStatement])],
       node: Node
   ): Option[(String, Node)] = {
     node match {
       case importStatement: ImportStatement =>
         Some((importStatement.filename, importStatement))
       case expression: Expression => {
-        val foundDeclaration = parsedModules.toStream
-          .map {
-            case (module, program) => {
-              val declaration =
-                matchingDeclarationForExpression(
-                  expression,
-                  program.declarations
-                )
-              if (declaration.isDefined) Some((module, declaration.get))
-              else None
-            }
-          }
-          .find(d => d.isDefined)
+        for ((moduleName, scopedDeclarations) <- orderedScopes) {
+          val declaration =
+            matchingDeclarationForExpression(
+              expression,
+              scopedDeclarations
+            )
 
-        if (foundDeclaration.isDefined) foundDeclaration.get else None
+          if (declaration.isDefined) {
+            return Some((moduleName, declaration.get))
+          }
+        }
+
+        return None
       }
       case default => None
     }
@@ -115,81 +113,92 @@ object NodeFinder {
     }.toList
   }
 
+  /**
+    * Finds the node and enclosing declaration scope for a given position
+    *
+    * @param program The program containing the position
+    * @param position The position of the node to find
+    * @return A tuple containing the found node, and a list of enclosing declaration scopes
+    */
   def findNodeAtPosition(
-      module: String,
-      parsedModules: Map[String, Program],
-      position: Position
-  ): Option[Node] = {
+      program: Program,
+      position: Position,
+      log: (Any) => Unit
+  ): (Option[Node], Option[List[DeclarationStatement]]) = {
     val line = position.line
     val column = position.column
 
-    val activeProgram = parsedModules.get(module)
-
-    if (activeProgram.isEmpty) {
-      return None
-    }
-
     val declarations =
-      findDeclarationsAtLine(activeProgram.get.declarations, line)
+      findClosestDeclarationsAtLine(program.declarations, line)
+
+    log(declarations)
 
     if (declarations.isEmpty) {
-      return None
+      return (None, None)
     }
 
-    if (lineOrNegOne(declarations.get.head.position) == line) {
-      // All declarations are current line, find matching node for column
-      findNodeAtColumn(
-        declarations.get.flatMap(d => List(d) ++ d.getAllExpressions),
-        line,
-        column
-      )
-    } else {
+    if (lineOrNegOne(declarations.get.head.position) != line) {
       // Declaration is a function or similar wrapper
       // Find inner expressions
       if (declarations.get.length > 1) {
         throw new Exception("Unexpected number of declarations")
       }
 
-      findNodeAtColumn(declarations.get.head.getAllExpressions, line, column)
+      return (
+        findNodeAtColumn(declarations.get.head.getAllExpressions, line, column),
+        declarations
+      )
     }
+
+    // All declarations are current line, find matching node for column
+    (
+      findNodeAtColumn(
+        declarations.get.flatMap(d => List(d) ++ d.getAllExpressions),
+        line,
+        column
+      ),
+      declarations
+    )
   }
 
-  private def findDeclarationsAtLine(
+  /**
+    * Finds the narrowest top level declaration scope for the given line (typically enclosing function)
+    *
+    * @param declarations All program declarations in the file
+    * @param line The line to search for
+    */
+  private def findClosestDeclarationsAtLine(
       declarations: List[DeclarationStatement],
       line: Int
   ): Option[List[DeclarationStatement]] = {
-    var lastDeclarations: Option[List[DeclarationStatement]] = None
+    var lastDeclarations: Option[List[DeclarationStatement]] =
+      if (declarations.length > 0) Some(declarations.take(1)) else None
 
     for ((nextDeclaration, i) <- declarations.view.zipWithIndex) {
-      if (lastDeclarations.isEmpty) {
-        // Populate with first item, no matter what
-        lastDeclarations = Some(List(nextDeclaration))
-      } else {
-        val nextLine = lineOrNegOne(nextDeclaration.position)
+      val nextLine = lineOrNegOne(nextDeclaration.position)
 
-        if (nextLine == line) {
-          // Declaration is on this line
-          // Check for additional declarations on this line
-          val newDeclarations = mutable.MutableList(nextDeclaration)
+      if (nextLine == line) {
+        // Declaration is on this line
+        // Check for additional declarations on this line
+        val newDeclarations = mutable.MutableList(nextDeclaration)
 
-          for (declarationIndex <- i to declarations.length - 1) {
-            val checkDeclaration = declarations(declarationIndex)
+        for (declarationIndex <- i to declarations.length - 1) {
+          val checkDeclaration = declarations(declarationIndex)
 
-            if (checkDeclaration.position.isDefined) {
-              if (checkDeclaration.position.get.line == line) {
-                newDeclarations += checkDeclaration
-              } else {
-                // Line doesn't match, done with this line
-                return Some(newDeclarations.toList)
-              }
-            }
+          if (
+            checkDeclaration.position.isDefined && checkDeclaration.position.get.line == line
+          ) {
+            newDeclarations += checkDeclaration
+          } else {
+            // Line doesn't match, done with this line
+            return Some(newDeclarations.toList)
           }
-
-          return Some(newDeclarations.toList)
-        } else if (nextLine < line) {
-          // Closer to desired line
-          lastDeclarations = Some(List(nextDeclaration))
         }
+
+        return Some(newDeclarations.toList)
+      } else if (nextLine < line) {
+        // Closer to desired line
+        lastDeclarations = Some(List(nextDeclaration))
       }
     }
 
