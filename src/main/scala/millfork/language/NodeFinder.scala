@@ -16,12 +16,18 @@ import millfork.parser.ParsedProgram
 import scala.collection.mutable
 import millfork.node.ExpressionStatement
 import millfork.node.ImportStatement
+import millfork.node.ParameterDeclaration
+import millfork.env.ByConstant
+import millfork.env.ByReference
+import millfork.env.ByVariable
+import millfork.node.ArrayDeclarationStatement
+import millfork.node.AliasDefinitionStatement
 
 object NodeFinder {
   def findDeclarationForUsage(
       parsedModules: Stream[(String, Program)],
       node: Node
-  ): Option[(String, DeclarationStatement)] = {
+  ): Option[(String, Node)] = {
     node match {
       case importStatement: ImportStatement =>
         Some((importStatement.filename, importStatement))
@@ -49,7 +55,7 @@ object NodeFinder {
   private def matchingDeclarationForExpression(
       expression: Expression,
       declarations: List[DeclarationStatement]
-  ): Option[DeclarationStatement] =
+  ): Option[Node] =
     expression match {
       case FunctionCallExpression(name, expressions) =>
         declarations
@@ -57,8 +63,25 @@ object NodeFinder {
           .find(d => d.name == name)
       case VariableExpression(name) =>
         declarations
-          .filter(d => d.isInstanceOf[VariableDeclarationStatement])
-          .find(d => d.name == name)
+          .flatMap(flattenNestedDeclarations)
+          .find(d =>
+            d match {
+              case variableDeclaration: VariableDeclarationStatement =>
+                variableDeclaration.name == name
+              case ParameterDeclaration(typ, assemblyParamPassingConvention) =>
+                assemblyParamPassingConvention match {
+                  case ByConstant(pName)  => pName == name
+                  case ByReference(pName) => pName == name
+                  case ByVariable(pName)  => pName == name
+                  case default            => false
+                }
+              case arrayDeclaration: ArrayDeclarationStatement =>
+                arrayDeclaration.name == name
+              case AliasDefinitionStatement(aName, target, important) =>
+                aName == name
+              case default => false
+            }
+          )
       case default => None
     }
 
@@ -216,6 +239,27 @@ object NodeFinder {
       case None      => -1
     }
 
+  private def flattenNestedDeclarations(
+      declaration: DeclarationStatement
+  ): List[Node] =
+    declaration match {
+      case functionDeclaration: FunctionDeclarationStatement => {
+        List(
+          functionDeclaration
+          // Pull statements rather than getAllExpressions, as the variable declarations don't seem to be properly handled otherwise
+        ) ++ functionDeclaration.params ++ functionDeclaration.statements
+          .getOrElse(List())
+          .filter(e =>
+            e.isInstanceOf[DeclarationStatement] || e
+              .isInstanceOf[ParameterDeclaration]
+          )
+      }
+      case default => List(default)
+    }
+
+  /**
+    * Returns all of the expressions contained within an expression, including itself
+    */
   private def flattenNestedExpressions(node: Node): List[Node] =
     node match {
       case statement: ExpressionStatement => {
