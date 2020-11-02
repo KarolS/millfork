@@ -56,7 +56,7 @@ import scala.collection.JavaConverters._
 class MfLanguageServer(context: Context, options: CompilationOptions) {
   var client: Option[MfLanguageClient] = None
 
-  private val cachedModules: mutable.Map[String, Program] = mutable.Map()
+  val cachedModules: mutable.Map[String, Program] = mutable.Map()
   private var cachedProgram: Option[ParsedProgram] = None
   private val moduleNames: mutable.Map[String, String] = mutable.Map()
   private val modulePaths: mutable.Map[String, Path] = mutable.Map()
@@ -383,8 +383,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
 
     val (node, enclosingDeclarations) = NodeFinder.findNodeAtPosition(
       currentModuleDeclarations.get,
-      position,
-      (data) => logEvent(TelemetryEvent("Find event", data))
+      position
     )
 
     if (node.isDefined) {

@@ -10,9 +10,6 @@ import org.eclipse.lsp4j.Position
 import java.util.regex.Pattern
 import scala.collection.mutable
 
-/**
-  * @author Karol Stasiak
-  */
 class MfLanguageServerSuite extends FunSpec with Matchers with AppendedClues {
   describe("hover") {
     it("should find node under cursor, and its root declaration") {

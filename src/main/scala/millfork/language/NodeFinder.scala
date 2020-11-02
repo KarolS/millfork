@@ -131,16 +131,13 @@ object NodeFinder {
     */
   def findNodeAtPosition(
       program: Program,
-      position: Position,
-      log: (Any) => Unit
+      position: Position
   ): (Option[Node], Option[List[DeclarationStatement]]) = {
     val line = position.line
     val column = position.column
 
     val declarations =
       findEnclosingDeclarationsAtLine(program.declarations, line)
-
-    log(declarations)
 
     if (declarations.isEmpty) {
       return (None, None)
