@@ -215,5 +215,15 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
         )
       }
     }
+
+    // TODO: Additional tests:
+    // Hover on variable-based array indexing: array[index]
+    // Fields on array indexing: spawn_info[index].hi
+    // Struct type: Player player
+    // Struct fields: player1.pos
+    // Messed up hover positions (in `nes_reset_joy.mfk`, each variable assignment to 0)
+    // Alias references
+    // Math expressions: limit = new_row2 - new_row1
+    // Pointers: obj_ptr->xvel
   }
 }
