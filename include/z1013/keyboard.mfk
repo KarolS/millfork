@@ -1,0 +1,7 @@
+
+inline asm byte readkey() {
+    rst $20
+    [1]
+    ? ret
+}
+

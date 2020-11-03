@@ -15,8 +15,9 @@ object UnusedGlobalVariables extends NodeOptimization {
       case AliasDefinitionStatement(source, target, _) => Some(source -> target)
       case _ => None
     }.toMap
+    val entrypointNames = options.platform.bankLayouts.values.flatten.toSet
     val allNonvolatileGlobalVariables = nodes.flatMap {
-      case v: VariableDeclarationStatement => if (v.address.isDefined || v.volatile || v.constant) Nil else List(v.name)
+      case v: VariableDeclarationStatement => if (v.address.isDefined || v.volatile || v.constant || entrypointNames(v.name)) Nil else List(v.name)
       case v: ArrayDeclarationStatement => if (v.address.isDefined) Nil else List(v.name)
       case _ => Nil
     }.toSet

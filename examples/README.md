@@ -17,7 +17,7 @@ If you are using a release version of the compiler, consider browsing the older 
 
 ## Cross-platform examples
 
-* [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX) – simple text output
+* [Hello world](crossplatform/hello_world.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/Z1013) – simple text output
 
 * [Fizzbuzz](crossplatform/fizzbuzz.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/X16) – everyone's favourite programming task
 
@@ -27,15 +27,15 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Text encodings](crossplatform/text_encodings.mfk) (C64/ZX Spectrum) – examples of text encoding features
 
-* [Echo](crossplatform/echo.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX)– simple text input and output
+* [Echo](crossplatform/echo.mfk) (C64/C16/VIC-20/Apple II/ZX Spectrum/PC-88/MSX)– simple text input and output
 
-* [Calculator](crossplatform/calculator.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX/TRS-80) – simple numeric input and output
+* [Calculator](crossplatform/calculator.mfk) (C64/C16/VIC-20/Apple II/ZX Spectrum/PC-88/MSX/TRS-80) – simple numeric input and output
 
-* [Guessing game](crossplatform/guess.mfk) (C64/C16/Apple II/ZX Spectrum/PC-88/MSX/TRS-80) – a guess-a-number game
+* [Guessing game](crossplatform/guess.mfk) (C64/C16/VIC-20/Apple II/ZX Spectrum/PC-88/MSX/TRS-80/Z1013) – a guess-a-number game
 
 * [Fire effect](crossplatform/fire.mfk) (C64/C16/ZX Spectrum) – a simple fire effect
 
-* [`readkey` test](crossplatform/readkeytest.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/Armstrad CPC/ZX Spectrum/PC-88/TRS-80) – keyboard reading test
+* [`readkey` test](crossplatform/readkeytest.mfk) (C64/C16/PET/VIC-20/Atari/Apple II/Armstrad CPC/ZX Spectrum/PC-88/TRS-80/Z1013) – keyboard reading test
 
 * [Screen encoding test](crossplatform/screnctest.mfk) (C64/C16) – default-to-screen encoding conversion test
 
@@ -92,6 +92,12 @@ how to create a program made of multiple files loaded on demand
 
 * [Horizontal stars example](a8/horizontal_stars.mfk) – horizontal stars done on one missile
 
+### Music
+
+* [CMC Player](a8/cmcplayer.mfk) – CMC player with sample music
+
+* [MPT Player](a8/mptplayer.mfk) – MPT player with sample music
+
 ### Benchmarks
 
 * [Grand Theft Antic](a8/grand_theft_antic.mfk) – ANTIC impact on CPU depending on the used graphic mode
@@ -109,6 +115,8 @@ how to create a program made of multiple files loaded on demand
 * [Bubble Sort Benchmark](a8/bubble_sort.mfk) – sort 255 elements
 
 ### Other examples
+
+* [Test OS module](a8/a8_os_test.mfk) – quick test for a8_os.mfk module
 
 * [Rainbow example](a8/rainbow.mfk) – simple scrolling rasterbars
 

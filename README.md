@@ -22,7 +22,7 @@ For build instructions, see [Build instructions](./COMPILING.md).
     
     * other 6502-based machines: Famicom/NES, Atari Lynx, Atari 8-bit computers, BBC Micro, Apple II+/IIe/Enhanced IIe, Atari 2600 (experimental), Commander X16 (experimental)
     
-    * Z80-based machines: ZX Spectrum 48k, NEC PC-88, Amstrad CPC, MSX, TRS-80 Model 1 and 3
+    * Z80-based machines: ZX Spectrum 48k, NEC PC-88, Amstrad CPC, MSX, TRS-80 Model 1 and 3, Robotron Z1013
     
     * CP/M
     

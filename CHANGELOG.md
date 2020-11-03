@@ -2,9 +2,21 @@
 
 ## Current version
 
+* Preliminary support for TRS-80 Model 1 and 3 running TRS-DOS.
+
+* Preliminary support for Robotron Z1013.
+
 * Allowed the `:` operator in const-pure functions.
 
+* Implemented `readline` and `readword` for VIC-20.
+
+* `init_rand_seed` uses the POKEY on Atari.
+
 * Fix: more instances of memset loops should be detected and optimized (#59).
+
+* Fix: things mentioned in the segment layout should not be deleted even if unused.
+
+* 65816: some code generation fixes.
 
 * Even more new Atari examples (thanks to @zbyti).
 

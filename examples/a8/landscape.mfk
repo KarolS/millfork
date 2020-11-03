@@ -1,5 +1,6 @@
 // idea @ilmenit
-// https://demozoo.org/productions/280623/
+// https://demozoo.org/productions/280623
+// for 8bit AtariXL, OS Rev 2
 
 alias prev_x = os_OLDCOL.lo
 alias cursor_x = os_COLCRS.lo
@@ -23,20 +24,17 @@ void main(){
   for i,0,to,79 {
     cursor_x = i
     prev_x = i
-    color = 13
     prev_y = 1
 
-    while color != $ff {
+    for color,13,downto,0 {
       cursor_y = color_height[color]
-      if (pokey_random & 1) != 0 {
+      if pokey_random < $80 {
+        color_height[color] -= 1
+      }
+      if pokey_random <  $80 {
         color_height[color] += 1
-      } else {
-        if (pokey_random & 1) != 0 {
-          color_height[color] -= 1
-        }
       }
       drawto()
-      color -= 1
     }
   }
 

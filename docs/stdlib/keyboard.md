@@ -28,6 +28,8 @@ Atari,
 Amstrad CPC,
 ZX Spectrum,
 NEC PC-88,
+Robotron Z1013,
+TRS-80,
 Tandy Color Computer.
 
 #### `const byte KEY_ENTER`

@@ -269,8 +269,11 @@ If the struct is smaller that its alignment, then arrays of it are faster
     sizeof(a) // equals 16
     sizeof(b) // equals 12
     
-    return a[i].x // requires XXXX cycles on 6502
-    return b[i].x // requires XXXX cycles on 6502
+    return a[i].x // requires 22 or 24 cycles on 6502
+    return b[i].x // requires 18 cycles on 6502
+ 
+A struct that contains substructs or subunions with non-trivial alignments has its alignment equal
+to the least common multiple of the alignments of the substructs and its own declared alignment.
 
 ## Unions
 

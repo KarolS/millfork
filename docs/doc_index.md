@@ -69,6 +69,8 @@
     * [Definitions available on only some platforms](stdlib/frequent.md)
 
     * [C64-only modules](stdlib/c64.md)
+
+    * [VIC-20-only modules](stdlib/vic20.md)
     
     * [PET-only modules](stdlib/cbm_pet.md)
     

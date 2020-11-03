@@ -1,0 +1,45 @@
+#pragma zilog_syntax
+
+import default_readword
+
+array __readline_out[33]
+const pointer readline_out = __readline_out.addr
+
+asm pointer readline() {
+    rst $20
+    [$10]
+    ld hl, ($16)
+    ld de, readline_out
+    ld bc, $20
+    ldir
+    ld b, $20
+    ld hl, readline_out+31
+    ld a, 32
+    .loop:
+    cp (hl)
+    jr nz, .found
+    dec hl
+    djnz .loop
+    .found:
+    inc hl
+    ld (hl), nullchar
+    ld hl, readline_out
+    ret
+}
+
+inline asm void putchar(byte register(a) char) {
+    rst $20
+    [0]
+    ? ret
+}
+
+inline void new_line() {
+    putchar(13)
+}
+
+asm void __init() {
+    // printing $0c clears the screen
+    ld a,$c
+    rst $20
+    [0]
+}

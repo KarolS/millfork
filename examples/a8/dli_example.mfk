@@ -2,9 +2,12 @@ const word dlAddr = $3000
 const word dliAddr = $3100
 
 const array(byte) dl @ dlAddr = [
-  $70,$70,$70,
-  $42,$00,$40,2,2,2,2,$f0,2,2,2,2,
-  $41,@word[dlAddr]
+  BLANK_8,BLANK_8,BLANK_8,
+  LMS|MODE_2,$00,$40,
+  MODE_2,MODE_2,MODE_2,MODE_2,
+  BLANK_8|DLI,
+  MODE_2,MODE_2,MODE_2,MODE_2,
+  JVB,@word[dlAddr]
 ]
 
 volatile word SDLST @ $230

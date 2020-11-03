@@ -35,22 +35,23 @@ val testDependencies = Seq(
   "org.graalvm.js" % "js-scriptengine" % "20.2.0" % "test"
 )
 
-val includesTests = System.getProperty("includeTests") != null
+val includesTests = System.getProperty("skipTests") == null
 
 libraryDependencies ++=(
   if (includesTests) {
     println("Including test dependencies")
     testDependencies
   } else {
-    Seq()
+    Seq[ModuleID]()
   }
 )
 
 (if (!includesTests) {
   // Disable assembling tests
-  test in assembly := {}
-  // SBT doesn't like returning Unit, so return Seq
-} else Seq())
+  sbt.internals.DslEntry.fromSettingsDef(test in assembly := {})
+} else {
+  sbt.internals.DslEntry.fromSettingsDef(Seq[sbt.Def.Setting[_]]())
+})
 
 mainClass in Compile := Some("millfork.Main")
 

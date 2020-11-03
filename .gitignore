@@ -54,6 +54,7 @@ issue*.mfk
 *.ssd
 *.o
 *.cmd
+*.z80
 HELLO
 HELLOCPC
 FIZZBUZZ

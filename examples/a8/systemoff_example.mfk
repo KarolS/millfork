@@ -17,6 +17,21 @@
 // PORTB_SYSTEM_ON    = %00000001; portb bit value to turn System on
 //
 // ================================================
+//
+// Now the routine that lets you get to
+// the RAM that is under the OS.
+// There are actually 2 memory areas
+// present:
+//    4K at $C000 to $CFFF, 49152 to 53247
+//   10K at $D800 to $FFFF, 55296 to 65535
+//
+// The last 6 bytes of the 10K area are not
+// usable, since that is where the interrupt
+// routines are located.  Therefore do not
+// use any RAM above $FFF9 (65529) or you
+// will crash the system.
+//
+// ================================================
 
 byte nmien = $c0
 

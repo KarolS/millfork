@@ -47,6 +47,7 @@ nav:
     - Platform-dependent definitions: stdlib/frequent.md
     - cbm_file module: stdlib/cbm_file.md
     - C64-only modules: stdlib/c64.md
+    - VIC-20-only modules: stdlib/vic20.md
     - PET-only modules: stdlib/cbm_pet.md
     - NES-only modules: stdlib/nes.md
     - Lynx-only modules: stdlib/lynx.md

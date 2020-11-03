@@ -124,6 +124,8 @@ English, Japanese, Spanish/Italian and French/German respectively
 
 * `cocoscr` – Tandy Color Computer screencodes
 
+* `z1013` – text encodind used on Robotron Z1013
+
 * `ebcdic` – EBCDIC codepage 037 (partial coverage)
 
 * `utf8` – UTF-8
@@ -214,6 +216,7 @@ Encoding | lowercase letters | backslash | currencies | intl | card suits
 `apple2`            | no   | yes |      | none      | no  
 `atascii`           | yes  | yes |      | none      | yes  
 `atasciiscr`        | yes  | yes |      | none      | yes  
+`z1013`             | yes  | yes |      | none      | yes  
 `jis`               | yes  | no  | ¥    | both kana | no  
 `dmcs`,`lics`       | yes  | yes | ¢£¥  | Western   | no 
 `brascii`,`macroman`| yes  | yes | ¢£¥  | Western   | no   

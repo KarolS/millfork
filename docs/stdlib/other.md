@@ -32,6 +32,8 @@ Current implementation:
 
 * On C64, spends two frames reading noise data from the SID chip.
 
+* On Atari computers, reads the POKEY random register.
+
 * On Z80, reads the refresh register.
 
 * On all other targets, sets the seed to 1.
