@@ -26,6 +26,16 @@ import millfork.node.IndexedExpression
 import millfork.node.Statement
 
 object NodeFinder {
+
+  /**
+    * Finds the declaration matching the provided node
+    *
+    * @param orderedScopes A list, ordered by decreasing scope (function, local module, global module),
+    * of tuples containing the module name and all declarations contained wherein
+    * @param node The node to find the source declaration for
+    * @return A tuple containing the module name and "declaration" (could be `ParameterDeclaration`, hence
+    * the `Node` type); `None` otherwise
+    */
   def findDeclarationForUsage(
       orderedScopes: List[(String, List[DeclarationStatement])],
       node: Node
@@ -52,12 +62,54 @@ object NodeFinder {
     }
   }
 
+  /**
+    * Searches for the declaration matching the type and name of the provided expression
+    *
+    * @param expression The expression to find the root declaration for
+    * @param declarations The declarations to check
+    * @return The matching declaration if found; `None` otherwise
+    */
+  private def matchingDeclarationForExpression(
+      expression: Expression,
+      declarations: List[DeclarationStatement]
+  ): Option[Node] =
+    expression match {
+      case FunctionCallExpression(name, expressions) =>
+        declarations
+          .filter(d => d.isInstanceOf[FunctionDeclarationStatement])
+          .find(d => d.name == name)
+      case VariableExpression(name) =>
+        matchVariableExpressionName(name, declarations)
+      case IndexedExpression(name, index) =>
+        matchVariableExpressionName(name, declarations)
+      case default => None
+    }
+
+  /**
+    * Searches for the declaration matching a variable name
+    *
+    * @param name The name of the variable
+    * @param declarations The declarations to check
+    * @return The matching declaration if found; `None` otherwise
+    */
   private def matchVariableExpressionName(
       name: String,
       declarations: List[DeclarationStatement]
   ) =
     declarations
-      .flatMap(flattenNestedDeclarations)
+      .flatMap(d =>
+        d match {
+          // Extract nested declarations (and `ParameterDeclaration`s, which do not extend `DeclarationStatement`)
+          // from functions
+          case functionDeclaration: FunctionDeclarationStatement =>
+            recursivelyFlatten(functionDeclaration)
+              .filter(e =>
+                e.isInstanceOf[DeclarationStatement] || e
+                  .isInstanceOf[ParameterDeclaration]
+              )
+          case default => List(default)
+        }
+      )
       .find(d =>
         d match {
           case variableDeclaration: VariableDeclarationStatement =>
@@ -77,22 +129,13 @@ object NodeFinder {
         }
       )
 
-  private def matchingDeclarationForExpression(
-      expression: Expression,
-      declarations: List[DeclarationStatement]
-  ): Option[Node] =
-    expression match {
-      case FunctionCallExpression(name, expressions) =>
-        declarations
-          .filter(d => d.isInstanceOf[FunctionDeclarationStatement])
-          .find(d => d.name == name)
-      case VariableExpression(name) =>
-        matchVariableExpressionName(name, declarations)
-      case IndexedExpression(name, index) =>
-        matchVariableExpressionName(name, declarations)
-      case default => None
-    }
-
+  /**
+    * Finds all expressions referencing a declaration
+    *
+    * @param parsedModules All program modules
+    * @param declaration The declaration to find all references for
+    * @return A list of tuples, containing the module name and the corresponding expression
+    */
   def matchingExpressionsForDeclaration(
       parsedModules: Stream[(String, Program)],
       declaration: DeclarationStatement
@@ -217,6 +260,9 @@ object NodeFinder {
     lastDeclarations
   }
 
+  /**
+    * Searches for closest column index less than the selected column on a given line
+    */
   private def findNodeAtColumn(
       nodes: List[Node],
       line: Int,
@@ -284,24 +330,6 @@ object NodeFinder {
       case default                => List(default)
     }
 
-  private def flattenNestedDeclarations(
-      declaration: DeclarationStatement
-  ): List[Node] =
-    declaration match {
-      case functionDeclaration: FunctionDeclarationStatement => {
-        List(
-          functionDeclaration
-          // Pull statements rather than getAllExpressions, as the variable declarations don't seem to be properly handled otherwise
-        ) ++ functionDeclaration.params ++ functionDeclaration.statements
-          .getOrElse(List())
-          .filter(e =>
-            e.isInstanceOf[DeclarationStatement] || e
-              .isInstanceOf[ParameterDeclaration]
-          )
-      }
-      case default => List(default)
-    }
-
   /**
     * Returns all of the expressions contained within an expression, including itself
     */
@@ -320,21 +348,4 @@ object NodeFinder {
             .flatMap(flattenNestedExpressions)
       case default => List(default)
     }
-
-  private def sortNodes(nodes: List[Node]) =
-    nodes.sortWith((a, b) => {
-      if (a.position.isEmpty && b.position.isEmpty) {
-        false
-      } else if (a.position.isEmpty) {
-        true
-      } else if (b.position.isEmpty) {
-        false
-      } else {
-        val aPos = a.position.get
-        val bPos = b.position.get
-
-        // aPos.line < bPos.line && aPos.column < bPos.column
-        aPos.column < bPos.column
-      }
-    })
 }
