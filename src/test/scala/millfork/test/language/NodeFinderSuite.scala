@@ -6,17 +6,18 @@ import org.eclipse.lsp4j.DidOpenTextDocumentParams
 import org.eclipse.lsp4j.TextDocumentItem
 import org.eclipse.lsp4j.HoverParams
 import org.eclipse.lsp4j.TextDocumentIdentifier
-import java.util.regex.Pattern
 import millfork.language.NodeFinder
 import millfork.node.Position
 import millfork.node.FunctionDeclarationStatement
 import millfork.node.ExpressionStatement
 import millfork.node.FunctionCallExpression
 import millfork.node.Assignment
+import java.util.regex.Pattern
 
 class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
   describe("nodeAtPosition") {
     val text = """
+             | 
              | byte test
              | array(byte) foo[4]
              | void main() {
@@ -45,14 +46,32 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
 
     val program = server.cachedModules.get("file").get
 
-    it("should find root variable declarations") {
-      // byte test
-      val startIndex = 7
-      val length = 4
+    def findRangeOfString(
+        textMatch: String,
+        afterLine: Int = 0
+    ): (Int, Range) = {
+      val pattern = Pattern.compile(s"(${Pattern.quote(textMatch)})")
 
-      for (column <- startIndex to startIndex + length) {
+      val lines = text.split("\n")
+      for ((line, i) <- lines.zipWithIndex) {
+        if (i >= afterLine) {
+          val matcher = pattern.matcher(line)
+
+          if (matcher.find()) {
+            return (i + 1, Range(matcher.start() + 2, matcher.end() + 2))
+          }
+        }
+      }
+
+      throw new Error(s"Cound not find pattern ${textMatch}")
+    }
+
+    it("should find root variable declarations") {
+      val (line, range) = findRangeOfString("test")
+
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 2, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._2
           .get(0) should equal(
           program.declarations(0)
@@ -61,13 +80,11 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find root array declarations") {
-      // array(byte) foo[4]
-      val startIndex = 13
-      val length = 16
+      val (line, range) = findRangeOfString("foo[4]")
 
-      for (column <- startIndex to startIndex + length) {
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 3, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._2
           .get(0) should equal(
           program.declarations(1)
@@ -76,13 +93,11 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function declarations") {
-      // void main()
-      val startIndex = 7
-      val length = 4
+      val (line, range) = findRangeOfString("main()")
 
-      for (column <- startIndex to startIndex + length) {
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 4, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._2
           .get(0) should equal(
           program.declarations(2)
@@ -91,13 +106,11 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find variable expression within function") {
-      // test
-      val startIndex = 4
-      val length = 4
+      val (line, range) = findRangeOfString("test", 4)
 
-      for (column <- startIndex to startIndex + length) {
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 5, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._1
           .get should equal(
           program
@@ -114,13 +127,11 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find array expression within function") {
-      // foo[1]
-      val startIndex = 4
-      val length = 3
+      val (line, range) = findRangeOfString("foo", 4)
 
-      for (column <- startIndex to startIndex + length) {
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 6, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._1
           .get should equal(
           program
@@ -135,13 +146,11 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find right hand side of assignment") {
-      // test
-      val startIndex = 13
-      val length = 4
+      val (line, range) = findRangeOfString("test", 5)
 
-      for (column <- startIndex to startIndex + length) {
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 6, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._1
           .get should equal(
           program
@@ -156,13 +165,11 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function call") {
-      // func()
-      val startIndex = 4
-      val length = 5
+      val (line, range) = findRangeOfString("func()")
 
-      for (column <- startIndex to startIndex + length) {
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 7, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._1
           .get should equal(
           program
@@ -177,13 +184,11 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function argument") {
-      // byte arg
-      val startIndex = 13
-      val length = 8
+      val (line, range) = findRangeOfString("arg")
 
-      for (column <- startIndex to startIndex + length) {
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 9, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._1
           .get should equal(
           program
@@ -195,13 +200,11 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function nested variable declarations") {
-      // byte i
-      val startIndex = 9
-      val length = 1
+      val (line, range) = findRangeOfString("i", 7)
 
-      for (column <- startIndex to startIndex + length) {
+      for (column <- range) {
         NodeFinder
-          .findNodeAtPosition(program, Position("", 10, column, 0))
+          .findNodeAtPosition(program, Position("", line, column, 0))
           ._1
           .get should equal(
           program
