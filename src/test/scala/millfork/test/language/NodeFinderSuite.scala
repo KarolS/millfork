@@ -24,11 +24,12 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
              |  foo[1] = test
              |  func()
              | }
-             | byte func() {
+             | byte func(byte arg) {
              |  byte i
              |  byte innerValue
              |  innerValue = 2
              |  innerValue += innerValue
+             |  innerValue += arg
              |  return innerValue
              | }
     """.stripMargin
@@ -45,6 +46,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     val program = server.cachedModules.get("file").get
 
     it("should find root variable declarations") {
+      // byte test
       val startIndex = 7
       val length = 4
 
@@ -59,6 +61,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find root array declarations") {
+      // array(byte) foo[4]
       val startIndex = 13
       val length = 16
 
@@ -73,6 +76,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function declarations") {
+      // void main()
       val startIndex = 7
       val length = 4
 
@@ -87,6 +91,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find variable expression within function") {
+      // test
       val startIndex = 4
       val length = 4
 
@@ -109,6 +114,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find array expression within function") {
+      // foo[1]
       val startIndex = 4
       val length = 3
 
@@ -129,6 +135,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find right hand side of assignment") {
+      // test
       val startIndex = 13
       val length = 4
 
@@ -149,8 +156,9 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function call") {
+      // func()
       val startIndex = 4
-      val length = 6
+      val length = 5
 
       for (column <- startIndex to startIndex + length) {
         NodeFinder
@@ -168,7 +176,26 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
       }
     }
 
+    it("should find function argument") {
+      // byte arg
+      val startIndex = 13
+      val length = 8
+
+      for (column <- startIndex to startIndex + length) {
+        NodeFinder
+          .findNodeAtPosition(program, Position("", 9, column, 0))
+          ._1
+          .get should equal(
+          program
+            .declarations(3)
+            .asInstanceOf[FunctionDeclarationStatement]
+            .params(0)
+        )
+      }
+    }
+
     it("should find function nested variable declarations") {
+      // byte i
       val startIndex = 9
       val length = 1
 
