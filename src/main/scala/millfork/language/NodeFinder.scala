@@ -23,6 +23,7 @@ import millfork.env.ByVariable
 import millfork.node.ArrayDeclarationStatement
 import millfork.node.AliasDefinitionStatement
 import millfork.node.IndexedExpression
+import millfork.node.Statement
 
 object NodeFinder {
   def findDeclarationForUsage(
@@ -151,7 +152,11 @@ object NodeFinder {
       }
 
       return (
-        findNodeAtColumn(declarations.get.head.getAllExpressions, line, column),
+        findNodeAtColumn(
+          recursivelyFlatten(declarations.get.head),
+          line,
+          column
+        ),
         declarations
       )
     }
@@ -159,7 +164,8 @@ object NodeFinder {
     // All declarations are current line, find matching node for column
     (
       findNodeAtColumn(
-        declarations.get.flatMap(d => List(d) ++ d.getAllExpressions),
+        declarations.get
+          .flatMap(recursivelyFlatten),
         line,
         column
       ),
@@ -252,6 +258,30 @@ object NodeFinder {
     position match {
       case Some(pos) => pos.column
       case None      => -1
+    }
+
+  /**
+    * Recursively flattens a node tree into a tree containing the node itself and all of its "owned" nodes.
+    * In particular, function declarations don't call `getAllExpressions`, instead opting to manually pull out
+    * `params` and `statements` to allow for proper access
+    *
+    * @param node The root of the tree to process
+    * @return A flatten list of all nodes
+    */
+  private def recursivelyFlatten(node: Node): List[Node] =
+    node match {
+      case functionDeclaration: FunctionDeclarationStatement =>
+        List(
+          functionDeclaration
+        ) ++ functionDeclaration.params ++ functionDeclaration.statements
+          .getOrElse(List())
+          .flatMap(recursivelyFlatten)
+      case statement: Statement =>
+        List(statement) ++ statement.getAllExpressions.flatMap(
+          recursivelyFlatten
+        )
+      case expression: Expression => List(expression)
+      case default                => List(default)
     }
 
   private def flattenNestedDeclarations(
