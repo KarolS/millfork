@@ -285,13 +285,72 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
       }
     }
 
+    it("should find variables within a sum") {
+      val innerText = """
+        | byte valA
+        | byte valB
+        | byte valC
+        | byte output
+        | void main() {
+        |  output = valB + valA - 102 + valC
+        | }
+      """.stripMargin
+
+      val program = createProgram(innerText)
+
+      val sumExpression = program
+        .declarations(4)
+        .asInstanceOf[FunctionDeclarationStatement]
+        .statements
+        .get(0)
+        .asInstanceOf[Assignment]
+        .source
+        .asInstanceOf[SumExpression]
+
+      {
+        val (line, range) = findRangeOfString(innerText, "valA", 5)
+
+        for (column <- range) {
+          NodeFinder
+            .findNodeAtPosition(program, Position("", line, column, 0))
+            ._1
+            .get should equal(
+            sumExpression.expressions(1)._2
+          )
+        }
+      }
+      {
+        val (line, range) = findRangeOfString(innerText, "valB", 5)
+
+        for (column <- range) {
+          NodeFinder
+            .findNodeAtPosition(program, Position("", line, column, 0))
+            ._1
+            .get should equal(
+            sumExpression.expressions(0)._2
+          )
+        }
+      }
+      {
+        val (line, range) = findRangeOfString(innerText, "valC", 5)
+
+        for (column <- range) {
+          NodeFinder
+            .findNodeAtPosition(program, Position("", line, column, 0))
+            ._1
+            .get should equal(
+            sumExpression.expressions(3)._2
+          )
+        }
+      }
+    }
+
     // TODO: Additional tests:
     // Fields on array indexing: spawn_info[index].hi
     // Struct type: Player player
     // Struct fields: player1.pos
     // Messed up hover positions (in `nes_reset_joy.mfk`, each variable assignment to 0)
     // Alias references
-    // Math expressions: limit = new_row2 - new_row1
     // Pointers: obj_ptr->xvel
   }
 }
