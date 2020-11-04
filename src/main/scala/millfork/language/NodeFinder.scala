@@ -24,6 +24,7 @@ import millfork.node.ArrayDeclarationStatement
 import millfork.node.AliasDefinitionStatement
 import millfork.node.IndexedExpression
 import millfork.node.Statement
+import millfork.node.SumExpression
 
 object NodeFinder {
 
@@ -346,6 +347,13 @@ object NodeFinder {
         List(functionExpression) ++
           functionExpression.expressions
             .flatMap(flattenNestedExpressions)
+      case indexExpression: IndexedExpression =>
+        List(indexExpression) ++
+          flattenNestedExpressions(indexExpression.index)
+      case sumExpression: SumExpression =>
+        List(sumExpression) ++ sumExpression.expressions.flatMap(e =>
+          flattenNestedExpressions(e._2)
+        )
       case default => List(default)
     }
 }

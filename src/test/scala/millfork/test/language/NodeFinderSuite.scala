@@ -13,8 +13,24 @@ import millfork.node.ExpressionStatement
 import millfork.node.FunctionCallExpression
 import millfork.node.Assignment
 import java.util.regex.Pattern
+import millfork.node.Program
+import millfork.node.IndexedExpression
+import millfork.node.SumExpression
 
 class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
+  def createProgram(text: String): Program = {
+    val server = LanguageHelper.createServer
+
+    LanguageHelper
+      .openDocument(
+        server,
+        "file.mfk",
+        text
+      )
+
+    server.cachedModules.get("file").get
+  }
+
   describe("nodeAtPosition") {
     val text = """
              | 
@@ -35,18 +51,10 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
              | }
     """.stripMargin
 
-    val server = LanguageHelper.createServer
-
-    LanguageHelper
-      .openDocument(
-        server,
-        "file.mfk",
-        text
-      )
-
-    val program = server.cachedModules.get("file").get
+    val program = createProgram(text)
 
     def findRangeOfString(
+        text: String,
         textMatch: String,
         afterLine: Int = 0
     ): (Int, Range) = {
@@ -67,7 +75,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find root variable declarations") {
-      val (line, range) = findRangeOfString("test")
+      val (line, range) = findRangeOfString(text, "test")
 
       for (column <- range) {
         NodeFinder
@@ -80,7 +88,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find root array declarations") {
-      val (line, range) = findRangeOfString("foo[4]")
+      val (line, range) = findRangeOfString(text, "foo[4]")
 
       for (column <- range) {
         NodeFinder
@@ -93,7 +101,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function declarations") {
-      val (line, range) = findRangeOfString("main()")
+      val (line, range) = findRangeOfString(text, "main()")
 
       for (column <- range) {
         NodeFinder
@@ -106,7 +114,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find variable expression within function") {
-      val (line, range) = findRangeOfString("test", 4)
+      val (line, range) = findRangeOfString(text, "test", 4)
 
       for (column <- range) {
         NodeFinder
@@ -127,7 +135,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find array expression within function") {
-      val (line, range) = findRangeOfString("foo", 4)
+      val (line, range) = findRangeOfString(text, "foo", 4)
 
       for (column <- range) {
         NodeFinder
@@ -146,7 +154,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find right hand side of assignment") {
-      val (line, range) = findRangeOfString("test", 5)
+      val (line, range) = findRangeOfString(text, "test", 5)
 
       for (column <- range) {
         NodeFinder
@@ -165,7 +173,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function call") {
-      val (line, range) = findRangeOfString("func()")
+      val (line, range) = findRangeOfString(text, "func()")
 
       for (column <- range) {
         NodeFinder
@@ -184,7 +192,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function argument") {
-      val (line, range) = findRangeOfString("arg")
+      val (line, range) = findRangeOfString(text, "arg")
 
       for (column <- range) {
         NodeFinder
@@ -200,7 +208,7 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
     }
 
     it("should find function nested variable declarations") {
-      val (line, range) = findRangeOfString("i", 7)
+      val (line, range) = findRangeOfString(text, "i", 7)
 
       for (column <- range) {
         NodeFinder
@@ -216,8 +224,68 @@ class NodeFinderSuite extends FunSpec with Matchers with AppendedClues {
       }
     }
 
+    it("should find variable used to index array") {
+      val innerText = """
+        | byte root
+        | array(byte) anArray[10]
+        | void main() {
+        |  byte index
+        |  index = 4
+        |  root = anArray[index]
+        |  index = anArray[root+1]
+        | }
+      """.stripMargin
+
+      val program = createProgram(innerText)
+
+      {
+        // Standard indexing
+        val (line, range) = findRangeOfString(innerText, "index", 6)
+
+        for (column <- range) {
+          NodeFinder
+            .findNodeAtPosition(program, Position("", line, column, 0))
+            ._1
+            .get should equal(
+            program
+              .declarations(2)
+              .asInstanceOf[FunctionDeclarationStatement]
+              .statements
+              .get(2)
+              .asInstanceOf[Assignment]
+              .source
+              .asInstanceOf[IndexedExpression]
+              .index
+          )
+        }
+      }
+      {
+        // Indexing within sum expression
+        val (line, range) = findRangeOfString(innerText, "root", 7)
+
+        for (column <- range) {
+          NodeFinder
+            .findNodeAtPosition(program, Position("", line, column, 0))
+            ._1
+            .get should equal(
+            program
+              .declarations(2)
+              .asInstanceOf[FunctionDeclarationStatement]
+              .statements
+              .get(3)
+              .asInstanceOf[Assignment]
+              .source
+              .asInstanceOf[IndexedExpression]
+              .index
+              .asInstanceOf[SumExpression]
+              .expressions(0)
+              ._2
+          )
+        }
+      }
+    }
+
     // TODO: Additional tests:
-    // Hover on variable-based array indexing: array[index]
     // Fields on array indexing: spawn_info[index].hi
     // Struct type: Player player
     // Struct fields: player1.pos
