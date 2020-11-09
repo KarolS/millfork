@@ -159,19 +159,19 @@ object NodeFinder {
             allDeclarations
               .filter(d => d.isInstanceOf[FunctionCallExpression])
               .map(d => d.asInstanceOf[FunctionCallExpression])
-              .find(d => d.functionName == f.name)
+              .filter(d => d.functionName == f.name)
               .map(d => (module, d))
           case v: VariableDeclarationStatement =>
             allDeclarations
               .filter(d => d.isInstanceOf[VariableExpression])
               .map(d => d.asInstanceOf[VariableExpression])
-              .find(d => d.name == v.name)
+              .filter(d => d.name == v.name)
               .map(d => (module, d))
           case a: ArrayDeclarationStatement =>
             allDeclarations
               .filter(d => d.isInstanceOf[IndexedExpression])
               .map(d => d.asInstanceOf[IndexedExpression])
-              .find(d => d.name == a.name)
+              .filter(d => d.name == a.name)
               .map(d => (module, d))
           case p: ParameterDeclaration => {
             val pName = p.assemblyParamPassingConvention match {
@@ -185,7 +185,7 @@ object NodeFinder {
 
             if (pName.isDefined) {
               allDeclarations
-                .find(d => extractNodeName(d) == pName)
+                .filter(d => extractNodeName(d) == pName)
                 .map(d => (module, d))
             } else List()
           }
