@@ -233,6 +233,9 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
           )
 
           matchingExpressions
+            .sortBy {
+              case (_, expression) => expression.position.get.line
+            }
             .map {
               case (module, expression) =>
                 locationForExpression(expression, module)
