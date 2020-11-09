@@ -184,44 +184,8 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       )
 
       if (statement.isDefined) {
-        val (declarationModule, declarationContent) = statement.get
-        val formatting = NodeFormatter.symbol(declarationContent)
-
-        logEvent(
-          TelemetryEvent("Attempting to GoToDef in module", declarationModule)
-        )
-
-        val modulePath = modulePaths.getOrElse(
-          declarationModule, {
-            logEvent(
-              TelemetryEvent(
-                "Could not find path for module",
-                declarationModule
-              )
-            )
-            null
-          }
-        )
-
-        logEvent(
-          TelemetryEvent("Found module path", modulePath.toString())
-        )
-
-        // ImportStatement declaration is the entire "file". Set position to 1,1
-        val position =
-          if (declarationContent.isInstanceOf[ImportStatement])
-            Some(Position(declarationModule, 1, 1, 0))
-          else declarationContent.position
-
-        if (position.isDefined)
-          new Location(
-            modulePath.toUri().toString(),
-            new Range(
-              mfPositionToLSP4j(position.get),
-              mfPositionToLSP4j(position.get)
-            )
-          )
-        else null
+        val (module, declaration) = statement.get
+        locationForExpression(declaration, module)
       } else null
     }
 
@@ -270,28 +234,8 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
 
           matchingExpressions
             .map {
-              case (module, expression) => {
-                var position = expression.position
-                val modulePath = modulePaths.getOrElse(
-                  module, {
-                    logEvent(
-                      TelemetryEvent(
-                        "Could not find path for module",
-                        module
-                      )
-                    )
-                    null
-                  }
-                )
-
-                new Location(
-                  modulePath.toUri().toString(),
-                  new Range(
-                    mfPositionToLSP4j(position.get),
-                    mfPositionToLSP4j(position.get)
-                  )
-                )
-              }
+              case (module, expression) =>
+                locationForExpression(expression, module)
             }
             .filter(e => e != null)
             .asJava
@@ -417,6 +361,57 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       logEvent(TelemetryEvent("Cannot find node for position", position))
       None
     }
+  }
+
+  /**
+    * Builds highlighted `Location` of a declaration or usage
+    */
+  private def locationForExpression(
+      expression: Node,
+      module: String
+  ): Location = {
+    val name = NodeFinder.extractNodeName(expression)
+    val position = expression.position.get
+    val modulePath = modulePaths.getOrElse(
+      module, {
+        logEvent(
+          TelemetryEvent(
+            "Could not find path for module",
+            module
+          )
+        )
+        null
+      }
+    )
+
+    if (expression.isInstanceOf[ImportStatement]) {
+      // ImportStatement declaration is the entire "file". Set position to 1,1
+      val importPosition = Position(module, 1, 1, 0)
+      return new Location(
+        modulePath.toUri().toString(),
+        new Range(
+          mfPositionToLSP4j(importPosition),
+          mfPositionToLSP4j(importPosition)
+        )
+      )
+    }
+
+    val endPosition = if (name.isDefined) {
+      Position(
+        module,
+        position.line,
+        position.column + name.get.length,
+        0
+      )
+    } else position
+
+    new Location(
+      modulePath.toUri().toString(),
+      new Range(
+        mfPositionToLSP4j(position),
+        mfPositionToLSP4j(endPosition)
+      )
+    )
   }
 
   private def mfPositionToLSP4j(

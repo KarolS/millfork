@@ -385,7 +385,10 @@ object NodeFinder {
       case default => List(default)
     }
 
-  private def extractNodeName(node: Node): Option[String] =
+  /**
+    * Returns the name of the node, if it exists
+    */
+  def extractNodeName(node: Node): Option[String] =
     node match {
       case a: AliasDefinitionStatement     => Some(a.name)
       case a: ArrayDeclarationStatement    => Some(a.name)
