@@ -249,8 +249,11 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
           TelemetryEvent("Attempting to find references")
         )
 
-        if (declarationContent.isInstanceOf[DeclarationStatement]) {
-
+        if (
+          declarationContent
+            .isInstanceOf[DeclarationStatement] || declarationContent
+            .isInstanceOf[ParameterDeclaration]
+        ) {
           val matchingExpressions =
             // Only include declaration if params specify it
             (if (params.getContext().isIncludeDeclaration())
@@ -258,7 +261,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
              else List()) ++ NodeFinder
               .matchingExpressionsForDeclaration(
                 cachedModules.toStream,
-                declarationContent.asInstanceOf[DeclarationStatement]
+                declarationContent
               )
 
           logEvent(

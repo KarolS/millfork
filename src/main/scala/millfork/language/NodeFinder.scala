@@ -25,6 +25,12 @@ import millfork.node.AliasDefinitionStatement
 import millfork.node.IndexedExpression
 import millfork.node.Statement
 import millfork.node.SumExpression
+import millfork.env.ByLazilyEvaluableExpressionVariable
+import millfork.node.EnumDefinitionStatement
+import millfork.node.LabelStatement
+import millfork.node.StructDefinitionStatement
+import millfork.node.TypeDefinitionStatement
+import millfork.node.UnionDefinitionStatement
 
 object NodeFinder {
 
@@ -139,7 +145,7 @@ object NodeFinder {
     */
   def matchingExpressionsForDeclaration(
       parsedModules: Stream[(String, Program)],
-      declaration: DeclarationStatement
+      declaration: Node
   ): List[(String, Node)] = {
     parsedModules.toStream.flatMap {
       case (module, program) => {
@@ -161,6 +167,28 @@ object NodeFinder {
               .map(d => d.asInstanceOf[VariableExpression])
               .find(d => d.name == v.name)
               .map(d => (module, d))
+          case a: ArrayDeclarationStatement =>
+            allDeclarations
+              .filter(d => d.isInstanceOf[IndexedExpression])
+              .map(d => d.asInstanceOf[IndexedExpression])
+              .find(d => d.name == a.name)
+              .map(d => (module, d))
+          case p: ParameterDeclaration => {
+            val pName = p.assemblyParamPassingConvention match {
+              case ByConstant(name)  => Some(name)
+              case ByReference(name) => Some(name)
+              case ByVariable(name)  => Some(name)
+              case ByLazilyEvaluableExpressionVariable(name) =>
+                Some(name)
+              case _ => None
+            }
+
+            if (pName.isDefined) {
+              allDeclarations
+                .find(d => extractNodeName(d) == pName)
+                .map(d => (module, d))
+            } else List()
+          }
           case default => List()
         }
       }
@@ -355,5 +383,21 @@ object NodeFinder {
           flattenNestedExpressions(e._2)
         )
       case default => List(default)
+    }
+
+  private def extractNodeName(node: Node): Option[String] =
+    node match {
+      case a: AliasDefinitionStatement     => Some(a.name)
+      case a: ArrayDeclarationStatement    => Some(a.name)
+      case e: EnumDefinitionStatement      => Some(e.name)
+      case f: FunctionCallExpression       => Some(f.functionName)
+      case f: FunctionDeclarationStatement => Some(f.name)
+      case l: LabelStatement               => Some(l.name)
+      case s: StructDefinitionStatement    => Some(s.name)
+      case t: TypeDefinitionStatement      => Some(t.name)
+      case u: UnionDefinitionStatement     => Some(u.name)
+      case v: VariableDeclarationStatement => Some(v.name)
+      case v: VariableExpression           => Some(v.name)
+      case _                               => None
     }
 }
