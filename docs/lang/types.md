@@ -69,6 +69,14 @@ or forcing zero extension or sign extension:
     x = y         // does zero extension and assigns value $0080
     x = sbyte(y)  // does sign extension and assigns value $FF80
 
+You can also explicitly convert expressions of type `bool` to any numeric type.
+`false` is converted to 0 and `true` is converted to 1.
+
+    byte a,b,c
+    a = 5
+    b = byte(a == 4) // b is now equal to 0
+    c = byte(a == 5) // c is now equal to 1
+
 ## Typed pointers
 
 For every type `T`, there is a pointer type defined called `pointer.T`.
