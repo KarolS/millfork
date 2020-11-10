@@ -7,7 +7,7 @@ import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, Indexe
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SeparateBytesExpression, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackOffsetThing, StackVariable, StackVariablePointy, StructureConstant, Thing, ThingInMemory, Type, Variable, VariableInMemory, VariableLikeThing, VariablePointy}
+import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, KernalInterruptPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackOffsetThing, StackVariable, StackVariablePointy, StructureConstant, Thing, ThingInMemory, Type, Variable, VariableInMemory, VariableLikeThing, VariablePointy}
 
 import scala.collection.GenTraversableOnce
 
@@ -223,14 +223,22 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             params match {
               case List(fp) =>
                 getExpressionType(ctx, fp) match {
+                  case KernalInterruptPointerType =>
+                    compileToX(ctx, fp) :+ MLine.absolute(JSR, env.get[ThingInMemory]("call"))
                   case FunctionPointerType(_, _, _, _, Some(v)) if (v.name == "void") =>
                     compileToX(ctx, fp) :+ MLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                  case _: FunctionPointerType =>
+                    ctx.log.error("Incompatible function pointer type", fp.position)
+                    compile(ctx, fp, MExpressionTarget.NOTHING)
                   case _ =>
                     ctx.log.error("Not a function pointer", fp.position)
                     compile(ctx, fp, MExpressionTarget.NOTHING)
                 }
               case List(fp, param) =>
                 getExpressionType(ctx, fp) match {
+                  case KernalInterruptPointerType =>
+                    ctx.log.error("Incompatible function pointer type", fp.position)
+                    compile(ctx, fp, MExpressionTarget.NOTHING)
                   case FunctionPointerType(_, _, _, Some(pt), Some(v)) =>
                     if (pt.size > 2 || pt.size < 1) {
                       ctx.log.error("Invalid parameter type", param.position)

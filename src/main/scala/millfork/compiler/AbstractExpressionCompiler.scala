@@ -450,6 +450,8 @@ object AbstractExpressionCompiler {
                   log.error(s"Invalid function pointer type: $fpt", fp.position)
                 }
                 r
+              case KernalInterruptPointerType =>
+                v
               case fpt =>
                 log.error(s"Not a function pointer type: $fpt", fp.position)
                 v
@@ -461,6 +463,9 @@ object AbstractExpressionCompiler {
                   log.error(s"Invalid function pointer type: $fpt", fp.position)
                 }
                 r
+              case fpt@KernalInterruptPointerType =>
+                log.error(s"Invalid function pointer type: $fpt", fp.position)
+                v
               case fpt =>
                 log.error(s"Not a function pointer type: $fpt", fp.position)
                 v

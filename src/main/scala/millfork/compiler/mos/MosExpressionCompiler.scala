@@ -1257,8 +1257,13 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
             params match {
               case List(fp) =>
                 getExpressionType(ctx, fp) match {
+                  case KernalInterruptPointerType =>
+                    compileToZReg2(ctx, fp) :+ AssemblyLine.absolute(JSR, env.get[ThingInMemory]("call"))
                   case FunctionPointerType(_, _, _, _, Some(v)) if (v.name == "void") =>
                     compileToZReg2(ctx, fp) :+ AssemblyLine.absolute(JSR, env.get[ThingInMemory]("call"))
+                  case _: FunctionPointerType =>
+                    ctx.log.error("Invalid function pointer type", fp.position)
+                    compile(ctx, fp, None, BranchSpec.None)
                   case _ =>
                     ctx.log.error("Not a function pointer", fp.position)
                     compile(ctx, fp, None, BranchSpec.None)
@@ -1281,6 +1286,9 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       ctx.log.error("Invalid parameter type", param.position)
                       compile(ctx, fp, None, BranchSpec.None) ++ compile(ctx, param, None, BranchSpec.None)
                     }
+                  case KernalInterruptPointerType =>
+                    ctx.log.error("Invalid function pointer type", fp.position)
+                    compile(ctx, fp, None, BranchSpec.None)
                   case _ =>
                     ctx.log.error("Not a function pointer", fp.position)
                     compile(ctx, fp, None, BranchSpec.None) ++ compile(ctx, param, None, BranchSpec.None)

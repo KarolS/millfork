@@ -134,6 +134,26 @@ Using `call` on 6502 requires at least 4 bytes of zeropage pseudoregister.
 
 The value of the pointer `f.pointer` may not be the same as the value of the function address `f.addr`. 
 
+## Interrupt handler pointers
+
+Functions that are interrupt pointers have their own pointer types:
+
+* `pointer.interrupt` for hardware interrupt handlers
+
+* `pointer.kernal_interrupt` for kernal interrupt handlers
+
+`pointer.kernal_interrupt` is automatically convertible to `function.void.to.void`
+
+    interrupt void handler1(){}
+    kernal_interrupt void handler2(){}
+    
+    pointer.interrupt p1
+    p1 = handler1.pointer
+    pointer.kernal_interrupt p2
+    p2 = handler2.pointer
+    function.void.to.void p3
+    p3 = handler2.pointer
+
 ## Boolean types
 
 Boolean types can be used as conditions. They have two possible values, `true` and `false`.

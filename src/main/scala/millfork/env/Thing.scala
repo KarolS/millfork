@@ -119,6 +119,38 @@ case class FunctionPointerType(name: String, paramTypeName:String, returnTypeNam
   override def alignment: MemoryAlignment = NoAlignment
 }
 
+case object KernalInterruptPointerType extends VariableType {
+  def size = 2
+
+  override def isSigned: Boolean = false
+
+  override def isPointy: Boolean = false
+
+  override def alignment: MemoryAlignment = NoAlignment
+
+  override def name: String = "pointer.kernal_interrupt"
+
+  override def isCompatible(other: Type): Boolean = other match {
+    case KernalInterruptPointerType => true
+    case FunctionPointerType(_, "void", "void", _, _) => true
+    case _ => false
+  }
+}
+
+case object InterruptPointerType extends VariableType {
+  def size = 2
+
+  override def isSigned: Boolean = false
+
+  override def isPointy: Boolean = false
+
+  override def alignment: MemoryAlignment = NoAlignment
+
+  override def name: String = "pointer.interrupt"
+
+  override def isCompatible(other: Type): Boolean = other == InterruptPointerType
+}
+
 case object NullType extends VariableType {
   override def size: Int = 2
 

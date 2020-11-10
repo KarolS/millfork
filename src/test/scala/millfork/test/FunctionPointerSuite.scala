@@ -122,4 +122,26 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
     }
   }
 
+  test("Interrupt pointers") {
+    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | pointer.interrupt i @$c000
+        | pointer.kernal_interrupt k @$c002
+        | function.void.to.void f @$c004
+        | interrupt void i1() @$400 {}
+        | kernal_interrupt void k1() @$500 {}
+        | void main() {
+        |   i = i1.pointer
+        |   k = k1.pointer
+        |   f = k1.pointer
+        |   call(k)
+        | }
+        |
+      """.stripMargin) { m =>
+      m.readWord(0xc000) should equal(0x400)
+      m.readWord(0xc002) should equal(0x500)
+      m.readWord(0xc004) should equal(0x500)
+    }
+  }
+
 }

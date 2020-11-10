@@ -317,8 +317,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     if (name.startsWith("pointer.") && implicitly[Manifest[T]].runtimeClass.isAssignableFrom(classOf[PointerType])) {
       val targetName = name.stripPrefix("pointer.")
-      val target = maybeGet[VariableType](targetName)
-      return PointerType(name, targetName, target).asInstanceOf[T]
+      targetName match {
+        case "interrupt" => return InterruptPointerType.asInstanceOf[T]
+        case "kernal_interrupt" => return KernalInterruptPointerType.asInstanceOf[T]
+        case _ =>
+          val target = maybeGet[VariableType](targetName)
+          return PointerType(name, targetName, target).asInstanceOf[T]
+      }
     }
     val clazz = implicitly[Manifest[T]].runtimeClass
     if (things.contains(name)) {
@@ -444,6 +449,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     addThing(Alias("signed8", "sbyte"), None)
     addThing(DerivedPlainType("unsigned16", w, isSigned = false, isPointy = false), None)
     addThing(DerivedPlainType("signed16", w, isSigned = true, isPointy = false), None)
+    addThing(InterruptPointerType, None)
+    addThing(KernalInterruptPointerType, None)
     for (bits <- Seq(24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128)) {
       addThing(DerivedPlainType("unsigned" + bits, get[BasicPlainType]("int" + bits), isSigned = false, isPointy = false), None)
     }
@@ -1401,7 +1408,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   private def getFunctionPointerType(f: FunctionInMemory) = f.params.types match {
     case List() =>
-      get[Type]("function.void.to." + f.returnType.name)
+      if (f.returnType == VoidType) get[Type]("pointer.kernal_interrupt")
+      else get[Type]("function.void.to." + f.returnType.name)
     case p :: _ => // TODO: this only handles one type though!
       get[Type]("function." + p.name + ".to." + f.returnType.name)
   }
@@ -1448,6 +1456,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           addThing(typedPointer, position)
           addThing(RelativeVariable(thing.name + ".pointer.hi", actualAddr + 1, b, zeropage = false, None, isVolatile = false), position)
           addThing(RelativeVariable(thing.name + ".pointer.lo", actualAddr, b, zeropage = false, None, isVolatile = false), position)
+        case f: FunctionInMemory if f.interrupt =>
+          val typedPointer = RelativeVariable(thing.name + ".pointer", f.toAddress, InterruptPointerType, zeropage = false, None, isVolatile = false)
+          addThing(typedPointer, position)
+          addThing(RelativeVariable(thing.name + ".pointer.hi", f.toAddress + 1, b, zeropage = false, None, isVolatile = false), position)
+          addThing(RelativeVariable(thing.name + ".pointer.lo", f.toAddress, b, zeropage = false, None, isVolatile = false), position)
         case _ =>
       }
     } else {
@@ -1460,7 +1473,6 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addThing(ConstantThing(thing.name + ".rawaddr.lo", addr.loByte, b), position)
       targetType.foreach { tt =>
         val pointerType = PointerType("pointer." + tt.name, tt.name, Some(tt))
-        val typedPointer = RelativeVariable(thing.name + ".pointer", addr, pointerType, zeropage = false, None, isVolatile = false)
         addThing(ConstantThing(thing.name + ".pointer", addr, pointerType), position)
         addThing(ConstantThing(thing.name + ".pointer.hi", addr.hiByte, b), position)
         addThing(ConstantThing(thing.name + ".pointer.lo", addr.loByte, b), position)
@@ -1476,6 +1488,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           addThing(ConstantThing(thing.name + ".pointer", actualAddr, pointerType), position)
           addThing(ConstantThing(thing.name + ".pointer.hi", actualAddr.hiByte, b), position)
           addThing(ConstantThing(thing.name + ".pointer.lo", actualAddr.loByte, b), position)
+        case f: FunctionInMemory if f.interrupt =>
+          addThing(ConstantThing(thing.name + ".pointer", f.toAddress, InterruptPointerType), position)
+          addThing(ConstantThing(thing.name + ".pointer.hi", f.toAddress.hiByte, b), position)
+          addThing(ConstantThing(thing.name + ".pointer.lo", f.toAddress.loByte, b), position)
         case _ =>
       }
     }
@@ -2132,7 +2148,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
         case _ => Nil
       }
-      case _: PointerType => if (options.isBigEndian) List(
+      case InterruptPointerType | _: FunctionPointerType | _: PointerType => if (options.isBigEndian) List(
         Subvariable(".raw", 0, get[VariableType]("pointer")),
         Subvariable(".raw.lo", 1, b),
         Subvariable(".raw.hi", 0, b),
