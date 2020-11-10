@@ -279,7 +279,21 @@ object ZBuiltIns {
           ctx.env.eval(expr) match {
             case None =>
               if (result.isEmpty) {
-                ???
+                if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
+                  result ++= Z80ExpressionCompiler.compileToBC(ctx, expr)
+                  result += ZLine.ldImm16(ZRegister.HL, 0)
+                  result += ZLine.register(OR, ZRegister.A)
+                  result += ZLine.registers(SBC_16, ZRegister.HL, ZRegister.BC)
+                } else {
+                  result ++= Z80ExpressionCompiler.compileToHL(ctx, expr)
+                  result += ZLine.register(DEC_16, ZRegister.HL)
+                  result += ZLine.ld8(ZRegister.A, ZRegister.H)
+                  result += ZLine.implied(CPL)
+                  result += ZLine.ld8(ZRegister.H, ZRegister.A)
+                  result += ZLine.ld8(ZRegister.A, ZRegister.L)
+                  result += ZLine.implied(CPL)
+                  result += ZLine.ld8(ZRegister.L, ZRegister.A)
+                }
               } else {
                 if (ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
                   // TODO: optimize
