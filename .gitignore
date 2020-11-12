@@ -1,6 +1,7 @@
 # various directories
 target/
 .bloop/
+.bsp/
 .idea/
 .metals/
 project/target

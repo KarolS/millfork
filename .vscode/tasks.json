@@ -6,7 +6,7 @@
     {
       "label": "Compile Millfork",
       "type": "shell",
-      "command": "sbt 'set test in assembly := {}' compile && sbt 'set test in assembly := {}' assembly",
+      "command": "sbt -DskipTests=true compile && sbt -DskipTests=true assembly",
       "problemMatcher": [],
       "group": {
         "kind": "build",
