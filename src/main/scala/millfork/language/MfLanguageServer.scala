@@ -237,8 +237,13 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
               case (_, expression) => expression.position.get.line
             }
             .map {
-              case (module, expression) =>
-                locationForExpression(expression, module)
+              case (module, expression) => {
+                try {
+                  locationForExpression(expression, module)
+                } catch {
+                  case _: Throwable => null
+                }
+              }
             }
             .filter(e => e != null)
             .asJava
