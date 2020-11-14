@@ -27,10 +27,16 @@ import millfork.output.DivisibleAlignment
 import millfork.output.WithinPageAlignment
 import millfork.node.AliasDefinitionStatement
 import java.util.regex.Pattern
+import scala.collection.mutable.ListBuffer
 
 object NodeFormatter {
   val docstringAsteriskPattern =
     Pattern.compile("^\\s*\\*? *", Pattern.MULTILINE)
+
+  val docstringParamPattern =
+    Pattern.compile("@param (\\w+) +(.*)$", Pattern.MULTILINE)
+  val docstringReturnsPattern =
+    Pattern.compile("@returns +(.*)$", Pattern.MULTILINE)
 
   // TODO: Remove Option
   def symbol(node: Node): Option[String] =
@@ -212,12 +218,46 @@ object NodeFormatter {
       return None
     }
 
-    return Some(
-      docstringAsteriskPattern
-        .matcher(baseString.get.stripSuffix("*/"))
-        .replaceAll("")
-      // baseString.get.stripSuffix("*/").replaceAll("^\\s*\\*?\\s", "")
-    )
+    var strippedString = docstringAsteriskPattern
+      .matcher(baseString.get.stripSuffix("*/"))
+      .replaceAll("")
+
+    val matchGroups = new ListBuffer[(String, String, Range)]()
+
+    val paramMatcher = docstringParamPattern.matcher(strippedString)
+    while (paramMatcher.find()) {
+      matchGroups += (
+        (
+          paramMatcher.group(1),
+          paramMatcher
+            .group(2),
+          Range(paramMatcher.start(), paramMatcher.end())
+        )
+      )
+    }
+
+    val builder = new StringBuilder(strippedString)
+
+    for (param <- matchGroups.reverse) {
+      val (paramName, description, range) = param
+      builder.replace(
+        range.start,
+        range.end,
+        s"\n_@param_ `${paramName}` \u2014 ${description.trim()}\n"
+      )
+    }
+
+    val returnMatch = docstringReturnsPattern.matcher(builder.toString())
+
+    if (returnMatch.find()) {
+      builder.replace(
+        returnMatch.start(),
+        returnMatch.end(),
+        s"\n_@returns_ \u2014 ${returnMatch.group(1).trim()}"
+      )
+    }
+
+    return Some(builder.toString())
   }
 
   /**
