@@ -71,18 +71,20 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val comment: P[Unit] = P("//" ~ CharsWhile(c => c != '\n' && c != '\r', min = 0) ~ ("\r\n" | "\r" | "\n"))
 
-  val recursiveDocCommentContent: P[Unit] = P(CharsWhile(c => c != '*', min = 0) ~ ("*/" | ("*" ~ recursiveDocCommentContent)))
+  val recursiveMultilineCommentContent: P[Unit] = P(CharsWhile(c => c != '*', min = 0) ~ ("*/" | ("*" ~ recursiveMultilineCommentContent)))
 
   val docComment: P[DocComment] = for {
     p <- position()
-    text <- ("/**" ~ recursiveDocCommentContent.!)
+    text <- ("/**" ~ recursiveMultilineCommentContent.!)
   } yield DocComment(text).pos(p)
+
+  val multilineComment: P[Unit] = P("/*" ~ !"*" ~ recursiveMultilineCommentContent)
 
   val semicolon: P[Unit] = P(";" ~ CharsWhileIn("; \t", min = 0) ~ position("line break after a semicolon").map(_ => ()) ~ (comment | "\r\n" | "\r" | "\n").opaque("<line break>"))
 
   val semicolonComment: P[Unit] = P(";" ~ CharsWhile(c => c != '\n' && c != '\r' && c != '{' && c != '}', min = 0) ~ position("line break instead of braces").map(_ => ()) ~ ("\r\n" | "\r" | "\n").opaque("<line break>"))
 
-  val AWS: P[Unit] = P((CharIn(" \t\n\r") | semicolon | comment).rep(min = 0)).opaque("<any whitespace>")
+  val AWS: P[Unit] = P((CharIn(" \t\n\r") | semicolon | comment | multilineComment).rep(min = 0)).opaque("<any whitespace>")
 
   val AWS_asm: P[Unit] = P((CharIn(" \t\n\r") | semicolonComment | comment).rep(min = 0)).opaque("<any whitespace>")
 
