@@ -135,10 +135,15 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     )
 
     val path = Paths.get(pathString)
-
-    logEvent(TelemetryEvent("Path", path.toString()))
-
     val moduleName = queue.extractName(pathString)
+
+    logEvent(
+      TelemetryEvent(
+        "Path",
+        Map("path" -> path.toString(), "module" -> moduleName)
+      )
+    )
+
     val newProgram = queue.parseModuleWithLines(
       moduleName,
       path,
@@ -278,6 +283,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       if (statement.isDefined) {
         val (_, declarationContent) = statement.get
         val formatting = NodeFormatter.symbol(declarationContent)
+        val docstring = NodeFormatter.docstring(declarationContent)
 
         if (formatting.isDefined)
           new Hover(
@@ -285,7 +291,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
               "markdown",
               NodeFormatter.hover(
                 formatting.get,
-                ""
+                docstring.getOrElse("")
               )
             )
           )

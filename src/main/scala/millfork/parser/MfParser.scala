@@ -71,6 +71,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val comment: P[Unit] = P("//" ~ CharsWhile(c => c != '\n' && c != '\r', min = 0) ~ ("\r\n" | "\r" | "\n"))
 
+  val recursiveDocCommentContent: P[Unit] = P(CharsWhile(c => c != '*', min = 0) ~ ("*/" | ("*" ~ recursiveDocCommentContent)))
+
+  val docComment: P[DocComment] = for {
+    p <- position()
+    text <- ("/**" ~ recursiveDocCommentContent.!)
+  } yield DocComment(text).pos(p)
+
   val semicolon: P[Unit] = P(";" ~ CharsWhileIn("; \t", min = 0) ~ position("line break after a semicolon").map(_ => ()) ~ (comment | "\r\n" | "\r" | "\n").opaque("<line break>"))
 
   val semicolonComment: P[Unit] = P(";" ~ CharsWhile(c => c != '\n' && c != '\r' && c != '{' && c != '}', min = 0) ~ position("line break instead of braces").map(_ => ()) ~ ("\r\n" | "\r" | "\n").opaque("<line break>"))
@@ -661,6 +668,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   } yield Seq(DoWhileStatement(body.toList, Nil, condition))
 
   val functionDefinition: P[Seq[BankedDeclarationStatement]] = for {
+    docComment <- (docComment ~ AWS).?
     p <- position()
     bank <- bankDeclaration
     flags <- functionFlags ~ HWS
@@ -702,7 +710,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       flags("interrupt"),
       flags("kernal_interrupt"),
       flags("const") && !flags("asm"),
-      flags("reentrant")).pos(p))
+      flags("reentrant")).pos(p).docComment(docComment))
   }
 
   def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]])

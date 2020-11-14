@@ -26,8 +26,12 @@ import millfork.output.NoAlignment
 import millfork.output.DivisibleAlignment
 import millfork.output.WithinPageAlignment
 import millfork.node.AliasDefinitionStatement
+import java.util.regex.Pattern
 
 object NodeFormatter {
+  val docstringAsteriskPattern =
+    Pattern.compile("^\\s*\\*? *", Pattern.MULTILINE)
+
   // TODO: Remove Option
   def symbol(node: Node): Option[String] =
     node match {
@@ -196,6 +200,26 @@ object NodeFormatter {
       case WithinPageAlignment         => Some("Within page")
     }
 
+  def docstring(node: Node): Option[String] = {
+    val baseString = node match {
+      case f: FunctionDeclarationStatement =>
+        if (f.docComment.isDefined) Some(f.docComment.get.text)
+        else None
+      case _ => None
+    }
+
+    if (baseString.isEmpty) {
+      return None
+    }
+
+    return Some(
+      docstringAsteriskPattern
+        .matcher(baseString.get.stripSuffix("*/"))
+        .replaceAll("")
+      // baseString.get.stripSuffix("*/").replaceAll("^\\s*\\*?\\s", "")
+    )
+  }
+
   /**
     * Render the textDocument/hover result into markdown.
     *
@@ -209,17 +233,19 @@ object NodeFormatter {
   ): String = {
     val markdown = new StringBuilder()
 
-    if (docstring.nonEmpty)
-      markdown
-        .append("\n")
-        .append(docstring)
-
     if (symbolSignature.nonEmpty) {
       markdown
         .append("```mfk\n")
         .append(symbolSignature)
         .append("\n```")
     }
+
+    if (docstring.nonEmpty)
+      markdown
+        .append("\n---\n")
+        .append(docstring)
+        .append("\n")
+
     markdown.toString()
   }
 }
