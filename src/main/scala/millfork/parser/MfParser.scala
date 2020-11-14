@@ -216,6 +216,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     } yield (p, name, addr, initialValue, alignment)
 
   def variableDefinition(implicitlyGlobal: Boolean): P[Seq[BankedDeclarationStatement]] = for {
+    docComment <- (docComment ~ EOL).?
     p <- position()
     bank <- bankDeclaration
     flags <- variableFlags ~ HWS
@@ -231,7 +232,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       constant = flags("const"),
       volatile = flags("volatile"),
       register = flags("register"),
-      initialValue, addr, alignment).pos(p)
+      initialValue, addr, alignment).pos(p).docComment(docComment)
     }
   }
 
@@ -409,6 +410,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   }
 
   val arrayDefinition: P[Seq[ArrayDeclarationStatement]] = for {
+    docComment <- (docComment ~ EOL).?
     p <- position()
     bank <- bankDeclaration
     const <- ("const".! ~ HWS).?
@@ -419,7 +421,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
     contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
-  } yield Seq(ArrayDeclarationStatement(name, bank, length, elementType.getOrElse("byte"), addr, const.isDefined, contents, alignment, options.isBigEndian).pos(p))
+  } yield Seq(ArrayDeclarationStatement(name, bank, length, elementType.getOrElse("byte"), addr, const.isDefined, contents, alignment, options.isBigEndian).pos(p).docComment(docComment))
 
   def tightMfExpression(allowIntelHex: Boolean, allowTopLevelIndexing: Boolean): P[Expression] = {
     val a = if (allowIntelHex) atomWithIntel else atom

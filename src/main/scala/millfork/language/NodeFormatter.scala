@@ -207,19 +207,21 @@ object NodeFormatter {
     }
 
   def docstring(node: Node): Option[String] = {
-    val baseString = node match {
-      case f: FunctionDeclarationStatement =>
-        if (f.docComment.isDefined) Some(f.docComment.get.text)
-        else None
-      case _ => None
+    val docComment = node match {
+      case f: FunctionDeclarationStatement => f.docComment
+      case v: VariableDeclarationStatement => v.docComment
+      case a: ArrayDeclarationStatement    => a.docComment
+      case _                               => None
     }
 
-    if (baseString.isEmpty) {
+    if (docComment.isEmpty) {
       return None
     }
 
+    val baseString = docComment.get.text
+
     var strippedString = docstringAsteriskPattern
-      .matcher(baseString.get.stripSuffix("*/"))
+      .matcher(baseString.stripSuffix("*/"))
       .replaceAll("")
 
     val matchGroups = new ListBuffer[(String, String, Range)]()
