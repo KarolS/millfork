@@ -27,11 +27,11 @@ class ConsoleLogger extends Logger {
             val line = lines.apply(lineIx)
             val column = pos.get.column - 1
             val margin = "       "
-            print(margin)
-            println(line)
-            print(margin)
-            print(" " * column)
-            println("^")
+            System.err.print(margin)
+            System.err.println(line)
+            System.err.print(margin)
+            System.err.print(" " * column)
+            System.err.println("^")
           }
         }
     }
@@ -42,14 +42,14 @@ class ConsoleLogger extends Logger {
 
   override def info(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 0) return
-    println("INFO:  " + f(position) + msg)
+    System.err.println("INFO:  " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
   }
 
   override def debug(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 1) return
-    println("DEBUG: " + f(position) + msg)
+    System.err.println("DEBUG: " + f(position) + msg)
     flushOutput()
   }
 
@@ -59,7 +59,7 @@ class ConsoleLogger extends Logger {
 
   override def trace(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 2) return
-    println("TRACE: " + f(position) + msg)
+    System.err.println("TRACE: " + f(position) + msg)
     flushOutput()
   }
 
@@ -71,7 +71,7 @@ class ConsoleLogger extends Logger {
 
   override def warn(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 0) return
-    println("WARN:  " + f(position) + msg)
+    System.err.println("WARN:  " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
     if (fatalWarnings) {
@@ -81,14 +81,14 @@ class ConsoleLogger extends Logger {
 
   override def error(msg: String, position: Option[Position] = None): Unit = {
     hasErrors = true
-    println("ERROR: " + f(position) + msg)
+    System.err.println("ERROR: " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
   }
 
   override def fatal(msg: String, position: Option[Position] = None): Nothing = {
     hasErrors = true
-    println("FATAL: " + f(position) + msg)
+    System.err.println("FATAL: " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
     throw new AssertionError(msg)
@@ -96,7 +96,7 @@ class ConsoleLogger extends Logger {
 
   override def fatalQuit(msg: String, position: Option[Position] = None): Nothing = {
     hasErrors = true
-    println("FATAL: " + f(position) + msg)
+    System.err.println("FATAL: " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
     System.exit(1)

@@ -34,8 +34,6 @@ object Main {
     val errorReporting = new ConsoleLogger
     implicit val __implicitLogger: Logger = errorReporting
 
-    // Console.printf("Starting server")
-
     if (args.isEmpty) {
       errorReporting.info("For help, use --help")
     }
@@ -70,7 +68,7 @@ object Main {
       if (!c1.languageServer) errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     }, textCodecRepository)
-    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, textCodecRepository, JobContext(new LanguageServerLogger(), new LabelGenerator))
+    val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, textCodecRepository, JobContext(errorReporting, new LabelGenerator))
     errorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")

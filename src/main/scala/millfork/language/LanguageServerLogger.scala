@@ -5,7 +5,7 @@ import millfork.node.Position
 import millfork.assembly.SourceLine
 
 class LanguageServerLogger extends Logger {
-  // TODO: Complete stub to send diagnostics to client
+  // TODO: Unused. Complete stub to send diagnostics to client
   override def setFatalWarnings(fatalWarnings: Boolean): Unit = {}
 
   override def info(msg: String, position: Option[Position]): Unit = {}
