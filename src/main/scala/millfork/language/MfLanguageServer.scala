@@ -157,6 +157,7 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       cachedModules.put(moduleName, newProgram.get)
 
       moduleNames.put(pathString, moduleName)
+      modulePaths.put(moduleName, Paths.get(pathString))
 
       logEvent(
         TelemetryEvent(
