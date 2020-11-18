@@ -30,6 +30,13 @@ class Z80ToX86Crossassembler(program: Program,
     // do nothing yet
   }
 
+  override def gatherFunctionOptimizationHints(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: FunctionInMemory): Unit = {
+    import NiceFunctionProperty._
+    val functionName = function.name
+    if (function.optimizationHints("preserves_memory")) niceFunctionProperties += DoesntWriteMemory -> functionName
+    if (function.optimizationHints("idempotent")) niceFunctionProperties += Idempotent -> functionName
+  }
+
   override def bytePseudoopcode: String = "DB"
 
   override def deduplicate(options: CompilationOptions, compiledFunctions: mutable.Map[String, CompiledFunction[ZLine]]): Unit =

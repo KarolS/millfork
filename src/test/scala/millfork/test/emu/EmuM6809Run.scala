@@ -85,6 +85,7 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
     println(source)
     val platform = EmuPlatform.get(cpu)
     val options = CompilationOptions(platform, Map(
+      CompilationFlag.UseOptimizationHints -> true,
       CompilationFlag.EnableInternalTestSyntax -> true,
       CompilationFlag.DecimalMode -> true,
       CompilationFlag.LenientTextEncoding -> true,

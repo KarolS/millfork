@@ -272,6 +272,12 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val compiledFunctions = mutable.Map[String, CompiledFunction[T]]()
     val recommendedCompilationOrder = callGraph.recommendedCompilationOrder
     val niceFunctionProperties = mutable.Set[(NiceFunctionProperty, String)]()
+    env.things.values.foreach {
+      case function: FunctionInMemory =>
+        gatherFunctionOptimizationHints(options, niceFunctionProperties, function)
+      case _ =>
+    }
+    println(niceFunctionProperties)
     val aliases = env.getAliases
     recommendedCompilationOrder.foreach { f =>
       if (!env.isAlias(f)) env.maybeGet[NormalFunction](f).foreach { function =>
@@ -301,7 +307,12 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               val code = opt.optimize(function, c, OptimizationContext(options, labelMapImm, env.maybeGet[ThingInMemory]("__reg"), niceFunctionPropertiesImm))
               if (code eq c) code else quickSimplify(code)
             }
-            compiledFunctions(f) = NormalCompiledFunction(function.declaredBank.getOrElse(platform.defaultCodeBank), extraOptimizedCode, function.address.isDefined, function.alignment)
+            compiledFunctions(f) = NormalCompiledFunction(
+              function.declaredBank.getOrElse(platform.defaultCodeBank),
+              extraOptimizedCode,
+              function.address.isDefined,
+              function.optimizationHints,
+              function.alignment)
             optimizedCodeSize += code.map(_.sizeInBytes).sum
             if (options.flag(CompilationFlag.InterproceduralOptimization)) {
               gatherNiceFunctionProperties(options, niceFunctionProperties, function, code)
@@ -347,7 +358,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     })
 
     env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, elementType, readOnly, _) =>
+      case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, elementType, readOnly, _, _) =>
         val bank = thing.bank(options)
         if (!readOnly && options.platform.ramInitialValuesBank.isDefined) {
             log.error(s"Preinitialized writable array $name cannot be put at a fixed address")
@@ -374,13 +385,13 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
         printArrayToAssemblyOutput(assembly, name, elementType, items)
         initializedVariablesSize += thing.sizeInBytes
-      case thing@InitializedArray(name, Some(_), items, _, _, _, _, _) => ???
+      case thing@InitializedArray(name, Some(_), items, _, _, _, _, _, _) => ???
       case f: NormalFunction if f.address.isDefined =>
         val bank = f.bank(options)
         val bank0 = mem.banks(bank)
         val index = f.address.get.asInstanceOf[NumericConstant].value.toInt
         compiledFunctions(f.name) match {
-          case NormalCompiledFunction(_, functionCode, _, _) =>
+          case NormalCompiledFunction(_, functionCode, _, _, _) =>
             labelMap(f.name) = bank0.index -> index
             val end = outputFunction(bank, functionCode, index, assembly, options)
             for (i <- index until end) {
@@ -424,9 +435,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     val sortedCompilerFunctions = compiledFunctions.toList.sortBy { case (_, cf) => cf.orderKey }
     for (layoutStage <- 0 until layoutStageCount) {
       sortedCompilerFunctions.filterNot(o => unusedRuntimeObjects(o._1)).foreach {
-        case (_, NormalCompiledFunction(_, _, true, _)) =>
+        case (_, NormalCompiledFunction(_, _, true, _, _)) =>
         // already done before
-        case (name, th@NormalCompiledFunction(bank, functionCode, false, alignment)) if layoutStage == getLayoutStageNcf(name, th) =>
+        case (name, th@NormalCompiledFunction(bank, functionCode, false, optimizationFlags, alignment)) if layoutStage == getLayoutStageNcf(name, th) =>
           val size = functionCode.map(_.sizeInBytes).sum
           val bank0 = mem.banks(bank)
           val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
@@ -443,9 +454,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       if (layoutStage == 0) {
         // force early allocation of text literals:
         env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-          case thing@InitializedArray(_, _, items, _, _, _, _, _) =>
+          case thing@InitializedArray(_, _, items, _, _, _, _, _, _) =>
             items.foreach(env.eval(_))
-          case InitializedMemoryVariable(_, _, _, value, _, _, _) =>
+          case InitializedMemoryVariable(_, _, _, value, _, _, _, _) =>
             env.eval(value)
           case _ =>
         }
@@ -453,9 +464,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
       if (layoutStage == defaultStage && options.flag(CompilationFlag.LUnixRelocatableCode)) {
         env.allThings.things.foreach {
-          case (_, m@UninitializedMemoryVariable(name, typ, _, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
+          case (_, m@UninitializedMemoryVariable(name, typ, _, _, _, _, _)) if name.endsWith(".addr") || env.maybeGet[Thing](name + ".array").isDefined =>
             val isUsed = compiledFunctions.values.exists {
-              case NormalCompiledFunction(_, functionCode, _, _) => functionCode.exists(_.parameter.isRelatedTo(m))
+              case NormalCompiledFunction(_, functionCode, _, _,  _) => functionCode.exists(_.parameter.isRelatedTo(m))
               case _ => false
             }
             //          println(m.name -> isUsed)
@@ -508,7 +519,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           }
         }
         env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
-          case thing@InitializedArray(name, None, items, _, _, elementType, readOnly, alignment) if readOnly == readOnlyPass && layoutStage == getLayoutStageThing(thing) =>
+          case thing@InitializedArray(name, None, items, _, _, elementType, readOnly, _, alignment) if readOnly == readOnlyPass && layoutStage == getLayoutStageThing(thing) =>
             val bank = thing.bank(options)
             if (options.platform.ramInitialValuesBank.isDefined && !readOnly && bank != "default") {
               log.error(s"Preinitialized writable array `$name` should be defined in the `default` bank")
@@ -538,7 +549,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             printArrayToAssemblyOutput(assembly, name, elementType, items)
             initializedVariablesSize += items.length
             justAfterCode += bank -> index
-          case m@InitializedMemoryVariable(name, None, typ, value, _, alignment, _) if !readOnlyPass && layoutStage == getLayoutStageThing(m) =>
+          case m@InitializedMemoryVariable(name, None, typ, value, _, _, alignment, _) if !readOnlyPass && layoutStage == getLayoutStageThing(m) =>
             val bank = m.bank(options)
             if (options.platform.ramInitialValuesBank.isDefined && bank != "default") {
               log.error(s"Preinitialized variable `$name` should be defined in the `default` bank")
@@ -743,6 +754,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   def quickSimplify(code: List[T]): List[T]
 
   def gatherNiceFunctionProperties(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: NormalFunction, code: List[T]): Unit
+
+  def gatherFunctionOptimizationHints(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: FunctionInMemory): Unit
 
   def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[T]): List[T]
 

@@ -248,6 +248,8 @@ sealed trait ThingInMemory extends Thing {
 
   def toAddress: Constant
 
+  def hasOptimizationHints: Boolean = false
+
   var farFlag: Option[Boolean] = None
   val declaredBank: Option[String]
 
@@ -264,7 +266,11 @@ sealed trait PreallocableThing extends ThingInMemory {
 
   def alignment: MemoryAlignment
 
-  def toAddress: Constant = address.getOrElse(MemoryAddressConstant(this))
+  def toAddress: Constant = if (hasOptimizationHints) {
+    MemoryAddressConstant(this)
+  } else {
+    address.getOrElse(MemoryAddressConstant(this))
+  }
 }
 
 case class Label(name: String) extends ThingInMemory {
@@ -294,6 +300,10 @@ sealed trait VariableInMemory extends Variable with ThingInMemory with Indexable
 
   override def bank(compilationOptions: CompilationOptions): String =
     declaredBank.getOrElse("default")
+
+  def optimizationHints: Set[String]
+
+  override def hasOptimizationHints: Boolean = optimizationHints.nonEmpty
 }
 
 case class RegisterVariable(register: MosRegister.Value, typ: Type) extends Variable {
@@ -347,6 +357,7 @@ case class UninitializedMemoryVariable(
                                         alloc:
                                         VariableAllocationMethod.Value,
                                         declaredBank: Option[String],
+                                        override val optimizationHints: Set[String],
                                         override val alignment: MemoryAlignment,
                                         override val isVolatile: Boolean) extends MemoryVariable with UninitializedMemory {
   override def sizeInBytes: Int = typ.alignedSize
@@ -362,6 +373,7 @@ case class InitializedMemoryVariable(
                                       typ: Type,
                                       initialValue: Expression,
                                       declaredBank: Option[String],
+                                      override val optimizationHints: Set[String],
                                       override val alignment: MemoryAlignment,
                                       override val isVolatile: Boolean) extends MemoryVariable with PreallocableThing {
   override def zeropage: Boolean = false
@@ -380,9 +392,18 @@ trait MfArray extends ThingInMemory with IndexableThing {
   def sizeInBytes: Int
   def elementCount: Int
   def readOnly: Boolean
+  def optimizationHints: Set[String]
+  override def hasOptimizationHints: Boolean = optimizationHints.nonEmpty
 }
 
-case class UninitializedArray(name: String, elementCount: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean, override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
+case class UninitializedArray(name: String,
+                              elementCount: Int,
+                              declaredBank: Option[String],
+                              indexType: VariableType,
+                              elementType: VariableType,
+                              override val readOnly: Boolean,
+                              override val optimizationHints: Set[String],
+                              override val alignment: MemoryAlignment) extends MfArray with UninitializedMemory {
   override def toAddress: MemoryAddressConstant = MemoryAddressConstant(this)
 
   override def alloc: VariableAllocationMethod.Value = VariableAllocationMethod.Static
@@ -396,7 +417,13 @@ case class UninitializedArray(name: String, elementCount: Int, declaredBank: Opt
   override def sizeInBytes: Int = elementCount * elementType.alignedSize
 }
 
-case class RelativeArray(name: String, address: Constant, elementCount: Int, declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean) extends MfArray {
+case class RelativeArray(name: String,
+                         address: Constant,
+                         elementCount: Int,
+                         declaredBank: Option[String],
+                         indexType: VariableType,
+                         elementType: VariableType,
+                         override val readOnly: Boolean) extends MfArray {
   override def toAddress: Constant = address
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
@@ -408,9 +435,19 @@ case class RelativeArray(name: String, address: Constant, elementCount: Int, dec
   override def sizeInBytes: Int = elementCount * elementType.alignedSize
 
   override def rootName: String = address.rootThingName
+
+  override def optimizationHints: Set[String] = Set.empty
 }
 
-case class InitializedArray(name: String, address: Option[Constant], contents: Seq[Expression], declaredBank: Option[String], indexType: VariableType, elementType: VariableType, override val readOnly: Boolean, override val alignment: MemoryAlignment) extends MfArray with PreallocableThing {
+case class InitializedArray(name: String,
+                            address: Option[Constant],
+                            contents: Seq[Expression],
+                            declaredBank: Option[String],
+                            indexType: VariableType,
+                            elementType: VariableType,
+                            override val readOnly: Boolean,
+                            override val optimizationHints: Set[String],
+                            override val alignment: MemoryAlignment) extends MfArray with PreallocableThing {
   override def shouldGenerate = true
 
   override def isFar(compilationOptions: CompilationOptions): Boolean = farFlag.getOrElse(false)
@@ -425,10 +462,17 @@ case class InitializedArray(name: String, address: Option[Constant], contents: S
   override def sizeInBytes: Int = contents.size * elementType.alignedSize
 }
 
-case class RelativeVariable(name: String, address: Constant, typ: Type, zeropage: Boolean, declaredBank: Option[String], override val isVolatile: Boolean) extends VariableInMemory {
+case class RelativeVariable(name: String,
+                            address: Constant,
+                            typ: Type,
+                            zeropage: Boolean,
+                            declaredBank: Option[String],
+                            override val isVolatile: Boolean) extends VariableInMemory {
   override def toAddress: Constant = address
 
   override def rootName: String = address.rootThingName
+
+  override def optimizationHints: Set[String] = Set.empty
 }
 
 sealed trait MangledFunction extends CallableThing {
@@ -484,6 +528,10 @@ sealed trait FunctionInMemory extends MangledFunction with ThingInMemory {
   override def canBePointedTo: Boolean = !interrupt && returnType.size <= 2 && params.canBePointedTo && name !="call"
 
   override def requiresTrampoline(compilationOptions: CompilationOptions): Boolean = params.requireTrampoline(compilationOptions)
+
+  def optimizationHints: Set[String]
+
+  override def hasOptimizationHints: Boolean = optimizationHints.nonEmpty
 }
 
 case class ExternFunction(name: String,
@@ -491,8 +539,9 @@ case class ExternFunction(name: String,
                           params: ParamSignature,
                           address: Constant,
                           environment: Environment,
+                          override val optimizationHints: Set[String],
                           declaredBank: Option[String]) extends FunctionInMemory {
-  override def toAddress: Constant = address
+  override def toAddress: Constant = if (hasOptimizationHints) MemoryAddressConstant(this) else address
 
   override def interrupt = false
 
@@ -515,6 +564,7 @@ case class NormalFunction(name: String,
                           kernalInterrupt: Boolean,
                           inAssembly: Boolean,
                           isConstPure: Boolean,
+                          override val optimizationHints: Set[String],
                           reentrant: Boolean,
                           position: Option[Position],
                           declaredBank: Option[String],

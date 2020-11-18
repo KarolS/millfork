@@ -631,9 +631,9 @@ object AbstractExpressionCompiler {
         log.error(s"Cannot find function `${f.functionName}` with given params `${paramsWithTypes.map(_._1).mkString("(", ",", ")")}`", f.position)
       }
       val signature = NormalParamSignature(paramsWithTypes.map { case (t, _) =>
-        UninitializedMemoryVariable("?", t, VariableAllocationMethod.Auto, None, NoAlignment, isVolatile = false)
+        UninitializedMemoryVariable("?", t, VariableAllocationMethod.Auto, None, Set.empty, NoAlignment, isVolatile = false)
       })
-      ExternFunction(f.functionName, NullType, signature, Constant.Zero, env, None)
+      ExternFunction(f.functionName, NullType, signature, Constant.Zero, env, Set.empty, None)
     }
   }
 }

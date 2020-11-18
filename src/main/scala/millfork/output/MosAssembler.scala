@@ -247,6 +247,22 @@ class MosAssembler(program: Program,
     simpleRtsPropertyScan(_.y)(SetsYTo)
   }
 
+  override def gatherFunctionOptimizationHints(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: FunctionInMemory): Unit = {
+    import MosNiceFunctionProperty._
+    import NiceFunctionProperty._
+    val functionName = function.name
+    println(functionName)
+    println(function.optimizationHints)
+    if (function.optimizationHints("even")) niceFunctionProperties += Bit0OfA(false) -> functionName
+    if (function.optimizationHints("odd")) niceFunctionProperties += Bit0OfA(true) -> functionName
+    if (function.optimizationHints("preserves_a")) niceFunctionProperties += DoesntChangeA -> functionName
+    if (function.optimizationHints("preserves_x")) niceFunctionProperties += DoesntChangeX -> functionName
+    if (function.optimizationHints("preserves_y")) niceFunctionProperties += DoesntChangeY -> functionName
+    if (function.optimizationHints("preserves_c")) niceFunctionProperties += DoesntChangeC -> functionName
+    if (function.optimizationHints("preserves_memory")) niceFunctionProperties += DoesntWriteMemory -> functionName
+    if (function.optimizationHints("idempotent")) niceFunctionProperties += Idempotent -> functionName
+  }
+
   override def bytePseudoopcode: String = "!byte"
 
   override def deduplicate(options: CompilationOptions, compiledFunctions: mutable.Map[String, CompiledFunction[AssemblyLine]]): Unit =

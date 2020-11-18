@@ -211,6 +211,7 @@ sealed class NiceFunctionProperty(override val toString: String)
 object NiceFunctionProperty {
   case object DoesntReadMemory extends NiceFunctionProperty("MR")
   case object DoesntWriteMemory extends NiceFunctionProperty("MW")
+  case object Idempotent extends NiceFunctionProperty("Idem")
   case object IsLeaf extends NiceFunctionProperty("LEAF")
 }
 
@@ -245,6 +246,7 @@ object M6809NiceFunctionProperty {
   case object DoesntChangeX extends NiceFunctionProperty("X")
   case object DoesntChangeY extends NiceFunctionProperty("Y")
   case object DoesntChangeU extends NiceFunctionProperty("U")
+  case object DoesntChangeDP extends NiceFunctionProperty("DP")
   case object DoesntChangeCF extends NiceFunctionProperty("C")
   case class SetsBTo(value: Int) extends NiceFunctionProperty("B=" + value)
 }
@@ -448,6 +450,7 @@ sealed trait DeclarationStatement extends Statement {
 sealed trait BankedDeclarationStatement extends DeclarationStatement {
   def bank: Option[String]
   def name: String
+  def optimizationHints: Set[String]
   def withChangedBank(bank: String): BankedDeclarationStatement
 }
 
@@ -465,6 +468,7 @@ case class VariableDeclarationStatement(name: String,
                                         register: Boolean,
                                         initialValue: Option[Expression],
                                         address: Option[Expression],
+                                        optimizationHints: Set[String],
                                         alignment: Option[MemoryAlignment]) extends BankedDeclarationStatement {
   override def getAllExpressions: List[Expression] = List(initialValue, address).flatten
 
@@ -581,6 +585,7 @@ case class ArrayDeclarationStatement(name: String,
                                      address: Option[Expression],
                                      const: Boolean,
                                      elements: Option[ArrayContents],
+                                     optimizationHints: Set[String],
                                      alignment: Option[MemoryAlignment],
                                      bigEndian: Boolean) extends BankedDeclarationStatement {
   override def getAllExpressions: List[Expression] = List(length, address).flatten ++ elements.fold(List[Expression]())(_.getAllExpressions(bigEndian))
@@ -602,6 +607,7 @@ case class FunctionDeclarationStatement(name: String,
                                         params: List[ParameterDeclaration],
                                         bank: Option[String],
                                         address: Option[Expression],
+                                        optimizationHints: Set[String],
                                         alignment: Option[MemoryAlignment],
                                         statements: Option[List[Statement]],
                                         isMacro: Boolean,

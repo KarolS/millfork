@@ -1181,8 +1181,8 @@ object AlwaysGoodOptimizations {
       }: _*
   )
 
-  val PointlessRegisterTransfers = new RuleBasedAssemblyOptimization("Pointless register transfers",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+  lazy val PointlessRegisterTransfers = new RuleBasedAssemblyOptimization("Pointless register transfers",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     HasOpcode(TYA) ~ (Elidable & HasOpcodeIn(TYA, TAY)) ~~> (_.init),
     HasOpcode(TXA) ~ (Elidable & HasOpcodeIn(TXA, TAX)) ~~> (_.init),
     HasOpcode(TAY) ~ (Elidable & HasOpcodeIn(TYA, TAY)) ~~> (_.init),
@@ -1197,6 +1197,10 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcodeIn(TYA, TAY)) ~~> (_.init),
     HasOpcode(TSX) ~ (Not(ChangesX) & Not(ChangesS) & Linear).* ~ (Elidable & HasOpcodeIn(TXS, TSX)) ~~> (_.init),
     HasOpcode(TXS) ~ (Not(ChangesX) & Not(ChangesS) & Linear).* ~ (Elidable & HasOpcodeIn(TXS, TSX)) ~~> (_.init),
+    HasOpcodeIn(TXA, TAX) ~ (Not(ChangesA) & Not(ChangesX) & Linear).* ~ (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_.init),
+    HasOpcodeIn(TXA, TAX) ~ (Not(ChangesA) & Not(ChangesX) & Linear).* ~ (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_.init),
+    HasOpcodeIn(TYA, TAY) ~ (Not(ChangesA) & Not(ChangesY) & Linear).* ~ (Elidable & HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_.init),
+    HasOpcodeIn(TYA, TAY) ~ (Not(ChangesA) & Not(ChangesY) & Linear).* ~ (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_.init),
   )
 
   lazy val PointlessRegisterTransfersBeforeStore = new RuleBasedAssemblyOptimization("Pointless register transfers from flow",

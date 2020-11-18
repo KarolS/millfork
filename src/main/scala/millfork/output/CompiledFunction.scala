@@ -9,7 +9,7 @@ sealed trait CompiledFunction[T <: AbstractCode] {
   def orderKey : (Int, String)
 }
 
-case class NormalCompiledFunction[T <: AbstractCode](segment: String, code: List[T], hasFixedAddress: Boolean, alignment: MemoryAlignment) extends CompiledFunction[T] {
+case class NormalCompiledFunction[T <: AbstractCode](segment: String, code: List[T], hasFixedAddress: Boolean, optimizationFlags: Set[String], alignment: MemoryAlignment) extends CompiledFunction[T] {
   override def orderKey: (Int, String) = (if (hasFixedAddress) 1 else 2) -> ""
 }
 
