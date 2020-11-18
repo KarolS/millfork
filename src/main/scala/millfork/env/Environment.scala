@@ -1832,28 +1832,31 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         if (stmt.const && stmt.address.isEmpty) {
           log.error(s"Constant array `${stmt.name}` without contents nor address", stmt.position)
         }
-        stmt.length match {
-          case None => log.error(s"Array `${stmt.name}` without size nor contents", stmt.position)
-          case Some(l) =>
-            // array arr[...]
-            val address = stmt.address.map(a => eval(a).getOrElse(log.fatal(s"Array `${stmt.name}` has non-constant address", stmt.position)))
-            val (indexType, lengthConst) = l match {
-              case VariableExpression(name) =>
-                maybeGet[Type](name) match {
-                  case Some(typ@EnumType(_, Some(count))) =>
-                    typ -> NumericConstant(count, Constant.minimumSize(count))
-                  case Some(typ) =>
-                    log.error(s"Type $name cannot be used as an array index", l.position)
-                    w -> Constant.Zero
-                  case _ =>
-                    val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", Some(l), stmt.position))
-                    w -> constant
-                }
+        val l = stmt.length match {
+          case None =>
+            log.error(s"Array `${stmt.name}` without size nor contents", stmt.position)
+            LiteralExpression(1,1)
+          case Some(l) => l
+        }
+        // array arr[...]
+        val address = stmt.address.map(a => eval(a).getOrElse(log.fatal(s"Array `${stmt.name}` has non-constant address", stmt.position)))
+        val (indexType, lengthConst) = l match {
+          case VariableExpression(name) =>
+            maybeGet[Type](name) match {
+              case Some(typ@EnumType(_, Some(count))) =>
+                typ -> NumericConstant(count, Constant.minimumSize(count))
+              case Some(typ) =>
+                log.error(s"Type $name cannot be used as an array index", l.position)
+                w -> Constant.Zero
               case _ =>
                 val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", Some(l), stmt.position))
                 w -> constant
             }
-            lengthConst match {
+          case _ =>
+            val constant = eval(l).getOrElse(errorConstant(s"Array `${stmt.name}` has non-constant length", Some(l), stmt.position))
+            w -> constant
+        }
+        lengthConst match {
               case NumericConstant(length, _) =>
                 if (length > 0xffff || length < 0) log.error(s"Array `${stmt.name}` has invalid length", stmt.position)
                 val alignment = stmt.alignment.getOrElse(defaultArrayAlignment(options, length))
@@ -1902,7 +1905,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 }
               case _ => log.error(s"Array `${stmt.name}` has weird length", stmt.position)
             }
-        }
+
       case Some(contents1) =>
         val contents = extractArrayContents(contents1)
         val indexType = stmt.length match {
