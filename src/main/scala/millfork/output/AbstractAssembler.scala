@@ -35,6 +35,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
   val mem = new CompiledMemory(platform.bankNumbers.toList, platform.bankFill, platform.isBigEndian)
   val labelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
+  val unimportantLabelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
   val breakpointSet: mutable.Set[(Int, Int)] = mutable.Set()
   private val bytesToWriteLater = mutable.ListBuffer[(String, Int, Constant, Option[Position])]()
   private val wordsToWriteLater = mutable.ListBuffer[(String, Int, Constant, Option[Position])]()
@@ -115,6 +116,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           if (labelMap.contains(th.name)) return labelMap(th.name)._2
           if (labelMap.contains(th.name + "`")) return labelMap(th.name)._2
           if (labelMap.contains(th.name + ".addr")) return labelMap.getOrElse[(Int, Int)](th.name, labelMap(th.name + ".array"))._2
+          if (unimportantLabelMap.contains(th.name)) return labelMap(th.name)._2
           val x1 = env.maybeGet[ConstantThing](th.name).map(_.value)
           val x2 = env.maybeGet[ConstantThing](th.name + "`").map(_.value)
           val x3 = env.maybeGet[NormalFunction](th.name).flatMap(_.address)
@@ -137,6 +139,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
       case badThing@UnexpandedConstant(name, _) =>
         if (labelMap.contains(name)) labelMap(name)._2
+        else if (unimportantLabelMap.contains(name)) unimportantLabelMap(name)._2
         else {
           println(badThing)
           ???
@@ -594,9 +597,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val size = rwDataEnd - rwDataStart
         if (size < 0) log.fatal("Negative writable memory size. It's a compiler bug.")
         val ivAddr = codeAllocators(ivBank).allocateBytes(ib, options, size, initialized = true, writeable = false, AllocationLocation.High, NoAlignment)
-        labelMap += "__rwdata_init_start" -> (ib.index -> ivAddr)
-        labelMap += "__rwdata_init_end" -> (ib.index -> (ivAddr + size))
-        labelMap += "__rwdata_size" -> (ib.index -> size)
+        unimportantLabelMap += "__rwdata_init_start" -> (ib.index -> ivAddr)
+        unimportantLabelMap += "__rwdata_init_end" -> (ib.index -> (ivAddr + size))
+        unimportantLabelMap += "__rwdata_size" -> (ib.index -> size)
         for (i <- 0 until size) {
           ib.output(ivAddr + i) = db.output(rwDataStart + i)
         }
@@ -633,26 +636,26 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     if (platform.freeZpBytes.nonEmpty) {
       val zpUsageOffset = platform.freeZpBytes.min
       val zeropageOccupation = zpOccupied.slice(zpUsageOffset, platform.freeZpBytes.max + 1)
-      labelMap += "__zeropage_usage" -> (defaultBank, zeropageOccupation.lastIndexOf(true) - zeropageOccupation.indexOf(true) + 1)
-      labelMap += "__zeropage_first" -> (defaultBank, zpUsageOffset + (zeropageOccupation.indexOf(true) max 0))
-      labelMap += "__zeropage_last" -> (defaultBank, zpUsageOffset + (zeropageOccupation.lastIndexOf(true) max 0))
-      labelMap += "__zeropage_end" -> (defaultBank, zpUsageOffset + zeropageOccupation.lastIndexOf(true) + 1)
+      unimportantLabelMap += "__zeropage_usage" -> (defaultBank, zeropageOccupation.lastIndexOf(true) - zeropageOccupation.indexOf(true) + 1)
+      unimportantLabelMap += "__zeropage_first" -> (defaultBank, zpUsageOffset + (zeropageOccupation.indexOf(true) max 0))
+      unimportantLabelMap += "__zeropage_last" -> (defaultBank, zpUsageOffset + (zeropageOccupation.lastIndexOf(true) max 0))
+      unimportantLabelMap += "__zeropage_end" -> (defaultBank, zpUsageOffset + zeropageOccupation.lastIndexOf(true) + 1)
     } else {
-      labelMap += "__zeropage_usage" -> (defaultBank -> 0)
-      labelMap += "__zeropage_first" -> (defaultBank -> 3)
-      labelMap += "__zeropage_last" -> (defaultBank -> 2)
-      labelMap += "__zeropage_end" -> (defaultBank -> 3)
+      unimportantLabelMap += "__zeropage_usage" -> (defaultBank -> 0)
+      unimportantLabelMap += "__zeropage_first" -> (defaultBank -> 3)
+      unimportantLabelMap += "__zeropage_last" -> (defaultBank -> 2)
+      unimportantLabelMap += "__zeropage_end" -> (defaultBank -> 3)
     }
-    labelMap += "__rwdata_start" -> (defaultBank -> rwDataStart)
-    labelMap += "__rwdata_end" -> (defaultBank -> rwDataEnd)
-    labelMap += "__heap_start" -> (defaultBank -> variableAllocators("default").heapStart)
+    unimportantLabelMap += "__rwdata_start" -> (defaultBank -> rwDataStart)
+    unimportantLabelMap += "__rwdata_end" -> (defaultBank -> rwDataEnd)
+    unimportantLabelMap += "__heap_start" -> (defaultBank -> variableAllocators("default").heapStart)
     for (segment <- platform.bankNumbers.keys) {
       val allocator = options.platform.variableAllocators(segment)
-      labelMap += s"segment.$segment.start" -> (defaultBank -> allocator.startAt)
-      labelMap += s"segment.$segment.end" -> (defaultBank -> (allocator.endBefore - 1))
-      labelMap += s"segment.$segment.heapstart" -> (defaultBank -> allocator.heapStart)
-      labelMap += s"segment.$segment.length" -> (defaultBank -> (allocator.endBefore - allocator.startAt))
-      labelMap += s"segment.$segment.bank" -> (defaultBank -> platform.bankNumbers(segment))
+      unimportantLabelMap += s"segment.$segment.start" -> (defaultBank -> allocator.startAt)
+      unimportantLabelMap += s"segment.$segment.end" -> (defaultBank -> (allocator.endBefore - 1))
+      unimportantLabelMap += s"segment.$segment.heapstart" -> (defaultBank -> allocator.heapStart)
+      unimportantLabelMap += s"segment.$segment.length" -> (defaultBank -> (allocator.endBefore - allocator.startAt))
+      unimportantLabelMap += s"segment.$segment.bank" -> (defaultBank -> platform.bankNumbers(segment))
     }
 
     env = rootEnv.allThings
@@ -679,11 +682,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       mem.banks(bank).start = start
       mem.banks(bank).end = end
     }
-
-    labelMap.toList.sorted.foreach { case (l, (_, v)) =>
+    val allLabelList = labelMap.toList ++ unimportantLabelMap.toList
+    allLabelList.sorted.foreach { case (l, (_, v)) =>
       assembly += f"$l%-30s = $$$v%04X"
     }
-    labelMap.toList.sortBy { case (a, (_, v)) => v -> a }.foreach { case (l, (_, v)) =>
+    allLabelList.sortBy { case (a, (_, v)) => v -> a }.foreach { case (l, (_, v)) =>
       assembly += f"    ; $$$v%04X = $l%s"
     }
 

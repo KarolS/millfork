@@ -500,6 +500,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     addUnexpandedPointerConstant("__rwdata_start")
     addUnexpandedPointerConstant("__rwdata_end")
+    addUnexpandedPointerConstant("__heap_start")
     if (options.platform.ramInitialValuesBank.isDefined) {
       addUnexpandedPointerConstant("__rwdata_init_start")
       addUnexpandedPointerConstant("__rwdata_init_end")
