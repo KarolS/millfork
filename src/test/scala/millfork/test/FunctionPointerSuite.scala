@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuSizeOptimizedCrossPlatformRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -30,7 +30,7 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
   }
 
   test("Function pointers 2") {
-    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
       """
         | const byte COUNT = 128
         | array output0[COUNT] @$c000
@@ -100,7 +100,7 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
   }
 
   test("Function pointers 3") {
-    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | const byte COUNT = 128
         | array(word) output0[COUNT] @$c000
@@ -118,6 +118,32 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
       """.stripMargin) { m =>
       for (i <- 0 until 0x80) {
         m.readWord(0xc000 + i * 2) should equal(i) withClue ("id " + i)
+      }
+    }
+  }
+
+  test("Function pointers 4") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | const byte COUNT = 128
+        | array(byte) output0[COUNT] @$c000
+        | noinline void fill(function.byte.to.byte f) {
+        |   byte i
+        |   for i,0,until,COUNT {
+        |     call(f, i)
+        |   }
+        | }
+        | byte iota_at(byte x) {
+        |   output0[x] = x
+        |   return x
+        | }
+        | void main() {
+        |   fill(iota_at.pointer)
+        | }
+        |
+      """.stripMargin) { m =>
+      for (i <- 0 until 0x80) {
+        m.readByte(0xc000 + i) should equal(i) withClue ("id " + i)
       }
     }
   }

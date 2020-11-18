@@ -2211,8 +2211,14 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         return None
       }
       val function = thing.asInstanceOf[MangledFunction]
-      if (function.params.length != actualParams.length) {
+      if (function.name == "call") {
+        if (actualParams.isEmpty || actualParams.length > 2) {
+          log.error("Invalid number of parameters for function `call`", actualParams.headOption.flatMap(_._2.position))
+        }
+      } else {
+        if (function.params.length != actualParams.length && function.name != "call") {
         log.error(s"Invalid number of parameters for function `$name`", actualParams.headOption.flatMap(_._2.position))
+      }
       }
       if (name == "call") return Some(function)
       function.params match {
