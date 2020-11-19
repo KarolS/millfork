@@ -80,7 +80,7 @@ case class EndAddressOutput(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     val x = b.end + bonus
-    Array(b.end.toByte, b.end.>>(8).toByte)
+    Array(x.toByte, x.>>(8).toByte)
   }
 }
 
