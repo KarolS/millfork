@@ -238,9 +238,13 @@ Default: `main,*`
     
     * `d88` - a D88 floppy disk image for PC-88
     
-    * `tap` - a tape disk image for ZX Spectrum
+    * `tap:XXXX` - a tape image for ZX Spectrum; XXXX is the name of the entry point to the program
     
-    * `trscmd` - a chunked loadable executable for TRS-80 Model 1 or 3 running TRS-DOS, also known as the /CMD format 
+    * `tap` – equivalent to `tap:main`
+    
+    * `trscmd:XXXX` - a chunked loadable executable for TRS-80 Model 1 or 3 running TRS-DOS, also known as the /CMD format; XXXX is the name of the entry point to the program
+    
+    * `trscmd` - equivalent to `trscmd:main`
 
 * `format_segment_NAME` – if using the `per_segment` style, overrides the format for the given segment 
     

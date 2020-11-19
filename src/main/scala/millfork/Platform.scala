@@ -285,8 +285,10 @@ object Platform {
       case l if l.startsWith("length_be-") => AllocatedDataLengthBe(-parseNumber(l.stripPrefix("length_be-")))
       case "length_be" => AllocatedDataLengthBe(0)
       case "d88" => D88Output
-      case "tap" => TapOutput
-      case "trscmd" => TrsCmdOutput
+      case "tap" => new TapOutput("main")
+      case l if l.startsWith("tap:") => new TapOutput(l.stripPrefix("tap:").trim)
+      case "trscmd" => new TrsCmdOutput("main")
+      case l if l.startsWith("trscmd:") => new TrsCmdOutput(l.stripPrefix("trscmd:").trim)
       case n => n.split(":").filter(_.nonEmpty) match {
         case Array(b, s, e) => BankFragmentOutput(b, parseNumber(s), parseNumber(e))
         case Array(s, e) =>
