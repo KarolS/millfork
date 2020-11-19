@@ -1,17 +1,28 @@
 package millfork.output
 
+import millfork.error.Logger
+
 import scala.collection.mutable
 
 /**
   * @author Karol Stasiak
   */
-class CompiledMemory(bankNames: List[(String, Int)], bankFills: Map[String, Int], bigEndian: Boolean) {
+class CompiledMemory(bankNames: List[(String, Int)], bankFills: Map[String, Int], bigEndian: Boolean, labels: mutable.Map[String, (Int, Int)], log: Logger) {
   var programName = "MILLFORK"
   val banks: mutable.Map[String, MemoryBank] = mutable.Map(bankNames.map{p =>
     val bank = new MemoryBank(p._2, bigEndian)
     bank.fill(bankFills.getOrElse(p._1, 0))
     p._1 -> bank
   }: _*)
+
+  def getAddress(symbol: String): Int = {
+    if (labels.contains(symbol)) {
+      labels(symbol)._2
+    } else {
+      log.error(s"Symbol `$symbol` (used in the output format) is not defined")
+      0
+    }
+  }
 }
 
 class MemoryBank(val index: Int, val isBigEndian: Boolean) {

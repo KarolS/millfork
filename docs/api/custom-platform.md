@@ -204,9 +204,15 @@ Default: `main,*`
     
     * `endaddr_be` – the same, but big-endian
     
-    * `startaddr+123`, `startaddr_be+123`, `endaddr+123`, `endaddr_be+123` – the same, but incremented by the given number
+    * `addr:XXXX` – little-endian 16-bit address of the symbol XXXX
+    
+    * `addr_be:XXXX`  – the same, but big-endian
+    
+    * `startaddr+123`, `startaddr_be+123`, `endaddr+123`, `endaddr_be+123`, `addr:XXXX+123`, `addr_be:XXXX+123` – the same, but incremented by the given number
 
-    * `startaddr-123`, `startaddr_be-123`, `endaddr-123`, `endaddr_be-123` – the same, but decremented by the given number
+        * the number can be decimal, hexadecimal, octal, quaternary or binary
+
+    * `startaddr-123`, `startaddr_be-123`, `endaddr-123`, `endaddr_be-123`, `addr:XXXX-123`, `addr_be:XXXX-123`– the same, but decremented by the given number
     
     * `startpage` – the high byte of `startaddr`
     

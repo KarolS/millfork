@@ -289,7 +289,17 @@ object Platform {
       case "trscmd" => TrsCmdOutput
       case n => n.split(":").filter(_.nonEmpty) match {
         case Array(b, s, e) => BankFragmentOutput(b, parseNumber(s), parseNumber(e))
-        case Array(s, e) => CurrentBankFragmentOutput(parseNumber(s), parseNumber(e))
+        case Array(s, e) =>
+          s match {
+            case "addr" =>
+              val (symbol, bonus) = parseSymbolAndBonus(e)
+              SymbolAddressOutput(symbol, bonus)
+            case "addr_be" =>
+              val (symbol, bonus) = parseSymbolAndBonus(e)
+              SymbolAddressOutputBe(symbol, bonus)
+            case _ =>
+              CurrentBankFragmentOutput(parseNumber(s), parseNumber(e))
+          }
         case Array(b) => try {
           ConstOutput(parseNumber(b).toByte)
         } catch {
@@ -424,7 +434,8 @@ object Platform {
     }
   }
 
-  def parseNumber(s: String): Int = {
+  def parseNumber(str: String): Int = {
+    val s = str.trim
     if (s.startsWith("$")) {
       Integer.parseInt(s.substring(1), 16)
     } else if (s.startsWith("0x")) {
@@ -447,6 +458,20 @@ object Platform {
       Integer.parseInt(s.substring(2), 4)
     } else {
       s.toInt
+    }
+  }
+
+  def parseSymbolAndBonus(token: String): (String, Int) = {
+    if (token.contains("+")) {
+      token.split("\\+", 2) match {
+        case Array(n, b) => n.trim -> parseNumber(b)
+      }
+    } else if (token.contains("-")) {
+      token.split("-", 2) match {
+        case Array(n, b) => n.trim -> -parseNumber(b)
+      }
+    } else {
+      token.trim -> 0
     }
   }
 }
