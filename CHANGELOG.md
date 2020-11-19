@@ -6,19 +6,43 @@
 
 * Preliminary support for Robotron Z1013.
 
+* Allowed to define entry points other than the start of the segment for Atari, ZX Spectrum, CoCo, Z1013 and TRS-80. (#78)
+
 * Allowed the `:` operator in const-pure functions.
+
+* Added `pointer.interrupt` and `pointer.kernal_interrupt` types.
 
 * Implemented `readline` and `readword` for VIC-20.
 
 * `init_rand_seed` uses the POKEY on Atari.
 
+* Useless labels are no longer emitted into the label file.
+
+* VIC-20: added `readline` and `readword`.
+
+* Atari: use POKEY for randomness source.
+
+* New output format elements: ASCII string, program name.
+
+* Fix: Pointers to functions with parameters (#86)/
+
 * Fix: more instances of memset loops should be detected and optimized (#59).
 
 * Fix: things mentioned in the segment layout should not be deleted even if unused.
 
+* Fix: `endaddr+N` output format.
+
 * 65816: some code generation fixes.
 
+* 8080: word negation now works.
+
+* Various other fixes.
+
+* Improved some error messages.
+
 * Even more new Atari examples (thanks to @zbyti).
+
+* Build process sligtly changed.
 
 ## 0.3.22 (2020-09-15)
 
