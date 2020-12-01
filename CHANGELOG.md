@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.24 (2020-12-02)
 
 * Preliminary support for TRS-80 Model 1 and 3 running TRS-DOS.
 
