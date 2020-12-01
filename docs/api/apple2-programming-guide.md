@@ -11,7 +11,7 @@ You can do it using [CiderPress](http://a2ciderpress.com/),
 [AppleCommander](https://applecommander.github.io/), 
 or some other tool.
 
-The file has to be loaded from $0C00. An example how to put such file onto a disk using AppleCommander:
+The file has to be loaded from $0C00. An example how to put such a file onto a disk using AppleCommander:
 
     java -jar AppleCommander-1.3.5.jar -p disk_image.dsk FILENAME B 0xc00 < compiler_output.a2
     

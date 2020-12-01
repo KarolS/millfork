@@ -47,6 +47,6 @@ or `word` if the screen is more that 256 pixels tall.
 ## null_mouse_default
 
 This module set the default mouse to null mouse.
-The null mouse has no button pressed and the cursos is fixed at coordinates (0,0). 
+The null mouse has no button pressed and the cursor is fixed at coordinates (0,0). 
 
 #### `void read_mouse()`

@@ -125,7 +125,7 @@ calls with non-constant arguments are subject to the regular rules.
 
 * functions declared with the `noinline` keyword will never be inlined
 
-* the remaining functions may be inlined only if the `-finline` command-line option is enabled
+* the remaining functions may be inlined only if the `-finline` command-line option is enabled,
 and the compiler decides the function is worth doing
 
 ## Automatic subroutine extraction

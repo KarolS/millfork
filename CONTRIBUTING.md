@@ -13,7 +13,7 @@ If you want to contribute:
 * make a pull request, explaining what you implemented if needed.
 
 By making pull request, you agree for your changes to be distributed in perpetuity
-under the applicable license (GPL-3 for the compiler, zlib for the stdlib, CC0 for documentation)
+under the applicable license (GPL-3 for the compiler, zlib for the stdlib, CC0 for the documentation)
 or any other compatible license.
 You retain copyright to your contributions, you do not have to assign the copyright to anybody.
 

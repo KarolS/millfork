@@ -36,7 +36,7 @@ The minimal Famicom program thus looks like this:
 To use a mapper of your choice, create a new `.ini` file with the definitions you need.
 The most important ones are `[output]format` and `[allocation]segments`.
 
-Currently, its a bit inconvenient to create programs using mappers that change the bank containing the interrupt vectors.
+Currently, it's a bit inconvenient to create programs using mappers that change the bank containing the interrupt vectors.
 Therefore, it's recommended to stick to mappers that have a fixed bank at the end of the address space.
 
 Mappers that should be fine: NROM (0), CNROM (1), UxROM(2), MMC2 (9), MMC3 (4), MMC4 (10), MMC6 (4).

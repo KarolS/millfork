@@ -31,11 +31,11 @@ Executes a CBM DOS command on the given drive.
 
 #### void delete_file(byte device, pointer name)
 
-Deletes given file in the given drive. (`S0:`)
+Deletes the given file in the given drive. (`S0:`)
 
 #### void rename_file(byte device, pointer old_name, pointer new_name)
 
-Renames given file in the given drive. (`R0:`)
+Renames the given file in the given drive. (`R0:`)
 
 #### void copy_file(byte device, pointer old_name, pointer new_name)
 

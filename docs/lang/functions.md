@@ -78,7 +78,7 @@ Such functions should be marked as written in assembly and should have their par
 
 * `<expression>` is an expression. It is equivalent to a function body of form `{ return <expression> }`.  
 
-The address of an non-macro function `f` is a constant `f.addr`. 
+The address of a non-macro function `f` is a constant `f.addr`. 
 
 Non-macro, non-interrupt functions which have max one parameter of size max 2 bytes
 and return `void` or a value of size max 2 bytes,

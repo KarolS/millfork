@@ -14,7 +14,7 @@ There are two ways to include raw assembly code in your Millfork programs:
 
 Millfork inline assembly uses the same three-letter opcodes as most other 6809 assemblers.
 
-Labels have to be followed by a colon and they can optionally be on a separate line.
+Labels have to be followed by a colon, and they can optionally be on a separate line.
 Indentation is not important:
 
     first:  INC a
@@ -52,7 +52,7 @@ You can use `>` do signify the absolute addressing mode, but it is never necessa
 This option exists only for compatibility with other assemblers.
 
 Any assembly opcode can be prefixed with `?`, which allows the optimizer change it or elide it if needed.
-Opcodes without that prefix will be always compiled as written.
+Opcodes without that prefix will always be compiled as written.
 
 The '!' prefix marks the statement as volatile, which means it will be a subject to certain, but not all optimizations,
 in order to preserve its semantics.

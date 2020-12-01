@@ -19,7 +19,7 @@ Raw addresses are acquired using the `.addr` suffix.
 The numeric values of the pointer and of the raw address may differ.
 
 * Operator precedence works differently.
-Bitwise and bitshift operators have the same precedence as arithmetic operators,
+Bitwise and bit-shifting operators have the same precedence as arithmetic operators,
 and mixing different operators with the same precedence is usually forbidden.
 This prevents most ambiguities in bit-twiddling code, but requires care when porting code from or to C. 
 

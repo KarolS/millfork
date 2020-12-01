@@ -32,7 +32,7 @@ It does not support instructions that are unavailable on the Z80 or other undocu
 
 Not all ZX Spectrum Next instructions are supported. `JP (C)`, `BSLA` and similar instructions are not supported.
 
-Labels have to be followed by a colon and they can optionally be on a separate line.
+Labels have to be followed by a colon, and they can optionally be on a separate line.
 Indentation is not important:
 
     // Zilog syntax
@@ -75,7 +75,7 @@ but you need to be careful with using absolute vs immediate addressing:
     }
 
 Any assembly opcode can be prefixed with `?`, which allows the optimizer change it or elide it if needed.
-Opcodes without that prefix will be always compiled as written.
+Opcodes without that prefix will always be compiled as written.
 
 The '!' prefix marks the statement as volatile, which means it will be a subject to certain, but not all optimizations,
 in order to preserve its semantics.

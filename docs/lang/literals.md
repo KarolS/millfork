@@ -63,7 +63,7 @@ The byte constant `nullchar` is defined to be equal to the string terminator in 
 and the byte constant `nullchar_scr` is defined to be equal to the string terminator in the `scr` encoding (`'{nullchar}'scr`).
 
 You can override the values for `nullchar` and `nullchar_scr`
-by defining preprocesor features `NULLCHAR` and `NULLCHAR_SCR` respectively. 
+by defining preprocessor features `NULLCHAR` and `NULLCHAR_SCR` respectively. 
 
 Warning: If you define UTF-16 to be you default or screen encoding, you will encounter several problems:
 

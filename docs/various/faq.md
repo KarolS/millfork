@@ -10,7 +10,7 @@ mostly game developers, who have little use for advanced features of C, but don'
 ### What was the inspiration?
 
 The main inspirations was Atalan, but also Quetzalcoatl, Batari BASIC and NESHLA.
-Sadly, Atalan has been abandoned and the compiler has been left in a non-working state.
+Sadly, Atalan has been abandoned, and the compiler has been left in a non-working state.
 The goal of Millfork is to succeed where Atalan failed. 
 
 ### What platforms are supported?

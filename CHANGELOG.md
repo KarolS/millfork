@@ -6,7 +6,7 @@
 
 * Preliminary support for Robotron Z1013.
 
-* Allowed to define entry points other than the start of the segment for Atari, ZX Spectrum, CoCo, Z1013 and TRS-80. (#78)
+* Allowed defining entry points other than the start of the segment for Atari, ZX Spectrum, CoCo, Z1013 and TRS-80. (#78)
 
 * Allowed the `:` operator in const-pure functions.
 
@@ -42,7 +42,7 @@
 
 * Even more new Atari examples (thanks to @zbyti).
 
-* Build process sligtly changed.
+* Build process slightly changed.
 
 ## 0.3.22 (2020-09-15)
 
@@ -528,7 +528,7 @@ can no longer be read before an explicit call to `init_rw_memory`, either add th
 
 * Added enumeration types.
 
-* Added preprocessor.
+* Added the preprocessor.
 
 * Added `for` loops over enum types and in-place lists
 
@@ -550,7 +550,7 @@ can no longer be read before an explicit call to `init_rw_memory`, either add th
 
 * Extra `z` at the name of the encoding means that the string is zero-terminated.
 
-* **Potentially breaking change!** No longer allowed to define things with names that are keywords or builtins.
+* **Potentially breaking change!** It's no longer allowed to define things with names that are keywords or builtins.
 
 * **Potentially breaking change!** Curly braces in text literals are now used for escape sequences.
 
