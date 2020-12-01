@@ -716,6 +716,18 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (statements.isEmpty && alignment.isDefined) log.error(s"Extern function `$name` cannot have alignment", Some(p))
     if (statements.isEmpty && !flags("asm") && params.nonEmpty) log.error(s"Extern non-asm function `$name` cannot have parameters", Some(p))
     if (flags("asm")) validateAsmFunctionBody(p, flags, name, statements)
+    if (flags("macro")) {
+      statements.flatMap(_.find(_.isInstanceOf[VariableDeclarationStatement])) match {
+        case Some(s) =>
+          log.error(s"Macro functions cannot declare variables", s.position)
+        case None =>
+      }
+      statements.flatMap(_.find(_.isInstanceOf[ArrayDeclarationStatement])) match {
+        case Some(s) =>
+          log.error(s"Macro functions cannot declare arrays", s.position)
+        case None =>
+      }
+    }
     Seq(FunctionDeclarationStatement(name, returnType, params.toList,
       bank,
       addr,
