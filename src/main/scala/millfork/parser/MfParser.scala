@@ -30,6 +30,18 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val enableDebuggingOptions: Boolean = options.flag(CompilationFlag.EnableInternalTestSyntax)
 
+  private def getCharacterNameSafe(c: Char): String = {
+    try {
+      "U+%04X %s".format(c.toInt, Character.getName(c))
+    } catch {
+      case _: Throwable => c match {
+        case '\n' => "U+000A LINE FEED"
+        case '\r' => "U+000D CARRIAGE RETURN"
+        case _ => "U+%04X"
+      }
+    }
+  }
+
   def toAst: Parsed[Program] = {
     val parse = program.parse(input + "\n\n\n")
     parse match {
@@ -37,7 +49,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         if (lastPosition.cursor >= 0 && lastPosition.cursor < input.length) {
           val c = input(lastPosition.cursor)
           if (c >= 0x100 || c < 0x20 || c == '`') {
-            log.error("Invalid character U+%04X %s".format(c.toInt, Character.getName(c)), Some(lastPosition))
+            log.error("Invalid character %s".format(getCharacterNameSafe(c)), Some(lastPosition))
             Confusables.map.get(c) match {
               case Some(ascii) =>
                 log.info(s"Did you mean: $ascii")
