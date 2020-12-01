@@ -62,7 +62,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     parse
   }
 
-  private val lineStarts: Array[Int] = (0 +: input.zipWithIndex.filter(_._1 == '\n').map(_._2)).toArray
+  private val lineStarts: Array[Int] = (-1 +: input.zipWithIndex.filter(_._1 == '\n').map(_._2).map(_+1)).toArray
 
   def position(label: String = ""): P[Position] = Index.map(i => indexToPosition(i, label))
 
@@ -71,7 +71,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (lineNumber < 0) {
       lineNumber = - lineNumber - 2
     }
-    val columnNumber = i - lineStarts(lineNumber)
+    val columnNumber = i - lineStarts(lineNumber) + 1
     lineNumber += 1
     val newPosition = Position(fileId, lineNumber, columnNumber, i)
     if (newPosition.cursor > lastPosition.cursor) {
