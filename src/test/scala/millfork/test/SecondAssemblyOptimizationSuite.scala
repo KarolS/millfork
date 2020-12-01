@@ -144,4 +144,28 @@ class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
 
     }
   }
+
+  test("Bubblesort") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
+      """
+        |array sorttable [2540] @$C000
+        |
+        |void main() {
+        |    byte t,i,n1,n2
+        |    for t,25,downto,0{
+        |        for i,0,to,25{
+        |            n1 = sorttable[i]
+        |            n2 = sorttable[i+1]
+        |            if n1>n2 {
+        |                sorttable[i] = n2
+        |                sorttable[i+1] = n1
+        |            }
+        |        }
+        |    }
+        |}
+        |
+        |""".stripMargin) { m =>
+
+    }
+  }
 }

@@ -94,55 +94,76 @@ object AlwaysGoodI80Optimizations {
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
     for7Registers(register =>
       Is8BitLoad(ZRegister.MEM_HL, register) ~
-        (Linear & Not(Changes(ZRegister.H)) & Not(Changes(ZRegister.L)) & Not(ChangesMemory) & Not(Changes(register)) & Not(IsRegular8BitLoadFrom(ZRegister.MEM_HL))).* ~
+        (HasOpcodeIn(Set(JP,JR)) & Not(HasRegisters(NoRegisters)) |
+          Linear & Not(Changes(ZRegister.H)) & Not(Changes(ZRegister.L)) & Not(ChangesMemory) & Not(Changes(register)) & Not(IsRegular8BitLoadFrom(ZRegister.MEM_HL))).* ~
+        (Elidable & Is8BitLoad(register, ZRegister.MEM_HL)) ~~> { code => code.init }
+    ),
+    for7Registers(register =>
+      Is8BitLoad(register, ZRegister.MEM_HL) ~
+        (HasOpcodeIn(Set(JP,JR)) & Not(HasRegisters(NoRegisters)) |
+          Linear & Not(Changes(ZRegister.H)) & Not(Changes(ZRegister.L)) & Not(ChangesMemory) & Not(Changes(register)) & Not(IsRegular8BitLoadFrom(ZRegister.MEM_HL))).* ~
         (Elidable & Is8BitLoad(register, ZRegister.MEM_HL)) ~~> { code => code.init }
     ),
     for7Registers(register =>
       Is8BitLoad(ZRegister.MEM_HL, register) ~
-        (Linear & Not(Changes(ZRegister.H)) & Not(Changes(ZRegister.L)) & Not(ChangesMemory) & Not(Changes(register)) & Not(IsRegular8BitLoadFrom(ZRegister.MEM_HL))).* ~
+        (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+          Linear & Not(Changes(ZRegister.H)) & Not(Changes(ZRegister.L)) & Not(ChangesMemory) & Not(Changes(register)) & Not(IsRegular8BitLoadFrom(ZRegister.MEM_HL))).* ~
         (Elidable & IsRegular8BitLoadFrom(ZRegister.MEM_HL)) ~~> { code =>
         val last = code.last
         code.init :+ last.copy(registers = TwoRegisters(last.registers.asInstanceOf[TwoRegisters].target, register))
       }
     ),
     (Is8BitLoad(ZRegister.MEM_ABS_8, ZRegister.A) & MatchParameter(0)).captureLine(1) ~
-      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
+      (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+        Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
+      (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)) ~~> { code => code.init },
+    (Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)).captureLine(1) ~
+      (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+        Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
       (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)) ~~> { code => code.init },
 
     (Is8BitLoad(ZRegister.MEM_HL, ZRegister.A) & MatchConstantInHL(0)).captureLine(1) ~
-      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
+      (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+        Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
       (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)) ~~> { code => code.init },
 
     (Is8BitLoad(ZRegister.MEM_ABS_8, ZRegister.A) & MatchParameter(0)).captureLine(1) ~
-      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
+      (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+        Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
       (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_HL) & MatchConstantInHL(0)) ~~> { code => code.init },
 
     (Is8BitLoad(ZRegister.MEM_HL, ZRegister.A) & MatchConstantInHL(0)).captureLine(1) ~
-      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
+      (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+        Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.A))).* ~
       (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_HL) & MatchConstantInHL(0)) ~~> { code => code.init },
 
     (Is16BitLoad(ZRegister.MEM_ABS_16, ZRegister.HL) & MatchParameter(0)).captureLine(1) ~
-      (Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.HL))).* ~
+      (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+        Linear & DoesntChangeMemoryAt(1) & Not(Changes(ZRegister.HL))).* ~
       (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16) & MatchParameter(0)) ~~> { code => code.init },
 
     (Is8BitLoad(ZRegister.MEM_ABS_8, ZRegister.A) & MatchParameter(0) & MatchRegister(ZRegister.A, 2)).captureLine(1) ~
-      (Linear & DoesntChangeMemoryAt(1) & Not(Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8))).* ~
+      (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+        Linear & DoesntChangeMemoryAt(1) & Not(Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8))).* ~
       (Elidable & Is8BitLoad(ZRegister.A, ZRegister.MEM_ABS_8) & MatchParameter(0)) ~~> { (code, ctx) =>
       code.init :+ ZLine.ldImm8(ZRegister.A, ctx.get[Int](2))
     },
 
     (Is16BitLoad(ZRegister.MEM_ABS_16, ZRegister.HL) & MatchParameter(0) & MatchConstantInHL(2)).captureLine(1) ~
-      (Linear & DoesntChangeMemoryAt(1) & Not(Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16))).* ~
+      (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+        Linear & DoesntChangeMemoryAt(1) & Not(Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16))).* ~
       (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16) & MatchParameter(0)) ~~> { (code, ctx) =>
       code.init :+ ZLine.ldImm16(ZRegister.HL, ctx.get[Constant](2))
     },
 
     for5LargeRegisters(register =>
       (Is8BitLoad(MEM_ABS_8, ZRegister.A) & MatchParameter(0) & MatchRegister(A, 2)).captureLine(1) ~
-        (Linear & DoesntChangeMemoryAt(1) & Not(Is8BitLoad(MEM_ABS_8, ZRegister.A))).* ~
+        (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+          Linear & DoesntChangeMemoryAt(1) & Not(Is8BitLoad(MEM_ABS_8, ZRegister.A))).* ~
         (Is8BitLoad(MEM_ABS_8, ZRegister.A) & MatchParameter(10) & MatchRegister(A, 12)).captureLine(11) ~
         Where(ctx => ctx.get[Constant](0).succ == ctx.get[Constant](10)) ~
-        (Linear & DoesntChangeMemoryAt(1) & DoesntChangeMemoryAt(11)).* ~
+        (HasOpcodeIn(Set(JP, JR)) & Not(HasRegisters(NoRegisters)) |
+          Linear & DoesntChangeMemoryAt(1) & DoesntChangeMemoryAt(11)).* ~
         (Elidable & Is16BitLoad(register, MEM_ABS_16) & MatchParameter(0) & MatchRegister(A, 12)) ~~> { (code, ctx) =>
         val hi = ctx.get[Int](12)
         val lo = ctx.get[Int](2)
@@ -859,6 +880,50 @@ object AlwaysGoodI80Optimizations {
     ),
   )
 
+  val SimplifiableComparison = new RuleBasedAssemblyOptimization("Simplifiable comparison",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+
+    (Elidable & HasOpcode(CP) & HasRegisterParam(ZRegister.IMM_8)) ~
+      (Elidable & HasOpcodeIn(Set(JR, JP)) & MatchJumpTarget(1) & (HasRegisters(IfFlagSet(ZFlag.Z)) | HasRegisters(IfFlagClear(ZFlag.Z)))) ~
+      (Elidable & HasOpcodeIn(Set(INC, DEC)) & HasRegisterParam(ZRegister.A) & DoesntMatterWhatItDoesWithFlags) ~
+      (Elidable & HasOpcodeIn(Set(JR, JP)) & IsUnconditional) ~
+      (Elidable & HasOpcode(LABEL) & MatchJumpTarget(1) & IsUnconditional & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A)) ~~> { code =>
+      val delta = code(2).opcode match {
+        case INC => +1
+        case DEC => -1
+      }
+      val branch = code(1).registers.negate
+      List(
+        code(2),
+        code.head.copy(parameter = (code.head.parameter + delta).quickSimplify),
+        code(1).copy(opcode=JP, registers = branch, parameter = code(3).parameter),
+        code(4))
+    },
+
+    for6Registers(reg =>
+      (Elidable & Is8BitLoad(ZRegister.A, reg)) ~
+        (Elidable & HasOpcode(CP) & HasRegisterParam(ZRegister.IMM_8)) ~
+        (Elidable & HasOpcodeIn(Set(JR, JP)) & MatchJumpTarget(1) & DoesntMatterWhatItDoesWith(ZRegister.A) & (HasRegisters(IfFlagSet(ZFlag.Z)) | HasRegisters(IfFlagClear(ZFlag.Z)))) ~
+        (Elidable & HasOpcodeIn(Set(INC, DEC)) & HasRegisterParam(reg) & DoesntMatterWhatItDoesWithFlags) ~
+        (Elidable & HasOpcodeIn(Set(JR, JP)) & IsUnconditional) ~
+        (Elidable & HasOpcode(LABEL) & MatchJumpTarget(1) & IsUnconditional & DoesntMatterWhatItDoesWithFlags & DoesntMatterWhatItDoesWith(ZRegister.A, reg)) ~~> { code =>
+        val delta = code(3).opcode match {
+          case INC => +1
+          case DEC => -1
+        }
+        val branch = code(2).registers.negate
+        List(
+          code(3),
+          code.head,
+          code(1).copy(parameter = (code(1).parameter + delta).quickSimplify),
+          code(2).copy(opcode=JP, registers = branch, parameter = code(4).parameter),
+          code(5))
+      },
+    )
+
+
+  )
+
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     // 0
@@ -1218,6 +1283,14 @@ object AlwaysGoodI80Optimizations {
     (HasOpcodeIn(Set(JP, JR)) & MatchJumpTarget(0) & Elidable) ~
       HasOpcodeIn(ZOpcodeClasses.NoopDiscards).* ~
       (HasOpcode(LABEL) & MatchJumpTarget(0)) ~~> (c => c.last :: Nil),
+    (HasOpcodeIn(Set(JP, JR)) & MatchJumpTarget(0) & IsConditional & Elidable) ~
+      (HasOpcodeIn(Set(JP, JR)) & Elidable & IsUnconditional) ~
+      (HasOpcode(LABEL) & MatchJumpTarget(0)) ~~> { code =>
+      List(
+        code(1).copy(opcode = JP, registers = code.head.registers.negate),
+        code(2)
+      )
+    },
   )
 
   val SimplifiableShifting = new RuleBasedAssemblyOptimization("Simplifiable shifting",
@@ -1762,6 +1835,7 @@ object AlwaysGoodI80Optimizations {
     PointlessStackUnstashing,
     ReloadingKnownValueFromMemory,
     ShiftingKnownValue,
+    SimplifiableComparison,
     SimplifiableMaths,
     SimplifiableShifting,
     UnusedCodeRemoval,

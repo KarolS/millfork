@@ -36,6 +36,8 @@
 
 * 8080: word negation now works.
 
+* Various optimization improvements.
+
 * Various other fixes.
 
 * Improved some error messages.

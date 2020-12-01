@@ -719,6 +719,13 @@ case object IsUnconditional extends AssemblyLinePattern {
   override def hitRate: Double = 0.212
 }
 
+case object IsConditional extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line.registers.isInstanceOf[IfFlagSet] || line.registers.isInstanceOf[IfFlagClear]
+
+  override def hitRate: Double = 0.212
+}
+
 case class MatchConstantInHL(i: Int) extends AssemblyLinePattern {
   override def validate(needsFlowInfo: FlowInfoRequirement.Value): Unit =
     FlowInfoRequirement.assertForward(needsFlowInfo)
