@@ -37,7 +37,7 @@ val testDependencies = Seq(
 
 val includesTests = System.getProperty("skipTests") == null
 
-libraryDependencies ++=(
+libraryDependencies ++= (
   if (includesTests) {
     println("Including test dependencies")
     testDependencies
@@ -47,11 +47,11 @@ libraryDependencies ++=(
 )
 
 (if (!includesTests) {
-  // Disable assembling tests
-  sbt.internals.DslEntry.fromSettingsDef(test in assembly := {})
-} else {
-  sbt.internals.DslEntry.fromSettingsDef(Seq[sbt.Def.Setting[_]]())
-})
+   // Disable assembling tests
+   sbt.internal.DslEntry.fromSettingsDef(test in assembly := {})
+ } else {
+   sbt.internal.DslEntry.fromSettingsDef(Seq[sbt.Def.Setting[_]]())
+ })
 
 mainClass in Compile := Some("millfork.Main")
 
