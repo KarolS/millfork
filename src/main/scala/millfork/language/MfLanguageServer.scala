@@ -1,8 +1,12 @@
 package millfork.language
 import millfork.CompilationOptions
-import millfork.parser.MosSourceLoadingQueue
+import millfork.parser.{
+  MosSourceLoadingQueue,
+  ZSourceLoadingQueue,
+  MSourceLoadingQueue,
+  ParsedProgram
+}
 import millfork.Context
-import millfork.parser.ParsedProgram
 
 import millfork.node.{
   FunctionDeclarationStatement,
@@ -43,7 +47,6 @@ import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.DidOpenTextDocumentParams
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j.DidChangeTextDocumentParams
-import millfork.parser.AbstractSourceLoadingQueue
 import java.nio.file.Path
 import java.nio.file.Paths
 import org.eclipse.lsp4j.VersionedTextDocumentIdentifier
@@ -52,6 +55,9 @@ import millfork.node.ImportStatement
 import org.eclipse.lsp4j.ReferenceParams
 import millfork.node.DeclarationStatement
 import scala.collection.JavaConverters._
+import millfork.CpuFamily
+import millfork.parser.ZSourceLoadingQueue
+import millfork.parser.MSourceLoadingQueue
 
 class MfLanguageServer(context: Context, options: CompilationOptions) {
   var client: Option[MfLanguageClient] = None
@@ -127,12 +133,6 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
 
   def rebuildASTForFile(pathString: String, text: Seq[String]) = {
     logEvent(TelemetryEvent("Rebuilding AST for module at path", pathString))
-
-    val queue = new MosSourceLoadingQueue(
-      initialFilenames = context.inputFileNames,
-      includePath = context.includePath,
-      options = options
-    )
 
     val path = Paths.get(pathString)
     val moduleName = queue.extractName(pathString)
@@ -308,12 +308,6 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       TelemetryEvent("Building program AST")
     )
 
-    val queue = new MosSourceLoadingQueue(
-      initialFilenames = context.inputFileNames,
-      includePath = context.includePath,
-      options = options
-    )
-
     var program = queue.run()
 
     logEvent(
@@ -432,6 +426,28 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
       )
     )
   }
+
+  private def queue() =
+    CpuFamily.forType(options.platform.cpu) match {
+      case CpuFamily.M6502 =>
+        new MosSourceLoadingQueue(
+          initialFilenames = context.inputFileNames,
+          includePath = context.includePath,
+          options = options
+        )
+      case CpuFamily.I80 | CpuFamily.I86 =>
+        new ZSourceLoadingQueue(
+          initialFilenames = context.inputFileNames,
+          includePath = context.includePath,
+          options = options
+        )
+      case CpuFamily.M6809 =>
+        new MSourceLoadingQueue(
+          initialFilenames = context.inputFileNames,
+          includePath = context.includePath,
+          options = options
+        )
+    }
 
   private def mfPositionToLSP4j(
       position: Position
