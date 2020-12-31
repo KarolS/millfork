@@ -5,7 +5,7 @@ import millfork.assembly.m6809.opt.JumpFixing
 import millfork.{CompilationOptions, Platform}
 import millfork.assembly.m6809.{MOpcode, _}
 import millfork.compiler.m6809.M6809Compiler
-import millfork.env.{Environment, Label, MemoryAddressConstant, NormalFunction, NumericConstant}
+import millfork.env.{Environment, FunctionInMemory, Label, MemoryAddressConstant, NormalFunction, NumericConstant}
 import millfork.node.{M6809Register, NiceFunctionProperty, Position, Program}
 
 import scala.collection.mutable
@@ -25,6 +25,25 @@ class M6809Assembler(program: Program,
   override def quickSimplify(code: List[MLine]): List[MLine] = code
 
   override def gatherNiceFunctionProperties(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: NormalFunction, code: List[MLine]): Unit = ()
+
+  override def gatherFunctionOptimizationHints(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: FunctionInMemory): Unit = {
+    import NiceFunctionProperty._
+    import millfork.node.M6809NiceFunctionProperty._
+    val functionName = function.name
+    if (function.optimizationHints("preserves_memory")) niceFunctionProperties += DoesntWriteMemory -> functionName
+    if (function.optimizationHints("idempotent")) niceFunctionProperties += Idempotent -> functionName
+    if (function.optimizationHints("preserves_a")) niceFunctionProperties += DoesntChangeA -> functionName
+    if (function.optimizationHints("preserves_b")) niceFunctionProperties += DoesntChangeB -> functionName
+    if (function.optimizationHints("preserves_d")) {
+      niceFunctionProperties += DoesntChangeA -> functionName
+      niceFunctionProperties += DoesntChangeB -> functionName
+    }
+    if (function.optimizationHints("preserves_x")) niceFunctionProperties += DoesntChangeX -> functionName
+    if (function.optimizationHints("preserves_y")) niceFunctionProperties += DoesntChangeY -> functionName
+    if (function.optimizationHints("preserves_u")) niceFunctionProperties += DoesntChangeU -> functionName
+    if (function.optimizationHints("preserves_dp")) niceFunctionProperties += DoesntChangeDP -> functionName
+    if (function.optimizationHints("preserves_c")) niceFunctionProperties += DoesntChangeCF -> functionName
+  }
 
   override def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[MLine]): List[MLine] = {
     JumpFixing(f, code, options)

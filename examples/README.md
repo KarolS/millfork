@@ -1,6 +1,6 @@
 # Examples
 
-The examples showcased here are designed to compile with a compiler built from newest sources.
+The examples showcased here are designed to compile with a compiler built from the newest sources.
 If you are using a release version of the compiler, consider browsing the older versions of the examples:
 
 * [for version 0.3.22](https://github.com/KarolS/millfork/tree/v0.3.22/examples)
@@ -21,7 +21,7 @@ If you are using a release version of the compiler, consider browsing the older 
 
 * [Fizzbuzz](crossplatform/fizzbuzz.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/X16) – everyone's favourite programming task
 
-* [Fizzbuzz 2](crossplatform/fizzbuzz2.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/CoCo) – an alternative, more extensible implemententation of fizzbuzz
+* [Fizzbuzz 2](crossplatform/fizzbuzz2.mfk) (C64/C16/PET/VIC-20/PET/Atari/Apple II/BBC Micro/ZX Spectrum/PC-88/Armstrad CPC/MSX/CoCo) – an alternative, more extensible implementation of fizzbuzz
 
 * [Fizzbuzz JP](crossplatform/fizzbuzz_jp.mfk) (PC-88/Japanese C64) – Fizzbuzz, but in Japanese
 

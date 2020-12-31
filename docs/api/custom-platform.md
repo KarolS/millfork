@@ -204,9 +204,15 @@ Default: `main,*`
     
     * `endaddr_be` – the same, but big-endian
     
-    * `startaddr+123`, `startaddr_be+123`, `endaddr+123`, `endaddr_be+123` – the same, but incremented by the given number
+    * `addr:XXXX` – little-endian 16-bit address of the symbol XXXX
+    
+    * `addr_be:XXXX`  – the same, but big-endian
+    
+    * `startaddr+123`, `startaddr_be+123`, `endaddr+123`, `endaddr_be+123`, `addr:XXXX+123`, `addr_be:XXXX+123` – the same, but incremented by the given number
 
-    * `startaddr-123`, `startaddr_be-123`, `endaddr-123`, `endaddr_be-123` – the same, but decremented by the given number
+        * the number can be decimal, hexadecimal, octal, quaternary or binary
+
+    * `startaddr-123`, `startaddr_be-123`, `endaddr-123`, `endaddr_be-123`, `addr:XXXX-123`, `addr_be:XXXX-123`– the same, but decremented by the given number
     
     * `startpage` – the high byte of `startaddr`
     
@@ -232,9 +238,13 @@ Default: `main,*`
     
     * `d88` - a D88 floppy disk image for PC-88
     
-    * `tap` - a tape disk image for ZX Spectrum
+    * `tap:XXXX` - a tape image for ZX Spectrum; XXXX is the name of the entry point to the program
     
-    * `trscmd` - a chunked loadable executable for TRS-80 Model 1 or 3 running TRS-DOS, also known as the /CMD format 
+    * `tap` – equivalent to `tap:main`
+    
+    * `trscmd:XXXX` - a chunked loadable executable for TRS-80 Model 1 or 3 running TRS-DOS, also known as the /CMD format; XXXX is the name of the entry point to the program
+    
+    * `trscmd` - equivalent to `trscmd:main`
 
 * `format_segment_NAME` – if using the `per_segment` style, overrides the format for the given segment 
     

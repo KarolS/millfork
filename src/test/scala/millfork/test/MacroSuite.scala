@@ -294,4 +294,17 @@ class MacroSuite extends FunSuite with Matchers with AppendedClues {
         | }
         |""".stripMargin)
   }
+
+  test("Should not allow variables in macros") {
+    ShouldNotParse(
+      """
+        |macro void f() {
+        | byte b
+        |}
+        |
+        |void main() {
+        | f()
+        |}
+        |""".stripMargin)
+  }
 }

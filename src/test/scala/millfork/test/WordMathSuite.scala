@@ -268,6 +268,20 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
     }
   }
 
+  test("Word addition 6") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Intel8085, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
+        | byte output @$c000
+        | void main () {
+        |  signed16 p
+        |  p = f()
+        |  output = lo(-p)
+        | }
+        | noinline signed16 f() = 6
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal((-6) & 0xff)
+    }
+  }
+
   test("Word bit ops 2") {
     EmuCrossPlatformBenchmarkRun(Cpu.Sixteen, Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | word output @$c000

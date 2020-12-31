@@ -31,7 +31,7 @@ no extension for BBC micro program file,
 Default: If compiling one file with `.mfk` extension, the same name as the input file. Otherwise, `a`.
 
 
-* `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file and the extension is `.asm`.
+* `-s` – Generate also the assembly output. It is not compatible with any assembler, but it serves purely informational purpose. The file has the same nam as the output file, and the extension is `.asm`.
 
 * `-g` – Generate also the label file. The label file contains labels with their addresses, with duplicates removed.
 It can be loaded into the monitor of the emulator for debugging purposes.
@@ -59,7 +59,7 @@ Those directories are searched for modules and platform definitions.
 When searching for modules, the directory containing the file currently being compiled is also searched.
 When searching for platform definitions, the current working directory is also searched.
 If not given, the compiler will try to detect the default include directory.
-If given, then the compiler will NOT try to detect the default include directory and you will have to add it to the list yourself.
+If given, then the compiler will NOT try to detect the default include directory, and you will have to add it to the list yourself.
 
 * `-i <dir>` – Add a directory to the include directories.
 Unlike `-I`, this does not replace the default include directory and allows using directories with semicolons in their names. 

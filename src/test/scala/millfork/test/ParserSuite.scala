@@ -86,4 +86,13 @@ class ParserSuite extends FunSuite with Matchers  {
         |}
         |""".stripMargin)
   }
+
+  test("EOL error reporting") {
+    ShouldNotParse(
+      """
+        |void main() {
+        |    for i,
+        |}
+        |""".stripMargin)
+  }
 }

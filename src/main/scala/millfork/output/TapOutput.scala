@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets
 /**
   * @author Karol Stasiak
   */
-object TapOutput extends OutputPackager {
+class TapOutput(val symbol: String) extends OutputPackager {
 
   def isAlphanum(c: Char): Boolean = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
 
@@ -15,7 +15,7 @@ object TapOutput extends OutputPackager {
     val code = b.output.slice(b.start, b.end + 1)
     val codeDataBlock = new DataBlock(code)
     val codeHeaderBlock = new HeaderBlock(3, "CODE", code.length, b.start, 32768)
-    val loaderDataBlock = new DataBlock(ZxSpectrumBasic.loader("CODE", filteredName, b.start))
+    val loaderDataBlock = new DataBlock(ZxSpectrumBasic.loader("CODE", filteredName, b.start, mem.getAddress(symbol)))
     val loaderHeaderBlock = new HeaderBlock(0, "LOADER", loaderDataBlock.inputData.length, 10, loaderDataBlock.inputData.length)
     val result = Array(loaderHeaderBlock, loaderDataBlock, codeHeaderBlock, codeDataBlock).map(_.toArray)
     result.flatten
@@ -86,13 +86,13 @@ object ZxSpectrumBasic {
 
   private def quoted(a: Any): Snippet = "\"" + a + "\""
 
-  def loader(filename: String, rem: String, loadAddress: Int): Array[Byte] = {
+  def loader(filename: String, rem: String, loadAddress: Int, runAddress: Int): Array[Byte] = {
     Array(
       line(10, REM, rem),
       line(20, BORDER, VAL, quoted(7), colon, INK, NOT, PI, colon, PAPER, VAL, quoted(7), colon, CLS),
       line(30, CLEAR, VAL, quoted(loadAddress - 1)),
       line(40, LOAD, quoted(filename), CODE),
-      line(50, CLS, colon, PRINT, AT, NOT, PI, ",", NOT, PI, ";", colon, RANDOMIZE, USR, VAL, quoted(loadAddress))
+      line(50, CLS, colon, PRINT, AT, NOT, PI, ",", NOT, PI, ";", colon, RANDOMIZE, USR, VAL, quoted(runAddress))
     ).flatten
   }
 }

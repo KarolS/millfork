@@ -8,7 +8,7 @@ You can do it using [CPCDiskXP](http://www.cpcwiki.eu/index.php/CPCDiskXP),
 [iDSK](http://www.cpcwiki.eu/index.php/IDSK), 
 or some other tool.
 
-The file has to be loaded from $0400. An example how to put such file onto a disk using CPCDiskXP:
+The file has to be loaded from $0400. An example how to put such a file onto a disk using CPCDiskXP:
 
     CPCDiskXP -File FILENAME -AddAmsdosHeader 0400 -AddToNewDsk disk_image.dsk
 

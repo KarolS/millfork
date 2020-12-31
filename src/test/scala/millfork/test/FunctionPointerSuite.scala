@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuSizeOptimizedCrossPlatformRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile}
 import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
@@ -30,7 +30,7 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
   }
 
   test("Function pointers 2") {
-    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Cmos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
       """
         | const byte COUNT = 128
         | array output0[COUNT] @$c000
@@ -100,7 +100,7 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
   }
 
   test("Function pointers 3") {
-    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
       """
         | const byte COUNT = 128
         | array(word) output0[COUNT] @$c000
@@ -119,6 +119,54 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
       for (i <- 0 until 0x80) {
         m.readWord(0xc000 + i * 2) should equal(i) withClue ("id " + i)
       }
+    }
+  }
+
+  test("Function pointers 4") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | const byte COUNT = 128
+        | array(byte) output0[COUNT] @$c000
+        | noinline void fill(function.byte.to.byte f) {
+        |   byte i
+        |   for i,0,until,COUNT {
+        |     call(f, i)
+        |   }
+        | }
+        | byte iota_at(byte x) {
+        |   output0[x] = x
+        |   return x
+        | }
+        | void main() {
+        |   fill(iota_at.pointer)
+        | }
+        |
+      """.stripMargin) { m =>
+      for (i <- 0 until 0x80) {
+        m.readByte(0xc000 + i) should equal(i) withClue ("id " + i)
+      }
+    }
+  }
+
+  test("Interrupt pointers") {
+    EmuUnoptimizedCrossPlatformRun (Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | pointer.interrupt i @$c000
+        | pointer.kernal_interrupt k @$c002
+        | function.void.to.void f @$c004
+        | interrupt void i1() @$400 {}
+        | kernal_interrupt void k1() @$500 {}
+        | void main() {
+        |   i = i1.pointer
+        |   k = k1.pointer
+        |   f = k1.pointer
+        |   call(k)
+        | }
+        |
+      """.stripMargin) { m =>
+      m.readWord(0xc000) should equal(0x400)
+      m.readWord(0xc002) should equal(0x500)
+      m.readWord(0xc004) should equal(0x500)
     }
   }
 

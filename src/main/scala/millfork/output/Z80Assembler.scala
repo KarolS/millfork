@@ -7,6 +7,7 @@ import millfork.assembly.z80.{ZOpcode, _}
 import millfork.assembly.z80.opt.{CoarseFlowAnalyzer, ConditionalInstructions, CpuStatus, JumpFollowing, JumpShortening}
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
+import millfork.node.NiceFunctionProperty.DoesntWriteMemory
 import millfork.node.Z80NiceFunctionProperty.{DoesntChangeBC, DoesntChangeDE, DoesntChangeHL, DoesntChangeIY, SetsATo}
 import millfork.node.{NiceFunctionProperty, Position, Program, ZRegister}
 
@@ -785,6 +786,7 @@ class Z80Assembler(program: Program,
 
   override def gatherNiceFunctionProperties(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: NormalFunction, code: List[ZLine]): Unit = {
     import ZOpcode._
+    import NiceFunctionProperty._
     val functionName = function.name
     if (isNaughty(code)) return
     val localLabels = code.flatMap {
@@ -834,6 +836,13 @@ class Z80Assembler(program: Program,
     genericPropertyScan(DoesntChangeBC)(l => !l.changesRegister(ZRegister.BC))
     genericPropertyScan(DoesntChangeIY)(l => !l.changesRegister(ZRegister.IY))
     simpleRetPropertyScan(_.a)(SetsATo)
+  }
+
+  override def gatherFunctionOptimizationHints(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: FunctionInMemory): Unit = {
+    import NiceFunctionProperty._
+    val functionName = function.name
+    if (function.optimizationHints("preserves_memory")) niceFunctionProperties += DoesntWriteMemory -> functionName
+    if (function.optimizationHints("idempotent")) niceFunctionProperties += Idempotent -> functionName
   }
 
   @tailrec

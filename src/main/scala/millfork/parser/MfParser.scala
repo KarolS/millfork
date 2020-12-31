@@ -30,6 +30,18 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val enableDebuggingOptions: Boolean = options.flag(CompilationFlag.EnableInternalTestSyntax)
 
+  private def getCharacterNameSafe(c: Char): String = {
+    try {
+      "U+%04X %s".format(c.toInt, Character.getName(c))
+    } catch {
+      case _: Throwable => c match {
+        case '\n' => "U+000A LINE FEED"
+        case '\r' => "U+000D CARRIAGE RETURN"
+        case _ => "U+%04X"
+      }
+    }
+  }
+
   def toAst: Parsed[Program] = {
     val parse = program.parse(input + "\n\n\n")
     parse match {
@@ -37,7 +49,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         if (lastPosition.cursor >= 0 && lastPosition.cursor < input.length) {
           val c = input(lastPosition.cursor)
           if (c >= 0x100 || c < 0x20 || c == '`') {
-            log.error("Invalid character U+%04X %s".format(c.toInt, Character.getName(c)), Some(lastPosition))
+            log.error("Invalid character %s".format(getCharacterNameSafe(c)), Some(lastPosition))
             Confusables.map.get(c) match {
               case Some(ascii) =>
                 log.info(s"Did you mean: $ascii")
@@ -50,7 +62,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     parse
   }
 
-  private val lineStarts: Array[Int] = (0 +: input.zipWithIndex.filter(_._1 == '\n').map(_._2)).toArray
+  private val lineStarts: Array[Int] = (-1 +: input.zipWithIndex.filter(_._1 == '\n').map(_._2).map(_+1)).toArray
 
   def position(label: String = ""): P[Position] = Index.map(i => indexToPosition(i, label))
 
@@ -59,7 +71,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (lineNumber < 0) {
       lineNumber = - lineNumber - 2
     }
-    val columnNumber = i - lineStarts(lineNumber)
+    val columnNumber = i - lineStarts(lineNumber) + 1
     lineNumber += 1
     val newPosition = Position(fileId, lineNumber, columnNumber, i)
     if (newPosition.cursor > lastPosition.cursor) {
@@ -122,7 +134,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val variableFlags: P[Set[String]] = flags_("const", "static", "volatile", "stack", "register")
 
-  val functionFlags: P[Set[String]] = flags_("asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt", "const")
+  val functionFlags: P[Set[String]] = flags_("extern", "asm", "inline", "interrupt", "macro", "noinline", "reentrant", "kernal_interrupt", "const")
 
   val codec: P[TextCodecWithFlags] = P(position("text codec identifier") ~ identifier.?.map(_.getOrElse(""))).map { case (position, encoding) =>
     val lenient = options.flag(CompilationFlag.LenientTextEncoding)
@@ -206,16 +218,30 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     identifier.rep(min = 1, sep = "/") ~ HWS ~ ("<" ~/ HWS ~/ quotedAtom.rep(min = 1, sep = HWS ~ "," ~/ HWS) ~/ HWS ~/ ">" ~/ Pass).?).
     map{case (p, name, params) => Seq(ImportStatement(name.mkString("/"), params.getOrElse(Nil).toList).pos(p))}
 
+  val optimizationHintsDeclaration: P[Set[String]] =
+    if (options.flag(CompilationFlag.EnableInternalTestSyntax)) {
+      ("¥" ~/ HWS ~ "(" ~/ HWS ~/ identifier.rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ HWS ~ ")" ~/ "").?.map {
+        case None => Set()
+        case Some(list) => list.toSet
+      }
+    } else P("").map(_ => Set.empty)
+  
   val globalVariableDefinition: P[Seq[BankedDeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)
 
-  def singleVariableDefinition: P[(Position, String, Option[Expression], Option[Expression], Option[MemoryAlignment])] = for {
+  def singleVariableDefinition: P[(Position, String, Option[Expression], Option[Expression], Set[String], Option[MemoryAlignment])] = for {
       p <- position()
       name <- identifier ~/ HWS ~/ Pass
+      alignment1 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
+      optimizationHints <- optimizationHintsDeclaration ~/ HWS
+      alignment2 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
       addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~ HWS
-      initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
-      alignment = None // TODO
-    } yield (p, name, addr, initialValue, alignment)
+      initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS // TODO
+    } yield {
+      if (alignment1.isDefined && alignment2.isDefined) log.error(s"Cannot define the alignment multiple times", Some(p))
+      val alignment = alignment1.orElse(alignment2)
+      (p, name, addr, initialValue, optimizationHints, alignment)
+    }
 
   def variableDefinition(implicitlyGlobal: Boolean): P[Seq[BankedDeclarationStatement]] = for {
     docComment <- (docComment ~ EOL).?
@@ -227,14 +253,14 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     vars <- singleVariableDefinition.rep(min = 1, sep = "," ~/ HWS)
     _ <- Before_EOL ~/ ""
   } yield {
-    vars.map { case (p, name, addr, initialValue, alignment) => VariableDeclarationStatement(name, typ,
+    vars.map { case (p, name, addr, initialValue, optimizationHints, alignment) => VariableDeclarationStatement(name, typ,
       bank,
       global = implicitlyGlobal || flags("static"),
       stack = flags("stack"),
       constant = flags("const"),
       volatile = flags("volatile"),
       register = flags("register"),
-      initialValue, addr, alignment).pos(p).docComment(docComment)
+      initialValue, addr, optimizationHints, alignment).pos(p).docComment(docComment)
     }
   }
 
@@ -420,10 +446,16 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     elementType <- ("(" ~/ AWS ~/ identifier ~ AWS ~ ")").? ~/ HWS
     name <- identifier ~/ HWS
     length <- ("[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]").? ~ HWS
-    alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
+    alignment1 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
+    optimizationHints <- optimizationHintsDeclaration ~/ HWS
+    alignment2 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
     contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
-  } yield Seq(ArrayDeclarationStatement(name, bank, length, elementType.getOrElse("byte"), addr, const.isDefined, contents, alignment, options.isBigEndian).pos(p).docComment(docComment))
+  } yield {
+    if (alignment1.isDefined && alignment2.isDefined) log.error(s"Cannot define the alignment multiple times", Some(p))
+    val alignment = alignment1.orElse(alignment2)
+    Seq(ArrayDeclarationStatement(name, bank, length, elementType.getOrElse("byte"), addr, const.isDefined, contents, optimizationHints, alignment, options.isBigEndian).pos(p).docComment(docComment))
+  }
 
   def tightMfExpression(allowIntelHex: Boolean, allowTopLevelIndexing: Boolean): P[Expression] = {
     val a = if (allowIntelHex) atomWithIntel else atom
@@ -680,10 +712,15 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if !Environment.neverValidTypeIdentifiers(returnType)
     name <- identifier ~ HWS
     params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else if (flags("macro")) macroParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
-    alignment <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ AWS
+    alignment1 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ AWS
+    optimizationHints <- optimizationHintsDeclaration ~/ HWS
+    alignment2 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ AWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~/ AWS
     statements <- (externFunctionBody | (if (flags("asm")) asmStatements else mfFunctionBody).map(l => Some(l))) ~/ Pass
   } yield {
+    if (alignment1.isDefined && alignment2.isDefined) log.error(s"Cannot define the alignment multiple times", Some(p))
+    val alignment = alignment1.orElse(alignment2)
+    if (flags("extern")) log.error("The extern keyword should go at the end of a function declaration", Some(p))
     if (flags("interrupt") && flags("macro")) log.error(s"Interrupt function `$name` cannot be macros", Some(p))
     if (flags("kernal_interrupt") && flags("macro")) log.error(s"Kernal interrupt function `$name` cannot be macros", Some(p))
     if (flags("interrupt") && flags("reentrant")) log.error(s"Interrupt function `$name` cannot be reentrant", Some(p))
@@ -703,9 +740,22 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (statements.isEmpty && alignment.isDefined) log.error(s"Extern function `$name` cannot have alignment", Some(p))
     if (statements.isEmpty && !flags("asm") && params.nonEmpty) log.error(s"Extern non-asm function `$name` cannot have parameters", Some(p))
     if (flags("asm")) validateAsmFunctionBody(p, flags, name, statements)
+    if (flags("macro")) {
+      statements.flatMap(_.find(_.isInstanceOf[VariableDeclarationStatement])) match {
+        case Some(s) =>
+          log.error(s"Macro functions cannot declare variables", s.position)
+        case None =>
+      }
+      statements.flatMap(_.find(_.isInstanceOf[ArrayDeclarationStatement])) match {
+        case Some(s) =>
+          log.error(s"Macro functions cannot declare arrays", s.position)
+        case None =>
+      }
+    }
     Seq(FunctionDeclarationStatement(name, returnType, params.toList,
       bank,
       addr,
+      optimizationHints,
       alignment,
       statements,
       flags("macro"),

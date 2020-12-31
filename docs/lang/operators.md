@@ -88,7 +88,7 @@ TODO
 
 ## Binary arithmetic operators
 
-* `+`, `-`:  
+* `+`, `-`:  addition and subtraction  
 `byte + byte`  
 `constant word + constant word`  
 `constant long + constant long`  
@@ -136,18 +136,18 @@ These operators work using the decimal arithmetic (packed BCD).
 On Ricoh-based targets (e.g. Famicom) they require the zeropage register to have size at least 4
 
 * `+'`, `-'`: decimal addition/subtraction  
-`$+`, `$-` (since Millfork 0.3.22)  
+`$+`, `$-`: (since Millfork 0.3.22)  
 `byte +' byte`  
 `constant word +' constant word`  
 `constant long +' constant long`  
 `word +' word` (zpreg)
 
 * `*'`: decimal multiplication  
-`$*` (since Millfork 0.3.22)  
+`$*`: (since Millfork 0.3.22)  
 `constant *' constant`
 
 * `<<'`, `>>'`: decimal multiplication/division by power of two  
-`$<<`, `$>>` (since Millfork 0.3.22)  
+`$<<`, `$>>`: (since Millfork 0.3.22)  
 `byte <<' constant byte`
 
 ## Comparison operators

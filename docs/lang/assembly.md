@@ -39,7 +39,7 @@ Currently, some extra 65CE02/65816 instructions are not supported yet.
 
 Undocumented instructions are supported using various opcodes.
 
-Labels have to be followed by a colon and they can optionally be on a separate line.
+Labels have to be followed by a colon, and they can optionally be on a separate line.
 Indentation is not important:
 
     first:  INC x
@@ -70,7 +70,7 @@ but you need to be careful with using absolute vs immediate addressing:
     }
 
 Any assembly opcode can be prefixed with `?`, which allows the optimizer change it or elide it if needed.
-Opcodes without that prefix will be always compiled as written.
+Opcodes without that prefix will always be compiled as written.
 
 The '!' prefix marks the statement as volatile, which means it will be a subject to certain, but not all optimizations,
 in order to preserve its semantics.
@@ -113,7 +113,7 @@ the return type can be any valid return type, like for Millfork functions.
 If the size of the return type is one byte, 
 then the result is passed via the accumulator.  
 If the size of the return type is two bytes,
-then the low byte of the result is passed via the accumulator
+then the low byte of the result is passed via the accumulator,
 and the high byte of the result is passed via the X register.
 
 
@@ -220,7 +220,7 @@ it should abide to the following rules:
     
     * explicitly use 16-bit immediate operands when appropriate; the assembler doesn't track flags and assumes 8-bit immediates by default (TODO: actually implement the 16-bit inline assembly correctly)
     
-    * use far jumps unless you're sure that the called function returns with an `RTS`  
+    * use far jumps unless you are sure the called function returns with an `RTS`  
     
 * on 65CE02:
 

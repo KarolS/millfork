@@ -51,8 +51,8 @@ object Z80ReturnDispatch extends AbstractReturnDispatch[ZLine] {
     }
     val copyParams = pair._2.reverse.flatten
     val offsetAfterParams = pair._1
-    val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, NoAlignment)
-    val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, NoAlignment)
+    val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, Set.empty, NoAlignment)
+    val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, Set.empty, NoAlignment)
     env.registerUnnamedArray(jumpTableLo)
     env.registerUnnamedArray(jumpTableHi)
 

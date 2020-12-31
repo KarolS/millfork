@@ -1181,8 +1181,8 @@ object AlwaysGoodOptimizations {
       }: _*
   )
 
-  val PointlessRegisterTransfers = new RuleBasedAssemblyOptimization("Pointless register transfers",
-    needsFlowInfo = FlowInfoRequirement.NoRequirement,
+  lazy val PointlessRegisterTransfers = new RuleBasedAssemblyOptimization("Pointless register transfers",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
     HasOpcode(TYA) ~ (Elidable & HasOpcodeIn(TYA, TAY)) ~~> (_.init),
     HasOpcode(TXA) ~ (Elidable & HasOpcodeIn(TXA, TAX)) ~~> (_.init),
     HasOpcode(TAY) ~ (Elidable & HasOpcodeIn(TYA, TAY)) ~~> (_.init),
@@ -1197,6 +1197,10 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcodeIn(TYA, TAY)) ~~> (_.init),
     HasOpcode(TSX) ~ (Not(ChangesX) & Not(ChangesS) & Linear).* ~ (Elidable & HasOpcodeIn(TXS, TSX)) ~~> (_.init),
     HasOpcode(TXS) ~ (Not(ChangesX) & Not(ChangesS) & Linear).* ~ (Elidable & HasOpcodeIn(TXS, TSX)) ~~> (_.init),
+    HasOpcodeIn(TXA, TAX) ~ (Not(ChangesA) & Not(ChangesX) & Linear).* ~ (Elidable & HasOpcode(TXA) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_.init),
+    HasOpcodeIn(TXA, TAX) ~ (Not(ChangesA) & Not(ChangesX) & Linear).* ~ (Elidable & HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_.init),
+    HasOpcodeIn(TYA, TAY) ~ (Not(ChangesA) & Not(ChangesY) & Linear).* ~ (Elidable & HasOpcode(TYA) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_.init),
+    HasOpcodeIn(TYA, TAY) ~ (Not(ChangesA) & Not(ChangesY) & Linear).* ~ (Elidable & HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.Z, State.N)) ~~> (_.init),
   )
 
   lazy val PointlessRegisterTransfersBeforeStore = new RuleBasedAssemblyOptimization("Pointless register transfers from flow",
@@ -1375,103 +1379,103 @@ object AlwaysGoodOptimizations {
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
 
     (HasOpcodeIn(LDA, STA) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF))).* ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDA) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDX, STX) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF))).* ~
+      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF)) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDX) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDY, STY) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF))).* ~
+      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF)) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDY) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDA, STA) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDX, STX) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDY, STY) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcode(LDA) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesA) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_AF))).* ~
+      (Linear & Not(ChangesA) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_AF)) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDA) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcode(LDX) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesX) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_XF))).* ~
+      (Linear & Not(ChangesX) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_XF)) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDX) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcode(LDY) & HasAddrMode(Immediate) & MatchParameter(1)) ~
-      (Linear & Not(ChangesY) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_YF))).* ~
+      (Linear & Not(ChangesY) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_YF)) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDY) & HasAddrMode(Immediate) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesA) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesA) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesX) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_XF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesX) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_XF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesY) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesY) & Not(ChangesNAndZ) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> (_.init),
 
     (HasOpcodeIn(LDA, STA) & MatchAddrMode(0) & MatchParameter(1)) ~
       (ShortConditionalBranching & MatchParameter(2)) ~
-      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (HasOpcode(LABEL) & MatchParameter(2)) ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDX, STX) & MatchAddrMode(0) & MatchParameter(1)) ~
       (ShortConditionalBranching & MatchParameter(2)) ~
-      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesX) & Not(HasOpcode(DISCARD_XF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (HasOpcode(LABEL) & MatchParameter(2)) ~
       (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDY, STY) & MatchAddrMode(0) & MatchParameter(1)) ~
       (ShortConditionalBranching & MatchParameter(2)) ~
-      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesY) & Not(HasOpcode(DISCARD_YF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (HasOpcode(LABEL) & MatchParameter(2)) ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDA, STA) & MatchAddrMode(0) & MatchParameter(1)) ~
       (ShortBranching & MatchParameter(3)) ~
-      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (HasOpcode(LABEL) & MatchParameter(3) & HasCallerCount(1)) ~
       (Elidable & HasOpcode(LDA) & MatchAddrMode(0) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     HasOpcodeIn(TXA, TAX, LAX, LXA) ~
-      (Not(HasOpcodeIn(TXA, TAX)) & Linear & Not(ChangesA) & Not(ChangesX)).* ~
+      (Not(HasOpcodeIn(TXA, TAX)) & Linear & Not(ChangesA) & Not(ChangesX) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcodeIn(TXA, TAX) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     HasOpcodeIn(TYA, TAY) ~
-      (Not(HasOpcodeIn(TYA, TAY)) & Linear & Not(ChangesA) & Not(ChangesY)).* ~
+      (Not(HasOpcodeIn(TYA, TAY)) & Linear & Not(ChangesA) & Not(ChangesY) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcodeIn(TYA, TAY) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(STA, LDA) & HasAddrModeIn(ZeroPage, Absolute) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(HasOpcode(TAX)) & Not(ChangesA) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(HasOpcode(TAX)) & Not(ChangesA) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       HasOpcode(TAX) ~
       (LinearOrBranch & Not(ChangesX) & DoesntChangeMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(LDX) & HasAddrModeIn(ZeroPage, Absolute) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(STA, LDA) & HasAddrModeIn(ZeroPage, Absolute) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(HasOpcode(TAY)) & Not(ChangesA) & DoesntChangeMemoryAt(0, 1)).* ~
+      (Linear & Not(HasOpcode(TAY)) & Not(ChangesA) & DoesntChangeMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       HasOpcode(TAY) ~
       (LinearOrBranch & Not(ChangesY) & DoesntChangeMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(LDY) & HasAddrModeIn(ZeroPage, Absolute) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z)) ~~> (_.init),
 
     (HasOpcodeIn(LDA, STA) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesNotConcernMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesNotConcernMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDX) & MatchAddrMode(0) & MatchParameter(1)) ~~> (code => code.init :+ AssemblyLine.implied(TAX)),
 
     (HasOpcodeIn(LDA, STA) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesNotConcernMemoryAt(0, 1)).* ~
+      (Linear & Not(ChangesA) & Not(HasOpcode(DISCARD_AF)) & DoesntChangeIndexingInAddrMode(0) & DoesNotConcernMemoryAt(0, 1) | HasOpcodeIn(OpcodeClasses.ShortConditionalBranching)).* ~
       (Elidable & HasOpcode(LDY) & MatchAddrMode(0) & MatchParameter(1)) ~~> (code => code.init :+ AssemblyLine.implied(TAY)),
   )
 
@@ -3041,6 +3045,66 @@ object AlwaysGoodOptimizations {
       (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
       (Elidable & HasOpcode(LABEL) & MatchParameter(1) & IsNotALabelUsedManyTimes & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V)) ~~> { code =>
       List(code(1).copy(opcode = LDA), code.head.copy(opcode = AND))
+    },
+
+    (Elidable & HasOpcode(CMP) & HasAddrMode(Immediate)) ~
+      (Elidable & HasOpcodeIn(BEQ, BNE) & MatchParameter(1)) ~
+      (Elidable & HasAddrMode(Implied) & HasOpcodeIn(INC, DEC) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V)) ~
+      (Elidable & HasOpcode(JMP) & HasAddrModeIn(Absolute, LongAbsolute)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V, State.A)) ~~> { code =>
+      val delta = code(2).opcode match {
+        case INC => +1
+        case DEC => -1
+      }
+      val branch = code(1).opcode match {
+        case BEQ => BNE
+        case BNE => BEQ
+      }
+      List(
+        code(2),
+        code.head.copy(parameter = (code.head.parameter + delta).quickSimplify),
+        code(1).copy(opcode = branch, parameter = code(3).parameter),
+        code(4))
+    },
+
+    (Elidable & HasOpcode(CPX) & HasAddrMode(Immediate)) ~
+      (Elidable & HasOpcodeIn(BEQ, BNE) & MatchParameter(1)) ~
+      (Elidable & HasAddrMode(Implied) & HasOpcodeIn(INX, DEX) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V)) ~
+      (Elidable & HasOpcode(JMP) & HasAddrModeIn(Absolute, LongAbsolute)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V, State.X)) ~~> { code =>
+      val delta = code(2).opcode match {
+        case INX => +1
+        case DEX => -1
+      }
+      val branch = code(1).opcode match {
+        case BEQ => BNE
+        case BNE => BEQ
+      }
+      List(
+        code(2),
+        code.head.copy(parameter = (code.head.parameter + delta).quickSimplify),
+        code(1).copy(opcode = branch, parameter = code(3).parameter),
+        code(4))
+    },
+
+    (Elidable & HasOpcode(CPY) & HasAddrMode(Immediate)) ~
+      (Elidable & HasOpcodeIn(BEQ, BNE) & MatchParameter(1)) ~
+      (Elidable & HasAddrMode(Implied) & HasOpcodeIn(INY, DEY) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V)) ~
+      (Elidable & HasOpcode(JMP) & HasAddrModeIn(Absolute, LongAbsolute)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.C, State.V, State.Y)) ~~> { code =>
+      val delta = code(2).opcode match {
+        case INY => +1
+        case DEY => -1
+      }
+      val branch = code(1).opcode match {
+        case BEQ => BNE
+        case BNE => BEQ
+      }
+      List(
+        code(2),
+        code.head.copy(parameter = (code.head.parameter + delta).quickSimplify),
+        code(1).copy(opcode = branch, parameter = code(3).parameter),
+        code(4))
     },
   )
 

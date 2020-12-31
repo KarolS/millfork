@@ -69,6 +69,14 @@ or forcing zero extension or sign extension:
     x = y         // does zero extension and assigns value $0080
     x = sbyte(y)  // does sign extension and assigns value $FF80
 
+You can also explicitly convert expressions of type `bool` to any numeric type.
+`false` is converted to 0 and `true` is converted to 1.
+
+    byte a,b,c
+    a = 5
+    b = byte(a == 4) // b is now equal to 0
+    c = byte(a == 5) // c is now equal to 1
+
 ## Typed pointers
 
 For every type `T`, there is a pointer type defined called `pointer.T`.
@@ -125,6 +133,26 @@ To call a pointed-to function, use `call`. Examples:
 Using `call` on 6502 requires at least 4 bytes of zeropage pseudoregister. 
 
 The value of the pointer `f.pointer` may not be the same as the value of the function address `f.addr`. 
+
+## Interrupt handler pointers
+
+Functions that are interrupt pointers have their own pointer types:
+
+* `pointer.interrupt` for hardware interrupt handlers
+
+* `pointer.kernal_interrupt` for kernal interrupt handlers
+
+`pointer.kernal_interrupt` is automatically convertible to `function.void.to.void`
+
+    interrupt void handler1(){}
+    kernal_interrupt void handler2(){}
+    
+    pointer.interrupt p1
+    p1 = handler1.pointer
+    pointer.kernal_interrupt p2
+    p2 = handler2.pointer
+    function.void.to.void p3
+    p3 = handler2.pointer
 
 ## Boolean types
 

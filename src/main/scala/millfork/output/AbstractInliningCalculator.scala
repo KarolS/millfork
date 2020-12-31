@@ -30,7 +30,7 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
                 aggressivenessForNormal: Double,
                 aggressivenessForRecommended: Double): InliningResult = {
     val callCount = mutable.Map[String, Int]().withDefaultValue(0)
-    val allFunctions = mutable.Set[String]()
+    val allFunctions = mutable.Map[String, Double]()
     val badFunctions = mutable.Set[String]()
     val recommendedFunctions = mutable.Set[String]()
     getAllCalledFunctions(program.declarations).foreach{
@@ -39,10 +39,13 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
     }
     program.declarations.foreach{
       case f:FunctionDeclarationStatement =>
-        allFunctions += f.name
         if (f.inlinable.contains(true)) {
           recommendedFunctions += f.name
         }
+        val aggressiveness =
+          if (f.inlinable.contains(true) || f.optimizationHints("inline")) aggressivenessForRecommended
+          else aggressivenessForNormal
+        allFunctions(f.name) = aggressiveness
         if (f.isMacro
           || f.inlinable.contains(false)
           || f.address.isDefined
@@ -55,9 +58,9 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
     }
     allFunctions --= badFunctions
     recommendedFunctions --= badFunctions
-    val map = (if (inlineByDefault) allFunctions else recommendedFunctions).map(f => f -> {
+    val map = (if (inlineByDefault) allFunctions.keySet else recommendedFunctions).map(f => f -> {
       val size = sizes(callCount(f) min (sizes.size - 1))
-      val aggressiveness = if (recommendedFunctions(f)) aggressivenessForRecommended else aggressivenessForNormal
+      val aggressiveness = allFunctions.getOrElse(f, aggressivenessForNormal)
       (size * aggressiveness).floor.toInt
     }).toMap
     InliningResult(map, badFunctions.toSet)
@@ -83,6 +86,9 @@ abstract class AbstractInliningCalculator[T <: AbstractCode] {
     case s: Statement => getAllCalledFunctions(s.getAllExpressions)
     case s: VariableExpression => Set(
           s.name,
+          s.name.stripSuffix(".raw"),
+          s.name.stripSuffix(".raw.lo"),
+          s.name.stripSuffix(".raw.hi"),
           s.name.stripSuffix(".pointer"),
           s.name.stripSuffix(".pointer.lo"),
           s.name.stripSuffix(".pointer.hi"),

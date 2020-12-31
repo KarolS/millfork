@@ -85,7 +85,7 @@ Available only on 6502-based platforms.
 
 #### byte atascii_to_atasciiscr(byte)
 
-Converts a byte from ATASCII to a Atari screencode.  
+Converts a byte from ATASCII to an Atari screencode.  
 Control characters <$80 are converted to the graphical characters that share the ATASCII code.  
 Control characters ≥$80 are not supported.  
 
@@ -93,7 +93,7 @@ Available only on 6502-based platforms.
 
 #### byte atasciiscr_to_atascii(byte)
 
-Converts a byte from a Atari screencode to ATASCII.  
+Converts a byte from an Atari screencode to ATASCII.  
 Characters that share their ATASCII code with control characters are supported,
 but they require to be escaped with $1B to be printed.  
 Reverse characters are interpreted as non-reverse characters.

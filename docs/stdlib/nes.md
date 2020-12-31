@@ -103,19 +103,19 @@ Provides an interface for reading joypads that is compatible with the [`joy` mod
 
 #### `alias input_a = input_btn`
 
-1 if A button pressed, 0 id not pressed.
+1 if A button pressed, 0 if not pressed.
 
 #### `byte input_b`
 
-1 if B button pressed, 0 id not pressed.
+1 if B button pressed, 0 if not pressed.
 
 #### `byte input_select`
 
-1 if Select button pressed, 0 id not pressed.
+1 if Select button pressed, 0 if not pressed.
 
 #### `byte input_start`
 
-1 if Start button pressed, 0 id not pressed.
+1 if Start button pressed, 0 if not pressed.
 
 #### `void read_joy1()`
 

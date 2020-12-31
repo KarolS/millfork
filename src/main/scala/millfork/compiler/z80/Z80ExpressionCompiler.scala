@@ -751,8 +751,13 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 params match {
                   case List(fp) =>
                     getExpressionType(ctx, fp) match {
+                      case KernalInterruptPointerType =>
+                        compileToDE(ctx, fp) :+ callLine
                       case FunctionPointerType(_, _, _, _, Some(v)) if (v.name == "void") =>
                         compileToDE(ctx, fp) :+ callLine
+                      case _: FunctionPointerType =>
+                        ctx.log.error("Invalid function pointer type", fp.position)
+                        compile(ctx, fp, ZExpressionTarget.NOTHING, BranchSpec.None)
                       case _ =>
                         ctx.log.error("Not a function pointer", fp.position)
                         compile(ctx, fp, ZExpressionTarget.NOTHING, BranchSpec.None)
@@ -774,6 +779,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                           ctx.log.error("Invalid parameter type", param.position)
                           compileToHL(ctx, fp) ++ compile(ctx, param, ZExpressionTarget.NOTHING)
                         }
+                      case KernalInterruptPointerType =>
+                        ctx.log.error("Invalid function pointer type", fp.position)
+                        compile(ctx, fp, ZExpressionTarget.NOTHING, BranchSpec.None)
                       case _ =>
                         ctx.log.error("Not a function pointer", fp.position)
                         compile(ctx, fp, ZExpressionTarget.NOTHING) ++ compile(ctx, param, ZExpressionTarget.NOTHING)

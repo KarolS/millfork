@@ -44,8 +44,8 @@ object M6809ReturnDispatch extends AbstractReturnDispatch[MLine] {
     }
     val copyParams = pair.reverse.flatten
     // TODO: would it be better to use one table of words and do TFR X,D / LEAX D,X / LDX array,X ?
-    val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, NoAlignment)
-    val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, NoAlignment)
+    val jumpTableLo = InitializedArray(label + "$jl.array", None, (actualMin to actualMax).map(i => lobyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, Set.empty, NoAlignment)
+    val jumpTableHi = InitializedArray(label + "$jh.array", None, (actualMin to actualMax).map(i => hibyte0(map(i)._1)).toList, ctx.function.declaredBank, b, b, readOnly = true, Set.empty, NoAlignment)
     env.registerUnnamedArray(jumpTableLo)
     env.registerUnnamedArray(jumpTableHi)
     val moveOffsetToLo = (jumpTableLo.toAddress - actualMin).quickSimplify

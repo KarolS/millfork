@@ -80,7 +80,7 @@ case class EndAddressOutput(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     val x = b.end + bonus
-    Array(b.end.toByte, b.end.>>(8).toByte)
+    Array(x.toByte, x.>>(8).toByte)
   }
 }
 
@@ -88,6 +88,23 @@ case class EndAddressOutputBe(bonus: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     val x = b.end + bonus
+    Array(x.>>(8).toByte, x.toByte)
+  }
+}
+
+
+case class SymbolAddressOutput(symbol: String, bonus: Int) extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    val b = mem.banks(bank)
+    val x = mem.getAddress(symbol) + bonus
+    Array(b.end.toByte, b.end.>>(8).toByte)
+  }
+}
+
+case class SymbolAddressOutputBe(symbol: String, bonus: Int) extends OutputPackager {
+  def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+    val b = mem.banks(bank)
+    val x = mem.getAddress(symbol) + bonus
     Array(x.>>(8).toByte, x.toByte)
   }
 }

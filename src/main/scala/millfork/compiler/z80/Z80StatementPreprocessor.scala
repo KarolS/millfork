@@ -76,6 +76,7 @@ class Z80StatementPreprocessor(ctx: CompilationContext, statements: List[Executa
         register = false,
         None,
         None,
+        Set.empty,
         None
       ), ctx.options, isPointy = true)
       (a -> f.variable) -> (a + infix + f.variable)

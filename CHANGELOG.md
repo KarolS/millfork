@@ -1,24 +1,50 @@
 # Change log
 
-## Current version
+## 0.3.24 (2020-12-02)
 
 * Preliminary support for TRS-80 Model 1 and 3 running TRS-DOS.
 
 * Preliminary support for Robotron Z1013.
 
+* Allowed defining entry points other than the start of the segment for Atari, ZX Spectrum, CoCo, Z1013 and TRS-80. (#78)
+
 * Allowed the `:` operator in const-pure functions.
+
+* Added `pointer.interrupt` and `pointer.kernal_interrupt` types.
 
 * Implemented `readline` and `readword` for VIC-20.
 
 * `init_rand_seed` uses the POKEY on Atari.
 
+* Useless labels are no longer emitted into the label file.
+
+* VIC-20: added `readline` and `readword`.
+
+* Atari: use POKEY for randomness source.
+
+* New output format elements: ASCII string, program name.
+
+* Fix: Pointers to functions with parameters (#86)/
+
 * Fix: more instances of memset loops should be detected and optimized (#59).
 
 * Fix: things mentioned in the segment layout should not be deleted even if unused.
 
+* Fix: `endaddr+N` output format.
+
 * 65816: some code generation fixes.
 
+* 8080: word negation now works.
+
+* Various optimization improvements.
+
+* Various other fixes.
+
+* Improved some error messages.
+
 * Even more new Atari examples (thanks to @zbyti).
+
+* Build process slightly changed.
 
 ## 0.3.22 (2020-09-15)
 
@@ -504,7 +530,7 @@ can no longer be read before an explicit call to `init_rw_memory`, either add th
 
 * Added enumeration types.
 
-* Added preprocessor.
+* Added the preprocessor.
 
 * Added `for` loops over enum types and in-place lists
 
@@ -526,7 +552,7 @@ can no longer be read before an explicit call to `init_rw_memory`, either add th
 
 * Extra `z` at the name of the encoding means that the string is zero-terminated.
 
-* **Potentially breaking change!** No longer allowed to define things with names that are keywords or builtins.
+* **Potentially breaking change!** It's no longer allowed to define things with names that are keywords or builtins.
 
 * **Potentially breaking change!** Curly braces in text literals are now used for escape sequences.
 

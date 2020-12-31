@@ -862,22 +862,32 @@ case object DebugMatching extends AssemblyPattern {
 }
 
 case object Linear extends AssemblyLinePattern {
-  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
-    OpcodeClasses.AllLinear(line.opcode)
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean = {
+    if (line.opcode == Opcode.JSR) line.parameter match {
+      case MemoryAddressConstant(f: FunctionInMemory) => f.hasOptimizationHints
+      case _ => false
+    } else OpcodeClasses.AllLinear(line.opcode)
+  }
 
   override def hitRate: Double = 0.89
 }
 
 case object LinearOrBranch extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean =
-    OpcodeClasses.AllLinear(line.opcode) || OpcodeClasses.ShortBranching(line.opcode)
+    if (line.opcode == Opcode.JSR) line.parameter match {
+      case MemoryAddressConstant(f: FunctionInMemory) => f.hasOptimizationHints
+      case _ => false
+    } else OpcodeClasses.AllLinear(line.opcode) || OpcodeClasses.ShortBranching(line.opcode)
 
   override def hitRate: Double = 0.887
 }
 
 case object LinearOrLabel extends TrivialAssemblyLinePattern {
   override def apply(line: AssemblyLine): Boolean =
-    line.opcode == Opcode.LABEL || OpcodeClasses.AllLinear(line.opcode)
+    if (line.opcode == Opcode.JSR) line.parameter match {
+      case MemoryAddressConstant(f: FunctionInMemory) => f.hasOptimizationHints
+      case _ => false
+    } else line.opcode == Opcode.LABEL || OpcodeClasses.AllLinear(line.opcode)
 
   override def hitRate: Double = 0.899
 }

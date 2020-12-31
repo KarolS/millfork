@@ -155,7 +155,7 @@ abstract class AbstractReturnDispatch[T <: AbstractCode] {
       val a = InitializedArray(label + "$" + ix + ".array", None, (paramMins(ix) to paramMaxes(ix)).map { key =>
         map(key)._2.lift(ix).getOrElse(LiteralExpression(0, 1))
       }.toList,
-        ctx.function.declaredBank, b, b, readOnly = true, NoAlignment)
+        ctx.function.declaredBank, b, b, readOnly = true, Set.empty, NoAlignment)
       env.registerUnnamedArray(a)
       a
     }

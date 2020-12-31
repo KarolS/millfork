@@ -561,6 +561,7 @@ object CompilationFlag extends Enumeration {
   DangerousOptimizations, InlineFunctions, InterproceduralOptimization,
   FunctionFallthrough, RegisterVariables, FunctionDeduplication, SubroutineExtraction,
   OptimizeStdlib,
+  UseOptimizationHints,
   // memory allocation options
   VariableOverlap, CompactReturnDispatchParams, LUnixRelocatableCode,
   // runtime check options

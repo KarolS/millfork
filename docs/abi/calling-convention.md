@@ -29,7 +29,7 @@
 * on 65816: callee will preserve the emulation flag
 (setting the emulation flag correctly is the responsibility of the initialization code)
 
-* on 65816 in native mode: 
+* on 65816 in the native mode: 
 
     * callee expects the M and X flag to be set and will leave them set
     (8-bit accumulator and index registers by default)
@@ -45,11 +45,11 @@
 * if the function has one parameter of size two bytes, it is passed via the HL register pair
 
 * if the function has one parameter of size three bytes,
-its least significant two bytes are passed via the HL register pair
+its least significant two bytes are passed via the HL register pair,
 and the most significant byte is passed via the E register
 
 * if the function has one parameter of size four bytes,
-its least significant word is passed via the HL register pair
+its least significant word is passed via the HL register pair,
 and the most significant word is passed via the DE register pair
 
 * otherwise, all parameters are passed via static locations
@@ -61,11 +61,11 @@ and the most significant word is passed via the DE register pair
 * two-byte return values are passed via the HL register pair
 
 * in case of three-byte return values,
-its least significant two bytes are passed via the HL register pair
+its least significant two bytes are passed via the HL register pair,
 and the most significant byte is passed via the E register
 
 * in case of four-byte return values,
-its least significant word is passed via the HL register pair
+its least significant word is passed via the HL register pair,
 and the most significant word is passed via the DE register pair
 
 * otherwise, the return value is passed via a static location
@@ -89,11 +89,11 @@ The DI register is not used.
 * if the function has one parameter of size two bytes, it is passed via the BX register
 
 * if the function has one parameter of size three bytes,
-its least significant two bytes are passed via the BX register
+its least significant two bytes are passed via the BX register,
 and the most significant byte is passed via the DL register
 
 * if the function has one parameter of size four bytes,
-its least significant word is passed via the BX register
+its least significant word is passed via the BX register,
 and the most significant word is passed via the DX register
 
 * otherwise, all parameters are passed via static locations
@@ -105,11 +105,11 @@ and the most significant word is passed via the DX register
 * two-byte return values are passed via the BX register
 
 * in case of three-byte return values,
-its least significant two bytes are passed via the BX register
+its least significant two bytes are passed via the BX register,
 and the most significant byte is passed via the DL register
 
 * in case of four-byte return values,
-its least significant word is passed via the BX register
+its least significant word is passed via the BX register,
 and the most significant word is passed via the DX register
 
 * otherwise, the return value is passed via a static location
