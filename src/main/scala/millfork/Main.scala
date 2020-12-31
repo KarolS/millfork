@@ -28,8 +28,6 @@ import millfork.cli.JsonConfigParser
 
 
 object Main {
-
-
   def main(args: Array[String]): Unit = {
     val errorReporting = new ConsoleLogger
     implicit val __implicitLogger: Logger = errorReporting
@@ -76,6 +74,7 @@ object Main {
 
     if (c1.languageServer) {
       // We cannot log anything to stdout when starting the language server (otherwise it's a protocol violation)
+      errorReporting.setOutput(true)
       val server = new MfLanguageServer(c, options)
 
       val exec = Executors.newCachedThreadPool()

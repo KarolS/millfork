@@ -4,15 +4,21 @@ import millfork.assembly.SourceLine
 import millfork.node.Position
 
 import scala.collection.mutable
+import java.io.PrintStream
 
 class ConsoleLogger extends Logger {
   FatalErrorReporting.considerAsGlobal(this)
 
+  private var defaultUseStderr = false
   var verbosity = 0
   var fatalWarnings = false
 
   override def setFatalWarnings(fatalWarnings: Boolean): Unit = {
     this.fatalWarnings = fatalWarnings
+  }
+
+  def setOutput(useStderr: Boolean): Unit = {
+    this.defaultUseStderr = useStderr
   }
 
   var hasErrors = false
@@ -27,11 +33,11 @@ class ConsoleLogger extends Logger {
             val line = lines.apply(lineIx)
             val column = pos.get.column - 1
             val margin = "       "
-            System.err.print(margin)
-            System.err.println(line)
-            System.err.print(margin)
-            System.err.print(" " * column)
-            System.err.println("^")
+            this.print(margin)
+            this.println(line)
+            this.print(margin)
+            this.print(" " * column)
+            this.println("^")
           }
         }
     }
@@ -42,14 +48,14 @@ class ConsoleLogger extends Logger {
 
   override def info(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 0) return
-    System.err.println("INFO:  " + f(position) + msg)
+    this.println("INFO:  " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
   }
 
   override def debug(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 1) return
-    System.err.println("DEBUG: " + f(position) + msg)
+    this.println("DEBUG: " + f(position) + msg)
     flushOutput()
   }
 
@@ -59,7 +65,7 @@ class ConsoleLogger extends Logger {
 
   override def trace(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 2) return
-    System.err.println("TRACE: " + f(position) + msg)
+    this.println("TRACE: " + f(position) + msg)
     flushOutput()
   }
 
@@ -71,7 +77,7 @@ class ConsoleLogger extends Logger {
 
   override def warn(msg: String, position: Option[Position] = None): Unit = {
     if (verbosity < 0) return
-    System.err.println("WARN:  " + f(position) + msg)
+    this.println("WARN:  " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
     if (fatalWarnings) {
@@ -81,14 +87,14 @@ class ConsoleLogger extends Logger {
 
   override def error(msg: String, position: Option[Position] = None): Unit = {
     hasErrors = true
-    System.err.println("ERROR: " + f(position) + msg)
+    this.println("ERROR: " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
   }
 
   override def fatal(msg: String, position: Option[Position] = None): Nothing = {
     hasErrors = true
-    System.err.println("FATAL: " + f(position) + msg)
+    this.println("FATAL: " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
     throw new AssertionError(msg)
@@ -96,7 +102,7 @@ class ConsoleLogger extends Logger {
 
   override def fatalQuit(msg: String, position: Option[Position] = None): Nothing = {
     hasErrors = true
-    System.err.println("FATAL: " + f(position) + msg)
+    this.println("FATAL: " + f(position) + msg)
     printErrorContext(position)
     flushOutput()
     System.exit(1)
@@ -128,4 +134,10 @@ class ConsoleLogger extends Logger {
     file <- sourceLines.get(line.moduleName)
     line <- file.lift(line.line - 1)
   } yield line
+
+  private def getOutputStream: PrintStream = if (this.defaultUseStderr) System.err else System.out
+
+  private def print(x: String): Unit = getOutputStream.print(x)
+
+  private def println(x: String): Unit = getOutputStream.println(x)
 }
