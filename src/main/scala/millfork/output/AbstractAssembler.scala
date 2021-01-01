@@ -280,7 +280,6 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         gatherFunctionOptimizationHints(options, niceFunctionProperties, function)
       case _ =>
     }
-    println(niceFunctionProperties)
     val aliases = env.getAliases
     recommendedCompilationOrder.foreach { f =>
       if (!env.isAlias(f)) env.maybeGet[NormalFunction](f).foreach { function =>

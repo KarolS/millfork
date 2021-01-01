@@ -251,8 +251,6 @@ class MosAssembler(program: Program,
     import MosNiceFunctionProperty._
     import NiceFunctionProperty._
     val functionName = function.name
-    println(functionName)
-    println(function.optimizationHints)
     if (function.optimizationHints("even")) niceFunctionProperties += Bit0OfA(false) -> functionName
     if (function.optimizationHints("odd")) niceFunctionProperties += Bit0OfA(true) -> functionName
     if (function.optimizationHints("preserves_a")) niceFunctionProperties += DoesntChangeA -> functionName
