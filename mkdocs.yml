@@ -26,6 +26,7 @@ nav:
     - Types: lang/types.md
     - Literals: lang/literals.md
     - Predefined constants: lang/predefined_constants.md
+    - List of magic suffixes: lang/suffixes.md
     - Text encodings: lang/text.md
     - Custom text encodings: lang/custom-encoding.md
     - Operators: lang/operators.md

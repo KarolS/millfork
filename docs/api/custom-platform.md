@@ -173,7 +173,7 @@ Default: `after_code`.
 * `segment_NAME_bank` – the bank number the segment belongs to. Default: `0`.
 For better debugging on NES, RAM segments should use bank number `$ff`.
 
-* `segment_NAME_fill` – the byte value used to fill gaps and other unused space in the bank. Default: `0`.
+* `segment_NAME_fill` – the byte value used to fill gaps and other unused space in the segment. Default: `0`.
 
 * `segment_NAME_layout` – a comma-separated list of object names that defines in what order the objects are laid out in the segment.
 One item has to be `*`, it means "all the other objects".  

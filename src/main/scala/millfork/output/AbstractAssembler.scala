@@ -655,6 +655,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       unimportantLabelMap += s"segment.$segment.heapstart" -> (defaultBank -> allocator.heapStart)
       unimportantLabelMap += s"segment.$segment.length" -> (defaultBank -> (allocator.endBefore - allocator.startAt))
       unimportantLabelMap += s"segment.$segment.bank" -> (defaultBank -> platform.bankNumbers(segment))
+      unimportantLabelMap += s"segment.$segment.fill" -> (defaultBank -> platform.bankFill(segment))
     }
 
     env = rootEnv.allThings

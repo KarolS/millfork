@@ -107,6 +107,12 @@ For every variable `x` larger than a byte, extra subvariables are defined:
     * constituent bytes, from low to high: `x.b0`, `x.b1`, `x.b2`, etc.
     
     * the lowest word: `x.loword` (=`x.b1:x.b0`)
+    
+* if `x` is a typed pointer:
+    
+    * a view of as a raw pointer: `x.raw`
+
+See also [the list of magic suffixes](./suffixes.md).
 
 ### Constant declarations
 

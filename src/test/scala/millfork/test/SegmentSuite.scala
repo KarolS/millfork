@@ -19,6 +19,8 @@ class SegmentSuite extends FunSuite with Matchers {
         | }
         | byte a5
         | byte output @$c000
+        | volatile byte output2 @$c001
+        | volatile byte output3 @$c002
         | void main() {
         |   output = 0
         |   if a1.addr.hi & $e0 == $80 { output += 1 }
@@ -26,10 +28,14 @@ class SegmentSuite extends FunSuite with Matchers {
         |   if a3.addr.hi & $e0 == $80 { output += 1 }
         |   if a4.addr.hi & $e0 == $a0 { output += 1 }
         |   if a5.addr.hi & $e0 == $00 { output += 1 }
+        |   output2 = a1.segment.bank ^ main.segment.bank
+        |   output2 ^= segment.second.bank ^ segment.default.bank
+        |   output3 = lo(main.segment.start)
         | }
       """.stripMargin
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(source) { m =>
       m.readByte(0xc000) should equal(source.count(_ == '+'))
+      m.readByte(0xc001) should equal(0)
     }
   }
 }

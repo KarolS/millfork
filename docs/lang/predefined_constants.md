@@ -2,7 +2,9 @@
 
 # Predefined constants
 
-* `byte nullchar` – the null terminator for strings in the default encoding, equivalent to `""z[0]`
+* `byte nullchar` – the null terminator for strings in the default encoding, equivalent to `""z[0]`, can be overriden by the `NULLCHAR` feature
+
+* `byte nullchar_scr` – the null terminator for strings in the screen encoding, equivalent to `""scrz[0]`, can be overriden by the `NULLCHAR_SCR` feature
 
 * `null$ nullptr` – the invalid pointer value; the value of the `NULLPTR` feature
 
