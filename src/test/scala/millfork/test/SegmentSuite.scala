@@ -21,6 +21,9 @@ class SegmentSuite extends FunSuite with Matchers {
         | byte output @$c000
         | volatile byte output2 @$c001
         | volatile byte output3 @$c002
+        | volatile pointer output4 @$c006
+        | volatile pointer output5 @$c008
+        | volatile pointer output6 @$c00a
         | void main() {
         |   output = 0
         |   if a1.addr.hi & $e0 == $80 { output += 1 }
@@ -31,11 +34,17 @@ class SegmentSuite extends FunSuite with Matchers {
         |   output2 = a1.segment.bank ^ main.segment.bank
         |   output2 ^= segment.second.bank ^ segment.default.bank
         |   output3 = lo(main.segment.start)
+        |   output4 = segment.default.start
+        |   output5 = segment.default.datastart
+        |   output6 = segment.default.heapstart
         | }
       """.stripMargin
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(source) { m =>
       m.readByte(0xc000) should equal(source.count(_ == '+'))
       m.readByte(0xc001) should equal(0)
+      m.readWord(0xc006) should equal(0x200)
+      m.readWord(0xc008) should be >(0x200)
+      m.readWord(0xc00a) should be >(0x200)
     }
   }
 }

@@ -150,7 +150,7 @@ class VariableAllocator(zpBytes: List[Int], private val bytes: ByteAllocator) {
         case AllocationLocation.High =>
           val a = bytes.findFreeBytes(mem, count, options, alignment)
           if (a < 0) {
-            options.log.fatal("Out of high memory")
+            options.log.fatal("Out of high memory in bank ${mem.index}")
           }
           a
         case AllocationLocation.Either =>
@@ -158,7 +158,7 @@ class VariableAllocator(zpBytes: List[Int], private val bytes: ByteAllocator) {
           if (a < 0) {
             a = bytes.findFreeBytes(mem, count, options, alignment)
             if (a < 0) {
-              options.log.fatal("Out of high memory")
+              options.log.fatal("Out of high memory in bank ${mem.index}")
             }
           }
           a
@@ -166,7 +166,7 @@ class VariableAllocator(zpBytes: List[Int], private val bytes: ByteAllocator) {
     } else {
       val a = bytes.findFreeBytes(mem, count, options, alignment)
       if (a < 0) {
-        options.log.fatal("Out of high memory")
+        options.log.fatal(s"Out of high memory in bank ${mem.index}")
       }
       a
     }
@@ -188,8 +188,13 @@ class VariableAllocator(zpBytes: List[Int], private val bytes: ByteAllocator) {
 
   //TODO: Everything about the three methods below is ugly and wrong. Fix later.
 
-  def notifyAboutEndOfCode(org: Int): Unit = bytes.notifyAboutEndOfCode(org)
-  def notifyAboutEndOfData(org: Int): Unit = heapStart = heapStart max org
+  def notifyAboutEndOfCode(org: Int): Unit = {
+    heapStart = heapStart max org
+    bytes.notifyAboutEndOfCode(org)
+  }
+  def notifyAboutEndOfData(org: Int): Unit = {
+    heapStart = heapStart max org
+  }
 
   def notifyAboutHole(mem: MemoryBank, addr: Int, size: Int): Unit = {
     if (Math.abs(addr - heapStart) <= 1) {

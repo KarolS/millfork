@@ -38,6 +38,12 @@ These suffixes can be applied to variables, arrays, or functions:
 
 * `.segment.start` – returns the start address of the segment the object is in 
 
+* `.segment.codeend` – returns the last address of code in the segment the object is in 
+
+* `.segment.datastart` – returns the start address of data in the segment the object is in 
+
+* `.segment.heapstart` – returns the start address of uninitialized data in the segment the object is in 
+
 * `.segment.end` – returns the last address of the segment the object is in
 
 * `.segment.fill` – returns the byte value used to fill gaps and other unused space in the segment the object is in

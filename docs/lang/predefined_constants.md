@@ -12,6 +12,10 @@
 
 * `pointer segment.N.start` – the value of `segment_N_start` from the platform definition
 
+* `pointer segment.N.codeend` – the value of `segment_N_codeend` from the platform definition
+
+* `pointer segment.N.datastart` – the value of `segment_N_datastart` from the platform definition
+
 * `pointer segment.N.end` – the value of `segment_N_end` from the platform definition
 
 * `pointer segment.N.heapstart` – the address of the first byte in the `N` segment that was not automatically allocated
@@ -19,3 +23,5 @@
 * `word segment.N.length` – the number of byte locations between `segment_N_start` and `segment_N_end`, inclusive
 
 * `byte segment.N.bank` – the value of `segment_N_bank` from the platform definition
+
+* `byte segment.N.fill` – the value of `segment_N_fill` from the platform definition

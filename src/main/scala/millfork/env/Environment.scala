@@ -508,6 +508,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     for(segment <- options.platform.bankNumbers.keys) {
       addUnexpandedPointerConstant(s"segment.$segment.start")
+      addUnexpandedPointerConstant(s"segment.$segment.codeend")
+      addUnexpandedPointerConstant(s"segment.$segment.datastart")
       addUnexpandedPointerConstant(s"segment.$segment.heapstart")
       addUnexpandedPointerConstant(s"segment.$segment.end")
       addUnexpandedWordConstant(s"segment.$segment.length")
@@ -1443,6 +1445,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       addThing(ConstantThing(thing.name + ".segment.fill", NumericConstant(bankFill, 1), b), position)
     }
     addThing(ConstantThing(thing.name + ".segment.start",  UnexpandedConstant(s"segment.$segment.start", 2), ptr), position)
+    addThing(ConstantThing(thing.name + ".segment.codeend", UnexpandedConstant(s"segment.$segment.codeend", 2), ptr), position)
+    addThing(ConstantThing(thing.name + ".segment.datastart",  UnexpandedConstant(s"segment.$segment.datastart", 2), ptr), position)
     addThing(ConstantThing(thing.name + ".segment.heapstart",  UnexpandedConstant(s"segment.$segment.heapstart", 2), ptr), position)
     addThing(ConstantThing(thing.name + ".segment.end", UnexpandedConstant(s"segment.$segment.end", 2), ptr), position)
     addThing(ConstantThing(thing.name + ".segment.length", UnexpandedConstant(s"segment.$segment.length", 2), w), position)
