@@ -227,7 +227,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       optimizationHints <- optimizationHintsDeclaration ~/ HWS
       alignment2 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
       addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~ HWS
-      initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS // TODO
+      initialValue <- ("=" ~/ AWS ~/ mfExpression(1, false)).? ~/ HWS // TODO
     } yield {
       if (alignment1.isDefined && alignment2.isDefined) log.error(s"Cannot define the alignment multiple times", Some(p))
       val alignment = alignment1.orElse(alignment2)
@@ -406,7 +406,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val aliasDefinition: P[Seq[AliasDefinitionStatement]] = for {
     p <- position()
     name <- "alias" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
-    target <- "=" ~/ HWS ~/ identifier ~/ HWS
+    target <- "=" ~/ AWS ~/ identifier ~/ HWS
     important <- "!".!.? ~/ HWS
   } yield Seq(AliasDefinitionStatement(name, target, important.isDefined).pos(p))
 
@@ -439,7 +439,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     optimizationHints <- optimizationHintsDeclaration ~/ HWS
     alignment2 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
-    contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
+    contents <- ("=" ~/ AWS ~/ arrayContents).? ~/ HWS
   } yield {
     if (alignment1.isDefined && alignment2.isDefined) log.error(s"Cannot define the alignment multiple times", Some(p))
     val alignment = alignment1.orElse(alignment2)
@@ -759,7 +759,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val enumVariant: P[(String, Option[Expression])] = for {
     name <- identifier ~/ HWS
-    value <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~ HWS
+    value <- ("=" ~/ AWS ~/ mfExpression(1, false)).? ~ HWS
   } yield name -> value
 
   val enumVariants: P[List[(String, Option[Expression])]] =
