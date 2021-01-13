@@ -464,6 +464,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     val r = rhs.quickSimplify
     (l, r) match {
       case (MemoryAddressConstant(lt), MemoryAddressConstant(rt)) if operator == MathOperator.Minus && lt == rt => Constant.Zero
+      case (CompoundConstant(MathOperator.Plus, MemoryAddressConstant(lt), c), MemoryAddressConstant(rt)) if operator == MathOperator.Minus && lt == rt => c
       case (CompoundConstant(MathOperator.Plus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv, _)) if operator == MathOperator.Plus =>
         CompoundConstant(MathOperator.Plus, a, ll + rr).quickSimplify
       case (CompoundConstant(MathOperator.Minus, a, ll@NumericConstant(lv, _)), rr@NumericConstant(rv, _)) if operator == MathOperator.Minus =>

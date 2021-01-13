@@ -392,9 +392,25 @@ object M6809Buitins {
     val op = if (left) List(MLine.inherentB(ASL), MLine.inherentA(ROL)) else List(MLine.inherentA(LSR), MLine.inherentB(ROR))
     ctx.env.eval(rhs) match {
       case Some(NumericConstant(0, _)) => Nil
-      case Some(NumericConstant(8, _)) =>
-        if (left) List(MLine.tfr(M6809Register.B, M6809Register.A), MLine.immediate(LDB, 0))
-        else List(MLine.tfr(M6809Register.A, M6809Register.B), MLine.immediate(LDA, 0))
+      case Some(NumericConstant(n, _)) if n >= 8 && n <= 12=>
+        if (left) List(MLine.tfr(M6809Register.B, M6809Register.A), MLine.immediate(LDB, 0)) ++ List.fill(n.toInt - 8)(MLine.inherentA(ASL))
+        else List(MLine.tfr(M6809Register.A, M6809Register.B), MLine.immediate(LDA, 0)) ++ List.fill(n.toInt - 8)(MLine.inherentB(LSR))
+      case Some(NumericConstant(7, _)) =>
+        if (left) {
+          List(
+            MLine.inherentA(LSR),
+            MLine.inherentB(ROR),
+            MLine.tfr(M6809Register.B, M6809Register.A),
+            MLine.immediate(LDB, 0),
+            MLine.inherentB(ROR))
+        } else {
+          List(
+            MLine.inherentB(ASL),
+            MLine.inherentA(ROL),
+            MLine.tfr(M6809Register.A, M6809Register.B),
+            MLine.immediate(LDA, 0),
+            MLine.inherentA(ROL))
+        }
       case Some(NumericConstant(n, _)) => List.fill(n.toInt)(op).flatten
       case _ =>
         val loop = ctx.nextLabel("sr")

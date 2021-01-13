@@ -1,12 +1,12 @@
 package millfork.test
 import millfork.Cpu
 import millfork.test.emu._
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class ShiftSuite extends FunSuite with Matchers {
+class ShiftSuite extends FunSuite with Matchers with AppendedClues {
 
   test("In-place shifting") {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
@@ -40,6 +40,41 @@ class ShiftSuite extends FunSuite with Matchers {
         |   output <<= 7
         | }
       """.stripMargin)(_.readWord(0xc000) should equal(128 * 3))
+  }
+
+  test("Word shifting by certain interesting constants") {
+    for (w <- Seq(0, 1, 128, 6253, 65222, 0xffff)) {
+      EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(s"""
+          | word output7l @$$c000
+          | word output7r @$$c002
+          | word output8l @$$c004
+          | word output8r @$$c006
+          | word output9l @$$c008
+          | word output9r @$$c00a
+          | word outputal @$$c00c
+          | word outputar @$$c00e
+          | void main () {
+          |   output7l = id($w) << 7
+          |   output7r = id($w) >> 7
+          |   output8l = id($w) << 8
+          |   output8r = id($w) >> 8
+          |   output9l = id($w) << 9
+          |   output9r = id($w) >> 9
+          |   outputal = id($w) << 10
+          |   outputar = id($w) >> 10
+          | }
+          | noinline word id(word w) = w
+        """.stripMargin) { m =>
+        m.readWord(0xc000) should equal((w << 7) & 0xffff) withClue s" = $w << 7"
+        m.readWord(0xc002) should equal((w >> 7) & 0xffff) withClue s" = $w >> 7"
+        m.readWord(0xc004) should equal((w << 8) & 0xffff) withClue s" = $w << 8"
+        m.readWord(0xc006) should equal((w >> 8) & 0xffff) withClue s" = $w >> 8"
+        m.readWord(0xc008) should equal((w << 9) & 0xffff) withClue s" = $w << 9"
+        m.readWord(0xc00a) should equal((w >> 9) & 0xffff) withClue s" = $w >> 9"
+        m.readWord(0xc00c) should equal((w << 10) & 0xffff) withClue s" = $w << 10"
+        m.readWord(0xc00e) should equal((w >> 10) & 0xffff) withClue s" = $w >> 10"
+      }
+    }
   }
 
   test("Long shifting left") {
