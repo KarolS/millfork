@@ -2,11 +2,17 @@
 
 ## Current version
 
+* Segment-related constants now match their equivalents from the platform definition. Missing constants have been defined.
+
+* Constants with heap start and segment start are now generated properly.
+
 * 6502: Fixed sbyte to word promotions in certain contexts.
 
 * Optimized word shifts for between 7 and 12 bits.
 
 * Allowed new lines after `=`.
+
+* Various optimization improvements.
 
 ## 0.3.24 (2020-12-02)
 
