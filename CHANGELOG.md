@@ -1,5 +1,13 @@
 # Change log
 
+## Current version
+
+* 6502: Fixed sbyte to word promotions in certain contexts.
+
+* Optimized word shifts for between 7 and 12 bits.
+
+* Allowed new lines after `=`.
+
 ## 0.3.24 (2020-12-02)
 
 * Preliminary support for TRS-80 Model 1 and 3 running TRS-DOS.
