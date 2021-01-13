@@ -762,4 +762,56 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       }
     }
   }
+
+  test("Sign extension in multiplication") {
+    for {
+      x <- Seq(0, -10, 10, 120, -120)
+      y <- Seq(0, -10, 10, 120, -120)
+      angle <- Seq(0, 156, 100, 67)
+    } {
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+        s"""
+           | import zp_reg
+           | array(sbyte) sinTable @$$c100= for i,0,to,256+64-1 [sin(i,127)]
+           | sbyte outputX @$$c000
+           | sbyte outputY @$$c001
+           | noinline sbyte rotatePointX(sbyte x,sbyte y,byte angle) {
+           |  sbyte rx
+           |  sbyte s,c
+           |  s = sinTable[angle]
+           |  angle = angle + 64
+           |  c = sinTable[angle]
+           |  rx = lo(((word(x)*word(c))>>7) - ((word(y)*word(s))>>7))
+           |
+           |  return rx;
+           |}
+           |
+           |noinline sbyte rotatePointY(sbyte x,sbyte y,byte angle) {
+           |  sbyte ry
+           |  sbyte s,c
+           |  s = sinTable[angle]
+           |  angle = angle + 64
+           |  c = sinTable[angle]
+           |  ry = lo(((word(x)*word(s))>>7) + ((word(y)*word(c))>>7))
+           |  return ry;
+           |}
+           | void main () {
+           |  outputX = rotatePointX($x, $y, $angle)
+           |  outputY = rotatePointY($x, $y, $angle)
+           | }
+            """.
+          stripMargin){m =>
+        for (a <- 0 until (256+64)) {
+          val expected = (127 * math.sin(a * math.Pi / 128)).round.toInt
+          m.readByte(0xc100 + a).toByte should equal(expected.toByte) withClue s"= sin($a)"
+        }
+        val s = (127 * math.sin(angle * math.Pi / 128)).round.toInt
+        val c = (127 * math.sin((angle + 64) * math.Pi / 128)).round.toInt
+        val rx = (x * c >> 7) - (y * s >> 7)
+        val ry = (x * s >> 7) + (y * c >> 7)
+        m.readByte(0xc000).toByte should equal(rx.toByte) withClue s"= x of ($x,$y) @ $angle"
+        m.readByte(0xc001).toByte should equal(ry.toByte) withClue s"= y of ($x,$y) @ $angle"
+      }
+    }
+  }
 }

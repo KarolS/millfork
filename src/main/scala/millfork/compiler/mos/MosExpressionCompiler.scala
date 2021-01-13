@@ -733,7 +733,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                           AssemblyLine.implied(PLA))
                       } else AssemblyLine.variable(ctx, LDA, source) :+ AssemblyLine.immediate(LDX, 0)
                       case 2 =>
-                        AssemblyLine.variable(ctx, LDA, source) ++ AssemblyLine.variable(ctx, LDX, source, 1)
+                        val lo = AssemblyLine.variable(ctx, LDA, source)
+                        if (lo.exists(_.concernsX)) {
+                          lo ++ AssemblyLine.variable(ctx, LDX, source, 1, preserveA = true)
+                        } else {
+                          val hi = AssemblyLine.variable(ctx, LDX, source, 1)
+                          if (hi.length == 1 && hi.head.opcode == LDX) lo ++ hi
+                          else hi ++ lo
+                        }
                     }
                   case RegisterVariable(MosRegister.AY, _) =>
                     exprType.size match {

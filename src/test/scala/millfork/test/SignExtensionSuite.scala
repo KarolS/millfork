@@ -32,6 +32,21 @@ class SignExtensionSuite extends FunSuite with Matchers {
         | }
       """.stripMargin){m => m.readWord(0xc000) should equal(0xfffe)}
   }
+
+  test("Sbyte to Word 3") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)("""
+        | import zp_reg
+        | word output @$c000
+        | void main () {
+        |   sbyte x,y
+        |   x = b(1)
+        |   y = b(31)
+        |   output = word(x) * word(y)
+        | }
+        | noinline sbyte b(sbyte x) = x
+      """.stripMargin){m => m.readWord(0xc000) should equal(31)}
+  }
+
   test("Sbyte to Long") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
         | long output @$c000

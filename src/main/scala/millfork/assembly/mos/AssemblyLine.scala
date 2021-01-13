@@ -422,7 +422,7 @@ object AssemblyLine {
   private val opcodesForZeroedVariableOperation = Set(ADC, EOR, ORA, AND, SBC, CMP, CPX, CPY)
   private val opcodesForZeroedOrSignExtendedVariableOperation = Set(LDA, LDX, LDY, LDZ)
 
-  def variable(ctx: CompilationContext, opcode: Opcode.Value, variable: Variable, offset: Int = 0): List[AssemblyLine] =
+  def variable(ctx: CompilationContext, opcode: Opcode.Value, variable: Variable, offset: Int = 0, preserveA: Boolean = false): List[AssemblyLine] =
     if (offset >= variable.typ.size) {
       if (opcodesForNopVariableOperation(opcode)) {
         Nil
@@ -432,16 +432,28 @@ object AssemblyLine {
       } else if (opcodesForZeroedOrSignExtendedVariableOperation(opcode)) {
         if (variable.typ.isSigned) {
           val label = ctx.nextLabel("sx")
-          AssemblyLine.variable(ctx, LDA, variable, variable.typ.size - 1) ++ List(
+          val loadHiByteToA = AssemblyLine.variable(ctx, LDA, variable, variable.typ.size - 1)
+          val signExtend = List(
             AssemblyLine.immediate(ORA, 0x7f),
             AssemblyLine.relative(BMI, label),
             AssemblyLine.immediate(LDA, 0),
-            AssemblyLine.label(label)) ++ (opcode match {
-            case LDA => Nil
-            case LDX | LAX => List(AssemblyLine.implied(TAX))
-            case LDY => List(AssemblyLine.implied(TAY))
-            case LDZ => List(AssemblyLine.implied(TAZ))
-          })
+            AssemblyLine.label(label))
+          if (preserveA) {
+            opcode match {
+              case LDA => loadHiByteToA ++ signExtend
+              case LAX => loadHiByteToA ++ signExtend ++ List(AssemblyLine.implied(TAX))
+              case LDX => loadHiByteToA ++ List(AssemblyLine.implied(PHA)) ++ signExtend ++ List(AssemblyLine.implied(TAX), AssemblyLine.implied(PLA))
+              case LDY => loadHiByteToA ++ List(AssemblyLine.implied(PHA)) ++ signExtend ++ List(AssemblyLine.implied(TAY), AssemblyLine.implied(PLA))
+              case LDZ => loadHiByteToA ++ List(AssemblyLine.implied(PHA)) ++ signExtend ++ List(AssemblyLine.implied(TAZ), AssemblyLine.implied(PLA))
+            }
+          } else {
+            opcode match {
+              case LDA => loadHiByteToA ++ signExtend
+              case LDX | LAX => loadHiByteToA ++ signExtend ++ List(AssemblyLine.implied(TAX))
+              case LDY => loadHiByteToA ++ signExtend ++ List(AssemblyLine.implied(TAY))
+              case LDZ => loadHiByteToA ++ signExtend ++ List(AssemblyLine.implied(TAZ))
+            }
+          }
         } else {
           List(AssemblyLine.immediate(opcode, 0))
         }
