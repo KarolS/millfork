@@ -472,7 +472,12 @@ class MfLanguageServer(context: Context, options: CompilationOptions) {
     )
   }
 
-  private def trimDocumentUri(uri: String): String = uri.stripPrefix("file:")
+  private def trimDocumentUri(uri: String): String =
+    uri
+      .replaceFirst("file:(//)?", "")
+      // Trim Windows path oddities provided by VSCode (may not be for all LSP clients)
+      .replaceFirst("%3A", ":")
+      .replaceFirst("/([A-Za-z]):", "$1:")
 }
 
 case class TelemetryEvent(message: String, data: Any = None)
