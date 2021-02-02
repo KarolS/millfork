@@ -2689,7 +2689,38 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         case _ => true // TODO: ?
       }
       case e: FunctionCallExpression => e.expressions.exists(isVolatile)
+      case e: SumExpression => e.expressions.exists(e => isVolatile(e._2))
       case e: IndexedExpression => isVolatile(VariableExpression(e.name)) || isVolatile(e.index)
+      case _ => true
+    }
+  }
+
+  def isGoodEmptyLoopCondition(target: Expression): Boolean = {
+    if (eval(target).isDefined) {
+      // the user means an infinite loop or an empty loop
+      return true
+    }
+    target match {
+      case _: LiteralExpression => false
+      case _: GeneratedConstantExpression => false
+      case e: VariableExpression => maybeGet[Thing](e.name) match {
+        case Some(v: Variable) => v.isVolatile
+        case Some(v: MfArray) => true // TODO: all arrays assumed volatile for now
+        case Some(_: Constant) => false
+        case Some(_: Type) => false
+        case _ => true // TODO: ?
+      }
+      case e: FunctionCallExpression =>
+        e.functionName match {
+          case "==" | "!=" | ">" | "<" | ">=" | "<=" |
+               "*" | "*'" | "/" | "%%" |
+               "<<" | ">>" | "<<'" | ">>'" | ">>>>"
+               | "&" | "^" | "|" | "&&" | "^^" | "||" | "not" | "hi" | "lo" =>
+            e.expressions.exists(isVolatile)
+          case _ => true
+        }
+      case e: SumExpression => e.expressions.exists(e => isGoodEmptyLoopCondition(e._2))
+      case e: IndexedExpression => isGoodEmptyLoopCondition(VariableExpression(e.name)) || isGoodEmptyLoopCondition(e.index)
       case _ => true
     }
   }
