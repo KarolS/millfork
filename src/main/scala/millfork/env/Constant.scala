@@ -5,6 +5,8 @@ import millfork.DecimalUtils._
 import millfork.node.{ResolvedFieldDesc, SumExpression}
 import millfork.output.DivisibleAlignment
 
+import scala.collection.GenTraversableOnce
+
 object Constant {
   val Zero: Constant = NumericConstant(0, 1)
   val WordZero: Constant = NumericConstant(0, 2)
@@ -129,6 +131,8 @@ sealed trait Constant {
 
   def refersTo(name: String): Boolean
 
+  def extractLabels: List[String]
+
   def fitsInto(typ: Type): Boolean = true // TODO
 
   def fitInto(typ: Type): Constant = {
@@ -196,6 +200,8 @@ case class AssertByte(c: Constant) extends Constant {
   override def fitsInto(typ: Type): Boolean = true
   override def toIntelString: String = c.toIntelString
   override def rootThingName: String = c.rootThingName
+
+  override def extractLabels: List[String] = c.extractLabels
 }
 
 case class StructureConstant(typ: StructType, fields: List[Constant]) extends Constant {
@@ -240,6 +246,8 @@ case class StructureConstant(typ: StructType, fields: List[Constant]) extends Co
     Constant.Zero
   }
   override def rootThingName: String = "?"
+
+  override def extractLabels: List[String] = this.fields.flatMap(_.extractLabels)
 }
 
 case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant {
@@ -252,6 +260,8 @@ case class UnexpandedConstant(name: String, requiredSize: Int) extends Constant 
   override def refersTo(name: String): Boolean = name == this.name
 
   override def rootThingName: String = "?"
+
+  override def extractLabels: List[String] = Nil
 }
 
 case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
@@ -336,6 +346,8 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   }
 
   override def rootThingName: String = ""
+
+  override def extractLabels: List[String] = Nil
 }
 
 case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
@@ -376,6 +388,11 @@ case class MemoryAddressConstant(var thing: ThingInMemory) extends Constant {
   override def refersTo(name: String): Boolean = name == thing.name
 
   override def rootThingName: String = thing.rootName
+
+  override def extractLabels: List[String] = thing match {
+    case Label(n) => List(n)
+    case _ => Nil
+  }
 }
 
 case class SubbyteConstant(base: Constant, index: Int) extends Constant {
@@ -416,6 +433,8 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
   override def refersTo(name: String): Boolean = base.refersTo(name)
 
   override def rootThingName: String = base.rootThingName
+
+  override def extractLabels: List[String] = base.extractLabels
 }
 
 object MathOperator extends Enumeration {
@@ -758,4 +777,6 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
     case (x, "") => x
     case _ => "?"
   }
+
+  override def extractLabels: List[String] = lhs.extractLabels ++ rhs.extractLabels
 }

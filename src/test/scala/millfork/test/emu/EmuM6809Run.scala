@@ -175,6 +175,11 @@ class EmuM6809Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizat
             if (memoryBank.readable(i)) memoryBank.readable(i + 1) = true
           }
         }
+        if (source.contains("w&x")) {
+          for (i <- 0 until 0x10000) {
+            memoryBank.writeable(i) = true
+          }
+        }
         val timings =  run(log, memoryBank, platform.codeAllocators("default").startAt)
         log.clearErrors()
         timings
