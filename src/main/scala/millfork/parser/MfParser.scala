@@ -606,11 +606,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def executableStatement: P[Seq[ExecutableStatement]] = (position() ~ P(keywordStatement | expressionStatement)).map { case (p, s) => s.map(_.pos(p)) }
 
+  def asmLabel: P[ExecutableStatement]
+
   def asmStatement: P[ExecutableStatement]
 
   def statement: P[Seq[Statement]] = (position() ~ P(keywordStatement | arrayDefinition | localVariableDefinition | expressionStatement)).map { case (p, s) => s.map(_.pos(p)) }
 
-  def asmStatements: P[List[ExecutableStatement]] = ("{" ~/ AWS_asm ~/ asmStatement.rep(sep = NoCut(EOL_asm) ~ !"}" ~/ Pass) ~/ AWS_asm ~/ "}" ~/ Pass).map(_.toList)
+  def asmStatements: P[List[ExecutableStatement]] = ("{" ~/ AWS_asm ~/ (asmLabel.rep() ~ asmStatement.?).rep(sep = NoCut(EOL_asm) ~ !"}" ~/ Pass) ~/ AWS_asm ~/ "}" ~/ Pass).map(e => e.flatMap(x => (x._1 ++ x._2.toSeq).toList)).map(_.toList)
 
   def statements: P[List[Statement]] = ("{" ~/ AWS ~ statement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.flatten.toList)
 
