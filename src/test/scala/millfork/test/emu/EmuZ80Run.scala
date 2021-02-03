@@ -173,6 +173,11 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
           memoryBank.readable(i) = true
           memoryBank.writeable(i) = true
         }
+        if (source.contains("w&x")) {
+          for (i <- 0 until 0x10000) {
+            memoryBank.writeable(i) = true
+          }
+        }
 
         // LD SP,$fffe
         // CALL $0200

@@ -26,6 +26,8 @@
 
 * [Predefined constants](lang/predefined_constants.md)
 
+* [List of magic suffixes](lang/suffixes.md)
+
 * [List of text encodings and escape sequences](lang/text.md)
 
 * [Defining custom encodings](lang/custom-encoding.md)

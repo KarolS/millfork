@@ -21,6 +21,10 @@ case class RepeatedIndexCalculationOptimization(forX: Boolean) extends AssemblyO
   override def optimize(f: NormalFunction, code: List[AssemblyLine], context: OptimizationContext): List[AssemblyLine] = {
     val log = context.log
     val allRuns = findAllRuns(code, 0, None).result
+    if (allRuns.size <= 1) {
+      log.trace("No index calculations found")
+      return code
+    }
     if (log.traceEnabled) {
       log.trace("All index calculations found: " + allRuns)
       for ((line, ix) <- code.zipWithIndex) {
@@ -32,7 +36,6 @@ case class RepeatedIndexCalculationOptimization(forX: Boolean) extends AssemblyO
         }
       }
     }
-    if (allRuns.size <= 1) return code
     lazy val reverseFlow = ReverseFlowAnalyzer.analyze(code, context.niceFunctionProperties)
     val flow = CoarseFlowAnalyzer.analyze(f, code, context)
     var replacements: Map[Int, Int] = Map()

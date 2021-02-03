@@ -140,6 +140,34 @@ object Z80Shifting {
       case Some(NumericConstant(i, _)) =>
         if (i <= 0) {
           l
+        } else if (i == 8) {
+          if (left) {
+            l ++ List(ZLine.ld8(ZRegister.H, ZRegister.L), ZLine.ldImm8(ZRegister.L, 0))
+          } else {
+            l ++ List(ZLine.ld8(ZRegister.L, ZRegister.H), ZLine.ldImm8(ZRegister.H, 0))
+          }
+        } else if (i >= 9 && i <= 12 && extendedOps) {
+          if (left) {
+            l ++ List(ZLine.ld8(ZRegister.H, ZRegister.L), ZLine.ldImm8(ZRegister.L, 0)) ++ List.fill(i.toInt - 8)(ZLine.register(ZOpcode.SLA, ZRegister.H))
+          } else {
+            l ++ List(ZLine.ld8(ZRegister.L, ZRegister.H), ZLine.ldImm8(ZRegister.H, 0)) ++ List.fill(i.toInt - 8)(ZLine.register(ZOpcode.SRL, ZRegister.L))
+          }
+        } else if (i == 7 && extendedOps) {
+          if (left) {
+            l ++ List(
+              ZLine.register(ZOpcode.SRL, ZRegister.H),
+              ZLine.register(ZOpcode.RR, ZRegister.L),
+              ZLine.ld8(ZRegister.H, ZRegister.L),
+              ZLine.ldImm8(ZRegister.L, 0),
+              ZLine.register(ZOpcode.RR, ZRegister.L))
+          } else {
+            l ++ List(
+              ZLine.register(ZOpcode.SLA, ZRegister.L),
+              ZLine.register(ZOpcode.RL, ZRegister.H),
+              ZLine.ld8(ZRegister.L, ZRegister.H),
+              ZLine.ldImm8(ZRegister.H, 0),
+              ZLine.register(ZOpcode.RL, ZRegister.H))
+          }
         } else if (i >= 16) {
           l :+ ZLine.ldImm16(ZRegister.HL, 0)
 //        } else if (i > 8) { // TODO: optimize shifts larger than 8

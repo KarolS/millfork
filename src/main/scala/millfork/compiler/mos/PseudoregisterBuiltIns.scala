@@ -1,6 +1,7 @@
 package millfork.compiler.mos
 
 import millfork.CompilationFlag
+import millfork.assembly.Elidability
 import millfork.assembly.mos.AddrMode._
 import millfork.assembly.mos.Opcode._
 import millfork.assembly.mos._
@@ -440,15 +441,12 @@ object PseudoregisterBuiltIns {
     val firstParamCompiled = MosExpressionCompiler.compile(ctx, l, Some(MosExpressionCompiler.getExpressionType(ctx, l) -> reg), NoBranching)
     ctx.env.eval(r) match {
       case Some(NumericConstant(0, _)) =>
-        List(AssemblyLine.zeropage(LDA, reg), AssemblyLine.zeropage(LDX, reg, 1))
-      case Some(NumericConstant(1, _)) if (firstParamCompiled match {
-        case List(
-        AssemblyLine0(LDA, ZeroPage | Absolute | Immediate, _),
-        AssemblyLine0(STA, ZeroPage, _),
-        AssemblyLine0(LDA, ZeroPage | Absolute | Immediate, _),
-        AssemblyLine0(STA, ZeroPage, _)) => true
-        case _ => false
-      }) =>
+        if (isTrivialZpRegAssignment(firstParamCompiled)) {
+          List(firstParamCompiled(0), firstParamCompiled(2).copy(opcode = LDX))
+        } else {
+          firstParamCompiled ++ List(AssemblyLine.zeropage(LDA, reg), AssemblyLine.zeropage(LDX, reg, 1))
+        }
+      case Some(NumericConstant(1, _)) if (isTrivialZpRegAssignment(firstParamCompiled)) =>
         if (left) {
           List(
             firstParamCompiled(0),
@@ -465,6 +463,79 @@ object PseudoregisterBuiltIns {
             AssemblyLine.implied(TAX),
             firstParamCompiled(0),
             AssemblyLine.implied(ROR))
+        }
+      case Some(NumericConstant(n, _)) if n >= 8 && n <= 12 && !ctx.options.flag(CompilationFlag.EmitNative65816Opcodes) =>
+        val shifts = List.fill(n.toInt - 8)(if (left)AssemblyLine.implied(ASL) else AssemblyLine.implied(LSR))
+        if (left) {
+          if (n != 8) {
+            if (isTrivialZpRegAssignment(firstParamCompiled) && firstParamCompiled(2).elidability == Elidability.Elidable) {
+              List(firstParamCompiled(0)) ++ shifts ++ List(AssemblyLine.implied(TAX), AssemblyLine.immediate(LDA, 0))
+            } else {
+              firstParamCompiled ++ List(AssemblyLine.zeropage(LDA, reg)) ++ shifts ++ List(AssemblyLine.implied(TAX), AssemblyLine.immediate(LDA, 0))
+            }
+          } else {
+            if (isTrivialZpRegAssignment(firstParamCompiled) && firstParamCompiled(2).elidability == Elidability.Elidable) {
+              List(AssemblyLine.immediate(LDA, 0), firstParamCompiled(0).copy(opcode = LDX))
+            } else {
+              firstParamCompiled ++ List(AssemblyLine.immediate(LDA, 0), AssemblyLine.zeropage(LDX, reg))
+            }
+          }
+        } else {
+          if (isTrivialZpRegAssignment(firstParamCompiled) && firstParamCompiled(0).elidability == Elidability.Elidable) {
+            List(firstParamCompiled(2))++shifts++List(AssemblyLine.immediate(LDX, 0))
+          } else {
+            firstParamCompiled ++ List(AssemblyLine.zeropage(LDA, reg, 1))++shifts++List(AssemblyLine.immediate(LDX, 0))
+          }
+        }
+      case Some(NumericConstant(7, _)) if !ctx.options.flag(CompilationFlag.EmitNative65816Opcodes) =>
+        if (left) {
+          if (isTrivialZpRegAssignment(firstParamCompiled)) {
+            List(
+              firstParamCompiled(2),
+              AssemblyLine.implied(LSR),
+              AssemblyLine.zeropage(LDA, reg),
+              AssemblyLine.implied(ROR),
+              AssemblyLine.implied(TAX),
+              firstParamCompiled(0),
+              AssemblyLine.implied(ROR)
+            )
+          } else {
+            firstParamCompiled ++ List(
+              AssemblyLine.zeropage(LDA, reg, 1),
+              AssemblyLine.implied(LSR),
+              AssemblyLine.zeropage(LDA, reg),
+              AssemblyLine.implied(ROR),
+              AssemblyLine.implied(TAX),
+              AssemblyLine.immediate(LDA, 0),
+              AssemblyLine.implied(ROR)
+            )
+          }
+        } else {
+          if (isTrivialZpRegAssignment(firstParamCompiled)) {
+            List(
+              firstParamCompiled(0),
+              AssemblyLine.implied(ASL),
+              firstParamCompiled(2),
+              AssemblyLine.implied(ROL),
+              AssemblyLine.implied(PHA),
+              AssemblyLine.immediate(LDA, 0),
+              AssemblyLine.implied(ROL),
+              AssemblyLine.implied(TAX),
+              AssemblyLine.implied(PLA)
+            )
+          } else {
+            firstParamCompiled ++ List(
+              AssemblyLine.zeropage(LDA, reg),
+              AssemblyLine.implied(ASL),
+              AssemblyLine.zeropage(LDA, reg, 1),
+              AssemblyLine.implied(ROL),
+              AssemblyLine.implied(PHA),
+              AssemblyLine.immediate(LDA, 0),
+              AssemblyLine.implied(ROL),
+              AssemblyLine.implied(TAX),
+              AssemblyLine.implied(PLA)
+            )
+          }
         }
       case Some(NumericConstant(v, _)) if v > 0 && unrollShift(ctx, v, 2, 4) =>
         if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
@@ -517,6 +588,18 @@ object PseudoregisterBuiltIns {
             AssemblyLine.zeropage(LDA, reg),
             AssemblyLine.zeropage(LDX, reg, 1))
         }
+    }
+  }
+
+  private def isTrivialZpRegAssignment(firstParamCompiled: List[AssemblyLine]) : Boolean = {
+    firstParamCompiled match {
+      case List(
+      l0@AssemblyLine0(LDA, ZeroPage | Absolute | Immediate, _),
+      AssemblyLine0(STA, ZeroPage, zp0),
+      l1@AssemblyLine0(LDA, ZeroPage | Absolute | Immediate, _),
+      AssemblyLine0(STA, ZeroPage, zp1)) =>
+        firstParamCompiled.forall(l => l.elidability != Elidability.Fixed) && (zp1 - zp0).quickSimplify.isLowestByteAlwaysEqual(1)
+      case _ => false
     }
   }
 

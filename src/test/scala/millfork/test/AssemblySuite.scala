@@ -21,6 +21,21 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
       """.stripMargin)(_.readByte(0xc000) should equal(1))
   }
 
+  test("Self-modifying assembly") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Motorola6809)(
+      """
+        | byte output @$c000
+        | // w&x
+        | asm void main () {
+        |   lda #3
+        |   sta .l+1
+        |   .l: lda #55
+        |   sta output
+        |   rts
+        |   ignored:}
+      """.stripMargin)(_.readByte(0xc000) should equal(3))
+  }
+
   test("Assembly functions") {
     EmuBenchmarkRun(
       """
@@ -32,6 +47,7 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
         | asm void thing() {
         |  inc $c000
         |  rts
+        |  ignored:
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(1))
   }

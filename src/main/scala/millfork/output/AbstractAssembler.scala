@@ -594,6 +594,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val db = mem.banks("default")
         val ib = mem.banks(ivBank)
         val size = rwDataEnd - rwDataStart
+        if (size > 0 && !labelMap.contains("init_rw_memory")) {
+          log.warn("The program contains initialized variables, but it never calls init_rw_memory().")
+        }
         if (size < 0) log.fatal("Negative writable memory size. It's a compiler bug.")
         val ivAddr = codeAllocators(ivBank).allocateBytes(ib, options, size, initialized = true, writeable = false, AllocationLocation.High, NoAlignment)
         unimportantLabelMap += "__rwdata_init_start" -> (ib.index -> ivAddr)
@@ -649,12 +652,16 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     unimportantLabelMap += "__rwdata_end" -> (defaultBank -> rwDataEnd)
     unimportantLabelMap += "__heap_start" -> (defaultBank -> variableAllocators("default").heapStart)
     for (segment <- platform.bankNumbers.keys) {
-      val allocator = options.platform.variableAllocators(segment)
-      unimportantLabelMap += s"segment.$segment.start" -> (defaultBank -> allocator.startAt)
-      unimportantLabelMap += s"segment.$segment.end" -> (defaultBank -> (allocator.endBefore - 1))
-      unimportantLabelMap += s"segment.$segment.heapstart" -> (defaultBank -> allocator.heapStart)
-      unimportantLabelMap += s"segment.$segment.length" -> (defaultBank -> (allocator.endBefore - allocator.startAt))
+      val variableAllocator = options.platform.variableAllocators(segment)
+      val codeAllocator = options.platform.codeAllocators(segment)
+      unimportantLabelMap += s"segment.$segment.start" -> (defaultBank -> codeAllocator.startAt)
+      unimportantLabelMap += s"segment.$segment.codeend" -> (defaultBank -> (codeAllocator.endBefore - 1))
+      unimportantLabelMap += s"segment.$segment.datastart" -> (defaultBank -> variableAllocator.startAt)
+      unimportantLabelMap += s"segment.$segment.heapstart" -> (defaultBank -> variableAllocator.heapStart)
+      unimportantLabelMap += s"segment.$segment.end" -> (defaultBank -> (variableAllocator.endBefore - 1))
+      unimportantLabelMap += s"segment.$segment.length" -> (defaultBank -> (variableAllocator.endBefore - codeAllocator.startAt))
       unimportantLabelMap += s"segment.$segment.bank" -> (defaultBank -> platform.bankNumbers(segment))
+      unimportantLabelMap += s"segment.$segment.fill" -> (defaultBank -> platform.bankFill(segment))
     }
 
     env = rootEnv.allThings

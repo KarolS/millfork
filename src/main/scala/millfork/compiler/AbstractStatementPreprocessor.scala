@@ -135,6 +135,16 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
           ctx.log.warn("Pointless expression.", stmt.position)
         }
 
+      case WhileStatement(condition, Nil, Nil, _) =>
+        if (!env.isGoodEmptyLoopCondition(condition)) {
+          ctx.log.warn("Empty loop with a non-volatile condition may be optimized into a no-op or an infinite loop.", stmt.position)
+        }
+
+      case DoWhileStatement(Nil, Nil, condition, _) =>
+        if (!env.isGoodEmptyLoopCondition(condition)) {
+          ctx.log.warn("Empty loop with a non-volatile condition may be optimized into a no-op or an infinite loop.", stmt.position)
+        }
+
       case _ =>
     }
     stmt match {

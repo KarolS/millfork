@@ -508,10 +508,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
     for(segment <- options.platform.bankNumbers.keys) {
       addUnexpandedPointerConstant(s"segment.$segment.start")
+      addUnexpandedPointerConstant(s"segment.$segment.codeend")
+      addUnexpandedPointerConstant(s"segment.$segment.datastart")
       addUnexpandedPointerConstant(s"segment.$segment.heapstart")
       addUnexpandedPointerConstant(s"segment.$segment.end")
       addUnexpandedWordConstant(s"segment.$segment.length")
       addUnexpandedByteConstant(s"segment.$segment.bank")
+      addUnexpandedByteConstant(s"segment.$segment.fill")
     }
     addThing(ConstantThing("$0000", Constant.WordZero, p), None)
     addThing(FlagBooleanType("set_carry",
@@ -1431,8 +1434,23 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   private def registerAddressConstant(thing: ThingInMemory, position: Option[Position], options: CompilationOptions, targetType: Option[Type]): Unit = {
     val b = get[Type]("byte")
+    val w = get[Type]("word")
+    val ptr = get[Type]("pointer")
+    val segment = thing.bank(options)
+    for (bankNumber <- options.platform.bankNumbers.get(segment)) {
+      addThing(ConstantThing(thing.name + ".segment", NumericConstant(bankNumber, 1), b), position)
+      addThing(ConstantThing(thing.name + ".segment.bank", NumericConstant(bankNumber, 1), b), position)
+    }
+    for (bankFill <- options.platform.bankFill.get(segment)) {
+      addThing(ConstantThing(thing.name + ".segment.fill", NumericConstant(bankFill, 1), b), position)
+    }
+    addThing(ConstantThing(thing.name + ".segment.start",  UnexpandedConstant(s"segment.$segment.start", 2), ptr), position)
+    addThing(ConstantThing(thing.name + ".segment.codeend", UnexpandedConstant(s"segment.$segment.codeend", 2), ptr), position)
+    addThing(ConstantThing(thing.name + ".segment.datastart",  UnexpandedConstant(s"segment.$segment.datastart", 2), ptr), position)
+    addThing(ConstantThing(thing.name + ".segment.heapstart",  UnexpandedConstant(s"segment.$segment.heapstart", 2), ptr), position)
+    addThing(ConstantThing(thing.name + ".segment.end", UnexpandedConstant(s"segment.$segment.end", 2), ptr), position)
+    addThing(ConstantThing(thing.name + ".segment.length", UnexpandedConstant(s"segment.$segment.length", 2), w), position)
     if (!thing.zeropage && options.flag(CompilationFlag.LUnixRelocatableCode)) {
-      val w = get[Type]("word")
       val relocatable = UninitializedMemoryVariable(thing.name + ".addr", w, VariableAllocationMethod.Static, None, Set.empty, defaultVariableAlignment(options, 2), isVolatile = false)
       val addr = relocatable.toAddress
       addThing(relocatable, position)
@@ -1445,9 +1463,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         addThing(RelativeVariable(thing.name + ".pointer.lo", addr, b, zeropage = false, None, isVolatile = false), position)
       }
       val rawaddr = thing.toAddress
-      addThing(ConstantThing(thing.name + ".rawaddr", rawaddr, get[Type]("pointer")), position)
-      addThing(ConstantThing(thing.name + ".rawaddr.hi", rawaddr.hiByte, get[Type]("byte")), position)
-      addThing(ConstantThing(thing.name + ".rawaddr.lo", rawaddr.loByte, get[Type]("byte")), position)
+      addThing(ConstantThing(thing.name + ".rawaddr", rawaddr, ptr), position)
+      addThing(ConstantThing(thing.name + ".rawaddr.hi", rawaddr.hiByte, b), position)
+      addThing(ConstantThing(thing.name + ".rawaddr.lo", rawaddr.loByte, b), position)
       thing match {
         case f: FunctionInMemory if f.canBePointedTo =>
           val actualAddr = if (f.requiresTrampoline(options)) {
@@ -1468,10 +1486,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       }
     } else {
       val addr = thing.toAddress
-      addThing(ConstantThing(thing.name + ".addr", addr, get[Type]("pointer")), position)
+      addThing(ConstantThing(thing.name + ".addr", addr, ptr), position)
       addThing(ConstantThing(thing.name + ".addr.hi", addr.hiByte, b), position)
       addThing(ConstantThing(thing.name + ".addr.lo", addr.loByte, b), position)
-      addThing(ConstantThing(thing.name + ".rawaddr", addr, get[Type]("pointer")), position)
+      addThing(ConstantThing(thing.name + ".rawaddr", addr, ptr), position)
       addThing(ConstantThing(thing.name + ".rawaddr.hi", addr.hiByte, b), position)
       addThing(ConstantThing(thing.name + ".rawaddr.lo", addr.loByte, b), position)
       targetType.foreach { tt =>
@@ -2175,6 +2193,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           Subvariable(".hiword", 0, w),
           Subvariable(".hiword.lo", 1, b),
           Subvariable(".hiword.hi", 0, b),
+          Subvariable(".lo", 2, b),
           Subvariable(".b0", 2, b),
           Subvariable(".b1", 1, b),
           Subvariable(".b2", 0, b)
@@ -2185,6 +2204,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           Subvariable(".hiword", 1, w),
           Subvariable(".hiword.lo", 1, b),
           Subvariable(".hiword.hi", 2, b),
+          Subvariable(".lo", 0, b),
           Subvariable(".b0", 0, b),
           Subvariable(".b1", 1, b),
           Subvariable(".b2", 2, b))
@@ -2195,6 +2215,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           Subvariable(".loword.hi", 2, b),
           Subvariable(".hiword.lo", 1, b),
           Subvariable(".hiword.hi", 0, b),
+          Subvariable(".lo", 3, b),
           Subvariable(".b0", 3, b),
           Subvariable(".b1", 2, b),
           Subvariable(".b2", 1, b),
@@ -2206,6 +2227,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           Subvariable(".loword.hi", 1, b),
           Subvariable(".hiword.lo", 2, b),
           Subvariable(".hiword.hi", 3, b),
+          Subvariable(".lo", 0, b),
           Subvariable(".b0", 0, b),
           Subvariable(".b1", 1, b),
           Subvariable(".b2", 2, b),
@@ -2667,7 +2689,38 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         case _ => true // TODO: ?
       }
       case e: FunctionCallExpression => e.expressions.exists(isVolatile)
+      case e: SumExpression => e.expressions.exists(e => isVolatile(e._2))
       case e: IndexedExpression => isVolatile(VariableExpression(e.name)) || isVolatile(e.index)
+      case _ => true
+    }
+  }
+
+  def isGoodEmptyLoopCondition(target: Expression): Boolean = {
+    if (eval(target).isDefined) {
+      // the user means an infinite loop or an empty loop
+      return true
+    }
+    target match {
+      case _: LiteralExpression => false
+      case _: GeneratedConstantExpression => false
+      case e: VariableExpression => maybeGet[Thing](e.name) match {
+        case Some(v: Variable) => v.isVolatile
+        case Some(v: MfArray) => true // TODO: all arrays assumed volatile for now
+        case Some(_: Constant) => false
+        case Some(_: Type) => false
+        case _ => true // TODO: ?
+      }
+      case e: FunctionCallExpression =>
+        e.functionName match {
+          case "==" | "!=" | ">" | "<" | ">=" | "<=" |
+               "*" | "*'" | "/" | "%%" |
+               "<<" | ">>" | "<<'" | ">>'" | ">>>>"
+               | "&" | "^" | "|" | "&&" | "^^" | "||" | "not" | "hi" | "lo" =>
+            e.expressions.exists(isVolatile)
+          case _ => true
+        }
+      case e: SumExpression => e.expressions.exists(e => isGoodEmptyLoopCondition(e._2))
+      case e: IndexedExpression => isGoodEmptyLoopCondition(VariableExpression(e.name)) || isGoodEmptyLoopCondition(e.index)
       case _ => true
     }
   }

@@ -736,31 +736,31 @@ object AlwaysGoodOptimizations {
       NoopDiscardsFlags.* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (c => c.last :: Nil),
     (HasOpcodeIn(AllDirectJumps) & HasAddrModeIn(Absolute, Relative, LongAbsolute, LongRelative) & MatchParameter(0) & Elidable) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
     (HasOpcode(BEQ) & MatchParameter(0) & Elidable) ~ HasOpcode(BNE) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
     (HasOpcode(BNE) & MatchParameter(0) & Elidable) ~ HasOpcode(BEQ) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
     (HasOpcode(BCC) & MatchParameter(0) & Elidable) ~ HasOpcode(BCS) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
     (HasOpcode(BCS) & MatchParameter(0) & Elidable) ~ HasOpcode(BCC) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
     (HasOpcode(BMI) & MatchParameter(0) & Elidable) ~ HasOpcode(BPL) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
     (HasOpcode(BPL) & MatchParameter(0) & Elidable) ~ HasOpcode(BMI) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
     (HasOpcode(BVS) & MatchParameter(0) & Elidable) ~ HasOpcode(BVC) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
     (HasOpcode(BVC) & MatchParameter(0) & Elidable) ~ HasOpcode(BVS) ~
-      (HasOpcode(LABEL) & Not(MatchParameter(0))).* ~
+      (HasOpcodeIn(LABEL, CHANGED_MEM) & Not(MatchParameter(0))).* ~
       (HasOpcode(LABEL) & MatchParameter(0)) ~~> (_.tail),
   )
 

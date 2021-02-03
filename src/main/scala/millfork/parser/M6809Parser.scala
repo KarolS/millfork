@@ -132,7 +132,7 @@ case class M6809Parser(filename: String,
   }
 
   // TODO: label and instruction in one line
-  val asmLabel: P[ExecutableStatement] = ((".".? ~ identifier).! ~ HWS ~ ":" ~/ HWS).map(l => M6809AssemblyStatement(MOpcode.LABEL, NonExistent, VariableExpression(l), Elidability.Elidable))
+  val asmLabel: P[ExecutableStatement] = ((".".? ~ identifier).! ~ HWS ~ ":" ~/ AWS_asm).map(l => M6809AssemblyStatement(MOpcode.LABEL, NonExistent, VariableExpression(l), Elidability.Elidable))
 
   val asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall(false)).map(ExpressionStatement)
 

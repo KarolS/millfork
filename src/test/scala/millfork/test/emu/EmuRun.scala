@@ -281,6 +281,11 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
             if (memoryBank.readable(i)) memoryBank.readable(i + 1) = true
           }
         }
+        if (source.contains("w&x")) {
+          for (i <- 0 until 0x10000) {
+            memoryBank.writeable(i) = true
+          }
+        }
         (0x200 until 0x2000).takeWhile(memoryBank.occupied(_)).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
         val timings = platform.cpu match {
           case millfork.Cpu.Cmos =>

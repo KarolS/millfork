@@ -40,8 +40,7 @@ case class Z80Parser(filename: String,
     appc <- appcRegister | appcComplex
   } yield ParameterDeclaration(typ, appc).pos(p)
 
-  // TODO: label and instruction in one line
-  val asmLabel: P[ExecutableStatement] = ((".".? ~ identifier).! ~ HWS ~ ":" ~/ HWS).map(l => Z80AssemblyStatement(ZOpcode.LABEL, NoRegisters, None, VariableExpression(l), elidability = Elidability.Elidable))
+  val asmLabel: P[ExecutableStatement] = ((".".? ~ identifier).! ~ HWS ~ ":" ~/ AWS_asm).map(l => Z80AssemblyStatement(ZOpcode.LABEL, NoRegisters, None, VariableExpression(l), elidability = Elidability.Elidable))
 
   val asmMacro: P[ExecutableStatement] = ("+" ~/ HWS ~/ functionCall(false)).map(ExpressionStatement)
 

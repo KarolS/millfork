@@ -158,7 +158,9 @@ Functions that are interrupt pointers have their own pointer types:
 
 Boolean types can be used as conditions. They have two possible values, `true` and `false`.
 
-* `bool` – a 1-byte boolean value. An uninitialized variable of type `bool` may contain an invalid value.
+* `bool` – a 1-byte boolean value.
+An uninitialized variable of type `bool` may contain an invalid value.
+The value `false` is stored as 0, `true` as 1. 
 
 * several boolean types based on the CPU flags that may be used only as a return type for a function written in assembly:
 
@@ -173,6 +175,10 @@ Boolean types can be used as conditions. They have two possible values, `true` a
     8080 uses the same type names for compatibility.
     
     2\. LR35902 does not support these types due to the lack of appropriate flags
+
+You can convert from a boolean type to an arithmetic type by simply casting:
+
+    byte c = byte(x >= 0x80)
 
 Examples:
 

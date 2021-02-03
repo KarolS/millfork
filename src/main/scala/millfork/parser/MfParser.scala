@@ -236,7 +236,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       optimizationHints <- optimizationHintsDeclaration ~/ HWS
       alignment2 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
       addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).?.opaque("<address>") ~ HWS
-      initialValue <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS // TODO
+      initialValue <- ("=" ~/ AWS ~/ mfExpression(1, false)).? ~/ HWS // TODO
     } yield {
       if (alignment1.isDefined && alignment2.isDefined) log.error(s"Cannot define the alignment multiple times", Some(p))
       val alignment = alignment1.orElse(alignment2)
@@ -416,7 +416,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   val aliasDefinition: P[Seq[AliasDefinitionStatement]] = for {
     p <- position()
     name <- "alias" ~ !letterOrDigit ~/ SWS ~ identifier ~ HWS
-    target <- "=" ~/ HWS ~/ identifier ~/ HWS
+    target <- "=" ~/ AWS ~/ identifier ~/ HWS
     important <- "!".!.? ~/ HWS
   } yield Seq(AliasDefinitionStatement(name, target, important.isDefined).pos(p))
 
@@ -450,7 +450,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     optimizationHints <- optimizationHintsDeclaration ~/ HWS
     alignment2 <- alignmentDeclaration(fastAlignmentForFunctions).? ~/ HWS
     addr <- ("@" ~/ HWS ~/ mfExpression(1, false)).? ~/ HWS
-    contents <- ("=" ~/ HWS ~/ arrayContents).? ~/ HWS
+    contents <- ("=" ~/ AWS ~/ arrayContents).? ~/ HWS
   } yield {
     if (alignment1.isDefined && alignment2.isDefined) log.error(s"Cannot define the alignment multiple times", Some(p))
     val alignment = alignment1.orElse(alignment2)
@@ -617,11 +617,13 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   def executableStatement: P[Seq[ExecutableStatement]] = (position() ~ P(keywordStatement | expressionStatement)).map { case (p, s) => s.map(_.pos(p)) }
 
+  def asmLabel: P[ExecutableStatement]
+
   def asmStatement: P[ExecutableStatement]
 
   def statement: P[Seq[Statement]] = (position() ~ P(keywordStatement | arrayDefinition | localVariableDefinition | expressionStatement)).map { case (p, s) => s.map(_.pos(p)) }
 
-  def asmStatements: P[List[ExecutableStatement]] = ("{" ~/ AWS_asm ~/ asmStatement.rep(sep = NoCut(EOL_asm) ~ !"}" ~/ Pass) ~/ AWS_asm ~/ "}" ~/ Pass).map(_.toList)
+  def asmStatements: P[List[ExecutableStatement]] = ("{" ~/ AWS_asm ~/ (asmLabel.rep() ~ asmStatement.?).rep(sep = NoCut(EOL_asm) ~ !"}" ~/ Pass) ~/ AWS_asm ~/ "}" ~/ Pass).map(e => e.flatMap(x => (x._1 ++ x._2.toSeq).toList)).map(_.toList)
 
   def statements: P[List[Statement]] = ("{" ~/ AWS ~ statement.rep(sep = NoCut(EOL) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.flatten.toList)
 
@@ -771,7 +773,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val enumVariant: P[(String, Option[Expression])] = for {
     name <- identifier ~/ HWS
-    value <- ("=" ~/ HWS ~/ mfExpression(1, false)).? ~ HWS
+    value <- ("=" ~/ AWS ~/ mfExpression(1, false)).? ~ HWS
   } yield name -> value
 
   val enumVariants: P[List[(String, Option[Expression])]] =
