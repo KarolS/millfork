@@ -181,7 +181,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         cv = search(arg, cv)
         cv = search(ve, cv)
         Assignment(ve, optimizeExpr(arg, cv)).pos(pos) -> cv
-      case ExpressionStatement(expr@FunctionCallExpression(fname, List(VariableExpression(v), arg)))
+      case ExpressionStatement(expr@FunctionCallExpression(fname, _))
         if ctx.env.maybeGet[Thing](fname).exists(i => i.isInstanceOf[MacroFunction]) =>
         ExpressionStatement(optimizeExpr(expr, Map())).pos(pos) -> Map()
       case ExpressionStatement(expr@FunctionCallExpression("+=", List(VariableExpression(v), arg)))
