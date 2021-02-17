@@ -826,6 +826,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case "sizeof" =>
                 ctx.log.fatal("Unreachable branch: 8080 sizeof")
                 Nil
+              case "typeof" =>
+                ctx.log.fatal("Unreachable branch: 8080 typeof")
+                Nil
               case "nonet" =>
                 if (params.length != 1) {
                   ctx.log.error("Invalid number of parameters", f.position)

@@ -495,6 +495,7 @@ object AbstractExpressionCompiler {
         case 1 => b
         case 2 => w
       }
+      case FunctionCallExpression("typeof", params) => w
       case FunctionCallExpression("%%", params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size } match {
         case List(1, 1) | List(2, 1) => b
         case List(1, 2) | List(2, 2) => w

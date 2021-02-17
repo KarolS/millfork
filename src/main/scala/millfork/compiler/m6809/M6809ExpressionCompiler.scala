@@ -187,6 +187,12 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         } else h ++ l) ++ targetifyD(ctx, target)
       case fce@FunctionCallExpression(functionName, params) =>
         functionName match {
+          case "sizeof" =>
+            ctx.log.fatal("Unreachable branch: 6809 sizeof")
+            Nil
+          case "typeof" =>
+            ctx.log.fatal("Unreachable branch: 6809 typeof")
+            Nil
           case "not" =>
             assertBool(ctx, "not", params, 1)
             compile(ctx, params.head, target, branches.flip)

@@ -738,7 +738,7 @@ object AbstractStatementPreprocessor {
     "<<", "<<'", ">>", ">>'", ">>>>",
     "&", "&&", "||", "|", "^",
     "==", "!=", "<", ">", ">=", "<=",
-    "not", "hi", "lo", "nonet", "sizeof"
+    "not", "hi", "lo", "nonet", "sizeof", "typeof"
   )
 
   def mightBeMemset(ctx: CompilationContext, f: ForStatement): Boolean = {

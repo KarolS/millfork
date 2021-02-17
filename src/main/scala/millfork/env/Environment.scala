@@ -671,6 +671,30 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     NumericConstant(size, Constant.minimumSize(size))
   }
 
+  def evalTypeof(expr: Expression): Constant = {
+    val size: Int = expr match {
+      case VariableExpression(name) =>
+        maybeGet[Thing](name) match {
+          case None =>
+            log.error(s"`$name` is not defined", expr.position)
+            hintTypo(name)
+            1
+          case Some(thing) => thing match {
+            case t: Type => t.name.hashCode & 0xffff
+            case v: Variable => v.typ.name.hashCode & 0xffff
+            case a: MfArray => a.elementType.name.hashCode & 0xffff
+            case ConstantThing(_,  MemoryAddressConstant(a: MfArray), _) => a.elementType.name.hashCode & 0xffff
+            case x =>
+              log.error("Invalid parameter for expr: " + name)
+              1
+          }
+        }
+      case _ =>
+        AbstractExpressionCompiler.getExpressionType(this, log, expr).alignedSize
+    }
+    NumericConstant(size, Constant.minimumSize(size))
+  }
+
   def eval(e: Expression, vars: Map[String, Constant]): Option[Constant] = evalImpl(e, Some(vars))
 
   def eval(e: Expression): Option[Constant] = {
@@ -738,6 +762,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             } else {
               log.error("Invalid number of parameters for `sizeof`", e.position)
               Some(Constant.One)
+            }
+          case "typeof" =>
+            if (params.size == 1) {
+              Some(evalTypeof(params.head))
+            } else {
+              log.error("Invalid number of parameters for `typeof`", e.position)
+              Some(Constant.Zero)
             }
           case "hi" =>
             if (params.size == 1) {
@@ -1021,7 +1052,19 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             if (!silent) log.error("Function not supported in inline assembly", e.position)
             None
           case "sizeof" =>
-            Some(evalSizeof(params.head))
+            if (params.size == 1) {
+              Some(evalSizeof(params.head))
+            } else {
+              log.error("Invalid number of parameters for `sizeof`", e.position)
+              Some(Constant.One)
+            }
+          case "typeof" =>
+            if (params.size == 1) {
+              Some(evalTypeof(params.head))
+            } else {
+              log.error("Invalid number of parameters for `typeof`", e.position)
+              Some(Constant.Zero)
+            }
           case _ =>
             None
         }
@@ -2650,7 +2693,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       nameCheck(l)
     case SumExpression(params, _) =>
       nameCheck(params.map(_._2))
-    case FunctionCallExpression("sizeof", List(ve@VariableExpression(e))) =>
+    case FunctionCallExpression("sizeof" | "typeof", List(ve@VariableExpression(e))) =>
       checkName[Thing]("Type, variable or constant", e, ve.position)
     case FunctionCallExpression(name, params) =>
       if (name.exists(_.isLetter) && !Environment.predefinedFunctions(name)) {
@@ -2753,7 +2796,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
 object Environment {
   // built-in special-cased functions; can be considered keywords by some:
-  val predefinedFunctions: Set[String] = Set("not", "hi", "lo", "nonet", "sizeof")
+  val predefinedFunctions: Set[String] = Set("not", "hi", "lo", "nonet", "sizeof", "typeof")
   // built-in special-cased functions, not keywords, but assumed to work almost as such:
   val specialFunctions: Set[String] = Set("call")
   // functions that exist only in constants:
