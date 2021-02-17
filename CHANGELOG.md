@@ -6,7 +6,17 @@
 
 * Constants with heap start and segment start are now generated properly.
 
+* Signed multiplication support for `sbyte` and `signed16`.
+
+* Heavily experimental `typeof` builtin.
+
 * 6502: Fixed sbyte to word promotions in certain contexts.
+
+* 8080: Fixed compilation of sign extension of `sbyte` values into the BC register pair.
+
+* Fixed negative constant folding.
+
+* Fixed optimizations around macro invocations.
 
 * Optimized word shifts for between 7 and 12 bits.
 

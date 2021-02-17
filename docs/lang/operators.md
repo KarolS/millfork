@@ -95,7 +95,7 @@ TODO
 `constant word + byte`  
 `word + word` (zpreg)
 
-* `*`: multiplication; the size of the result is the same as the size of the arguments  
+* `*`: multiplication (signed or unsigned); the size of the result is the same as the size of the largest of the arguments  
 `byte * constant byte`  
 `constant byte * byte`  
 `constant word * constant word`  
@@ -312,6 +312,14 @@ some enum → `word`
 * `sizeof`: size of the argument in bytes; the argument can be an expression or a type,
 and the result is a constant of either `byte` or `word` type, depending on the actual value.
 In case of aligned types, this returns the aligned size.
+
+* `typeof`: a word constant that identifies the type of the argument; the argument can be an expression or a type.
+The argument is never evaluated.  
+**Warnings:**
+    * **This is a highly experimental feature.**
+    * The exact values may change in any future version of the compiler. Only compare one `typeof` to another `typeof`.
+    * There is no guarantee that different types will have different values of `typeof`. Indeed, it's even easy to see that a Millfork program can have more than 65536 types – and values of `typeof` can clash even before that.
+    * In certain circumstances, pointer types and function pointer types may have different `typeof` values even if they're essentially the same.
 
 * `call`: calls a function via a pointer;  
 the first argument is the pointer to the function;  
