@@ -1509,9 +1509,9 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         }
       case ZExpressionTarget.BC =>
         if (signExtend) {
-          List(ldAbs8(A, sourceAddr, elidability), ld8(L, A)) ++
+          List(ldAbs8(A, sourceAddr, elidability), ld8(C, A)) ++
             signExtendHighestByte(ctx, A, signExtend) ++
-            List(ld8(H, A))
+            List(ld8(B, A))
         } else {
           List(ldAbs8(A, sourceAddr, elidability), ld8(C, A), ldImm8(B, 0))
         }
