@@ -522,7 +522,10 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
           case MathOperator.Plus9 => c
           case MathOperator.DecimalPlus => c
           case MathOperator.DecimalPlus9 => c
-          case MathOperator.Minus => CompoundConstant(operator, l, r)
+          case MathOperator.Minus => c match {
+            case NumericConstant(rv, rs) => NumericConstant(-rv, rs)
+            case _ => CompoundConstant(operator, l, r)
+          }
           case MathOperator.Times => Constant.Zero
           case MathOperator.Shl => Constant.Zero
           case MathOperator.Shr => Constant.Zero

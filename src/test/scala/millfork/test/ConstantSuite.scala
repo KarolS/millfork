@@ -178,4 +178,15 @@ class ConstantSuite extends FunSuite with Matchers {
       m.readMedium(0xc003) should equal(200/8)
     }
   }
+
+  test("Negative constant evaluation") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)("""
+        | word output @$c000
+        | void main () {
+        |   output = -1 * -1
+        | }
+      """.stripMargin){m =>
+      m.readWord(0xc000) should equal(1)
+    }
+  }
 }
