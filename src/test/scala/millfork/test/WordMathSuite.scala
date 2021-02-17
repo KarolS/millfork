@@ -814,4 +814,56 @@ class WordMathSuite extends FunSuite with Matchers with AppendedClues {
       }
     }
   }
+
+  test("Signed multiplication with type promotion") {
+    for {
+      (t1, t2) <- Seq("sbyte" -> "word", "sbyte" -> "signed16", "byte" -> "signed16", "signed16" -> "word")
+      x <- Seq(0, -1, 1, 120, -120)
+      x2 <- Seq(0, -1, 1, 120, -120)
+    } {
+      val x1 = if (t1 == "byte") x & 0xff else x
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+        s"""
+           | import zp_reg
+           | signed16 output @$$c000
+           | bool typeOk @$$c002
+           | void main () {
+           |  $t1 v1
+           |  v1 = $x1
+           |  $t2 v2
+           |  v2 = $x2
+           |  memory_barrier()
+           |  output = v1 * v2
+           |  typeOk = typeof(v1 * v2) == typeof(signed16)
+           | }""".
+          stripMargin) { m =>
+        m.readWord(0xc000).toShort should equal((x1 * x2).toShort) withClue s"= $t1($x1) * $t2($x2)"
+        m.readByte(0xc002) should equal(1) withClue s"= typeof($t1 * $t2)"
+      }
+    }
+  }
+
+  test("Signed multiplication with type promotion 2") {
+    for {
+      t2 <- Seq("sbyte", "signed16", "byte", "word")
+      x1 <- Seq(0, -1, 1, 120, -120)
+      x <- Seq(0, -1, 1, 120, -120)
+    } {
+      val x2 = if (t2.startsWith("s")) x else if (t2.startsWith("w")) x & 0xffff else x & 0xff
+      EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+        s"""
+           | import zp_reg
+           | signed16 output @$$c000
+           | void main () {
+           |  output = $x1
+           |  $t2 v2
+           |  v2 = $x2
+           |  memory_barrier()
+           |  output *= v2
+           | }""".
+          stripMargin) { m =>
+        m.readWord(0xc000).toShort should equal((x1 * x2).toShort) withClue s"= signed16($x1) * $t2($x2)"
+      }
+    }
+  }
 }

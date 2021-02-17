@@ -718,11 +718,16 @@ object PseudoregisterBuiltIns {
       ctx.log.error("Variable word-byte multiplication requires the zeropage pseudoregister of size at least 3", param1OrRegister.flatMap(_.position))
       return Nil
     }
-    (param1OrRegister.fold(2)(e => AbstractExpressionCompiler.getExpressionType(ctx, e).size),
-      AbstractExpressionCompiler.getExpressionType(ctx, param2).size) match {
+    val lType = param1OrRegister.map(e => AbstractExpressionCompiler.getExpressionType(ctx, e))
+    val rType = AbstractExpressionCompiler.getExpressionType(ctx, param2)
+    (lType.fold(2)(_.size), rType.size) match {
       case (2, 2) => return compileWordWordMultiplication(ctx, param1OrRegister, param2)
       case (1, 2) => return compileWordMultiplication(ctx, Some(param2), param1OrRegister.get, storeInRegLo)
-      case (2 | 1, 1) => // ok
+      case (2, 1) =>
+        if (rType.isSigned) {
+          return compileWordWordMultiplication(ctx, param1OrRegister, param2)
+        }
+      case (1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", param2.position)
     }
     if (!storeInRegLo && param1OrRegister.isDefined) {

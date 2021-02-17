@@ -317,11 +317,13 @@ object Z80Multiply {
     * Calculate HL = l * r
     */
   def compile16BitMultiplyToHL(ctx: CompilationContext, l: Expression, r: Expression): List[ZLine] = {
-    (AbstractExpressionCompiler.getExpressionType(ctx, l).size,
-      AbstractExpressionCompiler.getExpressionType(ctx, r).size) match {
+    val lType = AbstractExpressionCompiler.getExpressionType(ctx, l)
+    val rType = AbstractExpressionCompiler.getExpressionType(ctx, r)
+    (lType.size, rType.size) match {
       case (2, 2) => return compile16x16BitMultiplyToHL(ctx, l, r)
       case (1, 2) => return compile16BitMultiplyToHL(ctx, r, l)
-      case (2 | 1, 1) => // ok
+      case (2, 1) => if (rType.isSigned) return compile16x16BitMultiplyToHL(ctx, l, r)
+      case (1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", l.position)
     }
     ctx.env.eval(r) match {

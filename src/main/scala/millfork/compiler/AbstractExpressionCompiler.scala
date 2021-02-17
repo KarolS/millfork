@@ -62,16 +62,19 @@ class AbstractExpressionCompiler[T <: AbstractCode] {
       ctx.log.error("Long multiplication not supported", params.head.position)
     }
     if (inPlace) {
-      if (lSize == 2 && rSize == 1 && rType.isSigned) {
-        ctx.log.error("Signed multiplication not supported", params.head.position)
+      if (params.size > 2) {
+        ctx.log.error("Too many arguments for *=", params.head.position)
       }
+//      if (lSize == 2 && rSize == 1 && rType.isSigned) {
+//        ctx.log.error("Signed multiplication not supported", params.head.position)
+//      }
     } else {
-      if (lSize == 2 && rSize == 1 && rType.isSigned) {
-        ctx.log.error("Signed multiplication not supported", params.head.position)
-      }
-      if (rSize == 2 && lSize == 1 && lType.isSigned) {
-        ctx.log.error("Signed multiplication not supported", params.head.position)
-      }
+//      if (lSize == 2 && rSize == 1 && rType.isSigned) {
+//        ctx.log.error("Signed multiplication not supported", params.head.position)
+//      }
+//      if (rSize == 2 && lSize == 1 && lType.isSigned) {
+//        ctx.log.error("Signed multiplication not supported", params.head.position)
+//      }
     }
   }
 
@@ -503,7 +506,23 @@ object AbstractExpressionCompiler {
         case List(n, _) if n >= 3 => env.get[Type]("int" + n * 8)
         case _ => log.error(s"Invalid parameters to %%", expr.position); w
       }
-      case FunctionCallExpression(op@("*" | "|" | "&" | "^" | "/"), params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
+      case FunctionCallExpression(op@("*"), params) =>
+        val paramTypes = params.map { e => getExpressionTypeImpl(env, log, e, loosely) }
+        val signed = paramTypes.exists(_.isSigned)
+        val unsigned = paramTypes.exists{
+          case t: DerivedPlainType => !t.isSigned
+          case _ => false
+        }
+        if (signed && unsigned) {
+          log.error("Mixing signed and explicitly unsigned types in multiplication", expr.position)
+        }
+        paramTypes.map(_.size).max match {
+          case 0 | 1 => if (signed) env.get[Type]("sbyte") else b
+          case 2 => if (signed) env.get[Type]("signed16") else w
+          case n if n >= 3 => env.get[Type]("int" + n * 8)
+          case _ => log.error(s"Invalid parameters to " + op, expr.position); w
+        }
+      case FunctionCallExpression(op@("|" | "&" | "^" | "/"), params) => params.map { e => getExpressionTypeImpl(env, log, e, loosely).size }.max match {
         case 0 | 1 => b
         case 2 => w
         case n if n >= 3 => env.get[Type]("int" + n * 8)

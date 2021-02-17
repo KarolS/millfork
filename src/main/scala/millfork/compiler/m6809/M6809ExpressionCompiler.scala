@@ -270,6 +270,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 Nil
             }
           case "*" =>
+            assertSizesForMultiplication(ctx, params, inPlace = false)
             getArithmeticParamMaxSize(ctx, params) match {
               case 1 => M6809MulDiv.compileByteMultiplication(ctx, params, updateDerefX = false) ++ targetifyB(ctx, target, isSigned = false)
               case 2 => M6809MulDiv.compileWordMultiplication(ctx, params, updateDerefX = false) ++ targetifyD(ctx, target)
@@ -474,6 +475,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
               case _ => M6809LargeBuiltins.modifyInPlaceViaX(ctx, l, r, SUBA)
             }
           case "*=" =>
+            assertSizesForMultiplication(ctx, params, inPlace = true)
             val (l, r, size) = assertArithmeticAssignmentLike(ctx, params)
             size match {
               case 1 => compileAddressToX(ctx, l) ++ M6809MulDiv.compileByteMultiplication(ctx, List(r), updateDerefX = true)
