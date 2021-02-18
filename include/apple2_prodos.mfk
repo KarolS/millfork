@@ -1,0 +1,273 @@
+
+const byte PRODOS_ALLOC_INTERRUPT  = $40
+const byte PRODOS_DEALLOC_INTERRUPT = $41
+const byte PRODOS_READ_BLOCK       = $80
+const byte PRODOS_WRITE_BLOCK      = $81
+const byte PRODOS_GET_TIME         = $82
+const byte PRODOS_CREATE           = $c0
+const byte PRODOS_DESTROY          = $c1
+const byte PRODOS_RENAME           = $c2 
+const byte PRODOS_SET_FILE_INFO    = $c3 
+const byte PRODOS_GET_FILE_INFO    = $c4
+const byte PRODOS_ON_LINE          = $c5 
+const byte PRODOS_SET_PREFIX       = $c6
+const byte PRODOS_GET_PREFIX       = $c7
+const byte PRODOS_OPEN             = $c8
+const byte PRODOS_NEWLINE          = $c9
+const byte PRODOS_READ             = $ca
+const byte PRODOS_WRITE            = $cb 
+const byte PRODOS_CLOSE            = $cc 
+const byte PRODOS_FLUSH            = $cd 
+const byte PRODOS_SET_MARK         = $ce 
+const byte PRODOS_GET_MARK         = $cf 
+const byte PRODOS_SET_EOF          = $d0 
+const byte PRODOS_GET_EOF          = $d1
+const byte PRODOS_SET_BUF          = $d2
+const byte PRODOS_GET_BUF          = $d3
+
+
+// ProDOS MLI parameter lists
+
+struct read_block_plist {
+    byte param_count
+    byte unit_num
+    pointer data_buffer 
+    word block_num
+}
+
+struct write_block_plist {
+    byte param_count
+    byte unit_num
+    pointer data_buffer 
+    word block_num
+}
+
+struct close_plist {
+    byte param_count
+    byte ref_num
+}
+
+struct flush_plist {
+    byte param_count
+    byte ref_num
+}
+
+struct create_plist {
+    byte param_count
+    pointer pathname
+    byte access 
+    byte file_type
+    word aux_type
+    byte storage_type 
+    word create_time
+    word create_date
+}
+
+struct destroy_plist {
+    byte param_count
+    pointer pathname
+}
+
+struct open_plist {
+    byte param_count
+    pointer pathname
+    pointer io_buffer
+    byte ref_num
+}
+
+struct newline_plist { 
+    byte param_count
+    byte ref_num 
+    byte enable_mask
+    byte newline_char    
+}
+
+struct read_plist {
+    byte param_count
+    byte ref_num 
+    pointer data_buffer 
+    word request_count
+    word trans_count 
+}
+
+struct rename_plist {
+    byte param_count
+    pointer pathname
+    pointer new_pathname
+}
+
+struct write_plist {
+    byte param_count
+    byte ref_num
+    pointer data_buffer
+    word request_count
+    word trans_count
+}
+
+struct get_prefix_plist {
+    byte param_count
+    pointer data_buffer
+}
+
+struct set_prefix_plist {
+    byte param_count
+    pointer data_buffer
+}
+
+// we'll just reuse the same area for all plists
+
+union prodos_plist {
+    read_block_plist read_block
+    write_block_plist write_block
+    create_plist create
+    destroy_plist destroy
+    rename_plist rename
+    open_plist open
+    newline_plist newline
+    read_plist read
+
+    write_plist write
+    close_plist close
+    flush_plist flush
+
+    get_prefix_plist get_prefix
+    set_prefix_plist set_prefix
+
+}
+
+prodos_plist plist
+
+byte prodos_error
+
+// Millfork doesn't support self-modification in the assembler yet, so this
+// code is placed in the following array:
+//
+//      jsr $bf00
+//      $00
+//      plist.addr
+//      rts
+//
+// We modify mli_trampoline[3] ($00 on the second line) to set the specific
+// ProDOS call before we jsr to $bf00
+// 
+// TODO: can we just jmp to bf00 and save the extra rts ? 
+
+array mli_trampoline = [ $20, 0, $bf, 0, plist.addr.lo, plist.addr.hi, $60 ]
+
+asm void prodos_mli_call(byte register(a) pdcall) {
+    sta mli_trampoline+3
+    jsr mli_trampoline
+    sta prodos_error
+    rts
+}
+
+void prodos_read_block(byte unum, pointer dbuf, word bnum) {
+    plist.read_block.param_count = 3
+    plist.read_block.unit_num = unum
+    plist.read_block.data_buffer = dbuf
+    plist.read_block.block_num = bnum
+
+    prodos_mli_call(PRODOS_READ_BLOCK)
+}
+
+void prodos_write_block(byte unum, pointer dbuf, word bnum) {
+    plist.write_block.param_count = 3 
+    plist.write_block.unit_num = unum
+    plist.write_block.data_buffer = dbuf
+    plist.write_block.block_num = bnum
+
+    prodos_mli_call(PRODOS_WRITE_BLOCK)
+}
+
+void prodos_close(byte rnum) {
+    plist.close.param_count = 1
+    plist.close.ref_num = rnum
+
+    prodos_mli_call(PRODOS_CLOSE)
+}
+
+void prodos_flush(byte fp) {
+    plist.flush.param_count = 1 
+    plist.flush.ref_num = fp
+    
+    prodos_mli_call(PRODOS_FLUSH)
+}
+
+void prodos_get_prefix(pointer fnbuf) { 
+    plist.get_prefix.param_count = 1
+    plist.get_prefix.data_buffer = fnbuf
+
+    prodos_mli_call(PRODOS_GET_PREFIX)
+}
+
+void prodos_set_prefix(pointer fnbuf) { 
+    plist.set_prefix.param_count = 1
+    plist.set_prefix.data_buffer = fnbuf
+
+    prodos_mli_call(PRODOS_SET_PREFIX)
+}
+
+void prodos_create(pointer fn, byte ftype) { 
+    plist.create.param_count = 7
+    plist.create.pathname = fn
+    plist.create.access = $c3 
+    plist.create.file_type = ftype
+    plist.create.aux_type = $0
+    plist.create.storage_type = 1
+    plist.create.create_time = 0
+    plist.create.create_date = 0
+
+    prodos_mli_call(PRODOS_CREATE)
+}
+
+void prodos_destroy (pointer fn) {
+    plist.destroy.param_count = 0
+    plist.destroy.pathname = fn
+    prodos_mli_call(PRODOS_DESTROY)
+}
+
+void prodos_rename(pointer fn, pointer newfn) {
+    plist.rename.param_count = 2
+    plist.rename.pathname = fn
+    plist.rename.new_pathname = newfn
+
+    prodos_mli_call(PRODOS_RENAME)
+}
+
+// returns file handle if no error
+byte prodos_open (pointer fn, pointer b) {
+    plist.open.param_count = 3
+    plist.open.pathname = fn
+    plist.open.io_buffer = b
+
+    prodos_mli_call(PRODOS_OPEN)
+
+    return plist.open.ref_num 
+}
+
+void prodos_newline(byte fp, byte mask, byte nlchar) {
+    plist.newline.param_count = 3
+    plist.newline.ref_num = fp
+    plist.newline.enable_mask = mask
+    plist.newline.newline_char = nlchar 
+
+    prodos_mli_call(PRODOS_NEWLINE)
+}
+
+void prodos_read(byte rnum, pointer dbuf, word rcnt) {
+    plist.read.param_count = 4
+    plist.read.ref_num = rnum 
+    plist.read.data_buffer = dbuf
+    plist.read.request_count = rcnt
+
+    prodos_mli_call(PRODOS_READ)
+}
+
+void prodos_write(byte rnum, pointer dbuf, word rcnt) {
+    plist.write.param_count = 4
+    plist.write.ref_num = rnum
+    plist.write.data_buffer = dbuf 
+    plist.write.request_count = rcnt
+
+    prodos_mli_call(PRODOS_WRITE)
+}

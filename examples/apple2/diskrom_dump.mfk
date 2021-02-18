@@ -1,0 +1,37 @@
+// simple demonstration of ProDOS library routines that will write
+// the Disk II ROM (assuming it is in slot 6) to the file DISKII.ROM
+
+import stdio
+import apple2_prodos
+
+void main() {
+    // ProDOS requires a 1K aligned page for an open file as an IO buffer
+    array iobuf [1024] align(256)  
+
+    // you have to explicitly create a file if it doesn't exist yet
+    // this can fail (so you should check prodos_error
+    // 06 is general binary type  
+    prodos_create("DISKII.ROM"p, $06)
+    if prodos_error != 0 {
+        // prodos error call will be returned in prodos_error so you know
+        // what went wrong. 0 = no error
+        putstrz("{n}couldn't create file"z)
+        panic()
+    }
+
+    // ProDOS file handle
+    byte fp
+
+    fp = prodos_open("DISKII.ROM"p, iobuf)
+    // should check here again for error, and after all calls
+
+    // write the disk controller ROM to the file
+    prodos_write(fp, $c600, 256)
+
+    // closing frees the handle and io buffer
+    prodos_close(fp)
+
+    putstrz("{n}DONE"z)
+
+    while true { } 
+}
