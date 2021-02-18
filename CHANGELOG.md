@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Various Apple II-related improvements, including ProDOS support (thanks to @retrac0).
+
 * Segment-related constants now match their equivalents from the platform definition. Missing constants have been defined.
 
 * Constants with heap start and segment start are now generated properly.
@@ -23,6 +25,8 @@
 * Allowed new lines after `=`.
 
 * Various optimization improvements.
+
+* Improved some error messages (thanks to @agg23).
 
 ## 0.3.24 (2020-12-02)
 
