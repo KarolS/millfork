@@ -61,7 +61,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     mem.banks(bank).readable(addr) = true
     value match {
       case NumericConstant(x, _) =>
-        if (x > 0xff) log.error("Byte overflow: " + x.toHexString)
+        if (x > 0xff) log.error("Byte overflow: " + x.toHexString, position)
         mem.banks(bank).output(addr) = x.toByte
       case _ =>
         bytesToWriteLater += ((bank, addr, value, position))
@@ -78,7 +78,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     if (platform.isBigEndian) {
       value match {
         case NumericConstant(x, _) =>
-          if (x > 0xffff) log.error("Word overflow")
+          if (x > 0xffff) log.error("Word overflow", position)
           mem.banks(bank).output(addr) = (x >> 8).toByte
           mem.banks(bank).output(addr + 1) = x.toByte
         case _ =>
@@ -87,7 +87,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     } else {
       value match {
         case NumericConstant(x, _) =>
-          if (x > 0xffff) log.error("Word overflow")
+          if (x > 0xffff) log.error("Word overflow", position)
           mem.banks(bank).output(addr) = x.toByte
           mem.banks(bank).output(addr + 1) = (x >> 8).toByte
         case _ =>
@@ -182,11 +182,11 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case MathOperator.Exor => l ^ r
           case MathOperator.Or => l | r
           case MathOperator.Divide => if (r == 0) {
-            log.error("Constant division by zero")
+            log.error("Constant division by zero", position)
             0
           } else l / r
           case MathOperator.Modulo => if (r == 0) {
-            log.error("Constant division by zero")
+            log.error("Constant division by zero", position)
             0
           } else l % r
         }
