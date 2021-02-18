@@ -672,7 +672,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def evalTypeof(expr: Expression): Constant = {
-    val size: Int = expr match {
+    val typeof: Int = expr match {
       case VariableExpression(name) =>
         maybeGet[Thing](name) match {
           case None =>
@@ -690,9 +690,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
         }
       case _ =>
-        AbstractExpressionCompiler.getExpressionType(this, log, expr).alignedSize
+        AbstractExpressionCompiler.getExpressionType(this, log, expr).name.hashCode & 0xffff
     }
-    NumericConstant(size, Constant.minimumSize(size))
+    NumericConstant(typeof, 2)
   }
 
   def eval(e: Expression, vars: Map[String, Constant]): Option[Constant] = evalImpl(e, Some(vars))
