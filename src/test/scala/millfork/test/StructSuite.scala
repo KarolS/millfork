@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun}
+import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, ShouldNotCompile, ShouldNotParse}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -225,5 +225,125 @@ class StructSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(0)
       m.readByte(0xc001) should equal(2)
     }
+  }
+
+  test("Array struct fields") {
+    val code =
+      """
+        |import zp_reg
+        |struct S {
+        |    array tmp[8]
+        |}
+        |
+        |S output @$c000
+        |
+        |array(S) outputAlias [1] @$c000
+        |
+        |noinline byte id(byte x) = x
+        |noinline void dontOptimize(pointer.S dummy) {}
+        |void main() {
+        |    output.tmp[0] = 1
+        |    output.tmp[4] = 4
+        |    pointer.S p
+        |    p = output.pointer
+        |    p->tmp[1] = 77
+        |    outputAlias[0].tmp[id(3)] = 3
+        |    outputAlias[id(0)].tmp[5] = 55
+        |}
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(code){ m =>
+      m.readByte(0xc000) should equal(1)
+      m.readByte(0xc001) should equal(77)
+      m.readByte(0xc003) should equal(3)
+      m.readByte(0xc004) should equal(4)
+      m.readByte(0xc005) should equal(55)
+    }
+  }
+
+  test("Struct layout with array fields") {
+    val code =
+      """
+        |struct S {
+        |    array (word) a[4]
+        |    byte x
+        |}
+        |
+        |array outputs [10] @$c000
+        |
+        |void main() {
+        |    S tmp
+        |    outputs[1] = sizeof(S)
+        |    outputs[2] = S.a.offset
+        |    outputs[4] = S.x.offset
+        |    outputs[5] = lo(tmp.a[1].addr - tmp.a[0].addr)
+        |    outputs[6] = lo(tmp.x.addr - tmp.a.addr)
+        |}
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(code){ m =>
+      m.readByte(0xc001) should equal(9)
+      m.readByte(0xc002) should equal(0)
+      m.readByte(0xc004) should equal(8)
+      m.readByte(0xc005) should equal(2)
+      m.readByte(0xc006) should equal(8)
+    }
+  }
+
+  test("Structs with enum-indexed array fields") {
+    val code =
+      """
+        | enum Suit {
+        |   Hearts, Diamonds, Clubs, Spades
+        | }
+        | struct Deck {
+        |   array(byte) count[Suit]
+        | }
+        |
+        | array output[5] @$c000
+        | void main() {
+        |   Deck d
+        |   output[0] = d.count.length
+        |   output[1] = sizeof(Deck)
+        |   d.count[Diamonds] = 5
+        |   d.count[Clubs] = d.count[Diamonds]
+        |   output[2] = d.count[Clubs]
+        | }
+        |""".stripMargin
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(code){ m =>
+      m.readByte(0xc000) should equal(4)
+      m.readByte(0xc001) should equal(4)
+      m.readByte(0xc002) should equal(5)
+    }
+  }
+
+  test("Structs with array fields – invalid uses") {
+    ShouldNotCompile(
+      """
+        | struct S {
+        |   array a[4]
+        | }
+        |
+        | void main() {
+        |   stack S s
+        | }
+        |""".stripMargin)
+    ShouldNotCompile(
+      """
+        | struct S {
+        |   array a[4]
+        | }
+        | void main() {
+        |   S s
+        |   s = S(4)
+        | }
+        |""".stripMargin)
+  }
+
+  test("Structs with array fields – invalid syntax") {
+    ShouldNotParse(
+      """
+        | struct S {
+        |   byte a[4]
+        | }
+        |""".stripMargin)
   }
 }

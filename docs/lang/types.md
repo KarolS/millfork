@@ -256,11 +256,24 @@ as there are no checks on values when converting bytes to enumeration values and
 
 ## Structs
 
-Struct is a compound type containing multiple fields of various types:
+Struct is a compound type containing multiple fields of various types.
+A struct is represented in memory as a contiguous area of variables or arrays laid out one after another.
 
-    struct <name> [align (alignment)] { <field definitions (type and name), separated by commas or newlines>}
+Declaration syntax:
 
-A struct is represented in memory as a contiguous area of variables laid out one after another.
+    struct <name> [align (alignment)] { <field definitions, separated by commas or newlines>}
+
+where a field definition is either:
+
+* `<type> <name>` and defines a scalar field, 
+
+* or `array (<type>) <name> [<size>]`, which defines an array field,
+  where the array contains items of type `<type>`,
+  and either contains `<size>` elements
+  if `<size>` is a constant expression between 0 and 127,
+  or, if `<size>` is a plain enumeration type, the array is indexed by that type,
+  and the number of elements is equal to the number of variants in that enumeration.  
+  `(<type>)` can  be omitted and defaults to `byte`.
 
 Struct can have a maximum size of 255 bytes. Larger structs are not supported.
 
@@ -290,8 +303,8 @@ All arguments to the constructor must be constant.
 
 Structures declared with an alignment are allocated at appropriate memory addresses.
 The alignment has to be a power of two.  
-If the structs are in an array, they are padded with unused bytes.
-If the struct is smaller that its alignment, then arrays of it are faster
+If the structs with declared alignment are in an array, they are padded with unused bytes.
+If the struct is smaller that its alignment, then arrays of it are faster than if it were not aligned
 
     struct a align(4) { byte x,byte y, byte z }
     struct b          { byte x,byte y, byte z }
@@ -309,9 +322,15 @@ If the struct is smaller that its alignment, then arrays of it are faster
 A struct that contains substructs or subunions with non-trivial alignments has its alignment equal
 to the least common multiple of the alignments of the substructs and its own declared alignment.
 
+**Warning:** Limitations of array fields:
+
+* Structs containing arrays cannot be allocated on the stack.
+
+* Struct constructors for structs with array fields are not supported.
+
 ## Unions
 
-    union <name> [align (alignment)] { <field definitions (type and name), separated by commas or newlines>}
+    union <name> [align (alignment)] { <field definitions, separated by commas or newlines>}
 
 Unions are pretty similar to structs, with the difference that all fields of the union
 start at the same point in memory and therefore overlap each other.
@@ -327,3 +346,5 @@ start at the same point in memory and therefore overlap each other.
 Offset constants are also available, but they're obviously all zero.
 
 Unions currently do not have an equivalent of struct constructors. This may be improved on in the future.
+
+Unions with array fields have the same limitations as structs with array fields.

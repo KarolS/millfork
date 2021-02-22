@@ -378,7 +378,7 @@ object AbstractExpressionCompiler {
                   log.error(s"Type `$targetType` doesn't have field named `$actualFieldName`", expr.position)
                   ok = false
                 } else {
-                  if (tuples.head.arraySize.isDefined) ??? // TODO
+                  if (tuples.head.arrayIndexTypeAndSize.isDefined) ??? // TODO
                   pointerWrap match {
                     case 0 =>
                       currentType = tuples.head.typ

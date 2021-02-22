@@ -46,6 +46,8 @@ but the main disadvantages are:
 
 * cannot use them in inline assembly code blocks
 
+* structs and unions containing array fields are not supported
+
 The implementation depends on the target architecture:
 
 * on 6502, the stack pointer is transferred into the X register and used as a base

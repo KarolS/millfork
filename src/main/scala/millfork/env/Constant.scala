@@ -221,27 +221,27 @@ case class StructureConstant(typ: StructType, fields: List[Constant]) extends Co
 
   override def subbyte(index: Int): Constant = {
     var offset = 0
-    for ((fv, ResolvedFieldDesc(ft, _, arraySize)) <- fields.zip(typ.mutableFieldsWithTypes)) {
+    for ((fv, ResolvedFieldDesc(ft, _, arrayIndexTypeAndSize)) <- fields.zip(typ.mutableFieldsWithTypes)) {
       // TODO: handle array members?
       val fs = ft.size
       if (index < offset + fs) {
         val indexInField = index - offset
         return fv.subbyte(indexInField)
       }
-      offset += fs * arraySize.getOrElse(1)
+      offset += fs * arrayIndexTypeAndSize.fold(1)(_._2)
     }
     Constant.Zero
   }
   override def subbyteBe(index: Int, totalSize: Int): Constant = {
     var offset = 0
-    for ((fv, ResolvedFieldDesc(ft, _, arraySize)) <- fields.zip(typ.mutableFieldsWithTypes)) {
+    for ((fv, ResolvedFieldDesc(ft, _, arrayIndexTypeAndSize)) <- fields.zip(typ.mutableFieldsWithTypes)) {
       // TODO: handle array members?
       val fs = ft.size
       if (index < offset + fs) {
         val indexInField = index - offset
         return fv.subbyteBe(indexInField, fs)
       }
-      offset += fs * arraySize.getOrElse(1)
+      offset += fs * arrayIndexTypeAndSize.fold(1)(_._2)
     }
     Constant.Zero
   }

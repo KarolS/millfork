@@ -5,14 +5,14 @@ import millfork.assembly.m6809.{MAddrMode, MOpcode}
 import millfork.assembly.mos.opt.SourceOfNZ
 import millfork.assembly.mos.{AddrMode, Opcode}
 import millfork.assembly.z80.{NoRegisters, OneRegister, ZOpcode, ZRegisters}
-import millfork.env.{Constant, ParamPassingConvention, Type, VariableType}
+import millfork.env.{Constant, EnumType, ParamPassingConvention, Type, VariableType}
 import millfork.output.MemoryAlignment
 
 case class Position(moduleName: String, line: Int, column: Int, cursor: Int)
 
 case class FieldDesc(typeName:String, fieldName: String, arraySize: Option[Expression])
 
-case class ResolvedFieldDesc(typ:VariableType, fieldName: String, arraySize: Option[Int])
+case class ResolvedFieldDesc(typ:VariableType, fieldName: String, arrayIndexTypeAndSize: Option[(VariableType, Int)])
 
 sealed trait Node {
   var position: Option[Position] = None

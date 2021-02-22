@@ -896,6 +896,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 if (params.size == t.fields.size) {
                   sequence(params.map(p => evalImpl(p, vv))).map(fields => StructureConstant(t, fields.zip(t.fields).map{
                     case (fieldConst, fieldDesc) =>
+                      if (fieldDesc.arraySize.isDefined) {
+                        log.error(s"Cannot define a struct literal for a struct type ${t.name} with array fields", fce.position)
+                      }
                       fieldConst.fitInto(get[Type](fieldDesc.typeName))
                   }))
                 } else None
@@ -1172,8 +1175,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         else {
           val newPath = path + name
           var sum = 0
-          for( ResolvedFieldDesc(fieldType, _, count) <- s.mutableFieldsWithTypes) {
-            val fieldSize = getTypeSize(fieldType, newPath) * count.getOrElse(1)
+          for( ResolvedFieldDesc(fieldType, _, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
+            val fieldSize = getTypeSize(fieldType, newPath) * indexTypeAndCount.fold(1)(_._2)
             if (fieldSize < 0) return -1
             sum = fieldType.alignment.roundSizeUp(sum)
             sum += fieldSize
@@ -1185,10 +1188,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
           val b = get[Type]("byte")
           var offset = 0
-          for( ResolvedFieldDesc(fieldType, fieldName, count) <- s.mutableFieldsWithTypes) {
+          for( ResolvedFieldDesc(fieldType, fieldName, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
             offset = fieldType.alignment.roundSizeUp(offset)
             addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(offset, 1), b), None)
-            offset += getTypeSize(fieldType, newPath) * count.getOrElse(1)
+            offset += getTypeSize(fieldType, newPath) * indexTypeAndCount.fold(1)(_._2)
             offset = fieldType.alignment.roundSizeUp(offset)
           }
           sum
@@ -1198,8 +1201,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         else {
           val newPath = path + name
           var max = 0
-          for( ResolvedFieldDesc(fieldType, _, count) <- s.mutableFieldsWithTypes) {
-            val fieldSize = getTypeSize(fieldType, newPath) * count.getOrElse(1)
+          for( ResolvedFieldDesc(fieldType, _, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
+            val fieldSize = getTypeSize(fieldType, newPath) * indexTypeAndCount.fold(1)(_._2)
             if (fieldSize < 0) return -1
             max = max max fieldSize
           }
@@ -1934,37 +1937,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                   case None => array.toAddress
                   case Some(aa) => aa
                 }
-                addThing(RelativeVariable(arrayName + ".first", a, b, zeropage = false,
-                            declaredBank = stmt.bank, isVolatile = false), stmt.position)
-                if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
-                  val b = get[Type]("byte")
-                  val w = get[Type]("word")
-                  val relocatable = UninitializedMemoryVariable(arrayName, w, VariableAllocationMethod.Static, None, Set.empty, NoAlignment, isVolatile = false)
-                  val addr = relocatable.toAddress
-                  addThing(relocatable, stmt.position)
-                  addThing(RelativeVariable(arrayName + ".addr.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
-                  addThing(RelativeVariable(arrayName + ".addr.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
-                  addThing(RelativeVariable(arrayName + ".array.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
-                  addThing(RelativeVariable(arrayName + ".array.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
-                } else {
-                  addThing(ConstantThing(arrayName, a, p), stmt.position)
-                  addThing(ConstantThing(arrayName + ".hi", a.hiByte.quickSimplify, b), stmt.position)
-                  addThing(ConstantThing(arrayName + ".lo", a.loByte.quickSimplify, b), stmt.position)
-                  addThing(ConstantThing(arrayName + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
-                  addThing(ConstantThing(arrayName + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
-                }
-                if (length < 256) {
-                  addThing(ConstantThing(arrayName + ".length", lengthConst, b), stmt.position)
-                } else {
-                  addThing(ConstantThing(arrayName + ".length", lengthConst, w), stmt.position)
-                }
-                if (length > 0 && indexType.isArithmetic) {
-                  if (length <= 256) {
-                    addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 1), b), stmt.position)
-                  } else {
-                    addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 2), w), stmt.position)
-                  }
-                }
+                registerArrayAddresses(arrayName, stmt.bank, a, indexType, e, length.toInt, alignment, stmt.position)
               case _ => log.error(s"Array `${stmt.name}` has weird length", stmt.position)
             }
 
@@ -2012,41 +1985,56 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           log.error(s"Preinitialized writable array `${stmt.name}` has to be in the default segment.", stmt.position)
         }
         addThing(array, stmt.position)
-        registerAddressConstant(UninitializedMemoryVariable(arrayName, p, VariableAllocationMethod.None,
-                    declaredBank = stmt.bank, Set.empty, alignment, isVolatile = false), stmt.position, options, Some(e))
         val a = address match {
           case None => array.toAddress
           case Some(aa) => aa
         }
-        addThing(RelativeVariable(arrayName + ".first", a, e, zeropage = false,
-                    declaredBank = stmt.bank, isVolatile = false), stmt.position)
-        if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
-          val b = get[Type]("byte")
-          val w = get[Type]("word")
-          val relocatable = UninitializedMemoryVariable(arrayName, w, VariableAllocationMethod.Static, None, Set.empty, NoAlignment, isVolatile = false)
-          val addr = relocatable.toAddress
-          addThing(relocatable, stmt.position)
-          addThing(RelativeVariable(arrayName + ".array.hi", addr + 1, b, zeropage = false, None, isVolatile = false), stmt.position)
-          addThing(RelativeVariable(arrayName + ".array.lo", addr, b, zeropage = false, None, isVolatile = false), stmt.position)
-        } else {
-          addThing(ConstantThing(arrayName, a, p), stmt.position)
-          addThing(ConstantThing(arrayName + ".hi", a.hiByte.quickSimplify, b), stmt.position)
-          addThing(ConstantThing(arrayName + ".lo", a.loByte.quickSimplify, b), stmt.position)
-          addThing(ConstantThing(arrayName + ".array.hi", a.hiByte.quickSimplify, b), stmt.position)
-          addThing(ConstantThing(arrayName + ".array.lo", a.loByte.quickSimplify, b), stmt.position)
-        }
-        if (length < 256) {
-          addThing(ConstantThing(arrayName + ".length", NumericConstant(length, 1), b), stmt.position)
-        } else {
-          addThing(ConstantThing(arrayName + ".length", NumericConstant(length, 2), w), stmt.position)
-        }
-        if (length > 0 && indexType.isArithmetic) {
-          if (length <= 256) {
-            addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 1), b), stmt.position)
-          } else {
-            addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 2), w), stmt.position)
-          }
-        }
+        registerArrayAddresses(arrayName, stmt.bank, a, indexType, e, length, alignment, stmt.position)
+    }
+  }
+
+  def registerArrayAddresses(
+                              arrayName: String,
+                              declaredBank: Option[String],
+                              address: Constant,
+                              indexType: Type,
+                              elementType: Type,
+                              length: Int,
+                              alignment: MemoryAlignment,
+                              position: Option[Position]): Unit = {
+    val p = get[Type]("pointer")
+    val b = get[Type]("byte")
+    val w = get[Type]("word")
+    registerAddressConstant(UninitializedMemoryVariable(arrayName, p, VariableAllocationMethod.None,
+      declaredBank = declaredBank, Set.empty, alignment, isVolatile = false), position, options, Some(elementType))
+    addThing(RelativeVariable(arrayName + ".first", address, elementType, zeropage = false,
+      declaredBank = declaredBank, isVolatile = false), position)
+    if (options.flag(CompilationFlag.LUnixRelocatableCode)) {
+      val b = get[Type]("byte")
+      val w = get[Type]("word")
+      val relocatable = UninitializedMemoryVariable(arrayName, w, VariableAllocationMethod.Static, None, Set.empty, NoAlignment, isVolatile = false)
+      val addr = relocatable.toAddress
+      addThing(relocatable, position)
+      addThing(RelativeVariable(arrayName + ".array.hi", addr + 1, b, zeropage = false, None, isVolatile = false), position)
+      addThing(RelativeVariable(arrayName + ".array.lo", addr, b, zeropage = false, None, isVolatile = false), position)
+    } else {
+      addThing(ConstantThing(arrayName, address, p), position)
+      addThing(ConstantThing(arrayName + ".hi", address.hiByte.quickSimplify, b), position)
+      addThing(ConstantThing(arrayName + ".lo", address.loByte.quickSimplify, b), position)
+      addThing(ConstantThing(arrayName + ".array.hi", address.hiByte.quickSimplify, b), position)
+      addThing(ConstantThing(arrayName + ".array.lo", address.loByte.quickSimplify, b), position)
+    }
+    if (length < 256) {
+      addThing(ConstantThing(arrayName + ".length", NumericConstant(length, 1), b), position)
+    } else {
+      addThing(ConstantThing(arrayName + ".length", NumericConstant(length, 2), w), position)
+    }
+    if (length > 0 && indexType.isArithmetic) {
+      if (length <= 256) {
+        addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 1), b), position)
+      } else {
+        addThing(ConstantThing(arrayName + ".lastindex", NumericConstant(length - 1, 2), w), position)
+      }
     }
   }
 
@@ -2092,8 +2080,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (constantValue.requiredSize > typ.size) log.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
       for(Subvariable(suffix, offset, t, arraySize) <- getSubvariables(typ)) {
-        if (arraySize.isDefined) ??? // TODO
-        addThing(ConstantThing(prefix + name + suffix, constantValue.subconstant(options, offset, t.size), t), stmt.position)
+        if (arraySize.isDefined) {
+          log.error(s"Constants of type ${t.name} that contains array fields are not supported", stmt.position)
+        } else {
+          addThing(ConstantThing(prefix + name + suffix, constantValue.subconstant(options, offset, t.size), t), stmt.position)
+        }
       }
     } else {
       if (stmt.stack && stmt.global) log.error(s"`$name` is static or global and cannot be on stack", position)
@@ -2165,39 +2156,44 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def addVariable(options: CompilationOptions, localName: String, variable: Variable, position: Option[Position]): Unit = {
+    val b = get[VariableType]("byte")
     variable match {
       case v: StackVariable =>
         addThing(localName, v, position)
         for (Subvariable(suffix, offset, t, arraySize) <- getSubvariables(v.typ)) {
           if (arraySize.isDefined) {
-            log.error(s"Cannot create a stack variable $localName of compound type ${v.typ.name} that contains an array member")
+            log.error(s"Cannot create a stack variable $localName of compound type ${v.typ.name} that contains an array member", position)
           } else {
             addThing(StackVariable(prefix + localName + suffix, t, baseStackOffset + offset), position)
           }
         }
       case v: MemoryVariable =>
         addThing(localName, v, position)
-        for (Subvariable(suffix, offset, t, arraySize) <- getSubvariables(v.typ)) {
-          arraySize match {
+        for (Subvariable(suffix, offset, t, arrayIndexTypeAndSize) <- getSubvariables(v.typ)) {
+          arrayIndexTypeAndSize match {
             case None =>
               val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
               addThing(subv, position)
               registerAddressConstant(subv, position, options, Some(t))
-            case Some(_) =>
-              ??? // TODO
+            case Some((indexType, elemCount)) =>
+              val suba = RelativeArray(prefix + localName + suffix + ".array", v.toAddress + offset, elemCount, v.declaredBank, indexType, t, false)
+              addThing(suba, position)
+              registerArrayAddresses(prefix + localName + suffix, v.declaredBank, v.toAddress + offset, indexType, t, elemCount, NoAlignment, position)
           }
         }
       case v: VariableInMemory =>
         addThing(localName, v, position)
         addThing(ConstantThing(v.name + "`", v.toAddress, get[Type]("word")), position)
-        for (Subvariable(suffix, offset, t, arraySize) <- getSubvariables(v.typ)) {
-          arraySize match {
+        for (Subvariable(suffix, offset, t, arrayIndexTypeAndSize) <- getSubvariables(v.typ)) {
+          arrayIndexTypeAndSize match {
             case None =>
               val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
               addThing(subv, position)
               registerAddressConstant(subv, position, options, Some(t))
-            case Some(_) =>
-              ??? // TODO
+            case Some((indexType, elemCount)) =>
+              val suba = RelativeArray(prefix + localName + suffix + ".array", v.toAddress + offset, elemCount, v.declaredBank, indexType, t, false)
+              addThing(suba, position)
+              registerArrayAddresses(prefix + localName + suffix, v.declaredBank, v.toAddress + offset, indexType, t, elemCount, NoAlignment, position)
           }
         }
       case _ => ???
@@ -2307,32 +2303,29 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case s: StructType =>
         val builder = new ListBuffer[Subvariable]
         var offset = 0
-        for(ResolvedFieldDesc(typ, fieldName, arraySize) <- s.mutableFieldsWithTypes) {
+        for(ResolvedFieldDesc(typ, fieldName, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
           offset = getTypeAlignment(typ, Set()).roundSizeUp(offset)
-          arraySize match {
-            case None =>
-              val suffix = "." + fieldName
-              builder += Subvariable(suffix, offset, typ, arraySize)
-              if (arraySize.isEmpty) {
-                builder ++= getSubvariables(typ).map {
-                  case Subvariable(innerSuffix, innerOffset, innerType, innerSize) => Subvariable(suffix + innerSuffix, offset + innerOffset, innerType, innerSize)
-                }
-              }
-            case Some(_) =>
-              // TODO
+          val suffix = "." + fieldName
+          builder += Subvariable(suffix, offset, typ, indexTypeAndCount)
+          if (indexTypeAndCount.isEmpty) {
+            builder ++= getSubvariables(typ).map {
+              case Subvariable(innerSuffix, innerOffset, innerType, innerSize) => Subvariable(suffix + innerSuffix, offset + innerOffset, innerType, innerSize)
+            }
           }
-          offset += typ.size * arraySize.getOrElse(1)
+          offset += typ.size * indexTypeAndCount.fold(1)(_._2)
           offset = getTypeAlignment(typ, Set()).roundSizeUp(offset)
         }
         builder.toList
       case s: UnionType =>
         val builder = new ListBuffer[Subvariable]
-        for(FieldDesc(typeName, fieldName, _) <- s.fields) {
+        for(FieldDesc(typeName, fieldName, arraySize) <- s.fields) {
           val typ = get[VariableType](typeName)
           val suffix = "." + fieldName
           builder += Subvariable(suffix, 0, typ)
-          builder ++= getSubvariables(typ).map {
-            case Subvariable(innerSuffix, innerOffset, innerType, innerSize) => Subvariable(suffix + innerSuffix, innerOffset, innerType, innerSize)
+          if (arraySize.isEmpty) {
+            builder ++= getSubvariables(typ).map {
+              case Subvariable(innerSuffix, innerOffset, innerType, innerSize) => Subvariable(suffix + innerSuffix, innerOffset, innerType, innerSize)
+            }
           }
         }
         builder.toList
@@ -2476,30 +2469,50 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  def getArrayFieldIndexTypeAndSize(expr: Expression): (VariableType, Int) = {
+    val b = get[VariableType]("byte")
+    expr match {
+      case VariableExpression(name) =>
+        maybeGet[Type](name) match {
+          case Some(typ@EnumType(_, Some(count))) =>
+            return typ -> count
+          case Some(typ) =>
+            log.error(s"Type $name cannot be used as an array index", expr.position)
+            return b -> 0
+          case _ =>
+        }
+      case _ =>
+    }
+    val constant: Int = eval(expr).map(_.quickSimplify) match {
+      case Some(NumericConstant(n, _)) if n >= 0 && n <= 127 =>
+        n.toInt
+      case Some(NumericConstant(n, _)) =>
+        log.error(s"Array size too large", expr.position)
+        1
+      case Some(_) =>
+        log.error(s"Array size cannot be fully resolved", expr.position)
+        1
+      case _ =>
+        errorConstant(s"Array has non-constant length", Some(expr), expr.position)
+        1
+    }
+    if (constant <= 256) {
+      b -> constant
+    } else {
+      get[VariableType]("word") -> constant
+    }
+  }
+
   def fixStructFields(): Unit = {
     // TODO: handle arrays?
     things.values.foreach {
       case st@StructType(_, fields, _) =>
         st.mutableFieldsWithTypes = fields.map {
-          case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map { x =>
-            eval(x) match {
-              case Some(NumericConstant(c, _)) if c >= 0 && c < 0x10000 => c.toInt
-              case _ =>
-                log.error(s"Invalid array size for member array $name in type ${st.toString}")
-                0
-            }
-          })
+          case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map(getArrayFieldIndexTypeAndSize))
         }
       case ut@UnionType(_, fields, _) =>
         ut.mutableFieldsWithTypes = fields.map {
-          case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map { x =>
-            eval(x) match {
-              case Some(NumericConstant(c, _)) if c >= 0 && c < 0x10000 => c.toInt
-              case _ =>
-                log.error(s"Invalid array size for member array $name in type ${ut.toString}")
-                0
-            }
-          })
+          case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map(getArrayFieldIndexTypeAndSize))
         }
       case _ => ()
     }

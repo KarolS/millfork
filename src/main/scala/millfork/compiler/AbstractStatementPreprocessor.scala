@@ -13,6 +13,9 @@ import scala.collection.mutable.ListBuffer
   * @author Karol Stasiak
   */
 abstract class AbstractStatementPreprocessor(protected val ctx: CompilationContext, statements: List[ExecutableStatement]) {
+  implicit class StringToFunctionNameOps(val functionName: String) {
+    def <|(exprs: Expression*): Expression = FunctionCallExpression(functionName, exprs.toList).pos(exprs.head.position)
+  }
   type VV = Map[String, Constant]
   protected val optimize = true // TODO
   protected val env: Environment = ctx.env
@@ -387,9 +390,6 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         case _ =>
       }
     }
-    implicit class StringToFunctionNameOps(val functionName: String) {
-      def <|(exprs: Expression*): Expression = FunctionCallExpression(functionName, exprs.toList).pos(exprs.head.position)
-    }
     // generic warnings:
     expr match {
       case FunctionCallExpression("*" | "*=", params) =>
@@ -411,16 +411,32 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         val b = env.get[Type]("byte")
         var ok = true
         var result = optimizeExpr(root, currentVarValues).pos(pos)
-        def applyIndex(result: Expression, index: Expression): Expression = {
+        def applyIndex(result: Expression, index: Expression, guaranteedSmall: Boolean): Expression = {
           AbstractExpressionCompiler.getExpressionType(env, env.log, result) match {
-            case pt@PointerType(_, _, Some(target)) =>
-              env.eval(index) match {
-                case Some(NumericConstant(0, _)) => //ok
+            case pt@PointerType(_, _, Some(targetType)) =>
+              val zero = env.eval(index) match {
+                case Some(NumericConstant(0, _)) =>
+                  true
                 case _ =>
-                  // TODO: should we keep this?
-                  env.log.error(s"Type `$pt` can be only indexed with 0")
+                  false
               }
-              DerefExpression(result, 0, target)
+              if (zero) {
+                DerefExpression(result, 0, targetType)
+              } else {
+                val indexType = AbstractExpressionCompiler.getExpressionType(env, env.log, index)
+                env.eval(index) match {
+                  case Some(NumericConstant(n, _)) if n >= 0 && (guaranteedSmall || (targetType.alignedSize * n) <= 127) =>
+                    DerefExpression(
+                      ("pointer." + targetType.name) <| result,
+                      targetType.alignedSize * n.toInt, targetType)
+                  case _ =>
+                    val small = guaranteedSmall || (indexType.size == 1 && !indexType.isSigned)
+                    val scaledIndex: Expression = scaleIndexForArrayAccess(index, targetType, if (small) Some(256) else None)
+                    DerefExpression(("pointer." + targetType.name) <| (
+                      ("pointer" <| result) #+# optimizeExpr(scaledIndex, Map())
+                    ), 0, targetType)
+                }
+              }
             case x if x.isPointy =>
               val (targetType, arraySizeInBytes) = result match {
                 case VariableExpression(maybePointy) =>
@@ -443,33 +459,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                         targetType.alignedSize * n.toInt, targetType)
                   }
                 case _ =>
-                  val shifts = Integer.numberOfTrailingZeros(targetType.alignedSize)
-                  val shrunkElementSize = targetType.alignedSize >> shifts
-                  val shrunkArraySize = arraySizeInBytes.fold(9999)(_.>>(shifts))
-                  val scaledIndex = arraySizeInBytes match {
-                    // "n > targetType.alignedSize" means
-                    // "don't do optimizations on arrays size 0 or 1"
-                    case Some(n) if n > targetType.alignedSize && n <= 256 => targetType.alignedSize match {
-                      case 1 => "byte" <| index
-                      case 2 => "<<" <| ("byte" <| index, LiteralExpression(1, 1))
-                      case 4 => "<<" <| ("byte" <| index, LiteralExpression(2, 1))
-                      case 8 => "<<" <| ("byte" <| index, LiteralExpression(3, 1))
-                      case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.alignedSize, 1))
-                    }
-                    case Some(n) if n > targetType.alignedSize && n <= 512 && targetType.alignedSize == 2 =>
-                      "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
-                    case Some(n) if n > targetType.alignedSize && n <= 512 && targetType.alignedSize == 2 =>
-                      "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
-                    case Some(n) if n > targetType.alignedSize && shrunkArraySize <= 256 =>
-                      "<<" <| ("word" <| ("*" <| ("byte" <| index, LiteralExpression(shrunkElementSize, 1))), LiteralExpression(shifts, 1))
-                    case _ => targetType.alignedSize match {
-                      case 1 => "word" <| index
-                      case 2 => "<<" <| ("word" <| index, LiteralExpression(1, 1))
-                      case 4 => "<<" <| ("word" <| index, LiteralExpression(2, 1))
-                      case 8 => "<<" <| ("word" <| index, LiteralExpression(3, 1))
-                      case _ => "*" <| ("word" <| index, LiteralExpression(targetType.alignedSize, 1))
-                    }
-                  }
+                  val scaledIndex: Expression = scaleIndexForArrayAccess(index, targetType, arraySizeInBytes)
                   // TODO: re-cast pointer type
                   DerefExpression(("pointer." + targetType.name) <| (
                     result #+# optimizeExpr(scaledIndex, Map())
@@ -483,8 +473,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         }
 
         for (index <- firstIndices) {
-          result = applyIndex(result, index)
+          result = applyIndex(result, index, guaranteedSmall = false)
         }
+        var guaranteedSmall = false
         for ((dot, fieldName, indices) <- fieldPath) {
           if (dot && ok) {
             val pointer = result match {
@@ -527,45 +518,79 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                   ok = false
                   LiteralExpression(0, 1)
                 } else {
-                  if (subvariables.head.arraySize.isDefined) ??? // TODO
                   val inner = optimizeExpr(result, currentVarValues, optimizeSum = true).pos(pos)
-                  val fieldOffset = subvariables.head.offset
-                  val fieldType = subvariables.head.typ
-                  pointerWrap match {
-                    case 0 =>
-                      DerefExpression(inner, fieldOffset, fieldType)
-                    case 1 =>
-                      if (fieldOffset == 0) {
-                        ("pointer." + fieldType.name) <| ("pointer" <| inner)
-                      } else {
-                        ("pointer." + fieldType.name) <| (
-                          ("pointer" <| inner) #+# LiteralExpression(fieldOffset, 2)
-                        )
+                  val subvariable = subvariables.head
+                  val fieldOffset = subvariable.offset
+                  val fieldType = subvariable.typ
+                  val offsetExpression = LiteralExpression(fieldOffset, 2).pos(pos)
+                  subvariable.arrayIndexTypeAndSize match {
+                    case Some((indexType, arraySize)) =>
+                      guaranteedSmall = arraySize * target.alignedSize <= 256
+                      pointerWrap match {
+                        case 0 | 1 =>
+                          if (fieldOffset == 0) {
+                            ("pointer." + fieldType.name) <| ("pointer" <| inner)
+                          } else {
+                            ("pointer." + fieldType.name) <| (("pointer" <| inner) #+# offsetExpression)
+                          }
+                        case 2 =>
+                          if (fieldOffset == 0) {
+                            ("pointer" <| inner)
+                          } else {
+                            ("pointer" <| inner) #+# offsetExpression
+                          }
+                        case 10 =>
+                          if (fieldOffset == 0) {
+                            "lo" <| ("pointer" <| inner)
+                          } else {
+                            "lo" <| (("pointer" <| inner) #+# offsetExpression)
+                          }
+                        case 11 =>
+                          if (fieldOffset == 0) {
+                            "hi" <| (("pointer" <| inner))
+                          } else {
+                            "hi" <| (("pointer" <| inner) #+# offsetExpression)
+                          }
+                        case _ => throw new IllegalStateException
                       }
-                    case 2 =>
-                      if (fieldOffset == 0) {
-                        "pointer" <| inner
-                      } else {
-                        ("pointer" <| inner) #+# LiteralExpression(fieldOffset, 2)
-                      }
-                    case 10 =>
-                      if (fieldOffset == 0) {
-                        "lo" <| ("pointer" <| inner)
-                      } else {
-                        "lo" <| (
-                          ("pointer" <| inner) #+# LiteralExpression(fieldOffset, 2)
-                        )
-                      }
-                    case 11 =>
-                      if (fieldOffset == 0) {
-                        "hi" <| ("pointer" <| inner)
-                      } else {
-                        "hi" <| (
-                           ("pointer" <| inner) #+# LiteralExpression(fieldOffset, 2)
-                        )
-                      }
+                    case None =>
+                      guaranteedSmall = false
+                      pointerWrap match {
+                        case 0 =>
+                          DerefExpression(inner, fieldOffset, fieldType)
+                        case 1 =>
+                          if (fieldOffset == 0) {
+                            ("pointer." + fieldType.name) <| ("pointer" <| inner)
+                          } else {
+                            ("pointer." + fieldType.name) <| (
+                              ("pointer" <| inner) #+# offsetExpression
+                              )
+                          }
+                        case 2 =>
+                          if (fieldOffset == 0) {
+                            "pointer" <| inner
+                          } else {
+                            ("pointer" <| inner) #+# offsetExpression
+                          }
+                        case 10 =>
+                          if (fieldOffset == 0) {
+                            "lo" <| ("pointer" <| inner)
+                          } else {
+                            "lo" <| (
+                              ("pointer" <| inner) #+# offsetExpression
+                              )
+                          }
+                        case 11 =>
+                          if (fieldOffset == 0) {
+                            "hi" <| ("pointer" <| inner)
+                          } else {
+                            "hi" <| (
+                              ("pointer" <| inner) #+# offsetExpression
+                              )
+                          }
 
-                    case _ => throw new IllegalStateException
+                        case _ => throw new IllegalStateException
+                      }
                   }
                 }
               case _ =>
@@ -576,7 +601,8 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
           }
           if (ok) {
             for (index <- indices) {
-              result = applyIndex(result, index)
+              result = applyIndex(result, index, guaranteedSmall)
+              guaranteedSmall = false
             }
           }
         }
@@ -708,6 +734,37 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         }
       case _ => expr // TODO
     }
+  }
+
+  private def scaleIndexForArrayAccess(index: Expression, targetType: Type, arraySizeInBytes: Option[Int]): Expression = {
+    val shifts = Integer.numberOfTrailingZeros(targetType.alignedSize)
+    val shrunkElementSize = targetType.alignedSize >> shifts
+    val shrunkArraySize = arraySizeInBytes.fold(9999)(_.>>(shifts))
+    val scaledIndex = arraySizeInBytes match {
+      // "n > targetType.alignedSize" means
+      // "don't do optimizations on arrays size 0 or 1"
+      case Some(n) if n > targetType.alignedSize && n <= 256 => targetType.alignedSize match {
+        case 1 => "byte" <| index
+        case 2 => "<<" <| ("byte" <| index, LiteralExpression(1, 1))
+        case 4 => "<<" <| ("byte" <| index, LiteralExpression(2, 1))
+        case 8 => "<<" <| ("byte" <| index, LiteralExpression(3, 1))
+        case _ => "*" <| ("byte" <| index, LiteralExpression(targetType.alignedSize, 1))
+      }
+      case Some(n) if n > targetType.alignedSize && n <= 512 && targetType.alignedSize == 2 =>
+        "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
+      case Some(n) if n > targetType.alignedSize && n <= 512 && targetType.alignedSize == 2 =>
+        "nonet" <| ("<<" <| ("byte" <| index, LiteralExpression(1, 1)))
+      case Some(n) if n > targetType.alignedSize && shrunkArraySize <= 256 =>
+        "<<" <| ("word" <| ("*" <| ("byte" <| index, LiteralExpression(shrunkElementSize, 1))), LiteralExpression(shifts, 1))
+      case _ => targetType.alignedSize match {
+        case 1 => "word" <| index
+        case 2 => "<<" <| ("word" <| index, LiteralExpression(1, 1))
+        case 4 => "<<" <| ("word" <| index, LiteralExpression(2, 1))
+        case 8 => "<<" <| ("word" <| index, LiteralExpression(3, 1))
+        case _ => "*" <| ("word" <| index, LiteralExpression(targetType.alignedSize, 1))
+      }
+    }
+    scaledIndex
   }
 
   def pointlessCast(t1: String, expr: Expression): Boolean = {

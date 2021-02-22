@@ -775,42 +775,46 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     variants <- enumVariants ~/ Pass
   } yield Seq(EnumDefinitionStatement(name, variants).pos(p))
 
-  val compoundTypeField: P[FieldDesc] = ("array".! ~ HWS ~/ Pass).?.flatMap {
+  val compoundTypeField: P[FieldDesc] = ("array".! ~  !letterOrDigit ~ HWS ~/ Pass).?.flatMap {
     case None =>
-      for {
-        typ <- identifier ~/ HWS
-        name <- identifier ~ HWS
-      } yield FieldDesc(typ, name, None)
+      (identifier ~/ HWS ~ identifier ~/ HWS).map {
+        case (typ, name) => FieldDesc(typ, name, None)
+      }
 
     case Some(_) =>
-      for {
-        elementType <- ("(" ~/ AWS ~/ identifier ~ AWS ~ ")").? ~/ HWS
-        if enableDebuggingOptions
-        name <- identifier ~ HWS
-        length <- "[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]" ~ HWS
-      } yield FieldDesc(elementType.getOrElse("byte"), name, Some(length))
+      (("(" ~/ AWS ~/ identifier ~ AWS ~ ")").? ~/ HWS ~/
+        identifier ~ HWS ~
+        "[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]" ~/ HWS
+        ).map{
+        case (elementType, name, length) =>
+          FieldDesc(elementType.getOrElse("byte"), name, Some(length))
+      }
   }
 
   val compoundTypeFields: P[List[FieldDesc]] =
     ("{" ~/ AWS ~ compoundTypeField.rep(sep = NoCut(EOLOrComma) ~ !"}" ~/ Pass) ~/ AWS ~/ "}" ~/ Pass).map(_.toList)
 
-  val structDefinition: P[Seq[StructDefinitionStatement]] = for {
-    p <- position()
-    _ <- "struct" ~ !letterOrDigit ~/ SWS ~ position("struct name")
-    name <- identifier ~/ HWS
-    align <- alignmentDeclaration(NoAlignment).? ~/ HWS
-    _ <- position("struct definition block")
-    fields <- compoundTypeFields ~/ Pass
-  } yield Seq(StructDefinitionStatement(name, fields, align).pos(p))
+  val structDefinition: P[Seq[StructDefinitionStatement]] = {
+    (position() ~ "struct" ~ !letterOrDigit ~/ SWS ~/
+      position("struct name").map(_ => ()) ~ identifier ~/ HWS ~
+      alignmentDeclaration(NoAlignment).? ~/ HWS ~
+      position("struct definition block").map(_ => ())  ~
+      compoundTypeFields ~/ Pass).map{
+      case (p, name, align, fields) =>
+        Seq(StructDefinitionStatement(name, fields, align).pos(p))
+    }
+  }
 
-  val unionDefinition: P[Seq[UnionDefinitionStatement]] = for {
-    p <- position()
-    _ <- "union" ~ !letterOrDigit ~/ SWS ~ position("union name")
-    name <- identifier ~/ HWS
-    align <- alignmentDeclaration(NoAlignment).? ~/ HWS
-    _ <- position("union definition block")
-    fields <- compoundTypeFields ~/ Pass
-  } yield Seq(UnionDefinitionStatement(name, fields, align).pos(p))
+  val unionDefinition: P[Seq[UnionDefinitionStatement]] = {
+    (position() ~ "union" ~ !letterOrDigit ~/ SWS ~/
+      position("union name").map(_ => ()) ~ identifier ~/ HWS ~
+      alignmentDeclaration(NoAlignment).? ~/ HWS ~
+      position("union definition block").map(_ => ())  ~
+      compoundTypeFields ~/ Pass).map{
+      case (p, name, align, fields) =>
+        Seq(UnionDefinitionStatement(name, fields, align).pos(p))
+    }
+  }
 
   val segmentBlock: P[Seq[BankedDeclarationStatement]] = for {
     (_, bankName) <- "segment" ~ AWS ~ "(" ~ AWS ~ position("segment name") ~ identifier ~ AWS ~ ")" ~ AWS ~ "{" ~/ AWS
