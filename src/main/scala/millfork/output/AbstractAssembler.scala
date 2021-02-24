@@ -524,7 +524,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case thing@InitializedArray(name, None, items, _, _, elementType, readOnly, _, alignment) if readOnly == readOnlyPass && layoutStage == getLayoutStageThing(thing) =>
             val bank = thing.bank(options)
             if (options.platform.ramInitialValuesBank.isDefined && !readOnly && bank != "default") {
-              log.error(s"Preinitialized writable array `$name` should be defined in the `default` bank")
+              log.error(s"Preinitialized writable array `$name` should be defined in the `default` bank, did you forget mark it as const?")
             }
             val bank0 = mem.banks(bank)
             var index = codeAllocators(bank).allocateBytes(bank0, options, thing.sizeInBytes, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
