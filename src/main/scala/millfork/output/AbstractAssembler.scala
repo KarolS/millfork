@@ -323,7 +323,6 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         function.environment.removedThings.foreach(env.removeVariable)
       }
     }
-    deduplicate(options, compiledFunctions)
     if (log.traceEnabled) {
       niceFunctionProperties.toList.groupBy(_._2).mapValues(_.map(_._1).sortBy(_.toString)).toList.sortBy(_._1).foreach{ case (fname, properties) =>
           log.trace(fname.padTo(30, ' ') + properties.mkString(" "))
@@ -358,6 +357,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         })
       }
     })
+    deduplicate(options, compiledFunctions.filterNot(o => unusedRuntimeObjects(o._1)))
 
     env.allPreallocatables.filterNot(o => unusedRuntimeObjects(o.name)).foreach {
       case thing@InitializedArray(name, Some(NumericConstant(address, _)), items, _, _, elementType, readOnly, _, _) =>
