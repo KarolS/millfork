@@ -689,6 +689,19 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       mem.banks(bank).start = start
       mem.banks(bank).end = end
     }
+    for (bank <- mem.banks.keys.toSeq.sorted) {
+      val b = mem.banks(bank)
+      if (b.start >= 0 && b.end >= 0) {
+        log.info(f"Segment ${bank}%s: $$${b.start}%04x-$$${b.end}%04x, size: ${b.end - b.start + 1}%d B")
+      }
+    }
+    if (platform.cpuFamily == CpuFamily.M6502) {
+      val occupied = mem.banks("default").occupied
+      val allocator = options.platform.variableAllocators("default").zeropage
+      val freeZp = allocator.preferredOrder.getOrElse(allocator.startAt until allocator.endBefore).count(a => !occupied(a))
+      log.info(f"Free zero page memory: $freeZp B")
+    }
+
     val allLabelList = labelMap.toList ++ unimportantLabelMap.toList
     allLabelList.sorted.foreach { case (l, (_, v)) =>
       assembly += f"$l%-30s = $$$v%04X"
