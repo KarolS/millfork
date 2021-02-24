@@ -126,9 +126,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           val x = x1.orElse(x2).orElse(x3).orElse(x4).orElse(x5).orElse(x6)
           stackProbe(700)
           x match {
-            case Some(cc) =>
+            case Some(cc) if c != cc =>
               deepConstResolve(cc)
-            case None =>
+            case _ =>
               log.fatal("Failed to resolve constant: " + th.name)
               println(th)
               ???
