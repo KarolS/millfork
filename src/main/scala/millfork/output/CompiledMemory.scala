@@ -56,8 +56,13 @@ class MemoryBank(val index: Int, val isBigEndian: Boolean) {
   val initialized: Array[Boolean] = Array.fill(1 << 16)(false)
   val readable: Array[Boolean] = Array.fill(1 << 16)(false)
   val writeable: Array[Boolean] = Array.fill(1 << 16)(false)
+  val outputted: Array[Boolean] = Array.fill(1 << 16)(false)
   var start: Int = 0
   var end: Int = 0
+
+  def markAsOutputted(start: Int, pastEnd: Int): Unit = for (i <- start until pastEnd) outputted(i) = true
+
+  def initializedNotOutputted: Seq[Int] = (0 until 0x10000).filter(i => initialized(i) && !outputted(i))
 
   def dump(startAddr: Int, count: Int)(dumper: String => Any): Unit = {
     (0 until count).map(i => (i + startAddr) -> output(i + startAddr)).grouped(16).zipWithIndex.map { case (c, i) => f"${c.head._1}%04X: " + c.map(i => f"${i._2}%02x").mkString(" ") }.foreach(dumper)

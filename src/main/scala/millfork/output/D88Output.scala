@@ -58,7 +58,10 @@ object D88Output extends OutputPackager {
     val sizeInPages = size.|(0xff).+(1).>>(8)
     addSector(bootloader(b.start, sizeInPages))
     for (page <- 0 until sizeInPages) {
-      addSector(b.output.slice(b.start + (page << 8), b.start + (page << 8) + 0x100))
+      val pageStart = b.start + (page << 8)
+      val pagePastEnd = pageStart + 0x100
+      b.markAsOutputted(pageStart, pagePastEnd)
+      addSector(b.output.slice(pageStart, pagePastEnd))
     }
     header.totalSize = trackOffset
     sectors.map(_.toArray).foldLeft(header.toArray ++ trackList.toArray)(_ ++ _)

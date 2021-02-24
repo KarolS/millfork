@@ -13,6 +13,7 @@ class TapOutput(val symbol: String) extends OutputPackager {
     val filteredName: String = mem.programName.filter(isAlphanum)
     val b = mem.banks(bank)
     val code = b.output.slice(b.start, b.end + 1)
+    b.markAsOutputted(b.start, b.end + 1)
     val codeDataBlock = new DataBlock(code)
     val codeHeaderBlock = new HeaderBlock(3, "CODE", code.length, b.start, 32768)
     val loaderDataBlock = new DataBlock(ZxSpectrumBasic.loader("CODE", filteredName, b.start, mem.getAddress(symbol)))

@@ -604,6 +604,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         unimportantLabelMap += "__rwdata_size" -> (ib.index -> size)
         for (i <- 0 until size) {
           ib.output(ivAddr + i) = db.output(rwDataStart + i)
+          db.outputted(rwDataStart + i) = true
         }
         val debugArray = Array.fill[Option[Constant]](size)(None)
         bytesToWriteLater ++= bytesToWriteLater.flatMap{
@@ -704,6 +705,13 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       val outputPackager = platform.outputPackagers.getOrElse(b, platform.defaultOutputPackager)
       b -> outputPackager.packageOutput(mem, b)
     }.toMap
+    for (bank <- mem.banks.keys.toSeq.sorted) {
+      val missing = mem.banks(bank).initializedNotOutputted
+      if (missing.nonEmpty) {
+        val missingFormatted = MathUtils.collapseConsecutiveInts(missing, i => f"$$$i%04x")
+        log.warn(s"Fragments of segment ${bank} are not contained in any output: $missingFormatted")
+      }
+    }
     AssemblerOutput(code, assembly.toArray, labelMap.toList, breakpointSet.toList.sorted)
   }
 

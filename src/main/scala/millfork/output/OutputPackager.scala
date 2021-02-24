@@ -29,6 +29,7 @@ case class ConstOutput(byte: Byte) extends OutputPackager {
 case class CurrentBankFragmentOutput(start: Int, end: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
+    b.markAsOutputted(start, end + 1)
     b.output.slice(start, end + 1)
   }
 }
@@ -36,6 +37,7 @@ case class CurrentBankFragmentOutput(start: Int, end: Int) extends OutputPackage
 case class BankFragmentOutput(alwaysBank: String, start: Int, end: Int) extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(alwaysBank)
+    b.markAsOutputted(start, end + 1)
     b.output.slice(start, end + 1)
   }
 }
@@ -120,6 +122,7 @@ object PageCountOutput extends OutputPackager {
 object AllocatedDataOutput extends OutputPackager {
   def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
+    b.markAsOutputted(b.start, b.end + 1)
     b.output.slice(b.start, b.end + 1)
   }
 }

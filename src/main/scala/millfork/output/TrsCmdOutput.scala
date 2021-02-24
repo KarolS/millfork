@@ -8,6 +8,7 @@ class TrsCmdOutput(symbol: String) extends OutputPackager {
     val b = mem.banks(bank)
     val start = b.start
     val run = mem.getAddress(symbol)
+    b.markAsOutputted(start, b.end + 1)
     b.output.slice(start, b.end + 1).grouped(256).zipWithIndex.flatMap{ case (chunk, index) =>
       // chunk type 1: data
       // chunk length: 1 byte, includes the load address, goes 3-258
