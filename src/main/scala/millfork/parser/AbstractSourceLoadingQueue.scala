@@ -60,10 +60,10 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
       moduleDependecies += standardModules(later) -> standardModules(earlier)
     }
     initialFilenames.foreach { i =>
-      parseModule(extractName(i), includePath, Right(i), Nil)
+      parseModule(extractName(i), i, Nil)
     }
     options.platform.startingModules.foreach {m =>
-      moduleQueue.enqueue(() => parseModule(m, includePath, Left(None), Nil))
+      moduleQueue.enqueue(() => parseDefaultModule(m))
     }
     enqueueStandardModules()
     while (moduleQueue.nonEmpty) {
@@ -79,15 +79,26 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     compilationOrder.filter(parsedModules.contains).map(parsedModules).reduce(_ + _).applyImportantAliases
   }
 
-  def lookupModuleFile(includePath: List[String], moduleName: String, position: Option[Position]): String = {
-    includePath.foreach { dir =>
-      val file = Paths.get(dir, moduleName + extension).toFile
+  def lookupModuleNameAndFile(
+                               relativeIncludePath: List[String],
+                               loaderModuleParent: String,
+                               moduleAbbrImportName: String,
+                               importStatementPosition: Option[Position]): (String, String) = {
+    relativeIncludePath.foreach { dir =>
+      val file = Paths.get(dir, moduleAbbrImportName + extension).toFile
       options.log.debug("Checking " + file)
       if (file.exists()) {
-        return file.getAbsolutePath
+        return (loaderModuleParent + moduleAbbrImportName) -> file.getAbsolutePath
       }
     }
-    options.log.fatal(s"Module `$moduleName` not found", position)
+    includePath.foreach { dir =>
+      val file = Paths.get(dir, moduleAbbrImportName + extension).toFile
+      options.log.debug("Checking " + file)
+      if (file.exists()) {
+        return moduleAbbrImportName -> file.getAbsolutePath
+      }
+    }
+    options.log.fatal(s"Module `$moduleAbbrImportName` not found", importStatementPosition)
   }
 
   def supportedPragmas: Set[String]
@@ -98,8 +109,14 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     if (templateParams.isEmpty) moduleNameBase else moduleNameBase + templateParams.mkString("<", ",", ">")
   }
 
-  def parseModule(moduleName: String, includePath: List[String], why: Either[Option[Position], String], templateParams: List[String]): Unit = {
-    val filename: String = why.fold(p => lookupModuleFile(includePath, moduleName, p), s => s)
+  def parseDefaultModule(moduleName: String): Unit = {
+    var (_, filename) = lookupModuleNameAndFile(Nil, "", moduleName, None)
+    parseModule(moduleName, filename, Nil)
+  }
+
+  def parseModule(moduleName: String,
+                  filename: String,
+                  templateParams: List[String]): Unit = {
     options.log.debug(s"Parsing $filename")
     val path = Paths.get(filename)
     val parentDir = path.toFile.getAbsoluteFile.getParent
@@ -119,9 +136,10 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
           parsedModules.put(fullModuleName(moduleName, templateParams), prog)
           prog.declarations.foreach {
             case s@ImportStatement(m, ps) =>
+              var (importedModuleName, importedModuleFilename) = lookupModuleNameAndFile(List(parentDir), extractModuleParent(moduleName), m, s.position)
               moduleDependecies += moduleName -> m
               if (!parsedModules.contains(fullModuleName(m, ps))) {
-                moduleQueue.enqueue(() => parseModule(m, parentDir :: includePath, Left(s.position), ps))
+                moduleQueue.enqueue(() => parseModule(importedModuleName, importedModuleFilename, ps))
               }
             case _ => ()
           }
@@ -136,8 +154,13 @@ abstract class AbstractSourceLoadingQueue[T](val initialFilenames: List[String],
     }
   }
 
-  def extractName(i: String): String = {
-    val noExt = i.stripSuffix(extension)
+  def extractModuleParent(moduleName: String): String = {
+    val lastSlash = moduleName.lastIndexOf('/')
+    if (lastSlash >= 0) moduleName.substring(0, lastSlash + 1) else ""
+  }
+
+  def extractName(fileName: String): String = {
+    val noExt = fileName.stripSuffix(extension)
     val lastSlash = noExt.lastIndexOf('/') max noExt.lastIndexOf('\\')
     if (lastSlash >= 0) noExt.substring(lastSlash + 1) else noExt
   }
