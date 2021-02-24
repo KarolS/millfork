@@ -12,6 +12,16 @@
 
 * Heavily experimental `typeof` builtin.
 
+* Self-modifying assembly code is now supported (#101).
+
+* Successful compilation now prints result program size.
+
+* Warning about data not being included in the output file.
+
+* Warnings can now be enabled and disabled individually.
+
+* Imported modules are now identified by their full relative path, not just the token used in the `import` statement (#89).
+
 * 6502: Fixed sbyte to word promotions in certain contexts.
 
 * 8080: Fixed compilation of sign extension of `sbyte` values into the BC register pair.
@@ -20,6 +30,8 @@
 
 * Fixed optimizations around macro invocations.
 
+* 6502: Fixed code deduplication in presence of trampolined functions.
+
 * Optimized word shifts for between 7 and 12 bits.
 
 * Allowed new lines after `=`.
@@ -27,6 +39,8 @@
 * Various optimization improvements.
 
 * Improved some error messages (thanks to @agg23).
+
+* Other fixes and improvements.
 
 ## 0.3.24 (2020-12-02)
 
