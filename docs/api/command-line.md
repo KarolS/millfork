@@ -278,3 +278,37 @@ By default, the compiler emits only some of the most important warnings.
 * `-Wnone` – Disable all warnings.
 
 * `-Wfatal` – Treat warnings as errors.
+
+You can also enable or disable warnings individually:
+
+* `-Wbuggy`, `-Wno-buggy` –
+    Whether should warn about code that may cause surprising behaviours or even miscompilation.
+    Default: enabled.
+
+* `-Wdeprecation`, `-Wno-deprecation` –
+    Whether should warn about deprecated aliases.
+    Default: enabled.
+
+* `-Wextra-comparisons`, `-Wno-extra-comparisons` –
+    Whether should warn about simplifiable unsigned integer comparisons.
+    Default: disabled.
+
+* `-Wfallback`, `-Wno-fallback` –
+    Whether should warn about the use of default values by text codecs, the preprocessor, and array literals.
+    Default: enabled.
+
+* `-Wmissing-output`, `-Wno-missing-output` –
+    Whether should warn about data that is missing in output files. 
+    Default: enabled.
+
+* `-Woverlapping-call`, `-Wno-overlapping-call` –
+    Whether should warn about calls to functions in a different, yet overlapping segment.
+    Default: enabled.
+
+* `-Wror`, `-Wno-ror` –
+    Whether should warn about the ROR instruction (6502 only).
+    Default: disabled.
+
+* `-Wuseless`, `-Wno-useless` –
+    Whether should warn about code that does nothing. 
+    Default: enabled.

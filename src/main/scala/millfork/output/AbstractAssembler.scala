@@ -718,11 +718,13 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       val outputPackager = platform.outputPackagers.getOrElse(b, platform.defaultOutputPackager)
       b -> outputPackager.packageOutput(mem, b)
     }.toMap
-    for (bank <- mem.banks.keys.toSeq.sorted) {
-      val missing = mem.banks(bank).initializedNotOutputted
-      if (missing.nonEmpty) {
-        val missingFormatted = MathUtils.collapseConsecutiveInts(missing, i => f"$$$i%04x")
-        log.warn(s"Fragments of segment ${bank} are not contained in any output: $missingFormatted")
+    if (options.flag(CompilationFlag.DataMissingInOutputWarning)) {
+      for (bank <- mem.banks.keys.toSeq.sorted) {
+        val missing = mem.banks(bank).initializedNotOutputted
+        if (missing.nonEmpty) {
+          val missingFormatted = MathUtils.collapseConsecutiveInts(missing, i => f"$$$i%04x")
+          log.warn(s"Fragments of segment ${bank} are not contained in any output: $missingFormatted")
+        }
       }
     }
     AssemblerOutput(code, assembly.toArray, labelMap.toList, breakpointSet.toList.sorted)

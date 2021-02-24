@@ -413,8 +413,20 @@ object Cpu extends Enumeration {
   import CompilationFlag._
 
   private val alwaysDefaultFlags = Set(
-    VariableOverlap, CompactReturnDispatchParams, FunctionFallthrough, RegisterVariables, FunctionDeduplication, EnableBreakpoints,
-    GenericWarnings, UselessCodeWarning, BuggyCodeWarning, FallbackValueUseWarning, DeprecationWarning, NonZeroTerminatedLiteralWarning, CallToOverlappingBankWarning,
+    VariableOverlap,
+    CompactReturnDispatchParams,
+    FunctionFallthrough,
+    RegisterVariables,
+    FunctionDeduplication,
+    EnableBreakpoints,
+    GenericWarnings,
+    UselessCodeWarning,
+    BuggyCodeWarning,
+    FallbackValueUseWarning,
+    DeprecationWarning,
+    NonZeroTerminatedLiteralWarning,
+    CallToOverlappingBankWarning,
+    DataMissingInOutputWarning,
   )
 
   private val mosAlwaysDefaultFlags = alwaysDefaultFlags
@@ -578,12 +590,23 @@ object CompilationFlag extends Enumeration {
   RorWarning,
   NonZeroTerminatedLiteralWarning,
   CallToOverlappingBankWarning,
+  DataMissingInOutputWarning,
   FatalWarnings,
   // special options for internal compiler use
   EnableInternalTestSyntax,
   InternalCurrentlyOptimizingForMeasurement = Value
 
-  val allWarnings: Set[CompilationFlag.Value] = Set(GenericWarnings, UselessCodeWarning, BuggyCodeWarning, DeprecationWarning, FallbackValueUseWarning, ExtraComparisonWarnings, NonZeroTerminatedLiteralWarning, CallToOverlappingBankWarning)
+  val allWarnings: Set[CompilationFlag.Value] = Set(
+    GenericWarnings,
+    UselessCodeWarning,
+    BuggyCodeWarning,
+    DeprecationWarning,
+    FallbackValueUseWarning,
+    ExtraComparisonWarnings,
+    NonZeroTerminatedLiteralWarning,
+    CallToOverlappingBankWarning,
+    DataMissingInOutputWarning,
+  )
 
   val fromString: Map[String, CompilationFlag.Value] = Map(
     "lunix" -> LUnixRelocatableCode,

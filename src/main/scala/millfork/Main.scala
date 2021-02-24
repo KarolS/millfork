@@ -781,6 +781,40 @@ object Main {
       c.changeFlag(CompilationFlag.FatalWarnings, true)
     }.description("Treat warnings as errors.")
 
+    fluff("", "Specific warning options:", "")
+
+    boolean("-Wbuggy", "-Wno-buggy").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.BuggyCodeWarning, v)
+    }.description("Whether should warn about code that may cause surprising behaviours or even miscompilation. Default: enabled.")
+
+    boolean("-Wdeprecation", "-Wno-deprecation").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.DeprecationWarning, v)
+    }.description("Whether should warn about deprecated aliases. Default: enabled.")
+
+    boolean("-Wextra-comparisons", "-Wno-extra-comparisons").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.ExtraComparisonWarnings, v)
+    }.description("Whether should warn about simplifiable unsigned integer comparisons. Default: disabled.")
+
+    boolean("-Wfallback", "-Wno-fallback").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.FallbackValueUseWarning, v)
+    }.description("Whether should warn about the use of default values by text codecs, the preprocessor, and array literals. Default: enabled.")
+
+    boolean("-Wmissing-output", "-Wno-missing-output").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.DataMissingInOutputWarning, v)
+    }.description("Whether should warn about data that is missing in output files. Default: enabled.")
+
+    boolean("-Woverlapping-call", "-Wno-overlapping-call").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.CallToOverlappingBankWarning, v)
+    }.description("Whether should warn about calls to functions in a different, yet overlapping segment. Default: enabled.")
+
+    boolean("-Wror", "-Wno-ror").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.RorWarning, v)
+    }.description("Whether should warn about the ROR instruction (6502 only). Default: disabled.")
+
+    boolean("-Wuseless", "-Wno-useless").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.UselessCodeWarning, v)
+    }.description("Whether should warn about code that does nothing. Default: enabled.")
+
     fluff("", "Other options:", "")
 
     expansion("-Xd")("-O1", "-s", "-fsource-in-asm", "-g").description("Do a debug build. Equivalent to -O1 -s -fsource-in-asm -g")
