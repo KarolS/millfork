@@ -973,15 +973,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
-  def evalForAsm(e: Expression, op: MOpcode.Value = MOpcode.NOP, silent: Boolean = false): Option[Constant] = {
+  def evalForAsm(e: Expression, silent: Boolean = false): Option[Constant] = {
     e match {
-      // TODO: hmmm
-      case VariableExpression(name) =>
-        import MOpcode._
-        if (MOpcode.Branching(op) || op == LABEL || op == CHANGED_MEM) {
-          val fqName = if (name.startsWith(".")) prefix + name else name
-          return Some(MemoryAddressConstant(Label(fqName)))
-        }
+      case FunctionCallExpression("label", List(VariableExpression(name))) if (!name.contains(".")) =>
+        return Some(Label(name).toAddress)
+      case FunctionCallExpression("label", List(VariableExpression(name))) if (name.startsWith(".")) =>
+        return Some(Label(prefix + name).toAddress)
+      case FunctionCallExpression("label", _) =>
+        log.error("Invalid label reference", e.position)
+        return Some(Constant.Zero)
       case _ =>
     }
     e match {
@@ -994,7 +994,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case None =>
             if (name.startsWith(".")) Some(Label(prefix + name).toAddress)
             else {
-              if (!silent) log.warn(s"$name is not known", e.position)
+              if (!silent) log.warn(s"$name is not known. If it is a label, consider wrapping it in label(...).", e.position)
               None
             }
         }

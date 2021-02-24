@@ -342,11 +342,10 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
     x match {
       // TODO: hmmm
       case VariableExpression(name) =>
-        if (OpcodeClasses.ShortBranching(o) || o == JMP || o == LABEL || o == CHANGED_MEM || OpcodeClasses.HudsonTransfer(o)) {
+        val silent = OpcodeClasses.ShortBranching(o) || o == JMP || o == LABEL || o == CHANGED_MEM || OpcodeClasses.HudsonTransfer(o)
+        env.evalForAsm(x, silent = silent).orElse(env.maybeGet[ThingInMemory](name).map(_.toAddress)).getOrElse{
           val fqName = if (name.startsWith(".")) env.prefix + name else name
           MemoryAddressConstant(Label(fqName))
-        } else {
-          env.evalForAsm(x).getOrElse(env.get[ThingInMemory](name, x.position).toAddress)
         }
       case FunctionCallExpression("byte_and_pointer$", List(z, b@VariableExpression(name))) =>
         StructureConstant(env.get[StructType]("byte_and_pointer$"), List(

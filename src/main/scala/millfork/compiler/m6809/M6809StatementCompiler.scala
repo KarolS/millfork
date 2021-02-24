@@ -6,7 +6,7 @@ import millfork.assembly.m6809.{Inherent, MLine, MOpcode, NonExistent}
 import millfork.compiler.{AbstractCompiler, AbstractExpressionCompiler, AbstractStatementCompiler, BranchSpec, CompilationContext}
 import millfork.node.{Assignment, BlackHoleExpression, BreakStatement, ContinueStatement, DoWhileStatement, EmptyStatement, ExecutableStatement, Expression, ExpressionStatement, ForEachStatement, ForStatement, FunctionCallExpression, GotoStatement, IfStatement, LabelStatement, LiteralExpression, M6809AssemblyStatement, MemsetStatement, ReturnDispatchStatement, ReturnStatement, VariableExpression, WhileStatement}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{BooleanType, ConstantBooleanType, FatBooleanType, Label, MemoryAddressConstant, StructureConstant, ThingInMemory}
+import millfork.env.{BooleanType, Constant, ConstantBooleanType, FatBooleanType, Label, MemoryAddressConstant, StructureConstant, ThingInMemory}
 
 /**
   * @author Karol Stasiak
@@ -58,12 +58,21 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         }
         (eval ++ epilogue ++ rts) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>
-        ctx.env.evalForAsm(expression, opcode) match {
-          case Some(e) => List(MLine(opcode, addrMode, e, elidability)) -> Nil
+        val e = ctx.env.evalForAsm(expression) match {
+          case Some(e) => e
           case None =>
-            println(statement)
-            ???
+            expression match {
+              case VariableExpression(name) =>
+                env.maybeGet[ThingInMemory](name).map(_.toAddress).getOrElse {
+                  val fqName = if (name.startsWith(".")) env.prefix + name else name
+                  MemoryAddressConstant(Label(fqName))
+                }
+              case _ =>
+                ctx.log.error("Invalid parameter", statement.position)
+                Constant.Zero
+            }
         }
+        List(MLine(opcode, addrMode, e, elidability)) -> Nil
       case Assignment(destination, source) =>
         if (destination == BlackHoleExpression) return M6809ExpressionCompiler.compile(ctx, source, MExpressionTarget.NOTHING, BranchSpec.None) -> Nil
         val destinationType = AbstractExpressionCompiler.getExpressionType(ctx, destination)
@@ -107,13 +116,22 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
       case s:ContinueStatement =>
         compileContinueStatement(ctx, s) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>
-        ctx.env.evalForAsm(expression, opcode) match {
-          case Some(param) =>
-            List(MLine(opcode, addrMode, param, elidability)) -> Nil
+        val silent = MOpcode.Branching(opcode) || opcode == LABEL || opcode == CHANGED_MEM
+        val param: Constant = ctx.env.evalForAsm(expression, silent = silent) match {
+          case Some(param) => param
           case None =>
-            ctx.log.error("Invalid parameter", expression.position)
-            Nil -> Nil
+            expression match {
+              case VariableExpression(name) =>
+                env.maybeGet[ThingInMemory](name).map(_.toAddress).getOrElse{
+                  val fqName = if (name.startsWith(".")) env.prefix + name else name
+                  MemoryAddressConstant(Label(fqName))
+                }
+              case _ =>
+                ctx.log.error("Invalid parameter", expression.position)
+                Constant.Zero
+            }
         }
+        List(MLine(opcode, addrMode, param, elidability)) -> Nil
       case s:LabelStatement =>
         List(MLine.label(env.prefix + s.name)) -> Nil
       case s: GotoStatement =>

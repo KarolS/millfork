@@ -52,6 +52,17 @@ Global label names have to start with a letter and can contain digits, underscor
 Local label names (available since Millfork 0.3.22) start with a period and are visible only in the given function.
 Anonymous labels designated with `+` or `-` are also not supported.
 
+Referring to a global label with an offset requires wrapping it in `label(…)`:
+
+    LD (.local_opcode),A              // ok
+    LD (label(.local_opcode)),A       // ok
+    LD (.local_opcode + 1),A          // ok
+    LD (label(.local_opcode) + 1),A   // ok
+    LD (global_opcode),A              // ok
+    LD (label(global_opcode)),A       // ok
+    LD (global_opcode + 1),A          // NOT OK
+    LD (label(global_opcode) + 1),A   // ok
+
 Assembly can refer to variables and constants defined in Millfork,
 but you need to be careful with using absolute vs immediate addressing:
 

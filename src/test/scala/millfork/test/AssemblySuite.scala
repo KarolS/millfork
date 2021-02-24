@@ -28,6 +28,7 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
         | // w&x
         | asm void main () {
         |   lda #3
+        |   sta label(.l)+1
         |   sta .l+1
         |   .l: lda #55
         |   sta output
@@ -35,6 +36,56 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
         |   ignored:}
       """.stripMargin)(_.readByte(0xc000) should equal(3))
   }
+
+  test("Self-modifying assembly 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Motorola6809)(
+      """
+        | byte output @$c000
+        | // w&x
+        | asm void f() {
+        |   f_data:
+        |   lda #$ff
+        |   rts
+        | }
+        |
+        | asm void main () {
+        |   lda f_data
+        |   sta f_data
+        |   lda #3
+        |   sta label(f_data)+1
+        |   lda #0
+        |   jsr f_data
+        |   sta output
+        |   lda #lo(f)
+        |   rts
+        |   ignored:}
+      """.stripMargin)(_.readByte(0xc000) should equal(3))
+  }
+
+  test("Self-modifying assembly 2 (Z80)") {
+      EmuCrossPlatformBenchmarkRun(Cpu.Z80)(
+        """
+          | byte output @$c000
+          | // w&x
+          | asm void f() {
+          |   f_data:
+          |   ld a, $ff
+          |   ret
+          | }
+          |
+          | asm void main () {
+          |   ld a,(f_data)
+          |   ld (f_data),a
+          |   ld a,3
+          |   ld (label(f_data)+1),a
+          |   ld a,0
+          |   call f_data
+          |   ld (output),a
+          |   ld b,lo(f)
+          |   ret
+          |   ignored:}
+        """.stripMargin)(_.readByte(0xc000) should equal(3))
+    }
 
   test("Assembly functions") {
     EmuBenchmarkRun(
