@@ -188,7 +188,7 @@ case class FunctionCallExpression(functionName: String, expressions: List[Expres
   override def getAllIdentifiers: Set[String] = expressions.map(_.getAllIdentifiers).fold(Set[String]())(_ ++ _) + functionName
   override def prettyPrint: String =
     if (expressions.size != 2 || functionName.exists(Character.isAlphabetic(_)))
-      functionName + expressions.mkString("(", ", ", ")")
+      functionName + expressions.map(_.prettyPrint).mkString("(", ", ", ")")
     else s"(${expressions.head.prettyPrint} $functionName ${expressions(1).prettyPrint}"
 }
 

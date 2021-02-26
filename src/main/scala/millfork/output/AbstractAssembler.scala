@@ -306,8 +306,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             val labelMapImm = labelMap.toMap
             val niceFunctionPropertiesImm = niceFunctionProperties.toSet
             val extraOptimizedCode = veryLateOptimizations(thisFunctionNiceProperties, options).foldLeft(code) { (c, opt) =>
-              val code = opt.optimize(function, c, OptimizationContext(options, labelMapImm, env.maybeGet[ThingInMemory]("__reg"), niceFunctionPropertiesImm))
-              if (code eq c) code else quickSimplify(code)
+              val ocode = opt.optimize(function, c, OptimizationContext(options, labelMapImm, env.maybeGet[ThingInMemory]("__reg"), niceFunctionPropertiesImm))
+              if (ocode eq c) code else quickSimplify(ocode)
             }
             compiledFunctions(f) = NormalCompiledFunction(
               function.declaredBank.getOrElse(platform.defaultCodeBank),
@@ -777,8 +777,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     unoptimizedCodeSize += unoptimized.map(_.sizeInBytes).sum
     // unoptimized.foreach(l => log.trace(l.toString))
     val code = optimizations.foldLeft(quickSimplify(unoptimized)) { (c, opt) =>
-      val code = opt.optimize(f, c, OptimizationContext(options, labelMap, env.maybeGet[ThingInMemory]("__reg"), niceFunctionProperties))
-      if (code eq c) code else quickSimplify(code)
+      val ocode = opt.optimize(f, c, OptimizationContext(options, labelMap, env.maybeGet[ThingInMemory]("__reg"), niceFunctionProperties))
+      if (ocode eq c) ocode else quickSimplify(ocode)
     }
     performFinalOptimizationPass(f, optimizations.nonEmpty, options, code)
   }
