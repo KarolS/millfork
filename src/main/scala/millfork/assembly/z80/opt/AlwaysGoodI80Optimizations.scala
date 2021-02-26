@@ -371,6 +371,15 @@ object AlwaysGoodI80Optimizations {
       (Linear & Not(ConcernsMemory)).* ~
       (HasOpcode(LD_16) & HasTargetRegister(MEM_ABS_16) & MatchParameter(0)) ~~> (_.tail),
 
+    // 72-77
+    for6Registers(reg => {
+      (Elidable & HasOpcode(LD) & Is8BitLoad(A, reg)) ~
+      (Elidable & HasOpcodeIn(Set(INC, DEC)) & HasRegisterParam(A)) ~
+      (Elidable & HasOpcode(LD) & Is8BitLoad(reg, A)) ~~> { code =>
+        List(code(1).copy(registers = OneRegister(reg)), code.head)
+      }
+    }),
+
   )
 
   val PointlessStackStashing = new RuleBasedAssemblyOptimization("Pointless stack stashing",

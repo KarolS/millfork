@@ -111,6 +111,18 @@ object AlwaysGoodZ80Optimizations {
         code.head.copy(registers = TwoRegisters(ZRegister.BC, ZRegister.MEM_ABS_16))
       )),
     (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16)) ~
+      (Elidable & Is8BitLoad(ZRegister.E, ZRegister.L)) ~
+      (Elidable & Is8BitLoad(ZRegister.D, ZRegister.H) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code.head.copy(registers = TwoRegisters(ZRegister.DE, ZRegister.MEM_ABS_16))
+      )),
+    (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16)) ~
+      (Elidable & Is8BitLoad(ZRegister.C, ZRegister.L)) ~
+      (Elidable & Is8BitLoad(ZRegister.B, ZRegister.H) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
+      List(
+        code.head.copy(registers = TwoRegisters(ZRegister.BC, ZRegister.MEM_ABS_16))
+      )),
+    (Elidable & Is16BitLoad(ZRegister.HL, ZRegister.MEM_ABS_16)) ~
       (Elidable & HasOpcode(EX_DE_HL) & DoesntMatterWhatItDoesWith(ZRegister.HL)) ~~> (code =>
       List(
         code.head.copy(registers = TwoRegisters(ZRegister.DE, ZRegister.MEM_ABS_16))
