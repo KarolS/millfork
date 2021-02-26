@@ -1,6 +1,9 @@
 # various directories
 target/
+.bloop/
+.bsp/
 .idea/
+.metals/
 project/target
 project/project/target/
 stuff
@@ -14,6 +17,7 @@ include-*/
 
 # hidden files
 *.~
+.DS_Store
 
 #tools
 *.bat

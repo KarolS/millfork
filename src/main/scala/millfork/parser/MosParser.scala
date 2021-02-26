@@ -115,19 +115,8 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   val asmStatement: P[ExecutableStatement] = (position("assembly statement") ~ P(asmLabel | asmMacro | arrayContentsForAsm | asmInstruction)).map { case (p, s) => s.pos(p) } // TODO: macros
 
-
-  override val appcRegister: P[ParamPassingConvention] = P(("xy" | "yx" | "ax" | "ay" | "xa" | "ya" | "a" | "x" | "y") ~ !letterOrDigit).!.map {
-    case "xy" => ByMosRegister(MosRegister.XY)
-    case "yx" => ByMosRegister(MosRegister.YX)
-    case "ax" => ByMosRegister(MosRegister.AX)
-    case "ay" => ByMosRegister(MosRegister.AY)
-    case "xa" => ByMosRegister(MosRegister.XA)
-    case "ya" => ByMosRegister(MosRegister.YA)
-    case "a" => ByMosRegister(MosRegister.A)
-    case "x" => ByMosRegister(MosRegister.X)
-    case "y" => ByMosRegister(MosRegister.Y)
-    case x => log.fatal(s"Unknown assembly parameter passing convention: `$x`")
-  }
+  override val appcRegister: P[ParamPassingConvention] = P(("xy" | "yx" | "ax" | "ay" | "xa" | "ya" | "a" | "x" | "y") ~ !letterOrDigit).!
+    .map(name => ByMosRegister(MosRegister.fromString(name).getOrElse(log.fatal(s"Unknown assembly parameter passing convention: `$name`"))))
 
   def validateAsmFunctionBody(p: Position, flags: Set[String], name: String, statements: Option[List[Statement]]): Unit = {
     if (!options.flag(CompilationFlag.BuggyCodeWarning)) return

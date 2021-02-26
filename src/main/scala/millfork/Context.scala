@@ -9,6 +9,7 @@ import millfork.error.Logger
 case class Context(errorReporting: Logger,
                    inputFileNames: List[String],
                    outputFileName: Option[String] = None,
+                   configFilePath: Option[String] = None,
                    runFileName: Option[String] = None,
                    runParams: Seq[String] = Vector(),
                    optimizationLevel: Option[Int] = None,
@@ -21,7 +22,8 @@ case class Context(errorReporting: Logger,
                    extraIncludePath: Seq[String] = IndexedSeq(),
                    flags: Map[CompilationFlag.Value, Boolean] = Map(),
                    features: Map[String, Long] = Map(),
-                   verbosity: Option[Int] = None) {
+                   verbosity: Option[Int] = None,
+                   languageServer: Boolean = false) {
   def changeFlag(f: CompilationFlag.Value, b: Boolean): Context = {
     if (flags.contains(f)) {
       if (flags(f) != b) {

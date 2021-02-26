@@ -10,6 +10,10 @@ libraryDependencies += "com.lihaoyi" %% "fastparse" % "1.0.0"
 
 libraryDependencies += "org.apache.commons" % "commons-configuration2" % "2.2"
 
+libraryDependencies += "org.eclipse.lsp4j" % "org.eclipse.lsp4j" % "0.9.0"
+
+libraryDependencies += "net.liftweb" %% "lift-json" % "3.4.2"
+
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % "test"
 
 val testDependencies = Seq(
@@ -33,7 +37,7 @@ val testDependencies = Seq(
 
 val includesTests = System.getProperty("skipTests") == null
 
-libraryDependencies ++=(
+libraryDependencies ++= (
   if (includesTests) {
     println("Including test dependencies")
     testDependencies
@@ -43,26 +47,27 @@ libraryDependencies ++=(
 )
 
 (if (!includesTests) {
-  // Disable assembling tests
-  sbt.internals.DslEntry.fromSettingsDef(test in assembly := {})
-} else {
-  sbt.internals.DslEntry.fromSettingsDef(Seq[sbt.Def.Setting[_]]())
-})
+   // Disable assembling tests
+   sbt.internal.DslEntry.fromSettingsDef(test in assembly := {})
+ } else {
+   sbt.internal.DslEntry.fromSettingsDef(Seq[sbt.Def.Setting[_]]())
+ })
 
 mainClass in Compile := Some("millfork.Main")
 
 assemblyJarName := "millfork.jar"
 
-lazy val root = (project in file(".")).
-  enablePlugins(BuildInfoPlugin).
-  settings(
+lazy val root = (project in file("."))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "millfork.buildinfo"
   )
 
 import sbtassembly.AssemblyKeys
 
-val releaseDist = TaskKey[File]("release-dist", "Creates a distributable zip file.")
+val releaseDist =
+  TaskKey[File]("release-dist", "Creates a distributable zip file.")
 
 releaseDist := {
   val jar = AssemblyKeys.assembly.value
@@ -79,7 +84,10 @@ releaseDist := {
   IO.createDirectory(distDir)
   IO.copyFile(jar, distDir / jar.name)
   IO.copyFile(base / "LICENSE", distDir / "LICENSE")
-  IO.copyFile(base / "src/3rd-party-licenses.txt", distDir / "3rd-party-licenses.txt")
+  IO.copyFile(
+    base / "src/3rd-party-licenses.txt",
+    distDir / "3rd-party-licenses.txt"
+  )
   IO.copyFile(base / "CHANGELOG.md", distDir / "CHANGELOG.md")
   IO.copyFile(base / "README.md", distDir / "README.md")
   IO.copyFile(base / "COMPILING.md", distDir / "COMPILING.md")
@@ -89,8 +97,14 @@ releaseDist := {
   }
   copyDir("include")
   copyDir("docs")
-  def entries(f: File): List[File] = f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(entries) else Nil)
-  IO.zip(entries(distDir).map(d => (d, d.getAbsolutePath.substring(distDir.getParent.length + 1))), zipFile)
+  def entries(f: File): List[File] =
+    f :: (if (f.isDirectory) IO.listFiles(f).toList.flatMap(entries) else Nil)
+  IO.zip(
+    entries(distDir).map(d =>
+      (d, d.getAbsolutePath.substring(distDir.getParent.length + 1))
+    ),
+    zipFile
+  )
   IO.delete(distDir)
   zipFile
 }

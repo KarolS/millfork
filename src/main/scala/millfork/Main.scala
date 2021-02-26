@@ -19,11 +19,15 @@ import millfork.node.StandardCallGraph
 import millfork.output._
 import millfork.parser.{MSourceLoadingQueue, MosSourceLoadingQueue, TextCodecRepository, ZSourceLoadingQueue}
 
+import millfork.language.{MfLanguageServer,MfLanguageClient,LanguageServerLogger}
+import org.eclipse.lsp4j.services.LanguageServer
+import org.eclipse.lsp4j.jsonrpc.Launcher
+import java.util.concurrent.Executors
+import java.io.PrintWriter
+import millfork.cli.JsonConfigParser
 
 
 object Main {
-
-
   def main(args: Array[String]): Unit = {
     val errorReporting = new ConsoleLogger
     implicit val __implicitLogger: Logger = errorReporting
@@ -34,6 +38,7 @@ object Main {
 
     val startTime = System.nanoTime()
     val (status, c0) = parser(errorReporting).parse(Context(errorReporting, Nil), args.toList)
+    val c1 = JsonConfigParser.parseConfig(c0, errorReporting)
     status match {
       case CliStatus.Quit => return
       case CliStatus.Failed =>
@@ -41,8 +46,8 @@ object Main {
       case CliStatus.Ok => ()
     }
     errorReporting.assertNoErrors("Invalid command line")
-    errorReporting.verbosity = c0.verbosity.getOrElse(0)
-    if (c0.inputFileNames.isEmpty) {
+    errorReporting.verbosity = c1.verbosity.getOrElse(0)
+    if (c1.inputFileNames.isEmpty && !c1.languageServer) {
       errorReporting.fatalQuit("No input files")
     }
 
@@ -51,20 +56,39 @@ object Main {
     errorReporting.trace("This program comes with ABSOLUTELY NO WARRANTY.")
     errorReporting.trace("This is free software, and you are welcome to redistribute it under certain conditions")
     errorReporting.trace("You should have received a copy of the GNU General Public License along with this program. If not, see https://www.gnu.org/licenses/")
-    val c = fixMissingIncludePath(c0).filloutFlags()
+    val c = fixMissingIncludePath(c1).filloutFlags()
     if (c.includePath.isEmpty) {
       errorReporting.warn("Failed to detect the default include directory, consider using the -I option")
     }
 
     val textCodecRepository = new TextCodecRepository("." :: c.includePath)
     val platform = Platform.lookupPlatformFile("." :: c.includePath, c.platform.getOrElse {
-      errorReporting.info("No platform selected, defaulting to `c64`")
+      if (!c1.languageServer) errorReporting.info("No platform selected, defaulting to `c64`")
       "c64"
     }, textCodecRepository)
     val options = CompilationOptions(platform, c.flags, c.outputFileName, c.zpRegisterSize.getOrElse(platform.zpRegisterSize), c.features, textCodecRepository, JobContext(errorReporting, new LabelGenerator))
     errorReporting.debug("Effective flags: ")
     options.flags.toSeq.sortBy(_._1).foreach{
       case (f, b) => errorReporting.debug(f"    $f%-30s : $b%s")
+    }
+
+    if (c1.languageServer) {
+      // We cannot log anything to stdout when starting the language server (otherwise it's a protocol violation)
+      errorReporting.setOutput(true)
+      val server = new MfLanguageServer(c, options)
+
+      val exec = Executors.newCachedThreadPool()
+
+      val launcher = new Launcher.Builder[MfLanguageClient]()
+        .setExecutorService(exec)
+        .setInput(System.in)
+        .setOutput(System.out)
+        .setRemoteInterface(classOf[MfLanguageClient])
+        .setLocalService(server)
+        .create()
+      val clientProxy = launcher.getRemoteProxy
+      server.client = Some(clientProxy)
+      launcher.startListening().get()
     }
 
     val output = c.outputFileName match {
@@ -252,7 +276,7 @@ object Main {
     val unoptimized = new MosSourceLoadingQueue(
       initialFilenames = c.inputFileNames,
       includePath = c.includePath,
-      options = options).run()
+      options = options).run().compilationOrderProgram
 
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
@@ -306,7 +330,7 @@ object Main {
     val unoptimized = new ZSourceLoadingQueue(
       initialFilenames = c.inputFileNames,
       includePath = c.includePath,
-      options = options).run()
+      options = options).run().compilationOrderProgram
 
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
@@ -346,7 +370,7 @@ object Main {
     val unoptimized = new MSourceLoadingQueue(
       initialFilenames = c.inputFileNames,
       includePath = c.includePath,
-      options = options).run()
+      options = options).run().compilationOrderProgram
 
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
@@ -376,7 +400,7 @@ object Main {
     val unoptimized = new ZSourceLoadingQueue(
       initialFilenames = c.inputFileNames,
       includePath = c.includePath,
-      options = options).run()
+      options = options).run().compilationOrderProgram
 
     val program = if (optLevel > 0) {
       OptimizationPresets.NodeOpt.foldLeft(unoptimized)((p, opt) => p.applyNodeOptimization(opt, options))
@@ -428,6 +452,15 @@ object Main {
         errorReporting.fatal("Invalid label file format: " + p))
       c.copy(outputLabels = true, outputLabelsFormatOverride = Some(f))
     }.description("Generate also the label file in the given format. Available options: vice, nesasm, sym.")
+
+    flag("-lsp").action { c =>
+      c.copy(languageServer = true)
+    }.description("Start the Millfork language server. Does not start compilation.")
+
+    parameter("-c", "--config").placeholder("<file>").action { (p, c) =>
+      assertNone(c.outputFileName, "Config file already defined")
+      c.copy(configFilePath = Some(p))
+    }.description("The Millfork config file. Suppliments the provided CLI options.")
 
     boolean("-fbreakpoints", "-fno-breakpoints").action((c,v) =>
       c.changeFlag(CompilationFlag.EnableBreakpoints, v)

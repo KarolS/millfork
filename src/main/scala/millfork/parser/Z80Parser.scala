@@ -31,19 +31,8 @@ case class Z80Parser(filename: String,
 
   private val zero = LiteralExpression(0, 1)
 
-  override val appcRegister: P[ParamPassingConvention] = (P("hl" | "bc" | "de" | "a" | "b" | "c" | "d" | "e" | "h" | "l").! ~ !letterOrDigit).map {
-    case "a" => ByZRegister(ZRegister.A)
-    case "b" => ByZRegister(ZRegister.B)
-    case "c" => ByZRegister(ZRegister.C)
-    case "d" => ByZRegister(ZRegister.D)
-    case "e" => ByZRegister(ZRegister.E)
-    case "h" => ByZRegister(ZRegister.H)
-    case "l" => ByZRegister(ZRegister.L)
-    case "hl" => ByZRegister(ZRegister.HL)
-    case "bc" => ByZRegister(ZRegister.BC)
-    case "de" => ByZRegister(ZRegister.DE)
-    case x => log.fatal(s"Unknown assembly parameter passing convention: `$x`")
-  }
+  override val appcRegister: P[ParamPassingConvention] = (P("hl" | "bc" | "de" | "a" | "b" | "c" | "d" | "e" | "h" | "l").! ~ !letterOrDigit)
+    .map(name => ByZRegister(ZRegister.fromString(name).getOrElse(log.fatal(s"Unknown assembly parameter passing convention: `$name`"))))
 
   override val asmParamDefinition: P[ParameterDeclaration] = for {
     p <- position()
