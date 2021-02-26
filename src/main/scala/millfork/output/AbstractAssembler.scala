@@ -692,7 +692,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     for (bank <- mem.banks.keys.toSeq.sorted) {
       val b = mem.banks(bank)
       if (b.start >= 0 && b.end >= 0) {
-        log.info(f"Segment ${bank}%s: $$${b.start}%04x-$$${b.end}%04x, size: ${b.end - b.start + 1}%d B")
+        val holes = (b.start to b.end).count(i => !b.occupied(i))
+        val size = b.end - b.start + 1
+        log.info(f"Segment ${bank}%s: $$${b.start}%04x-$$${b.end}%04x, size: $size%d B ($holes%d B unused)")
       }
     }
     if (platform.cpuFamily == CpuFamily.M6502) {
