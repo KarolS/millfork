@@ -58,7 +58,8 @@ object M6809StatementCompiler extends AbstractStatementCompiler[MLine] {
         }
         (eval ++ epilogue ++ rts) -> Nil
       case M6809AssemblyStatement(opcode, addrMode, expression, elidability) =>
-        val e = ctx.env.evalForAsm(expression) match {
+        val silent = MOpcode.Branching(opcode) || opcode == JMP || opcode == LABEL || opcode == CHANGED_MEM
+        val e = ctx.env.evalForAsm(expression, silent = silent) match {
           case Some(e) => e
           case None =>
             expression match {

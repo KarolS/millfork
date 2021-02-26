@@ -225,17 +225,20 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
           }
         } -> Nil
       case Z80AssemblyStatement(op, reg, offset, expression, elidability) =>
-        val param: Constant = expression match {
-          // TODO: hmmm
-          case VariableExpression(name) =>
-            if (Seq(JP, JR, DJNZ, LABEL, CHANGED_MEM).contains(op)) {
-              val fqName = if (name.startsWith(".")) env.prefix + name else name
-              MemoryAddressConstant(Label(fqName))
-            } else {
-              env.evalForAsm(expression).orElse(env.maybeGet[ThingInMemory](name).map(_.toAddress)).getOrElse(MemoryAddressConstant(Label(name)))
+        val silent = (Seq(JP, JR, DJNZ, LABEL, CHANGED_MEM).contains(op))
+        val param = ctx.env.evalForAsm(expression, silent = silent) match {
+          case Some(e) => e
+          case None =>
+            expression match {
+              case VariableExpression(name) =>
+                env.maybeGet[ThingInMemory](name).map(_.toAddress).getOrElse {
+                  val fqName = if (name.startsWith(".")) env.prefix + name else name
+                  MemoryAddressConstant(Label(fqName))
+                }
+              case _ =>
+                ctx.log.error("Invalid parameter", statement.position)
+                Constant.Zero
             }
-          case _ =>
-            env.evalForAsm(expression).getOrElse(env.errorConstant(s"`$expression` is not a constant", Some(expression), expression.position))
         }
         val registers = (reg, offset) match {
           case (OneRegister(r), Some(o)) => env.evalForAsm(expression) match {
