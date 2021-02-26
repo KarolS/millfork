@@ -1,13 +1,12 @@
 package millfork.compiler.m6809
 
 import java.util.concurrent.AbstractExecutorService
-
 import millfork.CompilationFlag
 import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, Indexed, InherentB, MLine, MLine0, MOpcode, RegisterSet, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SeparateBytesExpression, SumExpression, VariableExpression}
 import millfork.assembly.m6809.MOpcode._
-import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, KernalInterruptPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackOffsetThing, StackVariable, StackVariablePointy, StructureConstant, Thing, ThingInMemory, Type, Variable, VariableInMemory, VariableLikeThing, VariablePointy}
+import millfork.env.{AssemblyOrMacroParamSignature, BuiltInBooleanType, Constant, ConstantBooleanType, ConstantPointy, ExternFunction, FatBooleanType, FlagBooleanType, FunctionInMemory, FunctionPointerType, KernalInterruptPointerType, Label, M6809RegisterVariable, MacroFunction, MathOperator, MemoryAddressConstant, MemoryVariable, NonFatalCompilationException, NormalFunction, NormalParamSignature, NumericConstant, StackOffsetThing, StackVariable, StackVariablePointy, StructureConstant, Thing, ThingInMemory, Type, Variable, VariableInMemory, VariableLikeThing, VariablePointy, VariableType}
 
 import scala.collection.GenTraversableOnce
 
@@ -45,6 +44,21 @@ object MExpressionTarget extends Enumeration {
 import MExpressionTarget.toLd
 
 object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
+
+  def extractConstantOffset(ctx: CompilationContext, expr: Expression): (Expression, Int) = {
+    expr match {
+      case FunctionCallExpression(pType, List(e))
+        if ctx.env.maybeGet[VariableType](pType).exists(_.isPointy) =>
+        var (i, o) = extractConstantOffset(ctx, e)
+        FunctionCallExpression(pType, List(i)) -> o
+      case SumExpression(List((false, i), (false, LiteralExpression(o, 1|2))), false) if o >= 0 && o < 127 =>
+        i -> o.toInt
+      case SumExpression(List((false, i1), (false, i2), (false, LiteralExpression(o, 1|2))), false) if o >= 0 && o < 127 =>
+        (i1 #+# i2) -> o.toInt
+      case _ =>
+        expr -> 0
+    }
+  }
 
   def compile(ctx: CompilationContext, expr: Expression, target: MExpressionTarget.Value, branches: BranchSpec = BranchSpec.None): List[MLine] = try {
     val env = ctx.env
@@ -104,13 +118,16 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
           case _ => List(MLine.immediate(MExpressionTarget.toLd(target), NumericConstant(c, MExpressionTarget.size(target))))
         }
       case DerefExpression(inner, offset, _) =>
-        compileToX(ctx, inner) match {
+        val (i, o) = if (offset == 0) {
+          extractConstantOffset(ctx, inner)
+        } else (inner, offset)
+        compileToX(ctx, i) match {
           case List(l@MLine0(LDX, Immediate, _)) =>
-            List(l.copy(opcode = toLd(target), addrMode = Absolute(false), parameter = l.parameter + offset))
-          case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable && offset == 0 =>
+            List(l.copy(opcode = toLd(target), addrMode = Absolute(false), parameter = l.parameter + o))
+          case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable && o == 0 =>
             List(l.copy(opcode = toLd(target), addrMode = addrMode.dereference()))
-          case _ =>
-            compileToX(ctx, inner) :+ MLine(toLd(target), Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+          case other =>
+            other :+ MLine(toLd(target), Indexed(M6809Register.X, indirect = false), NumericConstant(o, 2))
         }
       case IndexedExpression(name, index) =>
         env.getPointy(name) match {

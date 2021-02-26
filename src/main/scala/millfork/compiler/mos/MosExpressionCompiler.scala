@@ -435,8 +435,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         val (prepare, addr, am, fast) = getPhysicalPointerForDeref(ctx, inner)
         if (targetType.size == 1) {
           fast match {
-            case Some((fastBase, fastIndex)) =>
-              return preserveRegisterIfNeeded(ctx, MosRegister.A, fastIndex(offset)) ++ List(AssemblyLine.absoluteY(STA, fastBase))
+            case Some((fastBase, fastAddrMode, fastIndex)) =>
+              return preserveRegisterIfNeeded(ctx, MosRegister.A, fastIndex(offset)) ++ List(AssemblyLine(STA, fastAddrMode, fastBase))
             case _ =>
           }
         }
@@ -560,13 +560,13 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     compile(ctx, expr, Some(p -> env.get[Variable]("__reg.b2b3")), BranchSpec.None)
   }
 
-  def getPhysicalPointerForDeref(ctx: CompilationContext, pointerExpression: Expression): (List[AssemblyLine], Constant, AddrMode.Value, Option[(Constant, Int => List[AssemblyLine])]) = {
+  def getPhysicalPointerForDeref(ctx: CompilationContext, pointerExpression: Expression): (List[AssemblyLine], Constant, AddrMode.Value, Option[(Constant, AddrMode.Value, Int => List[AssemblyLine])]) = {
     pointerExpression match {
       case VariableExpression(name) =>
         val p = ctx.env.get[ThingInMemory](name)
         p match {
           case array: MfArray => return (Nil, p.toAddress, AddrMode.AbsoluteY,
-            if (array.sizeInBytes <= 256) Some(p.toAddress, (i: Int) => List(AssemblyLine.immediate(LDY, i))) else None)
+            if (array.sizeInBytes <= 256) Some((p.toAddress, AbsoluteY, (i: Int) => List(AssemblyLine.immediate(LDY, i)))) else None)
           case _ =>
         }
         if (p.zeropage) return (Nil, p.toAddress, AddrMode.IndexedY, None)
@@ -581,17 +581,39 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 Some(base -> index)
               case _ => None
             }
-        (compileToZReg(ctx, pointerExpression), ctx.env.get[ThingInMemory]("__reg.loword").toAddress, AddrMode.IndexedY, baseAndIndex match {
+        val zreg = ctx.env.get[ThingInMemory]("__reg.loword").toAddress
+        (compileToZReg(ctx, pointerExpression), zreg, AddrMode.IndexedY, baseAndIndex match {
           case Some((base, index)) =>
             val itype = AbstractExpressionCompiler.getExpressionType(ctx, index)
             if (itype.size != 1 || itype.isSigned) {
               None
             } else {
-              ctx.env.eval(base).map { baseConst =>
-                baseConst -> { (i: Int) =>
-                  val b = ctx.env.get[Type]("byte")
-                  compileToY(ctx, index #+# i)
-                }
+              ctx.env.eval(base) match {
+                case Some(baseConst) =>
+                  Some((baseConst, AbsoluteY, { (i: Int) =>
+                    val b = ctx.env.get[Type]("byte")
+                    compileToY(ctx, index #+# i)
+                  }))
+                case _ =>
+                  if (compileToY(ctx, index #+# 42).exists(l => OpcodeClasses.ChangesMemoryAlways(l.opcode) || OpcodeClasses.ChangesMemoryIfNotImplied(l.opcode))) {
+                    None
+                  } else {
+                    val initZreg = compileToZReg(ctx, base)
+                    initZreg match {
+                      case List(
+                      AssemblyLine0(LDA, ZeroPage, l),
+                      AssemblyLine0(STA, ZeroPage, _),
+                      AssemblyLine0(LDA, ZeroPage, h),
+                      AssemblyLine0(STA, ZeroPage, _)) if h == l+1 =>
+                        Some((zreg, IndexedY, { (i: Int) =>
+                          compileToZReg(ctx, base) ++ compileToY(ctx, index #+# i)
+                        }))
+                      case initZreg =>
+                        Some((zreg, IndexedY, { (i: Int) =>
+                          initZreg ++ compileToY(ctx, index #+# i)
+                        }))
+                    }
+                  }
               }
             }
           case _ => None
@@ -1106,17 +1128,25 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case DerefExpression(inner, offset, targetType) =>
         val (prepare, addr, am, fast) = getPhysicalPointerForDeref(ctx, inner)
         (fast, targetType.size, am) match {
-          case (Some((fastBase, fastIndex)), 1, _) =>
-            fastIndex(offset) ++ List(AssemblyLine.absoluteY(LDA, fastBase)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position, exprType.isSigned)
+          case (Some((fastBase, fastAddrMode, fastIndex)), 1, _) =>
+            fastIndex(offset) ++ List(AssemblyLine(LDA, fastAddrMode, fastBase)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position, exprType.isSigned)
           case (_, 1, AbsoluteY) =>
             prepare ++ List(AssemblyLine.absolute(LDA, addr + offset)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position, exprType.isSigned)
           case (_, 1, _) =>
             prepare ++ List(AssemblyLine.immediate(LDY, offset), AssemblyLine(LDA, am, addr)) ++ expressionStorageFromA(ctx, exprTypeAndVariable, expr.position, exprType.isSigned)
-          case (Some((fastBase, fastIndex)), 2, _) =>
+          case (Some((fastBase, AbsoluteY, fastIndex)), 2, _) =>
             fastIndex(offset) ++ List(
               AssemblyLine.absoluteY(LDA, fastBase),
               AssemblyLine.implied(INY),
               AssemblyLine.absoluteY(LDX, fastBase)) ++
+              expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
+          case (Some((fastBase, fastAddrMode, fastIndex)), 2, _) =>
+            fastIndex(offset) ++ List(
+              AssemblyLine.implied(INY),
+              AssemblyLine(LDA, fastAddrMode, fastBase),
+              AssemblyLine.implied(TAX),
+              AssemblyLine.implied(DEY),
+              AssemblyLine(LDA, fastAddrMode, fastBase)) ++
               expressionStorageFromAX(ctx, exprTypeAndVariable, expr.position)
           case (_, 2, AbsoluteY) =>
             prepare ++
@@ -2189,12 +2219,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   AssemblyLine.absolute(STA, addr + offset + i)))
               case _ =>
                 fastTarget match {
-                  case Some((constAddr, initializeY)) =>
+                  case Some((constAddr, fastAddrMode, initializeY)) =>
                     initializeY(offset) ++ (0 until targetType.size).flatMap { i =>
                       val load = List(AssemblyLine.immediate(LDA, constant.subbyte(i)))
-                      load ++ (if (i == 0) List(AssemblyLine.absoluteY(STA, constAddr)) else List(
+                      load ++ (if (i == 0) List(AssemblyLine(STA, fastAddrMode, constAddr)) else List(
                         AssemblyLine.implied(INY),
-                        AssemblyLine.absoluteY(STA, constAddr)))
+                        AssemblyLine(STA, fastAddrMode, constAddr)))
                     }
                   case _ =>
                     prepare ++ (0 until targetType.size).flatMap(i => List(
@@ -2225,12 +2255,12 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     }
                   case (_, _) =>
                     fastTarget match {
-                      case Some((constAddr, initializeY)) =>
+                      case Some((constAddr, fastAddrMode, initializeY)) =>
                         initializeY(offset) ++ (0 until targetType.size).flatMap { i =>
                           val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
-                          load ++ (if (i == 0) List(AssemblyLine.absoluteY(STA, constAddr)) else List(
+                          load ++ (if (i == 0) List(AssemblyLine(STA, fastAddrMode, constAddr)) else List(
                             AssemblyLine.implied(INY),
-                            AssemblyLine.absoluteY(STA, constAddr)))
+                            AssemblyLine(STA, fastAddrMode, constAddr)))
                         }
                       case _ =>
                         prepare ++ (0 until targetType.size).flatMap { i =>
@@ -2375,14 +2405,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                   case (2, _) =>
                     val someTuple = Some(targetType, RegisterVariable(MosRegister.AX, targetType))
                     fastTarget match {
-                      case Some((baseOffset, initializeY)) =>
+                      case Some((baseOffset, fastAddrMode, initializeY)) =>
                         compile(ctx, source, someTuple, BranchSpec.None) ++
                           preserveRegisterIfNeeded(ctx, MosRegister.AX, initializeY(offset)) ++
                           List(
-                            AssemblyLine.absoluteY(STA, baseOffset),
+                            AssemblyLine(STA, fastAddrMode, baseOffset),
                             AssemblyLine.implied(TXA),
                             AssemblyLine.implied(INY),
-                            AssemblyLine.absoluteY(STA, baseOffset))
+                            AssemblyLine(STA, fastAddrMode, baseOffset))
                       case _ =>
                         if (prepare.isEmpty) {
                           compile(ctx, source, someTuple, BranchSpec.None) ++ List(

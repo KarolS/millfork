@@ -411,7 +411,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         val b = env.get[Type]("byte")
         var ok = true
         var result = optimizeExpr(root, currentVarValues).pos(pos)
-        def applyIndex(result: Expression, index: Expression, guaranteedSmall: Boolean): Expression = {
+        def applyIndex(result: Expression, index: Expression, smallArraySizeInBytes: Option[Int]): Expression = {
           AbstractExpressionCompiler.getExpressionType(env, env.log, result) match {
             case pt@PointerType(_, _, Some(targetType)) =>
               val zero = env.eval(index) match {
@@ -424,17 +424,43 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 DerefExpression(result, 0, targetType)
               } else {
                 val indexType = AbstractExpressionCompiler.getExpressionType(env, env.log, index)
+                val (newResult, constantOffset) = result match {
+                  case FunctionCallExpression(pType, List(SumExpression(List((false, newResult), (false, LiteralExpression(offset, _))), false)))
+                    if offset >= 0 && offset < 100 && env.maybeGet[VariableType](pType).exists(_.isPointy) =>
+                    (pType <| newResult) -> offset.toInt
+                  case _ => result -> 0
+                }
                 env.eval(index) match {
-                  case Some(NumericConstant(n, _)) if n >= 0 && (guaranteedSmall || (targetType.alignedSize * n) <= 127) =>
-                    DerefExpression(
-                      ("pointer." + targetType.name) <| result,
-                      targetType.alignedSize * n.toInt, targetType)
+                  case Some(NumericConstant(n, _)) if n >= 0 && (smallArraySizeInBytes.isDefined || (targetType.alignedSize * n) <= 127) =>
+                    if (constantOffset + (targetType.alignedSize * n) <= 127) {
+                      DerefExpression(
+                        ("pointer." + targetType.name) <| newResult,
+                        constantOffset + targetType.alignedSize * n.toInt, targetType)
+                    } else {
+                      DerefExpression(
+                        ("pointer." + targetType.name) <| result,
+                        targetType.alignedSize * n.toInt, targetType)
+                    }
                   case _ =>
-                    val small = guaranteedSmall || (indexType.size == 1 && !indexType.isSigned)
-                    val scaledIndex: Expression = scaleIndexForArrayAccess(index, targetType, if (small) Some(256) else None)
-                    DerefExpression(("pointer." + targetType.name) <| (
-                      ("pointer" <| result) #+# optimizeExpr(scaledIndex, Map())
-                    ), 0, targetType)
+                    val small = smallArraySizeInBytes.isDefined || (indexType.size == 1 && !indexType.isSigned)
+                    smallArraySizeInBytes match {
+                      case Some(sz) if constantOffset != 0 && sz + constantOffset <= 255 =>
+                        val scaledIndex: Expression = scaleIndexForArrayAccess(index, targetType, smallArraySizeInBytes)
+                        var scaledIndexWithOffset = optimizeExpr(scaledIndex #+# LiteralExpression(constantOffset, 1), Map())
+                        val cpuFamily = ctx.options.platform.cpuFamily
+                        if ((cpuFamily == CpuFamily.M6502 || cpuFamily == CpuFamily.I80)
+                          && AbstractExpressionCompiler.getExpressionType(ctx, scaledIndexWithOffset).size == 1) {
+                          scaledIndexWithOffset = "byte" <| scaledIndexWithOffset
+                        }
+                        DerefExpression(("pointer." + targetType.name) <| (
+                          ("pointer" <| newResult) #+# scaledIndexWithOffset
+                        ), 0, targetType)
+                      case _ =>
+                        val scaledIndex: Expression = scaleIndexForArrayAccess(index, targetType, smallArraySizeInBytes)
+                        DerefExpression(("pointer." + targetType.name) <| (
+                          ("pointer" <| result) #+# optimizeExpr(scaledIndex, Map())
+                        ), 0, targetType)
+                    }
                 }
               }
             case x if x.isPointy =>
@@ -473,9 +499,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         }
 
         for (index <- firstIndices) {
-          result = applyIndex(result, index, guaranteedSmall = false)
+          result = applyIndex(result, index, smallArraySizeInBytes = None)
         }
-        var guaranteedSmall = false
+        var currentArraySizeInBytes = Option.empty[Int]
         for ((dot, fieldName, indices) <- fieldPath) {
           if (dot && ok) {
             val pointer = result match {
@@ -525,7 +551,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                   val offsetExpression = LiteralExpression(fieldOffset, 2).pos(pos)
                   subvariable.arrayIndexTypeAndSize match {
                     case Some((indexType, arraySize)) =>
-                      guaranteedSmall = arraySize * target.alignedSize <= 256
+                      currentArraySizeInBytes = Some(arraySize * subvariable.typ.alignedSize).filter(_ <= 256)
                       pointerWrap match {
                         case 0 | 1 =>
                           if (fieldOffset == 0) {
@@ -554,7 +580,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                         case _ => throw new IllegalStateException
                       }
                     case None =>
-                      guaranteedSmall = false
+                      currentArraySizeInBytes = None
                       pointerWrap match {
                         case 0 =>
                           DerefExpression(inner, fieldOffset, fieldType)
@@ -601,8 +627,8 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
           }
           if (ok) {
             for (index <- indices) {
-              result = applyIndex(result, index, guaranteedSmall)
-              guaranteedSmall = false
+              result = applyIndex(result, index, currentArraySizeInBytes)
+              currentArraySizeInBytes = None
             }
           }
         }

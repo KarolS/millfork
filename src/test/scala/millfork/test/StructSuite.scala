@@ -346,4 +346,18 @@ class StructSuite extends FunSuite with Matchers {
         | }
         |""".stripMargin)
   }
+
+  test("Structs with array fields – performance") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
+      """
+        | struct S { byte header, array data[20] }
+        | S dummy @$c000
+        | noinline byte f(pointer.S s, byte i) {
+        |   return s[0].data[i]
+        | }
+        | void main() {
+        |   f(dummy.pointer, 5)
+        | }
+        |""".stripMargin){m => }
+  }
 }
