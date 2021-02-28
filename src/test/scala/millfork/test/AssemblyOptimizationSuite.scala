@@ -895,4 +895,45 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0x91/8) should be (0x80>>(0x91 & 7))
     }
   }
+
+  test("Issue 99") {
+//    val m = new EmuRun(Cpu.StrictMos, Nil, List(
+//      LaterOptimizations.DoubleLoadToDifferentRegisters,
+//      LaterOptimizations.IndexSwitchingOptimization))(
+    val m = EmuOptimizedRun(
+      """
+        |array(byte) output [256] @$c000
+        |array(byte) input = [$10, $20, $30, $40, $50, $60, $70, $80, $90, $A0]
+        |byte write_index
+        |noinline void f(byte i, bool swap, byte first, byte data_1, byte data_2) {
+        |  output[write_index] = first
+        |  if (swap) {
+        |    output[write_index + 1] = data_2
+        |  } else {
+        |    output[write_index + 1] = data_1
+        |  }
+        |  output[write_index + 2] = input[i]
+        |
+        |  output[write_index + 3] = first
+        |  if (swap) {
+        |    output[write_index + 4] = data_1
+        |  } else {
+        |    output[write_index + 4] = data_2
+        |  }
+        |  output[write_index + 5] = input[i]
+        |
+        |  write_index += 6
+        |}
+        |void main() {
+        |  write_index = 0
+        |
+        |  byte j
+        |  bool flip
+        |  for j,0,until,10 {
+        |    flip = j != 5
+        |    f(j, flip, $FF, 1, 2)
+        |  }
+        |}
+        |""".stripMargin)
+  }
 }
