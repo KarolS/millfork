@@ -1,7 +1,8 @@
 name := "millfork"
 
-version := "0.3.25-SNAPSHOT"
+version := "0.3.26"
 
+// keep it at 2.12.11 for GraalVM native image compatibility!
 scalaVersion := "2.12.11"
 
 resolvers += Resolver.mavenLocal

@@ -1,6 +1,8 @@
 # Change log
 
-## Current version
+## 0.3.26 (2021-03-01)
+
+* Array fields in structs.
 
 * Various Apple II-related improvements, including ProDOS support (thanks to @retrac0).
 

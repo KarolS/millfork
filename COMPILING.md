@@ -57,7 +57,7 @@ Test suite is useful if you plan on modifying the compiler. Some test dependenci
 
 * run `sbt compile` to compile the project
 
-* run `sbt assemble` to build the executable jar file, it should appear in `target/scala-2.12`
+* run `sbt assembly` to build the executable jar file, it should appear in `target/scala-2.12`
 
 ### Building a native executable
 
