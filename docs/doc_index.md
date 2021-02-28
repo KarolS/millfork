@@ -77,6 +77,8 @@
     * [PET-only modules](stdlib/cbm_pet.md)
     
     * [`cbm_file` module](stdlib/cbm_file.md)
+
+    * [Apple II-only modules](stdlib/apple2.md)
     
     * [NES-only modules](stdlib/nes.md)
     
