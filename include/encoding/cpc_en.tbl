@@ -19,3 +19,6 @@ fe-ff=↕↔
 {apos}=27
 {lbrace}=7b
 {rbrace}=7d
+{pound}=a3
+{copy}=a4
+{pi}=b8

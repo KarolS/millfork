@@ -14,6 +14,7 @@ EOT=00
 {lbrace}=7b
 {rbrace}=7d
 {shy}=8d
+{copy}=bf
 
 
 

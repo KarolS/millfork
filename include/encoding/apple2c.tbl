@@ -13,3 +13,4 @@ EOT=00
 {apos}=27
 {lbrace}=7b
 {rbrace}=7d
+{pound}=5c

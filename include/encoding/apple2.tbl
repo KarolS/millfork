@@ -7,7 +7,7 @@ C0-DF=@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_
 
 a-z=C1
 
-{q}=02
-{apos}=07
+{q}=A2
+{apos}=A7
 {nbsp}=40
 {n}=8D

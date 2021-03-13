@@ -14,6 +14,7 @@ EOT=00
 {lbrace}=7b
 {rbrace}=7d
 {nbsp}=a0
+{copy}=98
 •=95
 
 b0=№

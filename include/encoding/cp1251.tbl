@@ -23,6 +23,7 @@ f0-ff=рстуфхцчшщъыьэюя
 {apos}=27
 {lbrace}=7b
 {rbrace}=7d
+{euro}=88
 {copy}=a9
 {nbsp}=A0
 {shy}=AD
