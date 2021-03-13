@@ -1,6 +1,6 @@
 name := "millfork"
 
-version := "0.3.26"
+version := "0.3.27-SNAPSHOT"
 
 // keep it at 2.12.11 for GraalVM native image compatibility!
 scalaVersion := "2.12.11"
