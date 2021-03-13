@@ -1,5 +1,13 @@
 # Change log
 
+## Current version
+
+* Added `utf32be`, `utf32le`, `cp1253`, `cp1254`, `cp1257`, `geos_de` encodings.
+
+* Fixed escape sequences in many encodings.
+
+* Fixed and documented absolute module imports (#106)
+
 ## 0.3.26 (2021-03-01)
 
 * Array fields in structs.
