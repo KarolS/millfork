@@ -157,6 +157,28 @@ TODO
 The following Millfork operators and functions are not available in the preprocessor:  
 `+'`, `-'`, `*'`, `<<'`, `>>'`, `:`, `>>>>`, `nonet`, all the assignment operators
 
+
+### Character literals
+
+Preprocessor supports character literals. By default, they are interpreted in the default encoding,
+but you can suffix them with other encodings.
+
+    // usually prints 97:
+    #infoeval 'a'
+    // prints 97:
+    #infoeval 'a'ascii
+
+Exceptionally, you can suffix the character literal with `utf32`.
+This gives the literal the value of the Unicode codepoint of the character:
+
+    // may print 94, 96, 112, 173, 176, 184, 185, 222, 227, 234, 240, something else, or even fail to compile:
+    #infoeval 'π'
+    // prints 960:
+    #infoeval 'π'utf32
+
+Escape sequences are supported, as per encoding. `utf32` pseudoencoding supports the same escape sequences as `utf8`.
+
+
 ### `#template`
 
 Defines the source to be a module template. See [Modules](./modules.md) for more information.

@@ -5,6 +5,8 @@ import millfork.{CompilationFlag, CompilationOptions, Platform, SeparatedList}
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node.Position
 
+import java.nio.charset.StandardCharsets
+import scala.collection.immutable.BitSet
 import scala.collection.mutable
 
 /**
@@ -230,7 +232,54 @@ class PreprocessorParser(options: CompilationOptions) {
   val alwaysNone: M => Option[Long] = (_: M) => None
   val log: Logger = options.log
 
-  val literalAtom: P[Q] = (MfParser.binaryAtom | MfParser.hexAtom | MfParser.octalAtom | MfParser.quaternaryAtom | MfParser.decimalAtom).map(l => _ => Some(l.value))
+  val invalidCharLiteralTypes: BitSet = BitSet(
+    Character.LINE_SEPARATOR,
+    Character.PARAGRAPH_SEPARATOR,
+    Character.CONTROL,
+    Character.PRIVATE_USE,
+    Character.SURROGATE,
+    Character.UNASSIGNED)
+
+  val charAtom: P[Q] =
+    ("'" ~/ CharPred(c => c >= ' ' && c != '\'' && !invalidCharLiteralTypes(Character.getType(c))).rep.! ~/ "'" ~/ HWS ~ identifier.?).map {
+      case (content, encodingNameOpt) =>
+        def theOnly(list: List[Int]): Q = {
+          list match {
+            case List(value) =>
+              _ => Some(value.toLong)
+            case _ =>
+              log.error(s"Character `$content` cannot be encoded as one byte", None)
+              _ => None
+          }
+        }
+        val lenient = options.flag(CompilationFlag.LenientTextEncoding)
+        val codepoints = content.codePoints().toArray.toList
+        encodingNameOpt match {
+          case Some("utf32") =>
+            theOnly(TextCodecRepository.RawUtf32.encode(log, None, codepoints, options, lenient))
+          case _ =>
+            encodingNameOpt.getOrElse("default") match {
+              case "default" =>
+                theOnly(options.platform.defaultCodec.encode(log, None, codepoints, options, lenient))
+              case "scr" =>
+                theOnly(options.platform.screenCodec.encode(log, None, codepoints, options, lenient))
+              case "z" | "pz" | "p" | "pdefault" | "defaultz" | "pdefaultz" | "pscr" | "scrz" | "pscrz" =>
+                log.error("Invalid encoding for character literal")
+                _ => None
+              case encodingName =>
+                val cwf = options.textCodecRepository.forName(encodingName, None, log)
+                if (cwf.lengthPrefixed || cwf.nullTerminated) {
+                  log.error("Invalid encoding for character literal")
+                  _ => None
+                } else {
+                  theOnly(cwf.codec.encode(log, None, codepoints, options, cwf.lenient))
+                }
+            }
+        }
+
+    }
+
+  val literalAtom: P[Q] = (MfParser.binaryAtom | MfParser.hexAtom | MfParser.octalAtom | MfParser.quaternaryAtom | MfParser.decimalAtom).map(l => (_:M) => Some(l.value)) | charAtom
 
   val variableAtom: P[Q] = identifier.map(k => _.get(k))
 
