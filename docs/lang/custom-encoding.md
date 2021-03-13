@@ -16,7 +16,7 @@ No other lines are allowed in the file.
 * `NAME=<name>` defines the name for this encoding. Required.
 
 * `BUILTIN=<internal name>` defines this encoding to be a UTF-based encoding.
-`<internal name>` may be one of `UTF-8`, `UTF-16LE`, `UTF-16BE`.
+`<internal name>` may be one of `UTF-8`, `UTF-16LE`, `UTF-16BE`, `UTF-32LE`, `UTF-32BE`.
 If this directive is present, the only other allowed directive in the file is the `NAME` directive.
 
 * `EOT=<xx>` where `<xx>` are two hex digits, defines the string terminator byte.

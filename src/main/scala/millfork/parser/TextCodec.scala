@@ -40,7 +40,27 @@ sealed trait TextCodec {
   }
 }
 
-class UnicodeTextCodec(override val name: String, val charset: Charset, override val stringTerminator: List[Int]) extends TextCodec {
+abstract class MappedTextCodec(override val name: String, inner: TextCodec) extends TextCodec {
+  override val supportsLowercase: Boolean = inner.supportsLowercase
+
+  override val stringTerminator: List[Int] = inner.stringTerminator.flatMap(this.mapWithEscaping)
+
+  override def encode(log: Logger, position: Option[Position], s: List[Int], options: CompilationOptions, lenient: Boolean): List[Int] =
+    inner.encode(log, position, s, options, lenient).flatMap(this.mapWithEscaping)
+
+  override def decode(by: Int): Char = TextCodec.NotAChar
+
+  override def encodeDigit(digit: Int): List[Int] = inner.encodeDigit(digit).flatMap(this.mapWithEscaping)
+
+  private def mapWithEscaping(byte: Int): List[Int] = {
+    if (byte < 0) List(-1 - byte)
+    else map(byte)
+  }
+
+  def map(byte: Int): List[Int]
+}
+
+class UnicodeTextCodec(override val name: String, val optionalCharset: Option[Charset], override val stringTerminator: List[Int], val escapeRawBytes: Boolean = false) extends TextCodec {
   private val escapeSequences: Map[String, Char] = Map(
     "n" -> '\n',
     "r" -> '\r',
@@ -66,7 +86,11 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
   private def encodeEscapeSequence(log: Logger, escSeq: String, position: Option[Position], options: CompilationOptions, lenient: Boolean): List[Int] = {
     if (escSeq.length == 3 && (escSeq(0) == 'X' || escSeq(0) == 'x' || escSeq(0) == '$')){
       try {
-        return List(Integer.parseInt(escSeq.tail, 16))
+        var rawByte = Integer.parseInt(escSeq.tail, 16)
+        if (escapeRawBytes) {
+          rawByte = -1 - rawByte
+        }
+        return List(rawByte)
       } catch {
         case _: NumberFormatException =>
       }
@@ -112,18 +136,28 @@ class UnicodeTextCodec(override val name: String, val charset: Charset, override
         val (escSeq, closingBrace) = tail.span(_ != '}')
         closingBrace match {
           case '}' :: xs =>
-            encodeEscapeSequence(log, escSeq.mkString(""), position, options, lenient) ++ encode(log, position, xs, options, lenient)
+            encodeEscapeSequence(log, escSeq.map(_.toChar).mkString(""), position, options, lenient) ++ encode(log, position, xs, options, lenient)
           case _ =>
             log.error(f"Unclosed escape sequence", position)
             Nil
         }
       case head :: tail =>
-        Character.toChars(head).mkString("").getBytes(charset).map(_.&(0xff)).toList ++ encode(log, position, tail, options, lenient)
+        optionalCharset match {
+          case Some(charset) =>
+            Character.toChars(head).mkString("").getBytes(charset).map(_.&(0xff)).toList ++ encode(log, position, tail, options, lenient)
+          case None =>
+            head :: encode(log, position, tail, options, lenient)
+        }
       case Nil => Nil
     }
   }
 
-  def encodeDigit(digit: Int): List[Int] =  digit.toString.getBytes(charset).map(_.toInt.&(0xff)).toList
+  def encodeDigit(digit: Int): List[Int] =
+    optionalCharset match {
+      case Some(charset) =>
+        digit.toString.getBytes(charset).map(_.toInt.&(0xff)).toList
+      case None => List('0'.toInt + digit)
+    }
 
   override def decode(by: Int): Char = {
     if (by >= 0x20 && by <= 0x7E) by.toChar

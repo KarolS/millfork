@@ -26,6 +26,8 @@ TODO: document the file format.
 
 * `oldpetscii` or `oldpet` – old PETSCII (Commodore PET with newer ROMs)
 
+* `geos_de` – text encoding used by the German version of GEOS for C64
+
 * `cbmscr` or `petscr` – Commodore screencodes
 
 * `cbmscrjp` or `petscrjp` – Commodore screencodes as used on Japanese versions of Commodore 64
@@ -89,7 +91,7 @@ DOS codepages 437, 850, 851, 852, 855, 858, 866
 
 * `kamenicky` – Kamenický encoding
 
-* `cp1250`, `cp1251`, `cp1252` – Windows codepages 1250, 1251, 1252
+* `cp1250`, `cp1251`, `cp1252`, `cp1253`, `cp1254`, `cp1257` – Windows codepages 1250, 1251, 1252, 1253, 1254, 1257
 
 * `msx_intl`, `msx_jp`, `msx_ru`, `msx_br` – MSX character encoding, International, Japanese, Russian and Brazilian respectively
 
@@ -132,6 +134,8 @@ English, Japanese, Spanish/Italian and French/German respectively
 
 * `utf16be`, `utf16le` – UTF-16BE and UTF-16LE
 
+* `utf32be`, `utf32le` – UTF-32BE and UTF-32LE
+
 When programming for Commodore,
 use `petscii` for strings you're printing using standard I/O routines
 and `petsciiscr` for strings you're copying to screen memory directly.
@@ -163,10 +167,12 @@ The exact value of `{nullchar}` is encoding-dependent:
     * in the `zx80` encoding it's `{x01}`,
     * in the `zx81` encoding it's `{x0b}`,
     * in the `petscr` and `petscrjp` encodings it's `{xe0}`,
+    * in the `apple2e` encoding it's `{x7f}`,
     * in the `atasciiscr` encoding it's `{xdb}`,
     * in the `pokemon1*` encodings it's `{x50}`,
     * in the `cocoscr` encoding it's exceptionally two bytes: `{xd0}`
     * in the `utf16be` and `utf16le` encodings it's exceptionally two bytes: `{x00}{x00}`
+    * in the `utf32be` and `utf32le` encodings it's exceptionally four bytes: `{x00}{x00}{x00}{x00}`
     * in other encodings it's `{x00}` (this may be a subject to change in future versions).
 
 ##### Available only in some encodings
@@ -211,6 +217,7 @@ Encoding | lowercase letters | backslash | currencies | intl | card suits
 `petscr`            | yes¹ | no  | £    | none      | yes¹  
 `petjp`             | no   | no  | ¥    | katakana³ | yes³  
 `petscrjp`          | no   | no  | ¥    | katakana³ | yes³  
+`geos_de`           | yes  | no  |      |           | no  
 `sinclair`, `bbc`   | yes  | yes | £    | none      | no  
 `zx80`, `zx81`      | no   | no  | £    | none      | no  
 `apple2`            | no   | yes |      | none      | no  
@@ -273,6 +280,7 @@ Encoding | new line | braces | backspace | cursor movement | text colour | rever
 `origpet`           | yes | no  | no  | yes | no  | yes | no  
 `oldpet`            | yes | no  | no  | yes | no  | yes | no  
 `petscr`, `petscrjp`| no  | no  | no  | no  | no  | no  | no  
+`geos_de`           | no  | no  | no  | no  | no  | yes | no
 `sinclair`          | yes | yes | no  | yes | yes | yes | yes  
 `zx80`,`zx81`       | yes | no  | yes | yes | no  | no  | no  
 `ascii`, `iso_*`    | yes | yes | yes | no  | no  | no  | no  

@@ -160,6 +160,8 @@ class TextCodecRepository(val includePath: List[String]) {
       case "UTF-8" => Some(TextCodecRepository.Utf8)
       case "UTF-16LE" => Some(TextCodecRepository.Utf16Le)
       case "UTF-16BE" => Some(TextCodecRepository.Utf16Be)
+      case "UTF-32LE" => Some(TextCodecRepository.Utf32Le)
+      case "UTF-32BE" => Some(TextCodecRepository.Utf32Be)
       case _ =>
         log.error(s"Unknown built-in encoding $builtin for encoding $shortname")
         None
@@ -226,9 +228,21 @@ object TextCodecRepository {
   val ESCAPE: Regex = "\\A\\{([\\w.'\\p{L}]+)}\\z".r
   val CHAR: Regex = "\\A(\\S)\\z".r
 
-  val Utf8 = new UnicodeTextCodec("UTF-8", StandardCharsets.UTF_8, List(0))
+  val Utf8 = new UnicodeTextCodec("UTF-8", Some(StandardCharsets.UTF_8), List(0))
 
-  val Utf16Be = new UnicodeTextCodec("UTF-16BE", StandardCharsets.UTF_16BE, List(0, 0))
+  val Utf16Be = new UnicodeTextCodec("UTF-16BE", Some(StandardCharsets.UTF_16BE), List(0, 0))
 
-  val Utf16Le = new UnicodeTextCodec("UTF-16LE", StandardCharsets.UTF_16LE, List(0, 0))
+  val Utf16Le = new UnicodeTextCodec("UTF-16LE", Some(StandardCharsets.UTF_16LE), List(0, 0))
+
+  val RawUtf32 = new UnicodeTextCodec("UTF-32RAW", None, List(0))
+
+  private val RawEscapingUtf32 = new UnicodeTextCodec("UTF-32RAWEscaping", None, List(0), escapeRawBytes = true)
+
+  val Utf32Be: TextCodec = new MappedTextCodec("UTF-32BE", RawEscapingUtf32) {
+    override def map(byte: Int): List[Int] = List((byte >>> 24) & 0xff, (byte >>> 16) & 0xff, (byte >>> 8) & 0xff, (byte >>> 0) & 0xff)
+  }
+
+  val Utf32Le: TextCodec = new MappedTextCodec("UTF-32BE", RawEscapingUtf32) {
+    override def map(byte: Int): List[Int] = List((byte >>> 0) & 0xff, (byte >>> 8) & 0xff, (byte >>> 16) & 0xff, (byte >>> 24) & 0xff)
+  }
 }

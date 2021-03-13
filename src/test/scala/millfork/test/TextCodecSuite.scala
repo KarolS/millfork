@@ -80,4 +80,29 @@ class TextCodecSuite extends FunSuite with Matchers {
       """.stripMargin)
     m.readByte(0xc000) should equal(13)
   }
+
+  test("UTF-32") {
+    val m = EmuUnoptimizedRun(
+      """
+        |pointer output @$c000
+        |byte output2 @$c002
+        |array test = "a"utf32bez
+        | void main() {
+        |   output = test.addr
+        |   output2 = test.length
+        | }
+      """.stripMargin)
+    m.readWord(0xc002) should equal(8)
+    val addr = m.readWord(0xc000)
+    m.readByte(addr + 0) should equal(0)
+    m.readByte(addr + 1) should equal(0)
+    m.readByte(addr + 2) should equal(0)
+    m.readByte(addr + 3) should equal(97)
+    m.readByte(addr + 4) should equal(0)
+    m.readByte(addr + 5) should equal(0)
+    m.readByte(addr + 6) should equal(0)
+    m.readByte(addr + 7) should equal(0)
+  }
+
+
 }
