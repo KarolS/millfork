@@ -241,10 +241,10 @@ object Main {
           log.debug(s"Failed to find the default include path: $err")
         case Right(path) =>
           log.debug(s"Automatically detected include path: $path")
-          return c.copy(includePath = List(path) ++ c.extraIncludePath)
+          return c.copy(includePath = List(System.getProperty("user.dir"), path) ++ c.extraIncludePath)
       }
     }
-    c.copy(includePath = c.includePath ++ c.extraIncludePath)
+    c.copy(includePath = System.getProperty("user.dir") :: (c.includePath ++ c.extraIncludePath))
   }
 
   private def assembleForMos(c: Context, platform: Platform, options: CompilationOptions): AssemblerOutput = {

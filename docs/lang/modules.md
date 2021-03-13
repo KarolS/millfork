@@ -11,7 +11,8 @@ Each module has a name, which is its unique identifier.
 A module name is a sequence of slash-separated valid Millfork identifiers.
 The name also defines where the module is located:
 a module named `a/b` is presumed to exist in `a/b.mfk`
-and it's looked up first in the current working directory,
+and it's looked up first in the directory that contains the current source file,
+then in the current working directory,
 and then in the include directories.
 
 A module can import other modules, using the `import` statement. 
