@@ -712,6 +712,9 @@ object Main {
       }.description("Optimize code even more.")
       if (i == 1 || i > 4) f.hidden()
     }
+    boolean("-fhints", "-fnohints").action{ (c,v) =>
+      c.changeFlag(CompilationFlag.UseOptimizationHints, v)
+    }.description("Whether optimization hints should be used.")
     flag("--inline").repeatable().action { c =>
       c.changeFlag(CompilationFlag.InlineFunctions, true)
     }.description("Inline functions automatically.").hidden()
@@ -814,6 +817,10 @@ object Main {
     boolean("-Wuseless", "-Wno-useless").repeatable().action { (c, v) =>
       c.changeFlag(CompilationFlag.UselessCodeWarning, v)
     }.description("Whether should warn about code that does nothing. Default: enabled.")
+
+    boolean("-Whints", "-Wno-hints").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.UnsupportedOptimizationHintWarning, v)
+    }.description("Whether should warn about unsupported optimization hints. Default: enabled.")
 
     fluff("", "Other options:", "")
 

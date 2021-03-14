@@ -35,6 +35,7 @@ nav:
     - Inline 8080/LR35902/Z80 assembly: lang/assemblyz80.md
     - Inline 6809 assembly: lang/assembly6809.md
     - Reentrancy guidelines: lang/reentrancy.md
+    - Optimization hints: lang/hints.md
     - List of keywords: lang/keywords.md
   - Library reference:
     - stdlib module: stdlib/stdlib.md

@@ -4,17 +4,17 @@
 
 Syntax:
 
-`[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [align ( <alignment> )] [@ <address>] { <body> }`
+`[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [align ( <alignment> )] [<optimization hints>] [@ <address>] { <body> }`
 
-`[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [align ( <alignment> )] [@ <address>] = <expression>`
+`[segment (<segment>)] [<modifiers>] <return_type> <name> ( <params> ) [align ( <alignment> )] [<optimization hints>] [@ <address>] = <expression>`
 
-`[segment (<segment>)] asm <return_type> <name> ( <params> ) @ <address> extern`
+`[segment (<segment>)] asm <return_type> <name> ( <params> ) [<optimization hints>] @ <address> extern`
 
 Examples:
 
     void do_nothing() { }
     inline byte two() = 2
-    asm void chkout(byte register(a) char) @ $FFD2 extern
+    asm void chkout(byte register(a) char) !preserves_x !preserves_y @ $FFD2 extern
     segment(prgrom0) void main_loop(word w, byte x) align(fast) { // body omitted
     
 
@@ -67,6 +67,8 @@ For assembly functions, certain parameter names are interpreted as CPU registers
 
     * on 6502, it means that the function will not cross a page boundary if possible
     * on Z80, it is ignored   
+
+* `<optimization hints>` is a list of [optimization hints](./hints.md), separated by spaces
 
 * `<address>` is a constant expression that defines where in the memory the function is or will be located.
 

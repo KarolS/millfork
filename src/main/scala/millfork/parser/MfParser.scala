@@ -210,12 +210,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     map{case (name, params) => Seq(ImportStatement(name.mkString("/"), params.getOrElse(Nil).toList))}
 
   val optimizationHintsDeclaration: P[Set[String]] =
-    if (options.flag(CompilationFlag.EnableInternalTestSyntax)) {
-      ("¥" ~/ HWS ~ "(" ~/ HWS ~/ identifier.rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ HWS ~ ")" ~/ "").?.map {
-        case None => Set()
-        case Some(list) => list.toSet
-      }
-    } else P("").map(_ => Set.empty)
+      ("!" ~/ HWS ~/ identifier ~/ "").rep(min = 0, sep = AWS).map { _.toSet }
   
   val globalVariableDefinition: P[Seq[BankedDeclarationStatement]] = variableDefinition(true)
   val localVariableDefinition: P[Seq[DeclarationStatement]] = variableDefinition(false)

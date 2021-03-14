@@ -2,7 +2,7 @@ package millfork.output
 
 import millfork.assembly.SourceLine
 import millfork.assembly.m6809.opt.JumpFixing
-import millfork.{CompilationOptions, Platform}
+import millfork.{CompilationFlag, CompilationOptions, Platform}
 import millfork.assembly.m6809.{MOpcode, _}
 import millfork.compiler.m6809.M6809Compiler
 import millfork.env.{Environment, FunctionInMemory, Label, MemoryAddressConstant, NormalFunction, NumericConstant}

@@ -11,7 +11,7 @@ class OptimizationHintsSuite extends FunSuite with Matchers  {
 
   test("Optimization hints test 1") {
     EmuBenchmarkRun("""
-        | asm void putchar(byte register(a) character) ¥( preserves_a, preserves_x, preserves_y ) @$ffd2 extern
+        | asm void putchar(byte register(a) character) !preserves_a !preserves_x !preserves_y @$ffd2 extern
         | noinline bool should_print(byte a) = a == 5
         | void main() {
         |   byte i

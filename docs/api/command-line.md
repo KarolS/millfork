@@ -206,6 +206,10 @@ The compiler doesn't support accessing the stack variables via the S stack point
 
 * `-O9` – Optimize code using superoptimizer (experimental). Computationally very expensive, decent results.
 
+* `-fhints`, `-fno-hints` – 
+Whether optimization hints should be used.
+Default: yes.
+
 * `-finline`, `-fno-inline` – Whether should inline functions automatically.
 See the [documentation about inlining](../abi/inlining.md). Computationally easy, can give decent gains.
 `.ini` equivalent: `inline`.
@@ -311,4 +315,8 @@ You can also enable or disable warnings individually:
 
 * `-Wuseless`, `-Wno-useless` –
     Whether should warn about code that does nothing. 
+    Default: enabled.
+
+* `-Whints`, `-Wno-hints` –
+    Whether should warn about unsupported optimization hints.
     Default: enabled.

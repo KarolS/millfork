@@ -1807,13 +1807,18 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def prepareFunctionOptimizationHints(options: CompilationOptions, stmt: FunctionDeclarationStatement): Set[String] = {
     if (!options.flag(CompilationFlag.UseOptimizationHints)) return Set.empty
+    def warn(msg: String): Unit = {
+      if (options.flag(CompilationFlag.UnsupportedOptimizationHintWarning)){
+        log.warn(msg, stmt.position)
+      }
+    }
     val filteredFlags = stmt.optimizationHints.flatMap{
       case f@("hot" | "cold" | "idempotent" | "preserves_memory" | "inline" | "odd" | "even") =>
         Seq(f)
       case f@("preserves_a" | "preserves_x" | "preserves_y" | "preserves_c")
         if options.platform.cpuFamily == CpuFamily.M6502 =>
         if (stmt.statements.isDefined && !stmt.assembly) {
-          log.warn(s"Cannot use the $f optimization flags on non-assembly functions", stmt.position)
+          warn(s"Cannot use the $f optimization hint on non-assembly functions")
           Nil
         } else {
           Seq(f)
@@ -1821,7 +1826,15 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case f@("preserves_a" | "preserves_b" | "preserves_d" | "preserves_c" | "preserves_x" | "preserves_y" | "preserves_u")
         if options.platform.cpuFamily == CpuFamily.M6809 =>
         if (stmt.statements.isDefined && !stmt.assembly) {
-          log.warn(s"Cannot use the $f optimization flags on non-assembly functions", stmt.position)
+          warn(s"Cannot use the $f optimization hints on non-assembly functions")
+          Nil
+        } else {
+          Seq(f)
+        }
+      case f@("preserves_a" | "preserves_bc" | "preserves_de" | "preserves_hl" | "preserves_cf")
+        if options.platform.cpuFamily == CpuFamily.I80 =>
+        if (stmt.statements.isDefined && !stmt.assembly) {
+          warn(s"Cannot use the $f optimization hints on non-assembly functions")
           Nil
         } else {
           Seq(f)
@@ -1830,21 +1843,21 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         if options.platform.cpuFamily == CpuFamily.M6809 =>
         Seq(f)
       case f =>
-        log.warn(s"Unsupported function optimization flag: $f", stmt.position)
+        warn(s"Unsupported function optimization hint: $f")
         Nil
     }
     if (filteredFlags("hot") && filteredFlags("cold")) {
-      log.warn(s"Conflicting optimization flags used: `hot` and `cold`", stmt.position)
+      warn(s"Conflicting optimization hints used: `hot` and `cold`")
     }
     if (filteredFlags("even") && filteredFlags("odd")) {
-      log.warn(s"Conflicting optimization flags used: `even` and `odd`", stmt.position)
+      warn(s"Conflicting optimization hints used: `even` and `odd`")
     }
     if (filteredFlags("even") || filteredFlags("odd")) {
       maybeGet[Type](stmt.resultType) match {
         case Some(t) if t.size < 1 =>
-          log.warn(s"Cannot use `even` or `odd` flags with an empty return type", stmt.position)
+          warn(s"Cannot use `even` or `odd` hints with an empty return type")
         case Some(t: CompoundVariableType) =>
-          log.warn(s"Cannot use `even` or `odd` flags with a compound return type", stmt.position)
+          warn(s"Cannot use `even` or `odd` hints with a compound return type")
         case _ =>
       }
     }
@@ -1853,15 +1866,20 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def prepareVariableOptimizationHints(options: CompilationOptions, stmt: VariableDeclarationStatement): Set[String] = {
     if (!options.flag(CompilationFlag.UseOptimizationHints)) return Set.empty
+    def warn(msg: String): Unit = {
+      if (options.flag(CompilationFlag.UnsupportedOptimizationHintWarning)){
+        log.warn(msg, stmt.position)
+      }
+    }
     val filteredFlags = stmt.optimizationHints.flatMap{
       case f@("odd" | "even") =>
         Seq(f)
       case f =>
-        log.warn(s"Unsupported variable optimization flag: $f", stmt.position)
+        warn(s"Unsupported variable optimization hint: $f")
         Nil
     }
     if (filteredFlags("even") && filteredFlags("odd")) {
-      log.warn(s"Conflicting optimization flags used: `even` and `odd`", stmt.position)
+      warn(s"Conflicting optimization hints used: `even` and `odd`")
     }
     filteredFlags
   }
@@ -1871,7 +1889,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (!options.flag(CompilationFlag.UseOptimizationHints)) return Set.empty
     val filteredFlags: Set[String] = stmt.optimizationHints.flatMap{
       case f =>
-        log.warn(s"Unsupported array optimization flag: $f", stmt.position)
+        log.warn(s"Unsupported array optimization hint: $f", stmt.position)
         Nil
     }
     filteredFlags

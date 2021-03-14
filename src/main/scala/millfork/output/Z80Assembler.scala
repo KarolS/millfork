@@ -1,5 +1,6 @@
 package millfork.output
 
+import millfork.CompilationFlag.EmitIllegals
 import millfork.assembly.OptimizationContext
 import millfork.assembly.opt.{SingleStatus, Status}
 import millfork.{CompilationFlag, CompilationOptions, Cpu, Platform}
@@ -8,7 +9,7 @@ import millfork.assembly.z80.opt.{CoarseFlowAnalyzer, ConditionalInstructions, C
 import millfork.compiler.z80.Z80Compiler
 import millfork.env._
 import millfork.node.NiceFunctionProperty.DoesntWriteMemory
-import millfork.node.Z80NiceFunctionProperty.{DoesntChangeBC, DoesntChangeDE, DoesntChangeHL, DoesntChangeIY, SetsATo}
+import millfork.node.Z80NiceFunctionProperty.{DoesntChangeA, DoesntChangeBC, DoesntChangeCF, DoesntChangeDE, DoesntChangeHL, DoesntChangeIY, SetsATo}
 import millfork.node.{NiceFunctionProperty, Position, Program, ZRegister}
 
 import scala.annotation.tailrec
@@ -831,6 +832,7 @@ class Z80Assembler(program: Program,
         niceFunctionProperties += (niceFunctionProperty -> functionName)
       }
     }
+    genericPropertyScan(DoesntChangeA)(l => !l.changesRegister(ZRegister.A))
     genericPropertyScan(DoesntChangeHL)(l => !l.changesRegister(ZRegister.HL))
     genericPropertyScan(DoesntChangeDE)(l => !l.changesRegister(ZRegister.DE))
     genericPropertyScan(DoesntChangeBC)(l => !l.changesRegister(ZRegister.BC))
@@ -841,6 +843,11 @@ class Z80Assembler(program: Program,
   override def gatherFunctionOptimizationHints(options: CompilationOptions, niceFunctionProperties: mutable.Set[(NiceFunctionProperty, String)], function: FunctionInMemory): Unit = {
     import NiceFunctionProperty._
     val functionName = function.name
+    if (function.optimizationHints("preserves_a")) niceFunctionProperties += DoesntChangeA -> functionName
+    if (function.optimizationHints("preserves_bc")) niceFunctionProperties += DoesntChangeBC -> functionName
+    if (function.optimizationHints("preserves_de")) niceFunctionProperties += DoesntChangeDE -> functionName
+    if (function.optimizationHints("preserves_hl")) niceFunctionProperties += DoesntChangeHL -> functionName
+    if (function.optimizationHints("preserves_cf")) niceFunctionProperties += DoesntChangeCF -> functionName
     if (function.optimizationHints("preserves_memory")) niceFunctionProperties += DoesntWriteMemory -> functionName
     if (function.optimizationHints("idempotent")) niceFunctionProperties += Idempotent -> functionName
   }

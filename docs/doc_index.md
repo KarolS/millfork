@@ -44,6 +44,8 @@
 
 * [Important guidelines regarding reentrancy](lang/reentrancy.md)
 
+* [Optimization hints](lang/hints.md)
+
 * [List of keywords](lang/keywords.md)
 
 ## Library reference

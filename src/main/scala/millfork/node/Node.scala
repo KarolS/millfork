@@ -233,9 +233,11 @@ object MosNiceFunctionProperty {
 }
 
 object Z80NiceFunctionProperty {
+  case object DoesntChangeA extends NiceFunctionProperty("A")
   case object DoesntChangeBC extends NiceFunctionProperty("BC")
   case object DoesntChangeDE extends NiceFunctionProperty("DE")
   case object DoesntChangeHL extends NiceFunctionProperty("HL")
+  case object DoesntChangeCF extends NiceFunctionProperty("CF")
   case object DoesntChangeIY extends NiceFunctionProperty("IY")
   case class SetsATo(value: Int) extends NiceFunctionProperty("A=" + value)
 }

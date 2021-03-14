@@ -50,7 +50,7 @@ or a top level of a function (*local* variables).
 
 Syntax:
 
-`[segment(<segment>)] [volatile] [<storage>] <type> <name> [@<address>] [= <initial_value>]`
+`[segment(<segment>)] [volatile] [<storage>] <type> <name> [<optimization hints>] [@<address>] [= <initial_value>]`
 
 Examples:
 
@@ -69,6 +69,8 @@ Volatile variables cannot be declared as `register` or `stack`.
 * `<storage>` can be only specified for local variables. It can be either `stack`, `static`, `register` or nothing.
 `register` is only a hint for the optimizer. 
 See [the description of variable storage](../abi/variable-storage.md).
+  
+* `<optimization hints>` is a list of [optimization hints](./hints.md), separated by spaces
 
 * `<address>` is a constant expression that defines where in the memory the variable will be located. 
 If not specified, it will be located according to the usual allocation rules. 

@@ -419,6 +419,7 @@ object Cpu extends Enumeration {
     RegisterVariables,
     FunctionDeduplication,
     EnableBreakpoints,
+    UseOptimizationHints,
     GenericWarnings,
     UselessCodeWarning,
     BuggyCodeWarning,
@@ -427,6 +428,7 @@ object Cpu extends Enumeration {
     NonZeroTerminatedLiteralWarning,
     CallToOverlappingBankWarning,
     DataMissingInOutputWarning,
+    UnsupportedOptimizationHintWarning,
   )
 
   private val mosAlwaysDefaultFlags = alwaysDefaultFlags
@@ -591,6 +593,7 @@ object CompilationFlag extends Enumeration {
   NonZeroTerminatedLiteralWarning,
   CallToOverlappingBankWarning,
   DataMissingInOutputWarning,
+  UnsupportedOptimizationHintWarning,
   FatalWarnings,
   // special options for internal compiler use
   EnableInternalTestSyntax,
@@ -606,6 +609,7 @@ object CompilationFlag extends Enumeration {
     NonZeroTerminatedLiteralWarning,
     CallToOverlappingBankWarning,
     DataMissingInOutputWarning,
+    UnsupportedOptimizationHintWarning,
   )
 
   val fromString: Map[String, CompilationFlag.Value] = Map(

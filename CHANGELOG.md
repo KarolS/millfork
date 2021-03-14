@@ -2,6 +2,8 @@
 
 ## Current version
 
+* Added optimization hints.
+
 * Added `utf32be`, `utf32le`, `cp1253`, `cp1254`, `cp1257`, `geos_de` encodings.
 
 * Fixed escape sequences in many encodings.

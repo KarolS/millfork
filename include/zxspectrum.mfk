@@ -5,16 +5,16 @@
 
 #pragma zilog_syntax
 
-inline asm void putchar(byte register(a) char) {
+inline asm void putchar(byte register(a) char) !preserves_bc !preserves_de !preserves_hl {
     rst $10
     ? ret
 }
 
-inline void new_line() {
+inline void new_line() !preserves_bc !preserves_de !preserves_hl {
     putchar(13)
 }
 
-inline asm void set_border(byte register(a) colour) {
+inline asm void set_border(byte register(a) colour) !preserves_bc !preserves_de !preserves_hl {
     out (254),a
     ? ret
 }

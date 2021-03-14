@@ -4,7 +4,7 @@ import millfork.assembly.OptimizationContext
 import millfork.assembly.opt.{AnyStatus, FlowCache, SingleStatus, Status}
 import millfork.assembly.z80._
 import millfork.env._
-import millfork.node.Z80NiceFunctionProperty.{DoesntChangeBC, DoesntChangeDE, DoesntChangeHL, SetsATo}
+import millfork.node.Z80NiceFunctionProperty.{DoesntChangeA, DoesntChangeBC, DoesntChangeCF, DoesntChangeDE, DoesntChangeHL, SetsATo}
 import millfork.node.{NiceFunctionProperty, ZRegister}
 import millfork.CompilationFlag
 
@@ -93,10 +93,11 @@ object CoarseFlowAnalyzer {
                 h = if (preservesH(n) || niceFunctionProperties(DoesntChangeHL -> n)) currentStatus.h else result.h,
                 l = if (preservesL(n) || niceFunctionProperties(DoesntChangeHL -> n)) currentStatus.l else result.l,
                 hl = if (preservesH(n) && preservesL(n) || niceFunctionProperties(DoesntChangeHL -> n)) currentStatus.hl else result.hl,
-                a = extractNiceConstant(n){
+                a = if (niceFunctionProperties(DoesntChangeA -> n)) currentStatus.a else extractNiceConstant(n){
                   case SetsATo(a) => Some(a)
                   case _ => None
                 },
+                cf = if (niceFunctionProperties(DoesntChangeCF -> n)) currentStatus.cf else AnyStatus
               )
             }
 
