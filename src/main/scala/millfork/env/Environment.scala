@@ -2802,7 +2802,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def overlapsVariable(variable: String, expr: Expression): Boolean = {
     if (eval(expr).isDefined) return false
     if (expr.containsVariable(variable)) return true
-    val varRootName = get[Thing](variable).rootName
+    val varRootName = maybeGet[Thing](variable).getOrElse{return false}.rootName
     if (varRootName == "?") return true
     if (varRootName == "") return false
     overlapsVariableImpl(varRootName, expr)
