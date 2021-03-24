@@ -1,0 +1,40 @@
+
+void RasterA()
+{
+	vic_rasterirq_acknowledge()
+	vic_border = $00
+
+    vic_rasterirq_reconfigure(RasterB.addr, $40)
+	vic_raster_return()
+}
+
+void RasterB()
+{
+	vic_rasterirq_acknowledge()
+	vic_border = $04
+
+    vic_rasterirq_reconfigure(RasterC.addr, $A0)
+	vic_raster_return()
+}
+
+void RasterC()
+{
+	vic_rasterirq_acknowledge()
+	vic_border = $02
+
+    vic_rasterirq_reconfigure(RasterA.addr, $00)
+	vic_raster_return()
+}
+
+void main() 
+{
+    byte i
+
+    // Configure Raster IRQ
+    vic_rasterirq_configure(RasterA.addr, $00)
+
+	while true
+	{
+        i = 0
+	}
+}

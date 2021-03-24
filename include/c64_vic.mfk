@@ -165,3 +165,47 @@ const byte light_green = 13
 const byte light_blue = 14
 const byte light_grey = 15
 const byte light_gray = 15
+
+
+asm void vic_rasterirq_configure(pointer CallbackFunction, byte RasterLine)
+{
+    sei
+    ldx CallbackFunction.lo
+    stx $0314
+    ldy CallbackFunction.hi
+    sty $0315
+    lda #$7f                    ;CIA interrupt off
+    sta $dc0d
+    lda #$01                    ;Raster interrupt on
+    sta $d01a
+    lda #27                     ;High bit of interrupt position = 0
+    sta $d011
+    lda RasterLine              ;Line where next IRQ happens
+    sta $d012
+    lda $dc0d                   ;Acknowledge IRQ (to be sure)
+    cli
+    rts
+}
+
+asm void vic_rasterirq_reconfigure(pointer CallbackFunction, byte RasterLine)
+{
+    ldx CallbackFunction.lo
+    stx $0314
+    ldy CallbackFunction.hi
+    sty $0315
+    lda RasterLine              ;Line where next IRQ happens
+    sta $d012
+    rts
+}
+
+asm macro void vic_rasterirq_acknowledge()
+{
+    lda #$FF
+    sta $D019
+}
+
+asm macro void vic_raster_return()
+{
+    lda #$00
+    jmp $EA81
+}
