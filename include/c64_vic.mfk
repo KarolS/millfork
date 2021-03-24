@@ -167,8 +167,7 @@ const byte light_grey = 15
 const byte light_gray = 15
 
 
-asm void vic_rasterirq_configure(pointer CallbackFunction, byte RasterLine)
-{
+asm void vic_rasterirq_configure(pointer CallbackFunction, byte RasterLine) {
     sei
     ldx CallbackFunction.lo
     stx $0314
@@ -187,8 +186,7 @@ asm void vic_rasterirq_configure(pointer CallbackFunction, byte RasterLine)
     rts
 }
 
-asm void vic_rasterirq_reconfigure(pointer CallbackFunction, byte RasterLine)
-{
+asm void vic_rasterirq_reconfigure(pointer CallbackFunction, byte RasterLine) {
     ldx CallbackFunction.lo
     stx $0314
     ldy CallbackFunction.hi
@@ -198,14 +196,12 @@ asm void vic_rasterirq_reconfigure(pointer CallbackFunction, byte RasterLine)
     rts
 }
 
-asm macro void vic_rasterirq_acknowledge()
-{
+asm macro void vic_rasterirq_acknowledge() {
     lda #$FF
     sta $D019
 }
 
-asm macro void vic_raster_return()
-{
+asm macro void vic_rasterirq_return() {
     lda #$00
     jmp $EA81
 }
