@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile, ShouldNotParse}
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile, ShouldNotParse, ShouldParse}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -95,4 +95,14 @@ class ParserSuite extends FunSuite with Matchers  {
         |}
         |""".stripMargin)
   }
+
+  test("Very long expression test") {
+    ShouldParse(
+      """
+        |void main(){
+        |  const byte a = 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1
+        |}
+        |""".stripMargin)
+  }
+
 }

@@ -26,4 +26,21 @@ class OptimizationHintsSuite extends FunSuite with Matchers  {
 
     }
   }
+
+  test("Optimization hints syntax error test 1") {
+    ShouldNotParse("""
+        | asm void putchar(byte register(a) character) @$ffd2 !preserves_a !preserves_x !preserves_y extern
+        | noinline bool should_print(byte a) = a == 5
+        | void main() {
+        |   byte i
+        |   if should_print(3) {
+        |     for i,0,parallelto,255 {
+        |       putchar(i)
+        |       putchar(i)
+        |     }
+        |   }
+        | }
+        |""".stripMargin)
+  }
+
 }

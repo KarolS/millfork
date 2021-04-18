@@ -458,14 +458,19 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   def mfExpression(level: Int, allowIntelHex: Boolean, allowTopLevelIndexing: Boolean = true): P[Expression] = {
     val allowedOperators = mfOperatorsDropFlatten(level)
 
-    def inner: P[SeparatedList[(Boolean, Expression), String]] = {
-      for {
-        (minus, head, maybeOperator) <- ("-".rep(min = 1).!.map(_.length().&(1).==(1)) ~/ HWS).?.map(_.getOrElse(false)) ~
-          tightMfExpression(allowIntelHex, allowTopLevelIndexing) ~/ HWS ~/
-          (StringIn(allowedOperators: _*).! ~ !CharIn(Seq('/', '=', '-', '+', ':', '>', '<', '\''))).map(op => if (mfOperatorNormalizations.contains(op)) mfOperatorNormalizations(op) else op).? ~/ Pass
-        maybeTail <- maybeOperator.fold[P[Option[List[(String, (Boolean, Expression))]]]](Pass.map(_ => None))(o => (AWS ~/ inner ~/ HWS).map(x2 => Some((o -> x2.head) :: x2.tail)))
-      } yield {
-        maybeTail.fold[SeparatedList[(Boolean, Expression), String]](SeparatedList.of(minus -> head))(t => SeparatedList(minus -> head, t))
+    def innerNowOperatorOrNothing: P[List[(String, (Boolean, Expression))]] = {
+      ((StringIn(allowedOperators: _*).! ~ !CharIn(Seq('/', '=', '-', '+', ':', '>', '<', '\''))).map(op => if (mfOperatorNormalizations.contains(op)) mfOperatorNormalizations(op) else op) ~/
+        (AWS ~/ P(innerNowTerm) ~/ HWS)).?.map{
+        case None => Nil
+        case Some((op, rhs)) => rhs.toPairList(op)
+      }
+    }
+
+    def innerNowTerm: P[SeparatedList[(Boolean, Expression), String]] = {
+      (("-".rep(min = 1).!.map(_.length().&(1).==(1)) ~/ HWS).?.map(_.getOrElse(false)) ~
+                tightMfExpression(allowIntelHex, allowTopLevelIndexing) ~/ HWS ~/
+        innerNowOperatorOrNothing).map{
+        case (minus, head, maybeTail) => SeparatedList(minus -> head, maybeTail)
       }
     }
 
@@ -522,7 +527,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         }
       }
 
-    inner.map(x => p(x, 0))
+    innerNowTerm.map(x => p(x, 0))
   }
 
   def index: P[Expression] = HWS ~ "[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~/ "]" ~/ Pass
@@ -562,7 +567,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
   def mfParenExpr(allowIntelHex: Boolean): P[Expression] = P("(" ~/ AWS ~/ mfExpression(nonStatementLevel, allowIntelHex) ~ AWS ~/ ")")
 
   def functionCall(allowIntelHex: Boolean): P[FunctionCallExpression] = for {
-    p <- position("function call")
+    p <- position()
     name <- identifier
     params <- HWS ~ "(" ~/ AWS ~/ mfExpression(nonStatementLevel, allowIntelHex).rep(min = 0, sep = AWS ~ "," ~/ AWS) ~ AWS ~/ ")" ~/ ""
   } yield FunctionCallExpression(name, params.toList).pos(p)
@@ -700,6 +705,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       alignmentDeclaration(fastAlignmentForFunctions).? ~/ AWS ~/
       position("function address or body").map(_ => ()) ~/
       ("@" ~/ HWS ~/ mfExpression(1, false) ~/ Pass).?.opaque("<address>") ~/ AWS ~/
+      position("function body").map(_ => ()) ~/
       (externFunctionBody | (if (flags("asm")) asmStatements else mfFunctionBody).map(l => Some(l))) ~/ Pass
     //    name <- identifier ~ HWS
     //    params <- "(" ~/ AWS ~/ (if (flags("asm")) asmParamDefinition else if (flags("macro")) macroParamDefinition else paramDefinition).rep(sep = AWS ~ "," ~/ AWS) ~ AWS ~ ")" ~/ AWS
@@ -889,68 +895,49 @@ object MfParser {
     Character.UNASSIGNED)
 
   val decimalAtom: P[LiteralExpression] =
-    for {
-      minus <- "-".!.?
-      s <- CharsWhileIn("1234567890", min = 1).!.opaque("<decimal digits>") ~ !("x" | "b")
-    } yield {
-      val abs = parseLong(s, 10)
-      val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 3,  s.length > 5, s.length > 7, s.length > 10, s.length > 13, s.length > 15, s.length > 17))
+    ("-".!.? ~ CharsWhileIn("0123456789", min = 1).!.opaque("<decimal digits>") ~ !(CharIn("xXbBoOqQ".toSeq))).map{
+      case (minus, s) =>
+        val abs = parseLong(s, 10)
+        val value = sign(abs, minus.isDefined)
+        LiteralExpression(value, size(value, s.length > 3,  s.length > 5, s.length > 7, s.length > 10, s.length > 13, s.length > 15, s.length > 17))
     }
 
   val binaryAtom: P[LiteralExpression] =
-    for {
-      minus <- "-".!.?
-      _ <- P("0b" | "%") ~/ Pass
-      s <- CharsWhileIn("01", min = 1).!.opaque("<binary digits>")
-    } yield {
-      val abs = parseLong(s, 2)
-      val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 8, s.length > 16, s.length > 24, s.length > 32, s.length > 40, s.length > 48, s.length > 52))
+    ("-".!.? ~ ("0b" | "0B" | "%") ~/ CharsWhileIn("01", min = 1).!.opaque("<binary digits>")).map{
+      case (minus, s) =>
+        val abs = parseLong(s, 2)
+        val value = sign(abs, minus.isDefined)
+        LiteralExpression(value, size(value, s.length > 8, s.length > 16, s.length > 24, s.length > 32, s.length > 40, s.length > 48, s.length > 52))
     }
 
   val hexAtom: P[LiteralExpression] =
-    for {
-      minus <- "-".!.?
-      _ <- P("0x" | "0X" | "$") ~/ Pass
-      s <- CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>")
-    } yield {
-      val abs = parseLong(s, 16)
-      val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6, s.length > 8, s.length > 10, s.length > 12, s.length > 14))
+    ("-".!.? ~ ("0x" | "0X" | "$") ~/ CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>")).map{
+      case (minus, s) =>
+        val abs = parseLong(s, 16)
+        val value = sign(abs, minus.isDefined)
+        LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6, s.length > 8, s.length > 10, s.length > 12, s.length > 14))
     }
 
   val intelHexAtom: P[LiteralExpression] =
-    for {
-      minus <- "-".!.?
-      head <- CharIn("0123456789").!
-      tail <- CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>")
-      _ <- P("h" | "H")
-    } yield {
-      // check for marking zero:
-      val s = if (head == "0" && tail.nonEmpty && tail.head >'9') tail else head + tail
-      val abs = parseLong(s, 16)
-      val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6, s.length > 8, s.length > 10, s.length > 12, s.length > 14))
+    ("-".!.? ~ CharIn("0123456789").! ~ CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>") ~ P("h" | "H") ~/ Pass).map{
+      case (minus, head, tail) =>
+        val s = if (head == "0" && tail.nonEmpty && tail.head >'9') tail else head + tail
+        val abs = parseLong(s, 16)
+        val value = sign(abs, minus.isDefined)
+        LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6, s.length > 8, s.length > 10, s.length > 12, s.length > 14))
     }
 
   val octalAtom: P[LiteralExpression] =
-    for {
-      minus <- "-".!.?
-      _ <- P("0o" | "0O") ~/ Pass
-      s <- CharsWhileIn("01234567", min = 1).!.opaque("<octal digits>")
-    } yield {
-      val abs = parseLong(s, 8)
-      val value = sign(abs, minus.isDefined)
-      LiteralExpression(value, size(value, s.length > 3, s.length > 6, s.length > 8, s.length > 11, s.length > 14, s.length > 16, s.length > 19))
+    ("-".!.? ~ ("0o" | "0O") ~/ CharsWhileIn("01234567", min = 1).!.opaque("<octal digits>")).map{
+      case (minus, s) =>
+        val abs = parseLong(s, 8)
+        val value = sign(abs, minus.isDefined)
+        LiteralExpression(value, size(value, s.length > 3, s.length > 6, s.length > 8, s.length > 11, s.length > 14, s.length > 16, s.length > 19))
     }
 
   val quaternaryAtom: P[LiteralExpression] =
-    for {
-      minus <- "-".!.?
-      _ <- P("0q" | "0Q") ~/ Pass
-      s <- CharsWhileIn("0123", min = 1).!.opaque("<quaternary digits>")
-    } yield {
+    ("-".!.? ~ ("0q" | "0Q") ~/ CharsWhileIn("0123", min = 1).!.opaque("<quaternary digits>")).map{
+      case (minus, s) =>
       val abs = parseLong(s, 4)
       val value = sign(abs, minus.isDefined)
       LiteralExpression(value, size(value, s.length > 4, s.length > 8, s.length > 12, s.length > 16, s.length > 20, s.length > 24, s.length > 28))
