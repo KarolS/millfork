@@ -936,4 +936,30 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
         |}
         |""".stripMargin)
   }
+
+  test("Sign extension") {
+    EmuBenchmarkRun(
+      """
+        |array(word) output [5]@$c000
+        |
+        |noinline void set(byte i, sbyte s) {
+        |    word w
+        |    output[i] = s
+        |}
+        |
+        |void main() {
+        |    set(0, 0)
+        |    set(1, -1)
+        |    set(2, 1)
+        |    set(3, 0)
+        |    set(4, 10)
+        |}
+        |""".stripMargin) { m =>
+      m.readWord(0xc000) should equal(0)
+      m.readWord(0xc002) should equal(0xffff)
+      m.readWord(0xc004) should equal(1)
+      m.readWord(0xc006) should equal(0)
+      m.readWord(0xc008) should equal(10)
+    }
+  }
 }

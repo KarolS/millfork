@@ -1029,7 +1029,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               if (target.typ.size == 1) {
                 AssemblyLine.variable(ctx, STA, target)
               }
-              else if (target.typ.isSigned) {
+              else if (pointy.elementType.isSigned) {
                 AssemblyLine.variable(ctx, STA, target) ++ signExtendA(ctx) ++
                   List.tabulate(target.typ.size - 1)(i => AssemblyLine.variable(ctx, STA, target, i + 1)).flatten
               } else {
@@ -1119,10 +1119,30 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               Nil
           }
           register match {
-            case MosRegister.A | MosRegister.X | MosRegister.Y => result ++ suffix
-            case MosRegister.AX | MosRegister.YX => result :+ AssemblyLine.immediate(LDX, 0) // TODO: signedness?
-            case MosRegister.AY | MosRegister.XY => result :+ AssemblyLine.immediate(LDY, 0)
-            case MosRegister.AW => result ++ List(AssemblyLine.implied(XBA), AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(XBA))
+            case MosRegister.A | MosRegister.X | MosRegister.Y =>
+              result ++ suffix
+            case MosRegister.AX | MosRegister.YX if !pointy.elementType.isSigned =>
+              result :+ AssemblyLine.immediate(LDX, 0)
+            case MosRegister.AY | MosRegister.XY if !pointy.elementType.isSigned =>
+              result :+ AssemblyLine.immediate(LDY, 0)
+            case MosRegister.XA | MosRegister.YA if !pointy.elementType.isSigned =>
+              result :+ AssemblyLine.immediate(LDA, 0)
+            case MosRegister.AX =>
+              result ++ List(AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(TAX), AssemblyLine.implied(PLA))
+            case MosRegister.AY =>
+              result ++ List(AssemblyLine.implied(PHA)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(TAY), AssemblyLine.implied(PLA))
+            case MosRegister.XY =>
+              result ++ List(AssemblyLine.implied(TAX)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(TAY))
+            case MosRegister.YX =>
+              result ++ List(AssemblyLine.implied(TAY)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(TAX))
+            case MosRegister.XA =>
+              result ++ List(AssemblyLine.implied(TAX)) ++ signExtendA(ctx)
+            case MosRegister.YA =>
+              result ++ List(AssemblyLine.implied(TAY)) ++ signExtendA(ctx)
+            case MosRegister.AW if !pointy.elementType.isSigned =>
+              result ++ List(AssemblyLine.implied(XBA), AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(XBA))
+            case MosRegister.AW =>
+              result ++ List(AssemblyLine.implied(PHA), AssemblyLine.implied(XBA), AssemblyLine.implied(PLA)) ++ signExtendA(ctx) ++ List(AssemblyLine.implied(XBA))
           }
         }
       case DerefExpression(inner, offset, targetType) =>
@@ -1168,7 +1188,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
               case Some((variableType, variable)) =>
                 prepare ++ (0 until variableType.size).flatMap { i =>
                   val load =
-                    if (i >= targetType.size) List(AssemblyLine.immediate(LDA, 0))
+                    if (i == targetType.size) signExtendA(ctx)
+                    else if (i > targetType.size) Nil
                     else if (am == AbsoluteY) List(AssemblyLine.absolute(LDA, addr + offset + i))
                     else if (i == 0) List(AssemblyLine.immediate(LDY, offset), AssemblyLine(LDA, am, addr))
                     else List(AssemblyLine.implied(INY), AssemblyLine(LDA, am, addr))
@@ -2249,7 +2270,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                       AssemblyLine(STA, am, addr))
                   case (_, AbsoluteY) =>
                     prepare ++ (0 until targetType.size).flatMap { i =>
-                      val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
+                      val load = loadSingleByteAssumingAPreserved(ctx, sourceType, variable, i)
                       load ++ List(
                         AssemblyLine.absolute(STA, addr + offset + i))
                     }
@@ -2257,14 +2278,14 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                     fastTarget match {
                       case Some((constAddr, fastAddrMode, initializeY)) =>
                         initializeY(offset) ++ (0 until targetType.size).flatMap { i =>
-                          val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
+                          val load = loadSingleByteAssumingAPreserved(ctx, sourceType, variable, i)
                           load ++ (if (i == 0) List(AssemblyLine(STA, fastAddrMode, constAddr)) else List(
                             AssemblyLine.implied(INY),
                             AssemblyLine(STA, fastAddrMode, constAddr)))
                         }
                       case _ =>
                         prepare ++ (0 until targetType.size).flatMap { i =>
-                          val load = if (i >= sourceType.size) List(AssemblyLine.immediate(LDA, 0)) else AssemblyLine.variable(ctx, LDA, variable, i)
+                          val load = loadSingleByteAssumingAPreserved(ctx, sourceType, variable, i)
                           load ++ List(
                             if (i == 0) AssemblyLine.immediate(LDY, offset) else AssemblyLine.implied(INY),
                             AssemblyLine(STA, am, addr))
@@ -2279,32 +2300,17 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                 (am, amSource) match {
                   case (AbsoluteY, AbsoluteY) =>
                     prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
-                      if (i >= sourceType.size) List(
-                        AssemblyLine.immediate(LDA, 0),
-                        AssemblyLine.absolute(STA, addr + offset + i))
-                      else List(
-                        AssemblyLine.absolute(LDA, addrSource + sourceOffset + i),
-                        AssemblyLine.absolute(STA, addr + offset + i))
+                      loadSingleByteAssumingAPreserved(ctx, sourceType, addrSource + sourceOffset, i) :+ AssemblyLine.absolute(STA, addr + offset + i)
                     }
                   case (AbsoluteY, _) =>
                     prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
-                      if (i >= sourceType.size) List(
-                        AssemblyLine.immediate(LDA, 0),
-                        AssemblyLine.absolute(STA, addr + offset + i))
-                      else List(
-                        if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                        AssemblyLine(LDA, amSource, addrSource),
-                        AssemblyLine.absolute(STA, addr + offset + i))
+                      loadSingleByteIndexedCountingYAssumingAPreserved(ctx, sourceType, amSource, addrSource, sourceOffset, i) :+
+                        AssemblyLine.absolute(STA, addr + offset + i)
                     }
                   case (_, AbsoluteY) =>
                     prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
-                      if (i >= sourceType.size) List(
-                        if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                        AssemblyLine.immediate(LDA, 0),
-                        AssemblyLine(STA, am, addr))
-                      else List(
-                        if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                        AssemblyLine.absolute(LDA, addrSource + sourceOffset + i),
+                      (if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY)) ::
+                        (loadSingleByteAssumingAPreserved(ctx, sourceType, addrSource + sourceOffset, i) :+
                         AssemblyLine(STA, am, addr))
                     }
                   case (IndexedY, IndexedY) =>
@@ -2320,13 +2326,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                               AssemblyLine.zeropage(STA, reg, 2),
                               AssemblyLine.zeropage(LDA, reg, 1),
                               AssemblyLine.zeropage(STA, reg, 3)) ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
-                              if (i >= sourceType.size) List(
-                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                                AssemblyLine.immediate(LDA, 0),
-                                AssemblyLine.indexedY(STA, reg, 2))
-                              else List(
-                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                                AssemblyLine.indexedY(LDA, reg),
+                              (if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY)) ::
+                                (loadSingleByteIndexedAssumingAPreserved(ctx, sourceType, IndexedY, reg.toAddress, i) :+
                                 AssemblyLine.indexedY(STA, reg, 2))
                             }
                           case (false, true) =>
@@ -2335,13 +2336,8 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                               AssemblyLine.zeropage(STA, reg, 2),
                               AssemblyLine.zeropage(LDA, reg, 1),
                               AssemblyLine.zeropage(STA, reg, 3)) ++ prepare ++ (0 until targetType.size).flatMap { i =>
-                              if (i >= sourceType.size) List(
-                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                                AssemblyLine.immediate(LDA, 0),
-                                AssemblyLine.indexedY(STA, reg))
-                              else List(
-                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                                AssemblyLine.indexedY(LDA, reg, 2),
+                              (if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY)) ::
+                                (loadSingleByteIndexedAssumingAPreserved(ctx, sourceType, IndexedY, reg.toAddress + 2, i) :+
                                 AssemblyLine.indexedY(STA, reg))
                             }
                           case _ =>
@@ -2354,25 +2350,15 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
                               AssemblyLine.zeropage(STA, reg, 2),
                               AssemblyLine.implied(PLA),
                               AssemblyLine.zeropage(STA, reg, 3)) ++ (0 until targetType.size).flatMap { i =>
-                              if (i >= sourceType.size) List(
-                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                                AssemblyLine.immediate(LDA, 0),
-                                AssemblyLine.indexedY(STA, reg, 2))
-                              else List(
-                                if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                                AssemblyLine.indexedY(LDA, reg),
+                              (if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY)) ::
+                                (loadSingleByteIndexedAssumingAPreserved(ctx, sourceType, IndexedY, reg.toAddress, i) :+
                                 AssemblyLine.indexedY(STA, reg, 2))
                             }
                         }
                       case (MemoryAddressConstant(thT: MemoryVariable), MemoryAddressConstant(thS: MemoryVariable)) if thT.name != thS.name =>
                         prepare ++ prepareSource ++ (0 until targetType.size).flatMap { i =>
-                          if (i >= sourceType.size) List(
-                            if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                            AssemblyLine.immediate(LDA, 0),
-                            AssemblyLine.indexedY(STA, thT))
-                          else List(
-                            if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY),
-                            AssemblyLine.indexedY(LDA, thS),
+                          (if (i == 0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY)) ::
+                            (loadSingleByteIndexedAssumingAPreserved(ctx, sourceType, IndexedY, thS.toAddress, i) :+
                             AssemblyLine.indexedY(STA, thT))
                         }
                       case _ =>
@@ -2448,6 +2434,34 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
       case _ =>
         compile(ctx, source, Some(b, RegisterVariable(MosRegister.A, b)), NoBranching) ++ compileByteStorage(ctx, MosRegister.A, target)
     }
+  }
+
+  private def loadSingleByteAssumingAPreserved(ctx: CompilationContext, sourceType: Type, variable: Variable, i: Int) = {
+    if (i == sourceType.size) {
+      if (sourceType.isSigned) signExtendA(ctx) else List(AssemblyLine.immediate(LDA, 0))
+    } else if (i > sourceType.size) Nil
+    else AssemblyLine.variable(ctx, LDA, variable, i)
+  }
+
+  private def loadSingleByteAssumingAPreserved(ctx: CompilationContext, sourceType: Type, varAddr: Constant, i: Int) = {
+    if (i == sourceType.size) {
+      if (sourceType.isSigned) signExtendA(ctx) else List(AssemblyLine.immediate(LDA, 0))
+    } else if (i > sourceType.size) Nil
+    else List(AssemblyLine.absolute(LDA, varAddr + i))
+  }
+
+  private def loadSingleByteIndexedAssumingAPreserved(ctx: CompilationContext, sourceType: Type, addrMode: AddrMode.Value, baseAddr: Constant, i: Int) = {
+    if (i == sourceType.size) {
+      if (sourceType.isSigned) signExtendA(ctx) else List(AssemblyLine.immediate(LDA, 0))
+    } else if (i > sourceType.size) Nil
+    else List(AssemblyLine(LDA, addrMode, baseAddr))
+  }
+
+  private def loadSingleByteIndexedCountingYAssumingAPreserved(ctx: CompilationContext, sourceType: Type, addrMode: AddrMode.Value, baseAddr: Constant, sourceOffset:Int, i: Int) = {
+    if (i == sourceType.size) {
+      if (sourceType.isSigned) signExtendA(ctx) else List(AssemblyLine.immediate(LDA, 0))
+    } else if (i > sourceType.size) Nil
+    else List(if(i==0) AssemblyLine.immediate(LDY, sourceOffset) else AssemblyLine.implied(INY), AssemblyLine(LDA, addrMode, baseAddr))
   }
 
   def arrayBoundsCheck(ctx: CompilationContext, pointy: Pointy, register: MosRegister.Value, index: Expression): List[AssemblyLine] = {

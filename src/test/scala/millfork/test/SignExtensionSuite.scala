@@ -207,4 +207,72 @@ class SignExtensionSuite extends FunSuite with Matchers {
     }
   }
 
+  test("Derefs and sign extension") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |pointer.word op
+        |pointer.sbyte ip
+        |array(sbyte) input[1]
+        |array(word) output [4] @$c000
+        |word output2 @$c010
+        |
+        |noinline byte id(byte x) = x
+        |
+        |noinline void init() {
+        |   input[0] = -2
+        |   ip = input[0].pointer
+        |   op = output[0].pointer
+        |}
+        |
+        |void main() {
+        |  sbyte sb
+        |  sb = -2
+        |  init()
+        |  op[id(0)] = sb
+        |  output[id(1)] = sb
+        |  op[id(2)] = ip[id(0)]
+        |  output[id(3)] = ip[id(0)]
+        |  output2 = ip[id(0)]
+        |}
+        |""".stripMargin){ m =>
+      m.readWord(0xc000) should equal(0xfffe)
+      m.readWord(0xc002) should equal(0xfffe)
+      m.readWord(0xc004) should equal(0xfffe)
+      m.readWord(0xc006) should equal(0xfffe)
+      m.readWord(0xc010) should equal(0xfffe)
+    }
+  }
+
+  test("Derefs and sign extension 2") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |pointer.long op
+        |pointer.sbyte ip
+        |array(sbyte) input[1]
+        |array(long) output [4] @$c000
+        |long output2 @$c010
+        |
+        |noinline byte id(byte x) = x
+        |
+        |noinline void init() {
+        |   input[0] = -2
+        |   ip = input[0].pointer
+        |   op = output[0].pointer
+        |}
+        |
+        |void main() {
+        |  sbyte sb
+        |  sb = -2
+        |  init()
+        |  op[id(0)] = sb
+        |  output[id(1)] = sb
+        |  output2 = ip[id(0)]
+        |}
+        |""".stripMargin){ m =>
+      m.readLong(0xc000) should equal(-2)
+      m.readLong(0xc004) should equal(-2)
+      m.readLong(0xc010) should equal(-2)
+    }
+  }
+
 }

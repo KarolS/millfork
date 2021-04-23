@@ -1002,7 +1002,7 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                 else if (i == 1) List(
                   MLine.tfr(M6809Register.A, M6809Register.B),
                   MLine.inherent(SEX),
-                  MLine.tfr(M6809Register.B, M6809Register.A)
+                  MLine.tfr(M6809Register.A, M6809Register.B)
                 )
                 else List(MLine.tfr(M6809Register.A, M6809Register.B))
               } else {

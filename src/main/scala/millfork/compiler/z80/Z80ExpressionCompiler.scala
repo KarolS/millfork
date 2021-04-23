@@ -1505,31 +1505,28 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
       case ZExpressionTarget.HL =>
         if (signExtend) {
           List(ldAbs8(A, sourceAddr, elidability), ld8(L, A)) ++
-            signExtendHighestByte(ctx, A, signExtend) ++
-            List(ld8(H, A))
+            signExtendHighestByte(ctx, A, H, signedSource = signExtend)
         } else {
           List(ldAbs8(A, sourceAddr, elidability), ld8(L, A), ldImm8(H, 0))
         }
       case ZExpressionTarget.BC =>
         if (signExtend) {
           List(ldAbs8(A, sourceAddr, elidability), ld8(C, A)) ++
-            signExtendHighestByte(ctx, A, signExtend) ++
-            List(ld8(B, A))
+            signExtendHighestByte(ctx, A, B, signedSource = signExtend)
         } else {
           List(ldAbs8(A, sourceAddr, elidability), ld8(C, A), ldImm8(B, 0))
         }
       case ZExpressionTarget.DE =>
         if (signExtend) {
           List(ldAbs8(A, sourceAddr, elidability), ld8(E, A)) ++
-            signExtendHighestByte(ctx, A, signExtend) ++
-            List(ld8(D, A))
+            signExtendHighestByte(ctx, A, D, signedSource = signExtend)
         } else {
           List(ldAbs8(A, sourceAddr, elidability), ld8(E, A), ldImm8(D, 0))
         }
       case ZExpressionTarget.EHL =>
         if (signExtend) {
           List(ldAbs8(A, sourceAddr, elidability), ld8(L, A)) ++
-            signExtendHighestByte(ctx, A, signExtend) ++
+            signExtendHighestByte(ctx, A, A, signedSource = signExtend) ++
             List(ld8(H, A), ld8(E, A))
         } else {
           List(ldAbs8(ZRegister.A, sourceAddr, elidability), ld8(L, A), ldImm8(H, 0), ldImm8(E, 0))
@@ -1537,7 +1534,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
       case ZExpressionTarget.DEHL =>
         if (signExtend) {
           List(ldAbs8(A, sourceAddr, elidability), ld8(L, A)) ++
-            signExtendHighestByte(ctx, A, signExtend) ++
+            signExtendHighestByte(ctx, A, A, signExtend) ++
             List(ld8(H, A), ld8(E, A), ld8(D, A))
         } else {
           List(ldAbs8(A, sourceAddr, elidability), ld8(L, A), ldImm8(H, 0), ldImm16(DE, 0))
@@ -1593,13 +1590,13 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     prepareA ++ fillUpperBytes
   }
 
-  private def signExtendHighestByte(ctx: CompilationContext, hiRegister: ZRegister.Value, signedSource: Boolean = true): List[ZLine] = {
+  private def signExtendHighestByte(ctx: CompilationContext, sourceHiRegister: ZRegister.Value, targetHiRegister: ZRegister.Value = ZRegister.A, signedSource: Boolean = true): List[ZLine] = {
     if (!signedSource) {
-      return List(ZLine.ldImm8(ZRegister.A, 0))
+      return List(ZLine.ldImm8(targetHiRegister, 0))
     }
-    val prefix = if (hiRegister == ZRegister.A) Nil else List(ZLine.ld8(ZRegister.A, hiRegister))
+    val prefix = if (sourceHiRegister == ZRegister.A) Nil else List(ZLine.ld8(ZRegister.A, sourceHiRegister))
     val label = ctx.nextLabel("sx")
-    if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
+    val resultInA = if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
       prefix ++ List(
         ZLine.imm8(OR, 0x7f),
         ZLine.jump(label, IfFlagSet(ZFlag.S)),
@@ -1616,6 +1613,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     } else {
       throw new IllegalStateException()
     }
+    if (targetHiRegister == ZRegister.A) resultInA else resultInA :+ ZLine.ld8(targetHiRegister, ZRegister.A)
   }
 
   def signExtendViaIX(ctx: CompilationContext, targetOffset: Int, hiRegister: ZRegister.Value, bytes: Int, signedSource: Boolean): List[ZLine] = {
@@ -1874,10 +1872,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         val lo = stashAFIfChanged(ctx, compileDerefPointer(ctx, e)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
         if (targetType.size == 1) lo
         else if (targetType.size == 2) {
-          lo ++ List(ZLine.register(INC_16, ZRegister.HL)) ++ signExtendHighestByte(ctx, ZRegister.MEM_HL)
-          lo
+          lo ++ List(ZLine.register(INC_16, ZRegister.HL)) ++
+            signExtendHighestByte(ctx, ZRegister.A, signedSource = signedSource) ++
+            List(ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
         } else {
-          lo ++ signExtendHighestByte(ctx, ZRegister.A) ++ List.tabulate(targetType.size - 1)(_ => List(
+          lo ++ signExtendHighestByte(ctx, ZRegister.A, signedSource = signedSource) ++ List.tabulate(targetType.size - 1)(_ => List(
             ZLine.register(INC_16, ZRegister.HL),
             ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
           )).flatten
@@ -2020,7 +2019,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         ZLine.ld8(MEM_HL, B),
         ZLine.register(INC_16, HL),
         ZLine.ld8(MEM_HL, E)) ++ (
-      if (targetType.size > 3) signExtendHighestByte(ctx, E, signedSource) ++ List.fill(targetType.size - 3)(List(ZLine.register(INC_16, HL), ZLine.ld8(MEM_HL, A))).flatten
+      if (targetType.size > 3) signExtendHighestByte(ctx, E, A, signedSource) ++ List.fill(targetType.size - 3)(List(ZLine.register(INC_16, HL), ZLine.ld8(MEM_HL, A))).flatten
       else Nil)
   }
 
@@ -2054,7 +2053,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         ZLine.ld8(MEM_HL, E),
         ZLine.register(INC_16, HL),
         ZLine.ld8(MEM_HL, D)) ++ (
-      if (targetType.size > 4) signExtendHighestByte(ctx, D, signedSource) ++ List.fill(targetType.size - 4)(List(ZLine.register(INC_16, HL), ZLine.ld8(MEM_HL, A))).flatten
+      if (targetType.size > 4) signExtendHighestByte(ctx, D, A, signedSource) ++ List.fill(targetType.size - 4)(List(ZLine.register(INC_16, HL), ZLine.ld8(MEM_HL, A))).flatten
       else Nil)
   }
 
