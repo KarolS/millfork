@@ -107,6 +107,12 @@ case class PointerType(name: String, targetName: String, var target: Option[Type
   override def pointerTargetName: String = targetName
 
   override def alignment: MemoryAlignment = NoAlignment
+
+  override def isCompatible(other: Type): Boolean = this == other || ((target -> other) match {
+    case (Some(t1), PointerType(_, _, Some(t2))) => t1 == t2
+    case (_, PointerType(_, t, _)) => targetName == t
+    case _ => false
+  })
 }
 
 case class FunctionPointerType(name: String, paramTypeName:String, returnTypeName: String, var paramType: Option[Type], var returnType: Option[Type]) extends VariableType {
