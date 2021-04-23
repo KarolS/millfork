@@ -2065,7 +2065,7 @@ object AlwaysGoodOptimizations {
 
   val UnusedLabelRemoval = new RuleBasedAssemblyOptimization("Unused label removal",
     needsFlowInfo = FlowInfoRequirement.JustLabels,
-    (Elidable & HasOpcode(LABEL) & HasCallerCount(0)) ~~> (_ => Nil)
+    (Elidable & HasOpcode(LABEL) & HasCallerCount(0) & ParameterIsLocalLabel) ~~> (_ => Nil)
   )
 
   val OperationsAroundShifting = new RuleBasedAssemblyOptimization("Operations around shifting",

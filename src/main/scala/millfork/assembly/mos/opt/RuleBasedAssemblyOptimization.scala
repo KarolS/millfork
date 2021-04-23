@@ -1575,6 +1575,16 @@ case class HasCallerCount(count: Int) extends AssemblyLinePattern {
   override def hitRate: Double = 0.31
 }
 
+object ParameterIsLocalLabel extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: AssemblyLine): Boolean =
+    line match {
+      case AssemblyLine0(Opcode.LABEL, _, MemoryAddressConstant(Label(l))) => l.startsWith(".")
+      case _ => false
+    }
+
+  override def hitRate: Double = 0.056
+}
+
 case class MatchElidableCopyOf(i: Int, firstLinePattern: AssemblyLinePattern, lastLinePattern: AssemblyLinePattern) extends AssemblyPattern {
   override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, AssemblyLine)]): Option[List[(FlowInfo, AssemblyLine)]] = {
     val pattern = ctx.get[List[AssemblyLine]](i)

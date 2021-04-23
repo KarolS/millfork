@@ -52,7 +52,7 @@ object FlowAnalyzer {
     }
     val labelMap: () => Option[Map[String, Int]] = () => req match {
       case FlowInfoRequirement.NoRequirement => None
-      case _ => Some(code.flatMap(_.parameter.extractLabels).groupBy(identity).mapValues(_.size).view.force)
+      case _ => Some(code.filter(m => m.opcode != MOpcode.LABEL).flatMap(_.parameter.extractLabels).groupBy(identity).mapValues(_.size).view.force)
     }
     val holder = new FlowHolder(forwardFlow, reverseFlow)
     code.zipWithIndex.map{ case (line, i) => FlowInfo(holder, i, labelMap) -> line}

@@ -1311,6 +1311,16 @@ case class HasCallerCount(count: Int) extends AssemblyLinePattern {
   override def hitRate: Double = 0.056
 }
 
+object ParameterIsLocalLabel extends AssemblyLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: ZLine): Boolean =
+    line match {
+      case ZLine0(ZOpcode.LABEL, _, MemoryAddressConstant(Label(l))) => l.startsWith(".")
+      case _ => false
+    }
+
+  override def hitRate: Double = 0.056
+}
+
 case class MatchElidableCopyOf(i: Int, firstLinePattern: AssemblyLinePattern, lastLinePattern: AssemblyLinePattern) extends AssemblyPattern {
   override def matchTo(ctx: AssemblyMatchingContext, code: List[(FlowInfo, ZLine)]): Option[List[(FlowInfo, ZLine)]] = {
     val pattern = ctx.get[List[ZLine]](i)
