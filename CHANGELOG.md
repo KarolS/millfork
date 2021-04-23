@@ -9,6 +9,14 @@
 * Fixed escape sequences in many encodings.
 
 * Fixed and documented absolute module imports (#106)
+  
+* Fixed and optimized sign extension.
+  
+* Fixed optimizations involving unused labels.
+  
+* Fixed pointer types to type aliases.
+
+* Parsing optimizations.
 
 ## 0.3.26 (2021-03-01)
 
