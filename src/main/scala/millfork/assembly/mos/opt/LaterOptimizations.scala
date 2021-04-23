@@ -509,6 +509,30 @@ object LaterOptimizations {
       (Elidable & HasOpcodeIn(ADC, ORA, EOR, AND) & HasAddrModeIn(Absolute, LongAbsolute, ZeroPage) & MatchParameter(1)) ~~> { (code, ctx) =>
       ctx.get[List[AssemblyLine]](4) ++ ctx.get[List[AssemblyLine]](5) ++ ctx.get[List[AssemblyLine]](66).map(_.copy(opcode = code.last.opcode))
     },
+
+    (Elidable & HasOpcode(LDA) & HasClear(State.D)) ~
+      (Elidable & HasOpcode(ORA) & HasImmediate(0x7f)) ~
+      (Elidable & HasOpcode(BMI) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(LDA) & HasImmediate(0)) ~
+      (Elidable & IsNotALabelUsedManyTimes & HasOpcode(LABEL) & MatchParameter(0) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0x7f), code.head.copy(opcode = CMP), AssemblyLine.immediate(SBC, 0x7f))
+    },
+
+    (Elidable & HasOpcode(LDA) & HasClear(State.D) & HasY(0)) ~
+      (Elidable & HasOpcode(ORA) & HasImmediate(0x7f)) ~
+      (Elidable & HasOpcode(BMI) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(TYA) & HasY(0)) ~
+      (Elidable & IsNotALabelUsedManyTimes & HasOpcode(LABEL) & MatchParameter(0) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0x7f), code.head.copy(opcode = CMP), AssemblyLine.immediate(SBC, 0x7f))
+    },
+
+    (Elidable & HasOpcode(LDA) & HasClear(State.D) & HasX(0)) ~
+      (Elidable & HasOpcode(ORA) & HasImmediate(0x7f)) ~
+      (Elidable & HasOpcode(BMI) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(TXA) & HasX(0)) ~
+      (Elidable & IsNotALabelUsedManyTimes & HasOpcode(LABEL) & MatchParameter(0) & DoesntMatterWhatItDoesWith(State.C, State.V)) ~~> { (code, ctx) =>
+      List(AssemblyLine.immediate(LDA, 0x7f), code.head.copy(opcode = CMP), AssemblyLine.immediate(SBC, 0x7f))
+    },
   )
 
   val DontUseIndexRegisters = new RuleBasedAssemblyOptimization("Don't use index registers unnecessarily",
