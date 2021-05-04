@@ -794,6 +794,10 @@ object Main {
       c.changeFlag(CompilationFlag.DeprecationWarning, v)
     }.description("Whether should warn about deprecated aliases. Default: enabled.")
 
+    boolean("-Wcomparisons", "-Wno-comparisons").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.BytePointerComparisonWarning, v)
+    }.description("Whether should warn about comparisons between bytes and pointers. Default: enabled.")
+
     boolean("-Wextra-comparisons", "-Wno-extra-comparisons").repeatable().action { (c, v) =>
       c.changeFlag(CompilationFlag.ExtraComparisonWarnings, v)
     }.description("Whether should warn about simplifiable unsigned integer comparisons. Default: disabled.")

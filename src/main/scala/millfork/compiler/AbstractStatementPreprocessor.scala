@@ -404,6 +404,20 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         }) ctx.log.warn("Division by zero.", params.head.position)
       case FunctionCallExpression("<<" | ">>" | "<<'" | "<<=" | ">>=" | "<<'=" | ">>>>", List(lhs@_, LiteralExpression(0, _))) =>
         if (ctx.options.flag(CompilationFlag.UselessCodeWarning)) ctx.log.warn("Shift by zero.", lhs.position)
+      case expr@FunctionCallExpression("==" | "!=" | ">" | ">=" | "<" | "<=", params) =>
+        if (ctx.options.flag(CompilationFlag.BytePointerComparisonWarning)) {
+          val types = params.map(p => AbstractExpressionCompiler.getExpressionType(ctx, p))
+          val hasByte = types.exists(t => t.size == 1)
+          val hasPointer = types.exists(t => t.name == "pointer" || t.isPointy)
+          if (hasByte && hasPointer) {
+            ctx.log.warn("Comparison between a byte and a pointer is usually pointless.", expr.position)
+            for (param <- params) param match {
+              case TextLiteralExpression(List(_)) =>
+                ctx.log.info("Did you mean to use a character literal here?", param.position)
+              case _ =>
+            }
+          }
+        }
       case _ =>
     }
     expr match {

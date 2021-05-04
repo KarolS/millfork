@@ -293,6 +293,10 @@ You can also enable or disable warnings individually:
     Whether should warn about deprecated aliases.
     Default: enabled.
 
+* `-Wcomparisons`, `-Wno-comparisons` –
+    Whether should warn about comparisons between bytes and pointers.
+    Default: enabled.
+
 * `-Wextra-comparisons`, `-Wno-extra-comparisons` –
     Whether should warn about simplifiable unsigned integer comparisons.
     Default: disabled.

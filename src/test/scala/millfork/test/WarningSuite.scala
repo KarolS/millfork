@@ -41,4 +41,18 @@ class WarningSuite extends FunSuite with Matchers {
       """.stripMargin) { m =>
     }
   }
+
+  test("Warn about byte to pointer comparisons") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | volatile byte b @$cfff
+        | noinline void f(){}
+        | void main () {
+        |  if b == "h" { f() }
+        |  if b == b.pointer { f() }
+        |  if b == b.addr { f() }
+        | }
+      """.stripMargin) { m =>
+    }
+  }
 }
