@@ -1,5 +1,6 @@
 package millfork.assembly.m6809.opt
 
+import jdk.jfr.BooleanFlag
 import millfork.assembly._
 import millfork.assembly.m6809.{Absolute, MLine, MLine0, MOpcode, MState}
 import millfork.assembly.opt.FlowCache
@@ -97,7 +98,7 @@ object ReverseFlowAnalyzer {
   private val finalImportance: CpuImportance = CpuImportance(
     a = Important, b = Important,
     x = Important, y = Important, u = Important,
-    cf = Important, vf = Important, hf = Important, zf = Important, nf = Important)
+    cf = Unimportant, vf = Unimportant, hf = Unimportant, zf = Unimportant, nf = Unimportant)
 
   //noinspection RedundantNewCaseClass
   def analyze(f: NormalFunction, code: List[MLine], optimizationContext: OptimizationContext): List[CpuImportance] = {
@@ -108,9 +109,14 @@ object ReverseFlowAnalyzer {
 
     var changed = true
     changed = true
+    val actualFinalImportance = f.returnType match {
+      case FlagBooleanType(_, _, _) => finalImportance.copy(cf = Important, zf =Important, nf = Important, vf = Important)
+      case t if t.size == 1 => finalImportance.copy(a = Unimportant)
+      case _ => finalImportance
+    }
     while (changed) {
       changed = false
-      var currentImportance = finalImportance
+      var currentImportance = actualFinalImportance
       for (i <- codeArray.indices.reverse) {
         import millfork.assembly.m6809.MOpcode._
         import millfork.node.M6809NiceFunctionProperty._
@@ -126,11 +132,13 @@ object ReverseFlowAnalyzer {
               case MLine0(LABEL, _, MemoryAddressConstant(Label(L))) => true
               case _ => false
             }
-            currentImportance = if (labelIndex < 0) finalImportance else importanceArray(labelIndex) ~ currentImportance
+            currentImportance = if (labelIndex < 0) actualFinalImportance else importanceArray(labelIndex) ~ currentImportance
           case _ =>
         }
         currentLine match {
 
+          case MLine0(RTS, _, _) =>
+            currentImportance = actualFinalImportance
           case MLine0(JSR | JMP, Absolute(false), MemoryAddressConstant(fun: FunctionInMemory)) =>
             // this case has to be handled first, because the generic JSR importance handler is too conservative
             var result = importanceBeforeJsr
@@ -173,7 +181,7 @@ object ReverseFlowAnalyzer {
           case MLine0(opcode, addrMode, _) =>
             if (MOpcode.ChangesC(opcode)) currentImportance = currentImportance.copy(cf = Unimportant)
             if (MOpcode.ChangesN(opcode)) currentImportance = currentImportance.copy(nf = Unimportant)
-            if (MOpcode.ChangesZ(opcode)) currentImportance = currentImportance.copy(zf = Unimportant)
+            if (MOpcode.ChangesH(opcode)) currentImportance = currentImportance.copy(hf = Unimportant)
             if (MOpcode.ChangesZ(opcode)) currentImportance = currentImportance.copy(zf = Unimportant)
             if (MOpcode.ReadsC(opcode)) currentImportance = currentImportance.copy(cf = Important)
             if (MOpcode.ReadsH(opcode)) currentImportance = currentImportance.copy(hf = Important)

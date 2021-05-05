@@ -19,13 +19,21 @@ object AlwaysGoodMOptimizations {
     (Elidable & HasOpcodeIn(LDX, LEAX) & DoesntMatterWhatItDoesWith(MState.X, MState.NF, MState.ZF, MState.VF)) ~~> (_ => Nil),
     (Elidable & HasOpcodeIn(LDY, LEAY) & DoesntMatterWhatItDoesWith(MState.Y, MState.NF, MState.ZF, MState.VF)) ~~> (_ => Nil),
     (Elidable & HasOpcode(STB) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesB) & DoesntChangeIndexingInAddrMode(0)).* ~
+      (Linear & Not(ChangesB) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(LDB) & MatchAddrMode(0) & MatchParameter(1)
         & DoesntMatterWhatItDoesWith(MState.NF, MState.ZF, MState.VF)) ~~> (_.init),
     (Elidable & HasOpcode(STD) & MatchAddrMode(0) & MatchParameter(1)) ~
-      (Linear & Not(ChangesB) & DoesntChangeIndexingInAddrMode(0)).* ~
+      (Linear & Not(ChangesB) & Not(ChangesA) & DoesntChangeIndexingInAddrMode(0) & DoesntChangeMemoryAt(0, 1)).* ~
       (Elidable & HasOpcode(LDD) & MatchAddrMode(0) & MatchParameter(1)
         & DoesntMatterWhatItDoesWith(MState.NF, MState.ZF, MState.VF)) ~~> (_.init),
+  )
+
+  val PointlessCompare = new RuleBasedAssemblyOptimization("Pointless compare",
+    needsFlowInfo = FlowInfoRequirement.BackwardFlow,
+    (HasOpcodeIn(LDA, ANDA, ORA, EORA, ADDA, ADCA, SUBA, SBCA)) ~ DebugMatching ~
+      (Elidable & HasOpcode(CMPA) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~ DebugMatching ~~> {code => code.init},
+    (HasOpcodeIn(LDB, ANDB, ORB, EORB, ADDB, ADCB, SUBB, SBCB)) ~ DebugMatching ~
+      (Elidable & HasOpcode(CMPB) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~ DebugMatching ~~> {code => code.init},
   )
 
   val SimplifiableZeroStore = new RuleBasedAssemblyOptimization("Simplifiable zero store",
@@ -149,6 +157,7 @@ object AlwaysGoodMOptimizations {
 
   val All: Seq[AssemblyOptimization[MLine]] = Seq(
     PointlessLoad,
+    PointlessCompare,
     PointlessRegisterTransfers,
     SimplifiableArithmetics,
     SimplifiableJumps,
