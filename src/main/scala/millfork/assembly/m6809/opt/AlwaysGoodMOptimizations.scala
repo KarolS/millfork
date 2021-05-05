@@ -152,6 +152,15 @@ object AlwaysGoodMOptimizations {
       (_.map(_.copy(opcode = LDD))),
     (Elidable & HasImmediate(0) & HasOpcodeIn(ORB, EORB, ADDB, ORA, EORA, ADDA, ADDD) & DoesntMatterWhatItDoesWith(MState.VF, MState.ZF, MState.NF, MState.CF, MState.HF)) ~~>
       (_ => Nil),
+    (HasOpcode(LDB)) ~
+      (Elidable & HasOpcode(ANDB) & HasAddrMode(Immediate) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(BNE) & MatchParameter(1)) ~
+      (Elidable & HasOpcode(LDB)) ~
+      (HasOpcode(ANDB) & HasAddrMode(Immediate) & MatchParameter(0)) ~
+      (HasOpcode(BEQ)) ~
+      (HasOpcode(LABEL) & MatchParameter(1)) ~~> { code =>
+      List(code.head, code(3).copy(opcode = ORB)) ++ code.drop(4)
+    },
 
   )
 

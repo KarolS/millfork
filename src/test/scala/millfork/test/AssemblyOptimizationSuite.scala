@@ -962,4 +962,28 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readWord(0xc008) should equal(10)
     }
   }
+
+  test("Optimize certain bitmasking operations") {
+    val code =
+      """
+        |byte output @$c000
+        |const byte c = 4
+        |
+        |noinline void inc(byte x, byte y) {
+        |    if x & c != 0 || y & c != 0 { output += 1 }
+        |}
+        |
+        |void main() {
+        |    output = 0
+        |    inc(0, 0)
+        |    inc(4, 0) // ↑
+        |    inc(4, 4) // ↑
+        |    inc(0, 4) // ↑
+        |}
+        |""".stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Motorola6809)(
+      code) { m =>
+      m.readByte(0xc000) should equal(code.count(_ == '↑'))
+    }
+  }
 }

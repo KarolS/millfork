@@ -1605,6 +1605,15 @@ object AlwaysGoodOptimizations {
       Where(ctx => ctx.get[Int](1).&(1) == 0)~~> { (lines, ctx) =>
       lines.head.copy(opcode = ASL) :: lines.tail
     },
+    (Elidable & HasOpcode(LDA)) ~
+    (Elidable & HasOpcode(AND) & HasAddrMode(Immediate) & MatchParameter(0)) ~
+    (Elidable & HasOpcode(BNE) & MatchParameter(1)) ~
+    (Elidable & HasOpcode(LDA)) ~
+    (Elidable & HasOpcode(AND) & HasAddrMode(Immediate) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(BEQ)) ~
+      (Elidable & HasOpcode(LABEL) & MatchParameter(1)) ~~> { (code, ctx) =>
+      List(code.head, code(3).copy(opcode = ORA)) ++ code.drop(4)
+    },
   )
 
   val SimplifiableIndexChanging = new RuleBasedAssemblyOptimization("Simplifiable index changing",
