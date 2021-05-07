@@ -6,6 +6,10 @@
 
 * Added `utf32be`, `utf32le`, `cp1253`, `cp1254`, `cp1257`, `geos_de` encodings.
 
+* Allowed for underscores in numeric literals for readability purposes, similar to several other programming languages. 
+
+* Added a warning for comparisons between bytes and pointers (#110).
+
 * Fixed escape sequences in many encodings.
 
 * Fixed and documented absolute module imports (#106)
@@ -15,6 +19,12 @@
 * Fixed optimizations involving unused labels.
   
 * Fixed pointer types to type aliases.
+
+* Fixed parsing of Intel hex literals of the form `0BH`, `0B0H` etc. 
+
+* 6809: Fixed flow analysis in optimization.
+
+* Optimization of certain bitmask operations.
 
 * Parsing optimizations.
 
