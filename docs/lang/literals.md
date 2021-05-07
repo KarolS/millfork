@@ -14,7 +14,14 @@ Octal: `0o172`
 
 Hexadecimal: `$D323`, `0x2a2`
 
-When using Intel syntax for inline assembly, another hexadecimal syntax is available: `0D323H`, `2a2h`.
+Digits can be separated by underscores for readability. Underscores are also allowed between the radix prefix and the digits:
+
+    123_456
+    0x01_ff
+    0b_0101_1111__1100_0001
+    $___________FF
+
+When using Intel syntax for inline assembly, another hexadecimal syntax is available: `0D323H`, `2a2h`, `3e_h`.
 It is not allowed in any other places.
 
 The type of a literal is the smallest type of undefined signedness

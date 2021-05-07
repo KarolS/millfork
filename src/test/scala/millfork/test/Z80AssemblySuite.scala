@@ -275,6 +275,27 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         | }
       """.stripMargin)
   }
+
+  test("Intel hex syntax disambiguation") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Intel8080)(
+      """
+        | #pragma intel_syntax
+        | asm void main () {
+        |   lxi h, 0c000h
+        |   mvi m, 0b1h
+        |   mvi m, 0b1_h
+        |   mvi m, 0b_1_h
+        |   inx h
+        |   mvi m, 0b1
+        |   mvi m, 0b_1
+        |   ret
+        |   }
+        |   """.stripMargin){m =>
+      m.readByte(0xc000) should equal(0xb1)
+      m.readByte(0xc001) should equal(1)
+    }
+  }
+
   test("Common I80 instructions (without RST, Intel syntax)") {
     EmuUnoptimizedCrossPlatformRun(Cpu.Intel8080, Cpu.Intel8086)(
       """
@@ -288,17 +309,17 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   inx b
         |   inr b
         |   dcr b
-        |   mvi b,6
+        |   mvi b,6h
         |   rlc
         |   dad b
         |   ldax b
         |   dcx b
         |   inr c
         |   dcr c
-        |   mvi c,0eh
+        |   mvi c,0e_h
         |   rrc
         |
-        |   lxi d,1111h
+        |   lxi d,11_11h
         |   stax d
         |   inx d
         |   inr d
@@ -491,7 +512,7 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   jmp main
         |   cnz main
         |   push b
-        |   adi 1
+        |   adi 1_h
         |
         |   rz
         |   ret

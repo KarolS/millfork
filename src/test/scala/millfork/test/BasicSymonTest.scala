@@ -332,14 +332,17 @@ class BasicSymonTest extends FunSuite with Matchers {
   test("Numeric literals") {
     EmuUnoptimizedRun(
       """
+        |#if 1_1 == 0x_0_b
+        |#endif
         |array a @$c000 = [
         | %0,  %1,  %001,  %000001,  %11100,
-        |0b0, 0b1, 0b001, 0b000001, 0b11100,
-        |0q12, 0q1, 0q0, 0q1230,
-        |0o001, 0o0, 0o6, 0o52,
+        |0b0, 0b1, 0b001, 0b000001, 0b11100, 0b___00_1,
+        |0q12, 0q1, 0q0, 0q1230, 0q_00_1,
+        |0o001, 0o0, 0o6, 0o52, 0o_00_1,
         |0x23, 0xdd, 0x55, 0x0, 0x1, 0xf,
-        | $23,  $dd,  $55,  $0,  $1,  $f,
-        |000
+        | $23,  $dd,  $55,  $0,  $1,  $f, $___1,
+        | 0x1_1, 0x_1___1,
+        |000, 0_0, 0, 1
         |]
         |
         |void main() {

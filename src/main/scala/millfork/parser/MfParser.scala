@@ -3,15 +3,16 @@ package millfork.parser
 import java.lang.Long.parseLong
 import java.nio.file.{Files, Paths}
 import java.util
-
 import fastparse.all._
 import fastparse.core.Parsed.Failure
+import fastparse.parsers.Intrinsics
 import millfork.assembly.Elidability
 import millfork.env._
 import millfork.error.{ConsoleLogger, Logger}
 import millfork.node._
 import millfork.output.{DivisibleAlignment, MemoryAlignment, NoAlignment}
 import millfork.{CompilationFlag, CompilationOptions, Confusables, SeparatedList}
+import org.apache.commons.lang3.StringUtils
 
 import scala.collection.immutable.BitSet
 
@@ -192,7 +193,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val literalAtom: P[LiteralExpression] = binaryAtom | hexAtom | octalAtom | quaternaryAtom | decimalAtom | charAtom
 
-  val literalAtomWithIntel: P[LiteralExpression] = binaryAtom | hexAtom | octalAtom | quaternaryAtom | intelHexAtom | decimalAtom | charAtom
+  val literalAtomWithIntel: P[LiteralExpression] = hexAtom | octalAtom | quaternaryAtom | intelHexAtom | binaryAtom | decimalAtom | charAtom
 
   val atom: P[Expression] = P(position("atom") ~ (variableAtom | localLabelAtom | literalAtom | textLiteralAtom)).map{case (p,a) => a.pos(p)}
 
@@ -894,8 +895,22 @@ object MfParser {
     Character.SURROGATE,
     Character.UNASSIGNED)
 
-  val decimalAtom: P[LiteralExpression] =
-    ("-".!.? ~ CharsWhileIn("0123456789", min = 1).!.opaque("<decimal digits>") ~ !(CharIn("xXbBoOqQ".toSeq))).map{
+  private val decimalDigit: P[String] = CharIn("0123456789").!
+  private val decimalDigits: P[String] = CharsWhileIn("0123456789", min = 1).!
+  private val binaryDigits: P[String] = CharsWhileIn("01", min = 1).!
+  private val hexDigits: P[String] = CharsWhileIn("1234567890abcdefABCDEF", min = 1).!
+  private val octalDigits: P[String] = CharsWhileIn("01234567", min = 1).!
+  private val quaternaryDigits: P[String] = CharsWhileIn("0123", min = 1).!
+
+  private def underscores(digits: P[String], initialDigit: P[String] = null): P[String] =
+    (if (initialDigit eq null) {
+      ("_".rep(min = 0) ~ digits).rep(min = 1)
+    } else {
+      (initialDigit ~ ("_".rep(min = 0) ~ digits).rep(min = 0))
+    }).!.map(s => StringUtils.remove(s, '_'))
+
+    val decimalAtom: P[LiteralExpression] =
+      ("-".!.? ~ underscores(decimalDigits, initialDigit = decimalDigit).opaque("<decimal digits>") ~ !(CharIn("xXbBoOqQhH".toSeq))).map{
       case (minus, s) =>
         val abs = parseLong(s, 10)
         val value = sign(abs, minus.isDefined)
@@ -903,7 +918,7 @@ object MfParser {
     }
 
   val binaryAtom: P[LiteralExpression] =
-    ("-".!.? ~ ("0b" | "0B" | "%") ~/ CharsWhileIn("01", min = 1).!.opaque("<binary digits>")).map{
+    ("-".!.? ~ ("0b" | "0B" | "%") ~/ underscores(binaryDigits).opaque("<binary digits>")).map{
       case (minus, s) =>
         val abs = parseLong(s, 2)
         val value = sign(abs, minus.isDefined)
@@ -911,7 +926,7 @@ object MfParser {
     }
 
   val hexAtom: P[LiteralExpression] =
-    ("-".!.? ~ ("0x" | "0X" | "$") ~/ CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>")).map{
+    ("-".!.? ~ ("0x" | "0X" | "$") ~/ underscores(hexDigits).opaque("<hex digits>")).map{
       case (minus, s) =>
         val abs = parseLong(s, 16)
         val value = sign(abs, minus.isDefined)
@@ -919,16 +934,16 @@ object MfParser {
     }
 
   val intelHexAtom: P[LiteralExpression] =
-    ("-".!.? ~ CharIn("0123456789").! ~ CharsWhileIn("1234567890abcdefABCDEF", min = 1).!.opaque("<hex digits>") ~ P("h" | "H") ~/ Pass).map{
-      case (minus, head, tail) =>
-        val s = if (head == "0" && tail.nonEmpty && tail.head >'9') tail else head + tail
+    ("-".!.? ~ underscores(hexDigits, initialDigit = decimalDigit).opaque("<hex digits>") ~ "_".rep(min = 0) ~ P("h" | "H") ~/ Pass).map{
+      case (minus, digits) =>
+        val s = if (digits.startsWith("0") && digits.length > 1 && digits(1) > '9') digits.tail else digits
         val abs = parseLong(s, 16)
         val value = sign(abs, minus.isDefined)
         LiteralExpression(value, size(value, s.length > 2, s.length > 4, s.length > 6, s.length > 8, s.length > 10, s.length > 12, s.length > 14))
     }
 
   val octalAtom: P[LiteralExpression] =
-    ("-".!.? ~ ("0o" | "0O") ~/ CharsWhileIn("01234567", min = 1).!.opaque("<octal digits>")).map{
+    ("-".!.? ~ ("0o" | "0O") ~/ underscores(octalDigits).opaque("<octal digits>")).map{
       case (minus, s) =>
         val abs = parseLong(s, 8)
         val value = sign(abs, minus.isDefined)
@@ -936,7 +951,7 @@ object MfParser {
     }
 
   val quaternaryAtom: P[LiteralExpression] =
-    ("-".!.? ~ ("0q" | "0Q") ~/ CharsWhileIn("0123", min = 1).!.opaque("<quaternary digits>")).map{
+    ("-".!.? ~ ("0q" | "0Q") ~/ underscores(quaternaryDigits).opaque("<quaternary digits>")).map{
       case (minus, s) =>
       val abs = parseLong(s, 4)
       val value = sign(abs, minus.isDefined)
