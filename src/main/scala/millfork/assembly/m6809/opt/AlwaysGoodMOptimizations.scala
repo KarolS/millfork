@@ -30,10 +30,10 @@ object AlwaysGoodMOptimizations {
 
   val PointlessCompare = new RuleBasedAssemblyOptimization("Pointless compare",
     needsFlowInfo = FlowInfoRequirement.BackwardFlow,
-    (HasOpcodeIn(LDA, ANDA, ORA, EORA, ADDA, ADCA, SUBA, SBCA)) ~ DebugMatching ~
-      (Elidable & HasOpcode(CMPA) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~ DebugMatching ~~> {code => code.init},
-    (HasOpcodeIn(LDB, ANDB, ORB, EORB, ADDB, ADCB, SUBB, SBCB)) ~ DebugMatching ~
-      (Elidable & HasOpcode(CMPB) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~ DebugMatching ~~> {code => code.init},
+    (HasOpcodeIn(LDA, ANDA, ORA, EORA, ADDA, ADCA, SUBA, SBCA)) ~
+      (Elidable & HasOpcode(CMPA) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF))  ~~> {code => code.init},
+    (HasOpcodeIn(LDB, ANDB, ORB, EORB, ADDB, ADCB, SUBB, SBCB)) ~
+      (Elidable & HasOpcode(CMPB) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~~> {code => code.init},
   )
 
   val SimplifiableZeroStore = new RuleBasedAssemblyOptimization("Simplifiable zero store",
