@@ -928,9 +928,16 @@ object AlwaysGoodI80Optimizations {
           code(2).copy(opcode=JP, registers = branch, parameter = code(4).parameter),
           code(5))
       },
-    )
+    ),
 
 
+    (Elidable & HasOpcode(XOR) & HasRegisterParam(ZRegister.IMM_8) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(CP) & HasRegisterParam(ZRegister.IMM_8) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(ZRegister.A) & DoesntMatterWhatItDoesWithFlagsOtherThanSZ) ~~> { (code, ctx) =>
+      val c0 = ctx.get[Constant](0)
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = CompoundConstant(MathOperator.Exor, c0, c1).quickSimplify))
+    },
   )
 
   val FreeHL = new RuleBasedAssemblyOptimization("Free HL",

@@ -168,6 +168,7 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
 
   def changesRegister(reg: M6809Register.Value): Boolean = {
     import M6809Register._
+    if (MOpcode.NotActualOpcodes(opcode)) return false
     def overlaps(other: M6809Register.Value): Boolean = {
       if (reg == D && (other == A || other == B))  true
       else if (other == D && (reg == A || reg == B))  true
@@ -202,12 +203,13 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
     }
   }
 
-  def changesCarryFlag: Boolean = !MOpcode.PreservesC(opcode)
+  def changesCarryFlag: Boolean = !MOpcode.NotActualOpcodes(opcode) && !MOpcode.PreservesC(opcode)
 
 
 
   def readsRegister(reg: M6809Register.Value): Boolean = {
     import M6809Register._
+    if (MOpcode.NotActualOpcodes(opcode)) return false
     def overlaps(other: M6809Register.Value): Boolean = {
       if (reg == D && (other == A || other == B))  true
       else if (other == D && (reg == A || reg == B))  true
@@ -261,6 +263,7 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
 
   def readsMemory(): Boolean = {
     import MOpcode._
+    if (MOpcode.NotActualOpcodes(opcode)) return false
     val opcodeIsForReading = opcode match {
       case LDA | LDB | LDD | LDX | LDY | LDU | LDS | PULU | PULS => true
       case ADDA | SUBA | ADCA | SBCA | ORA | EORA | ANDA | CMPA | BITA => true
@@ -289,6 +292,7 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
 
   def changesMemory(): Boolean = {
     import MOpcode._
+    if (NotActualOpcodes(opcode)) return false
     val opcodeIsForWriting = opcode match {
       case LDA | LDB | LDD | LDX | LDY | LDU | LDS | PULU | PULS => false
       case ADDA | SUBA | ADCA | SBCA | ORA | EORA | ANDA | CMPA | BITA => false

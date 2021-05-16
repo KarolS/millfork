@@ -32,9 +32,10 @@ object MOpcode extends Enumeration {
   TFR, TST,
   DISCARD_D, DISCARD_X, DISCARD_Y, DISCARD_CC, CHANGED_MEM, BYTE, LABEL = Value
 
+  val NotActualOpcodes: Set[MOpcode.Value] = Set(DISCARD_D, DISCARD_X, DISCARD_Y, DISCARD_CC, CHANGED_MEM, BYTE, LABEL)
+
   private val toMap: Map[String, MOpcode.Value] = {
-    val notActualOpcodes: Set[MOpcode.Value] = Set(DISCARD_D, DISCARD_X, DISCARD_Y, DISCARD_CC, CHANGED_MEM, BYTE, LABEL)
-    values.filterNot(notActualOpcodes).map(o => o.toString -> o).toMap ++ Map("BHS" -> BCC, "BLO" -> BCS, "LSL" -> ASL)
+    values.filterNot(NotActualOpcodes).map(o => o.toString -> o).toMap ++ Map("BHS" -> BCC, "BLO" -> BCS, "LSL" -> ASL)
   }
   val NoopDiscard: Set[MOpcode.Value] = Set(DISCARD_D, DISCARD_X, DISCARD_Y, DISCARD_CC)
   val PrefixedBy10: Set[MOpcode.Value] = Set(CMPD, CMPY, LDS, LDY, SWI2, STS, STY) // TODO: branches

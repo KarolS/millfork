@@ -2991,7 +2991,9 @@ object AlwaysGoodOptimizations {
 
     (Elidable & HasOpcode(EOR) & MatchImmediate(0)) ~
       (Elidable & HasOpcode(CMP) & MatchImmediate(1) & DoesntMatterWhatItDoesWith(State.A, State.N, State.C)) ~~> { (code, ctx) =>
-      List(code.last.copy(parameter = CompoundConstant(MathOperator.Exor, ctx.get[Constant](0), ctx.get[Constant](1))))
+      val c0 = ctx.get[Constant](0)
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = CompoundConstant(MathOperator.Exor, c0, c1).quickSimplify))
     },
 
     MultipleAssemblyRules(for {
@@ -3114,6 +3116,42 @@ object AlwaysGoodOptimizations {
         code.head.copy(parameter = (code.head.parameter + delta).quickSimplify),
         code(1).copy(opcode = branch, parameter = code(3).parameter),
         code(4))
+    },
+
+    (Elidable & HasOpcode(INC) & HasAddrMode(Implied)) ~
+    (Elidable & HasOpcode(CMP) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.A, State.C, State.V)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 - 1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(INX) & HasAddrMode(Implied)) ~
+    (Elidable & HasOpcode(CPX) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.X, State.C, State.V)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 - 1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(INY) & HasAddrMode(Implied)) ~
+    (Elidable & HasOpcode(CPY) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Y, State.C, State.V)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 - 1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(DEC) & HasAddrMode(Implied)) ~
+    (Elidable & HasOpcode(CMP) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.A, State.C, State.V)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 + 1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(DEX) & HasAddrMode(Implied)) ~
+    (Elidable & HasOpcode(CPX) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.X, State.C, State.V)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 + 1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(DEY) & HasAddrMode(Implied)) ~
+    (Elidable & HasOpcode(CPY) & HasAddrMode(Immediate) & MatchParameter(1) & DoesntMatterWhatItDoesWith(State.N, State.Y, State.C, State.V)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 + 1).quickSimplify))
     },
   )
 

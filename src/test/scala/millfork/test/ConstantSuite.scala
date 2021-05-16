@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.env.{BasicPlainType, DerivedPlainType, NumericConstant}
+import millfork.env.{BasicPlainType, CompoundConstant, DerivedPlainType, MathOperator, NumericConstant}
 import millfork.test.emu.{EmuBenchmarkRun, EmuOptimizedCmosRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
 import org.scalatest.{FunSuite, Matchers}
 
@@ -32,6 +32,10 @@ class ConstantSuite extends FunSuite with Matchers {
       NumericConstant(-0x4000, 8).isProvablyNegative(signed(1)) should be(false)
       NumericConstant(0x7f, 2).isProvablyNegative(signed(2)) should be(false)
       NumericConstant(-1, 8).isProvablyNegative(signed(8)) should be(true)
+    }
+
+    test("Constants should simplify nicely") {
+      CompoundConstant(MathOperator.Exor, NumericConstant(4, 1), NumericConstant(4, 1)).quickSimplify should equal(NumericConstant(0, 1))
     }
 
   test ("Overflow errors should be nice") {

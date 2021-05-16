@@ -3,7 +3,8 @@ package millfork.assembly.m6809.opt
 
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.m6809.MOpcode._
-import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, LongRelative, MAddrMode, MLine, MState, PostIncremented, RegisterSet}
+import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, InherentA, InherentB, LongRelative, MAddrMode, MLine, MState, PostIncremented, RegisterSet}
+import millfork.env.{CompoundConstant, Constant, MathOperator}
 import millfork.node.M6809Register
 
 /**
@@ -34,6 +35,21 @@ object AlwaysGoodMOptimizations {
       (Elidable & HasOpcode(CMPA) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF))  ~~> {code => code.init},
     (HasOpcodeIn(LDB, ANDB, ORB, EORB, ADDB, ADCB, SUBB, SBCB)) ~
       (Elidable & HasOpcode(CMPB) & HasImmediate(0) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~~> {code => code.init},
+
+    (Elidable & HasOpcode(EORA) & HasAddrMode(Immediate) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(CMPA) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.A, MState.NF, MState.VF, MState.CF, MState.HF)) ~~> { (code, ctx) =>
+      val c0 = ctx.get[Constant](0)
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = CompoundConstant(MathOperator.Exor, c0, c1).quickSimplify))
+    },
+    (Elidable & HasOpcode(EORB) & HasAddrMode(Immediate) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(CMPB) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.B, MState.NF, MState.VF, MState.CF, MState.HF)) ~~> { (code, ctx) =>
+      val c0 = ctx.get[Constant](0)
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = CompoundConstant(MathOperator.Exor, c0, c1).quickSimplify))
+    },
   )
 
   val SimplifiableZeroStore = new RuleBasedAssemblyOptimization("Simplifiable zero store",
@@ -56,6 +72,75 @@ object AlwaysGoodMOptimizations {
     (Elidable & HasOpcode(STB) & HasB(0) & DoesntMatterWhatItDoesWith(MState.CF)) ~~> {
       code => code.map(_.copy(opcode = CLR))
     },
+  )
+
+  val SimplifiableComparison = new RuleBasedAssemblyOptimization("Simplifiable comparison",
+    needsFlowInfo = FlowInfoRequirement.BothFlows,
+
+    (Elidable & HasOpcode(EORB) & HasAddrMode(Immediate) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(CMPB) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.B, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c0 = ctx.get[Constant](0)
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = CompoundConstant(MathOperator.Exor, c0, c1).quickSimplify))
+    },
+    (Elidable & HasOpcode(ADDB) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(CMPB) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.B, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 - 1).quickSimplify))
+    },
+    (Elidable & HasOpcode(SUBB) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(CMPB) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.B, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 + 1).quickSimplify))
+    },
+    (Elidable & HasOpcode(INC) & HasAddrMode(InherentB)) ~
+      (Elidable & HasOpcode(CMPB) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.B, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 - 1).quickSimplify))
+    },
+    (Elidable & HasOpcode(DEC) & HasAddrMode(InherentB)) ~
+      (Elidable & HasOpcode(CMPB) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.B, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 + 1).quickSimplify))
+    },
+
+    (Elidable & HasOpcode(EORA) & HasAddrMode(Immediate) & MatchParameter(0)) ~
+      (Elidable & HasOpcode(CMPA) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.A, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c0 = ctx.get[Constant](0)
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = CompoundConstant(MathOperator.Exor, c0, c1).quickSimplify))
+    },
+    (Elidable & HasOpcode(ADDA) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(CMPA) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.A, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 - 1).quickSimplify))
+    },
+    (Elidable & HasOpcode(SUBA) & HasImmediate(1)) ~
+      (Elidable & HasOpcode(CMPA) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.A, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 + 1).quickSimplify))
+    },
+    (Elidable & HasOpcode(INC) & HasAddrMode(InherentA)) ~
+      (Elidable & HasOpcode(CMPA) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.A, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 - 1).quickSimplify))
+    },
+    (Elidable & HasOpcode(DEC) & HasAddrMode(InherentA)) ~
+      (Elidable & HasOpcode(CMPA) & HasAddrMode(Immediate) & MatchParameter(1)
+        & DoesntMatterWhatItDoesWith(MState.CF, MState.A, MState.VF, MState.HF)) ~~> { (code, ctx) =>
+      val c1 = ctx.get[Constant](1)
+      List(code.last.copy(parameter = (c1 + 1).quickSimplify))
+    },
+
   )
 
   val PointlessRegisterTransfers = new RuleBasedAssemblyOptimization("Pointless register transfers",
@@ -161,15 +246,27 @@ object AlwaysGoodMOptimizations {
       (HasOpcode(LABEL) & MatchParameter(1)) ~~> { code =>
       List(code.head, code(3).copy(opcode = ORB)) ++ code.drop(4)
     },
+    (Elidable & HasOpcode(ADDB) & HasImmediate(1) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~~> { code => List(MLine.inherentB(INC)) },
+    (Elidable & HasOpcode(ADDA) & HasImmediate(1) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~~> { code => List(MLine.inherentA(INC)) },
+    (Elidable & HasOpcode(SUBB) & HasImmediate(1) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~~> { code => List(MLine.inherentB(DEC)) },
+    (Elidable & HasOpcode(SUBA) & HasImmediate(1) & DoesntMatterWhatItDoesWith(MState.VF, MState.CF, MState.HF)) ~~> { code => List(MLine.inherentA(DEC)) },
 
   )
+
+  val UnusedLabelRemoval = new RuleBasedAssemblyOptimization("Unused label removal",
+    needsFlowInfo = FlowInfoRequirement.JustLabels,
+    (Elidable & HasOpcode(LABEL) & HasCallerCount(0) & ParameterIsLocalLabel) ~~> (_ => Nil)
+  )
+
 
   val All: Seq[AssemblyOptimization[MLine]] = Seq(
     PointlessLoad,
     PointlessCompare,
     PointlessRegisterTransfers,
     SimplifiableArithmetics,
+    SimplifiableComparison,
     SimplifiableJumps,
-    SimplifiableZeroStore
+    SimplifiableZeroStore,
+    UnusedLabelRemoval
   )
 }

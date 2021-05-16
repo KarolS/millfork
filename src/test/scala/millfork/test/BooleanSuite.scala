@@ -2,12 +2,12 @@ package millfork.test
 
 import millfork.Cpu
 import millfork.test.emu.{EmuCrossPlatformBenchmarkRun, EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedRun, ShouldNotCompile}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{AppendedClues, FunSuite, Matchers}
 
 /**
   * @author Karol Stasiak
   */
-class BooleanSuite extends FunSuite with Matchers {
+class BooleanSuite extends FunSuite with Matchers with AppendedClues {
 
   test("Not") {
     EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Intel8086, Cpu.Motorola6809)(
@@ -336,7 +336,7 @@ class BooleanSuite extends FunSuite with Matchers {
           |""".stripMargin) { m =>
         val MAX_SIZE = 4
         val bool = x < MAX_SIZE && y < MAX_SIZE && x + w < MAX_SIZE && y + h < MAX_SIZE
-        m.readByte(0xc000) should equal(if (bool) 1 else 0)
+        m.readByte(0xc000) should equal(if (bool) 1 else 0) withClue s"x=$x y=$y w=$w h=$h"
       }
     }
   }

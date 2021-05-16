@@ -110,8 +110,9 @@ object ReverseFlowAnalyzer {
     var changed = true
     changed = true
     val actualFinalImportance = f.returnType match {
-      case FlagBooleanType(_, _, _) => finalImportance.copy(cf = Important, zf =Important, nf = Important, vf = Important)
+      case FlagBooleanType(_, _, _) => finalImportance.copy(cf = Important, zf = Important, nf = Important, vf = Important)
       case t if t.size == 1 => finalImportance.copy(a = Unimportant)
+      case t if t.size == 0 => finalImportance.copy(a = Unimportant, b = Unimportant)
       case _ => finalImportance
     }
     while (changed) {
@@ -133,12 +134,21 @@ object ReverseFlowAnalyzer {
               case _ => false
             }
             currentImportance = if (labelIndex < 0) actualFinalImportance else importanceArray(labelIndex) ~ currentImportance
+          case MLine0(JMP | BRA, _, MemoryAddressConstant(Label(l))) =>
+            val L = l
+            val labelIndex = codeArray.indexWhere {
+              case MLine0(LABEL, _, MemoryAddressConstant(Label(L))) => true
+              case _ => false
+            }
+            currentImportance = if (labelIndex < 0) actualFinalImportance else importanceArray(labelIndex)
           case _ =>
         }
         currentLine match {
 
           case MLine0(RTS, _, _) =>
             currentImportance = actualFinalImportance
+          case MLine0(LABEL, _, _) =>
+            // do nothing
           case MLine0(JSR | JMP, Absolute(false), MemoryAddressConstant(fun: FunctionInMemory)) =>
             // this case has to be handled first, because the generic JSR importance handler is too conservative
             var result = importanceBeforeJsr

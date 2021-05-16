@@ -986,4 +986,74 @@ class AssemblyOptimizationSuite extends FunSuite with Matchers {
       m.readByte(0xc000) should equal(code.count(_ == '↑'))
     }
   }
+
+  test("Optimize XOR comparisons") {
+    val code =
+      """
+        |byte output @$c000
+        |const byte c = 4
+        |
+        |noinline void inc(byte x) {
+        |    if x ^ c == c { output += 1 }
+        |}
+        |
+        |void main() {
+        |    output = 0
+        |    inc(0)
+        |    inc(1)
+        |    inc(2)
+        |}
+        |""".stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      code) { m =>
+      m.readByte(0xc000) should equal(1)
+    }
+  }
+
+
+  test("Optimize +1 comparisons") {
+    val code =
+      """
+        |byte output @$c000
+        |const byte c = 4
+        |
+        |noinline void inc(byte x) {
+        |    if x + 1 == c { output += 1 }
+        |}
+        |
+        |void main() {
+        |    output = 0
+        |    inc(3)
+        |    inc(4)
+        |    inc(4)
+        |    inc(5)
+        |    inc(5)
+        |}
+        |""".stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Cmos, Cpu.Z80, Cpu.Motorola6809)(
+      code) { m =>
+      m.readByte(0xc000) should equal(1)
+    }
+  }
+
+  test("Don't optimize other XOR comparisons") {
+    val code =
+      """
+        |byte output @$c000
+        |const byte c = 4
+        |
+        |noinline void inc(byte x) {
+        |    if x ^ c >= c { output += 1 }
+        |}
+        |
+        |void main() {
+        |    output = 0
+        |    inc(4)
+        |}
+        |""".stripMargin
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      code) { m =>
+      m.readByte(0xc000) should equal(0)
+    }
+  }
 }

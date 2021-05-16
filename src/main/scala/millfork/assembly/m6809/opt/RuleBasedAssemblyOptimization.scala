@@ -1290,3 +1290,14 @@ case object IsNotALabelUsedManyTimes extends MLinePattern {
 
   override def hitRate: Double = 0.92 // ?
 }
+
+
+object ParameterIsLocalLabel extends MLinePattern {
+  override def matchLineTo(ctx: AssemblyMatchingContext, flowInfo: FlowInfo, line: MLine): Boolean =
+    line match {
+      case MLine0(MOpcode.LABEL, _, MemoryAddressConstant(Label(l))) => l.startsWith(".")
+      case _ => false
+    }
+
+  override def hitRate: Double = 0.056
+}
