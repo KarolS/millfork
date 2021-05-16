@@ -18,6 +18,11 @@
   "allPublicMethods":true
 },
 {
+  "name":"millfork.assembly.m6809.MOpcode$",
+  "allDeclaredFields":true,
+  "allPublicMethods":true
+},
+{
   "name":"org.apache.commons.logging.LogFactory"
 },
 {
