@@ -1,6 +1,8 @@
 # Change log
 
-## Current version
+## 0.3.28 (2021-05-24)
+
+* Officially deprecated decimal operators with apostrophes.
 
 * Added optimization hints.
 

@@ -50,8 +50,6 @@ These hints have only effect when used on an assembly function on a 8080-like ta
 
 * `!preserves_hl` – the function preserves the contents of the H and L registers
 
-* `!preserves_hl` – the function preserves the contents of the H and L registers
-
 * `!preserves_cf` – the function preserves the contents of the carry flag
 
 ## Hints for 6809 assembly functions
