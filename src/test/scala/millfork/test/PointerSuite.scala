@@ -376,11 +376,11 @@ class PointerSuite extends FunSuite with Matchers with AppendedClues {
         |  output2 = 0
         |  pointer.word value_pointer
         |  value_pointer = output2.pointer
-        |  value_pointer[0] +'= constant
+        |  value_pointer[0] $+= constant
         |  tmp[0] = output2
-        |  value_pointer[0] +'= constant
+        |  value_pointer[0] $+= constant
         |  tmp[1] = output2
-        |  value_pointer[0] -'= constant
+        |  value_pointer[0] $-= constant
         |  tmp[2] = output2
         |  value_pointer[0] <<= f(1)
         |  tmp[3] = output2

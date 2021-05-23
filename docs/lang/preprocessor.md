@@ -151,11 +151,18 @@ The `if` function returns its second parameter if the first parameter is defined
     // prints 500:
     #infoeval if(0, 400, 500)
 
-TODO   
-`not`, `lo`, `hi`, `min`, `max` `+`, `-`, `*`, `|`, `&`, `^`, `||`, `&&`, `<<`, `>>`,`==`, `!=`, `>`, `>=`, `<`, `<=`
+The `min` and `max` functions return the smallest or largest parameter respectively. They support any number of arguments:
+
+    // prints 400:
+    #infoeval min(400, 500, 600)
+    // prints 500:
+    #infoeval max(400, 500)
+
+The following Millfork operators and functions are also available in the preprocessor:  
+`not`, `lo`, `hi`, `+`, `-`, `*`, `|`, `&`, `^`, `||`, `&&`, `<<`, `>>`,`==`, `!=`, `>`, `>=`, `<`, `<=`
 
 The following Millfork operators and functions are not available in the preprocessor:  
-`+'`, `-'`, `*'`, `<<'`, `>>'`, `:`, `>>>>`, `nonet`, all the assignment operators
+`$+`, `$-`, `$*`, `$<<`, `$>>`, `:`, `>>>>`, `nonet`, all the assignment operators
 
 
 ### Character literals

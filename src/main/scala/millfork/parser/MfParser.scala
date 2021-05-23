@@ -456,11 +456,26 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       mfParenExpr(allowIntelHex) | derefExpression | a
   }
 
+  def normalizeOperator(op: String, pos: Position): String = {
+    if (mfOperatorNormalizations.contains(op)) return mfOperatorNormalizations(op)
+    if (op.contains('\'')) {
+      if (options.flag(CompilationFlag.DeprecationWarning)) {
+        mfOperatorNormalizations.find(_._2.==(op)).map(_._1) match {
+          case None =>
+            log.warn(s"Operator $op is deprecated and will be removed in 0.4", Some(pos))
+          case Some(newOp) =>
+            log.warn(s"Operator $op is deprecated and will be removed in 0.4, since 0.3.22 you should use $newOp as a replacement", Some(pos))
+        }
+      }
+    }
+    op
+  }
+
   def mfExpression(level: Int, allowIntelHex: Boolean, allowTopLevelIndexing: Boolean = true): P[Expression] = {
     val allowedOperators = mfOperatorsDropFlatten(level)
 
     def innerNowOperatorOrNothing: P[List[(String, (Boolean, Expression))]] = {
-      ((StringIn(allowedOperators: _*).! ~ !CharIn(Seq('/', '=', '-', '+', ':', '>', '<', '\''))).map(op => if (mfOperatorNormalizations.contains(op)) mfOperatorNormalizations(op) else op) ~/
+      ((position() ~ StringIn(allowedOperators: _*).! ~ !CharIn(Seq('/', '=', '-', '+', ':', '>', '<', '\''))).map{ case (pos, op) => normalizeOperator(op, pos) } ~/
         (AWS ~/ P(innerNowTerm) ~/ HWS)).?.map{
         case None => Nil
         case Some((op, rhs)) => rhs.toPairList(op)

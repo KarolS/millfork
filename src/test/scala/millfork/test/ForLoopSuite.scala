@@ -448,7 +448,7 @@ class ForLoopSuite extends FunSuite with Matchers {
         |  p = a.addr
         |  sum = 0
         |  for i,0,paralleluntil,100 { sum += a[i] }
-        |  for i,0,paralleluntil,100 { sum +'= a[i] }
+        |  for i,0,paralleluntil,100 { sum $+= a[i] }
         |  for i,0,paralleluntil,100 { sum &= a[i] }
         |  for i,0,until,100 { sum &= a[i] }
         |  for i,0,until,50 { sum &= a[i+1] }

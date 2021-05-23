@@ -54,7 +54,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
           |   run()
           | }
           | void init() { output = $#i }
-          | void run () { output +'= $#j }
+          | void run () { output $+= $#j }
         """.stripMargin.replace("#i", i.toString).replace("#j", j.toString)) { m =>
         toDecimal(m.readByte(0xc000)) should equal((i + j) % 100)
       }
@@ -68,7 +68,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         | byte a
         | void main () {
         |  a = $50
-        |  output = a -' $35
+        |  output = a $- $35
         | }
       """.stripMargin)(_.readByte(0xc000) should equal(0x15))
   }
@@ -81,8 +81,8 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         | void main () {
         |  a = 1
         |  output[1] = 5
-        |  output[a] +'= 1
-        |  output[a] +'= $36
+        |  output[a] $+= 1
+        |  output[a] $+= $36
         | }
       """.stripMargin)(_.readByte(0xc001) should equal(0x42))
   }
@@ -101,7 +101,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         |  x = tmpx
         |  y = tmpy
         |  output[y] = $39
-        |  output[x] +'= 1
+        |  output[x] $+= 1
         | }
         | byte one() { return 1 }
       """.stripMargin)(_.readByte(0xc001) should equal(0x40))
@@ -124,7 +124,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
       """
         | word output @$c000
         | void main () {
-        |  output = f() +' g()
+        |  output = f() $+ g()
         | }
         | word f() {
         |   return $253
@@ -187,7 +187,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         | void main () {
         |   output = addDecimal(9, 9) + addDecimal(9, 9)
         | }
-        | byte addDecimal(byte a, byte b) { return a +' b }
+        | byte addDecimal(byte a, byte b) { return a $+ b }
       """.stripMargin)(_.readByte(0xc000) should equal(0x30))
   }
 
@@ -198,7 +198,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         | void main () {
         |   output = addDecimalTwice(9, 9)
         | }
-        | byte addDecimalTwice(byte a, byte b) { return (a +' b) + (a +' b) }
+        | byte addDecimalTwice(byte a, byte b) { return (a $+ b) + (a $+ b) }
       """.stripMargin)(_.readByte(0xc000) should equal(0x30))
   }
 
@@ -209,7 +209,7 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         | void main () {
         |   output = addDecimalTwice($c, $c)
         | }
-        | byte addDecimalTwice(byte a, byte b) { return (a + b) +' (a + b) }
+        | byte addDecimalTwice(byte a, byte b) { return (a + b) $+ (a + b) }
       """.stripMargin)(_.readByte(0xc000) should equal(0x36))
   }
 
@@ -398,10 +398,10 @@ class ByteDecimalMathSuite extends FunSuite with Matchers with AppendedClues {
         | byte output @$c000
         | void main () {
         |   init()
-        |   if output +' 1 == 0 {
+        |   if output $+ 1 == 0 {
         |     output = $22
         |   }
-        |   output +'= 1
+        |   output $+= 1
         | }
         | void init() { output = $99 }
       """.stripMargin
