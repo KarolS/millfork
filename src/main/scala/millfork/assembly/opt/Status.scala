@@ -1,6 +1,7 @@
 package millfork.assembly.opt
 
 import millfork.assembly.mos.opt.SourceOfNZ
+import millfork.env.{Constant, NumericConstant}
 
 /**
   * @author Karol Stasiak
@@ -78,6 +79,16 @@ object Status {
   val SingleZero: Status[Int] = SingleStatus(0)
   val SingleFF: Status[Int] = SingleStatus(0xff)
 
+  def fromByte(c: Constant): Status[Int] = c.loByte match {
+    case NumericConstant(n, _) => SingleStatus(n.toInt & 0xff)
+    case _ => AnyStatus
+  }
+
+  def fromWord(c: Constant): Status[Int] = c match {
+    case NumericConstant(n, _) => SingleStatus(n.toInt & 0xffff)
+    case _ => AnyStatus
+  }
+
   @inline
   private def wrapBool(b: Boolean): Status[Boolean] = if (b) SingleTrue else SingleFalse
 
@@ -107,6 +118,13 @@ object Status {
     def negate: Status[Boolean] = inner match {
       case SingleStatus(x) => wrapBool(!x)
       case x => x
+    }
+  }
+
+  implicit class ConstantStatusOps(val inner: Status[Constant]) extends AnyVal {
+    def toHiLo: (Status[Int], Status[Int]) = inner match {
+      case SingleStatus(NumericConstant(n, _)) => SingleStatus(n.toInt.>>(8).&(0xff)) -> SingleStatus(n.toInt.&(0xff))
+      case _ => AnyStatus -> AnyStatus
     }
   }
   implicit class SourceOfNZStatusOps(val inner: Status[SourceOfNZ]) extends AnyVal {

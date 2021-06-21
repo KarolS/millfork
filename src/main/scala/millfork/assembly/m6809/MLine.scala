@@ -254,9 +254,10 @@ case class MLine(opcode: MOpcode.Value, addrMode: MAddrMode, parameter: Constant
       case MUL => overlaps(D)
       case ABX => reg == X || overlaps(B)
       case NOP | SWI | SWI2 | SWI3 | SYNC => false
+      case LDB | LDA | LDX | LDY | LDU => false
       case INC | DEC | ROL | ROR | ASL | ASR | LSR | CLR | COM | NEG | TST => false // variants for A and B handled before
       case op if Branching(op) => false
-      case JMP => false
+      case JMP | RTS => false
       case _ => true // TODO
     }
   }

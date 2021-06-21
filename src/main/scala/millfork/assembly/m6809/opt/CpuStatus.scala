@@ -35,6 +35,11 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
   def nzB(i: Long): CpuStatus =
     this.copy(n = SingleStatus((i & 0x80) != 0), z = SingleStatus((i & 0xff) == 0))
 
+  def nzB(i: Status[Int]): CpuStatus = i match {
+    case SingleStatus(j) => this.copy(n = SingleStatus((j & 0x80) != 0), z = SingleStatus((j & 0xff) == 0))
+    case _ => this.copy(n = AnyStatus, z = AnyStatus)
+  }
+
   def nzW(i: Long): CpuStatus =
     this.copy(n = SingleStatus((i & 0x8000) != 0), z = SingleStatus((i & 0xffff) == 0))
 
@@ -42,6 +47,11 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
     case NumericConstant(i, _) =>
       this.copy(n = SingleStatus((i & 0x8000) != 0), z = SingleStatus((i & 0xffff) == 0))
     case _ => this.nz
+  }
+
+  def nzW(i: Status[Int]): CpuStatus = i match {
+    case SingleStatus(j) => this.copy(n = SingleStatus((j & 0x8000) != 0), z = SingleStatus((j & 0xffff) == 0))
+    case _ => this.copy(n = AnyStatus, z = AnyStatus)
   }
 
   def ~(that: CpuStatus) = new CpuStatus(

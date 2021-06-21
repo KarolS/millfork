@@ -2,10 +2,11 @@ package millfork.assembly.m6809.opt
 
 import millfork.CompilationFlag
 import millfork.assembly.OptimizationContext
-import millfork.assembly.m6809.{Immediate, MLine, MLine0}
+import millfork.assembly.m6809.{Absolute, Immediate, Inherent, InherentA, InherentB, MLine, MLine0, TwoRegisters}
 import millfork.assembly.opt.Status.SingleFalse
 import millfork.assembly.opt.{AnyStatus, FlowCache, SingleStatus, Status}
 import millfork.env._
+import millfork.node.M6809NiceFunctionProperty.{DoesntChangeA, DoesntChangeB, DoesntChangeU, DoesntChangeX, DoesntChangeY}
 import millfork.node.{M6809Register, NiceFunctionProperty}
 
 import scala.util.control.Breaks._
@@ -62,33 +63,108 @@ object ForwardFlowAnalysis {
               case _ => None
             }).fold(currentStatus)(_ ~ _)
 
-          case MLine0(JSR, _, MemoryAddressConstant(th)) =>
+          case MLine0(JSR, am, MemoryAddressConstant(th)) =>
+            var prU = bpInU
+            var prY = bpInY
+            var prA = false
+            var prB = false
+            var prX = false
+            (am, th) match {
+              case (Absolute(false), fun: FunctionInMemory) =>
+                val nfp = optimizationContext.niceFunctionProperties
+                val fn = fun.name
+                if (nfp(DoesntChangeX -> fn)) prX = true
+                if (nfp(DoesntChangeY -> fn)) prY = true
+                if (nfp(DoesntChangeU -> fn)) prU = true
+                if (nfp(DoesntChangeA -> fn)) prA = true
+                if (nfp(DoesntChangeB -> fn)) prB = true
+              case _ =>
+            }
             currentStatus = initialStatus.copy(
               memStack = currentStatus.memStack,
-              u = if (bpInU) currentStatus.u else AnyStatus,
-              y = if (bpInY) currentStatus.y else AnyStatus
+              u = if (prU) currentStatus.u else AnyStatus,
+              x = if (prX) currentStatus.x else AnyStatus,
+              y = if (prY) currentStatus.y else AnyStatus,
+              a = if (prA) currentStatus.a else AnyStatus,
+              b = if (prB) currentStatus.b else AnyStatus
             )
 
           case MLine0(JSR | BYTE, _, _) =>
             currentStatus = initialStatus
 
-          case MLine0(NOP, _, _) =>
-            ()
+          case MLine0(op, Immediate, constant) if ForwardFlowAnalysisForImmediate.hasDefinition(op) =>
+            ForwardFlowAnalysisForImmediate.get(op)(constant, currentStatus)
+          case MLine0(op, Inherent, _) if ForwardFlowAnalysisForInherent.hasDefinition(op) =>
+            ForwardFlowAnalysisForInherent.get(op)(currentStatus)
+          case MLine0(op, InherentA, _) if ForwardFlowAnalysisForInherentA.hasDefinition(op) =>
+            ForwardFlowAnalysisForInherentA.get(op)(currentStatus)
+          case MLine0(op, InherentB, _) if ForwardFlowAnalysisForInherentB.hasDefinition(op) =>
+            ForwardFlowAnalysisForInherentB.get(op)(currentStatus)
 
-          case MLine0(LDA, Immediate, NumericConstant(n, _)) =>
-            currentStatus = currentStatus.copy(a = SingleStatus(n.toInt & 0xff), v = SingleFalse).nzB(n)
-          case MLine0(LDB, Immediate, NumericConstant(n, _)) =>
-            currentStatus = currentStatus.copy(b = SingleStatus(n.toInt & 0xff), v = SingleFalse).nzB(n)
-          case MLine0(LDD, Immediate, NumericConstant(n, _)) =>
-            currentStatus = currentStatus.copy(
-              a = SingleStatus(n.toInt.>>(8) & 0xff),
-              b = SingleStatus(n.toInt & 0xff),
-              v = SingleFalse
-            ).nzW(n)
-          case MLine0(LDX, Immediate, c) =>
-            currentStatus = currentStatus.copy(x = SingleStatus(c), v = SingleFalse).nzW(c)
-          case MLine0(LDY, Immediate, c) =>
-            currentStatus = currentStatus.copy(y = SingleStatus(c), v = SingleFalse).nzW(c)
+          case MLine0(LDA, _, _) =>
+            currentStatus = currentStatus.copy(a = AnyStatus, n = AnyStatus, z = AnyStatus, v = SingleFalse)
+          case MLine0(LDB, _, _) =>
+            currentStatus = currentStatus.copy(b = AnyStatus, n = AnyStatus, z = AnyStatus, v = SingleFalse)
+          case MLine0(LDD, _, _) =>
+            currentStatus = currentStatus.copy(a = AnyStatus, b = AnyStatus, n = AnyStatus, z = AnyStatus, v = SingleFalse)
+          case MLine0(LDX, _, _) =>
+            currentStatus = currentStatus.copy(x = AnyStatus, n = AnyStatus, z = AnyStatus, v = SingleFalse)
+          case MLine0(LDY, _, _) =>
+            currentStatus = currentStatus.copy(y = AnyStatus, n = AnyStatus, z = AnyStatus, v = SingleFalse)
+          case MLine0(STA | STB | STD | STX | STU | STY | STS, _, _) =>
+            // don't change
+          case MLine0(TFR, TwoRegisters(source, target), _) =>
+            import M6809Register._
+            (source, target) match {
+              case (A, B) => currentStatus = currentStatus.copy(b = currentStatus.a)
+              case (B, A) => currentStatus = currentStatus.copy(a = currentStatus.b)
+              case (CC, A) => currentStatus = currentStatus.copy(a = AnyStatus)
+              case (CC, B) => currentStatus = currentStatus.copy(b = AnyStatus)
+              case (A, CC) | (B, CC) => currentStatus = currentStatus.copy(c = AnyStatus, z = AnyStatus, n = AnyStatus, v = AnyStatus)
+              case (S, D) => currentStatus = currentStatus.copy(a = AnyStatus, b = AnyStatus)
+              case (S, X) => currentStatus = currentStatus.copy(x = AnyStatus)
+              case (S, Y) => currentStatus = currentStatus.copy(y = AnyStatus)
+              case (S, U) => currentStatus = currentStatus.copy(u = AnyStatus)
+              case (D, X) => currentStatus = currentStatus.copy(x = currentStatus.d.map(n => NumericConstant(n, 2)))
+              case (D, Y) => currentStatus = currentStatus.copy(y = currentStatus.d.map(n => NumericConstant(n, 2)))
+              case (D, U) => currentStatus = currentStatus.copy(u = currentStatus.d.map(n => NumericConstant(n, 2)))
+              case (X, Y) => currentStatus = currentStatus.copy(y = currentStatus.x)
+              case (X, U) => currentStatus = currentStatus.copy(u = currentStatus.x)
+              case (Y, X) => currentStatus = currentStatus.copy(x = currentStatus.y)
+              case (Y, U) => currentStatus = currentStatus.copy(u = currentStatus.y)
+              case (U, X) => currentStatus = currentStatus.copy(x = currentStatus.u)
+              case (U, Y) => currentStatus = currentStatus.copy(y = currentStatus.u)
+              case (X, D) =>
+                val (h, l) = currentStatus.x.toHiLo
+                currentStatus = currentStatus.copy(a = h, b = l)
+              case (Y, D) =>
+                val (h, l) = currentStatus.y.toHiLo
+                currentStatus = currentStatus.copy(a = h, b = l)
+              case (U, D) =>
+                val (h, l) = currentStatus.u.toHiLo
+                currentStatus = currentStatus.copy(a = h, b = l)
+              case _ => currentStatus = initialStatus
+            }
+          case MLine0(EXG, TwoRegisters(source, target), _) =>
+            import M6809Register._
+            (source, target) match {
+              case (A, B) | (B, A) => currentStatus = currentStatus.copy(a = currentStatus.b, b = currentStatus.a)
+              case (A, CC) | (CC, A) => currentStatus = currentStatus.copy(a = AnyStatus, c = AnyStatus, v = AnyStatus, n = AnyStatus, z = AnyStatus)
+              case (B, CC) | (CC, B) => currentStatus = currentStatus.copy(b = AnyStatus, c = AnyStatus, v = AnyStatus, n = AnyStatus, z = AnyStatus)
+              case (X, Y) | (Y, X) => currentStatus = currentStatus.copy(y = currentStatus.x, x = currentStatus.y)
+              case (U, Y) | (Y, U) => currentStatus = currentStatus.copy(y = currentStatus.u, u = currentStatus.y)
+              case (X, U) | (U, X) => currentStatus = currentStatus.copy(u = currentStatus.x, x = currentStatus.u)
+              case (X, D) | (D, X) =>
+                val (h, l) = currentStatus.x.toHiLo
+                currentStatus = currentStatus.copy(a = h, b = l, x = currentStatus.d.map(n => NumericConstant(n, 2)))
+              case (Y, D) | (D, Y) =>
+                val (h, l) = currentStatus.y.toHiLo
+                currentStatus = currentStatus.copy(a = h, b = l, y = currentStatus.d.map(n => NumericConstant(n, 2)))
+              case (U, D) | (D, U) =>
+                val (h, l) = currentStatus.u.toHiLo
+                currentStatus = currentStatus.copy(a = h, b = l, u = currentStatus.d.map(n => NumericConstant(n, 2)))
+              case _ => currentStatus = initialStatus
+            }
 
           case MLine0(opcode, addrMode, _) =>
             // TODO

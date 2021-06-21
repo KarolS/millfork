@@ -3,7 +3,7 @@ package millfork.assembly.m6809.opt
 
 import millfork.assembly.AssemblyOptimization
 import millfork.assembly.m6809.MOpcode._
-import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, InherentA, InherentB, LongRelative, MAddrMode, MLine, MState, PostIncremented, RegisterSet}
+import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, Indexed, InherentA, InherentB, LongRelative, MAddrMode, MLine, MState, PostIncremented, RegisterSet}
 import millfork.env.{CompoundConstant, Constant, MathOperator}
 import millfork.node.M6809Register
 
@@ -253,6 +253,36 @@ object AlwaysGoodMOptimizations {
 
   )
 
+  val SimplifiableAddressing = new RuleBasedAssemblyOptimization("Simplifiable addressing",
+    needsFlowInfo = FlowInfoRequirement.ForwardFlow,
+    (NotFixed & MatchX(0) & HasAddrMode(Indexed(M6809Register.X, indirect = false)) & Not(HasOpcodeIn(LEAX, LEAY, LEAS, LEAU))) ~~> { (code, ctx) =>
+      val x = ctx.get[Constant](0)
+      code.map(l => l.copy(addrMode = Absolute(indirect = false), parameter = (x + l.parameter).quickSimplify))
+    },
+    (NotFixed & MatchY(0) & HasAddrMode(Indexed(M6809Register.Y, indirect = false)) & Not(HasOpcodeIn(LEAX, LEAY, LEAS, LEAU))) ~~> { (code, ctx) =>
+      val y = ctx.get[Constant](0)
+      code.map(l => l.copy(addrMode = Absolute(indirect = false), parameter = (y + l.parameter).quickSimplify))
+    },
+    (NotFixed & MatchX(0) & HasAddrMode(Indexed(M6809Register.X, indirect = false)) & HasOpcodeIn(LEAX, LEAY, LEAS, LEAU)) ~~> { (code, ctx) =>
+      val x = ctx.get[Constant](0)
+      code.map(l => l.copy(opcode = l.opcode match {
+        case LEAX => LDX
+        case LEAY => LDY
+        case LEAU => LDU
+        case LEAS => LDS
+      }, addrMode = Immediate, parameter = (x + l.parameter).quickSimplify))
+    },
+    (NotFixed & MatchY(0) & HasAddrMode(Indexed(M6809Register.X, indirect = false)) & HasOpcodeIn(LEAX, LEAY, LEAS, LEAU)) ~~> { (code, ctx) =>
+      val y = ctx.get[Constant](0)
+      code.map(l => l.copy(opcode = l.opcode match {
+        case LEAX => LDX
+        case LEAY => LDY
+        case LEAU => LDU
+        case LEAS => LDS
+      }, addrMode = Immediate, parameter = (y + l.parameter).quickSimplify))
+    },
+  )
+
   val UnusedLabelRemoval = new RuleBasedAssemblyOptimization("Unused label removal",
     needsFlowInfo = FlowInfoRequirement.JustLabels,
     (Elidable & HasOpcode(LABEL) & HasCallerCount(0) & ParameterIsLocalLabel) ~~> (_ => Nil)
@@ -263,6 +293,7 @@ object AlwaysGoodMOptimizations {
     PointlessLoad,
     PointlessCompare,
     PointlessRegisterTransfers,
+    SimplifiableAddressing,
     SimplifiableArithmetics,
     SimplifiableComparison,
     SimplifiableJumps,

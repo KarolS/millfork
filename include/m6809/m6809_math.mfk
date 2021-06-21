@@ -3,7 +3,7 @@
 #warn m6809_math module should be used only on 6809-like targets
 #endif
 
-noinline asm word __mul_u16u16u16(word register(x) x, word register(d) d) {
+noinline asm word __mul_u16u16u16(word register(x) x, word register(d) d) !preserves_y !preserves_u {
     pshs d,x
     exg d,x
     lda ,s
@@ -26,7 +26,7 @@ noinline asm word __mul_u16u16u16(word register(x) x, word register(d) d) {
 }
 
 // returns p/q: quotient in A, remainder in B
-noinline asm word __divmod_u8u8u8u8(word register(a) p, word register(b) q) {
+noinline asm word __divmod_u8u8u8u8(word register(a) p, word register(b) q) !preserves_x !preserves_y !preserves_u {
     pshs b,cc
     ldb #8
     stb ,-s
@@ -47,7 +47,7 @@ noinline asm word __divmod_u8u8u8u8(word register(a) p, word register(b) q) {
 }
 
 // returns p/q: quotient in X, remainder in D
-noinline asm word __divmod_u16u16u16u16(word register(x) p, word register(d) q) {
+noinline asm word __divmod_u16u16u16u16(word register(x) p, word register(d) q) !preserves_y !preserves_u {
     pshs x,d,cc
     ldb #16
     pshs b

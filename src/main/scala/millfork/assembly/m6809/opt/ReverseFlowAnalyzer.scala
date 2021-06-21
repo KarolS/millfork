@@ -1,6 +1,7 @@
 package millfork.assembly.m6809.opt
 
 import jdk.jfr.BooleanFlag
+import millfork.CompilationFlag
 import millfork.assembly._
 import millfork.assembly.m6809.{Absolute, MLine, MLine0, MOpcode, MState}
 import millfork.assembly.opt.FlowCache
@@ -82,6 +83,7 @@ object ReverseFlowAnalyzer {
   val readsB: Set[String] = Set("call")
   val readsX: Set[String] = Set("call")
   val readsY: Set[String] = Set("")
+  val preservesX: Set[String] = Set("__divmod_u8u8u8u8")
 
   val cache = new FlowCache[MLine, CpuImportance]("m6809 reverse")
   private val importanceBeforeJsr: CpuImportance = CpuImportance(
@@ -97,7 +99,7 @@ object ReverseFlowAnalyzer {
     hf = Unimportant)
   private val finalImportance: CpuImportance = CpuImportance(
     a = Important, b = Important,
-    x = Important, y = Important, u = Important,
+    x = Important, y = Important, u = Important, // TODO: correctly check which registers are important given the function and the compilation options
     cf = Unimportant, vf = Unimportant, hf = Unimportant, zf = Unimportant, nf = Unimportant)
 
   //noinspection RedundantNewCaseClass
@@ -109,11 +111,23 @@ object ReverseFlowAnalyzer {
 
     var changed = true
     changed = true
-    val actualFinalImportance = f.returnType match {
-      case FlagBooleanType(_, _, _) => finalImportance.copy(cf = Important, zf = Important, nf = Important, vf = Important)
-      case t if t.size == 1 => finalImportance.copy(a = Unimportant)
-      case t if t.size == 0 => finalImportance.copy(a = Unimportant, b = Unimportant)
-      case _ => finalImportance
+    val actualFinalImportance = {
+      var tmp = f.returnType match {
+        case FlagBooleanType(_, _, _) => finalImportance.copy(cf = Important, zf = Important, nf = Important, vf = Important)
+        case t if t.size == 1 => finalImportance.copy(a = Unimportant)
+        case t if t.size == 0 => finalImportance.copy(a = Unimportant, b = Unimportant)
+        case _ => finalImportance
+      }
+      if (!f.inAssembly) {
+        tmp = tmp.copy(x = Unimportant)
+        if (!optimizationContext.options.flag(CompilationFlag.UseUForStack)) {
+          tmp = tmp.copy(u = Unimportant)
+        }
+        if (!optimizationContext.options.flag(CompilationFlag.UseYForStack)) {
+          tmp = tmp.copy(y = Unimportant)
+        }
+      }
+      tmp
     }
     while (changed) {
       changed = false
@@ -179,6 +193,7 @@ object ReverseFlowAnalyzer {
             if (readsB(fun.name)) result = result.copy(b = Important)
             if (readsX(fun.name)) result = result.copy(x = Important)
             if (readsY(fun.name)) result = result.copy(y = Important)
+            if (preservesX(fun.name)) result = result.copy(x = currentImportance.x)
             currentImportance = result.copy(
               a = if (niceFunctionProperties(DoesntChangeA -> fun.name)) currentImportance.a ~ result.a else result.a,
               b = if (niceFunctionProperties(DoesntChangeB -> fun.name)) currentImportance.b ~ result.b else result.b,
