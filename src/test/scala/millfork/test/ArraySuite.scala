@@ -698,4 +698,20 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
       m.readWord(0xc022) should equal(2)
     }
   }
+
+  test("Arrays from file") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos)(
+      """
+        | const byte nine = 9
+        | array dummy @$4000 = file("src/test/resources/binarydata", nine, 3*3)
+        |
+        | void main () {
+        |
+        | }
+        | noinline byte f(byte x) = x
+      """.stripMargin) { m =>
+      m.readByte(0x4000) should equal('1'.toInt)
+      m.readByte(0x4008) should equal('9'.toInt)
+    }
+  }
 }

@@ -1749,6 +1749,38 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def extractArrayContents(contents1: ArrayContents): List[Expression] = contents1 match {
     case LiteralContents(xs) => xs
+    case FileChunkContents(filePath, startE, lengthE) =>
+      val data = Files.readAllBytes(filePath)
+      val p = contents1.position
+      val slice = (eval(startE).map(_.quickSimplify), lengthE.map(l => eval(l).map(_.quickSimplify))) match {
+        case (Some(NumericConstant(start, _)), Some(Some(NumericConstant(length, _)))) =>
+          if (data.length < start) {
+            log.error(s"File $filePath is shorter (${data.length} B) that the start offset $start", p)
+            Array.fill(length.toInt)(0.toByte)
+          } else if (data.length < start + length) {
+            log.error(s"File $filePath is shorter (${data.length} B) that the start offset plus length ${start + length}", p)
+            Array.fill(length.toInt)(0.toByte)
+          } else {
+            data.slice(start.toInt, start.toInt + length.toInt)
+          }
+        case (Some(NumericConstant(start, _)), None) =>
+          if (data.length < start) {
+            log.error(s"File $filePath is shorter (${data.length} B) that the start offset $start", p)
+            Array[Byte](0)
+          } else {
+            data.drop(start.toInt)
+          }
+        case (None, Some(Some(_))) =>
+          log.error(s"Start offset is not a constant", p)
+          Array[Byte](0)
+        case (_, Some(None)) =>
+          log.error(s"Length is not a constant", p)
+          Array[Byte](0)
+        case (None, Some(None)) =>
+          log.error(s"Start offset and length are not constants", p)
+          Array[Byte](0)
+      }
+      slice.map(c => LiteralExpression(c & 0xff, 1)).toList
     case CombinedContents(xs) => xs.flatMap(extractArrayContents)
     case pc@ProcessedContents("struct", xs: CombinedContents) =>
       checkIfArrayContentsAreSimple(xs)

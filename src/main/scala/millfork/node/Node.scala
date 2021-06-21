@@ -483,6 +483,21 @@ trait ArrayContents extends Node {
   def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents
 }
 
+case class FileChunkContents(filePath: Path, start: Expression, length: Option[Expression]) extends ArrayContents {
+  def getAllExpressions(bigEndian: Boolean): List[Expression] = length match {
+    case Some(l) => List(start, l)
+    case None => List(start)
+  }
+  def renameVariable(variableToRename: String, newVariable: String): ArrayContents =
+    FileChunkContents(filePath,
+      start.renameVariable(variableToRename, newVariable),
+      length.map(_.renameVariable(variableToRename, newVariable)))
+  def replaceVariable(variableToReplace: String, expression: Expression): ArrayContents =
+    FileChunkContents(filePath,
+      start.replaceVariable(variableToReplace, expression),
+      length.map(_.replaceVariable(variableToReplace, expression)))
+}
+
 case class LiteralContents(contents: List[Expression]) extends ArrayContents {
   override def getAllExpressions(bigEndian: Boolean): List[Expression] = contents
 
