@@ -332,7 +332,7 @@ object AbstractExpressionCompiler {
         env.getPointy(name).elementType
       case DerefDebuggingExpression(_, 1) => b
       case DerefDebuggingExpression(_, 2) => w
-      case DerefExpression(_, _, typ) => typ
+      case DerefExpression(_, _, _, typ) => typ
       case IndirectFieldExpression(inner, firstIndices, fieldPath) =>
         var currentType = inner match {
           case VariableExpression(arrName) =>

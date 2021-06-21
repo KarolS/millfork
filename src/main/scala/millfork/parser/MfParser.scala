@@ -778,8 +778,8 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
 
   val compoundTypeField: P[FieldDesc] = ("array".! ~  !letterOrDigit ~ HWS ~/ Pass).?.flatMap {
     case None =>
-      (identifier ~/ HWS ~ identifier ~/ HWS).map {
-        case (typ, name) => FieldDesc(typ, name, None)
+      (("volatile" ~ HWS ~/ Pass).!.? ~ identifier ~/ HWS ~ identifier ~/ HWS).map {
+        case (vol, typ, name) => FieldDesc(typ, name, vol.isDefined, None)
       }
 
     case Some(_) =>
@@ -788,7 +788,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
         "[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]" ~/ HWS
         ).map{
         case (elementType, name, length) =>
-          FieldDesc(elementType.getOrElse("byte"), name, Some(length))
+          FieldDesc(elementType.getOrElse("byte"), name, false, Some(length))
       }
   }
 

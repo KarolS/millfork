@@ -17,7 +17,7 @@ abstract class FloatFormat(val name: String, val hasInfinity: Boolean, val manti
     val alignment = env.get[Type]("word").alignment
     val size = format(0.0).size
     StructDefinitionStatement("float." + name,
-      List.tabulate(size)(i => FieldDesc("byte", "b" + i, None)),
+      List.tabulate(size)(i => FieldDesc("byte", "b" + i, false, None)),
       Some(if (size % 2 == 0) alignment else NoAlignment))
   }
 }

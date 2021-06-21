@@ -623,70 +623,71 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
               case ZExpressionTarget.DE => xxx(ZRegister.D, ZRegister.E, allowRedirect = true)
               case ZExpressionTarget.BC => xxx(ZRegister.B, ZRegister.C, allowRedirect = true)
             }
-          case e@DerefExpression(inner, offset, targetType) =>
+          case e@DerefExpression(inner, offset, isVolatile, targetType) =>
+            val el = if (isVolatile) Elidability.Volatile else Elidability.Elidable
             compileDerefPointer(ctx, e) ++ (targetType.size match {
               case 1 => target match {
-                case ZExpressionTarget.A => List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL))
+                case ZExpressionTarget.A => List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el))
                 case ZExpressionTarget.DEHL =>
                   if (targetType.isSigned) {
-                    List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL), ZLine.ld8(ZRegister.L, ZRegister.A)) ++
+                    List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el), ZLine.ld8(ZRegister.L, ZRegister.A)) ++
                       signExtendHighestByte(ctx, ZRegister.A) ++
                       List(ZLine.ld8(ZRegister.H, ZRegister.A), ZLine.ld8(ZRegister.E, ZRegister.A), ZLine.ld8(ZRegister.D, ZRegister.A))
                   } else {
-                    List(ZLine.ld8(ZRegister.L, ZRegister.MEM_HL), ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm8(ZRegister.E, 0), ZLine.ldImm8(ZRegister.D, 0))
+                    List(ZLine.ld8(ZRegister.L, ZRegister.MEM_HL).copy(elidability = el), ZLine.ldImm8(ZRegister.H, 0), ZLine.ldImm8(ZRegister.E, 0), ZLine.ldImm8(ZRegister.D, 0))
                   }
                 case ZExpressionTarget.HL =>
                   if (targetType.isSigned) {
-                    List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL), ZLine.ld8(ZRegister.L, ZRegister.A)) ++ signExtendHighestByte(ctx, ZRegister.H)
+                    List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el), ZLine.ld8(ZRegister.L, ZRegister.A)) ++ signExtendHighestByte(ctx, ZRegister.H)
                   } else {
-                    List(ZLine.ld8(ZRegister.L, ZRegister.MEM_HL), ZLine.ldImm8(ZRegister.H, 0))
+                    List(ZLine.ld8(ZRegister.L, ZRegister.MEM_HL).copy(elidability = el), ZLine.ldImm8(ZRegister.H, 0))
                   }
                 case ZExpressionTarget.BC =>
                   if (targetType.isSigned) {
-                    List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL), ZLine.ld8(ZRegister.C, ZRegister.A)) ++ signExtendHighestByte(ctx, ZRegister.B)
+                    List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el), ZLine.ld8(ZRegister.C, ZRegister.A)) ++ signExtendHighestByte(ctx, ZRegister.B)
                   } else {
-                    List(ZLine.ld8(ZRegister.C, ZRegister.MEM_HL), ZLine.ldImm8(ZRegister.B, 0))
+                    List(ZLine.ld8(ZRegister.C, ZRegister.MEM_HL).copy(elidability = el), ZLine.ldImm8(ZRegister.B, 0))
                   }
                 case ZExpressionTarget.DE =>
                   if (targetType.isSigned) {
-                    List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL), ZLine.ld8(ZRegister.E, ZRegister.A)) ++ signExtendHighestByte(ctx, ZRegister.D)
+                    List(ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el), ZLine.ld8(ZRegister.E, ZRegister.A)) ++ signExtendHighestByte(ctx, ZRegister.D)
                   } else {
-                    List(ZLine.ld8(ZRegister.E, ZRegister.MEM_HL), ZLine.ldImm8(ZRegister.D, 0))
+                    List(ZLine.ld8(ZRegister.E, ZRegister.MEM_HL).copy(elidability = el), ZLine.ldImm8(ZRegister.D, 0))
                   }
                 case ZExpressionTarget.NOTHING => Nil
               }
               case 2 => target match {
                 case ZExpressionTarget.DEHL =>
                   List(
-                    ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                    ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                     ZLine.register(INC_16, ZRegister.HL),
-                    ZLine.ld8(ZRegister.H, ZRegister.MEM_HL),
+                    ZLine.ld8(ZRegister.H, ZRegister.MEM_HL).copy(elidability = el),
                     ZLine.ld8(ZRegister.L, ZRegister.A),
                     ZLine.ldImm8(ZRegister.E, 0),
                     ZLine.ldImm8(ZRegister.D, 0)) // TODO
                 case ZExpressionTarget.EHL =>
                   List(
-                    ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                    ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                     ZLine.register(INC_16, ZRegister.HL),
-                    ZLine.ld8(ZRegister.H, ZRegister.MEM_HL),
+                    ZLine.ld8(ZRegister.H, ZRegister.MEM_HL).copy(elidability = el),
                     ZLine.ld8(ZRegister.L, ZRegister.A),
                     ZLine.ldImm8(ZRegister.E, 0)) // TODO
                 case ZExpressionTarget.HL =>
                   List(
-                      ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.H, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.H, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.ld8(ZRegister.L, ZRegister.A))
                 case ZExpressionTarget.BC =>
                     List(
-                      ZLine.ld8(ZRegister.C, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.C, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.B, ZRegister.MEM_HL))
+                      ZLine.ld8(ZRegister.B, ZRegister.MEM_HL).copy(elidability = el))
                 case ZExpressionTarget.DE =>
                     List(
-                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.D, ZRegister.MEM_HL))
+                      ZLine.ld8(ZRegister.D, ZRegister.MEM_HL).copy(elidability = el))
                 case ZExpressionTarget.NOTHING => Nil
               }
               case 3 => target match {
@@ -694,20 +695,20 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 case ZExpressionTarget.EHL | ZExpressionTarget.DEHL =>
                   if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
                     List(
-                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.D, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.D, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.L, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.L, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.ldImm8(ZRegister.H, 0),
                       ZLine.implied(EX_DE_HL)) // TODO
                   } else {
                     List(
-                      ZLine.ld8(ZRegister.C, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.C, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.B, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.B, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.ld8(ZRegister.L, ZRegister.C),
                       ZLine.ld8(ZRegister.H, ZRegister.B),
                       ZLine.ldImm8(ZRegister.D, 0)) // TODO
@@ -718,24 +719,24 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 case ZExpressionTarget.DEHL =>
                   if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
                     List(
-                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.D, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.D, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.H, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.H, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.ld8(ZRegister.L, ZRegister.A),
                       ZLine.implied(EX_DE_HL)) // TODO
                   } else {
                     List(
-                      ZLine.ld8(ZRegister.C, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.C, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.B, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.B, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.E, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.register(INC_16, ZRegister.HL),
-                      ZLine.ld8(ZRegister.D, ZRegister.MEM_HL),
+                      ZLine.ld8(ZRegister.D, ZRegister.MEM_HL).copy(elidability = el),
                       ZLine.ld8(ZRegister.L, ZRegister.C),
                       ZLine.ld8(ZRegister.H, ZRegister.B)) // TODO
                   }
@@ -1590,11 +1591,15 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     prepareA ++ fillUpperBytes
   }
 
-  private def signExtendHighestByte(ctx: CompilationContext, sourceHiRegister: ZRegister.Value, targetHiRegister: ZRegister.Value = ZRegister.A, signedSource: Boolean = true): List[ZLine] = {
+  private def signExtendHighestByte(ctx: CompilationContext,
+                                    sourceHiRegister: ZRegister.Value,
+                                    targetHiRegister: ZRegister.Value = ZRegister.A,
+                                    signedSource: Boolean = true,
+                                    elidability: Elidability.Value = Elidability.Elidable): List[ZLine] = {
     if (!signedSource) {
       return List(ZLine.ldImm8(targetHiRegister, 0))
     }
-    val prefix = if (sourceHiRegister == ZRegister.A) Nil else List(ZLine.ld8(ZRegister.A, sourceHiRegister))
+    val prefix = if (sourceHiRegister == ZRegister.A) Nil else List(ZLine.ld8(ZRegister.A, sourceHiRegister).copy(elidability = elidability))
     val label = ctx.nextLabel("sx")
     val resultInA = if (ctx.options.flag(CompilationFlag.EmitIntel8080Opcodes)) {
       prefix ++ List(
@@ -1613,7 +1618,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
     } else {
       throw new IllegalStateException()
     }
-    if (targetHiRegister == ZRegister.A) resultInA else resultInA :+ ZLine.ld8(targetHiRegister, ZRegister.A)
+    if (targetHiRegister == ZRegister.A) resultInA else resultInA :+ ZLine.ld8(targetHiRegister, ZRegister.A).copy(elidability = elidability)
   }
 
   def signExtendViaIX(ctx: CompilationContext, targetOffset: Int, hiRegister: ZRegister.Value, bytes: Int, signedSource: Boolean): List[ZLine] = {
@@ -1868,17 +1873,18 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             List(ZLine.ld8(ZRegister.E, ZRegister.A)) ++ stashDEIfChanged(ctx, code) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.E)
           } else code :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
         }
-      case e@DerefExpression(_, _, targetType) =>
-        val lo = stashAFIfChanged(ctx, compileDerefPointer(ctx, e)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+      case e@DerefExpression(_, _, vol, targetType) =>
+        val el = if (vol) Elidability.Volatile else Elidability.Elidable
+        val lo = stashAFIfChanged(ctx, compileDerefPointer(ctx, e)) :+ ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el)
         if (targetType.size == 1) lo
         else if (targetType.size == 2) {
           lo ++ List(ZLine.register(INC_16, ZRegister.HL)) ++
             signExtendHighestByte(ctx, ZRegister.A, signedSource = signedSource) ++
-            List(ZLine.ld8(ZRegister.MEM_HL, ZRegister.A))
+            List(ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el))
         } else {
           lo ++ signExtendHighestByte(ctx, ZRegister.A, signedSource = signedSource) ++ List.tabulate(targetType.size - 1)(_ => List(
             ZLine.register(INC_16, ZRegister.HL),
-            ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+            ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el)
           )).flatten
         }
       //TODO
@@ -1889,10 +1895,11 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
   def storeConstantWord(ctx: CompilationContext, target: LhsExpression, source: Constant, signedSource: Boolean): List[ZLine] = {
     target match {
       case e: DerefExpression =>
+        val el = if(e.isVolatile) Elidability.Volatile else Elidability.Elidable
         compileDerefPointer(ctx, e) ++ List(
-          ZLine.ldImm8(ZRegister.MEM_HL, source.loByte),
+          ZLine.ldImm8(ZRegister.MEM_HL, source.loByte).copy(elidability = el),
           ZLine.register(INC_16, ZRegister.HL),
-          ZLine.ldImm8(ZRegister.MEM_HL, source.hiByte))
+          ZLine.ldImm8(ZRegister.MEM_HL, source.hiByte).copy(elidability = el))
       case _ => ZLine.ldImm16(ZRegister.HL, source) :: storeHL(ctx, target, signedSource)
     }
   }
@@ -1958,6 +1965,7 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
         Z80ExpressionCompiler.stashHLIfChanged(ctx, ZLine.ld8(ZRegister.A, ZRegister.L) :: storeA(ctx, lo, signedSource)) ++
           (ZLine.ld8(ZRegister.A, ZRegister.H) :: storeA(ctx, hi, signedSource))
       case e:DerefExpression =>
+        val el = if(e.isVolatile) Elidability.Volatile else Elidability.Elidable
         if (ctx.options.flag(CompilationFlag.EmitIntel8085Opcodes) && ctx.options.flag(CompilationFlag.EmitIllegals)) {
           List(ZLine.register(PUSH, ZRegister.HL)) ++ fixTsx(ctx, compileDerefPointer(ctx, e)) ++ List(
             ZLine.register(POP, ZRegister.DE),
@@ -1968,20 +1976,20 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                 List(ZLine.register(INC_16, DE)) ++
                 List.fill(e.targetType.size - 2)(List(
                   ZLine.register(INC_16, DE),
-                  ZLine.ld8(MEM_DE, A)
+                  ZLine.ld8(MEM_DE, A).copy(elidability = el)
                 )).flatten
             else Nil)
         } else {
           List(ZLine.register(PUSH, ZRegister.HL)) ++ fixTsx(ctx, compileDerefPointer(ctx, e)) ++ List(
             ZLine.register(POP, ZRegister.BC),
-            ZLine.ld8(ZRegister.MEM_HL, ZRegister.C),
+            ZLine.ld8(ZRegister.MEM_HL, ZRegister.C).copy(elidability = el),
             ZLine.register(INC_16, ZRegister.HL),
-            ZLine.ld8(ZRegister.MEM_HL, ZRegister.B)) ++
+            ZLine.ld8(ZRegister.MEM_HL, ZRegister.B).copy(elidability = el)) ++
             (if (e.targetType.size > 2)
               signExtendHighestByte(ctx, B) ++
                 List.fill(e.targetType.size - 2)(List(
                   ZLine.register(INC_16, HL),
-                  ZLine.ld8(MEM_HL, A)
+                  ZLine.ld8(MEM_HL, A).copy(elidability = el)
                 )).flatten
             else Nil)
         }
@@ -2298,16 +2306,17 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
                           case _ => List(ZLine.ldImm8(ZRegister.A, 0)) // TODO: signed large types?
                         }
                     }
-                  case e@DerefExpression(_, _, _) =>
+                  case e: DerefExpression =>
+                    val el = if(e.isVolatile) Elidability.Volatile else Elidability.Elidable
                     import ZRegister._
                     val prepareHL = compileDerefPointer(ctx, e)
                     List.tabulate(size) { i =>
                       if (i == 0) {
-                        prepareHL :+ ZLine.ld8(A, MEM_HL)
+                        prepareHL :+ ZLine.ld8(A, MEM_HL).copy(elidability = el)
                       } else if (i < e.targetType.size) {
-                        List(ZLine.register(INC_16, HL), ZLine.ld8(A, MEM_HL))
+                        List(ZLine.register(INC_16, HL), ZLine.ld8(A, MEM_HL).copy(elidability = el))
                       } else if (e.targetType.isSigned) {
-                        signExtendHighestByte(ctx, ZRegister.MEM_HL)
+                        signExtendHighestByte(ctx, ZRegister.MEM_HL, elidability = el)
                       } else {
                         List(ZLine.ldImm8(A, 0))
                       }
@@ -2383,15 +2392,16 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
             Nil
           }
         }
-      case de@DerefExpression(inner, offset, targetType) =>
+      case de@DerefExpression(inner, offset, isVolatile, targetType) =>
+        val el = if(isVolatile) Elidability.Volatile else Elidability.Elidable
         import ZRegister._
         val prepareHL = compileDerefPointer(ctx, de)
         List.tabulate(size) { i =>
           if (i == 0) {
-            prepareHL :+ ZLine.ld8(MEM_HL, A)
+            prepareHL :+ ZLine.ld8(MEM_HL, A).copy(elidability = el)
           } else if (i < targetType.size) {
-            if (includeStep) List(ZLine.register(INC_16, HL), ZLine.ld8(MEM_HL, A))
-            else List(ZLine.ld8(MEM_HL, A))
+            if (includeStep) List(ZLine.register(INC_16, HL), ZLine.ld8(MEM_HL, A).copy(elidability = el))
+            else List(ZLine.ld8(MEM_HL, A).copy(elidability = el))
           } else Nil
         }
       case _ =>

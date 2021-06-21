@@ -336,6 +336,7 @@ object BuiltIns {
     val reg = ctx.env.get[VariableInMemory]("__reg")
     lhs match  {
       case dx: DerefExpression =>
+        val el = if(dx.isVolatile) Elidability.Volatile else Elidability.Elidable
         if (ctx.options.zpRegisterSize < 4) {
           ctx.log.error("Unsupported shift operation. Consider increasing the size of the zeropage register or simplifying the left hand side expression.", lhs.position)
           return MosExpressionCompiler.compileToAX(ctx, lhs) ++ MosExpressionCompiler.compileToAX(ctx, rhs)
@@ -348,19 +349,19 @@ object BuiltIns {
           val loadToR2 =
             List(
               AssemblyLine.immediate(LDY, offset),
-              AssemblyLine.indexedY(LDA, ptr),
+              AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
               AssemblyLine.zeropage(STA, reg, 2),
               AssemblyLine.implied(INY),
-              AssemblyLine.indexedY(LDA, ptr),
+              AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
               AssemblyLine.zeropage(STA, reg, 3))
           val storeFromR2 =
             List(
               AssemblyLine.immediate(LDY, offset),
               AssemblyLine.zeropage(LDA, reg, 2),
-              AssemblyLine.indexedY(STA, ptr),
+              AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
               AssemblyLine.implied(INY),
               AssemblyLine.zeropage(LDA, reg, 3),
-              AssemblyLine.indexedY(STA, ptr))
+              AssemblyLine.indexedY(STA, ptr).copy(elidability = el))
           val shiftR2 =
             if (aslRatherThanLsr) List(AssemblyLine.zeropage(ASL, reg, 2), AssemblyLine.zeropage(ROL, reg, 3))
             else List(AssemblyLine.zeropage(LSR, reg, 3), AssemblyLine.zeropage(ROR, reg, 2))
@@ -369,23 +370,23 @@ object BuiltIns {
             case Some(1) if aslRatherThanLsr =>
               List(
                 AssemblyLine.immediate(LDY, offset),
-                AssemblyLine.indexedY(LDA, ptr),
+                AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
                 AssemblyLine.implied(ASL),
-                AssemblyLine.indexedY(STA, ptr),
+                AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
                 AssemblyLine.implied(INY),
-                AssemblyLine.indexedY(LDA, ptr),
+                AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
                 AssemblyLine.implied(ROL),
-                AssemblyLine.indexedY(STA, ptr))
+                AssemblyLine.indexedY(STA, ptr).copy(elidability = el))
             case Some(1) if !aslRatherThanLsr =>
               List(
                 AssemblyLine.immediate(LDY, offset + 1),
-                AssemblyLine.indexedY(LDA, ptr),
+                AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
                 AssemblyLine.implied(LSR),
-                AssemblyLine.indexedY(STA, ptr),
+                AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
                 AssemblyLine.implied(DEY),
-                AssemblyLine.indexedY(LDA, ptr),
+                AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
                 AssemblyLine.implied(ROR),
-                AssemblyLine.indexedY(STA, ptr))
+                AssemblyLine.indexedY(STA, ptr).copy(elidability = el))
             case Some(n) if n >= 1 && n <= 7 => // TODO: pick optimal
               loadToR2 ++ List.fill(n)(shiftR2).flatten ++ storeFromR2
             case _ =>
@@ -412,9 +413,9 @@ object BuiltIns {
               AssemblyLine.implied(CLC),
               AssemblyLine.immediate(LDY, 0),
               AssemblyLine.label(innerLoopLabel),
-              AssemblyLine.indexedY(LDA, reg),
+              AssemblyLine.indexedY(LDA, reg).copy(elidability = el),
               AssemblyLine.implied(ROL),
-              AssemblyLine.indexedY(STA, reg),
+              AssemblyLine.indexedY(STA, reg).copy(elidability = el),
               AssemblyLine.implied(INY),
               AssemblyLine.immediate(CPY, size),
               AssemblyLine.relative(BNE, innerLoopLabel))
@@ -423,9 +424,9 @@ object BuiltIns {
               AssemblyLine.implied(CLC),
               AssemblyLine.immediate(LDY, size - 1),
               AssemblyLine.label(innerLoopLabel),
-              AssemblyLine.indexedY(LDA, reg),
+              AssemblyLine.indexedY(LDA, reg).copy(elidability = el),
               AssemblyLine.implied(ROR),
-              AssemblyLine.indexedY(STA, reg),
+              AssemblyLine.indexedY(STA, reg).copy(elidability = el),
               AssemblyLine.implied(DEY),
               AssemblyLine.relative(BPL, innerLoopLabel))
           }
@@ -436,7 +437,7 @@ object BuiltIns {
                 AssemblyLine.immediate(LDY, size - 1),
                 AssemblyLine.label(innerLoopLabel),
                 AssemblyLine.immediate(LDA, 0),
-                AssemblyLine.indexedY(STA, reg),
+                AssemblyLine.indexedY(STA, reg).copy(elidability = el),
                 AssemblyLine.implied(DEY),
                 AssemblyLine.relative(BPL, innerLoopLabel))
             case Some(1) => singleShift
@@ -1195,6 +1196,7 @@ object BuiltIns {
   def compileInPlaceWordMultiplication(ctx: CompilationContext, v: LhsExpression, addend: Expression): List[AssemblyLine] = {
     v match {
       case dx: DerefExpression =>
+        val el = if(dx.isVolatile) Elidability.Volatile else Elidability.Elidable
         // this is ugly, needs a rewrite
         return handleWordOrLongInPlaceModificationViaDeref(ctx, dx, addend, fromMsb = false){(ptr, reg, offset, r) =>
           val constR = r match {
@@ -1210,27 +1212,27 @@ object BuiltIns {
             case Some(0) => List(
               AssemblyLine.immediate(LDA, 0),
               AssemblyLine.immediate(LDY, offset),
-              AssemblyLine.indexedY(STA, ptr),
+              AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
               AssemblyLine.implied(INY),
-              AssemblyLine.indexedY(STA, ptr))
+              AssemblyLine.indexedY(STA, ptr).copy(elidability = el))
             case Some(2) => List(
               AssemblyLine.immediate(LDA, 0),
               AssemblyLine.immediate(LDY, offset),
-              AssemblyLine.indexedY(LDA, ptr),
+              AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
               AssemblyLine.implied(ASL),
-              AssemblyLine.indexedY(STA, ptr),
+              AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
               AssemblyLine.implied(INY),
-              AssemblyLine.indexedY(LDA, ptr),
+              AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
               AssemblyLine.implied(ROL),
-              AssemblyLine.indexedY(STA, ptr))
+              AssemblyLine.indexedY(STA, ptr).copy(elidability = el))
               // TODO: other powers of two
             case _ if reg.toAddress == ptr => List(
               AssemblyLine.implied(PHA),
               AssemblyLine.immediate(LDY, offset),
-              AssemblyLine.indexedY(LDA, reg),
+              AssemblyLine.indexedY(LDA, reg).copy(elidability = el),
               AssemblyLine.zeropage(STA, reg, 2),
               AssemblyLine.implied(INY),
-              AssemblyLine.indexedY(LDA, reg),
+              AssemblyLine.indexedY(LDA, reg).copy(elidability = el),
               AssemblyLine.zeropage(STA, reg, 3),
               AssemblyLine.implied(PLA),
               AssemblyLine.implied(TAY),
@@ -1248,26 +1250,26 @@ object BuiltIns {
               AssemblyLine.zeropage(STA, reg, 1),
               AssemblyLine.immediate(LDY, offset),
               AssemblyLine.zeropage(LDA, reg, 2),
-              AssemblyLine.indexedY(STA, reg),
+              AssemblyLine.indexedY(STA, reg).copy(elidability = el),
               AssemblyLine.implied(INY),
               AssemblyLine.implied(TXA),
-              AssemblyLine.indexedY(STA, reg),
+              AssemblyLine.indexedY(STA, reg).copy(elidability = el),
             )
             case _ => List(
               AssemblyLine.zeropage(STA, reg),
               AssemblyLine.zeropage(STX, reg, 1),
               AssemblyLine.immediate(LDY, offset),
-              AssemblyLine.indexedY(LDA, ptr),
+              AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
               AssemblyLine.zeropage(STA, reg, 2),
               AssemblyLine.implied(INY),
-              AssemblyLine.indexedY(LDA, ptr),
+              AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
               AssemblyLine.zeropage(STA, reg, 3),
               AssemblyLine.absolute(JSR, ctx.env.get[ThingInMemory]("__mul_u16u16u16")),
               AssemblyLine.immediate(LDY, offset),
-              AssemblyLine.indexedY(STA, ptr),
+              AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
               AssemblyLine.implied(INY),
               AssemblyLine.implied(TXA),
-              AssemblyLine.indexedY(STA, ptr),
+              AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
             )
           }
         }(Left({size => ???}))
@@ -1585,6 +1587,7 @@ object BuiltIns {
     }
     lhs match {
       case dx: DerefExpression =>
+        val el = if(dx.isVolatile) Elidability.Volatile else Elidability.Elidable
         if (subtract && ctx.options.zpRegisterSize < 3) {
           ctx.log.error("Too complex left hand side. Consider increasing the size of the zeropage register.", lhs.position)
           return compileInPlaceWordOrLongAddition(ctx, lhs, addend, subtract = false, decimal = false)
@@ -1593,14 +1596,14 @@ object BuiltIns {
           AssemblyLine.immediate(LDY, offset),
           AssemblyLine.implied(SEC),
           AssemblyLine.zeropage(STA, reg, 2),
-          AssemblyLine.indexedY(LDA, ptr),
+          AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
           AssemblyLine.zeropage(SBC, reg, 2),
-          AssemblyLine.indexedY(STA, ptr),
+          AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
           AssemblyLine.implied(INY),
           AssemblyLine.zeropage(STX, reg, 2),
-          AssemblyLine.indexedY(LDA, ptr),
+          AssemblyLine.indexedY(LDA, ptr).copy(elidability = el),
           AssemblyLine.zeropage(SBC, reg, 2),
-          AssemblyLine.indexedY(STA, ptr),
+          AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
         )))(Right({(iy, r, last) =>
           val reg = ctx.env.get[VariableInMemory]("__reg")
           val result = ListBuffer[AssemblyLine]()
@@ -1611,7 +1614,7 @@ object BuiltIns {
           }
           result += AssemblyLine.immediate(LDY, iy)
           result += AssemblyLine.zeropage(STA, reg, 2)
-          result += AssemblyLine.indexedY(LDA, reg)
+          result += AssemblyLine.indexedY(LDA, reg).copy(elidability = el)
           if (iy == 0) {
             result += AssemblyLine.implied(SEC)
           }
@@ -1627,12 +1630,12 @@ object BuiltIns {
         })) else handleWordOrLongInPlaceModificationViaDeref(ctx, dx, addend, fromMsb = false)((ptr, _, offset, _) => wrapInSedCldIfNeeded(decimal, List(
           AssemblyLine.immediate(LDY, offset),
           AssemblyLine.implied(CLC),
-          AssemblyLine.indexedY(ADC, ptr),
-          AssemblyLine.indexedY(STA, ptr),
+          AssemblyLine.indexedY(ADC, ptr).copy(elidability = el),
+          AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
           AssemblyLine.implied(TXA),
           AssemblyLine.implied(INY),
-          AssemblyLine.indexedY(ADC, ptr),
-          AssemblyLine.indexedY(STA, ptr),
+          AssemblyLine.indexedY(ADC, ptr).copy(elidability = el),
+          AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
         )))(Right({(iy, r, last) =>
           val reg = ctx.env.get[VariableInMemory]("__reg")
           val result = ListBuffer[AssemblyLine]()
@@ -2004,14 +2007,16 @@ object BuiltIns {
 
   def compileInPlaceWordOrLongBitOp(ctx: CompilationContext, lhs: LhsExpression, param: Expression, operation: Opcode.Value): List[AssemblyLine] = {
     lhs match {
-      case dx: DerefExpression => return handleWordOrLongInPlaceModificationViaDeref(ctx, dx, param, fromMsb = false)((ptr, _, offset, _) => List(
+      case dx: DerefExpression =>
+        val el = if(dx.isVolatile) Elidability.Volatile else Elidability.Elidable
+        return handleWordOrLongInPlaceModificationViaDeref(ctx, dx, param, fromMsb = false)((ptr, _, offset, _) => List(
         AssemblyLine.immediate(LDY, offset),
-        AssemblyLine.indexedY(operation, ptr),
-        AssemblyLine.indexedY(STA, ptr),
+        AssemblyLine.indexedY(operation, ptr).copy(elidability = el),
+        AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
         AssemblyLine.implied(TXA),
         AssemblyLine.implied(INY),
-        AssemblyLine.indexedY(operation, ptr),
-        AssemblyLine.indexedY(STA, ptr),
+        AssemblyLine.indexedY(operation, ptr).copy(elidability = el),
+        AssemblyLine.indexedY(STA, ptr).copy(elidability = el),
       ))(Right({ (iy, r, last) =>
         val reg = ctx.env.get[VariableInMemory]("__reg")
         r ++ List(

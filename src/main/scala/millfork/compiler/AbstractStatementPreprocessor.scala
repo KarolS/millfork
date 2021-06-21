@@ -175,7 +175,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         Assignment(DerefExpression(
           FunctionCallExpression("pointer", List(VariableExpression(target.name).pos(pos))).pos(pos) #+#
             FunctionCallExpression("<<", List(optimizeExpr(target.index, cv), LiteralExpression(1, 1))).pos(pos),
-          0, env.getPointy(target.name).elementType).pos(pos), optimizeExpr(arg, cv)).pos(pos) -> cv
+          0, false, env.getPointy(target.name).elementType).pos(pos), optimizeExpr(arg, cv)).pos(pos) -> cv
       case Assignment(target:IndexedExpression, arg) =>
         cv = search(arg, cv)
         cv = search(target, cv)
@@ -347,7 +347,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
       case HalfWordExpression(arg, _) => search(arg, cv)
       case IndexedExpression(_, arg) => search(arg, cv)
       case DerefDebuggingExpression(arg, _) => search(arg, cv)
-      case DerefExpression(arg, _, _) => search(arg, cv)
+      case DerefExpression(arg, _, _, _) => search(arg, cv)
       case _ => cv // TODO
     }
   }
@@ -435,7 +435,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                   false
               }
               if (zero) {
-                DerefExpression(result, 0, targetType)
+                DerefExpression(result, 0, false, targetType)
               } else {
                 val indexType = AbstractExpressionCompiler.getExpressionType(env, env.log, index)
                 val (newResult, constantOffset) = result match {
@@ -449,11 +449,11 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                     if (constantOffset + (targetType.alignedSize * n) <= 127) {
                       DerefExpression(
                         ("pointer." + targetType.name) <| newResult,
-                        constantOffset + targetType.alignedSize * n.toInt, targetType)
+                        constantOffset + targetType.alignedSize * n.toInt, false, targetType)
                     } else {
                       DerefExpression(
                         ("pointer." + targetType.name) <| result,
-                        targetType.alignedSize * n.toInt, targetType)
+                        targetType.alignedSize * n.toInt, false, targetType)
                     }
                   case _ =>
                     val small = smallArraySizeInBytes.isDefined || (indexType.size == 1 && !indexType.isSigned)
@@ -468,12 +468,12 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                         }
                         DerefExpression(("pointer." + targetType.name) <| (
                           ("pointer" <| newResult) #+# scaledIndexWithOffset
-                        ), 0, targetType)
+                        ), 0, false, targetType)
                       case _ =>
                         val scaledIndex: Expression = scaleIndexForArrayAccess(index, targetType, smallArraySizeInBytes)
                         DerefExpression(("pointer." + targetType.name) <| (
                           ("pointer" <| result) #+# optimizeExpr(scaledIndex, Map())
-                        ), 0, targetType)
+                        ), 0, false, targetType)
                     }
                 }
               }
@@ -492,18 +492,18 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 case Some(NumericConstant(n, _)) if n >= 0 && (targetType.alignedSize * n) <= 127 =>
                   x match {
                     case _: PointerType =>
-                      DerefExpression(result, targetType.alignedSize * n.toInt, targetType)
+                      DerefExpression(result, targetType.alignedSize * n.toInt, false, targetType)
                     case _ =>
                       DerefExpression(
                         ("pointer." + targetType.name) <| result,
-                        targetType.alignedSize * n.toInt, targetType)
+                        targetType.alignedSize * n.toInt, false, targetType)
                   }
                 case _ =>
                   val scaledIndex: Expression = scaleIndexForArrayAccess(index, targetType, arraySizeInBytes)
                   // TODO: re-cast pointer type
                   DerefExpression(("pointer." + targetType.name) <| (
                     result #+# optimizeExpr(scaledIndex, Map())
-                  ), 0, targetType)
+                  ), 0, false, targetType)
               }
             case _ =>
               ctx.log.error("Not a pointer type on the left-hand side of `[`", pos)
@@ -519,9 +519,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         for ((dot, fieldName, indices) <- fieldPath) {
           if (dot && ok) {
             val pointer = result match {
-              case DerefExpression(inner, 0, _) =>
+              case DerefExpression(inner, 0, _, _) =>
                 optimizeExpr(inner, currentVarValues).pos(pos)
-              case DerefExpression(inner, offset, targetType) =>
+              case DerefExpression(inner, offset, _, targetType) =>
                 if (offset == 0) {
                   ("pointer." + targetType.name) <| ("pointer" <| optimizeExpr(inner, currentVarValues).pos(pos))
                 } else {
@@ -597,7 +597,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                       currentArraySizeInBytes = None
                       pointerWrap match {
                         case 0 =>
-                          DerefExpression(inner, fieldOffset, fieldType)
+                          DerefExpression(inner, fieldOffset, subvariable.isVolatile, fieldType)
                         case 1 =>
                           if (fieldOffset == 0) {
                             ("pointer." + fieldType.name) <| ("pointer" <| inner)
@@ -648,9 +648,9 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
         }
         result
       case DerefDebuggingExpression(inner, 1) =>
-        DerefExpression(optimizeExpr(inner, currentVarValues, optimizeSum = true), 0, env.get[VariableType]("byte")).pos(pos)
+        DerefExpression(optimizeExpr(inner, currentVarValues, optimizeSum = true), 0, false, env.get[VariableType]("byte")).pos(pos)
       case DerefDebuggingExpression(inner, 2) =>
-        DerefExpression(optimizeExpr(inner, currentVarValues, optimizeSum = true), 0, env.get[VariableType]("word")).pos(pos)
+        DerefExpression(optimizeExpr(inner, currentVarValues, optimizeSum = true), 0, false, env.get[VariableType]("word")).pos(pos)
       case e@TextLiteralExpression(characters) =>
         val name = ctx.env.getTextLiteralArrayName(e)
         VariableExpression(name).pos(pos)
@@ -731,11 +731,11 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 if (pointy.isArray) {
                   DerefExpression(
                     "pointer" <| VariableExpression(name).pos(pos),
-                    o.toInt, pointy.elementType).pos(pos)
+                    o.toInt, false, pointy.elementType).pos(pos)
                 } else {
                   DerefExpression(
                     VariableExpression(name).pos(pos),
-                    o.toInt, pointy.elementType).pos(pos)
+                    o.toInt, false, pointy.elementType).pos(pos)
                 }
               case _ =>
                 val arraySizeInBytes = pointy match {
@@ -769,7 +769,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
                 }
                 DerefExpression(
                   ("pointer" <| VariableExpression(name).pos(pos)) #+# optimizeExpr(scaledIndex, Map()),
-                  0, pointy.elementType).pos(pos)
+                  0, false, pointy.elementType).pos(pos)
             }
         }
       case _ => expr // TODO

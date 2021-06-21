@@ -5,6 +5,7 @@ import millfork.compiler.CompilationContext
 import millfork.node._
 import ZOpcode._
 import millfork.CompilationFlag
+import millfork.assembly.Elidability
 import millfork.env._
 import millfork.error.ConsoleLogger
 
@@ -485,24 +486,25 @@ object ZBuiltIns {
 
   def performLongInPlace(ctx: CompilationContext, lhs: LhsExpression, rhs: Expression, opcodeFirst: ZOpcode.Value, opcodeLater: ZOpcode.Value, size: Int, decimal: Boolean = false): List[ZLine] = {
     lhs match {
-      case dx@DerefExpression(inner, offset, targetType) =>
+      case dx@DerefExpression(inner, offset, isVolatile, targetType) =>
+        val el = if(isVolatile) Elidability.Volatile else Elidability.Elidable
         val env = ctx.env
         if (targetType.size == 2) {
           if (opcodeFirst == ADD && !decimal && ctx.options.flag(CompilationFlag.EmitZ80Opcodes)) {
             val l = Z80ExpressionCompiler.compileToBC(ctx, inner #+# offset)
             val r = Z80ExpressionCompiler.compileToDE(ctx, rhs)
             val s = List(
-              ZLine.ld8(ZRegister.A, ZRegister.MEM_BC),
+              ZLine.ld8(ZRegister.A, ZRegister.MEM_BC).copy(elidability = el),
               ZLine.ld8(ZRegister.L, ZRegister.A),
               ZLine.register(INC_16, ZRegister.BC),
-              ZLine.ld8(ZRegister.A, ZRegister.MEM_BC),
+              ZLine.ld8(ZRegister.A, ZRegister.MEM_BC).copy(elidability = el),
               ZLine.ld8(ZRegister.H, ZRegister.A),
               ZLine.registers(ADD_16, ZRegister.HL, ZRegister.DE),
               ZLine.ld8(ZRegister.A, ZRegister.H),
-              ZLine.ld8(ZRegister.MEM_BC, ZRegister.A),
+              ZLine.ld8(ZRegister.MEM_BC, ZRegister.A).copy(elidability = el),
               ZLine.register(DEC_16, ZRegister.BC),
               ZLine.ld8(ZRegister.A, ZRegister.L),
-              ZLine.ld8(ZRegister.MEM_BC, ZRegister.A),
+              ZLine.ld8(ZRegister.MEM_BC, ZRegister.A).copy(elidability = el),
             )
             if (!r.exists(Z80ExpressionCompiler.changesBC)) {
               return l ++ r ++ s
@@ -517,15 +519,15 @@ object ZBuiltIns {
             val s = if (opcodeFirst == SUB && decimal) {
               if (ctx.options.flag(CompilationFlag.EmitExtended80Opcodes)) {
                 List(
-                  ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                  ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                   ZLine.register(SUB, ZRegister.E),
                   ZLine.implied(DAA),
-                  ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                  ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el),
                   ZLine.register(INC_16, ZRegister.HL),
-                  ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                  ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                   ZLine.register(SBC, ZRegister.D),
                   ZLine.implied(DAA),
-                  ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                  ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el),
                 )
               } else {
                 ctx.log.error("Decimal subtraction from such a complex LHS is not yet supported", dx.position)
@@ -533,25 +535,25 @@ object ZBuiltIns {
               }
             } else if (opcodeFirst == ADD && decimal) {
               List(
-                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                 ZLine.register(ADD, ZRegister.E),
                 ZLine.implied(DAA),
-                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el),
                 ZLine.register(INC_16, ZRegister.HL),
-                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                 ZLine.register(ADC, ZRegister.D),
                 ZLine.implied(DAA),
-                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el),
               )
             } else {
               List(
-                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                 ZLine.register(opcodeFirst, ZRegister.E),
-                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el),
                 ZLine.register(INC_16, ZRegister.HL),
-                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL),
+                ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el),
                 ZLine.register(opcodeLater, ZRegister.D),
-                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A),
+                ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el),
               )
             }
             if (!r.exists(Z80ExpressionCompiler.changesHL)) {
@@ -575,17 +577,17 @@ object ZBuiltIns {
               result ++= sourceBytes(i)
               result += ZLine.ld8(ZRegister.E, ZRegister.A)
               if (i != 0) result += ZLine.register(POP, ZRegister.AF)
-              result += ZLine.ld8(ZRegister.A, ZRegister.MEM_HL)
+              result += ZLine.ld8(ZRegister.A, ZRegister.MEM_HL).copy(elidability = el)
               result += ZLine.register(if (i == 0) opcodeFirst else opcodeLater, ZRegister.E)
-              result += ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+              result += ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el)
               if (i != size - 1) result += ZLine.register(INC_16, ZRegister.HL)
             }
           } else {
             for (i <- 0 until size) {
               result ++= sourceBytes(i)
-              result += ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.MEM_HL)
+              result += ZLine.register(if (i==0) opcodeFirst else opcodeLater, ZRegister.MEM_HL).copy(elidability = el)
               if (decimal) result += ZLine.implied(DAA)
-              result += ZLine.ld8(ZRegister.MEM_HL, ZRegister.A)
+              result += ZLine.ld8(ZRegister.MEM_HL, ZRegister.A).copy(elidability = el)
               if (i != size -1) result += ZLine.register(INC_16, ZRegister.HL)
             }
           }

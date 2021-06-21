@@ -55,7 +55,7 @@ sealed trait VariableType extends Type {
 
 }
 
-case class Subvariable(suffix: String, offset: Int, typ: VariableType, arrayIndexTypeAndSize: Option[(VariableType, Int)] = None)
+case class Subvariable(suffix: String, offset: Int, isVolatile: Boolean, typ: VariableType, arrayIndexTypeAndSize: Option[(VariableType, Int)] = None)
 
 case object VoidType extends Type {
   def size = 0

@@ -2,6 +2,7 @@ package millfork.compiler.m6809
 
 import java.util.concurrent.AbstractExecutorService
 import millfork.CompilationFlag
+import millfork.assembly.Elidability
 import millfork.assembly.m6809.{Absolute, DAccumulatorIndexed, Immediate, Indexed, InherentB, MLine, MLine0, MOpcode, RegisterSet, TwoRegisters}
 import millfork.compiler.{AbstractExpressionCompiler, BranchIfFalse, BranchIfTrue, BranchSpec, ComparisonType, CompilationContext, NoBranching}
 import millfork.node.{DerefExpression, Expression, FunctionCallExpression, GeneratedConstantExpression, IndexedExpression, LhsExpression, LiteralExpression, M6809Register, SeparateBytesExpression, SumExpression, VariableExpression}
@@ -117,17 +118,18 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
           case MExpressionTarget.NOTHING => Nil
           case _ => List(MLine.immediate(MExpressionTarget.toLd(target), NumericConstant(c, MExpressionTarget.size(target))))
         }
-      case DerefExpression(inner, offset, _) =>
+      case DerefExpression(inner, offset, vol, _) =>
         val (i, o) = if (offset == 0) {
           extractConstantOffset(ctx, inner)
         } else (inner, offset)
+        val el = if (vol) Elidability.Volatile else Elidability.Elidable
         compileToX(ctx, i) match {
           case List(l@MLine0(LDX, Immediate, _)) =>
-            List(l.copy(opcode = toLd(target), addrMode = Absolute(false), parameter = l.parameter + o))
+            List(l.copy(opcode = toLd(target), addrMode = Absolute(false), parameter = l.parameter + o, elidability = el))
           case List(l@MLine0(LDX, addrMode, _)) if addrMode.isDeferenceable && o == 0 =>
-            List(l.copy(opcode = toLd(target), addrMode = addrMode.dereference()))
+            List(l.copy(opcode = toLd(target), addrMode = addrMode.dereference(), elidability = el))
           case other =>
-            other :+ MLine(toLd(target), Indexed(M6809Register.X, indirect = false), NumericConstant(o, 2))
+            other :+ MLine(toLd(target), Indexed(M6809Register.X, indirect = false), NumericConstant(o, 2), elidability = el)
         }
       case IndexedExpression(name, index) =>
         env.getPointy(name) match {
@@ -782,8 +784,8 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
       case VariableExpression(name) =>
         val variable = ctx.env.get[Variable](name)
         List(MLine.variable(ctx, store, variable))
-      case DerefExpression(inner, offset, _) =>
-        stashIfNeeded(ctx, compileToX(ctx, inner)) :+ MLine.indexedX(store, NumericConstant(offset, 2))
+      case DerefExpression(inner, offset, vol, _) =>
+        stashIfNeeded(ctx, compileToX(ctx, inner)) :+ MLine.indexedX(store, NumericConstant(offset, 2)).copy(elidability = if(vol) Elidability.Volatile else Elidability.Elidable)
       case IndexedExpression(name, index) =>
         ctx.env.getPointy(name) match {
           case p: ConstantPointy =>
@@ -837,14 +839,15 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
         val sh = storeA(ctx, hi)
         val sl = storeB(ctx, lo)
         stashBIfNeeded(ctx, sh) ++ sl // TODO: optimize
-      case DerefExpression(inner, offset, _) =>
+      case DerefExpression(inner, offset, vol, _) =>
+        val el = if(vol) Elidability.Volatile else Elidability.Elidable
         compileToX(ctx, inner) match {
           case List(MLine0(LDX, Immediate, constAddr)) =>
-            List(MLine(STD, Absolute(false), constAddr + offset))
+            List(MLine(STD, Absolute(false), constAddr + offset, elidability = el))
           case List(MLine0(LDX, Absolute(false), constAddr)) if offset == 0 =>
-            List(MLine(STD, Absolute(true), constAddr))
+            List(MLine(STD, Absolute(true), constAddr, elidability = el))
           case xs =>
-            stashDIfNeeded(ctx, xs) :+ MLine(STD, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2))
+            stashDIfNeeded(ctx, xs) :+ MLine(STD, Indexed(M6809Register.X, indirect = false), NumericConstant(offset, 2), elidability = el)
         }
     }
   }
@@ -893,8 +896,8 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
             List(MLine.variable(ctx, LEAX, variable))
         }
 
-      case DerefExpression(inner, offset, _) =>
-        compileToX(ctx, inner) :+ MLine.indexedX(MOpcode.LEAX, Constant(offset))
+      case DerefExpression(inner, offset, vol, _) =>
+        compileToX(ctx, inner) :+ MLine.indexedX(MOpcode.LEAX, Constant(offset)).copy(elidability = if(vol) Elidability.Volatile else Elidability.Elidable)
       case IndexedExpression(aname, index) =>
         ctx.env.getPointy(aname) match {
           case p: VariablePointy => compileToD(ctx, index #*# p.elementType.alignedSize) ++ List(MLine.absolute(ADDD, p.addr), MLine.tfr(M6809Register.D, M6809Register.X))
@@ -1046,9 +1049,10 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
                     List(calculateStackAddressToD(ctx, sot.offset), List(MLine.tfr(M6809Register.A, M6809Register.B)))
                 }
               case e:DerefExpression =>
+                val el = if(e.isVolatile) Elidability.Volatile else Elidability.Elidable
                 List.tabulate(targetSize)(i =>
-                  if (i == 0) compileAddressToX(ctx, e) :+ MLine.indexedX(LDB, 0)
-                  else List(MLine.indexedX(LDB, i))
+                  if (i == 0) compileAddressToX(ctx, e) :+ MLine.indexedX(LDB, 0).copy(elidability = el)
+                  else List(MLine.indexedX(LDB, i).copy(elidability = el))
                 )
               case e:FunctionCallExpression =>
                 ctx.env.maybeGet[NormalFunction](e.functionName) match {

@@ -8,11 +8,13 @@ import millfork.assembly.z80.{NoRegisters, OneRegister, ZOpcode, ZRegisters}
 import millfork.env.{Constant, EnumType, ParamPassingConvention, Type, VariableType}
 import millfork.output.MemoryAlignment
 
+import java.nio.file.Path
+
 case class Position(moduleName: String, line: Int, column: Int, cursor: Int)
 
-case class FieldDesc(typeName:String, fieldName: String, arraySize: Option[Expression])
+case class FieldDesc(typeName:String, fieldName: String, isVolatile: Boolean, arraySize: Option[Expression])
 
-case class ResolvedFieldDesc(typ:VariableType, fieldName: String, arrayIndexTypeAndSize: Option[(VariableType, Int)])
+case class ResolvedFieldDesc(typ:VariableType, fieldName: String, isVolatile: Boolean, arrayIndexTypeAndSize: Option[(VariableType, Int)])
 
 sealed trait Node {
   var position: Option[Position] = None
@@ -419,12 +421,12 @@ case class DerefDebuggingExpression(inner: Expression, preferredSize: Int) exten
   override def prettyPrint: String = s"¥deref(${inner.prettyPrint})"
 }
 
-case class DerefExpression(inner: Expression, offset: Int, targetType: Type) extends LhsExpression {
-  override def renameVariable(variable: String, newVariable: String): Expression = DerefExpression(inner.renameVariable(variable, newVariable), offset, targetType)
-  override def replaceVariable(variable: String, actualParam: Expression): Expression = DerefExpression(inner.replaceVariable(variable, actualParam), offset, targetType)
+case class DerefExpression(inner: Expression, offset: Int, isVolatile: Boolean, targetType: Type) extends LhsExpression {
+  override def renameVariable(variable: String, newVariable: String): Expression = DerefExpression(inner.renameVariable(variable, newVariable), offset, isVolatile, targetType)
+  override def replaceVariable(variable: String, actualParam: Expression): Expression = DerefExpression(inner.replaceVariable(variable, actualParam), offset, isVolatile, targetType)
 
   override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
-    DerefExpression(inner.replaceIndexedExpression(predicate, replacement), offset, targetType)
+    DerefExpression(inner.replaceIndexedExpression(predicate, replacement), offset, isVolatile, targetType)
 
   override def containsVariable(variable: String): Boolean = inner.containsVariable(variable)
 

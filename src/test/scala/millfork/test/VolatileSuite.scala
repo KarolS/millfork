@@ -38,4 +38,33 @@ class VolatileSuite extends FunSuite with Matchers {
       } while (count < 2)
     }
   }
+
+  test("Volatile struct fields test 1") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
+      """
+        | struct s { volatile byte b }
+        | s output@$c000
+        | void main () {
+        |   output.b = 1
+        |   output.b = 2
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(2)
+    }
+  }
+
+  test("Volatile struct fields test 2") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(
+      """
+        | struct s { volatile byte b }
+        | s output@$c000
+        | void main () {
+        |   const pointer.s p = output.pointer
+        |   p[0].b = 1
+        |   p[0].b = 2
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(2)
+    }
+  }
 }

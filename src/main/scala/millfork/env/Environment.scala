@@ -11,6 +11,7 @@ import millfork.node._
 import millfork.output._
 import org.apache.commons.lang3.StringUtils
 
+import java.nio.file.Files
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -549,8 +550,8 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       BranchingOpcodeMapping(Opcode.BPL, IfFlagClear(ZFlag.S), MOpcode.BPL),
       BranchingOpcodeMapping(Opcode.BMI, IfFlagSet(ZFlag.S), MOpcode.BMI)),
       None)
-    val byte_and_pointer$ = StructType("byte_and_pointer$", List(FieldDesc("byte", "zp", None), FieldDesc("pointer", "branch", None)), NoAlignment)
-    val hudson_transfer$ = StructType("hudson_transfer$", List(FieldDesc("word", "a", None), FieldDesc("word", "b", None), FieldDesc("word", "c", None)), NoAlignment)
+    val byte_and_pointer$ = StructType("byte_and_pointer$", List(FieldDesc("byte", "zp", false, None), FieldDesc("pointer", "branch", false, None)), NoAlignment)
+    val hudson_transfer$ = StructType("hudson_transfer$", List(FieldDesc("word", "a", false, None), FieldDesc("word", "b", false, None), FieldDesc("word", "c", false, None)), NoAlignment)
     addThing(byte_and_pointer$, None)
     addThing(hudson_transfer$, None)
     Environment.constOnlyBuiltinFunction.foreach(n => addThing(ConstOnlyCallable(n), None))
@@ -1155,7 +1156,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case s: CompoundVariableType =>
         if (s.mutableAlignment ne null) return s.mutableAlignment
         var alignment = s.baseAlignment
-        for( ResolvedFieldDesc(fieldType, _, _) <- s.mutableFieldsWithTypes) {
+        for( ResolvedFieldDesc(fieldType, _, _, _) <- s.mutableFieldsWithTypes) {
           val a = getTypeAlignment(fieldType, path + name)
           if (a eq null) return null
           alignment = alignment & a
@@ -1175,7 +1176,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         else {
           val newPath = path + name
           var sum = 0
-          for( ResolvedFieldDesc(fieldType, _, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
+          for( ResolvedFieldDesc(fieldType, _, _, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
             val fieldSize = getTypeSize(fieldType, newPath) * indexTypeAndCount.fold(1)(_._2)
             if (fieldSize < 0) return -1
             sum = fieldType.alignment.roundSizeUp(sum)
@@ -1188,7 +1189,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           }
           val b = get[Type]("byte")
           var offset = 0
-          for( ResolvedFieldDesc(fieldType, fieldName, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
+          for( ResolvedFieldDesc(fieldType, fieldName, _, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
             offset = fieldType.alignment.roundSizeUp(offset)
             addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(offset, 1), b), None)
             offset += getTypeSize(fieldType, newPath) * indexTypeAndCount.fold(1)(_._2)
@@ -1201,7 +1202,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         else {
           val newPath = path + name
           var max = 0
-          for( ResolvedFieldDesc(fieldType, _, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
+          for( ResolvedFieldDesc(fieldType, _, _, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
             val fieldSize = getTypeSize(fieldType, newPath) * indexTypeAndCount.fold(1)(_._2)
             if (fieldSize < 0) return -1
             max = max max fieldSize
@@ -1211,7 +1212,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             log.error(s"Union `$name` is larger than 255 bytes")
           }
           val b = get[Type]("byte")
-          for (ResolvedFieldDesc(fieldType, fieldName, _) <- s.mutableFieldsWithTypes) {
+          for (ResolvedFieldDesc(fieldType, fieldName, _, _) <- s.mutableFieldsWithTypes) {
             addThing(ConstantThing(s"$name.$fieldName.offset", NumericConstant(0, 1), b), None)
           }
           max
@@ -1613,9 +1614,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         addThing(v, stmt.position)
         registerAddressConstant(v, stmt.position, options, Some(typ))
         val addr = v.toAddress
-        for(Subvariable(suffix, offset, t, arraySize) <- getSubvariables(typ)) {
+        for(Subvariable(suffix, offset, vol, t, arraySize) <- getSubvariables(typ)) {
           if (arraySize.isDefined) ??? // TODO
-          val subv = RelativeVariable(v.name + suffix, addr + offset, t, zeropage = zp, None, isVolatile = v.isVolatile)
+          val subv = RelativeVariable(v.name + suffix, addr + offset, t, zeropage = zp, None, isVolatile = v.isVolatile || vol)
           addThing(subv, stmt.position)
           registerAddressConstant(subv, stmt.position, options, Some(t))
         }
@@ -1657,7 +1658,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               List.fill(tt.size)(LiteralExpression(0, 1))
             } else {
               tt.fields.zip(fieldValues).flatMap {
-                case (FieldDesc(fieldTypeName, _, count), expr) =>
+                case (FieldDesc(fieldTypeName, _, _, count), expr) =>
                   // TODO: handle array fields
                   if (count.isDefined) ???
                   extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
@@ -1694,7 +1695,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
               List.fill(tt.size)(LiteralExpression(0, 1))
             } else {
               tt.fields.zip(fieldValues).flatMap {
-                case (FieldDesc(fieldTypeName, _, count), expr) =>
+                case (FieldDesc(fieldTypeName, _, _, count), expr) =>
                   // TODO: handle array fields
                   if (count.isDefined) ???
                   extractStructArrayContents(expr, Some(get[Type](fieldTypeName)))
@@ -1738,7 +1739,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case IndexedExpression(a, i) =>
         constantsThatShouldHaveBeenImportedEarlier.addBinding(a, node.position)
         markAsConstantsThatShouldHaveBeenImportedEarlier(i)
-      case DerefExpression(p, _, _) =>
+      case DerefExpression(p, _, _, _) =>
         markAsConstantsThatShouldHaveBeenImportedEarlier(p)
       case DerefDebuggingExpression(p, _) =>
         markAsConstantsThatShouldHaveBeenImportedEarlier(p)
@@ -2129,7 +2130,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       val constantValue = rawConstantValue.fitInto(typ)
       if (constantValue.requiredSize > typ.size) log.error(s"`$name` is has an invalid value: not in the range of `$typ`", position)
       addThing(ConstantThing(prefix + name, constantValue, typ), stmt.position)
-      for(Subvariable(suffix, offset, t, arraySize) <- getSubvariables(typ)) {
+      for(Subvariable(suffix, offset, vol, t, arraySize) <- getSubvariables(typ)) {
         if (arraySize.isDefined) {
           log.error(s"Constants of type ${t.name} that contains array fields are not supported", stmt.position)
         } else {
@@ -2210,7 +2211,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     variable match {
       case v: StackVariable =>
         addThing(localName, v, position)
-        for (Subvariable(suffix, offset, t, arraySize) <- getSubvariables(v.typ)) {
+        for (Subvariable(suffix, offset, vol, t, arraySize) <- getSubvariables(v.typ)) {
           if (arraySize.isDefined) {
             log.error(s"Cannot create a stack variable $localName of compound type ${v.typ.name} that contains an array member", position)
           } else {
@@ -2219,10 +2220,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
       case v: MemoryVariable =>
         addThing(localName, v, position)
-        for (Subvariable(suffix, offset, t, arrayIndexTypeAndSize) <- getSubvariables(v.typ)) {
+        for (Subvariable(suffix, offset, vol, t, arrayIndexTypeAndSize) <- getSubvariables(v.typ)) {
           arrayIndexTypeAndSize match {
             case None =>
-              val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
+              val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile || vol)
               addThing(subv, position)
               registerAddressConstant(subv, position, options, Some(t))
             case Some((indexType, elemCount)) =>
@@ -2234,10 +2235,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       case v: VariableInMemory =>
         addThing(localName, v, position)
         addThing(ConstantThing(v.name + "`", v.toAddress, get[Type]("word")), position)
-        for (Subvariable(suffix, offset, t, arrayIndexTypeAndSize) <- getSubvariables(v.typ)) {
+        for (Subvariable(suffix, offset, vol, t, arrayIndexTypeAndSize) <- getSubvariables(v.typ)) {
           arrayIndexTypeAndSize match {
             case None =>
-              val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile)
+              val subv = RelativeVariable(prefix + localName + suffix, v.toAddress + offset, t, zeropage = v.zeropage, declaredBank = v.declaredBank, isVolatile = v.isVolatile || vol)
               addThing(subv, position)
               registerAddressConstant(subv, position, options, Some(t))
             case Some((indexType, elemCount)) =>
@@ -2250,6 +2251,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
+  //noinspection NameBooleanParameters
   def getSubvariables(typ: Type): List[Subvariable] = {
     val b = get[VariableType]("byte")
     val w = get[VariableType]("word")
@@ -2257,109 +2259,109 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       if (options.isBigEndian) {
         throw new IllegalArgumentException("__reg$type on 6809???")
       }
-      return Subvariable(".lo", 0, b) ::
-        Subvariable(".hi", 1, b) ::
-        Subvariable(".loword", 0, w) ::
-        Subvariable(".loword.lo", 0, b) ::
-        Subvariable(".loword.hi", 1, b) ::
-        Subvariable(".b2b3", 2, w) ::
-        Subvariable(".b2b3.lo", 2, b) ::
-        Subvariable(".b2b3.hi", 3, b) ::
-        List.tabulate(typ.size) { i => Subvariable(".b" + i, i, b) }
+      return Subvariable(".lo", 0, false, b) ::
+        Subvariable(".hi", 1, false, b) ::
+        Subvariable(".loword", 0, false, w) ::
+        Subvariable(".loword.lo", 0, false, b) ::
+        Subvariable(".loword.hi", 1, false, b) ::
+        Subvariable(".b2b3", 2, false, w) ::
+        Subvariable(".b2b3.lo", 2, false, b) ::
+        Subvariable(".b2b3.hi", 3, false, b) ::
+        List.tabulate(typ.size) { i => Subvariable(".b" + i, i, false, b) }
     }
     typ match {
       case _: PlainType => typ.size match {
         case 2 => if (options.isBigEndian) List(
-          Subvariable(".lo", 1, b),
-          Subvariable(".hi", 0, b)
+          Subvariable(".lo", 1, false, b),
+          Subvariable(".hi", 0, false, b)
         ) else List(
-          Subvariable(".lo", 0, b),
-          Subvariable(".hi", 1, b))
+          Subvariable(".lo", 0, false, b),
+          Subvariable(".hi", 1, false, b))
         case 3 => if (options.isBigEndian) List(
-          Subvariable(".loword", 1, w),
-          Subvariable(".loword.lo", 2, b),
-          Subvariable(".loword.hi", 1, b),
-          Subvariable(".hiword", 0, w),
-          Subvariable(".hiword.lo", 1, b),
-          Subvariable(".hiword.hi", 0, b),
-          Subvariable(".lo", 2, b),
-          Subvariable(".b0", 2, b),
-          Subvariable(".b1", 1, b),
-          Subvariable(".b2", 0, b)
+          Subvariable(".loword", 1, false, w),
+          Subvariable(".loword.lo", 2, false, b),
+          Subvariable(".loword.hi", 1, false, b),
+          Subvariable(".hiword", 0, false, w),
+          Subvariable(".hiword.lo", 1, false, b),
+          Subvariable(".hiword.hi", 0, false, b),
+          Subvariable(".lo", 2, false, b),
+          Subvariable(".b0", 2, false, b),
+          Subvariable(".b1", 1, false, b),
+          Subvariable(".b2", 0, false, b)
         ) else List(
-          Subvariable(".loword", 0, w),
-          Subvariable(".loword.lo", 0, b),
-          Subvariable(".loword.hi", 1, b),
-          Subvariable(".hiword", 1, w),
-          Subvariable(".hiword.lo", 1, b),
-          Subvariable(".hiword.hi", 2, b),
-          Subvariable(".lo", 0, b),
-          Subvariable(".b0", 0, b),
-          Subvariable(".b1", 1, b),
-          Subvariable(".b2", 2, b))
+          Subvariable(".loword", 0, false, w),
+          Subvariable(".loword.lo", 0, false, b),
+          Subvariable(".loword.hi", 1, false, b),
+          Subvariable(".hiword", 1, false, w),
+          Subvariable(".hiword.lo", 1, false, b),
+          Subvariable(".hiword.hi", 2, false, b),
+          Subvariable(".lo", 0, false, b),
+          Subvariable(".b0", 0, false, b),
+          Subvariable(".b1", 1, false, b),
+          Subvariable(".b2", 2, false, b))
         case 4 => if (options.isBigEndian) List(
-          Subvariable(".loword", 2, w),
-          Subvariable(".hiword", 0, w),
-          Subvariable(".loword.lo", 3, b),
-          Subvariable(".loword.hi", 2, b),
-          Subvariable(".hiword.lo", 1, b),
-          Subvariable(".hiword.hi", 0, b),
-          Subvariable(".lo", 3, b),
-          Subvariable(".b0", 3, b),
-          Subvariable(".b1", 2, b),
-          Subvariable(".b2", 1, b),
-          Subvariable(".b3", 0, b)
+          Subvariable(".loword", 2, false, w),
+          Subvariable(".hiword", 0, false, w),
+          Subvariable(".loword.lo", 3, false, b),
+          Subvariable(".loword.hi", 2, false, b),
+          Subvariable(".hiword.lo", 1, false, b),
+          Subvariable(".hiword.hi", 0, false, b),
+          Subvariable(".lo", 3, false, b),
+          Subvariable(".b0", 3, false, b),
+          Subvariable(".b1", 2, false, b),
+          Subvariable(".b2", 1, false, b),
+          Subvariable(".b3", 0, false, b)
         ) else List(
-          Subvariable(".loword", 0, w),
-          Subvariable(".hiword", 2, w),
-          Subvariable(".loword.lo", 0, b),
-          Subvariable(".loword.hi", 1, b),
-          Subvariable(".hiword.lo", 2, b),
-          Subvariable(".hiword.hi", 3, b),
-          Subvariable(".lo", 0, b),
-          Subvariable(".b0", 0, b),
-          Subvariable(".b1", 1, b),
-          Subvariable(".b2", 2, b),
-          Subvariable(".b3", 3, b)
+          Subvariable(".loword", 0, false, w),
+          Subvariable(".hiword", 2, false, w),
+          Subvariable(".loword.lo", 0, false, b),
+          Subvariable(".loword.hi", 1, false, b),
+          Subvariable(".hiword.lo", 2, false, b),
+          Subvariable(".hiword.hi", 3, false, b),
+          Subvariable(".lo", 0, false, b),
+          Subvariable(".b0", 0, false, b),
+          Subvariable(".b1", 1, false, b),
+          Subvariable(".b2", 2, false, b),
+          Subvariable(".b3", 3, false, b)
         )
         case sz if sz > 4 =>
           if (options.isBigEndian) {
-            Subvariable(".lo", sz - 1, b) ::
-              Subvariable(".loword", sz - 2, w) ::
-              Subvariable(".loword.lo", sz - 1, b) ::
-              Subvariable(".loword.hi", sz - 2, b) ::
-              List.tabulate(sz){ i => Subvariable(".b" + i, sz - 1 - i, b) }
+            Subvariable(".lo", sz - 1, false, b) ::
+              Subvariable(".loword", sz - 2, false, w) ::
+              Subvariable(".loword.lo", sz - 1, false, b) ::
+              Subvariable(".loword.hi", sz - 2, false, b) ::
+              List.tabulate(sz){ i => Subvariable(".b" + i, sz - 1 - i, false, b) }
           } else {
-            Subvariable(".lo", 0, b) ::
-              Subvariable(".loword", 0, w) ::
-              Subvariable(".loword.lo", 0, b) ::
-              Subvariable(".loword.hi", 1, b) ::
-              List.tabulate(sz){ i => Subvariable(".b" + i, i, b) }
+            Subvariable(".lo", 0, false, b) ::
+              Subvariable(".loword", 0, false, w) ::
+              Subvariable(".loword.lo", 0, false, b) ::
+              Subvariable(".loword.hi", 1, false, b) ::
+              List.tabulate(sz){ i => Subvariable(".b" + i, i, false, b) }
           }
         case _ => Nil
       }
       case InterruptPointerType | _: FunctionPointerType | _: PointerType => if (options.isBigEndian) List(
-        Subvariable(".raw", 0, get[VariableType]("pointer")),
-        Subvariable(".raw.lo", 1, b),
-        Subvariable(".raw.hi", 0, b),
-        Subvariable(".lo", 1, b),
-        Subvariable(".hi", 0, b)
+        Subvariable(".raw", 0, false, get[VariableType]("pointer")),
+        Subvariable(".raw.lo", 1, false, b),
+        Subvariable(".raw.hi", 0, false, b),
+        Subvariable(".lo", 1, false, b),
+        Subvariable(".hi", 0, false, b)
       ) else List(
-        Subvariable(".raw", 0, get[VariableType]("pointer")),
-        Subvariable(".raw.lo", 0, b),
-        Subvariable(".raw.hi", 1, b),
-        Subvariable(".lo", 0, b),
-        Subvariable(".hi", 1, b))
+        Subvariable(".raw", 0, false, get[VariableType]("pointer")),
+        Subvariable(".raw.lo", 0, false, b),
+        Subvariable(".raw.hi", 1, false, b),
+        Subvariable(".lo", 0, false, b),
+        Subvariable(".hi", 1, false, b))
       case s: StructType =>
         val builder = new ListBuffer[Subvariable]
         var offset = 0
-        for(ResolvedFieldDesc(typ, fieldName, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
+        for(ResolvedFieldDesc(typ, fieldName, vol, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
           offset = getTypeAlignment(typ, Set()).roundSizeUp(offset)
           val suffix = "." + fieldName
-          builder += Subvariable(suffix, offset, typ, indexTypeAndCount)
+          builder += Subvariable(suffix, offset, vol, typ, indexTypeAndCount)
           if (indexTypeAndCount.isEmpty) {
             builder ++= getSubvariables(typ).map {
-              case Subvariable(innerSuffix, innerOffset, innerType, innerSize) => Subvariable(suffix + innerSuffix, offset + innerOffset, innerType, innerSize)
+              case Subvariable(innerSuffix, innerOffset, innerVolatile, innerType, innerSize) => Subvariable(suffix + innerSuffix, offset + innerOffset, vol || innerVolatile, innerType, innerSize)
             }
           }
           offset += typ.size * indexTypeAndCount.fold(1)(_._2)
@@ -2368,13 +2370,13 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         builder.toList
       case s: UnionType =>
         val builder = new ListBuffer[Subvariable]
-        for(FieldDesc(typeName, fieldName, arraySize) <- s.fields) {
+        for(FieldDesc(typeName, fieldName, vol1, arraySize) <- s.fields) {
           val typ = get[VariableType](typeName)
           val suffix = "." + fieldName
-          builder += Subvariable(suffix, 0, typ)
+          builder += Subvariable(suffix, 0, vol1, typ)
           if (arraySize.isEmpty) {
             builder ++= getSubvariables(typ).map {
-              case Subvariable(innerSuffix, innerOffset, innerType, innerSize) => Subvariable(suffix + innerSuffix, innerOffset, innerType, innerSize)
+              case Subvariable(innerSuffix, innerOffset, vol2, innerType, innerSize) => Subvariable(suffix + innerSuffix, innerOffset, vol1 || vol2, innerType, innerSize)
             }
           }
         }
@@ -2558,11 +2560,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     things.values.foreach {
       case st@StructType(_, fields, _) =>
         st.mutableFieldsWithTypes = fields.map {
-          case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map(getArrayFieldIndexTypeAndSize))
+          case FieldDesc(tn, name, vol, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, vol, arraySize.map(getArrayFieldIndexTypeAndSize))
         }
       case ut@UnionType(_, fields, _) =>
         ut.mutableFieldsWithTypes = fields.map {
-          case FieldDesc(tn, name, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, arraySize.map(getArrayFieldIndexTypeAndSize))
+          case FieldDesc(tn, name, vol, arraySize) => ResolvedFieldDesc(get[VariableType](tn), name, vol, arraySize.map(getArrayFieldIndexTypeAndSize))
         }
       case _ => ()
     }
@@ -2745,7 +2747,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       nameCheck(index)
     case DerefDebuggingExpression(inner, _) =>
       nameCheck(inner)
-    case DerefExpression(inner, _, _) =>
+    case DerefExpression(inner, _, _, _) =>
       nameCheck(inner)
     case IndirectFieldExpression(inner, firstIndices, fields) =>
       nameCheck(inner)
