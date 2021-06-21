@@ -10,7 +10,7 @@ word sid_v1_freq  @$D400
 word sid_v1_pulse @$D402
 byte sid_v1_cr    @$D404
 byte sid_v1_ad    @$D405
-byte sid_v1_sr    @$D409
+byte sid_v1_sr    @$D406
 
 word sid_v2_freq  @$D407
 word sid_v2_pulse @$D409
