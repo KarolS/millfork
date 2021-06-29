@@ -693,6 +693,8 @@ case class AssemblyLine(opcode: Opcode.Value, addrMode: AddrMode.Value, var para
       parameter match {
         case StructureConstant(_, List(a,b)) => s"    $opcode $a,$b"
       }
+    } else if (addrMode == LongRelative && opcode != BSR) { // BSR on Hudson is always 8-bit short, and on 65CE02 it's always 16-bit
+      s"    L$opcode ${AddrMode.addrModeToString(addrMode, parameter.toString)}"
     } else if (addrMode == ImmediateWithAbsolute || addrMode == ImmediateWithZeroPage) {
       parameter match {
         case StructureConstant(_, List(a,b)) => s"    $opcode #$a,$b"

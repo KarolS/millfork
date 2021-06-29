@@ -12,6 +12,8 @@ object EmuUnoptimizedRicohRun extends EmuRun(Cpu.Ricoh, Nil, Nil)
 
 object EmuUnoptimizedCmosRun extends EmuRun(Cpu.Cmos, Nil, Nil)
 
+object EmuUnoptimizedCE02Run extends EmuRun(Cpu.CE02, Nil, Nil)
+
 object EmuUnoptimizedHudsonRun extends EmuRun(Cpu.HuC6280, Nil, Nil)
 
 object EmuUnoptimizedNative65816Run extends EmuRun(Cpu.Sixteen, Nil, Nil) {

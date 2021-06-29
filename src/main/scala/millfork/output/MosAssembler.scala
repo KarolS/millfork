@@ -64,6 +64,11 @@ class MosAssembler(program: Program,
         writeByte(bank, index, MosAssembler.opcodeFor(op, am, options))
         writeWord(bank, index + 1, param)
         index + 3
+      case AssemblyLine0(op, am@LongRelative, param) =>
+        writeByte(bank, index, MosAssembler.opcodeFor(op, am, options))
+        // TODO:
+        writeWord(bank, index + 1, param - (index + 3))
+        index + 3
       case AssemblyLine0(op, am@(LongAbsolute | LongAbsoluteX | LongIndirect), param) =>
         writeByte(bank, index, MosAssembler.opcodeFor(op, am, options))
         writeWord(bank, index + 1, param)
@@ -720,8 +725,7 @@ object MosAssembler {
   ce(DEC_W, ZeroPage, 0xC3)
   ce(INC_W, ZeroPage, 0xE3)
   ce(ASL_W, Absolute, 0xCB)
-  // TODO: or is it ROL_W?
-  ce(ROR_W, Absolute, 0xEB)
+  ce(ROL_W, Absolute, 0xEB)
   ce(ASR, Implied, 0x43)
   ce(ASR, ZeroPage, 0x44)
   ce(ASR, ZeroPageX, 0x54)
@@ -738,10 +742,26 @@ object MosAssembler {
   ce(PHW, Absolute, 0xFC)
   ce(PHZ, Implied, 0xDB)
   ce(PLZ, Implied, 0xFB)
-//  ce(CLE, Implied, )
-//  ce(SEE, Implied, )
-//  ce(BSR, , )
+  ce(JSR, Indirect, 0x22)
+  ce(JSR, AbsoluteIndexedX, 0x23)
+  ce(CLE, Implied, 0x02)
+  ce(SEE, Implied, 0x03)
+  ce(NEG, Implied, 0x42)
+  ce(MAP, Implied, 0x5C)
+  ce(LDA, IndexedSY, 0xE2)
+  ce(STA, IndexedSY, 0x82)
+  ce(BSR, LongRelative, 0x63)
+  ce(BRA, LongRelative, 0x83)
+  ce(BPL, LongRelative, 0x13)
+  ce(BMI, LongRelative, 0x33)
+  ce(BVC, LongRelative, 0x53)
+  ce(BVS, LongRelative, 0x73)
+  ce(BCC, LongRelative, 0x93)
+  ce(BCS, LongRelative, 0xb3)
+  ce(BNE, LongRelative, 0xd3)
+  ce(BEQ, LongRelative, 0xf3)
 
+  hu(BSR, Relative, 0x44)
   hu(CLY, Implied, 0xC2)
   hu(CLX, Implied, 0x82)
   hu(CLA, Implied, 0x62)
@@ -816,6 +836,8 @@ object MosAssembler {
   em(XBA, Implied, 0xEB)
   em(TXY, Implied, 0x9B)
   em(TYX, Implied, 0xBB)
+  em(JSR, LongAbsolute, 0x22)
+  em(JSR, AbsoluteIndexedX, 0xFC)
 
 
   na(RTL, Implied, 0x6B)

@@ -24,7 +24,11 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
 
   //  def zeropageAddrModeHint: P[Option[Boolean]] = Pass
 
-  val asmOpcode: P[Opcode.Value] = (position() ~ mosOpcodeLetter.rep(exactly = 3).! ~ octalDigit.?.! ~ ("_W" | "_w").?.!).map { case (p, bitNo, suffix, o) => Opcode.lookup(o + bitNo + suffix, Some(p), log) }
+  val asmOpcode: P[(Boolean, Opcode.Value)] = (position() ~
+    (("l" | "L") ~ ("b" | "B") ~ mosOpcodeLetter.rep(exactly = 2) |
+      (mosOpcodeLetter.rep(exactly = 3).! ~ octalDigit.?.! ~ ("_W" | "_w").?)).!).map { case (p, o) =>
+    o.toLowerCase.startsWith("lb") -> Opcode.lookup(o, Some(p), log)
+  }
 
   private val commaX = HWS ~ "," ~ HWS ~ ("X" | "x") ~ HWS
   private val commaY = HWS ~ "," ~ HWS ~ ("Y" | "y") ~ HWS
@@ -77,8 +81,8 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
     import Opcode._
     for {
       elid <- !"}" ~ elidable
-      position <- position("assembly statement")
-      op <- asmOpcode ~/ Pass
+      pos <- position("assembly statement")
+      (longrelative, op) <- asmOpcode ~/ Pass
       param <- op match {
         case op if OpcodeClasses.SingleBitBranch(op) =>
           (HWS ~ asmExpression ~ HWS ~ "," ~/ HWS ~ asmExpression).map{ x =>
@@ -102,12 +106,23 @@ case class MosParser(filename: String, input: String, currentDirectory: String, 
         case (Opcode.ASR, AddrMode.Absolute) => MosAssemblyStatement(Opcode.ASR, AddrMode.ZeroPage, param._2, elid)
         case (Opcode.ASR, AddrMode.AbsoluteX) => MosAssemblyStatement(Opcode.ASR, AddrMode.ZeroPageX, param._2, elid)
         case (Opcode.SBX, _) => MosAssemblyStatement(Opcode.SAX, param._1, param._2, elid)
+        case (Opcode.BSR, AddrMode.Absolute) if options.flag(CompilationFlag.Emit65CE02Opcodes) || longrelative =>
+          MosAssemblyStatement(Opcode.BSR, AddrMode.LongRelative, param._2, elid)
+        case (Opcode.BSR, AddrMode.Absolute) if options.flag(CompilationFlag.EmitHudsonOpcodes) =>
+          MosAssemblyStatement(Opcode.BSR, AddrMode.Relative, param._2, elid)
+        case (Opcode.PHW, AddrMode.Immediate) => MosAssemblyStatement(Opcode.PHW, AddrMode.WordImmediate, param._2, elid)
+        case (op, AddrMode.AbsoluteX)
+          if (op == INC_W || op == DEC_W) && !options.flag(CompilationFlag.EmitNative65816Opcodes) =>
+          MosAssemblyStatement(op, AddrMode.ZeroPageX, param._2, elid)
+        case (_, AddrMode.Absolute) if OpcodeClasses.ShortBranching(op) =>
+          MosAssemblyStatement(op, if (longrelative) AddrMode.LongRelative else AddrMode.Relative, param._2, elid)
         case (_, AddrMode.ZeroPageX) if !OpcodeClasses.SupportsZeroPageX(op) => MosAssemblyStatement(op, AddrMode.AbsoluteX, param._2, elid)
         case (_, AddrMode.ZeroPageY) if !OpcodeClasses.SupportsZeroPageY(op) => MosAssemblyStatement(op, AddrMode.AbsoluteY, param._2, elid)
         case (_, AddrMode.Absolute) if OpcodeClasses.SingleBit(op) => MosAssemblyStatement(op, AddrMode.ZeroPage, param._2, elid)
+        case (_, AddrMode.IndexedX) if op == Opcode.JMP || op == Opcode.JSR => MosAssemblyStatement(op, AddrMode.AbsoluteIndexedX, param._2, elid)
         case (_, AddrMode.Indirect) if op != Opcode.JMP && op != Opcode.JSR => MosAssemblyStatement(op, AddrMode.IndexedZ, param._2, elid)
         case _ => MosAssemblyStatement(op, param._1, param._2, elid)
-      }).pos(position)
+      }).pos(pos)
     }
   }
 

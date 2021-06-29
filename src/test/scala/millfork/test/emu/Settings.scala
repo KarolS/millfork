@@ -29,6 +29,12 @@ object Settings {
   val enableWdc85816Tests: Boolean = false
 
   /**
+    * Should the 65CE02 tests be enabled?
+    * There is no emulator for 65CE02 right now.
+    */
+  val enableCE02Tests: Boolean = false
+
+  /**
     * Should the Ricoh tests be enabled?
     * Ricoh tests:
     * - don't differ from 6502 tests a lot

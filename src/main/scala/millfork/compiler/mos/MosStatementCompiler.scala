@@ -164,14 +164,14 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
         val c: Constant = compileParameterForAssemblyStatement(env, o, x)
         val actualAddrMode = a match {
           case Absolute if OpcodeClasses.ShortBranching(o) => Relative
-          case Absolute if (o == ROR_W || o == ASL_W) && ctx.options.flag(CompilationFlag.Emit65CE02Opcodes) =>
+          case Absolute if (o == ROL_W || o == ASL_W) && ctx.options.flag(CompilationFlag.Emit65CE02Opcodes) =>
               Absolute
           case Absolute if OpcodeClasses.SupportsZeropage(o) && c.fitsProvablyIntoByte => ZeroPage
           case ImmediateWithAbsolute if (c match {
             case StructureConstant(_, List(a, b)) => b.fitsProvablyIntoByte
           }) => ImmediateWithZeroPage
-          case IndexedX if o == JMP => AbsoluteIndexedX
-          case Indirect if o != JMP => IndexedZ
+          case IndexedX if o == JMP || o == JSR => AbsoluteIndexedX
+          case Indirect if o != JMP && o != JSR => IndexedZ
           case _ => a
         }
         List(AssemblyLine(o, actualAddrMode, c, e)) -> Nil

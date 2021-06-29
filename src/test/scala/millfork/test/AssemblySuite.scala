@@ -572,4 +572,91 @@ class AssemblySuite extends FunSuite with Matchers with AppendedClues {
         |""".stripMargin)
     m.readByte(0xc000) should equal(0x12)
   }
+
+  test("65CE02 opcodes") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.CE02)(
+      """
+        |byte output @$c000
+        |void stuff() {
+        |   output = 42
+        |}
+        |void main() {
+        |   word p
+        |   p = stuff.addr
+        |   asm {
+        |     jsr (p)
+        |   }
+        |   return
+        |   asm {
+        |     bsr stuff
+        |     see
+        |     cle
+        |     ldz #$a3
+        |     ldz $abab
+        |     ldz $bbbb,x
+        |     stz $64
+        |     stz $74,x
+        |     stz $9c9c
+        |     stz $9e9e,x
+        |     asr
+        |     asr $44
+        |     asr $54,x
+        |     asw $cbcb
+        |     row $ebeb
+        |     dew $c3
+        |     inw $e3
+        |     neg
+        |     dec
+        |     inc
+        |     dez
+        |     inz
+        |     tab
+        |     tba
+        |     taz
+        |     tza
+        |     tsy
+        |     tys
+        |     phw #$f4f4
+        |     phw $fcfc
+        |     phx
+        |     phy
+        |     phz
+        |     plz
+        |     ply
+        |     plx
+        |     .here: bra .here
+        |     bbr0 $0F, .here
+        |     bbs0 $8F, .here
+        |     jsr ($2323,x)
+        |     jmp ($7c7c,x)
+        |     rmb0 $07
+        |     smb0 $87
+        |     ora ($12),z
+        |     and ($32),z
+        |     eor ($52),z
+        |     adc ($72),z
+        |     sta ($92),z
+        |     lda ($b2),z
+        |     cmp ($d2),z
+        |     sbc ($f2),z
+        |     lda ($e2,s),y
+        |     sta ($82,s),y
+        |     map
+        |     [for x,0,until,300 [0]]
+        |     lbra .here
+        |     lbeq .here
+        |     lbcc .here
+        |     lbcs .here
+        |     lbvs .here
+        |     lbvc .here
+        |     lbmi .here
+        |     lbpl .here
+        |   }
+        |}
+        |""".stripMargin) { m =>
+      m.readByte(0xc000) should equal(42)
+    }
+  }
+
+
 }
