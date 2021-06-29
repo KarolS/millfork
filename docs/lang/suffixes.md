@@ -10,9 +10,9 @@ These suffixes can be only applied to arithmetic or pointer variables:
 
 * `.hi` – the most significant byte of a two-byte variable (word, pointer) (use `hi(_)` for arbitrary expressions)
 
-* `.loword` – the least significant byte of a three- or four-byte variable
+* `.loword` – the least significant word of a three- or four-byte variable
 
-* `.hiword` – the most significant byte of a three- or four-byte variable
+* `.hiword` – the most significant word of a three- or four-byte variable
 
 * `.b0`, `.b1` etc. – the given byte of the multi-byte arithmetic variable, with `.b0` being the least significant byte
 
