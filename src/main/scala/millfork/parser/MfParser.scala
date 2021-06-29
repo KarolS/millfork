@@ -49,7 +49,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
       case _: Failure[_, _] =>
         if (lastPosition.cursor >= 0 && lastPosition.cursor < input.length) {
           val c = input(lastPosition.cursor)
-          if (c >= 0x100 || c < 0x20 || c == '`') {
+          if (c >= 0x100 || (c < 0x20 && c != 13 && c != 10 && c != 9) || c == '`') {
             log.error("Invalid character %s".format(getCharacterNameSafe(c)), Some(lastPosition))
             Confusables.map.get(c) match {
               case Some(ascii) =>
