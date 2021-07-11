@@ -38,9 +38,9 @@ void read_joy() {
         ld a,(reg_joypad)
         ld a,(reg_joypad)
     }
-    byte tmp
+    
     tmp = reg_joypad ^ $ff
-    input_a = (tmp & 1) >> 0
+    input_a = (tmp & 1) // >> 0  
     input_b = (tmp & 2) >> 1
     input_select = (tmp & 4) >> 2
     input_start = (tmp & 8) >> 3
