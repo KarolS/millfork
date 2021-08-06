@@ -1929,6 +1929,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def registerArray(stmt: ArrayDeclarationStatement, options: CompilationOptions): Unit = {
+    new OverflowDetector(this, options).detectOverflow(stmt)
     if (options.flag(CompilationFlag.LUnixRelocatableCode) && stmt.alignment.exists(_.isMultiplePages)) {
       log.error("Invalid alignment for LUnix code", stmt.position)
     }
@@ -2090,6 +2091,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   }
 
   def registerVariable(stmt: VariableDeclarationStatement, options: CompilationOptions, isPointy: Boolean): Unit = {
+    new OverflowDetector(this, options).detectOverflow(stmt)
     val name = stmt.name
     val position = stmt.position
     if (name == "" || name.contains(".") && !name.contains(".return")) {

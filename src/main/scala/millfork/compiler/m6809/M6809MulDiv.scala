@@ -15,9 +15,9 @@ import scala.collection.mutable.ListBuffer
   */
 object M6809MulDiv {
 
-  def compileByteMultiplication(ctx: CompilationContext, params: List[Expression], updateDerefX: Boolean): List[MLine] = {
+  def compileByteMultiplication(ctx: CompilationContext, params: List[Expression], updateDerefX: Boolean, forceMul: Boolean = false): List[MLine] = {
     var constant = Constant.One
-    val variablePart = params.flatMap { p =>
+    val variablePart = if(forceMul) params else params.flatMap { p =>
       ctx.env.eval(p) match {
         case Some(c) =>
           constant = CompoundConstant(MathOperator.Times, constant, c).quickSimplify

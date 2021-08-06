@@ -818,6 +818,10 @@ object Main {
       c.changeFlag(CompilationFlag.RorWarning, v)
     }.description("Whether should warn about the ROR instruction (6502 only). Default: disabled.")
 
+    boolean("-Woverflow", "-Wno-overflow").repeatable().action { (c, v) =>
+      c.changeFlag(CompilationFlag.ByteOverflowWarning, v)
+    }.description("Whether should warn about byte overflow. Default: enabled.")
+
     boolean("-Wuseless", "-Wno-useless").repeatable().action { (c, v) =>
       c.changeFlag(CompilationFlag.UselessCodeWarning, v)
     }.description("Whether should warn about code that does nothing. Default: enabled.")

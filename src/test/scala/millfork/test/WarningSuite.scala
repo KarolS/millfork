@@ -55,4 +55,36 @@ class WarningSuite extends FunSuite with Matchers {
       """.stripMargin) { m =>
     }
   }
+
+  test("Warn about unintended byte overflow") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos)(
+      """
+        | import zp_reg
+        | const word screenOffset = (10*40)+5
+        | noinline void func(byte x, byte y) {
+        |     word screenOffset
+        |     screenOffset = (x*40) + y
+        | }
+        | noinline word getNESScreenOffset(byte x, byte y) {
+        |     word temp
+        |     temp = (y << 5) +x
+        | }
+        | noinline word getSomeFunc(byte x, byte y, byte z) {
+        |    word temp
+        |    temp = ((x + z) << 2) + (y << 5)
+        |    temp = byte((x + z) << 2) + (y << 5)
+        | }
+        |
+        | noinline byte someFunc(byte x, byte y) {
+        |    return (x*y)-24
+        | }
+        | void main() {
+        |    func(0,0)
+        |    getNESScreenOffset(0,0)
+        |    getSomeFunc(0,screenOffset.lo,5)
+        |    someFunc(0,0)
+        | }
+      """.stripMargin) { m =>
+    }
+  }
 }

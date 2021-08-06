@@ -7,12 +7,41 @@ import millfork.error.{ConsoleLogger, Logger}
 import millfork.assembly.AbstractCode
 import millfork.output.NoAlignment
 
+import scala.collection.mutable.ListBuffer
+
 /**
   * @author Karol Stasiak
   */
 class AbstractExpressionCompiler[T <: AbstractCode] {
 
   def getExpressionType(ctx: CompilationContext, expr: Expression): Type = AbstractExpressionCompiler.getExpressionType(ctx, expr)
+
+  def extractWordExpandedBytes(ctx: CompilationContext, params:List[Expression]): Option[List[Expression]] = {
+    val result = ListBuffer[Expression]()
+    for(param <- params) {
+      if (ctx.env.eval(param).isDefined) return None
+      AbstractExpressionCompiler.getExpressionType(ctx, param) match {
+        case t: PlainType if t.size == 1 && !t.isSigned =>
+          result += param
+        case t: PlainType if t.size == 2 =>
+          param match {
+            case FunctionCallExpression(functionName, List(inner)) =>
+              AbstractExpressionCompiler.getExpressionType(ctx, inner) match {
+                case t: PlainType if t.size == 1 && !t.isSigned =>
+                  ctx.env.maybeGet[Type](functionName) match {
+                    case Some(tw: PlainType) if tw.size == 2 =>
+                      result += inner
+                    case _ => return None
+                  }
+                case _ => return None
+              }
+            case _ => return None
+          }
+        case _ => return None
+      }
+    }
+    Some(result.toList)
+  }
 
   def assertAllArithmetic(ctx: CompilationContext,expressions: List[Expression], booleanHint: String = ""): Unit = {
      for(e <- expressions) {

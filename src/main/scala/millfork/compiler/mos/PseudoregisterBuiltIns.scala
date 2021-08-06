@@ -730,11 +730,23 @@ object PseudoregisterBuiltIns {
       case (1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", param2.position)
     }
+    val b = ctx.env.get[Type]("byte")
+    val w = ctx.env.get[Type]("word")
+    val reg = ctx.env.get[VariableInMemory]("__reg")
     if (!storeInRegLo && param1OrRegister.isDefined) {
       (ctx.env.eval(param1OrRegister.get), ctx.env.eval(param2)) match {
         case (Some(l), Some(r)) =>
           val product = CompoundConstant(MathOperator.Times, l, r).quickSimplify
           return List(AssemblyLine.immediate(LDA, product.loByte), AssemblyLine.immediate(LDX, product.hiByte))
+        case (Some(NumericConstant(2, _)), _) =>
+          val evalParam2 = MosExpressionCompiler.compile(ctx, param2, Some(b -> RegisterVariable(MosRegister.A, b)), BranchSpec.None)
+          val label = ctx.nextLabel("sh")
+          return evalParam2 ++ List(
+            AssemblyLine.implied(ASL),
+            AssemblyLine.immediate(LDX, 0),
+            AssemblyLine.relative(BCC, label),
+            AssemblyLine.implied(INX),
+            AssemblyLine.label(label))
         case (Some(NumericConstant(c, _)), _) if isPowerOfTwoUpTo15(c)=>
           return compileWordShiftOps(left = true, ctx, param2, LiteralExpression(java.lang.Long.bitCount(c - 1), 1))
         case (_, Some(NumericConstant(c, _))) if isPowerOfTwoUpTo15(c)=>
@@ -742,9 +754,6 @@ object PseudoregisterBuiltIns {
         case _ =>
       }
     }
-    val b = ctx.env.get[Type]("byte")
-    val w = ctx.env.get[Type]("word")
-    val reg = ctx.env.get[VariableInMemory]("__reg")
     val load: List[AssemblyLine] = param1OrRegister match {
       case Some(param1) =>
         val code1 = MosExpressionCompiler.compile(ctx, param1, Some(w -> RegisterVariable(MosRegister.AX, w)), BranchSpec.None)

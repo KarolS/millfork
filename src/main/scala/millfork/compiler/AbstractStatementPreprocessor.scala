@@ -150,6 +150,7 @@ abstract class AbstractStatementPreprocessor(protected val ctx: CompilationConte
 
       case _ =>
     }
+    new OverflowDetector(ctx).detectOverflow(stmt)
     stmt match {
       case Assignment(ve@VariableExpression(v), arg) if trackableVars(v) =>
         cv = search(arg, cv)

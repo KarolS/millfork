@@ -465,4 +465,21 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
       m.readByte(0xc000) should equal(125)
     }
   }
+
+  test("Optimal multiplication detection") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+         | import zp_reg
+         | word output @$c000
+         | noinline void run(byte a, byte b) {
+         |  output = word(a) * b
+         | }
+         | void main () {
+         |  run(100, 42)
+         | }
+          """.
+        stripMargin) { m =>
+      m.readWord(0xc000) should equal(4200)
+    }
+  }
 }

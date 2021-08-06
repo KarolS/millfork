@@ -326,8 +326,14 @@ object Z80Multiply {
       case (1, 1) => // ok
       case _ => ctx.log.fatal("Invalid code path", l.position)
     }
-    ctx.env.eval(r) match {
-      case Some(c) =>
+    (ctx.env.eval(l), ctx.env.eval(r)) match {
+      case (Some(p), Some(q)) =>
+        List(ZLine.ldImm16(ZRegister.HL, CompoundConstant(MathOperator.Times, p, q).quickSimplify))
+      case (Some(NumericConstant(c, _)), _) if isPowerOfTwoUpTo15(c) =>
+        Z80ExpressionCompiler.compileToHL(ctx, l) ++ List.fill(Integer.numberOfTrailingZeros(c.toInt))(ZLine.registers(ZOpcode.ADD_16, ZRegister.HL, ZRegister.HL))
+      case (_, Some(NumericConstant(c, _))) if isPowerOfTwoUpTo15(c) =>
+        Z80ExpressionCompiler.compileToHL(ctx, l) ++ List.fill(Integer.numberOfTrailingZeros(c.toInt))(ZLine.registers(ZOpcode.ADD_16, ZRegister.HL, ZRegister.HL))
+      case (_, Some(c)) =>
         Z80ExpressionCompiler.compileToDE(ctx, l) ++ List(ZLine.ldImm8(ZRegister.A, c)) ++ multiplication16And8(ctx)
       case _ =>
         val lw = Z80ExpressionCompiler.compileToDE(ctx, l)

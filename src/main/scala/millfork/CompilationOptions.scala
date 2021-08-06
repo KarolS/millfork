@@ -421,6 +421,7 @@ object Cpu extends Enumeration {
     EnableBreakpoints,
     UseOptimizationHints,
     GenericWarnings,
+    ByteOverflowWarning,
     UselessCodeWarning,
     BuggyCodeWarning,
     FallbackValueUseWarning,
@@ -585,6 +586,7 @@ object CompilationFlag extends Enumeration {
   SingleThreaded,
   // warning options
   GenericWarnings,
+  ByteOverflowWarning,
   UselessCodeWarning,
   BuggyCodeWarning,
   DeprecationWarning,
@@ -603,6 +605,7 @@ object CompilationFlag extends Enumeration {
 
   val allWarnings: Set[CompilationFlag.Value] = Set(
     GenericWarnings,
+    ByteOverflowWarning,
     UselessCodeWarning,
     BuggyCodeWarning,
     DeprecationWarning,
