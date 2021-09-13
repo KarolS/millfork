@@ -813,7 +813,7 @@ case class MemsetStatement(start: Expression, size: Constant, value: Expression,
 }
 
 case class ForEachStatement(variable: String, pointerVariable: Option[String], values: Either[Expression, List[Expression]], body: List[ExecutableStatement]) extends CompoundStatement {
-  override def getAllExpressions: List[Expression] = VariableExpression(variable) :: (values.fold[List[Expression]](_ => Nil, identity) ++ body.flatMap(_.getAllExpressions))
+  override def getAllExpressions: List[Expression] = VariableExpression(variable) :: (pointerVariable.map(VariableExpression).toList ++ values.fold[List[Expression]](List(_), identity) ++ body.flatMap(_.getAllExpressions))
 
   override def getChildStatements: Seq[Statement] = body
   override def flatMap(f: ExecutableStatement => Option[ExecutableStatement]): Option[ExecutableStatement] = {
