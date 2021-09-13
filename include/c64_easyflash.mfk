@@ -2,7 +2,7 @@ import err
 
 inline asm void switch_hirom(byte register(a) bank) {
     ? and #$3F
-    ! sta $DE01
+    ! sta $DE00
     ? rts
 }
 
