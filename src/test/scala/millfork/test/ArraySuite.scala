@@ -666,7 +666,7 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos/*, Cpu.Intel8080, Cpu.Z80, Cpu.Motorola6809*/)(
       """
         | struct s { word x, word y}
-        | array(s) a[7]
+        | array (s) a[7]
         | word output @$c000
         |
         | void main () {

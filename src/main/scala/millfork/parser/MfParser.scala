@@ -403,7 +403,7 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     p <- position("array definition")
     bank <- bankDeclaration
     const <- ("const".! ~ HWS).?
-    _ <- "array" ~ !letterOrDigit
+    _ <- "array" ~ !letterOrDigit ~ HWS
     elementType <- ("(" ~/ AWS ~/ identifier ~ AWS ~ ")").? ~/ HWS
     name <- identifier ~/ HWS
     length <- ("[" ~/ AWS ~/ mfExpression(nonStatementLevel, false) ~ AWS ~ "]").? ~ HWS
