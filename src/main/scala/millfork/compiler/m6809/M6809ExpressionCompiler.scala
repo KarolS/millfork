@@ -688,7 +688,20 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
       case FatBooleanType => compileToB(ctx, expr)
       case t: ConstantBooleanType =>
         List(MLine.immediate(MOpcode.LDB, if (t.value) 1 else 0))
-      case BuiltInBooleanType | _: FlagBooleanType =>
+      case t: FlagBooleanType =>
+        val condition = compile(ctx, expr, MExpressionTarget.NOTHING, NoBranching)
+        condition ++ (t.jumpIfFalse.m6809 match {
+          case BCC => List(MLine.immediate(LDB, 0), MLine.inherentB(ROL))
+          case BCS => List(MLine.immediate(LDB, 0), MLine.inherentB(ROL), MLine.immediate(EORB, 1))
+          case o =>
+            val label = ctx.env.nextLabel("bo")
+            List(
+              MLine.immediate(LDB, 0),
+              MLine.shortBranch(o, label),
+              MLine.inherentB(INC),
+              MLine.label(label))
+        })
+      case BuiltInBooleanType =>
         val label = ctx.env.nextLabel("bo")
         val condition = compile(ctx, expr, MExpressionTarget.NOTHING, BranchIfFalse(label))
         val conditionWithoutJump = condition.init

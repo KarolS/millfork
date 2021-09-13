@@ -476,7 +476,20 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         compileToA(ctx, expr)
       case t: ConstantBooleanType =>
         List(AssemblyLine.immediate(LDA, if (t.value) 1 else 0))
-      case _: FlagBooleanType | BuiltInBooleanType =>
+      case t: FlagBooleanType =>
+        val condition = compile(ctx, expr, None, NoBranching)
+        condition ++ (t.jumpIfFalse.mosOpcode match {
+          case BCC => List(AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL))
+          case BCS => List(AssemblyLine.immediate(LDA, 0), AssemblyLine.implied(ROL), AssemblyLine.immediate(EOR, 1))
+          case o =>
+            val label = env.nextLabel("bo")
+            List(
+              AssemblyLine.immediate(LDA, 0),
+              AssemblyLine.relative(o, label),
+              AssemblyLine.immediate(LDA, 1),
+              AssemblyLine.label(label))
+        })
+      case BuiltInBooleanType =>
         val label = env.nextLabel("bo")
         val condition = compile(ctx, expr, None, BranchIfFalse(label))
         if (condition.isEmpty) {

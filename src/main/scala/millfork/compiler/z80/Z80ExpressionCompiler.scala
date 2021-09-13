@@ -27,7 +27,18 @@ object Z80ExpressionCompiler extends AbstractExpressionCompiler[ZLine] {
       case FatBooleanType => compileToA(ctx, expression)
       case t: ConstantBooleanType =>
         List(ZLine.ldImm8(ZRegister.A, if (t.value) 1 else 0))
-      case BuiltInBooleanType | _: FlagBooleanType =>
+      case t: FlagBooleanType =>
+        val condition = Z80ExpressionCompiler.compile(ctx, expression, ZExpressionTarget.NOTHING, NoBranching)
+        condition ++ (t.jumpIfFalse.z80Flags match {
+          case o =>
+            val label = ctx.env.nextLabel("bo")
+            List(
+              ZLine.ldImm8(ZRegister.A, 0),
+              ZLine.jumpR(ctx, label, o),
+              ZLine.register(INC, ZRegister.A),
+              ZLine.label(label))
+        })
+      case BuiltInBooleanType =>
         // TODO optimize if using CARRY
         // TODO: helper functions to convert flags to booleans, to make code smaller
         val label = ctx.env.nextLabel("bo")
