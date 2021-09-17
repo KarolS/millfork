@@ -30,6 +30,8 @@ import scala.collection.mutable
   */
 object EmuZ80Run {
 
+  val secondBytesOfMulOnR800: Set[Int] = Set(0xf9, 0xc1, 0xc9, 0xd1, 0xf9, 0xe1, 0xe9, 0xc3, 0xd3, 0xe3, 0xf3)
+
   private def preload(cpu: millfork.Cpu.Value, filename: String):  Option[Program] = {
     TestErrorReporting.log.info(s"Loading $filename for $cpu")
     val source = Files.readAllLines(Paths.get(filename), StandardCharsets.US_ASCII).asScala.mkString("\n")
@@ -87,6 +89,7 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
       CompilationFlag.SubroutineExtraction -> optimizeForSize,
       CompilationFlag.EmitIllegals -> (cpu == millfork.Cpu.Z80 || cpu == millfork.Cpu.Intel8085 || cpu == millfork.Cpu.Z80Next),
       CompilationFlag.EmitZ80NextOpcodes -> (cpu == millfork.Cpu.Z80Next),
+      CompilationFlag.EmitR800Opcodes -> (cpu == millfork.Cpu.R800),
       CompilationFlag.LenientTextEncoding -> true)
     if (source.contains("intel_syntax")) {
       extraFlags += CompilationFlag.UseIntelSyntaxForOutput -> true
@@ -199,26 +202,35 @@ class EmuZ80Run(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimizatio
           method
         }
         val timings = platform.cpu match {
-          case millfork.Cpu.Z80 | millfork.Cpu.Intel8080 =>
-            val cpu = new Z80Core(Z80Memory(memoryBank), DummyIO)
-            cpu.reset()
-            cpu.setProgramCounter(0x1ed)
-            cpu.resetTStates()
-            while (!cpu.getHalt) {
-              cpu.executeOneInstruction()
-              if (resetN) {
-                resetNMethod.invoke(cpu)
+          case millfork.Cpu.Z80 | millfork.Cpu.Intel8080 | millfork.Cpu.R800 =>
+            val hasMultiplications = (platform.cpu == millfork.Cpu.R800) && ((0x200 to 0xfffe).exists { addr =>
+              val b0 = memoryBank.output(addr)
+              val b1 = memoryBank.output(addr + 1)
+              b0.&(0xff) == 0xED && EmuZ80Run.secondBytesOfMulOnR800(b1.&(0xff))
+            })
+            if (hasMultiplications) {
+              Timings(-1, -1) -> memoryBank
+            } else {
+              val cpu = new Z80Core(Z80Memory(memoryBank), DummyIO)
+              cpu.reset()
+              cpu.setProgramCounter(0x1ed)
+              cpu.resetTStates()
+              while (!cpu.getHalt) {
+                cpu.executeOneInstruction()
+                if (resetN) {
+                  resetNMethod.invoke(cpu)
+                }
+                if (cpu.getSP.&(0xffff) < 0xd002) {
+                  log.debug("stack dump:")
+                  (0xD000 until 0xD0FF).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
+                  throw new IllegalStateException("stack overflow")
+                }
+                //              dump(cpu)
+                cpu.getTStates should be < TooManyCycles
               }
-              if (cpu.getSP.&(0xffff) < 0xd002) {
-                log.debug("stack dump:")
-                (0xD000 until 0xD0FF).map(memoryBank.output).grouped(16).map(_.map(i => f"$i%02x").mkString(" ")).foreach(log.debug(_))
-                throw new IllegalStateException("stack overflow")
-              }
-//              dump(cpu)
-              cpu.getTStates should be < TooManyCycles
+              val tStates = cpu.getTStates
+              Timings(tStates, tStates) -> memoryBank
             }
-            val tStates = cpu.getTStates
-            Timings(tStates, tStates) -> memoryBank
           case millfork.Cpu.Sharp =>
             var ticks = 0L
             val cpu = GameboyStubs(memoryBank).cpu

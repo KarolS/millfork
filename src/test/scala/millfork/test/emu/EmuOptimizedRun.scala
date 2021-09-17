@@ -95,4 +95,6 @@ object EmuSizeOptimizedIntel8080Run extends EmuZ80Run(Cpu.Intel8080, Optimizatio
 
 object EmuOptimizedSharpRun extends EmuZ80Run(Cpu.Sharp, OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForSharp)
 
+object EmuOptimizedR800Run extends EmuZ80Run(Cpu.R800, OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForR800)
+
 object EmuOptimizedM6809Run extends EmuM6809Run(Cpu.Motorola6809, OptimizationPresets.NodeOpt, M6809OptimizationPresets.Default)

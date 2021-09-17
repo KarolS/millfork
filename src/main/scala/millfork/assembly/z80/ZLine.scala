@@ -1067,6 +1067,17 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case LHLX | RLDE => r == D || r == E
           case RRHL => r == H || r == L
 
+          case MULUB => r == A || (registers match {
+            case TwoRegisters(p, q) => r == q || r == p
+            case _ => true
+          })
+          case MULUW => r == H || r == L || (registers match {
+            case TwoRegisters(_, BC) => r == B || r == C
+            case TwoRegisters(_, DE) => r == D || r == E
+            case TwoRegisters(_, SP) => r == SP
+            case _ => true
+          })
+
           case _ => true // TODO
         }
     }
@@ -1229,6 +1240,9 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
           case LD_DESP | LD_DEHL | RLDE => r == D || r == E
           case LHLX | RRHL | DSUB => r == H || r == L
           case SHLX => false
+
+          case MULUB => r == H || r == L
+          case MULUW => r == H || r == L || r == D || r == E
 
           case _ => true // TODO
         }

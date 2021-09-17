@@ -22,6 +22,21 @@ object Z80OptimizationPresets {
     ).flatten
   }
 
+  val GoodForR800: List[AssemblyOptimization[ZLine]] = {
+    List.fill(5)(
+      List.fill(5)(
+        AlwaysGoodI80Optimizations.All ++
+          AlwaysGoodZ80Optimizations.All ++
+          AlwaysGoodR800Optimizations.All ++
+          List(
+            EmptyParameterStoreRemoval,
+            EmptyMemoryStoreRemoval)
+      ).flatten ++
+        List(ChangeRegisterPairPreferringDE, WordVariableToRegisterOptimization, ByteVariableToRegisterOptimization, ChangeRegisterPairPreferringBC, CompactStackFrame) ++
+        LaterIntel8080Optimizations.All ++ LaterI80Optimizations.All
+    ).flatten
+  }
+
   val GoodForIntel8080: List[AssemblyOptimization[ZLine]] = {
     List.fill(5)(
       List.fill(5)(

@@ -67,6 +67,14 @@ class Z80Assembler(program: Program,
 
     def requireZ80Illegals(): Unit = if (!options.flag(EmitZ80Opcodes) || !options.flag(EmitIllegals)) log.error("Unsupported instruction: " + instr)
 
+    def requireR800(): Unit = if (!options.flag(EmitR800Opcodes)) log.error("Unsupported instruction: " + instr)
+
+    def requireNoR800(): Unit = if (options.flag(EmitR800Opcodes)) log.error("Unsupported instruction: " + instr)
+
+    def requireR800OrIllegals(): Unit = if (!options.flag(EmitR800Opcodes) && !options.flag(EmitIllegals)) log.error("Unsupported instruction: " + instr)
+
+    def requireR800Illegals(): Unit = if (!options.flag(EmitR800Opcodes) || !options.flag(EmitIllegals)) log.error("Unsupported instruction: " + instr)
+
     def requireExtended80(): Unit = if (!options.flag(EmitExtended80Opcodes)) log.error("Unsupported instruction: " + instr)
 
     def requireSharp(): Unit = if (!options.flag(EmitSharpOpcodes)) log.error("Unsupported instruction: " + instr)
@@ -326,7 +334,7 @@ class Z80Assembler(program: Program,
         writeByte(bank, index + 2, instr.parameter)
         index + 3
       case ZLine0(op, OneRegister(ix@(IXH | IYH | IXL | IYL)), _) if oneRegister.contains(op) =>
-        requireZ80Illegals()
+        requireR800OrIllegals()
         val o = oneRegister(op)
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, o.opcode + internalRegisterIndex(ix) * o.multiplier)
@@ -337,6 +345,7 @@ class Z80Assembler(program: Program,
         index + 1
       case ZLine0(SLL, OneRegister(reg), _) =>
         requireZ80Illegals()
+        requireNoR800()
         writeByte(bank, index, 0xcb)
         writeByte(bank, index + 1, 0x30 + internalRegisterIndex(reg))
         index + 2
@@ -347,6 +356,7 @@ class Z80Assembler(program: Program,
         index + 2
       case ZLine0(SLL, OneRegisterOffset(ix@(ZRegister.MEM_IX_D | ZRegister.MEM_IY_D), offset), _) =>
         requireZ80Illegals()
+        requireNoR800()
         writeByte(bank, index, prefixByte(ix))
         writeByte(bank, index + 1, 0xcb)
         writeByte(bank, index + 2, offset)
@@ -443,22 +453,22 @@ class Z80Assembler(program: Program,
             writeByte(bank, index + 2, offset)
             index + 3
           case TwoRegisters(target@(IXH | IYH | IXL | IYL), source@(A | B | C | D | E)) =>
-            requireZ80Illegals()
+            requireR800OrIllegals()
             writeByte(bank, index, prefixByte(target))
             writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
             index + 2
           case TwoRegisters(target@(A | B | C | D | E), source@(IXH | IYH | IXL | IYL)) =>
-            requireZ80Illegals()
+            requireR800OrIllegals()
             writeByte(bank, index, prefixByte(source))
             writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
             index + 2
           case TwoRegisters(target@(IXH | IXL), source@(IXH | IXL)) =>
-            requireZ80Illegals()
+            requireR800OrIllegals()
             writeByte(bank, index, prefixByte(source))
             writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
             index + 2
           case TwoRegisters(target@(IYH | IYL), source@(IYH | IYL)) =>
-            requireZ80Illegals()
+            requireR800OrIllegals()
             writeByte(bank, index, prefixByte(source))
             writeByte(bank, index, 0x40 + internalRegisterIndex(source) + internalRegisterIndex(target) * 8)
             index + 2
@@ -771,6 +781,61 @@ class Z80Assembler(program: Program,
         requireIntel8085Illegals()
         writeByte(bank, index, 0x10)
         index + 1
+      case ZLine0(MULUB, TwoRegisters(A, A), _) =>
+        requireR800Illegals()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xF9)
+        index + 2
+      case ZLine0(MULUB, TwoRegisters(A, B), _) =>
+        requireR800()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xC1)
+        index + 2
+      case ZLine0(MULUB, TwoRegisters(A, C), _) =>
+        requireR800()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xC9)
+        index + 2
+      case ZLine0(MULUB, TwoRegisters(A, D), _) =>
+        requireR800()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xD1)
+        index + 2
+      case ZLine0(MULUB, TwoRegisters(A, E), _) =>
+        requireR800()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xD9)
+        index + 2
+      case ZLine0(MULUB, TwoRegisters(A, H), _) =>
+        requireR800Illegals()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xE1)
+        index + 2
+      case ZLine0(MULUB, TwoRegisters(A, L), _) =>
+        requireR800Illegals()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xE9)
+        index + 2
+      case ZLine0(MULUW, TwoRegisters(HL, BC), _) =>
+        requireR800()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xC3)
+        index + 2
+      case ZLine0(MULUW, TwoRegisters(HL, DE), _) =>
+        requireR800Illegals()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xD3)
+        index + 2
+      case ZLine0(MULUW, TwoRegisters(HL, HL), _) =>
+        requireR800Illegals()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xE3)
+        index + 2
+      case ZLine0(MULUW, TwoRegisters(HL, SP), _) =>
+        requireR800()
+        writeByte(bank, index, 0xED)
+        writeByte(bank, index + 1, 0xF3)
+        index + 2
       case _ =>
         log.fatal("Cannot assemble " + instr)
         index

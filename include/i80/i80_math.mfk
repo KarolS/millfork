@@ -11,6 +11,12 @@ inline asm byte __mul_u8u8u8() {
     ? LD A, E
     ? RET
 }
+#elseif CPUFEATURE_R800
+inline asm byte __mul_u8u8u8() {
+    ? MULUB A,D
+    ? LD A,L
+    ? RET
+}
 #elseif CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
 //A = A * D
 noinline asm byte __mul_u8u8u8() {
@@ -89,6 +95,16 @@ __divmod_u16u8u16u8_skip:
     ? RET
 }
 
+
+#if CPUFEATURE_R800
+inline asm word __mul_u16u8u16() {
+    ? LD L,A
+    ? LD H,0
+    ? MULUW HL,DE
+    ? RET
+}
+#else
+// HL=A*DE
 noinline asm word __mul_u16u8u16() {
     ? LD HL,0
     ? LD B,8
@@ -113,8 +129,17 @@ __mul_u16u8u16_skip:
 #endif
     ? RET
 }
+#endif
 
-#if CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
+
+#if CPUFEATURE_R800
+inline asm word __mul_u16u16u16() {
+    ? EX DE,HL
+    ? MULUW HL,BC
+    ? RET
+}
+#elseif CPUFEATURE_Z80 || CPUFEATURE_GAMEBOY
+// HL=BC*DE
 noinline asm word __mul_u16u16u16() {
     LD HL,0
     LD A,16

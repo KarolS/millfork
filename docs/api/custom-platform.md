@@ -37,6 +37,8 @@ if a line ends with a backslash character, the value continues to the next line.
     * `z80` (Zilog Z80)
     
     * `strictz80` (Z80 without illegal instructions)
+
+    * `r800` (R800)
     
     * `z80next` (Z80 core from ZX Spectrum Next)  
     Note: Millfork version 0.3.18 and earlier uses the name `zx80next` for this architecture.
@@ -80,6 +82,8 @@ This list cannot contain module template instantiations.
     * `emit_x80` – whether the compiler should emit instructions present on Sharp LR35902 and Z80, but absent on Intel 8080, default is `true` on compatible processors and `false` elsewhere
 
     * `emit_z80` – whether the compiler should emit Zilog Z80 instructions not covered by `emit_x80`, default is `true` on compatible processors and `false` elsewhere
+
+    * `emit_r800` – whether the compiler should emit R800 instructions, default is `true` on compatible processors and `false` elsewhere
     
     * `prevent_jmp_indirect_bug` – whether the compiler should try to avoid the indirect JMP bug, 
     default is `false` on 65C02-compatible or non-6502 processors and `true` elsewhere

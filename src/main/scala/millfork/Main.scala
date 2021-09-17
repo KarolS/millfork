@@ -321,7 +321,9 @@ object Main {
     val assemblyOptimizations = optLevel match {
       case 0 => Nil
       case _ =>
-        if (options.flag(CompilationFlag.EmitZ80Opcodes))
+        if (options.flag(CompilationFlag.EmitR800Opcodes))
+          Z80OptimizationPresets.GoodForR800
+        else if (options.flag(CompilationFlag.EmitZ80Opcodes))
           Z80OptimizationPresets.GoodForZ80
         else if (options.flag(CompilationFlag.EmitIntel8080Opcodes))
           Z80OptimizationPresets.GoodForIntel8080

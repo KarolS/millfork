@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedIntel8080Run, EmuUnoptimizedIntel8085Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80NextRun, EmuUnoptimizedZ80Run}
+import millfork.test.emu.{EmuUnoptimizedCrossPlatformRun, EmuUnoptimizedIntel8080Run, EmuUnoptimizedIntel8085Run, EmuUnoptimizedR800Run, EmuUnoptimizedSharpRun, EmuUnoptimizedZ80NextRun, EmuUnoptimizedZ80Run}
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -1314,6 +1314,44 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         | #pragma zilog_syntax
         | asm void main () {
         |   ret
+        |   inc ixh
+        |   inc ixl
+        |   inc iyh
+        |   inc iyl
+        |   dec ixh
+        |   dec ixl
+        |   dec iyh
+        |   dec iyl
+        |   ld a,ixh
+        |   ld a,ixl
+        |   ld iyh,a
+        |   ld iyl,a
+        |   add a,iyl
+        |   adc a,iyl
+        |   sub iyl
+        |   sbc a,iyl
+        |   or iyl
+        |   xor iyl
+        |   and iyl
+        |   cp iyl
+        |   ld ixh,0
+        |   ret
+        | }
+    """.stripMargin)
+  }
+
+  test("R800 stuff") {
+    EmuUnoptimizedR800Run(
+      """
+        | #pragma zilog_syntax
+        | asm void main () {
+        |   ret
+        |   mulub a,b
+        |   mulub a,c
+        |   mulub a,d
+        |   mulub a,e
+        |   muluw hl,bc
+        |   muluw hl,sp
         |   inc ixh
         |   inc ixl
         |   inc iyh

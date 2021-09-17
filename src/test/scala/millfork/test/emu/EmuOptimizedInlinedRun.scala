@@ -50,6 +50,10 @@ object EmuOptimizedInlinedSharpRun extends EmuZ80Run(Cpu.Sharp, OptimizationPres
   override def inline: Boolean = true
 }
 
+object EmuOptimizedInlinedR800Run extends EmuZ80Run(Cpu.R800, OptimizationPresets.NodeOpt, Z80OptimizationPresets.GoodForR800) {
+  override def inline: Boolean = true
+}
+
 object EmuOptimizedInlinedM6809Run extends EmuM6809Run(Cpu.Motorola6809, OptimizationPresets.NodeOpt, M6809OptimizationPresets.Default) {
   override def inline: Boolean = true
 }

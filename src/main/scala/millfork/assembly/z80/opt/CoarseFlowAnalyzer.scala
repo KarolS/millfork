@@ -361,6 +361,38 @@ object CoarseFlowAnalyzer {
           case ZLine0(RIM, _, _) =>
             currentStatus = currentStatus.copy(a = AnyStatus)
 
+          case ZLine0(MULUB, TwoRegisters(ZRegister.A, r@(ZRegister.B | ZRegister.C | ZRegister.D | ZRegister.E)), _) =>
+            val hl = (currentStatus.a<*>currentStatus.getRegister(r, 0)){(a,b) => (a*b)&0xff}
+            currentStatus = currentStatus.copy(
+              h = hl.hi,
+              l = hl.lo,
+              hl = hl.map(NumericConstant(_, 2)),
+              cf = AnyStatus,
+              nf = AnyStatus,
+              hf = AnyStatus,
+              zf = AnyStatus,
+              sf = AnyStatus,
+              pf = AnyStatus
+            )
+          case ZLine0(MULUW, TwoRegisters(ZRegister.HL, ZRegister.BC), _) =>
+            val hl = (currentStatus.h<*>currentStatus.l)(currentStatus.mergeBytes)
+            val bc = (currentStatus.b<*>currentStatus.c)(currentStatus.mergeBytes)
+            val hi = (hl<*>bc){(a,b) => (a*b).>>(16).&(0xffff)}
+            val lo = (hl<*>bc){(a,b) => (a*b).&(0xffff)}
+            currentStatus = currentStatus.copy(
+              d = hi.hi,
+              e = hi.lo,
+              h = lo.hi,
+              l = lo.lo,
+              hl = lo.map(NumericConstant(_, 2)),
+              cf = AnyStatus,
+              nf = AnyStatus,
+              hf = AnyStatus,
+              zf = AnyStatus,
+              sf = AnyStatus,
+              pf = AnyStatus
+            )
+
           case ZLine0(opcode, registers, _) =>
             currentStatus = currentStatus.copy(cf = AnyStatus, zf = AnyStatus, sf = AnyStatus, pf = AnyStatus, hf = AnyStatus)
             if (ZOpcodeClasses.ChangesAAlways(opcode)) currentStatus = currentStatus.copy(a = AnyStatus)

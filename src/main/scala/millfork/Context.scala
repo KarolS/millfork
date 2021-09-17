@@ -46,10 +46,24 @@ case class Context(errorReporting: Logger,
     if (isFlagSet(CompilationFlag.EmitEZ80Opcodes)) {
       addons += CompilationFlag.EmitZ80Opcodes -> true
     }
-    if (isFlagSet(CompilationFlag.EmitZ80Opcodes) || isFlagSet(CompilationFlag.EmitSharpOpcodes)) {
+    if (isFlagSet(CompilationFlag.EmitZ80NextOpcodes)) {
+      addons += CompilationFlag.EmitZ80Opcodes -> true
+    }
+    if (isFlagSet(CompilationFlag.EmitR800Opcodes)) {
+      addons += CompilationFlag.EmitZ80Opcodes -> true
+    }
+    if (isFlagSet(CompilationFlag.EmitEZ80Opcodes)
+      || isFlagSet(CompilationFlag.EmitZ80NextOpcodes)
+      || isFlagSet(CompilationFlag.EmitR800Opcodes)
+      || isFlagSet(CompilationFlag.EmitZ80Opcodes)
+      || isFlagSet(CompilationFlag.EmitSharpOpcodes)) {
       addons += CompilationFlag.EmitExtended80Opcodes -> true
     }
-    if (isFlagSet(CompilationFlag.EmitZ80Opcodes) || isFlagSet(CompilationFlag.EmitIntel8085Opcodes)) {
+    if (isFlagSet(CompilationFlag.EmitEZ80Opcodes)
+      || isFlagSet(CompilationFlag.EmitZ80NextOpcodes)
+      || isFlagSet(CompilationFlag.EmitR800Opcodes)
+      || isFlagSet(CompilationFlag.EmitZ80Opcodes)
+      || isFlagSet(CompilationFlag.EmitIntel8085Opcodes)) {
       addons += CompilationFlag.EmitIntel8080Opcodes -> true
     }
     if (isFlagSet(CompilationFlag.OptimizeForSpeed)) {

@@ -249,6 +249,7 @@ class StructSuite extends FunSuite with Matchers {
         |    p->tmp[1] = 77
         |    outputAlias[0].tmp[id(3)] = 3
         |    outputAlias[id(0)].tmp[5] = 55
+        |    output.tmp[6] = lo(output.tmp - output.addr)
         |}
         |""".stripMargin
     EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)(code){ m =>
@@ -257,6 +258,7 @@ class StructSuite extends FunSuite with Matchers {
       m.readByte(0xc003) should equal(3)
       m.readByte(0xc004) should equal(4)
       m.readByte(0xc005) should equal(55)
+      m.readByte(0xc006) should equal(0)
     }
   }
 

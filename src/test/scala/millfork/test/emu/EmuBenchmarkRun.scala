@@ -106,6 +106,31 @@ object EmuSharpBenchmarkRun {
   }
 }
 
+object EmuR800BenchmarkRun {
+  def apply(source: String)(verifier: MemoryBank => Unit): Unit = {
+    val (Timings(t0, _), m0) = EmuUnoptimizedR800Run.apply2(source)
+    val (Timings(t1, _), m1) = EmuOptimizedR800Run.apply2(source)
+    val (Timings(t2, _), m2) = EmuOptimizedInlinedR800Run.apply2(source)
+    if (t0 > 0)println(f"Before optimization: $t0%7d")
+    if (t1 > 0)println(f"After optimization:  $t1%7d")
+    if (t2 > 0)println(f"After inlining:      $t2%7d")
+    if (t0 > 0 && t1 > 0) println(f"Gain:               ${(100L * (t0 - t1) / t0.toDouble).round}%7d%%")
+    if (t0 > 0 && t2 > 0) println(f"Gain with inlining: ${(100L * (t0 - t2) / t0.toDouble).round}%7d%%")
+    if (t0 > 0) {
+      println(f"Running R800 unoptimized")
+      verifier(m0)
+    }
+    if (t1 > 0) {
+      println(f"Running R800 optimized")
+      verifier(m1)
+    }
+    if (t2 > 0) {
+      println(f"Running R800 optimized inlined")
+      verifier(m2)
+    }
+  }
+}
+
 object EmuIntel8086BenchmarkRun {
   def apply(source: String)(verifier: MemoryBank => Unit): Unit = {
     val (Timings(t0, _), m0) = EmuUnoptimizedIntel8086Run.apply2(source)
@@ -169,6 +194,9 @@ object EmuCrossPlatformBenchmarkRun {
     }
     if (Settings.enableIntel8080Tests && platforms.contains(millfork.Cpu.Intel8080)) {
       EmuIntel8080BenchmarkRun.apply(source)(verifier)
+    }
+    if (Settings.enableZ80Tests && platforms.contains(millfork.Cpu.R800)) {
+      EmuR800BenchmarkRun.apply(source)(verifier)
     }
     if (Settings.enableUnemulatedTests && platforms.contains(millfork.Cpu.Intel8085)) {
       EmuUnoptimizedIntel8085Run.apply(source)

@@ -193,7 +193,7 @@ class ByteMathSuite extends FunSuite with Matchers with AppendedClues {
   }
 
   test("Byte multiplication 2") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.Motorola6809)(
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8080, Cpu.Sharp, Cpu.R800, Cpu.Motorola6809)(
       """
         | import zp_reg
         | byte output1 @$c001, output2 @$c002, output3 @$c003

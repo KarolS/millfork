@@ -109,7 +109,7 @@ case class Z80Parser(filename: String,
     case (VariableExpression(r), false) if toRegister.contains(r)=> (toRegister(r), None)
     case (VariableExpression(r), false)
       if options.flag(CompilationFlag.EmitZ80Opcodes) &&
-        options.flag(CompilationFlag.EmitIllegals) &&
+        (options.flag(CompilationFlag.EmitIllegals) || options.flag(CompilationFlag.EmitR800Opcodes)) &&
         toIndexHalf.contains(r)=> (toIndexHalf(r), None)
     case (SumExpression(List(
     (false, LiteralExpression(0xff00, _)),
@@ -534,7 +534,7 @@ case class Z80Parser(filename: String,
         case "PIXELAD" => imm(PIXELAD)
         case "SETAE" => imm(SETAE)
         case "MUL" => (("D"|"d") ~ HWS ~ "," ~/ HWS ~ ("E" | "e")).?.map { _ => (MUL, NoRegisters, None, zero)}
-        case "MIRROR" => ("A"|"a").?.map { _ => (MUL, NoRegisters, None, zero)}
+        case "MIRROR" => ("A"|"a").?.map { _ => (MIRROR, NoRegisters, None, zero)}
         case "NEXTREG" =>(param(allowAbsolute = false) ~ HWS ~ position("comma").map(_ => ()) ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
           case (ZRegister.IMM_8, Some(n), (ZRegister.A, None)) => (NEXTREG, TwoRegisters(ZRegister.IMM_8, ZRegister.A), None, n)
           case (ZRegister.IMM_8, Some(n), (ZRegister.IMM_8, Some(v))) => (NEXTREG, TwoRegisters(ZRegister.IMM_8, ZRegister.IMM_8), None, SeparateBytesExpression(v, n))
@@ -543,6 +543,19 @@ case class Z80Parser(filename: String,
             (NOP, NoRegisters, None, zero)
         }
         case "TEST" => one8Register(TEST)
+
+        case "MULUB" => (param(allowAbsolute = false) ~ HWS ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
+          case (ZRegister.A, None, (r, None)) => (MULUB, TwoRegisters(ZRegister.A, r), None, zero)
+          case _ =>
+            log.error("Invalid parameters for MULUB", Some(pos))
+            (NOP, NoRegisters, None, zero)
+        }
+        case "MULUW" => (param(allowAbsolute = false) ~ HWS ~ "," ~/ HWS ~ param(allowAbsolute = false)).map {
+          case (ZRegister.HL, None, (r, None)) => (MULUW, TwoRegisters(ZRegister.HL, r), None, zero)
+          case _ =>
+            log.error("Invalid parameters for MULUW", Some(pos))
+            (NOP, NoRegisters, None, zero)
+        }
 
         case _ =>
           log.error("Unsupported opcode " + opcode, Some(pos))
