@@ -407,12 +407,12 @@ object AbstractExpressionCompiler {
                   log.error(s"Type `$targetType` doesn't have field named `$actualFieldName`", expr.position)
                   ok = false
                 } else {
-                  if (tuples.head.arrayIndexTypeAndSize.isDefined) ??? // TODO
+                  val subv = tuples.head
                   pointerWrap match {
                     case 0 =>
-                      currentType = tuples.head.typ
+                      currentType = if (subv.arrayIndexTypeAndSize.isDefined) env.get[Type]("pointer." + subv.typ) else subv.typ
                     case 1 =>
-                      currentType = env.get[Type]("pointer." + tuples.head.typ)
+                      currentType = env.get[Type]("pointer." + subv.typ)
                     case 2 =>
                       currentType = env.get[Type]("pointer")
                     case 10 | 11 =>

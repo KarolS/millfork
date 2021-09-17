@@ -2372,11 +2372,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         builder.toList
       case s: UnionType =>
         val builder = new ListBuffer[Subvariable]
-        for(FieldDesc(typeName, fieldName, vol1, arraySize) <- s.fields) {
-          val typ = get[VariableType](typeName)
+        for(ResolvedFieldDesc(typ, fieldName, vol1, indexTypeAndCount) <- s.mutableFieldsWithTypes) {
           val suffix = "." + fieldName
           builder += Subvariable(suffix, 0, vol1, typ)
-          if (arraySize.isEmpty) {
+          if (indexTypeAndCount.isEmpty) {
             builder ++= getSubvariables(typ).map {
               case Subvariable(innerSuffix, innerOffset, vol2, innerType, innerSize) => Subvariable(suffix + innerSuffix, innerOffset, vol1 || vol2, innerType, innerSize)
             }
