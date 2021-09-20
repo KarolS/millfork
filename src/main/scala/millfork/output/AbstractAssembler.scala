@@ -19,7 +19,7 @@ import scala.collection.mutable.ArrayBuffer
   * @author Karol Stasiak
   */
 
-case class AssemblerOutput(code: Map[String, Array[Byte]], asm: Array[String], labels: List[(String, (Int, Int))], breakpoints: List[(Int, Int)])
+case class AssemblerOutput(code: Map[String, Array[Byte]], asm: Array[String], labels: List[(String, (Int, Int))], endLabels: Map[String, (Char, Int)], breakpoints: List[(Int, Int)])
 
 abstract class AbstractAssembler[T <: AbstractCode](private val program: Program,
                                            private val rootEnv: Environment,
@@ -34,6 +34,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
   protected val log: Logger = rootEnv.log
 
   val labelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
+  val endLabelMap: mutable.Map[String, (Char, Int)] = mutable.Map()
   val unimportantLabelMap: mutable.Map[String, (Int, Int)] = mutable.Map()
   val mem = new CompiledMemory(platform.bankNumbers.toList, platform.bankFill, platform.isBigEndian, labelMap, log)
   val breakpointSet: mutable.Set[(Int, Int)] = mutable.Set()
@@ -251,6 +252,9 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
                 m.occupied(i + n.toInt) = true
               }
               labelMap.put(tim.name, m.index -> n.toInt)
+              endLabelMap.put(tim.name,
+                (if (tim.isInstanceOf[InitializedMemoryVariable]) 'V' else 'v') ->
+                  (n.toInt + tim.typ.size - 1))
             case _ =>
           }
         case arr: MfArray =>
@@ -261,15 +265,18 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
                 m.occupied(i + n.toInt) = true
               }
               labelMap.put(arr.name, m.index -> n.toInt)
+              endLabelMap.put(arr.name,
+                (if (arr.isInstanceOf[InitializedArray]) 'A' else 'a') ->
+                  (n.toInt + arr.sizeInBytes - 1))
             case _ =>
           }
         case _ =>
       }
     }
 
-    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 1, forZpOnly = true)
-    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = true)
-    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 3, forZpOnly = true)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, endLabelMap.put, 1, forZpOnly = true)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, endLabelMap.put, 2, forZpOnly = true)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, endLabelMap.put, 3, forZpOnly = true)
 
     var inlinedFunctions = Map[String, List[T]]()
     val compiledFunctions = mutable.Map[String, CompiledFunction[T]]()
@@ -396,6 +403,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case NormalCompiledFunction(_, functionCode, _, _, _) =>
             labelMap(f.name) = bank0.index -> index
             val end = outputFunction(bank, functionCode, index, assembly, options)
+            endLabelMap(f.name) = 'F' -> (end - 1)
             for (i <- index until end) {
               bank0.occupied(index) = true
               bank0.initialized(index) = true
@@ -444,6 +452,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           val bank0 = mem.banks(bank)
           val index = codeAllocators(bank).allocateBytes(bank0, options, size, initialized = true, writeable = false, location = AllocationLocation.High, alignment = alignment)
           labelMap(name) = bank0.index -> index
+          endLabelMap(name) = 'F' -> (index + size - 1)
           justAfterCode += bank -> outputFunction(bank, functionCode, index, assembly, options)
         case _ =>
       }
@@ -529,6 +538,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             val bank0 = mem.banks(bank)
             var index = codeAllocators(bank).allocateBytes(bank0, options, thing.sizeInBytes, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
             labelMap(name) = bank0.index -> index
+            endLabelMap(name) = 'A' -> (index + thing.sizeInBytes - 1)
             if (!readOnlyPass) {
               rwDataStart = rwDataStart.min(index)
               rwDataEnd = rwDataEnd.max(index + thing.sizeInBytes)
@@ -559,6 +569,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             val bank0 = mem.banks(bank)
             var index = codeAllocators(bank).allocateBytes(bank0, options, typ.alignedSize, initialized = true, writeable = true, location = AllocationLocation.High, alignment = alignment)
             labelMap(name) = bank0.index -> index
+            endLabelMap(name) = 'V' -> (index + typ.size - 1)
             if (!readOnlyPass) {
               rwDataStart = rwDataStart.min(index)
               rwDataEnd = rwDataEnd.max(index + typ.alignedSize)
@@ -632,8 +643,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
       variableAllocators("default").notifyAboutEndOfData(rwDataEnd)
     }
     variableAllocators.foreach { case (b, a) => a.notifyAboutEndOfCode(justAfterCode(b)) }
-    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 2, forZpOnly = false)
-    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, 3, forZpOnly = false)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, endLabelMap.put, 2, forZpOnly = false)
+    env.allocateVariables(None, mem, callGraph, variableAllocators, options, labelMap.put, endLabelMap.put, 3, forZpOnly = false)
 
     val defaultBank = mem.banks("default").index
     if (platform.freeZpBytes.nonEmpty) {
@@ -695,6 +706,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         val holes = (b.start to b.end).count(i => !b.occupied(i))
         val size = b.end - b.start + 1
         log.info(f"Segment ${bank}%s: $$${b.start}%04x-$$${b.end}%04x, size: $size%d B ($holes%d B unused)")
+        // TODO: report holes:
       }
     }
     if (platform.cpuFamily == CpuFamily.M6502) {
@@ -706,7 +718,12 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
 
     val allLabelList = labelMap.toList ++ unimportantLabelMap.toList
     allLabelList.sorted.foreach { case (l, (_, v)) =>
-      assembly += f"$l%-30s = $$$v%04X"
+      endLabelMap.get(l) match {
+        case Some((category, end)) =>
+          assembly += f"$l%-30s = $$$v%04X  ;-$$$end%04X $category%s"
+        case _ =>
+          assembly += f"$l%-30s = $$$v%04X"
+      }
     }
     allLabelList.sortBy { case (a, (_, v)) => v -> a }.foreach { case (l, (_, v)) =>
       assembly += f"    ; $$$v%04X = $l%s"
@@ -729,7 +746,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
         }
       }
     }
-    AssemblerOutput(code, assembly.toArray, labelMap.toList, breakpointSet.toList.sorted)
+    AssemblerOutput(code, assembly.toArray, labelMap.toList, endLabelMap.toMap, breakpointSet.toList.sorted)
   }
 
   private def printArrayToAssemblyOutput(assembly: ArrayBuffer[String], name: String, elementType: Type, items: Seq[Expression]): Unit = {

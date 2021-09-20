@@ -118,6 +118,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                         allocators: Map[String, VariableAllocator],
                         options: CompilationOptions,
                         onEachVariable: (String, (Int, Int)) => Unit,
+                        onEachVariableEnd: (String, (Char, Int)) => Unit,
                         pass: Int,
                         forZpOnly: Boolean): Unit = {
     if (forZpOnly && !options.platform.hasZeroPage) {
@@ -184,6 +185,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 allocators(bank).allocateBytes(bank0, callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Zeropage, alignment = m.alignment)
               if (log.traceEnabled) log.trace("addr $" + addr.toHexString)
               onEachVariable(m.name, bank0.index -> addr)
+              onEachVariableEnd(m.name, (if (m.isInstanceOf[MfArray])'a' else 'v') -> (addr + m.sizeInBytes - 1))
               List(
                 ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
               )
@@ -207,6 +209,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                     case Some(addr) =>
                       if (log.traceEnabled) log.trace("addr $" + addr.toHexString)
                       onEachVariable(m.name, bank0.index -> addr)
+                      onEachVariableEnd(m.name, (if (m.isInstanceOf[MfArray])'a' else 'v') -> (addr + m.sizeInBytes - 1))
                       List(
                         ConstantThing(m.name.stripPrefix(prefix) + "`", NumericConstant(addr, 2), p)
                       )
@@ -218,6 +221,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 val addr = allocators(bank).allocateBytes(bank0, callGraph, vertex, options, m.sizeInBytes, initialized = false, writeable = true, location = AllocationLocation.Either, alignment = m.alignment)
                 if (log.traceEnabled) log.trace("addr $" + addr.toHexString)
                 onEachVariable(m.name, bank0.index -> addr)
+                onEachVariableEnd(m.name, (if (m.isInstanceOf[MfArray])'a' else 'v') -> (addr + m.sizeInBytes - 1))
                 List(
                   ConstantThing(graveName, NumericConstant(addr, 2), p)
                 )
@@ -225,7 +229,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             }
         }
       case f: NormalFunction =>
-        f.environment.allocateVariables(Some(f), mem, callGraph, allocators, options, onEachVariable, pass, forZpOnly)
+        f.environment.allocateVariables(Some(f), mem, callGraph, allocators, options, onEachVariable, onEachVariableEnd, pass, forZpOnly)
         Nil
       case _ => Nil
     }.toList

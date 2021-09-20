@@ -119,14 +119,22 @@ object Main {
         else if (l.startsWith("__")) 7
         else 0
       }
-      val sortedLabels = result.labels.groupBy(_._2).values.map(_.minBy(a => labelUnimportance(a._1) -> a._1)).toSeq.sortBy(_._2)
+      val sortedLabels: Seq[(String, Int, Int, Char, Option[Int])] =
+        result.labels.groupBy(_._2).values
+          .map(_.minBy(a => labelUnimportance(a._1) -> a._1)).toSeq.sortBy(_._2)
+          .map { case (l, (b, s)) =>
+            result.endLabels.get(l) match {
+              case Some((c, e)) => (l, b, s, c, Some(e))
+              case _ => (l, b, s, 'x', None)
+            }
+          }
       val sortedBreakpoints = result.breakpoints
       val format = c.outputLabelsFormatOverride.getOrElse(platform.outputLabelsFormat)
       val basename = if (format.addOutputExtension)  output + platform.fileExtension else output
       if (format.filePerBank) {
-        val banks = sortedLabels.map(_._2._1).toSet ++ sortedBreakpoints.map(_._2).toSet
+        val banks: Set[Int] = sortedLabels.map(_._2).toSet ++ sortedBreakpoints.map(_._1).toSet
         banks.foreach{ bank =>
-          val labels = sortedLabels.filter(_._2._1.==(bank))
+          val labels = sortedLabels.filter(_._2.==(bank))
           val breakpoints = sortedBreakpoints.filter(_._1.==(bank))
           val labelOutput = basename + format.fileExtension(bank)
           val path = Paths.get(labelOutput)
@@ -429,7 +437,7 @@ object Main {
         p.toLowerCase(Locale.ROOT),
         errorReporting.fatal("Invalid label file format: " + p))
       c.copy(outputLabels = true, outputLabelsFormatOverride = Some(f))
-    }.description("Generate also the label file in the given format. Available options: vice, nesasm, sym.")
+    }.description("Generate also the label file in the given format. Available options: vice, nesasm, sym, raw.")
 
     boolean("-fbreakpoints", "-fno-breakpoints").action((c,v) =>
       c.changeFlag(CompilationFlag.EnableBreakpoints, v)
