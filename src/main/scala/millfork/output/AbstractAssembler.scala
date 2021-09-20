@@ -703,9 +703,34 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     for (bank <- mem.banks.keys.toSeq.sorted) {
       val b = mem.banks(bank)
       if (b.start >= 0 && b.end >= 0) {
+        val (allotedStart, allotedEndBefore) = {
+          val al1 = variableAllocators(bank)
+          val al2 = codeAllocators(bank)
+          (al1.startAt max al2.startAt) -> (al1.endBefore max al2.endBefore)
+        }
         val holes = (b.start to b.end).count(i => !b.occupied(i))
+        val freeMemory = (allotedStart until allotedEndBefore).count(i => !b.occupied(i))
+        val largeHoles = {
+          val builder = Seq.newBuilder[(Int, Int)]
+          var i = b.start
+          while(i < b.end) {
+            if (b.occupied(i)) {
+              i+= 1
+            } else {
+              val holeSize = b.occupied.segmentLength(!_, i)
+              if (holeSize >= 4) {
+                builder += i -> (i + holeSize - 1)
+              }
+              i += holeSize
+            }
+          }
+          builder.result()
+        }
         val size = b.end - b.start + 1
-        log.info(f"Segment ${bank}%s: $$${b.start}%04x-$$${b.end}%04x, size: $size%d B ($holes%d B unused)")
+        log.info(f"Segment ${bank}%s: $$${b.start}%04x-$$${b.end}%04x, size: $size%d B ($freeMemory B free, of which unused gaps $holes%d B)")
+        if (largeHoles.nonEmpty) {
+          log.info("Unused gaps: " + largeHoles.map{ case (s,e) => f"$$$s%04x-$$$e%04x"}.mkString(", "))
+        }
         // TODO: report holes:
       }
     }
