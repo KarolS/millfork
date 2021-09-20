@@ -31,6 +31,7 @@ issue*.mfk
 *.seq
 *.asm
 *.lbl
+*.labels
 *.nl
 *.fns
 *.sym
