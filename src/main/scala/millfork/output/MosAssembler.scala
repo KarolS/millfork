@@ -42,7 +42,7 @@ class MosAssembler(program: Program,
       case AssemblyLine0(_, RawByte, _) => log.fatal("BYTE opcode failure")
       case AssemblyLine0(LABEL, _, MemoryAddressConstant(Label(labelName))) =>
         val bank0 = mem.banks(bank)
-        labelMap(labelName) = bank0.index -> index
+        labelMap(labelName) = bank -> index
         index
       case AssemblyLine0(CHANGED_MEM, DoesNotExist, MemoryAddressConstant(Label(l))) if l.contains("..brk") =>
         breakpointSet += mem.banks(bank).index -> index
@@ -112,7 +112,7 @@ class MosAssembler(program: Program,
     }
   }
 
-  override def injectLabels(labelMap: Map[String, (Int, Int)], code: List[AssemblyLine]): List[AssemblyLine] = {
+  override def injectLabels(labelMap: Map[String, (String, Int)], code: List[AssemblyLine]): List[AssemblyLine] = {
     import Opcode._
     code.map {
       case l@AssemblyLine(LDA | STA | CMP |

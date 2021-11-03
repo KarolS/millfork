@@ -102,7 +102,7 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 }
 
 class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
-                              val labelMap: Map[String, (Int, Int)],
+                              val labelMap: Map[String, (String, Int)],
                               val zeropageRegister: Option[ThingInMemory],
                               val niceFunctionProperties: Set[(NiceFunctionProperty, String)],
                               val labelUseCount: String => Int) {

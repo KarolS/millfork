@@ -97,7 +97,7 @@ class Z80Assembler(program: Program,
     try { instr match {
       case ZLine0(LABEL, NoRegisters, MemoryAddressConstant(Label(labelName))) =>
         val bank0 = mem.banks(bank)
-        labelMap(labelName) = bank0.index -> index
+        labelMap(labelName) = bank -> index
         index
       case ZLine0(BYTE, NoRegisters, param) =>
         writeByte(bank, index, param)
@@ -846,7 +846,7 @@ class Z80Assembler(program: Program,
     }
   }
 
-  override def injectLabels(labelMap: Map[String, (Int, Int)], code: List[ZLine]): List[ZLine] = code // TODO
+  override def injectLabels(labelMap: Map[String, (String, Int)], code: List[ZLine]): List[ZLine] = code // TODO
 
   override def quickSimplify(code: List[ZLine]): List[ZLine] = code.map(a => a.copy(parameter = a.parameter.quickSimplify))
 

@@ -48,6 +48,8 @@ The extension and the file format are platform-dependent.
     
     * `-G fceux` – multi-file format used by the FCEUX emulator. The extension is `.nl`.
     
+    * `-G mesen` – format used by the Mesen emulator. The extension is `.mlb`.
+    
     * `-G raw` – Millfork-specific format. The extension is '.labels'. Each row contains bank number, start address, end address (if known), object type, and Millfork-specific object identifier. 
 
 * `-fbreakpoints`, `-fno-breakpoints` – 

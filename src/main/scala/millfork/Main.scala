@@ -119,33 +119,35 @@ object Main {
         else if (l.startsWith("__")) 7
         else 0
       }
-      val sortedLabels: Seq[(String, Int, Int, Char, Option[Int])] =
+      val sortedLabels: Seq[FormattableLabel] =
         result.labels.groupBy(_._2).values
           .map(_.minBy(a => labelUnimportance(a._1) -> a._1)).toSeq.sortBy(_._2)
           .map { case (l, (b, s)) =>
+            val bankNumber = options.platform.bankNumbers.getOrElse(b, 0)
+            val mesenCategory = options.platform.getMesenLabelCategory(b, s)
             result.endLabels.get(l) match {
-              case Some((c, e)) => (l, b, s, c, Some(e))
-              case _ => (l, b, s, 'x', None)
+              case Some((c, e)) => FormattableLabel(l, b, bankNumber, s, Some(e), c, mesenCategory)
+              case _ => FormattableLabel(l, b, bankNumber,  s, None, 'x', mesenCategory)
             }
           }
       val sortedBreakpoints = result.breakpoints
       val format = c.outputLabelsFormatOverride.getOrElse(platform.outputLabelsFormat)
       val basename = if (format.addOutputExtension)  output + platform.fileExtension else output
       if (format.filePerBank) {
-        val banks: Set[Int] = sortedLabels.map(_._2).toSet ++ sortedBreakpoints.map(_._1).toSet
+        val banks: Set[Int] = sortedLabels.map(_.bankNumber).toSet ++ sortedBreakpoints.map(_._1).toSet
         banks.foreach{ bank =>
-          val labels = sortedLabels.filter(_._2.==(bank))
+          val labels = sortedLabels.filter(_.bankNumber.==(bank))
           val breakpoints = sortedBreakpoints.filter(_._1.==(bank))
           val labelOutput = basename + format.fileExtension(bank)
           val path = Paths.get(labelOutput)
           errorReporting.debug("Writing labels to " + path.toAbsolutePath)
-          Files.write(path, format.formatAll(labels, breakpoints).getBytes(StandardCharsets.UTF_8))
+          Files.write(path, format.formatAll(result.bankLayoutInFile, labels, breakpoints).getBytes(StandardCharsets.UTF_8))
         }
       } else {
         val labelOutput = basename + format.fileExtension(0)
         val path = Paths.get(labelOutput)
         errorReporting.debug("Writing labels to " + path.toAbsolutePath)
-        Files.write(path, format.formatAll(sortedLabels, sortedBreakpoints).getBytes(StandardCharsets.UTF_8))
+        Files.write(path, format.formatAll(result.bankLayoutInFile, sortedLabels, sortedBreakpoints).getBytes(StandardCharsets.UTF_8))
       }
     }
     val defaultPrgOutput = if (output.endsWith(platform.fileExtension)) output else output + platform.fileExtension

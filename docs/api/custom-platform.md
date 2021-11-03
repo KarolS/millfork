@@ -267,3 +267,5 @@ Default: `main,*`
     * `sym` – format used by the WLA/DX assembler. The extension is `.sym`.
     
     * `fceux` – multi-file format used by the FCEUX emulator. The extension is `.nl`.
+    
+    * `mesen` – format used by the Mesen emulator. The extension is `.mlb`.

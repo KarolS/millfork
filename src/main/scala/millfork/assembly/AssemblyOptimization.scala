@@ -10,7 +10,7 @@ import millfork.node.NiceFunctionProperty
   * @author Karol Stasiak
   */
 case class OptimizationContext(options: CompilationOptions,
-                               labelMap: Map[String, (Int, Int)],
+                               labelMap: Map[String, (String, Int)],
                                zreg: Option[ThingInMemory],
                                niceFunctionProperties: Set[(NiceFunctionProperty, String)]) {
   @inline

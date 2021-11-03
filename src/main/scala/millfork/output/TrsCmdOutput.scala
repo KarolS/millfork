@@ -4,7 +4,7 @@ package millfork.output
   * @author Karol Stasiak
   */
 class TrsCmdOutput(symbol: String) extends OutputPackager {
-  override def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+  override def packageOutput(flc: FileLayoutCollector, mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     val start = b.start
     val run = mem.getAddress(symbol)

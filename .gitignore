@@ -35,6 +35,7 @@ issue*.mfk
 *.nl
 *.fns
 *.sym
+*.mlb
 *.deb
 *.xex
 *.nes

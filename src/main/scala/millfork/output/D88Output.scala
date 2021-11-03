@@ -23,7 +23,7 @@ object D88Output extends OutputPackager {
   ).map(_.toByte)
 
 
-  override def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+  override def packageOutput(flc: FileLayoutCollector, mem: CompiledMemory, bank: String): Array[Byte] = {
     val b = mem.banks(bank)
     val start = b.start
     val header = new D88Header(mem.programName.take(16))

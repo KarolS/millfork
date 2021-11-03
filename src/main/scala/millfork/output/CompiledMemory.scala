@@ -7,7 +7,7 @@ import scala.collection.mutable
 /**
   * @author Karol Stasiak
   */
-class CompiledMemory(bankNames: List[(String, Int)], bankFills: Map[String, Int], bigEndian: Boolean, labels: mutable.Map[String, (Int, Int)], log: Logger) {
+class CompiledMemory(bankNames: List[(String, Int)], bankFills: Map[String, Int], bigEndian: Boolean, labels: mutable.Map[String, (String, Int)], log: Logger) {
   var programName = "MILLFORK"
   val banks: mutable.Map[String, MemoryBank] = mutable.Map(bankNames.map{p =>
     val bank = new MemoryBank(p._2, bigEndian)

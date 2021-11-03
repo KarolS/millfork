@@ -9,7 +9,7 @@ class TapOutput(val symbol: String) extends OutputPackager {
 
   def isAlphanum(c: Char): Boolean = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
 
-  override def packageOutput(mem: CompiledMemory, bank: String): Array[Byte] = {
+  override def packageOutput(flc: FileLayoutCollector, mem: CompiledMemory, bank: String): Array[Byte] = {
     val filteredName: String = mem.programName.filter(isAlphanum)
     val b = mem.banks(bank)
     val code = b.output.slice(b.start, b.end + 1)

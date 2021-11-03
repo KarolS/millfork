@@ -1,5 +1,10 @@
 package millfork
 
+import millfork.output.{BankLayoutInFile, FormattableLabel}
+
+import java.util.regex.Pattern
+import scala.util.control.Breaks.{break, breakable}
+
 /**
   * @author Karol Stasiak
   */
@@ -12,13 +17,16 @@ object DebugOutputFormat {
     "fns" -> NesasmDebugOutputFormat,
     "fceux" -> FceuxDebugOutputFormat,
     "nl" -> FceuxDebugOutputFormat,
+    "mlb" -> MesenOutputFormat,
+    "mesen" -> MesenOutputFormat,
+    "asm6f" -> MesenOutputFormat,
     "sym" -> SymDebugOutputFormat)
 }
 
 sealed trait DebugOutputFormat {
 
-  def formatAll(labels: Seq[(String, Int, Int, Char, Option[Int])], breakpoints: Seq[(Int, Int)]): String = {
-    val labelPart = labelsHeader + labels.map(formatLineTupled).mkString("\n") + "\n"
+  def formatAll(b: BankLayoutInFile, labels: Seq[FormattableLabel], breakpoints: Seq[(Int, Int)]): String = {
+    val labelPart = labelsHeader + labels.map(formatLine).mkString("\n") + "\n"
     if (breakpoints.isEmpty) {
       labelPart
     } else {
@@ -26,10 +34,7 @@ sealed trait DebugOutputFormat {
     }
   }
 
-  final def formatLineTupled(labelAndValue: (String, Int, Int, Char, Option[Int])): String =
-    formatLine(labelAndValue._1, labelAndValue._2, labelAndValue._3, labelAndValue._4, labelAndValue._5)
-
-  def formatLine(label: String, bank: Int, startValue: Int, category: Char, endValue: Option[Int]): String
+  def formatLine(label: FormattableLabel): String
 
   final def formatBreakpointTupled(value: (Int, Int)): Seq[String] = formatBreakpoint(value._1, value._2).toSeq
 
@@ -48,8 +53,8 @@ sealed trait DebugOutputFormat {
 }
 
 object RawDebugOutputFormat extends DebugOutputFormat {
-  override def formatLine(label: String, bank: Int, startValue: Int, category: Char, endValue: Option[Int]): String = {
-    f"$bank%02X:$startValue%04X:${endValue.fold("")(_.formatted("%04X"))}%s:$category%s:$label%s"
+  override def formatLine(label: FormattableLabel): String = {
+    f"${label.bankNumber}%02X:${label.startValue}%04X:${label.endValue.fold("")(_.formatted("%04X"))}%s:${label.category}%s:$label%s"
   }
 
   override def fileExtension(bank: Int): String = ".labels"
@@ -63,9 +68,9 @@ object RawDebugOutputFormat extends DebugOutputFormat {
 }
 
 object ViceDebugOutputFormat extends DebugOutputFormat {
-  override def formatLine(label: String, bank: Int, startValue: Int, category: Char, endValue: Option[Int]): String = {
-    val normalized = label.replace('$', '_').replace('.', '_')
-    s"al ${startValue.toHexString} .$normalized"
+  override def formatLine(label: FormattableLabel): String = {
+    val normalized = label.labelName.replace('$', '_').replace('.', '_')
+    s"al ${label.startValue.toHexString} .$normalized"
   }
 
   override def fileExtension(bank: Int): String = ".lbl"
@@ -78,8 +83,8 @@ object ViceDebugOutputFormat extends DebugOutputFormat {
 }
 
 object NesasmDebugOutputFormat extends DebugOutputFormat {
-  override def formatLine(label: String, bank: Int, startValue: Int, category: Char, endValue: Option[Int]): String = {
-    label + " = $" + startValue.toHexString
+  override def formatLine(label: FormattableLabel): String = {
+    label.labelName + " = $" + label.startValue.toHexString
   }
 
   override def fileExtension(bank: Int): String = ".fns"
@@ -92,8 +97,8 @@ object NesasmDebugOutputFormat extends DebugOutputFormat {
 }
 
 object SymDebugOutputFormat extends DebugOutputFormat {
-  override def formatLine(label: String, bank: Int, startValue: Int, category: Char, endValue:Option[Int]): String = {
-    f"$bank%02x:$startValue%04x $label%s"
+  override def formatLine(label: FormattableLabel): String = {
+    f"${label.bankNumber}%02x:${label.startValue}%04x ${label.labelName}%s"
   }
 
   override def fileExtension(bank: Int): String = ".sym"
@@ -110,8 +115,8 @@ object SymDebugOutputFormat extends DebugOutputFormat {
 }
 
 object FceuxDebugOutputFormat extends DebugOutputFormat {
-  override def formatLine(label: String, bank: Int, startValue: Int, category: Char, endValue: Option[Int]): String = {
-    f"$$$startValue%04x#$label%s#"
+  override def formatLine(label: FormattableLabel): String = {
+    f"$$${label.startValue}%04x#${label.labelName}%s#"
   }
 
   override def fileExtension(bank: Int): String = if (bank == 0xff) ".ram.nl" else s".$bank.nl"
@@ -121,4 +126,53 @@ object FceuxDebugOutputFormat extends DebugOutputFormat {
   override def addOutputExtension: Boolean = true
 
   override def formatBreakpoint(bank: Int, value: Int): Option[String] = None
+}
+
+object MesenOutputFormat extends DebugOutputFormat {
+
+  override def formatAll(b: BankLayoutInFile, labels: Seq[FormattableLabel], breakpoints: Seq[(Int, Int)]): String = {
+    val allStarts = labels.groupBy(_.bankName).mapValues(_.map(_.startValue).toSet)
+    labels.flatMap{ l =>
+      val mesenShift = b.getMesenShift(l.bankName)
+      val shiftedStart = l.startValue + mesenShift
+      var shiftedEnd = l.endValue.map(_ + mesenShift).filter(_ != shiftedStart)
+      l.endValue match {
+        case None =>
+        case Some(e) =>
+          // Mesen does not like labels of form XXX-XXX, where both ends are equal
+          breakable {
+            for (i <- l.startValue.+(1) to e) {
+              if (allStarts.getOrElse(l.bankName, Set.empty).contains(i)) {
+                shiftedEnd = None
+                break
+              }
+            }
+          }
+      }
+      if (shiftedStart >= 0 && shiftedEnd.forall(_ >= 0)) {
+        val normalized = l.labelName.replace('$', '_').replace('.', '_')
+        val comment = (l.category match {
+          case 'F' => "function "
+          case 'A' => "initialized array "
+          case 'V' => "initialized variable "
+          case 'a' => "array "
+          case 'v' => "variable "
+          case _ => ""
+        }) + l.labelName
+        Some(f"${l.mesenSymbol}%s:${shiftedStart}%04X${shiftedEnd.fold("")(e => f"-$e%04X")}%s:$normalized%s:$comment%s")
+      } else {
+        None
+      }
+    }.mkString("\n")
+  }
+
+  override def formatLine(label: FormattableLabel): String = throw new UnsupportedOperationException()
+
+  override def formatBreakpoint(bank: Int, value: Int): Option[String] = None
+
+  override def fileExtension(bank: Int): String = ".mlb"
+
+  override def filePerBank: Boolean = false
+
+  override def addOutputExtension: Boolean = false
 }

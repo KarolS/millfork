@@ -20,7 +20,7 @@ class M6809Assembler(program: Program,
 
   override def deduplicate(options: CompilationOptions, compiledFunctions: mutable.Map[String, CompiledFunction[MLine]]): Unit = ()
 
-  override def injectLabels(labelMap: Map[String, (Int, Int)], code: List[MLine]): List[MLine] = code
+  override def injectLabels(labelMap: Map[String, (String, Int)], code: List[MLine]): List[MLine] = code
 
   override def quickSimplify(code: List[MLine]): List[MLine] = code
 
@@ -105,7 +105,7 @@ class M6809Assembler(program: Program,
       case MLine0(_, RawByte, _) => log.fatal("BYTE opcode failure")
       case MLine0(LABEL, NonExistent, MemoryAddressConstant(Label(labelName))) =>
         val bank0 = mem.banks(bank)
-        labelMap(labelName) = bank0.index -> index
+        labelMap(labelName) = bank -> index
         index
       case MLine0(op, NonExistent, _) if MOpcode.NoopDiscard(op) =>
         index

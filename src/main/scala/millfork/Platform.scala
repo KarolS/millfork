@@ -42,6 +42,7 @@ class Platform(
                 val outputLabelsFormat: DebugOutputFormat,
                 val outputStyle: OutputStyle.Value
               ) {
+
   def hasZeroPage: Boolean = cpuFamily == CpuFamily.M6502
 
   def cpuFamily: CpuFamily.Value = CpuFamily.forType(this.cpu)
@@ -59,6 +60,18 @@ class Platform(
     val e1 = bankEndBefore(bank1)
     val e2 = bankEndBefore(bank2)
     e2 > s1 && s2 < e1
+  }
+
+  lazy val banksExplicitlyWrittenToOutput: Set[String] = bankNumbers.keySet.filter(b => defaultOutputPackager.writes(b)).toSet
+
+  def getMesenLabelCategory(bank: String, address: Int): Char = {
+    // see: https://www.mesen.ca/docs/debugging/debuggerintegration.html#mesen-label-files-mlb
+    val start = bankStart(bank)
+    val end = bankEndBefore(bank)
+    if (start > address || address >= end) 'G'
+    else if (banksExplicitlyWrittenToOutput(bank)) 'P'
+    else if (bank == "default") 'R'
+    else 'W' // TODO: distinguish between W and S
   }
 }
 
