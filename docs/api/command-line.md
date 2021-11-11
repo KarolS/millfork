@@ -50,6 +50,8 @@ The extension and the file format are platform-dependent.
     
     * `-G mesen` – format used by the Mesen emulator. The extension is `.mlb`.
     
+    * `-G ld65` – a simplified version of the format used by the `ld65` linker (used by CC65 and CA65). The extension is `.dbg`.
+    
     * `-G raw` – Millfork-specific format. The extension is '.labels'. Each row contains bank number, start address, end address (if known), object type, and Millfork-specific object identifier. 
 
 * `-fbreakpoints`, `-fno-breakpoints` – 

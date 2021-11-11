@@ -3,6 +3,7 @@ package millfork
 import millfork.output.{BankLayoutInFile, FormattableLabel}
 
 import java.util.regex.Pattern
+import scala.collection.mutable
 import scala.util.control.Breaks.{break, breakable}
 
 /**
@@ -20,6 +21,10 @@ object DebugOutputFormat {
     "mlb" -> MesenOutputFormat,
     "mesen" -> MesenOutputFormat,
     "asm6f" -> MesenOutputFormat,
+    "ld65" -> Ld65OutputFormat,
+    "ca65" -> Ld65OutputFormat,
+    "cc65" -> Ld65OutputFormat,
+    "dbg" -> Ld65OutputFormat,
     "sym" -> SymDebugOutputFormat)
 }
 
@@ -175,4 +180,49 @@ object MesenOutputFormat extends DebugOutputFormat {
   override def filePerBank: Boolean = false
 
   override def addOutputExtension: Boolean = false
+}
+
+object Ld65OutputFormat extends DebugOutputFormat {
+  override def formatLine(label: FormattableLabel): String = throw new UnsupportedOperationException()
+
+  override def formatBreakpoint(bank: Int, value: Int): Option[String] = None
+
+  override def fileExtension(bank: Int): String = ".dbg"
+
+  override def filePerBank: Boolean = false
+
+  override def addOutputExtension: Boolean = true
+
+  override def formatAll(b: BankLayoutInFile, labels: Seq[FormattableLabel], breakpoints: Seq[(Int, Int)]): String = {
+    val q = '"'
+    val allBanksInFile = b.allBanks()
+    val allBanks = (labels.map(_.bankName).distinct ++ allBanksInFile).distinct
+    val result = mutable.ListBuffer[String]()
+    result += "version\tmajor=2,minor=0"
+    result += s"info\tcsym=0,file=0,lib=0,line=0,mod=0,scope=1,seg=${allBanks.size},span=0,sym=${labels.size},type=4"
+    for ((bank, ix) <- allBanks.zipWithIndex) {
+      val common =  s"seg\tid=${ix},name=$q${bank}$q,start=0x${b.getStart(bank).toHexString},size=0x0,addrsize=absolute"
+      if (allBanksInFile.contains(bank)) {
+        result += common + s",ooffs=${b.ld65Offset(bank)}"
+      } else {
+        result += common
+      }
+    }
+    result += "scope\tid=0,name=\"\""
+    for ((label, ix) <- labels.sortBy(l => (l.bankName, l.startValue, l.labelName)).zipWithIndex) {
+      val name = label.labelName.replace('$', '@').replace('.', '@')
+      val sb = new StringBuilder
+      sb ++= s"sym\tid=${ix},name=$q${name}$q,addrsize=absolute,"
+      label.endValue match {
+        case Some(e) =>
+          if (!labels.exists(l => l.ne(label) && l.startValue >= label.startValue && l.startValue <= e)) {
+            sb ++= s"size=${ e - label.startValue + 1 },"
+          }
+        case None =>
+      }
+      sb ++= s"scope=0,val=0x${label.startValue.toHexString},seg=${allBanks.indexOf(label.bankName)},type=lab"
+      result += sb.toString
+    }
+    result.mkString("\n")
+  }
 }

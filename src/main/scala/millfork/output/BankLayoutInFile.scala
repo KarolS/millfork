@@ -28,5 +28,9 @@ class BankLayoutInFile(startInFile: Map[String, Int], firstAddress: Map[String, 
 
   def wasWritten(bank: String): Boolean = startInFile.contains(bank)
 
-  def Ld65Offset(bank: String): Int = startInFile(bank)
+  def getStart(bank:String): Int = firstAddress.getOrElse(bank, 0) // ??
+
+  def ld65Offset(bank: String): Int = startInFile(bank)
+
+  def allBanks(): Set[String] = firstAddress.keySet
 }

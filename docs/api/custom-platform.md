@@ -269,3 +269,5 @@ Default: `main,*`
     * `fceux` – multi-file format used by the FCEUX emulator. The extension is `.nl`.
     
     * `mesen` – format used by the Mesen emulator. The extension is `.mlb`.
+    
+    * `ld65` – format used by the `ld65` linker. The extension is `.dbg`.
