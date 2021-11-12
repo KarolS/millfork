@@ -395,7 +395,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           env.eval(item) match {
             case Some(c) =>
               for(i <- 0 until elementType.alignedSize) {
-                writeByte(bank, index, subbyte(c, i, elementType.size))(None)
+                writeByte(bank, index, subbyte(c, i, elementType.size))(item.position)
                 bank0.occupied(index) = true
                 bank0.initialized(index) = true
                 bank0.writeable(index) = true
@@ -565,7 +565,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
               env.eval(item) match {
                 case Some(c) =>
                   for (i <- 0 until elementType.size) {
-                    writeByte(bank, index, subbyte(c, i, elementType.size))(None)
+                    writeByte(bank, index, subbyte(c, i, elementType.size))(item.position)
                     index += 1
                   }
                 case None =>
@@ -596,7 +596,7 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
             env.eval(value) match {
               case Some(c) =>
                 for (i <- 0 until typ.size) {
-                  writeByte(bank, index, subbyte(c, i, typ.size))(None)
+                  writeByte(bank, index, subbyte(c, i, typ.size))(value.position)
                   assembly.append("    " + bytePseudoopcode + " " + subbyte(c, i, typ.size).quickSimplify)
                   index += 1
                 }
