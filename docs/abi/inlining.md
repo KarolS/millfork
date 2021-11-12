@@ -14,6 +14,8 @@ It implies the following:
 
 * cannot contain variable or array declarations
 
+  * but can contain scalar constant declarations; the constants are scoped to the particular macro invocation
+
 * can be `asm` - in this case, they should **not** end with a return instruction
 
 * do not have an address
@@ -35,7 +37,13 @@ It implies the following:
     * `call` parameters exceptionally can have their type declared as `void`;
     such parameters accept expressions of any type, including `void`, however, you cannot assign from those expressions
 
-* macros do not have their own scope (they reuse the scope from their invocations) – exceptions: the parameters and the local labels defined in assembly
+* macros do not have their own scope (they reuse the scope from their invocations) – exceptions: 
+ 
+  * the parameters
+
+  * the local labels defined in assembly
+
+  * the local constants
 
 * control-flow statements (`break`, `continue`, `return`, `goto`, `label`) are run as if places in the caller function
 

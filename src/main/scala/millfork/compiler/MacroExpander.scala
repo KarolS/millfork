@@ -4,8 +4,11 @@ import millfork.assembly.AbstractCode
 import millfork.assembly.m6809.MOpcode
 import millfork.assembly.mos._
 import millfork.assembly.z80.ZOpcode
+import millfork.env
 import millfork.env._
 import millfork.node._
+
+import scala.collection.mutable
 
 /**
   * @author Karol Stasiak
@@ -104,6 +107,7 @@ abstract class MacroExpander[T <: AbstractCode] {
   def inlineFunction(ctx: CompilationContext, i: MacroFunction, actualParams: List[Expression], position: Option[Position]): (List[T], List[ExecutableStatement]) = {
     var paramPreparation = List[T]()
     var actualCode = i.code
+    var actualConstants = i.constants
     i.params match {
       case AssemblyOrMacroParamSignature(params) =>
         params.foreach{ param =>
@@ -133,6 +137,7 @@ abstract class MacroExpander[T <: AbstractCode] {
                 ctx.log.error("Const parameters to macro functions have to be constants", expr.position)
               }
               actualCode = actualCode.map(stmt => replaceVariableX(stmt, paramVariable.name.stripPrefix(i.environment.prefix), expr))
+              actualConstants = actualConstants.map(_.replaceVariableInInitialValue(paramVariable.name.stripPrefix(i.environment.prefix), expr))
             case (expr, AssemblyOrMacroParam(paramType, paramVariable, AssemblyParameterPassingBehaviour.Eval)) =>
               val castParam = FunctionCallExpression(paramType.name, List(expr))
               actualCode = actualCode.map(stmt => replaceVariableX(stmt, paramVariable.name.stripPrefix(i.environment.prefix), castParam))
@@ -141,6 +146,21 @@ abstract class MacroExpander[T <: AbstractCode] {
           }
         }
 
+    }
+    var flattenedConstants = mutable.MutableList[VariableDeclarationStatement]()
+    while(actualConstants.nonEmpty) {
+      val constant = actualConstants.head
+      flattenedConstants += constant
+      actualConstants = actualConstants.tail.map(_.replaceVariableInInitialValue(constant.name.stripPrefix(i.environment.prefix), constant.initialValue.get))
+    }
+    for (constant <- flattenedConstants) {
+      val valueExpr = constant.initialValue.get
+      ctx.env.eval(valueExpr) match {
+        case Some(c) =>
+          actualCode = actualCode.map(stmt => replaceVariableX(stmt, constant.name.stripPrefix(i.environment.prefix), valueExpr))
+        case None =>
+          ctx.log.error("Not a constant", constant.position)
+      }
     }
     // fix local labels:
     // TODO: do it even if the labels are in an inline assembly block inside a Millfork function

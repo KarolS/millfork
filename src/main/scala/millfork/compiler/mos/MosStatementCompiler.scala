@@ -191,7 +191,7 @@ object MosStatementCompiler extends AbstractStatementCompiler[AssemblyLine] {
           case Some(_) =>
             params.flatMap(p => MosExpressionCompiler.compile(ctx, p, None, NoBranching))-> Nil
           case None =>
-            env.lookupFunction(name, params.map(p => MosExpressionCompiler.getExpressionType(ctx, p) -> p)) match {
+            env.lookupFunction(name, params.map(p => AbstractExpressionCompiler.getExpressionTypeForMacro(ctx, p) -> p)) match {
               case Some(i: MacroFunction) =>
                 val (paramPreparation, inlinedStatements) = MosMacroExpander.inlineFunction(ctx, i, params, e.position)
                 paramPreparation ++  compile(ctx.withInlinedEnv(i.environment, ctx.nextLabel("en")), inlinedStatements)._1 -> Nil

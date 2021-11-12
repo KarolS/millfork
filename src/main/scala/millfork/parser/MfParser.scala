@@ -733,14 +733,14 @@ abstract class MfParser[T](fileId: String, input: String, currentDirectory: Stri
     if (flags("asm")) validateAsmFunctionBody(p, flags, name, statements)
     if (flags("macro")) {
       statements.flatMap(_.find(_.isInstanceOf[VariableDeclarationStatement])) match {
-        case Some(s) =>
+        case Some(s: VariableDeclarationStatement) if !s.constant =>
           log.error(s"Macro functions cannot declare variables", s.position)
-        case None =>
+        case _ =>
       }
       statements.flatMap(_.find(_.isInstanceOf[ArrayDeclarationStatement])) match {
         case Some(s) =>
           log.error(s"Macro functions cannot declare arrays", s.position)
-        case None =>
+        case _ =>
       }
     }
     Seq(FunctionDeclarationStatement(name, returnType, params.toList,

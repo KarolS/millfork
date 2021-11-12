@@ -256,6 +256,10 @@ object AbstractExpressionCompiler {
   def getExpressionTypeLoosely(ctx: CompilationContext, expr: Expression): Type = {
     getExpressionTypeImpl(ctx.env, ctx.log, expr, loosely = true)
   }
+  @inline
+  def getExpressionTypeForMacro(ctx: CompilationContext, expr: Expression): Type = {
+    getExpressionTypeImpl(ctx.env, ctx.log, expr, loosely = false, failWithVoid = true)
+  }
 
   @inline
   def getExpressionType(env: Environment, log: Logger, expr: Expression): Type = getExpressionTypeImpl(env, log, expr, loosely = false)
@@ -263,7 +267,7 @@ object AbstractExpressionCompiler {
   @inline
   def getExpressionTypeLoosely(env: Environment, log: Logger, expr: Expression): Type = getExpressionTypeImpl(env, log, expr, loosely = true)
 
-  def getExpressionTypeImpl(env: Environment, log: Logger, expr: Expression, loosely: Boolean): Type = {
+  def getExpressionTypeImpl(env: Environment, log: Logger, expr: Expression, loosely: Boolean, failWithVoid: Boolean = false): Type = {
     if (expr.typeCache ne null) return expr.typeCache
     val b = env.get[Type]("byte")
     val bool = env.get[Type]("bool$")
@@ -350,6 +354,11 @@ object AbstractExpressionCompiler {
                 log.error(s"TypedThing `$name` is not defined", expr.position)
                 b
               }
+          }
+        } else if (failWithVoid) {
+          env.maybeGet[TypedThing](name) match {
+            case Some(t) => t.typ
+            case None => VoidType
           }
         } else {
           env.get[TypedThing](name, expr.position).typ

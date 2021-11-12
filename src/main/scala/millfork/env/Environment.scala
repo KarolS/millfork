@@ -337,11 +337,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         t.asInstanceOf[T]
       } else {
         t match {
-          case Alias(_, target, deprectated) =>
+          case Alias(_, target, deprectated, local) =>
             if (deprectated && options.flag(CompilationFlag.DeprecationWarning)) {
               log.warn(s"Alias `$name` is deprecated, use `$target` instead", position)
             }
-            root.get[T](target)
+            if (local) get[T](target) else root.get[T](target)
           case _ => throw IdentifierHasWrongTypeOfThingException(clazz, name, position)
         }
       }
@@ -365,11 +365,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       val t: Thing = things(name)
       val clazz = implicitly[Manifest[T]].runtimeClass
       t match {
-        case Alias(_, target, deprectated) =>
+        case Alias(_, target, deprectated, local) =>
           if (deprectated && options.flag(CompilationFlag.DeprecationWarning)) {
             log.warn(s"Alias `$name` is deprecated, use `$target` instead")
           }
-          root.maybeGet[T](target)
+          if (local) maybeGet[T](target) else root.maybeGet[T](target)
         case _ =>
           if ((t ne null) && clazz.isInstance(t)) {
             Some(t.asInstanceOf[T])
@@ -720,7 +720,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         if (name.startsWith(".")) return Some(MemoryAddressConstant(Label(prefix + name)))
         vv match {
           case Some(m) if m.contains(name) => Some(m(name))
-          case _ => maybeGet[ConstantThing](name).map(_.value)
+          case _ => maybeGet[ConstantLikeThing](name).map {
+            case x: ConstantThing => x.value
+            case x: FunctionInMemory => x.toAddress
+          }
         }
       case IndexedExpression(arrName, index) =>
         getPointy(arrName) match {
@@ -1309,6 +1312,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (hasReturnVariable) {
       registerVariable(VariableDeclarationStatement(stmt.name + ".return", stmt.resultType, None, global = true, stack = false, constant = false, volatile = false, register = false, None, None, Set.empty, None), options, isPointy = false)
     }
+    val constants = mutable.MutableList[VariableDeclarationStatement]()
     stmt.statements match {
       case None =>
         stmt.address match {
@@ -1331,10 +1335,17 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
         }
 
       case Some(statements) =>
-        statements.foreach {
-          case v: VariableDeclarationStatement => env.registerVariable(v, options, pointies(v.name))
-          case a: ArrayDeclarationStatement => env.registerArray(a, options)
-          case _ => ()
+        if (stmt.isMacro) {
+          statements.foreach {
+            case v: VariableDeclarationStatement => constants += v
+            case _ => ()
+          }
+        } else {
+          statements.foreach {
+            case v: VariableDeclarationStatement => env.registerVariable(v, options, pointies(v.name))
+            case a: ArrayDeclarationStatement => env.registerArray(a, options)
+            case _ => ()
+          }
         }
         def scanForLabels(statement: Statement): Unit = statement match {
           case c: CompoundStatement => c.getChildStatements.foreach(scanForLabels)
@@ -1427,6 +1438,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             params.asInstanceOf[AssemblyOrMacroParamSignature],
             stmt.assembly,
             env,
+            constants.toList,
             executableStatements
           )
           addThing(mangled, stmt.position)
@@ -1460,6 +1472,11 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             ConstPureFunctions.checkConstPure(env, mangled)
           }
         }
+    }
+    if (!stmt.isMacro) {
+      val alias = Alias("this.function", name, local = true)
+      env.addThing("this.function", alias, None)
+      env.expandAlias(alias)
     }
   }
 
@@ -2458,17 +2475,26 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   private def expandAliases(): Unit = {
     val aliasesToAdd = mutable.ListBuffer[Alias]()
     things.values.foreach{
-      case Alias(aliasName, target, deprecated) =>
-        val prefix = target + "."
-        things.foreach{
-          case (thingName, thing) =>
-            if (thingName.startsWith(prefix)) {
-              aliasesToAdd += Alias(aliasName + "." + thingName.stripPrefix(prefix), thingName, deprecated)
-            }
-        }
+      case a:Alias => aliasesToAdd ++= expandAliasImpl(a)
       case _ => ()
     }
     aliasesToAdd.foreach(a => things += a.name -> a)
+  }
+
+  private def expandAliasImpl(a: Alias): Seq[Alias] = {
+    val aliasesToAdd = mutable.ListBuffer[Alias]()
+    val prefix = a.target + "."
+    root.things.foreach {
+      case (thingName, thing) =>
+        if (thingName.startsWith(prefix)) {
+          aliasesToAdd += Alias(a.name + "." + thingName.stripPrefix(prefix), thingName, a.deprecated, a.local)
+        }
+    }
+    aliasesToAdd
+  }
+
+  private def expandAlias(a: Alias): Unit  = {
+    expandAliasImpl(a).foreach(a => things += a.name -> a)
   }
 
   def fixStructAlignments(): Unit = {
@@ -2644,7 +2670,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
 
     if (!things.contains("memory_barrier")) {
-      things("memory_barrier") = MacroFunction("memory_barrier", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, CpuFamily.forType(options.platform.cpu) match {
+      things("memory_barrier") = MacroFunction("memory_barrier", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, Nil, CpuFamily.forType(options.platform.cpu) match {
         case CpuFamily.M6502 => List(MosAssemblyStatement(Opcode.CHANGED_MEM, AddrMode.DoesNotExist, LiteralExpression(0, 1), Elidability.Fixed))
         case CpuFamily.I80 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
         case CpuFamily.I86 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, LiteralExpression(0, 1), Elidability.Fixed))
@@ -2656,7 +2682,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     if (!things.contains("breakpoint")) {
       val p = get[VariableType]("pointer")
       if (options.flag(CompilationFlag.EnableBreakpoints)) {
-        things("breakpoint") = MacroFunction("breakpoint", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, CpuFamily.forType(options.platform.cpu) match {
+        things("breakpoint") = MacroFunction("breakpoint", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, Nil, CpuFamily.forType(options.platform.cpu) match {
           case CpuFamily.M6502 => List(MosAssemblyStatement(Opcode.CHANGED_MEM, AddrMode.DoesNotExist, VariableExpression("..brk"), Elidability.Fixed))
           case CpuFamily.I80 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, VariableExpression("..brk"), Elidability.Fixed))
           case CpuFamily.I86 => List(Z80AssemblyStatement(ZOpcode.CHANGED_MEM, NoRegisters, None, VariableExpression("..brk"), Elidability.Fixed))
@@ -2664,7 +2690,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
           case _ => ???
         })
       } else {
-        things("breakpoint") = MacroFunction("breakpoint", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, Nil)
+        things("breakpoint") = MacroFunction("breakpoint", v, AssemblyOrMacroParamSignature(Nil), isInAssembly = true, this, Nil, Nil)
       }
     }
   }
@@ -2784,7 +2810,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   def getAliases: Map[String, String] = {
     things.values.flatMap {
-      case Alias(a, b, _) => Some(a -> b)
+      case Alias(a, b, _, _) => Some(a -> b)
       case _ => None
     }.toMap ++ parent.map(_.getAliases).getOrElse(Map.empty)
   }

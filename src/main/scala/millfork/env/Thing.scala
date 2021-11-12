@@ -1,7 +1,7 @@
 package millfork.env
 
 import millfork.assembly.BranchingOpcodeMapping
-import millfork.{CompilationFlag, CompilationOptions, CpuFamily}
+import millfork.{CompilationFlag, CompilationOptions, CpuFamily, env}
 import millfork.node._
 import millfork.output.{MemoryAlignment, NoAlignment}
 
@@ -10,7 +10,7 @@ sealed trait Thing {
   def rootName: String = name
 }
 
-case class Alias(name: String, target: String, deprecated: Boolean = false) extends Thing
+case class Alias(name: String, target: String, deprecated: Boolean = false, local: Boolean = false) extends Thing
 
 sealed trait CallableThing extends Thing
 
@@ -65,6 +65,18 @@ case object VoidType extends Type {
   def isSigned = false
 
   override def name = "void"
+
+  override def alignment: MemoryAlignment = NoAlignment
+}
+
+case class InvalidType(nonce: Long) extends Type {
+  def size = 0
+
+  def alignedSize = 0
+
+  def isSigned = false
+
+  override def name = "$invalid"
 
   override def alignment: MemoryAlignment = NoAlignment
 }
@@ -246,6 +258,10 @@ case object BuiltInBooleanType extends BooleanType {
 
 sealed trait TypedThing extends Thing {
   def typ: Type
+}
+
+sealed trait ConstantLikeThing extends TypedThing {
+
 }
 
 
@@ -490,6 +506,8 @@ sealed trait MangledFunction extends CallableThing {
 
   def interrupt: Boolean
 
+  def kernalInterrupt: Boolean
+
   def isConstPure: Boolean
 
   def canBePointedTo: Boolean
@@ -504,6 +522,8 @@ case class EmptyFunction(name: String,
 
   override def interrupt = false
 
+  override def kernalInterrupt: Boolean = false
+
   override def isConstPure = false
 
   override def canBePointedTo: Boolean = false
@@ -514,15 +534,18 @@ case class MacroFunction(name: String,
                          params: AssemblyOrMacroParamSignature,
                          isInAssembly: Boolean,
                          environment: Environment,
+                         constants: List[VariableDeclarationStatement],
                          code: List[ExecutableStatement]) extends MangledFunction {
   override def interrupt = false
+
+  override def kernalInterrupt: Boolean = false
 
   override def isConstPure = false
 
   override def canBePointedTo: Boolean = false
 }
 
-sealed trait FunctionInMemory extends MangledFunction with ThingInMemory {
+sealed trait FunctionInMemory extends MangledFunction with ThingInMemory with TypedThing with VariableLikeThing with ConstantLikeThing {
   def environment: Environment
 
   override def isFar(compilationOptions: CompilationOptions): Boolean =
@@ -538,6 +561,20 @@ sealed trait FunctionInMemory extends MangledFunction with ThingInMemory {
   def optimizationHints: Set[String]
 
   override def hasOptimizationHints: Boolean = optimizationHints.nonEmpty
+
+  override lazy val typ: Type = {
+    if (interrupt || kernalInterrupt) {
+      InvalidType(name.hashCode())
+    } else {
+      val paramType = params.types match {
+        case Nil => VoidType
+        case List(t) => t
+        case _ => InvalidType(params.types.hashCode())
+      }
+      val typeName = "function." + paramType.name + ".to." + returnType.name
+      FunctionPointerType(typeName, paramType.name, returnType.name, Some(paramType), Some(returnType))
+    }
+  }
 }
 
 case class ExternFunction(name: String,
@@ -550,6 +587,8 @@ case class ExternFunction(name: String,
   override def toAddress: Constant = if (hasOptimizationHints) MemoryAddressConstant(this) else address
 
   override def interrupt = false
+
+  override def kernalInterrupt: Boolean = false
 
   override def isConstPure = false
 
@@ -582,7 +621,7 @@ case class NormalFunction(name: String,
   override def isVolatile: Boolean = false
 }
 
-case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing {
+case class ConstantThing(name: String, value: Constant, typ: Type) extends TypedThing with VariableLikeThing with IndexableThing with ConstantLikeThing {
   def map(f: Constant => Constant) = ConstantThing("", f(value), typ)
 }
 

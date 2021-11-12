@@ -51,10 +51,10 @@ class FunctionPointerSuite extends FunSuite with Matchers with AppendedClues{
         | byte id(byte x)     = x
         |
         | void main() {
-        |   tabulate(output0, zero.pointer)
-        |   tabulate(output1, id.pointer)
-        |   tabulate(output2, double.pointer)
-        |   tabulate(output3, negate.pointer)
+        |   tabulate(output0, zero)
+        |   tabulate(output1, id)
+        |   tabulate(output2, double)
+        |   tabulate(output3, negate)
         | }
         |
       """.stripMargin) { m =>

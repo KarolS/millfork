@@ -173,18 +173,31 @@ case class SumExpression(expressions: List[(Boolean, Expression)], decimal: Bool
 
 case class FunctionCallExpression(functionName: String, expressions: List[Expression]) extends Expression {
   override def renameVariable(variable: String, newVariable: String): Expression =
-    FunctionCallExpression(functionName, expressions.map {
+    FunctionCallExpression(if (functionName == variable) newVariable else functionName, expressions.map {
       _.renameVariable(variable, newVariable)
     }).pos(position)
-  override def replaceVariable(variable: String, actualParam: Expression): Expression =
-    FunctionCallExpression(functionName, expressions.map {
-      _.replaceVariable(variable, actualParam)
-    }).pos(position)
-  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression = 
+  override def replaceVariable(variable: String, actualParam: Expression): Expression = {
+    if (variable == functionName) {
+        actualParam match {
+          case VariableExpression(v) =>
+            FunctionCallExpression(v, expressions.map {
+              _.replaceVariable(variable, actualParam)
+            }).pos(position)
+          case _ =>
+            ??? // TODO
+        }
+    } else {
+      FunctionCallExpression(functionName, expressions.map {
+        _.replaceVariable(variable, actualParam)
+      }).pos(position)
+    }
+  }
+
+  override def replaceIndexedExpression(predicate: IndexedExpression => Boolean, replacement: IndexedExpression => Expression): Expression =
     FunctionCallExpression(functionName, expressions.map {
       _.replaceIndexedExpression(predicate, replacement)
     }).pos(position)
-  override def containsVariable(variable: String): Boolean = expressions.exists(_.containsVariable(variable))
+  override def containsVariable(variable: String): Boolean = variable == functionName || expressions.exists(_.containsVariable(variable))
   override def getPointies: Seq[String] = expressions.flatMap(_.getPointies)
   override def isPure: Boolean = false // TODO
   override def getAllIdentifiers: Set[String] = expressions.map(_.getAllIdentifiers).fold(Set[String]())(_ ++ _) + functionName
@@ -477,6 +490,11 @@ case class VariableDeclarationStatement(name: String,
   override def getAllExpressions: List[Expression] = List(initialValue, address).flatten
 
   override def withChangedBank(bank: String): BankedDeclarationStatement = copy(bank = Some(bank))
+
+  def replaceVariableInInitialValue(variable: String, expression: Expression): VariableDeclarationStatement = initialValue match {
+    case Some(v) => copy(initialValue = Some(v.replaceVariable(variable, expression)))
+    case None => this
+  }
 }
 
 trait ArrayContents extends Node {

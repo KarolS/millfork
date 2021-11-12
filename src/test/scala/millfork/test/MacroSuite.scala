@@ -307,4 +307,68 @@ class MacroSuite extends FunSuite with Matchers with AppendedClues {
         |}
         |""".stripMargin)
   }
+
+  test("Should allow passing functions to a macro") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |
+        |word output1 @$c000
+        |word output2 @$c002
+        |macro void f(void callback) {
+        |  output1 = callback.addr
+        |  callback()
+        |}
+        |
+        |void g() {}
+        |
+        |void main() {
+        | f(g)
+        | output2 = g.addr
+        |}
+        |""".stripMargin) {m =>
+      m.readWord(0xc000) should equal(m.readWord(0xc002))
+    }
+  }
+
+  test("Constants in macros") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |macro void f(byte const x) {
+        | const byte y = 2*x
+        | const byte z = y
+        | output[i] = z
+        | i+=1
+        |}
+        |
+        |array (byte) output[55]@$c000
+        |void main() {
+        | byte i
+        | f(1)
+        | f(2)
+        | f(3)
+        | f(4)
+        |}
+        |""".stripMargin) { m =>
+      m.readByte(0xc000) should equal(2)
+      m.readByte(0xc001) should equal(4)
+      m.readByte(0xc002) should equal(6)
+      m.readByte(0xc003) should equal(8)
+    }
+  }
+
+  test("this.function") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        |macro void f(byte const x) {
+        | output = this.function.addr
+        |}
+        |
+        |pointer output @$c000
+        |void main() {
+        | f(1)
+        |}
+        |""".stripMargin) { m =>
+      m.readWord(0xc000) should equal(0x200)
+    }
+  }
 }

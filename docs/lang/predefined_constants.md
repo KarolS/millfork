@@ -25,3 +25,5 @@
 * `byte segment.N.bank` – the value of `segment_N_bank` from the platform definition
 
 * `byte segment.N.fill` – the value of `segment_N_fill` from the platform definition
+
+* `this.function` – the alias of the current function (in macros, it resolves to the actual non-macro function that called the macro)
