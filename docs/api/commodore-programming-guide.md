@@ -2,6 +2,11 @@
 
 ### A note about Commodore 64
 
+#### Unusual main function location
+
+If you're creating a prg file and your `main` function may be located at address $2710 hex (10000 decimal) or higher,
+you might need to define the `DISPLACED_MAIN=1` preprocessor feature. 
+
 #### Multifile programs
 
 A multifile program is a program stored on a disk that consists of the main program file that is executed first

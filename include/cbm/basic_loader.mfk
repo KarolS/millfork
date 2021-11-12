@@ -1,0 +1,31 @@
+#template $ADDR$
+
+#if not(CBM)
+#warn cbm/basic_loader module should be only used on Commodore targets
+#endif
+
+const array _basic_loader @ $ADDR$ = [
+#if DISPLACED_MAIN
+    @word_le [
+        $ADDR$ + 0xB
+    ],
+#else
+    @word_le [
+        $ADDR$ + if(main.addr >= 10000, 1/0, 0xA) // use -D DISPLACED_MAIN=1 if you get an error here
+    ],
+#endif
+    10,
+    0,
+    $9e,
+#if DISPLACED_MAIN
+    $30 + (main.addr/10000)%%10,
+#endif
+    $30 + (main.addr/1000)%%10,
+    $30 + (main.addr/100)%%10,
+    $30 + (main.addr/10)%%10,
+    $30 + (main.addr/1)%%10,
+    0,
+    0,
+    0
+    ]
+

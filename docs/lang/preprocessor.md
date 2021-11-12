@@ -103,6 +103,8 @@ Some libraries may require that some of these be defined.
 
 * `KEYBOARD` – 1 if the target has a keyboard, 0 otherwise
 
+* `DISPLACED_MAIN` – set this to 1 if the `main` function is in a very unusual location for the target
+
 * `USE_MOUSE_MBM` –  set this to 1 if you want to enable middle button support for the mouse. 
 
 * `JOYSTICKS` – the maximum number of joysticks using standard hardware configurations, may be 0

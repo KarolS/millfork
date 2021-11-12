@@ -22,4 +22,5 @@ asm void __init_16bit() @$80D {
     clc
     xce
     sep #$30
+    jmp main
 }
