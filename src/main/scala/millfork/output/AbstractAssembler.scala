@@ -111,6 +111,8 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
     }
     c match {
       case NumericConstant(v, _) => v
+      case IfConstant(c, t, f) =>
+        if (deepConstResolve(c) != 0) deepConstResolve(t) else deepConstResolve(f)
       case AssertByte(inner) =>
         val value = deepConstResolve(inner)
         if (value.toByte == value) value else {
@@ -184,6 +186,12 @@ abstract class AbstractAssembler[T <: AbstractCode](private val program: Program
           case MathOperator.DecimalShl => asDecimal(l, 1 << r, _ * _)
           case MathOperator.DecimalShl9 => asDecimal(l, 1 << r, _ * _) & 0x1ff
           case MathOperator.DecimalShr => asDecimal(l, 1 << r, _ / _)
+          case MathOperator.Equal => if (l == r) 1 else 0
+          case MathOperator.NotEqual => if (l != r) 1 else 0
+          case MathOperator.Less => if (l < r) 1 else 0
+          case MathOperator.LessEqual => if (l <= r) 1 else 0
+          case MathOperator.Greater => if (l > r) 1 else 0
+          case MathOperator.GreaterEqual => if (l >= r) 1 else 0
           case MathOperator.And => l & r
           case MathOperator.Exor => l ^ r
           case MathOperator.Or => l | r

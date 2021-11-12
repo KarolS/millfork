@@ -440,6 +440,7 @@ case class SubbyteConstant(base: Constant, index: Int) extends Constant {
 object MathOperator extends Enumeration {
   val Plus, Minus, Times, Shl, Shr, Shl9, Shr9, Plus9, DecimalPlus9,
   DecimalPlus, DecimalMinus, DecimalTimes, DecimalShl, DecimalShl9, DecimalShr,
+  Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual,
   Minimum, Maximum,
   Divide, Modulo,
   And, Or, Exor = Value
@@ -599,7 +600,7 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
         case MathOperator.Exor => (lv ^ rv) & bitmask
         case MathOperator.Or => lv | rv
         case MathOperator.And => lv & rv & bitmask
-        case MathOperator.Divide if lv >= 0 && rv >= 0 => lv / rv
+        case MathOperator.Divide if lv >= 0 && rv > 0 => lv / rv
         case MathOperator.Modulo if lv >= 0 && rv >= 0 => lv % rv
         case MathOperator.DecimalPlus if ls == 1 && rs == 1 =>
           asDecimal(lv & 0xff, rv & 0xff, _ + _) & 0xff
@@ -692,6 +693,12 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
       case Exor => s"$plhs ^ $prhs"
       case Divide => s"$plhs / $prhs"
       case Modulo => s"$plhs %% $prhs"
+      case Equal => s"$plhs == $prhs"
+      case NotEqual => s"$plhs != $prhs"
+      case Greater => s"$plhs > $prhs"
+      case GreaterEqual => s"$plhs >= $prhs"
+      case Less=> s"$plhs < $prhs"
+      case LessEqual=> s"$plhs <= $prhs"
     }
   }
 
@@ -782,4 +789,21 @@ case class CompoundConstant(operator: MathOperator.Value, lhs: Constant, rhs: Co
   }
 
   override def extractLabels: List[String] = lhs.extractLabels ++ rhs.extractLabels
+}
+
+case class IfConstant(cond: Constant, ifTrue: Constant, ifFalse: Constant) extends Constant {
+
+  override def toIntelString: String = s"if(${cond.toIntelString},${ifTrue.toIntelString},${ifFalse.toIntelString})"
+
+  override def toString: String = s"if(${cond.toString},${ifTrue.toString},${ifFalse.toString})"
+
+  override def requiredSize: Int = ifTrue.requiredSize max ifFalse.requiredSize
+
+  override def isRelatedTo(v: Thing): Boolean = cond.isRelatedTo(v) || ifTrue.isRelatedTo(v) || ifFalse.isRelatedTo(v)
+
+  override def refersTo(name: String): Boolean = cond.refersTo(name) || ifTrue.refersTo(name) || ifFalse.refersTo(name)
+
+  override def extractLabels: List[String] = cond.extractLabels ++ ifTrue.extractLabels ++ ifFalse.extractLabels
+
+  override def rootThingName: String = "?"
 }

@@ -840,7 +840,10 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
                 case Some(c) =>
                   if (c.isProvablyGreaterOrEqualThan(1)) evalImpl(params(1), vv)
                   else if (c.isProvablyZero) evalImpl(params(2), vv)
-                  else None
+                  else (evalImpl(params(1), vv), evalImpl(params(2), vv)) match {
+                    case (Some(t), Some(f)) => Some(IfConstant(c, t, f))
+                    case _ => None
+                  }
                 case _ => None
               }
             } else {
@@ -887,15 +890,17 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
             constantOperation(MathOperator.Exor, params, vv)
           case "||" | "|" =>
             constantOperation(MathOperator.Or, params, vv)
-          case ">" => evalComparisons(params, vv, _ > _)
-          case "<" => evalComparisons(params, vv, _ < _)
-          case ">=" => evalComparisons(params, vv, _ >= _)
-          case "<=" => evalComparisons(params, vv, _ <= _)
-          case "==" => evalComparisons(params, vv, _ == _)
+          case ">" => evalComparisons(params, vv, MathOperator.Greater, _ > _)
+          case "<" => evalComparisons(params, vv, MathOperator.Less,_ < _)
+          case ">=" => evalComparisons(params, vv, MathOperator.GreaterEqual,_ >= _)
+          case "<=" => evalComparisons(params, vv, MathOperator.LessEqual,_ <= _)
+          case "==" => evalComparisons(params, vv, MathOperator.Equal,_ == _)
           case "!=" =>
             sequence(params.map(p => evalImpl(p, vv))) match {
               case Some(List(NumericConstant(n1, _), NumericConstant(n2, _))) =>
                 Some(if (n1 != n2) Constant.One else Constant.Zero)
+              case Some(List(c1, c2)) =>
+                Some(CompoundConstant(MathOperator.NotEqual, c1, c2))
               case _ => None
             }
           case _ =>
@@ -950,14 +955,22 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
     }
   }
 
-  private def evalComparisons(params: List[Expression], vv: Option[Map[String, Constant]], cond: (Long, Long) => Boolean): Option[Constant] = {
+  private def evalComparisons(params: List[Expression], vv: Option[Map[String, Constant]], operator: MathOperator.Value, cond: (Long, Long) => Boolean): Option[Constant] = {
     if (params.size < 2) return None
-    val numbers = sequence(params.map{ e =>
-      evalImpl(e, vv) match {
-        case Some(NumericConstant(n, _)) => Some(n)
-        case _ => None
-      }
+    val paramsEvaluated = params.map { e =>
+      evalImpl(e, vv)
+    }
+    val numbers = sequence(paramsEvaluated.map {
+      case Some(NumericConstant(n, _)) => Some(n)
+      case _ => None
     })
+    if (numbers.isEmpty) {
+      paramsEvaluated match {
+        case List(Some(c1), Some(c2)) =>
+          return Some(CompoundConstant(operator, c1, c2))
+        case _ =>
+      }
+    }
     numbers.map { ns =>
       if (ns.init.zip(ns.tail).forall(cond.tupled)) Constant.One else Constant.Zero
     }
