@@ -28,6 +28,7 @@ sealed trait Constant {
 
   def isQuiteNegative: Boolean = false
   def isProvablyZero: Boolean = false
+  def isProvablyNonZero: Boolean = false
   def isProvably(value: Int): Boolean = false
   def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = false
   def isProvablyNonnegative: Boolean = false
@@ -183,6 +184,7 @@ case class AssertByte(c: Constant) extends Constant {
   override def isQuiteNegative: Boolean = c.isQuiteNegative
   override def isProvablyGreaterOrEqualThan(other: Constant): Boolean = c.isProvablyGreaterOrEqualThan(other)
   override def isProvablyZero: Boolean = c.isProvablyZero
+  override def isProvablyNonZero: Boolean = c.isProvablyNonZero
   override def isProvably(i: Int): Boolean = c.isProvably(i)
   override def isProvablyNonnegative: Boolean = c.isProvablyNonnegative
   override def isProvablyNegative(asType: Type): Boolean = c.isProvablyNegative(asType)
@@ -277,6 +279,7 @@ case class NumericConstant(value: Long, requiredSize: Int) extends Constant {
   })
   override def isProvablyInRange(startInclusive: Int, endInclusive: Int): Boolean = value >= startInclusive && value <= endInclusive
   override def isProvablyZero: Boolean = value == 0
+  override def isProvablyNonZero: Boolean = value.&(0x1L.<<(8 * requiredSize - 1)) != 0
   override def isProvably(i: Int): Boolean = value == i
   override def isProvablyNonnegative: Boolean = value >= 0
   override def isProvablyNegative(asType: Type): Boolean = {

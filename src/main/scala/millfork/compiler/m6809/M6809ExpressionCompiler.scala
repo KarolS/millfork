@@ -80,10 +80,22 @@ object M6809ExpressionCompiler extends AbstractExpressionCompiler[MLine] {
     }
     env.eval(expr) match {
       case Some(c) =>
-        return target match {
+        return (target match {
           case MExpressionTarget.NOTHING => Nil
           case _ => List(MLine.immediate(toLd(target), c))
-        }
+        }) ++ (branches match {
+          case BranchIfTrue(l) if c.isProvablyNonZero => List(MLine(JMP, Absolute(false), Label(l).toAddress))
+          case BranchIfTrue(l) =>
+            // TODO: ??
+            if (target == MExpressionTarget.NOTHING) List(MLine.immediate(LDB, c), MLine.longBranch(BNE, l))
+            else  List(MLine.longBranch(BNE, l))
+          case BranchIfFalse(l) if c.isProvablyZero => List(MLine(JMP, Absolute(false), Label(l).toAddress))
+          case BranchIfFalse(l) =>
+            // TODO: ??
+            if (target == MExpressionTarget.NOTHING) List(MLine.immediate(LDB, c), MLine.longBranch(BEQ, l))
+            else  List(MLine.longBranch(BEQ, l))
+          case NoBranching => Nil
+        })
       case None =>
     }
     expr match {
