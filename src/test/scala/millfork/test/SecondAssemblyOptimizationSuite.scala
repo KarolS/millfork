@@ -146,26 +146,50 @@ class SecondAssemblyOptimizationSuite extends FunSuite with Matchers {
   }
 
   test("Bubblesort") {
-    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80)(
-      """
-        |array sorttable [2540] @$C000
-        |
-        |void main() {
-        |    byte t,i,n1,n2
-        |    for t,25,downto,0{
-        |        for i,0,to,25{
-        |            n1 = sorttable[i]
-        |            n2 = sorttable[i+1]
-        |            if n1>n2 {
-        |                sorttable[i] = n2
-        |                sorttable[i+1] = n1
-        |            }
-        |        }
-        |    }
-        |}
-        |
-        |""".stripMargin) { m =>
+    val size = 27
+    val random = new scala.util.Random
+    val inputData = IndexedSeq.fill(size)(random.nextInt(256))
+    val expected = inputData.sorted
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      s"""
+         |array sorttable [$size] @$$C000 = [${inputData.mkString(",")}]
+         |
+         |void main() {
+         |    byte t,i,n1,n2
+         |    for t,${size - 2},downto,0{
+         |        for i,0,to,${size - 2}{
+         |            n1 = sorttable[i]
+         |            n2 = sorttable[i+1]
+         |            if n1>n2 {
+         |                sorttable[i] = n2
+         |                sorttable[i+1] = n1
+         |            }
+         |        }
+         |    }
+         |}
+         |
+         |""".stripMargin) { m =>
+      (0 until size).map(i => m.readByte(0xc000 + i)) should equal(expected)
+    }
+  }
 
+  test("Store-load-operate") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | byte output @$c000
+        | byte output2 @$c001
+        | noinline void f(byte a) {
+        |   output = a
+        |   output2 |= output
+        | }
+        | void main () {
+        |   output2 = 5
+        |   f($a)
+        | }
+        | byte ee() { return $ee }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(0xa)
+      m.readByte(0xc001) should equal(0xf)
     }
   }
 }

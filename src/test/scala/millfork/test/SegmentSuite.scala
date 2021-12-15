@@ -1,7 +1,7 @@
 package millfork.test
 
 import millfork.Cpu
-import millfork.test.emu.EmuUnoptimizedCrossPlatformRun
+import millfork.test.emu.EmuCrossPlatformBenchmarkRun
 import org.scalatest.{FunSuite, Matchers}
 
 /**
@@ -39,7 +39,7 @@ class SegmentSuite extends FunSuite with Matchers {
         |   output6 = segment.default.heapstart
         | }
       """.stripMargin
-    EmuUnoptimizedCrossPlatformRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(source) { m =>
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(source) { m =>
       m.readByte(0xc000) should equal(source.count(_ == '+'))
       m.readByte(0xc001) should equal(0)
       m.readWord(0xc006) should equal(0x200)
