@@ -1,5 +1,39 @@
 # Change log
 
+## Current version
+
+* Added volatile structure fields (#112).
+
+* Added `this.function` as the alias for the current function (#118).
+
+* Added support for constant evaluation in `file` expressions (#114).
+
+* Allowed declaring local constants and passing untyped parameters for macros.
+
+* Allowed treating bare function name as a pointer to it.
+
+* Added Mesen, ld65 and "raw" label file formats (#128).
+
+* Commodore: the address used by SYS is now determined automatically instead of hardcoded (#111).
+
+* C64: Fixed address for `sid_v1_sr` (#115).
+
+* EasyFlash: Fixed address for `switch_hirom` (#121).
+
+* GB: Fixed standard library (thanks to @retrac0).
+  
+* Commander X16: Updated platform definition file (thanks to @mookiexl).
+
+* 65CE02: Full assembly support.
+
+* R800: Full assembly support.
+
+* Various miscompilation fixes (#123, #125) and parser fixes (e.g. #120).
+
+* 6809: Various optimizations.
+
+* Improvements related to constant evaluation.
+
 ## 0.3.28 (2021-05-24)
 
 * Officially deprecated decimal operators with apostrophes.
