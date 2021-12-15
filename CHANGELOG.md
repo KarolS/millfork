@@ -1,6 +1,6 @@
 # Change log
 
-## Current version
+## 0.3.30 (2021-12-15)
 
 * Added volatile structure fields (#112).
 
