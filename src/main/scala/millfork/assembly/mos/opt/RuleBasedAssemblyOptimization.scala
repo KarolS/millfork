@@ -30,7 +30,7 @@ object FlowInfoRequirement extends Enumeration {
   }
 
   def assertLabels(x: FlowInfoRequirement.Value): Unit = x match {
-    case NoRequirement => FatalErrorReporting.reportFlyingPig("Backward flow info required")
+    case NoRequirement => FatalErrorReporting.reportFlyingPig("Label info required")
     case _ => ()
   }
 }
@@ -43,20 +43,20 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 
   private val actualRules = rules.flatMap(_.flatten)
   actualRules.foreach(_.pattern.validate(needsFlowInfo))
+  private val actualRulesWithIndex = actualRules.zipWithIndex
 
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val taggedCode = FlowAnalyzer.analyze(f, code, optimizationContext, needsFlowInfo)
-    val (changed, optimized) = optimizeImpl(f, taggedCode, optimizationContext)
-    if (changed) optimized else code
+    optimizeImpl(f, code, taggedCode, optimizationContext)
   }
 
-  def optimizeImpl(f: NormalFunction, code: List[(FlowInfo, AssemblyLine)], optimizationContext: OptimizationContext): (Boolean, List[AssemblyLine]) = {
+  final def optimizeImpl(f: NormalFunction, code: List[AssemblyLine], taggedCode: List[(FlowInfo, AssemblyLine)], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val log = optimizationContext.log
-    code match {
-      case Nil => false -> Nil
+    taggedCode match {
+      case Nil => code
       case head :: tail =>
-        for ((rule, index) <- actualRules.zipWithIndex) {
+        for ((rule, index) <- actualRulesWithIndex) {
           val ctx = new AssemblyMatchingContext(
             optimizationContext.options,
             optimizationContext.labelMap,
@@ -64,9 +64,10 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
             optimizationContext.niceFunctionProperties,
             head._1.labelUseCount(_)
           )
-          rule.pattern.matchTo(ctx, code) match {
+          rule.pattern.matchTo(ctx, taggedCode) match {
             case Some(rest: List[(FlowInfo, AssemblyLine)]) =>
-              val matchedChunkToOptimize: List[AssemblyLine] = code.take(code.length - rest.length).map(_._2)
+              val optimizedChunkLengthBefore = taggedCode.length - rest.length
+              val (matchedChunkToOptimize, restOfCode) = code.splitAt(optimizedChunkLengthBefore)
               val optimizedChunk: List[AssemblyLine] = rule.result(matchedChunkToOptimize, ctx)
               val optimizedChunkWithSource =
                 if (!ctx.compilationOptions.flag(CompilationFlag.LineNumbersInAssembly)) optimizedChunk
@@ -75,28 +76,34 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
                 else if (optimizedChunk.size == 1) optimizedChunk.map(_.pos(SourceLine.merge(matchedChunkToOptimize.map(_.source))))
                 else if (matchedChunkToOptimize.flatMap(_.source).toSet.size == 1) optimizedChunk.map(_.pos(SourceLine.merge(matchedChunkToOptimize.map(_.source))))
                 else optimizedChunk
-              log.debug(s"Applied $name ($index)")
-              if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
-                val before = code.head._1.statusBefore
-                val after = code(matchedChunkToOptimize.length - 1)._1.importanceAfter
-                log.trace(s"Before: $before")
-                log.trace(s"After:  $after")
+              if (log.debugEnabled) {
+                log.debug(s"Applied $name ($index)")
               }
               if (log.traceEnabled) {
+                if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
+                  val before = head._1.statusBefore
+                  val after = taggedCode(matchedChunkToOptimize.length - 1)._1.importanceAfter
+                  log.trace(s"Before: $before")
+                  log.trace(s"After:  $after")
+                }
                 matchedChunkToOptimize.filter(_.isPrintable).foreach(l => log.trace(l.toString))
                 log.trace("     ↓")
                 optimizedChunkWithSource.filter(_.isPrintable).foreach(l => log.trace(l.toString))
               }
               if (needsFlowInfo != FlowInfoRequirement.NoRequirement) {
-                return true -> (optimizedChunkWithSource ++ optimizeImpl(f, rest, optimizationContext)._2)
+                return optimizedChunkWithSource ++ optimizeImpl(f, restOfCode, rest, optimizationContext)
               } else {
-                return true -> optimize(f, optimizedChunkWithSource ++ rest.map(_._2), optimizationContext)
+                return optimize(f, optimizedChunkWithSource ++ restOfCode, optimizationContext)
               }
             case None => ()
           }
         }
-        val (changedTail, optimizedTail) = optimizeImpl(f, tail, optimizationContext)
-        (changedTail, head._2 :: optimizedTail)
+        val optimizedTail = optimizeImpl(f, code.tail, tail, optimizationContext)
+        if (optimizedTail eq code.tail) {
+          code
+        } else {
+          code.head :: optimizedTail
+        }
     }
   }
 }

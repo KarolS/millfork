@@ -8,6 +8,8 @@ import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext
 import millfork.env._
 import millfork.error.ConsoleLogger
 
+import scala.collection.mutable
+
 /**
   * @author Karol Stasiak
   */
@@ -23,48 +25,52 @@ object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
       case AssemblyLine0(JSR | BSR | JMP, _, NumericConstant(addr, _)) => Some("$" + addr.toHexString)
       case _ => None
     }.toSet
-    val foreignVariables = f.environment.root.things.values.flatMap {
+    val foreignVariables = mutable.Set[String]()
+    f.environment.root.things.values.foreach {
       case other: NormalFunction if !other.name.endsWith(".trampoline") =>
         val address = other.address match {
           case Some(NumericConstant(addr, _)) => "$" + addr.toHexString
           case _ => ""
         }
         if (other.name == f.name || usedFunctions(other.name) || usedFunctions(address)) {
-          Nil
+          // do nothing
         } else {
-          val params = other.params match {
-            case NormalParamSignature(ps) => ps.map(_.name)
-            case _ => Nil
+          other.params match {
+            case NormalParamSignature(ps) =>
+              ps.foreach(p => foreignVariables += p.name)
+            case _ =>
           }
-          val locals = other.environment.things.values.flatMap{
-            case th: MemoryVariable if th.alloc == VariableAllocationMethod.Auto => Some(th.name)
-            case th: MemoryVariable if th.alloc == VariableAllocationMethod.Zeropage => Some(th.name) // TODO: ???
-            case _ => None
+          other.environment.things.values.foreach {
+            case th: MemoryVariable if th.alloc == VariableAllocationMethod.Auto =>
+              foreignVariables += th.name
+            case th: MemoryVariable if th.alloc == VariableAllocationMethod.Zeropage =>
+              foreignVariables += th.name // TODO: ???
+            case _ =>
           }
           if (other.returnType.size > Cpu.getMaxSizeReturnableViaRegisters(optimizationContext.options.platform.cpu, optimizationContext.options)) {
-            other.name + ".return" :: (params ++ locals)
-          } else {
-            params ++ locals
+            foreignVariables += other.name + ".return"
           }
         }
-      case _ => Nil
-    }.toSet
-    val stillReadOrStoredVariables = code.flatMap {
-      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
-      case AssemblyLine0(_, _, CompoundConstant(_, MemoryAddressConstant(th), _)) => Some(th.name)
-      case AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
-      case _ => None
-    }.toSet
-    val stillReadVariables = code.flatMap {
+      case _ =>
+    }
+    val stillReadOrStoredVariables = mutable.Set[String]()
+    code.foreach {
+      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => stillReadOrStoredVariables += th.name
+      case AssemblyLine0(_, _, CompoundConstant(_, MemoryAddressConstant(th), _)) => stillReadOrStoredVariables += th.name
+      case AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)) => stillReadOrStoredVariables += th.name
+      case _ =>
+    }
+    val stillReadVariables = mutable.Set[String]()
+    code.foreach {
       case AssemblyLine(op, am, MemoryAddressConstant(th), Elidability.Elidable, _)
-        if storeInstructions(op) && storeAddrModes(am) => Nil
+        if storeInstructions(op) && storeAddrModes(am) =>
       case AssemblyLine(op, am, CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th), NumericConstant(_, _)), Elidability.Elidable, _)
-        if storeInstructions(op) && storeAddrModes(am) => Nil
-      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
-      case AssemblyLine0(_, _, CompoundConstant(_, MemoryAddressConstant(th), _)) => Some(th.name)
-      case AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
-      case _ => None
-    }.toSet
+        if storeInstructions(op) && storeAddrModes(am) =>
+      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => stillReadVariables += th.name
+      case AssemblyLine0(_, _, CompoundConstant(_, MemoryAddressConstant(th), _)) => stillReadVariables += th.name
+      case AssemblyLine0(_, Immediate, SubbyteConstant(MemoryAddressConstant(th), _)) => stillReadVariables += th.name
+      case _ =>
+    }
 
     val unusedForeignVariables = (foreignVariables & stillReadOrStoredVariables) -- stillReadVariables
     if (unusedForeignVariables.isEmpty) {

@@ -9,6 +9,7 @@ import millfork.env._
 import millfork.error.Logger
 import millfork.node.MosNiceFunctionProperty
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.control.TailCalls.{TailRec, done, tailcall}
 
@@ -147,24 +148,26 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
         // assembly functions do not get this optimization
         return code
     }
-    val stillUsedVariables = code.flatMap {
-      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => Some(th.name)
+    val stillUsedVariables = mutable.Set[String]()
+    val variablesWithAddressesTaken = mutable.Set[String]()
+    code.foreach {
+      case AssemblyLine0(_, _, MemoryAddressConstant(th)) => stillUsedVariables += th.name
+      case AssemblyLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)) => variablesWithAddressesTaken += th.name
       case _ => None
-    }.toSet
-    val variablesWithAddressesTaken = code.flatMap {
-      case AssemblyLine0(_, _, SubbyteConstant(MemoryAddressConstant(th), _)) => Some(th.name)
-      case _ => None
-    }.toSet
-    val localVariables = f.environment.getAllLocalVariables.filter {
-      case v@MemoryVariable(name, typ, VariableAllocationMethod.Auto | VariableAllocationMethod.Register) =>
-        typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name) && !v.isVolatile
+    }
+    val localVariables = mutable.Set[Variable]()
+    val variablesWithRegisterHint = mutable.Set[String]()
+
+    f.environment.getAllLocalVariables.foreach {
+      case v@MemoryVariable(name, typ, alloc@(VariableAllocationMethod.Auto | VariableAllocationMethod.Register)) =>
+       if (typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name) && !v.isVolatile){
+         localVariables += v
+         if (alloc == VariableAllocationMethod.Register) {
+           variablesWithRegisterHint += v.name
+         }
+       }
       case _ => false
     }
-    val variablesWithRegisterHint = f.environment.getAllLocalVariables.filter {
-      case v@MemoryVariable(name, typ, VariableAllocationMethod.Register) =>
-        typ.size == 1 && !paramVariables(name) && stillUsedVariables(name) && !variablesWithAddressesTaken(name) && !v.isVolatile
-      case _ => false
-    }.map(_.name).toSet
 
     val variablesWithLifetimes = localVariables.map(v =>
       v.name -> VariableLifetime.apply(v.name, code)
@@ -187,10 +190,12 @@ object VariableToRegisterOptimization extends AssemblyOptimization[AssemblyLine]
       log = log
     )
 
-    val labelsUsedOnce: Set[String] = code.flatMap {
-      case AssemblyLine0(op, _, MemoryAddressConstant(Label(l))) if op != Opcode.LABEL => Some(l)
-      case _ => None
-    }.groupBy(identity).filter(_._2.size == 1).keySet
+    val tmpUsedLabelList = mutable.ListBuffer[String]()
+    code.foreach{
+      case AssemblyLine0(op, _, MemoryAddressConstant(Label(l))) if op != Opcode.LABEL => tmpUsedLabelList += l
+      case _ =>
+    }
+    val labelsUsedOnce: Set[String] = tmpUsedLabelList.groupBy(identity).filter(_._2.size == 1).keySet
 
     val featuresForAcc = FeaturesForAccumulator(
       cmos = options.flag(CompilationFlag.EmitCmosOpcodes),
