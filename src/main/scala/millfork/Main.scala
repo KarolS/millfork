@@ -499,7 +499,7 @@ object Main {
       } else {
         errorReporting.fatal("Invalid syntax for -D option")
       }
-    }.description("Define a feature value for the preprocessor.")
+    }.description("Define a feature value for the preprocessor.").maxCount(Integer.MAX_VALUE)
 
     boolean("-finput_intel_syntax", "-finput_zilog_syntax").repeatable().action((c,v) =>
       c.changeFlag(CompilationFlag.UseIntelSyntaxForInput, v)
