@@ -167,4 +167,22 @@ class ReturnDispatchSuite extends FunSuite with Matchers {
         | void success() {}
       """.stripMargin)
   }
+  test("Optimization test") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Motorola6809)(
+      """
+        | byte output @$c000
+        | void main () {
+        |   if true {
+        |     return [1] {
+        |       1 @ success
+        |     }
+        |   }
+        | }
+        | void success() {
+        |   output = 42
+        | }
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(42)
+    }
+  }
 }
