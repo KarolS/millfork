@@ -722,7 +722,7 @@ case class StandardReturnDispatchLabel(labels:List[Expression]) extends ReturnDi
 }
 
 case class ReturnDispatchBranch(label: ReturnDispatchLabel, function: Expression, params: List[Expression]) extends Node {
-  def getAllExpressions: List[Expression] = label.getAllExpressions ++ params
+  def getAllExpressions: List[Expression] = label.getAllExpressions ++ params :+ function
 }
 
 case class ReturnDispatchStatement(indexer: Expression, params: List[LhsExpression], branches: List[ReturnDispatchBranch]) extends ExecutableStatement {
