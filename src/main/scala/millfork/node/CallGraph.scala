@@ -48,7 +48,7 @@ abstract class CallGraph(program: Program, log: Logger) {
       case f: FunctionDeclarationStatement =>
         allFunctions += f.name
         allFunctions += f.name + ".trampoline" // TODO: ???
-        if (f.address.isDefined || f.interrupt) entryPoints += f.name
+        if (f.address.isDefined || f.interrupt || f.kernalInterrupt) entryPoints += f.name
         f.statements.getOrElse(Nil).foreach(s => this.add(Some(f.name), Nil, s))
       case s: Statement =>
         s.getAllExpressions.foreach(e => add(currentFunction, callingFunctions, e))
