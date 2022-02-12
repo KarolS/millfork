@@ -15,7 +15,7 @@ object DangerousOptimizations {
     // TODO: try to guess when overflow can happen
     needsFlowInfo = FlowInfoRequirement.BothFlows,
     (Elidable & HasOpcode(CLC)).? ~
-      (Elidable & HasClear(State.C) & HasOpcode(ADC) & MatchImmediate(0) & DoesntMatterWhatItDoesWith(State.V, State.C)) ~
+      (Elidable & HasClear(State.C) & HasClear(State.D) & HasOpcode(ADC) & MatchImmediate(0) & DoesntMatterWhatItDoesWith(State.V, State.C)) ~
       (
         (HasOpcode(TAY) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.A)) ~
         (Linear & Not(ConcernsY)).*
@@ -25,7 +25,7 @@ object DangerousOptimizations {
       ctx.get[List[AssemblyLine]](1) :+ last.copy(parameter = last.parameter.+(ctx.get[Constant](0)).quickSimplify)
     },
     (Elidable & HasOpcode(CLC)).? ~
-      (Elidable & HasClear(State.C) & HasOpcode(ADC) & MatchImmediate(0) & DoesntMatterWhatItDoesWith(State.V, State.C)) ~
+      (Elidable & HasClear(State.C) & HasClear(State.D) & HasOpcode(ADC) & MatchImmediate(0) & DoesntMatterWhatItDoesWith(State.V, State.C)) ~
       (
         (HasOpcode(TAX) & DoesntMatterWhatItDoesWith(State.N, State.Z, State.A)) ~
         (Linear & Not(ConcernsX)).*
