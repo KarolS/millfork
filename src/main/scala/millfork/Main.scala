@@ -662,7 +662,7 @@ object Main {
       c.changeFlag(CompilationFlag.CompactReturnDispatchParams, v)
     }.description("Whether parameter values in return dispatch statements may overlap other objects. Enabled by default.")
     boolean("-fbounds-checking", "-fno-bounds-checking").action { (c, v) =>
-      c.changeFlag(CompilationFlag.VariableOverlap, v)
+      c.changeFlag(CompilationFlag.CheckIndexOutOfBounds, v)
     }.description("Whether should insert bounds checking on array access.")
     boolean("-flenient-encoding", "-fno-lenient-encoding").action { (c, v) =>
       c.changeFlag(CompilationFlag.LenientTextEncoding, v)
