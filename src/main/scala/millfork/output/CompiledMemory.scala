@@ -51,6 +51,7 @@ class MemoryBank(val index: Int, val isBigEndian: Boolean) {
 
   def readWord(addrHi: Int, addrLo: Int): Int = readByte(addrLo) + (readByte(addrHi) << 8)
 
+  // TODO: use new:
   val output: Array[Byte] = Array.fill[Byte](1 << 16)(0)
   val occupied: Array[Boolean] = Array.fill(1 << 16)(false)
   val initialized: Array[Boolean] = Array.fill(1 << 16)(false)

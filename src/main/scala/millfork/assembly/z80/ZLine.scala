@@ -953,7 +953,7 @@ case class ZLine(opcode: ZOpcode.Value, registers: ZRegisters, parameter: Consta
     if (result.contains("???")) s"    ??? (${this.toString.stripPrefix("    ")})" else result
   }
 
-  def readsRegister(r: ZRegister.Value): Boolean = {
+  def readsRegister(r: ZRegister.Value): Boolean = { // TODO: optimize
     import ZOpcode._
     import ZRegister._
     r match {
