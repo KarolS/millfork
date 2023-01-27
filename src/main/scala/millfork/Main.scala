@@ -175,7 +175,7 @@ object Main {
             f"${path.getFileName}%s ${start}%04X ${start}%04X ${codeLength}%04X".getBytes(StandardCharsets.UTF_8))
         }
     }
-    errorReporting.debug(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
+    errorReporting.info(s"Total time: ${Math.round((System.nanoTime() - startTime)/1e6)} ms")
     c.runFileName.foreach{ program =>
       if (File.separatorChar == '\\') {
         if (!new File(program).exists() && !new File(program + ".exe").exists()) {
@@ -293,6 +293,7 @@ object Main {
           if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.All else Nil,
           if (options.flag(CompilationFlag.EmitEmulation65816Opcodes)) SixteenOptimizations.AllForEmulation else Nil,
           if (options.flag(CompilationFlag.EmitNative65816Opcodes)) SixteenOptimizations.AllForNative else Nil,
+          if (options.flag(CompilationFlag.IdentityPage)) IdentityPageOptimizations.All else Nil,
           if (options.flag(CompilationFlag.DangerousOptimizations)) DangerousOptimizations.All else Nil
         ).flatten
         val goodCycle = List.fill(optLevel - 2)(OptimizationPresets.Good ++ goodExtras).flatten
@@ -757,6 +758,9 @@ object Main {
     boolean("-fregister-variables", "-fno-register-variables").action { (c, v) =>
       c.changeFlag(CompilationFlag.RegisterVariables, v)
     }.description("Allow moving local variables into CPU registers. Enabled by default.")
+    boolean("-fidentity-page", "-fno-identity-page").action { (c, v) =>
+      c.changeFlag(CompilationFlag.IdentityPage, v)
+    }.description("Whether should use an identity page to optimize certain operations.")
     flag("-Os", "--size").repeatable().action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, true).
         changeFlag(CompilationFlag.OptimizeForSpeed, false).
@@ -769,6 +773,7 @@ object Main {
     }.description("Prefer faster code even if it is slightly bigger (experimental). Implies -finline.")
     flag("-Ob", "--blast-processing").repeatable().action { c =>
       c.changeFlag(CompilationFlag.OptimizeForSize, false).
+        changeFlag(CompilationFlag.IdentityPage, true).
         changeFlag(CompilationFlag.OptimizeForSpeed, true).
         changeFlag(CompilationFlag.OptimizeForSonicSpeed, true)
     }.description("Prefer faster code even if it is much bigger (experimental). Implies -finline.")
