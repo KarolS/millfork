@@ -35,4 +35,6 @@ object UnusedLabelRemoval extends AssemblyOptimization[AssemblyLine] {
   }
 
   override def name = "Unused label removal"
+
+  override def minimumRequiredLines: Int = 2
 }

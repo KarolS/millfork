@@ -16,6 +16,8 @@ object UseAccumulatorInsteadOfXRegister extends UseAccumulatorInsteadOfIndexRegi
 class UseAccumulatorInsteadOfIndexRegister(doY: Boolean) extends AssemblyOptimization[AssemblyLine] {
   override def name: String = if (doY) "Use accumulator instead of the Y register" else "Use accumulator instead of the X register"
 
+  override def minimumRequiredLines: Int = 2
+
   override def optimize(f: NormalFunction, code: List[AssemblyLine], context: OptimizationContext): List[AssemblyLine] = {
     val log = context.log
     if (f.params.length == 1) return code

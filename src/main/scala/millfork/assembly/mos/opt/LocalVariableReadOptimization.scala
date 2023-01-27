@@ -17,6 +17,8 @@ object LocalVariableReadOptimization extends AssemblyOptimization[AssemblyLine] 
 
   override def name: String = "Local variable read optimization"
 
+  override def minimumRequiredLines: Int = 2
+
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
 
     val stillUsedVariables = code.flatMap {

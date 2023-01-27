@@ -17,6 +17,8 @@ object ByteVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
 
   override def name = "Allocating variables to single registers"
 
+  override def minimumRequiredLines: Int = 3
+
   object CyclesAndBytes {
     val Zero = CyclesAndBytes(0, 0)
   }

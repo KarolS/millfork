@@ -12,6 +12,8 @@ import millfork.node.ZRegister
 object CompactStackFrame extends AssemblyOptimization[ZLine] {
   override def name: String = "Compacting the stack frame"
 
+  override def minimumRequiredLines: Int = 9
+
   override def optimize(f: NormalFunction, code: List[ZLine], context: OptimizationContext): List[ZLine] = {
     val register =
       if (context.options.flag(CompilationFlag.UseIxForStack)) ZRegister.IX

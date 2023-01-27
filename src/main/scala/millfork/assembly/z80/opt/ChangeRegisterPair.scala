@@ -17,6 +17,8 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
 
   import millfork.node.ZRegister._
 
+  override def minimumRequiredLines: Int = 3
+
   case class Loaded(b: Boolean = false, c: Boolean = false, d: Boolean = false, e: Boolean = false) {
     def load(register: ZRegister.Value): Loaded = register match {
       case B => copy(b = true, d = false, e = false)

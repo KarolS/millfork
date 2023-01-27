@@ -16,6 +16,8 @@ import scala.collection.{immutable, mutable}
 object EmptyMemoryStoreRemoval extends AssemblyOptimization[AssemblyLine] {
   override def name = "Removing pointless stores to automatic variables"
 
+  override def minimumRequiredLines: Int = 2
+
   private val storeAddrModes = Set(Absolute, ZeroPage, AbsoluteX, AbsoluteY, ZeroPageX, ZeroPageY)
   private val directStorageOpcodes = Set(
     STA, STX, STY, SAX, STZ, SHX, SHY, AHX,

@@ -14,6 +14,8 @@ import scala.collection.mutable
   */
 object SuperOptimizer extends AssemblyOptimization[AssemblyLine] {
 
+  override def minimumRequiredLines: Int = 2
+
   override def optimize(m: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
     val options = optimizationContext.options
     val log = optimizationContext.log

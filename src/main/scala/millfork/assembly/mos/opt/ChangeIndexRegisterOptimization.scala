@@ -35,6 +35,8 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
 
   override def name = "Changing index registers"
 
+  override def minimumRequiredLines: Int = 2
+
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
 
     val addressingModesUsingX = Set(AbsoluteX, ZeroPageX, IndexedX)

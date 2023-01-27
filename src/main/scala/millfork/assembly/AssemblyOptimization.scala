@@ -25,4 +25,6 @@ trait AssemblyOptimization[T <: AbstractCode] {
   def optimize(f: NormalFunction, code: List[T], context: OptimizationContext): List[T]
 
   def requiredFlags: Set[CompilationFlag.Value] = Set.empty
+
+  def minimumRequiredLines: Int
 }

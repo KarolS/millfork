@@ -12,6 +12,8 @@ import millfork.env._
 object EmptyParameterStoreRemoval extends AssemblyOptimization[ZLine] {
   override def name = "Removing pointless stores to foreign variables"
 
+  override def minimumRequiredLines: Int = 2
+
   override def optimize(f: NormalFunction, code: List[ZLine], optimizationContext: OptimizationContext): List[ZLine] = {
     val usedFunctions = code.flatMap {
       case ZLine0(CALL | JP | JR, _, MemoryAddressConstant(th)) => Some(th.name)

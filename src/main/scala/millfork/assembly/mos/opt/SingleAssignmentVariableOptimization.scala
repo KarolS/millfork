@@ -15,6 +15,8 @@ import scala.collection.mutable.ListBuffer
   */
 object SingleAssignmentVariableOptimization extends AssemblyOptimization[AssemblyLine] {
 
+  override def minimumRequiredLines: Int = 2
+
   private val BadOpcodes = Set(RTS, JSR, JMP, RTI)
   private val GoodOpcodes = Set(
     LDA, LDX, LAX, LDY, EOR, AND, ORA, ADC, SBC, CMP, CPX, CPY, BIT,

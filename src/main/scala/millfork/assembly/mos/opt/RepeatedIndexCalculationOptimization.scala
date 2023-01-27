@@ -18,6 +18,8 @@ import scala.util.control.TailCalls.tailcall
 case class RepeatedIndexCalculationOptimization(forX: Boolean) extends AssemblyOptimization[AssemblyLine] {
   override def name: String = "Repeated index calculation into " + (if (forX) "X" else "Y")
 
+  override def minimumRequiredLines: Int = 4
+
   override def optimize(f: NormalFunction, code: List[AssemblyLine], context: OptimizationContext): List[AssemblyLine] = {
     val log = context.log
     val allRuns = findAllRuns(code, 0, None).result

@@ -19,6 +19,8 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
 
   override def name = "Allocating variables to register pairs"
 
+  override def minimumRequiredLines: Int = 3
+
   object CyclesAndBytes {
     val Zero = CyclesAndBytes(0, 0)
   }

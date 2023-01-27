@@ -16,6 +16,8 @@ import scala.collection.mutable
 object EmptyParameterStoreRemoval extends AssemblyOptimization[AssemblyLine] {
   override def name = "Removing pointless stores to foreign variables"
 
+  override def minimumRequiredLines: Int = 2
+
   private val storeInstructions = Set(STA, STX, STY, SAX, STZ, STA_W, STX_W, STY_W, STZ_W)
   private val storeAddrModes = Set(Absolute, ZeroPage, AbsoluteX, AbsoluteY, ZeroPageX, ZeroPageY, LongAbsolute, LongAbsoluteX)
 

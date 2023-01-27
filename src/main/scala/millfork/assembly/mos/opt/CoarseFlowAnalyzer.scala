@@ -56,7 +56,8 @@ object CoarseFlowAnalyzer {
       changed = false
       var currentStatus: CpuStatus = functionStartStatus
       var staSpWasLast = false
-      for (i <- codeArray.indices) {
+      var i = 0
+      while (i < codeArray.length) {
         import millfork.assembly.mos.Opcode._
         import millfork.assembly.mos.AddrMode._
         import millfork.node.MosNiceFunctionProperty._
@@ -184,6 +185,7 @@ object CoarseFlowAnalyzer {
           }
         }
         tFlag = codeArray(i).opcode == SET
+        i += 1;
       }
 //                  flagArray.zip(codeArray).foreach{
 //                    case (fl, y) => if (y.isPrintable) println(f"$fl%-32s $y%-32s")

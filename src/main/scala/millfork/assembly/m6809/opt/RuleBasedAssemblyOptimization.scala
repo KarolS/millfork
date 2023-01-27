@@ -37,6 +37,8 @@ object FlowInfoRequirement extends Enumeration {
 
 trait AssemblyRuleSet{
   def flatten: Seq[AssemblyRule]
+
+  def minimumRequiredLines: Int
 }
 
 class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInfoRequirement.Value, val rules: AssemblyRuleSet*) extends AssemblyOptimization[MLine] {
@@ -45,6 +47,9 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
   actualRules.foreach(_.pattern.validate(needsFlowInfo))
   private val actualRulesWithIndex = actualRules.zipWithIndex
 
+  override val minimumRequiredLines: Int = rules.map(_.minimumRequiredLines).min
+
+  override def toString: String = name
 
   override def optimize(f: NormalFunction, code: List[MLine], optimizationContext: OptimizationContext): List[MLine] = {
     val taggedCode = FlowAnalyzer.analyze(f, code, optimizationContext, needsFlowInfo)
@@ -56,7 +61,11 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
     taggedCode match {
       case Nil => code
       case head :: tail =>
-        for ((rule, index) <- actualRulesWithIndex) {
+        val codeLength = code.length
+        for {
+          (rule, index) <- actualRulesWithIndex
+          if codeLength >= rule.minimumRequiredLines
+        } {
           val ctx = new AssemblyMatchingContext(
             optimizationContext.options,
             optimizationContext.labelMap,
@@ -218,10 +227,14 @@ class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
 
 case class AssemblyRule(pattern: AssemblyPattern, result: (List[MLine], AssemblyMatchingContext) => List[MLine]) extends AssemblyRuleSet {
   override def flatten: Seq[AssemblyRule] = List(this)
+
+  override def minimumRequiredLines: Int = pattern.minimumRequiredLines
 }
 
 case class MultipleAssemblyRules(list: Seq[AssemblyRuleSet]) extends AssemblyRuleSet {
   override def flatten: Seq[AssemblyRule] = list.flatMap(_.flatten)
+
+  override val minimumRequiredLines: Int = flatten.map(_.minimumRequiredLines).sum
 }
 
 trait AssemblyPattern {
@@ -241,6 +254,8 @@ trait AssemblyPattern {
   def capture(i: Int) = Capture(i, this)
 
   def captureLength(i: Int) = CaptureLength(i, this)
+
+  def minimumRequiredLines: Int
 
 }
 object HelperCheckers {
@@ -344,6 +359,8 @@ case class Capture(i: Int, pattern: AssemblyPattern) extends AssemblyPattern {
     }
 
   override def toString: String = s"(?<$i>$pattern)"
+
+  override def minimumRequiredLines: Int = 0
 }
 
 case class CaptureLength(i: Int, pattern: AssemblyPattern) extends AssemblyPattern {
@@ -356,6 +373,8 @@ case class CaptureLength(i: Int, pattern: AssemblyPattern) extends AssemblyPatte
     }
 
   override def toString: String = s"(?<$i>$pattern)"
+
+  override def minimumRequiredLines: Int = 0
 }
 
 
@@ -365,6 +384,8 @@ case class Where(predicate: AssemblyMatchingContext => Boolean) extends Assembly
   }
 
   override def toString: String = "Where(...)"
+
+  override def minimumRequiredLines: Int = 0
 }
 
 case class Concatenation(l: AssemblyPattern, r: AssemblyPattern) extends AssemblyPattern {
@@ -387,6 +408,8 @@ case class Concatenation(l: AssemblyPattern, r: AssemblyPattern) extends Assembl
     case (_: Both, _) => s"($l) · $r"
     case _ => s"$l · $r"
   }
+
+  override val minimumRequiredLines: Int = l.minimumRequiredLines + r.minimumRequiredLines
 }
 
 case class Many(rule: MLinePattern) extends AssemblyPattern {
@@ -412,6 +435,8 @@ case class Many(rule: MLinePattern) extends AssemblyPattern {
   }
 
   override def toString: String = s"[$rule]*"
+
+  override def minimumRequiredLines: Int = 0
 }
 
 case class ManyWhereAtLeastOne(rule: MLinePattern, atLeastOneIsThis: MLinePattern) extends AssemblyPattern {
@@ -446,6 +471,8 @@ case class ManyWhereAtLeastOne(rule: MLinePattern, atLeastOneIsThis: MLinePatter
   }
 
   override def toString: String = s"[∃$atLeastOneIsThis:$rule]*"
+
+  override def minimumRequiredLines: Int = 1
 }
 
 case class Opt(rule: MLinePattern) extends AssemblyPattern {
@@ -468,6 +495,8 @@ case class Opt(rule: MLinePattern) extends AssemblyPattern {
   }
 
   override def toString: String = s"[$rule]?"
+
+  override def minimumRequiredLines: Int = 0
 }
 
 trait MLinePattern extends AssemblyPattern {
@@ -495,6 +524,8 @@ trait MLinePattern extends AssemblyPattern {
     else Both(x, this)
 
   def hitRate: Double
+
+  override def minimumRequiredLines: Int = 1
 }
 
 //noinspection ScalaUnnecessaryParentheses
@@ -516,6 +547,8 @@ case class WhereNoMemoryAccessOverlapBetweenTwoLineLists(ix1: Int, ix2: Int) ext
     val s2s = ctx.get[List[MLine]](ix2)
     if (s1s.forall(s1 => s2s.forall(s2 => HelperCheckers.memoryAccessDoesntOverlap(s1, s2)))) Some(code) else None
   }
+
+  override def minimumRequiredLines: Int = 0
 }
 
 case class MatchA(i: Int) extends MLinePattern {
@@ -761,6 +794,8 @@ case object DebugMatching extends AssemblyPattern {
     code.foreach(println)
     Some(code)
   }
+
+  override def minimumRequiredLines: Int = 0
 }
 
 case object Linear extends MLinePattern {
@@ -1281,6 +1316,8 @@ case class MatchElidableCopyOf(i: Int, firstLinePattern: MLinePattern, lastLineP
     }
     Some(after)
   }
+
+  override def minimumRequiredLines: Int = 0
 }
 
 case object IsNotALabelUsedManyTimes extends MLinePattern {
