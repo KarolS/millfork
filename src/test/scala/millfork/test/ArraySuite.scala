@@ -714,4 +714,21 @@ class ArraySuite extends FunSuite with Matchers with AppendedClues {
       m.readByte(0x4008) should equal('9'.toInt)
     }
   }
+
+  test("Arrays of pointers") {
+    EmuUnoptimizedCrossPlatformRun(Cpu.Mos)(
+      """
+        |const array arr1 = [1, 2, 3]
+        |const array arr2 = [101, 102, 103]
+        |array(pointer) arrs = [ arr1, arr2 ]
+        |byte output @$c000
+        |void main() {
+        |  pointer p
+        |  p = arrs[1]
+        |  output = p[0]
+        |}
+      """.stripMargin) { m =>
+      m.readByte(0xc000) should equal(101)
+    }
+  }
 }

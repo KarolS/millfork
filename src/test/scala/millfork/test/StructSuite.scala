@@ -362,4 +362,28 @@ class StructSuite extends FunSuite with Matchers {
         | }
         |""".stripMargin){m => }
   }
+
+  test("Assigning struct fields via pointers") {
+    EmuCrossPlatformBenchmarkRun(Cpu.Mos, Cpu.Z80, Cpu.Intel8086, Cpu.Motorola6809)("""
+      struct STRUCT1 { word a }
+      struct STRUCT2 { word b }
+      pointer.STRUCT1 pS1
+      pointer.STRUCT2 pS2
+      STRUCT1 s1 @$c000
+      STRUCT2 s2
+
+      noinline void f() {
+        pS1->a = pS2->b
+      }
+
+      void main() {
+        s2.b = $405
+        pS1 = s1.pointer
+        pS2 = s2.pointer
+        f()
+      }
+      """){m =>
+      m.readWord(0xc000) should equal(0x405)
+    }
+  }
 }
