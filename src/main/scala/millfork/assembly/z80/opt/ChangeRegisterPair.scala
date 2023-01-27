@@ -174,6 +174,11 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
       case (x@ZLine0(_, TwoRegisters(r, BC), _)) :: xs =>
         x.copy(registers = TwoRegisters(r, DE)) :: switchBC2DE(xs)
 
+      case (x@ZLine0(_, TwoRegisters(MEM_BC, r), _)) :: xs =>
+        x.copy(registers = TwoRegisters(MEM_DE, r)) :: switchBC2DE(xs)
+      case (x@ZLine0(_, TwoRegisters(r, MEM_BC), _)) :: xs =>
+        x.copy(registers = TwoRegisters(r, MEM_DE)) :: switchBC2DE(xs)
+
       case (x@ZLine0(_, TwoRegisters(B, r), _)) :: xs =>
         x.copy(registers = TwoRegisters(D, r)) :: switchBC2DE(xs)
       case (x@ZLine0(_, TwoRegisters(r, B), _)) :: xs =>
@@ -221,6 +226,11 @@ class ChangeRegisterPair(preferBC2DE: Boolean) extends AssemblyOptimization[ZLin
         x.copy(registers = TwoRegisters(BC, r)) :: switchDE2BC(xs)
       case (x@ZLine0(_, TwoRegisters(r, DE), _)) :: xs =>
         x.copy(registers = TwoRegisters(r, BC)) :: switchDE2BC(xs)
+
+      case (x@ZLine0(_, TwoRegisters(MEM_DE, r), _)) :: xs =>
+        x.copy(registers = TwoRegisters(MEM_BC, r)) :: switchDE2BC(xs)
+      case (x@ZLine0(_, TwoRegisters(r, MEM_DE), _)) :: xs =>
+        x.copy(registers = TwoRegisters(r, MEM_BC)) :: switchDE2BC(xs)
 
       case (x@ZLine0(_, TwoRegisters(D, r), _)) :: xs =>
         x.copy(registers = TwoRegisters(B, r)) :: switchDE2BC(xs)
