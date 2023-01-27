@@ -565,7 +565,7 @@ object WordVariableToRegisterOptimization extends AssemblyOptimization[ZLine] {
         } else if (de != "") {
           tailcall(inlineVars(hl, bc, de, xs)).map(ZLine.register(PUSH, DE).pos(s) :: x :: ZLine.register(POP, DE).pos(s) :: _)
         } else {
-          throw new IllegalStateException()
+          tailcall(inlineVars(hl, bc, de, xs)).map(x :: _)
         }
 
 

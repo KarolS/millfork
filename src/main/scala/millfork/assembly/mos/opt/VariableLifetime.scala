@@ -1,6 +1,6 @@
 package millfork.assembly.mos.opt
 
-import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, OpcodeClasses, State}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, OpcodeClasses, State}
 import millfork.env._
 import millfork.error.ConsoleLogger
 import millfork.node.NiceFunctionProperty
@@ -12,10 +12,10 @@ object VariableLifetime {
 
   // This only works for non-stack variables.
   def apply(variableName: String, code: List[AssemblyLine], expandToIncludeIndexing: Boolean = false, expandToIncludeUsesOfLoadedIndices: Option[Set[(NiceFunctionProperty, String)]] = None): Range = {
-    val flags = code.map(_.parameter match {
+    val flags = code.map(line => line.parameter match {
       case MemoryAddressConstant(MemoryVariable(n, _, _)) if n == variableName => true
       case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(MemoryVariable(n, _, _)), NumericConstant(_, 1)) if n == variableName => true
-      case _ => false
+      case p => line.addrMode == AddrMode.IndexedX && p.refersTo(variableName)
     })
     if (flags.forall(!_)) return Range(0, 0)
     var min = flags.indexOf(true)

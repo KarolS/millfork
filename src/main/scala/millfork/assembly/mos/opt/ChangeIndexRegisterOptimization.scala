@@ -1,10 +1,11 @@
 package millfork.assembly.mos.opt
 
-import millfork.assembly.mos.{AssemblyLine, AssemblyLine0, OpcodeClasses}
+import millfork.assembly.mos.{AddrMode, AssemblyLine, AssemblyLine0, OpcodeClasses}
 import millfork.assembly.{AssemblyOptimization, Elidability, OptimizationContext}
 import millfork.env.NormalFunction
 import millfork.error.Logger
 
+import scala.annotation.tailrec
 import scala.util.control.TailCalls.{TailRec, done, tailcall}
 
 /**
@@ -35,19 +36,19 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
   override def name = "Changing index registers"
 
   override def optimize(f: NormalFunction, code: List[AssemblyLine], optimizationContext: OptimizationContext): List[AssemblyLine] = {
+
+    val addressingModesUsingX = Set(AbsoluteX, ZeroPageX, IndexedX)
+    val addressingModesUsingY = Set(AbsoluteY, ZeroPageY, IndexedY, LongIndexedY, IndexedSY)
     val usesX = code.exists(l =>
       OpcodeClasses.ReadsXAlways(l.opcode) ||
-        OpcodeClasses.ReadsYAlways(l.opcode) ||
         OpcodeClasses.ChangesX(l.opcode) ||
-        OpcodeClasses.ChangesY(l.opcode) ||
-        Set(AbsoluteX, AbsoluteY, ZeroPageY, ZeroPageX, IndexedX, IndexedY, LongIndexedY, IndexedSY)(l.addrMode)
+        addressingModesUsingX(l.addrMode)
     )
-    val usesY = code.exists(l =>
-      OpcodeClasses.ReadsXAlways(l.opcode) ||
-        OpcodeClasses.ReadsYAlways(l.opcode) ||
-        OpcodeClasses.ChangesX(l.opcode) ||
+    val usesY = code.exists(l => {
+      OpcodeClasses.ReadsYAlways(l.opcode) ||
         OpcodeClasses.ChangesY(l.opcode) ||
-        Set(AbsoluteX, AbsoluteY, ZeroPageY, ZeroPageX, IndexedX, IndexedY, LongIndexedY, IndexedSY)(l.addrMode)
+        addressingModesUsingY(l.addrMode)
+    }
     )
     if (!usesX && !usesY) {
       return code
@@ -101,21 +102,25 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
   }
 
   //noinspection OptionEqualsSome
-  private def canOptimize(code: List[AssemblyLine], dir: IndexDirection, loaded: Option[IndexReg]): Boolean = code match {
+  @tailrec
+  private def canOptimize(code: List[AssemblyLine], dir: IndexDirection, loaded: Option[IndexReg]): Boolean = {
+    val notX = loaded != Some(X)
+    val notY = loaded != Some(Y)
+    code match {
 
     case AssemblyLine0(INC | DEC | ASL | ROL | ROR | LSR | STZ | LDZ | BIT, AbsoluteX | ZeroPageX, _) :: xs if dir == X2Y => false
     case AssemblyLine0(LDY | STY, AbsoluteX | ZeroPageX, _) :: xs => false
     case AssemblyLine0(LDX | STX, AbsoluteY | ZeroPageY, _) :: xs => false
 
-    case AssemblyLine0(_, AbsoluteY, _) :: xs if loaded != Some(Y) => false
-    case AssemblyLine0(_, ZeroPageY, _) :: xs if loaded != Some(Y) => false
-    case AssemblyLine0(_, IndexedY, _) :: xs if dir == Y2X || loaded != Some(Y) => false
-    case AssemblyLine0(_, LongIndexedY, _) :: xs if dir == Y2X || loaded != Some(Y) => false
-    case AssemblyLine0(_, IndexedSY, _) :: xs if dir == Y2X || loaded != Some(Y) => false
-    case AssemblyLine0(_, AbsoluteX, _) :: xs if loaded != Some(X) => false
-    case AssemblyLine0(_, LongAbsoluteX, _) :: xs if loaded != Some(X) => false
-    case AssemblyLine0(_, ZeroPageX, _) :: xs if loaded != Some(X) => false
-    case AssemblyLine0(_, IndexedX, _) :: xs if dir == X2Y || loaded != Some(X) => false
+    case AssemblyLine0(_, AbsoluteY, _) :: xs if notY => false
+    case AssemblyLine0(_, ZeroPageY, _) :: xs if notY => false
+    case AssemblyLine0(_, IndexedY, _) :: xs if dir == Y2X || notY => false
+    case AssemblyLine0(_, LongIndexedY, _) :: xs if dir == Y2X || notY => false
+    case AssemblyLine0(_, IndexedSY, _) :: xs if dir == Y2X || notY => false
+    case AssemblyLine0(_, AbsoluteX, _) :: xs if notX => false
+    case AssemblyLine0(_, LongAbsoluteX, _) :: xs if notX => false
+    case AssemblyLine0(_, ZeroPageX, _) :: xs if notX => false
+    case AssemblyLine0(_, IndexedX | ImmediateWithAbsoluteX | ImmediateWithZeroPageX, _) :: xs if dir == X2Y || notX => false
     case AssemblyLine0(_, AbsoluteIndexedX, _) :: xs if dir == X2Y => false
     case AssemblyLine0(SHX | SHY | AHX | TAS | LAS, _, _) :: xs => false
     case AssemblyLine(TXY, _, _, e, _) :: xs => (e == Elidability.Elidable || e == Elidability.Volatile) && loaded == Some(X) && canOptimize(xs, dir, Some(Y))
@@ -155,11 +160,12 @@ class ChangeIndexRegisterOptimization(preferX2Y: Boolean) extends AssemblyOptimi
       (e == Elidability.Elidable || e == Elidability.Volatile || dir == X2Y) && loaded == Some(Y) && canOptimize(xs, dir, Some(Y))
 
     case AssemblyLine0(SAX | TXS | SBX, _, _) :: xs => dir == Y2X && loaded == Some(X) && canOptimize(xs, dir, Some(X))
-    case AssemblyLine0(TSX, _, _) :: xs => dir == Y2X && loaded != Some(Y) && canOptimize(xs, dir, Some(X))
+    case AssemblyLine0(TSX, _, _) :: xs => dir == Y2X && notY && canOptimize(xs, dir, Some(X))
 
     case _ :: xs => canOptimize(xs, dir, loaded)
 
     case Nil => true
+    }
   }
 
   private def switchX2Y(code: List[AssemblyLine])(implicit log: Logger): TailRec[List[AssemblyLine]] = code match {

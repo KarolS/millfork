@@ -245,11 +245,11 @@ object HelperCheckers {
       case LD | LD_16 | ADD_16 | ADC_16 | SBC_16 => l.registers match {
         case TwoRegisters(MEM_HL | MEM_IX_D | MEM_IY_D | MEM_BC | MEM_DE, _) => true
         case TwoRegisters(_, MEM_HL | MEM_IX_D | MEM_IY_D | MEM_BC | MEM_DE) => true
-        case TwoRegisters(_, _) => false
+        case _ => false
       }
       case ADD | SUB | SBC | ADC | XOR | CP | OR | AND => l.registers match {
         case OneRegister(MEM_HL | MEM_IX_D | MEM_IY_D | MEM_BC | MEM_DE) => true
-        case OneRegister(_) => false
+        case _ => false
       }
       case CHANGED_MEM => true
       case POP | PUSH => false

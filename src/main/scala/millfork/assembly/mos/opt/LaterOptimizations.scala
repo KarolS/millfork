@@ -145,8 +145,8 @@ object LaterOptimizations {
   //noinspection ZeroIndexToHead
   private def InterleavedLoads(load: Opcode.Value, store: Opcode.Value) = {
     (Elidable & HasOpcode(load) & MatchAddrMode(0) & MatchParameter(1)).capture(12) ~
-      (Elidable & HasOpcode(store)).+.capture(10) ~
-      (Elidable & HasOpcode(load) & MatchAddrMode(2) & MatchParameter(3) & DoesNotConcernMemoryAt(0, 1)).capture(13) ~
+      (Elidable & HasOpcode(store) & MatchAddrMode(20) & MatchParameter(21)).+.capture(10) ~
+      (Elidable & HasOpcode(load) & MatchAddrMode(2) & MatchParameter(3) & DoesNotConcernMemoryAt(0, 1) & DoesNotConcernMemoryAt(20, 21)).capture(13) ~
       (Elidable & HasOpcode(store) & DoesNotConcernMemoryAt(0, 1) & DoesNotConcernMemoryAt(2, 3)).+.capture(11) ~
       (Elidable & HasOpcode(load) & MatchAddrMode(0) & MatchParameter(1)) ~
       WhereNoMemoryAccessOverlapBetweenTwoLineLists(10, 11) ~~> { (_, ctx) =>
