@@ -241,7 +241,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
             }
         }
         val registers = (reg, offset) match {
-          case (OneRegister(r), Some(o)) => env.evalForAsm(expression) match {
+          case (OneRegister(r), Some(o)) => env.evalForAsm(o) match {
             case Some(NumericConstant(v, _)) => OneRegisterOffset(r, v.toInt)
             case Some(_) =>
               ctx.log.error("Non-numeric constant", o.position)
@@ -250,7 +250,7 @@ object Z80StatementCompiler extends AbstractStatementCompiler[ZLine] {
               ctx.log.error("Inlining failed due to non-constant things", o.position)
               reg
           }
-          case (TwoRegisters(t, s), Some(o)) => env.evalForAsm(expression) match {
+          case (TwoRegisters(t, s), Some(o)) => env.evalForAsm(o) match {
             case Some(NumericConstant(v, _)) => TwoRegistersOffset(t, s, v.toInt)
             case Some(_) =>
               ctx.log.error("Non-numeric constant", o.position)

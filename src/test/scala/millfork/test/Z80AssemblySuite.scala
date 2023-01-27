@@ -728,9 +728,9 @@ class Z80AssemblySuite extends FunSuite with Matchers {
       """
         | asm void main () {
         |   ret
-        |   add a,ix(0)
-        |   adc a,ix(0)
-        |   sub ix(0)
+        |   add a,ix(1)
+        |   adc a,ix(2)
+        |   sub ix(3)
         |   sbc a,ix(0)
         |   and ix(0)
         |   xor ix(0)
@@ -760,8 +760,8 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   ex (sp),ix
         |   jp (ix)
         |   ld sp,ix
-        |   ld a,ix(0)
-        |   ld ix(0),a
+        |   ld a,ix(2)
+        |   ld ix(2),a
         |
         |   ret
         | }
@@ -773,9 +773,9 @@ class Z80AssemblySuite extends FunSuite with Matchers {
       """
         | asm void main () {
         |   ret
-        |   add a,iy(0)
-        |   adc a,iy(0)
-        |   sub iy(0)
+        |   add a,iy(1)
+        |   adc a,iy(2)
+        |   sub iy(3)
         |   sbc a,iy(0)
         |   and iy(0)
         |   xor iy(0)
@@ -805,8 +805,8 @@ class Z80AssemblySuite extends FunSuite with Matchers {
         |   ex (sp),iy
         |   jp (iy)
         |   ld sp,iy
-        |   ld a,iy(0)
-        |   ld iy(0),a
+        |   ld a,iy(2)
+        |   ld iy(2),a
         |
         |   ret
         | }
