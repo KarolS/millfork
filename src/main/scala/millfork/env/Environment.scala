@@ -393,6 +393,9 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
       }
   }
 
+  @inline
+  final def identityPage: Constant = maybeGet[MfArray]("identity$").fold(Constant.Zero)(_.toAddress)
+
   def getPointy(name: String): Pointy = {
     InitializedMemoryVariable
     UninitializedMemoryVariable
@@ -2618,7 +2621,7 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
   def collectDeclarations(program: Program, options: CompilationOptions): Unit = {
     val b = get[VariableType]("byte")
     val v = get[Type]("void")
-    if (options.flag(CompilationFlag.OptimizeForSonicSpeed)) {
+    if (options.flag(CompilationFlag.IdentityPage)) {
       addThing(InitializedArray("identity$", None, IndexedSeq.tabulate(256)(n => LiteralExpression(n, 1)), declaredBank = None, b, b, readOnly = true, Set.empty, defaultArrayAlignment(options, 256)), None)
     }
     program.declarations.foreach {

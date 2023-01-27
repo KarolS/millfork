@@ -995,16 +995,10 @@ object AlwaysGoodOptimizations {
 
   val ConstantFlowAnalysis = new RuleBasedAssemblyOptimization("Constant flow analysis",
     needsFlowInfo = FlowInfoRequirement.ForwardFlow,
-    (MatchX(0) & HasAddrMode(AbsoluteX) & SupportsAbsolute & Elidable & HasParameterWhere({
-      case MemoryAddressConstant(th) => th.name == "identity$"
-      case _ => false
-    })) ~~> { (code, ctx) =>
+    (MatchX(0) & HasAddrMode(AbsoluteX) & SupportsAbsolute & Not(HasOpcode(BIT)) & Elidable & HasIdentityPageParameter) ~~> { (code, ctx) =>
       code.map(l => l.copy(addrMode = Immediate, parameter = NumericConstant(ctx.get[Int](0), 1)))
     },
-    (MatchY(0) & HasAddrMode(AbsoluteY) & SupportsAbsolute & Elidable & HasParameterWhere({
-      case MemoryAddressConstant(th) => th.name == "identity$"
-      case _ => false
-    })) ~~> { (code, ctx) =>
+    (MatchY(0) & HasAddrMode(AbsoluteY) & SupportsAbsolute & Elidable & HasIdentityPageParameter) ~~> { (code, ctx) =>
       code.map(l => l.copy(addrMode = Immediate, parameter = NumericConstant(ctx.get[Int](0), 1)))
     },
     (MatchY(0) & HasAddrMode(AbsoluteY) & SupportsAbsolute & Elidable) ~~> { (code, ctx) =>

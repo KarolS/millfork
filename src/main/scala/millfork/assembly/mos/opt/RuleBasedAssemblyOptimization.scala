@@ -121,6 +121,7 @@ class RuleBasedAssemblyOptimization(val name: String, val needsFlowInfo: FlowInf
 class AssemblyMatchingContext(val compilationOptions: CompilationOptions,
                               val labelMap: Map[String, (String, Int)],
                               val zeropageRegister: Option[ThingInMemory],
+                              val identityPage: Constant,
                               val niceFunctionProperties: Set[(NiceFunctionProperty, String)],
                               val labelUseCount: String => Int) {
   @inline
@@ -1512,6 +1513,27 @@ case class HasParameterWhere(predicate: Constant => Boolean) extends TrivialAsse
   override def apply(line: AssemblyLine): Boolean = predicate(line.parameter)
 
   override def hitRate: Double = 0.332
+}
+
+case object HasSmallParameter extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = line.parameter match {
+    case MemoryAddressConstant(th : VariableInMemory) => th.typ.size < 255
+    case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th : VariableInMemory), NumericConstant(_, 1)) => th.typ.size < 255
+    case MemoryAddressConstant(th : MfArray) => th.sizeInBytes < 255
+    case CompoundConstant(MathOperator.Plus, MemoryAddressConstant(th : MfArray), NumericConstant(_, 1)) => th.sizeInBytes < 255
+    case _ => false
+  }
+
+  override def hitRate: Double = 0.332
+}
+
+case object HasIdentityPageParameter extends TrivialAssemblyLinePattern {
+  override def apply(line: AssemblyLine): Boolean = line.parameter match {
+    case MemoryAddressConstant(th) => th.name == "identity$"
+    case _ => false
+  }
+
+  override def hitRate: Double = 0.04
 }
 
 case class MatchObject(i: Int, f: Function[AssemblyLine, Any]) extends AssemblyLinePattern {

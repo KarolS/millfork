@@ -22,7 +22,7 @@ class MosAssembler(program: Program,
 
 
   override def performFinalOptimizationPass(f: NormalFunction, actuallyOptimize: Boolean, options: CompilationOptions, code: List[AssemblyLine]):List[AssemblyLine] = {
-    val optimizationContext = OptimizationContext(options, Map(), f.environment.maybeGet[ThingInMemory]("__reg"), Set())
+    val optimizationContext = OptimizationContext(options, Map(), f.environment.maybeGet[ThingInMemory]("__reg"), f.environment.identityPage, Set())
     if (actuallyOptimize) {
       val finalCode = if (options.flag(CompilationFlag.EmitHudsonOpcodes)) HudsonOptimizations.removeLoadZero(f, code, optimizationContext) else code
       JumpShortening(f, JumpShortening(f, JumpFixing(f, JumpFollowing(options, finalCode), options), optimizationContext), optimizationContext)
@@ -167,7 +167,7 @@ class MosAssembler(program: Program,
       case AssemblyLine0(BRK | RTI, _, _) => true
       case _ => false
     }) return
-    val optimizationContext = OptimizationContext(options, Map(), function.environment.maybeGet[ThingInMemory]("__reg"), Set())
+    val optimizationContext = OptimizationContext(options, Map(), function.environment.maybeGet[ThingInMemory]("__reg"), function.environment.identityPage, Set())
     val flow = CoarseFlowAnalyzer.analyze(function, code, optimizationContext)
     def rtsPropertyScan[T](extractor: CpuStatus => Status[T])(niceFunctionProperty: Status[T] => Option[NiceFunctionProperty]): Unit = {
       val statuses = code.zipWithIndex.flatMap{

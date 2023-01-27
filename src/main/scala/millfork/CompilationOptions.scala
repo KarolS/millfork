@@ -575,7 +575,7 @@ object CompilationFlag extends Enumeration {
   EmitIllegals, DecimalMode, LenientTextEncoding, LineNumbersInAssembly, SourceInAssembly, EnableBreakpoints,
   // compilation options for MOS:
   EmitCmosOpcodes, EmitCmosNopOpcodes, EmitSC02Opcodes, EmitRockwellOpcodes, EmitWdcOpcodes, EmitHudsonOpcodes, Emit65CE02Opcodes, EmitEmulation65816Opcodes, EmitNative65816Opcodes,
-  PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, SoftwareStack,
+  PreventJmpIndirectBug, LargeCode, ReturnWordsViaAccumulator, SoftwareStack, IdentityPage,
   // compilation options for I80
   EmitIntel8080Opcodes, EmitIntel8085Opcodes, EmitExtended80Opcodes, EmitZ80Opcodes, EmitR800Opcodes, EmitEZ80Opcodes, EmitSharpOpcodes, EmitZ80NextOpcodes,
   UseShadowRegistersForInterrupts,
@@ -654,6 +654,7 @@ object CompilationFlag extends Enumeration {
     "u_stack" -> UseUForStack,
     "y_stack" -> UseYForStack,
     "software_stack" -> SoftwareStack,
+    "identity_page" -> IdentityPage,
     "use_shadow_registers_for_irq" -> UseShadowRegistersForInterrupts,
     "output_intel_syntax" -> UseIntelSyntaxForOutput,
     "input_intel_syntax" -> UseIntelSyntaxForInput,

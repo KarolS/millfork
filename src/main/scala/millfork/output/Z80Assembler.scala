@@ -865,7 +865,7 @@ class Z80Assembler(program: Program,
       case ZLine0(RST, _, _) => true
       case _ => false
     }) return
-    val optimizationContext = OptimizationContext(options, Map(), None, Set())
+    val optimizationContext = OptimizationContext(options, Map(), None, Constant.Zero, Set())
     val flow = CoarseFlowAnalyzer.analyze(function, code, optimizationContext)
     def retPropertyScan[T](extractor: CpuStatus => Status[T])(niceFunctionProperty: Status[T] => Option[NiceFunctionProperty]): Unit = {
       val statuses = code.zipWithIndex.flatMap{
