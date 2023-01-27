@@ -72,6 +72,7 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
           case 2 => if (ctx.options.flag(CompilationFlag.EmitNative65816Opcodes)) {
             AssemblyLine.accu16 :: AssemblyLine(LDA_W, WordImmediate, expr) :: (AssemblyLine.variable(ctx, STA_W, m) :+ AssemblyLine.accu8)
           } else AssemblyLine.tsx(ctx) ++ List(
+            // TODO: ???
             AssemblyLine.implied(TSX),
             AssemblyLine.immediate(LDA, expr.loByte),
             AssemblyLine.dataStackX(ctx, STA, offset),
@@ -155,10 +156,10 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
     }
 
     val cmos = ctx.options.flag(CompilationFlag.EmitCmosOpcodes)
-    if (register == MosRegister.AX && !code.exists(_.concernsX)) {
+    if (register == MosRegister.AX && !code.exists(_.concernsX) && code.forall(_.treatment(State.X).==(Treatment.Unchanged))) {
       return preserveRegisterIfNeeded(ctx, MosRegister.A, code)
     }
-    if (register == MosRegister.AY && !code.exists(_.concernsY)) {
+    if (register == MosRegister.AY && !code.exists(_.concernsY) && code.forall(_.treatment(State.Y).==(Treatment.Unchanged))) {
       return preserveRegisterIfNeeded(ctx, MosRegister.A, code)
     }
     if (states.exists(state => AssemblyLine.treatment(code, state) != Treatment.Unchanged)) {
@@ -672,7 +673,11 @@ object MosExpressionCompiler extends AbstractExpressionCompiler[AssemblyLine] {
         }
         case RegisterVariable(MosRegister.Y, _) => actualOffset match {
           case 0 => List(tsx)
-          case 1 => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(TAY), AssemblyLine.implied(INY))
+          case 1 =>
+            if (ctx.options.flag(CompilationFlag.IdentityPage))
+              List(tsx, AssemblyLine.absoluteX(LDY, ctx.env.identityPage), AssemblyLine.implied(INY))
+            else
+              List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(TAY), AssemblyLine.implied(INY))
           case _ => List(tsx, AssemblyLine.implied(TXA), AssemblyLine.implied(CLC), AssemblyLine.immediate(ADC, actualOffset), AssemblyLine.implied(TAY))
         }
         case _ =>

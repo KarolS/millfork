@@ -74,11 +74,17 @@ object BuiltIns {
         case FunctionCallExpression(name, List(param)) if env.maybeGet[Type](name).isDefined =>
           return simpleOperation(opcode, ctx, param, indexChoice, preserveA, commutative, decimal)
         case _: FunctionCallExpression | _: SumExpression if commutative =>
+          val code = MosExpressionCompiler.compileToA(ctx, source)
+          if (ctx.options.flags(CompilationFlag.IdentityPage)
+            && !code.exists(_.concernsX)
+            && AssemblyLine.treatment(code, State.X) == Treatment.Unchanged) {
+            return List(AssemblyLine.implied(TAX)) ++ code ++ wrapInSedCldIfNeeded(decimal, List(AssemblyLine.absoluteX(opcode, env.identityPage)))
+          }
           // TODO: is it ok?
           if (ctx.options.zpRegisterSize >= 1) {
             val reg = ctx.env.get[ThingInMemory]("__reg")
             return List(AssemblyLine.implied(PHA)) ++
-              MosExpressionCompiler.compileToA(ctx, source) ++
+              MosExpressionCompiler.fixTsx(code) ++
               List(AssemblyLine.zeropage(STA, reg), AssemblyLine.implied(PLA)) ++
               wrapInSedCldIfNeeded(decimal, List(AssemblyLine.zeropage(opcode, reg)))
           } else if (ctx.options.flag(CompilationFlag.EmitEmulation65816Opcodes)) {
