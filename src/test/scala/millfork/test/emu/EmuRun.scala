@@ -149,6 +149,7 @@ class EmuRun(cpu: millfork.Cpu.Value, nodeOptimizations: List[NodeOptimization],
       CompilationFlag.InterproceduralOptimization -> true,
       CompilationFlag.CompactReturnDispatchParams -> true,
       CompilationFlag.UseOptimizationHints -> true,
+      CompilationFlag.IdentityPage -> blastProcessing, // TODO
       CompilationFlag.SoftwareStack -> softwareStack,
       CompilationFlag.EmitCmosOpcodes -> millfork.Cpu.CmosCompatible.contains(platform.cpu),
       CompilationFlag.EmitSC02Opcodes -> millfork.Cpu.CmosCompatible.contains(platform.cpu),
