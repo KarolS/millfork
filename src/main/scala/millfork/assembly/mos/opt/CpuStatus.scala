@@ -160,11 +160,6 @@ case class CpuStatus(a: Status[Int] = UnknownStatus,
   }
 
   def hasSet(state: State.Value): Boolean = state match {
-    case State.A => false
-    case State.AH => false
-    case State.X => false
-    case State.Y => false
-    case State.IZ => false
     case State.Z => z.contains(true)
     case State.N => n.contains(true)
     case State.C => c.contains(true)

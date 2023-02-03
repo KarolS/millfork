@@ -21,12 +21,16 @@ case class FlowInfo(holder: FlowHolder, index: Int, _labelUseCountMap: () => Opt
   lazy val importanceAfter: CpuImportance = holder.importanceAfter(index)
   lazy val labelUseCountMap: Option[Map[String, Int]] = _labelUseCountMap()
 
+  @inline
   def hasClear(state: State.Value): Boolean = statusBefore.hasClear(state)
 
+  @inline
   def hasSet(state: State.Value): Boolean = statusBefore.hasSet(state)
 
+  @inline
   def isUnimportant(state: State.Value): Boolean = importanceAfter.isUnimportant(state)
 
+  @inline
   def labelUseCount(label: String): Int = labelUseCountMap.map(_.getOrElse(label, 0)).getOrElse(-1)
 
   override def toString: String = holder.toString(index)

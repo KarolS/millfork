@@ -295,18 +295,20 @@ class Environment(val parent: Option[Environment], val prefix: String, val cpuFa
 
   private def removeVariableImpl(str: String): Unit = {
     def extractThingName(fullName: String): String = {
-      var result = fullName.takeWhile(_ != '.')
-      if (result.length == fullName.length) return result
-      val suffix = fullName.drop(result.length)
+      val ix = fullName.indexOf('.')
+      if (ix < 0) return fullName
+      var result = fullName.substring(0, ix)
+      val suffix = fullName.substring(ix)
       if (suffix == ".return" || suffix.startsWith(".return.")) {
         result += ".return"
       }
       result
     }
 
+    val strWithoutPrefix = str.stripPrefix(prefix)
     val toRemove = things.keys.filter { n =>
       val baseName = extractThingName(n)
-      baseName == str || baseName == str.stripPrefix(prefix)
+      baseName == str || baseName == strWithoutPrefix
     }.toSet
     removedThings ++= toRemove.map(_.stripPrefix(prefix))
     things --= toRemove
