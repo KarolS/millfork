@@ -1,0 +1,48 @@
+
+void RasterA() {
+    vic_rasterirq_acknowledge()
+
+    // First raster split, set border to black
+    vic_border = black
+
+    // Set up next raster split
+    vic_rasterirq_reconfigure(RasterB.addr, $40)
+
+    vic_rasterirq_return()
+}
+
+void RasterB() {
+    vic_rasterirq_acknowledge()
+
+    // Second raster split, Dark grey
+    vic_border = dark_grey
+
+    // Set up next raster split
+    vic_rasterirq_reconfigure(RasterC.addr, $A0)
+
+    vic_rasterirq_return()
+}
+
+void RasterC() {
+    vic_rasterirq_acknowledge()
+
+    // Third raster split, Light grey
+    vic_border = light_grey
+
+    // Set up next raster split
+    vic_rasterirq_reconfigure(RasterA.addr, $00)
+
+    vic_rasterirq_return()
+}
+
+void main() {
+    byte i
+
+    // Configure Raster IRQ
+    vic_rasterirq_configure(RasterA.addr, $00)
+
+    // Loop forever
+    while true {
+        i = 0   // Do nothing here
+    }
+}
